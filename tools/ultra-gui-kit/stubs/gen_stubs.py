@@ -93,6 +93,34 @@ public class LivingEntity {
   public java.util.UUID m_20148_() { return id; }
 }
 """,
+    "software/bernie/geckolib/cache/object/BakedGeoModel.java": """
+package software.bernie.geckolib.cache.object;
+/** Test-only stand-in: GeckoLib's model handle, which DragonMineZ hides bones on. */
+public class BakedGeoModel {
+  public java.util.List<Object> searchForChildBone(String name) { return java.util.List.of(); }
+}
+""",
+    "software/bernie/geckolib/renderer/layer/GeoRenderLayer.java": """
+package software.bernie.geckolib.renderer.layer;
+/** Test-only stand-in: the GeckoLib render-layer type DragonMineZ passes bone visibility. */
+public abstract class GeoRenderLayer<T> {
+}
+""",
+    "com/dragonminez/client/util/BoneVisibilityHandler.java": """
+package com.dragonminez.client.util;
+import net.minecraft.client.player.AbstractClientPlayer;
+import software.bernie.geckolib.cache.object.BakedGeoModel;
+import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
+/**
+ * Test-only stand-in for DragonMineZ's bone visibility pass. Signatures mirror the real
+ * class so RaceTailSuppressMixin compiles; the mixin targets the real one by name.
+ */
+public class BoneVisibilityHandler {
+  public static void updateVisibility(BakedGeoModel model, AbstractClientPlayer player, GeoRenderLayer<?> layer) {}
+  public static void setBonesHidden(BakedGeoModel model, boolean hidden, String... bones) {}
+  public static void hideBone(BakedGeoModel model, String bone, boolean hide) {}
+}
+""",
     "com/dmzultra/client/forms/FormParts.java": """
 package com.dmzultra.client.forms;
 import java.util.Set;

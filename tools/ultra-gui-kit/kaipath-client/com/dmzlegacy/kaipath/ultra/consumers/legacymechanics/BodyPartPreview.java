@@ -50,7 +50,7 @@ public final class BodyPartPreview {
 
     private BodyPartPreview() {}
 
-    private record Active(UUID playerId, Set<String> meshes, JsonObject colors, String partsJson) {}
+    private record Active(UUID playerId, Set<String> meshes, JsonObject colors, String partsJson, boolean suppressNaturalTail) {}
 
     /**
      * Cached world parts for one subject: the raw {@code partsJson} (threaded to the merge
@@ -59,9 +59,15 @@ public final class BodyPartPreview {
      * the resolved meshes, and the server-sent {@code colors} (per-category model colors;
      * {@code null} when the payload has none). {@code noTail} is {@code meshes} minus the
      * aliased Saiyan tail — served when the entity's race layer already draws one.
+     *
+     * <p>{@code suppressNaturalTail} is the server's own call on the same question: the
+     * player has equipped a chosen tail piece, so the race tail (geo bones
+     * {@code tail1}/{@code tail1m}, drawn outside {@code bodyParts} entirely) must be hidden
+     * or the two draw side by side. It goes back to {@code false} the moment the piece is
+     * unequipped, which is what lets the natural tail render as before.
      */
-    record WorldState(String partsJson, Set<String> meshes, Set<String> noTail, boolean aliasTailOnly, JsonObject colors) {
-        static final WorldState EMPTY = new WorldState("", Set.of(), Set.of(), false, null);
+    record WorldState(String partsJson, Set<String> meshes, Set<String> noTail, boolean aliasTailOnly, boolean suppressNaturalTail, JsonObject colors) {
+        static final WorldState EMPTY = new WorldState("", Set.of(), Set.of(), false, false, null);
     }
 
     /** Mesh collection result shared by the menu preview and the world sync. */
@@ -197,8 +203,9 @@ public final class BodyPartPreview {
             JsonObject colors = parts.has("colors") && parts.get("colors").isJsonObject()
                     ? parts.getAsJsonObject("colors")
                     : null;
+            boolean suppressNaturalTail = suppressNaturalTailOf(parts);
             if (!parts.has("bodyParts") || !parts.get("bodyParts").isJsonArray()) {
-                return new WorldState(partsJson, Set.of(), Set.of(), false, colors);
+                return new WorldState(partsJson, Set.of(), Set.of(), false, suppressNaturalTail, colors);
             }
             List<BodyPartWire.Entry> entries = BodyPartWire.parse(parts.getAsJsonArray("bodyParts"));
             List<BodyPartWire.Entry> singleTail = new ArrayList<>(entries.size());
@@ -218,6 +225,7 @@ public final class BodyPartPreview {
                     Set.copyOf(resolved.meshes()),
                     resolved.noTail(),
                     resolved.aliasTailOnly(),
+                    suppressNaturalTail,
                     colors);
         } catch (Throwable ignored) {
             return WorldState.EMPTY;
@@ -234,6 +242,22 @@ public final class BodyPartPreview {
             // fall through
         }
         return "local";
+    }
+
+    /**
+     * {@code parts.suppressNaturalTail}: the server saw a chosen tail piece, so the race tail
+     * must stay hidden. Absent in payloads from an older server, so the default is {@code
+     * false} — no suppression, the race tail renders exactly as it always has.
+     */
+    private static boolean suppressNaturalTailOf(JsonObject parts) {
+        try {
+            return parts != null
+                    && parts.has("suppressNaturalTail")
+                    && parts.get("suppressNaturalTail").isJsonPrimitive()
+                    && parts.get("suppressNaturalTail").getAsBoolean();
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     /** {@code parts.colors} object, or {@code null} when absent / not an object. */
@@ -254,6 +278,15 @@ public final class BodyPartPreview {
             return colorsOf(JsonParser.parseString(partsJson).getAsJsonObject());
         } catch (Throwable ignored) {
             return null;
+        }
+    }
+
+    /** {@code parts.suppressNaturalTail} from a raw payload — {@code false} when unreadable. */
+    private static boolean suppressesFromPayload(String partsJson) {
+        try {
+            return suppressNaturalTailOf(JsonParser.parseString(partsJson).getAsJsonObject());
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 
@@ -312,14 +345,16 @@ public final class BodyPartPreview {
             }
             // The live player's own race layer already draws the Saiyan tail. Don't stack
             // tail_fur on top of it. A preview without that character still gets the mesh.
-            Set<String> meshes =
-                    resolved.aliasTailOnly() && raceTailAlreadyShown(entity)
+            boolean suppressNaturalTail = suppressNaturalTailOf(parts);
+            boolean hideRaceTail =
+                    (resolved.aliasTailOnly() || suppressNaturalTail) && raceTailAlreadyShown(entity);
+            Set<String> meshes = resolved.aliasTailOnly() && hideRaceTail
                             ? resolved.noTail()
                             : Set.copyOf(resolved.meshes());
             if (meshes.isEmpty()) {
                 return;
             }
-            ACTIVE.set(new Active(entityUuid(entity), meshes, colorsOf(parts), parts.toString()));
+            ACTIVE.set(new Active(entityUuid(entity), meshes, colorsOf(parts), parts.toString(), suppressNaturalTail));
         } catch (Throwable ignored) {
             end();
         }
@@ -348,6 +383,20 @@ public final class BodyPartPreview {
 
     /** Server-synced world state for one entity (never the menu preview). */
     private static Set<String> worldMeshes(Object entity, UUID id) {
+        return worldMeshes(entity, id, raceTailAlreadyShown(entity));
+    }
+
+    /**
+     * World-sync mesh resolution with the race-tail check injectable, so tests can stand in
+     * for a character that has one without needing DragonMineZ's capability present.
+     *
+     * <p>{@code suppressNaturalTail} joins the alias check: the server has seen a chosen tail
+     * piece, so the race tail is hidden (see {@link #suppressesRaceTail}) and this entity's
+     * only tail is the one the kit serves. The aliased natural tail still yields — mirroring
+     * {@code noTail} — so it can never reappear next to a chosen piece. A chosen tail whose
+     * own mesh is {@code tail_fur} is a real piece, not the alias, and is left alone.
+     */
+    static Set<String> worldMeshes(Object entity, UUID id, boolean raceTailShown) {
         if (id == null) {
             return Set.of();
         }
@@ -362,10 +411,53 @@ public final class BodyPartPreview {
         if (state == null || state.meshes().isEmpty()) {
             return Set.of();
         }
-        // The entity's race layer may already draw the Saiyan tail (aliased mesh).
-        return state.aliasTailOnly() && raceTailAlreadyShown(entity)
-                ? state.noTail()
-                : state.meshes();
+        boolean hideRaceTail = raceTailShown
+                && (state.aliasTailOnly() || state.suppressNaturalTail());
+        return hideRaceTail ? state.noTail() : state.meshes();
+    }
+
+    /**
+     * True when the race tail must be hidden for this entity — geo bones {@code tail1} and
+     * {@code tail1m}, which DragonMineZ draws from {@code isHasSaiyanTail()} on its own and
+     * which {@code bodyParts} cannot dedupe against. Two independent draw paths, so a player
+     * with a natural tail and a chosen shop tail otherwise shows both.
+     *
+     * <p>Evaluated per frame: unequipping the piece re-sends {@code suppressNaturalTail:false}
+     * and the natural tail renders again, so nothing about the natural tail changes.
+     */
+    public static boolean suppressesRaceTail(Object player) {
+        return suppressesRaceTail(player, raceTailAlreadyShown(player));
+    }
+
+    /** See {@link #suppressesRaceTail(Object)}; {@code raceTailShown} is injectable for tests. */
+    static boolean suppressesRaceTail(Object player, boolean raceTailShown) {
+        if (!raceTailShown) {
+            return false;
+        }
+        try {
+            Active active = ACTIVE.get();
+            UUID id = entityUuid(player);
+            if (active != null && active.suppressNaturalTail()) {
+                UUID want = active.playerId();
+                if (want == null || id == null || want.equals(id)) {
+                    return true;
+                }
+            }
+            if (id == null) {
+                return false;
+            }
+            UUID local = localId;
+            if (local == null) {
+                local = resolveLocalId();
+                if (local != null) {
+                    localId = local;
+                }
+            }
+            WorldState state = local != null && local.equals(id) ? localState : WORLD.get(id);
+            return state != null && state.suppressNaturalTail();
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     /**
@@ -450,6 +542,13 @@ public final class BodyPartPreview {
             skin = color(colors, "skin", skin);
             second = color(colors, "second", second);
             hair = color(colors, "hair", hair);
+            if (suppressesFromPayload(partsJson)) {
+                // A chosen tail piece is equipped. The look must not carry the race tail
+                // mesh either, or this merge would re-add what the race layer already
+                // draws. Dropped before the chosen pieces go in, so a chosen piece whose
+                // own mesh is the race mesh still renders.
+                pieces.remove(BodyPartWire.SAIYAN_TAIL_MESH);
+            }
             if (hasPieces) {
                 pieces.addAll(extra);
             }

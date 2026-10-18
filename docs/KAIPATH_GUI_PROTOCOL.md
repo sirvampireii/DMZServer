@@ -251,19 +251,29 @@ read identical data):
 | `headBones` | object? | `{token, pieces[]}` DMZUltra head-bone state; absent when none |
 | `form` | object? | `{race, group, form, stackGroup, stackForm}` worn-form identity; absent in base |
 | `bodyParts` | array | Explicit pieces `{id, source, slot}` — **always present** (empty array = no extras). Slot ids: `tail`, `wings`, `horns`, `ears`, `extra_arms`, `body`. LM guarantees the **single-tail rule**: the array never carries two `tail`-slot entries — a form tail beats a shop tail, and the natural `saiyan_tail` is only sent when no other tail slot is occupied. |
+| `suppressNaturalTail` | bool | **Always present.** The resolved `bodyParts` carries a *chosen* tail piece (any `tail`-slot entry whose id is not `saiyan_tail`), so the client must hide the natural race tail. The single-tail rule only dedupes **inside** the array, but the race tail is not drawn from it at all — it is the player model's own bones (`tail1` / `tail1m` in DMZ, shown from `isHasSaiyanTail()`), so a shop tail otherwise renders *alongside* it as two tails. Goes back to `false` the moment the piece is unequipped, and the natural tail then renders exactly as before. |
 | `colors` | object? | Explicit model colors — see [playerModel.parts.colors](#playermodelpartscolors). Prefer these over a reflective `FormParts$Look` read, which comes back gray for a **remote** player. |
 | `extras` | array | Open extension slot — always present, iterate without null checks |
 
 Sample payload (Saiyan with the natural tail, no shop pieces, base form):
 
 ```json
-{"schema":1,"subject":"uuid:0f8b4c1e-9a2d-4e6f-8c3a-1b2d3e4f5a6b","bodyParts":[{"id":"saiyan_tail","source":"dmzultra","slot":"tail"}],"colors":{"skin":16777215,"second":16777215,"hair":2105380,"own":4870248,"trim":15320170,"horn":15722191,"light":16777215},"extras":[]}
+{"schema":1,"subject":"uuid:0f8b4c1e-9a2d-4e6f-8c3a-1b2d3e4f5a6b","bodyParts":[{"id":"saiyan_tail","source":"dmzultra","slot":"tail"}],"suppressNaturalTail":false,"colors":{"skin":16777215,"second":16777215,"hair":2105380,"own":4870248,"trim":15320170,"horn":15722191,"light":16777215},"extras":[]}
+```
+
+Same player, now wearing a shop tail. `bodyParts` names only the shop piece (single-tail
+rule), and `suppressNaturalTail` is what tells the client to stop drawing the natural one —
+without it this player shows two tails, because the race tail is never in the array to
+dedupe against:
+
+```json
+{"schema":1,"subject":"uuid:0f8b4c1e-9a2d-4e6f-8c3a-1b2d3e4f5a6b","bodyParts":[{"id":"tail_lion","source":"dmzultra","slot":"tail"}],"suppressNaturalTail":true,"extras":[]}
 ```
 
 After `/bodyparts clear` the server sends the authoritative empty state:
 
 ```json
-{"schema":1,"subject":"uuid:0f8b4c1e-9a2d-4e6f-8c3a-1b2d3e4f5a6b","bodyParts":[],"extras":[]}
+{"schema":1,"subject":"uuid:0f8b4c1e-9a2d-4e6f-8c3a-1b2d3e4f5a6b","bodyParts":[],"suppressNaturalTail":false,"extras":[]}
 ```
 
 Client contract (JLDK):
@@ -278,7 +288,16 @@ Client contract (JLDK):
    present, **prefer its values over the reflective `FormParts$Look` read**: for a remote
    player that read resolves against the observer's own capability data and comes back gray
    (`0x808080` matches none of the fallbacks).
-4. Drop the cache on disconnect / dimension change reset if you key by session.
+4. **When `suppressNaturalTail` is `true` and the entity still has the natural race tail,
+   hide the race bones (`tail1` / `tail1m`) so only the chosen piece renders.** The two are
+   drawn by different systems — the chosen piece is a `part.<mesh>` bone in the FormParts
+   look, the race tail is the model's own bones — so `bodyParts` alone cannot reconcile them.
+   Re-evaluate per frame from the cached snapshot: unset, unequipped, or absent (an older
+   server) must all leave the natural tail rendering untouched. The kit does this in
+   `RaceTailSuppressMixin`, which re-hides the bones after DMZ's bone-visibility pass and is
+   skipped when DMZ is absent. Also drop `tail_fur` from the look before unioning the chosen
+   pieces, so the FormParts path cannot re-add it.
+5. Drop the cache on disconnect / dimension change reset if you key by session.
 
 ---
 

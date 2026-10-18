@@ -2785,6 +2785,66 @@ def main() -> int:
           and not leaky_help,
           detail=", ".join(leaky_help[:3]))
 
+    # === Double-tail suppression (4.6.216) ===
+    # A natural Saiyan tail and a chosen shop tail are drawn by two systems that never see
+    # each other: the shop tail is a part.<mesh> bone in DMZUltra's FormParts look, the
+    # natural tail is the model's own tail1/tail1m bones. The single-tail rule only dedupes
+    # inside bodyParts, so the payload has to say which one wins, and the client has to
+    # actually hide the race bones — meshesFor can only govern what the kit contributes.
+    player_parts = read(
+        ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/ultra/PlayerModelParts.java")
+    kit_preview = read(
+        ROOT / "tools/ultra-gui-kit/kaipath-client/com/dmzlegacy/kaipath/ultra/consumers/legacymechanics/BodyPartPreview.java")
+    kit_tail_mixin = read(
+        ROOT / "tools/ultra-gui-kit/kaipath-client/com/dmzlegacy/kaipath/mixin/RaceTailSuppressMixin.java")
+    kit_mixins_json = read(ROOT / "tools/ultra-gui-kit/kaipath-bodyparts.mixins.json")
+    kit_plugin = read(
+        ROOT / "tools/ultra-gui-kit/kaipath-client/com/dmzlegacy/kaipath/mixin/BodyPartMixinPlugin.java")
+    kit_overlay_build = read(ROOT / "tools/ultra-gui-kit/build-kaipath-overlay.sh")
+    kit_test = read(
+        ROOT / "tools/ultra-gui-kit/test/com/dmzlegacy/kaipath/ultra/consumers/legacymechanics/GuiModelSyncPacketTest.java")
+
+    # The server sets the flag from the resolved array: any tail-slot entry whose id is not
+    # the natural saiyan_tail. It has to go false again when the piece comes off, or the
+    # natural tail would never come back.
+    check("a chosen shop tail tells the client to hide the race tail",
+          "suppressNaturalTail" in player_parts
+          and "hasChosenTail" in player_parts
+          and "SLOT_TAIL" in player_parts
+          and "SAIYAN_TAIL.equals(text(entry" in player_parts
+          and "parts.addProperty(\"suppressNaturalTail\"" in player_parts
+          and "suppressNaturalTail" in kit_preview
+          and "suppressNaturalTailOf" in kit_preview)
+
+    # Both meshesFor paths consult it, and the natural tail is untouched when nothing was
+    # chosen — the flag, not a guess, is what hides it.
+    check("kit honors suppressNaturalTail in both bodyParts paths",
+          "suppressesRaceTail" in kit_preview
+          and "state.suppressNaturalTail()" in kit_preview
+          and "aliasTailOnly() || state.suppressNaturalTail()" in kit_preview
+          and "suppressesFromPayload" in kit_preview)
+
+    # The race bones are hidden where they are actually drawn. DMZ shows tail1/tail1m from
+    # isHasSaiyanTail on its own, so the kit re-hides them after that pass — optional
+    # injection, and skipped entirely when DMZ is absent.
+    check("race-tail bones are re-hidden after the DMZ visibility pass",
+          "BoneVisibilityHandler" in kit_tail_mixin
+          and "\"tail1\", \"tail1m\"" in kit_tail_mixin
+          and "updateVisibility" in kit_tail_mixin
+          and "RaceTailSuppressMixin" in kit_mixins_json
+          and "RaceTailSuppressMixin" in kit_plugin
+          and "BoneVisibilityHandler" in kit_plugin
+          and "RaceTailSuppressMixin.class" in kit_overlay_build
+          and "require = 0" in kit_tail_mixin)
+
+    # A shop tail plus the flag must resolve to exactly one tail mesh, and unequipping must
+    # put the natural tail back — both are pinned by the kit's own offline test.
+    check("kit test pins one tail mesh and the natural tail returning",
+          "shopTailSuppression" in kit_test
+          and "countTailMeshes" in kit_test
+          and "\"tail meshes\"" in kit_test
+          and "must stop suppressing the race tail" in kit_test)
+
     style = read(cnpc_dir / "CnpcUltraStyle.java")
     prestige_gui = read(cnpc_dir / "CnpcLmPrestigeGui.java")
     hub_gui = read(cnpc_dir / "CnpcLmHubGui.java")

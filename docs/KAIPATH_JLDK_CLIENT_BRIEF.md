@@ -76,6 +76,29 @@ and a client must never advertise it without registering the message — KaiPath
 messages 0–2 only and drops the connection on an unregistered id (**1.3.31 registers message 3**). Wire format:
 [`KAIPATH_GUI_PROTOCOL.md`](KAIPATH_GUI_PROTOCOL.md) § GuiModelSyncPacket.
 
+#### Required: honor `suppressNaturalTail` (double-tail fix)
+
+Message 3 carries `suppressNaturalTail` (LM 4.6.216+). Read it in
+`BodyPartPreview.applySync` / `stateFromParts` and store it on `WorldState`, then honor it in
+**both** `meshesFor` paths (`FormPartsPreviewMixin` consults it for every player) and in
+`BodyPartPreview.suppressesRaceTail(player)`.
+
+Why it is needed: a natural Saiyan tail and a chosen shop tail are drawn by **two systems that
+never see each other**. The shop tail is a `part.<mesh>` bone inside DMZUltra's FormParts
+look, which `bodyParts` feeds. The natural tail is the player model's **own** bones
+(`tail1` / `tail1m`), which DragonMineZ shows from `isHasSaiyanTail()` alone. The single-tail
+rule in the payload can only dedupe *inside* the array, so a player with both renders two
+tails. `meshesFor` can only govern what the kit contributes — it cannot reach those bones — so
+the kit additionally re-hides them after DMZ's bone-visibility pass, in
+`RaceTailSuppressMixin` (`com.dmzlegacy.kaipath.mixin`, registered from
+`kaipath-bodyparts.mixins.json`, skipped when `com.dragonminez.client.util.BoneVisibilityHandler`
+is absent, injection optional so a renamed pass degrades to no suppression).
+
+Contract: while the flag is `true` **and** the entity still has the race tail, hide
+`tail1`/`tail1m` and drop `tail_fur` from the look before unioning the chosen pieces. Evaluate
+it per frame from the cached snapshot. Unset, unequipped, or absent — an older server never
+sends the field — must all leave the natural tail rendering exactly as before.
+
 ### `icon`
 
 Optional item id (`minecraft:iron_sword`) or texture path (`modid:path/to/texture.png`) on a button or tab. KaiPath **1.3.22** advertises `icon` and resolves it with `UltraBridgeIcon`. Unknown or blank ids are ignored and the control still works. LM leaves `icon` blank (system menus are not vanilla items, and no custom gear textures ship). A client that does not advertise `icon` is `missingShipped=icon`.

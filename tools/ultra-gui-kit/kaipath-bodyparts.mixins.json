@@ -5,7 +5,8 @@
   "compatibilityLevel": "JAVA_17",
   "plugin": "com.dmzlegacy.kaipath.mixin.BodyPartMixinPlugin",
   "client": [
-    "FormPartsPreviewMixin"
+    "FormPartsPreviewMixin",
+    "RaceTailSuppressMixin"
   ],
   "injectors": {
     "defaultRequire": 0

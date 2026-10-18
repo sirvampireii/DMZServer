@@ -136,6 +136,7 @@ fi
 
 jar uf "$OUT_JAR" -C "$CLASSES" com/dmzlegacy/kaipath/ultra/consumers/
 jar uf "$OUT_JAR" -C "$CLASSES" com/dmzlegacy/kaipath/mixin/FormPartsPreviewMixin.class
+jar uf "$OUT_JAR" -C "$CLASSES" com/dmzlegacy/kaipath/mixin/RaceTailSuppressMixin.class
 jar uf "$OUT_JAR" -C "$CLASSES" com/dmzlegacy/kaipath/mixin/BodyPartMixinPlugin.class
 jar uf "$OUT_JAR" -C "$HERE" kaipath-bodyparts.mixins.json
 
@@ -202,6 +203,16 @@ if ! jar tf "$OUT_JAR" | grep -q 'consumers/UltraGuiConsumerRegistry.class'; the
 fi
 if ! jar tf "$OUT_JAR" | grep -q 'consumers/UltraGuiPartners.class'; then
   echo "ERROR: missing UltraGuiPartners in $OUT_JAR" >&2
+  exit 1
+fi
+for m in FormPartsPreviewMixin RaceTailSuppressMixin BodyPartMixinPlugin; do
+  if ! jar tf "$OUT_JAR" | grep -q "mixin/${m}.class"; then
+    echo "ERROR: missing mixin/$m in $OUT_JAR" >&2
+    exit 1
+  fi
+done
+if ! unzip -p "$OUT_JAR" kaipath-bodyparts.mixins.json | grep -q 'RaceTailSuppressMixin'; then
+  echo "ERROR: kaipath-bodyparts.mixins.json does not register RaceTailSuppressMixin" >&2
   exit 1
 fi
 

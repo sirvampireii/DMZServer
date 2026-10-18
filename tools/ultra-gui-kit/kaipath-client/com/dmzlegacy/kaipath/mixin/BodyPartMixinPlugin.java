@@ -21,17 +21,22 @@ public final class BodyPartMixinPlugin implements IMixinConfigPlugin {
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName != null && mixinClassName.endsWith("FormPartsPreviewMixin")) {
-            try {
-                Class.forName(
-                        "com.dmzultra.client.forms.FormParts",
-                        false,
-                        BodyPartMixinPlugin.class.getClassLoader());
-                return true;
-            } catch (Throwable ignored) {
-                return false;
-            }
+            return present("com.dmzultra.client.forms.FormParts");
+        }
+        if (mixinClassName != null && mixinClassName.endsWith("RaceTailSuppressMixin")) {
+            return present("com.dragonminez.client.util.BoneVisibilityHandler");
         }
         return true;
+    }
+
+    /** True when {@code name} loads in this client. False lets the client still open. */
+    private static boolean present(String name) {
+        try {
+            Class.forName(name, false, BodyPartMixinPlugin.class.getClassLoader());
+            return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     @Override

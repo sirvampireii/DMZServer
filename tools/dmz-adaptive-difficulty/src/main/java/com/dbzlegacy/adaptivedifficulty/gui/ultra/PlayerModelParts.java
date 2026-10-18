@@ -102,6 +102,13 @@ public final class PlayerModelParts {
             parts.add("bodyParts", body);
             any = true;
         }
+        // Single-tail rule, client side. bodyParts can only dedupe inside itself — the race
+        // tail is drawn by the client's own race layer (geo bones tail1/tail1m, gated on
+        // isHasSaiyanTail), never through the array. So a chosen shop tail would show up
+        // alongside it as two tails. True whenever the resolved array carries a chosen tail
+        // piece, and false again the moment it is unequipped, which is what lets the natural
+        // tail come back untouched.
+        parts.addProperty("suppressNaturalTail", hasChosenTail(body));
         // Explicit model colors - the gray-parts fix. Kept out of `any`: colors alone never
         // force a parts object for a bare base player.
         JsonObject colors = colors(target);
@@ -369,6 +376,46 @@ public final class PlayerModelParts {
             return new JsonArray();
         }
         return out;
+    }
+
+    /**
+     * True when {@code bodyParts} carries a chosen tail piece — any {@code SLOT_TAIL} entry
+     * whose id is not the natural {@code saiyan_tail}. The natural tail renders through the
+     * client's own race layer, which the array cannot reach, so a chosen piece would draw a
+     * second one. The client hides the race tail for as long as this holds. Never throws.
+     */
+    static boolean hasChosenTail(JsonArray body) {
+        try {
+            if (body == null) {
+                return false;
+            }
+            for (JsonElement element : body) {
+                if (element == null || !element.isJsonObject()) {
+                    continue;
+                }
+                JsonObject entry = element.getAsJsonObject();
+                String slot = text(entry, "slot");
+                if (!BodyPartCatalog.SLOT_TAIL.equals(slot)) {
+                    continue;
+                }
+                if (!BodyPartCatalog.SAIYAN_TAIL.equals(text(entry, "id"))) {
+                    return true;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
+    /** Lower-cased {@code key} text from {@code entry}, or an empty string. */
+    private static String text(JsonObject entry, String key) {
+        try {
+            if (entry != null && entry.has(key) && entry.get(key).isJsonPrimitive()) {
+                return safe(entry.get(key).getAsString()).trim().toLowerCase(Locale.ROOT);
+            }
+        } catch (Throwable ignored) {
+        }
+        return "";
     }
 
     /**

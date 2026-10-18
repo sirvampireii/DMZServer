@@ -24,7 +24,110 @@ public final class GuiModelSyncPacketTest {
         colorsContract();
         applySyncEndToEnd();
         mergeLookColorsFromMessage3();
+        shopTailSuppression();
         System.out.println("GuiModelSyncPacketTest OK (message 3 + world sync)");
+    }
+
+    /**
+     * The double-tail fix: a natural Saiyan tail and a chosen shop tail are drawn by two
+     * systems that never see each other, so the payload has to say which one wins. A shop
+     * tail plus {@code suppressNaturalTail:true} must resolve to exactly one tail mesh, and
+     * the race bones must be told to stay hidden. Unset, or once the piece is unequipped, the
+     * natural tail renders exactly as before.
+     */
+    private static void shopTailSuppression() {
+        BodyPartPreview.clearSync();
+        Minecraft mc = Minecraft.m_91087_();
+        LocalPlayer local = new LocalPlayer();
+        mc.f_91074_ = local;
+        UUID id = local.m_20148_();
+
+        String shopJson =
+                "{\"schema\":1,\"subject\":\"uuid:" + id + "\","
+                        + "\"bodyParts\":[{\"id\":\"tail_lion\",\"source\":\"dmzultra\",\"slot\":\"tail\"}],"
+                        + "\"suppressNaturalTail\":true,\"extras\":[]}";
+        BodyPartPreview.WorldState shop =
+                BodyPartPreview.stateFromParts(shopJson, BodyPartPreview::piecesFor);
+        assertTrue(shop.suppressNaturalTail(), "a chosen tail must carry suppressNaturalTail");
+
+        BodyPartPreview.applySync(shopJson, GuiModelSyncPacket.REASON_LOGIN);
+        assertTrue(
+                BodyPartPreview.meshesFor(local).contains("tail_lion"),
+                "uuid-self sync must serve the chosen tail mesh");
+
+        // The character is still a natural-tail Saiyan (raceTailShown=true), so the kit must
+        // leave exactly one tail mesh standing — its own — and never contribute the race one.
+        Set<String> resolved = BodyPartPreview.worldMeshes(local, id, true);
+        assertTrue(resolved.contains("tail_lion"), "the chosen tail mesh must survive");
+        assertEq("tail meshes", 1, countTailMeshes(resolved));
+        assertTrue(
+                !resolved.contains(BodyPartWire.SAIYAN_TAIL_MESH),
+                "the race tail mesh must not be added alongside a chosen piece");
+        assertTrue(
+                BodyPartPreview.suppressesRaceTail(local, true),
+                "suppressNaturalTail must hide the race bones while the piece is on");
+
+        // The race tail mesh is dropped from the merged look before the chosen pieces go in,
+        // so the FormParts path cannot re-add what the race layer draws.
+        FormParts.Design raced =
+                new FormParts.Design(Set.of(BodyPartWire.SAIYAN_TAIL_MESH), 1, 2, 3, 4, 0f, 0f);
+        FormParts.Look racedLook = new FormParts.Look(raced, 1, 2, 3);
+        Object merged = BodyPartPreview.mergeLook(racedLook, resolved, null, shopJson);
+        assertTrue(merged instanceof FormParts.Look, "shop-tail merge must build a Look");
+        Set<String> parts = ((FormParts.Look) merged).design().parts();
+        assertTrue(!parts.contains(BodyPartWire.SAIYAN_TAIL_MESH),
+                "the merged look must not carry the race tail mesh");
+        assertTrue(parts.contains("tail_lion"), "the merged look must carry the chosen tail");
+
+        // Without the flag the race tail is left alone — the flag is what makes it hide.
+        String plainJson =
+                "{\"schema\":1,\"subject\":\"uuid:" + id + "\","
+                        + "\"bodyParts\":[{\"id\":\"tail_lion\",\"source\":\"dmzultra\",\"slot\":\"tail\"}]}";
+        assertTrue(
+                !BodyPartPreview.stateFromParts(plainJson, BodyPartPreview::piecesFor)
+                        .suppressNaturalTail(),
+                "a payload without the flag must not suppress the race tail");
+        BodyPartPreview.applySync(plainJson, GuiModelSyncPacket.REASON_LOGIN);
+        assertTrue(
+                !BodyPartPreview.suppressesRaceTail(local, true),
+                "an unsuppressed entity must keep rendering its natural tail");
+
+        // Unequipping goes back to false and clears the pieces: the natural tail returns.
+        BodyPartPreview.applySync(
+                "{\"schema\":1,\"subject\":\"uuid:" + id + "\","
+                        + "\"bodyParts\":[],\"suppressNaturalTail\":false,\"extras\":[]}",
+                GuiModelSyncPacket.REASON_CLEAR);
+        assertTrue(
+                BodyPartPreview.meshesFor(local).isEmpty(),
+                "unequipping the tail must clear the chosen piece");
+        assertTrue(
+                !BodyPartPreview.suppressesRaceTail(local, true),
+                "unequipping the tail must stop suppressing the race tail");
+
+        // The aliased natural tail still yields to the race layer, exactly as before.
+        BodyPartPreview.applySync(
+                "{\"schema\":1,\"subject\":\"uuid:" + id + "\","
+                        + "\"bodyParts\":[{\"id\":\"saiyan_tail\",\"source\":\"dmzultra\",\"slot\":\"tail\"}],"
+                        + "\"suppressNaturalTail\":false,\"extras\":[]}",
+                GuiModelSyncPacket.REASON_LOGIN);
+        assertTrue(
+                BodyPartPreview.worldMeshes(local, id, true).isEmpty(),
+                "the aliased natural tail must still yield to the race layer");
+        assertTrue(
+                !BodyPartPreview.suppressesRaceTail(local, true),
+                "a natural-tail-only player must never be flagged for suppression");
+
+        BodyPartPreview.clearSync();
+    }
+
+    private static int countTailMeshes(Set<String> meshes) {
+        int n = 0;
+        for (String mesh : meshes) {
+            if (mesh != null && mesh.startsWith("tail")) {
+                n++;
+            }
+        }
+        return n;
     }
 
     /**
