@@ -2922,6 +2922,7 @@ def main() -> int:
         "Model sync broadcasts uuid-subject snapshots (owner + every tracker)",
         "build(player, true)" in parts_bp
         and '"uuid:" + target.m_20148_()' in parts_bp
+        and 'addProperty("subject", "local")' not in parts_bp
         and "TRACKING_ENTITY_AND_SELF" in net_bp,
     )
     check(

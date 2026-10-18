@@ -63,13 +63,13 @@ public final class PlayerModelParts {
      * {@code bodyParts} so an empty array clears stale client pieces (server-authoritative
      * replace, never merge). The message is broadcast to trackers, so the subject must name
      * the owner: a {@code local} subject would render the owner's parts on each observer.
+     * {@link #build} sets that subject — never overwrite it here.
      */
     public static JsonObject syncSnapshot(ServerPlayer player) {
         JsonObject parts = player == null ? null : build(player, true);
         if (parts == null) {
             parts = new JsonObject();
             parts.addProperty("schema", SCHEMA);
-            parts.addProperty("subject", "local");
         }
         if (!parts.has("bodyParts")) {
             parts.add("bodyParts", new JsonArray());
