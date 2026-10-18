@@ -116,7 +116,12 @@ if not any(line.startswith("MixinConfigs:") for line in rewritten):
 lines = rewritten
 if not lines or lines[-1] != "":
     lines.append("")
-path.write_text("\r\n".join(lines), encoding="utf-8")
+# newline="" — join with CRLF literally; text-mode translation on Windows would
+# turn "\r\n" into "\r\r\n", which java.util.jar.Manifest splits at the lone \r
+# (severing MixinConfigs behind a phantom blank line — javap reports "invalid
+# manifest format (line 3)").
+with path.open("w", encoding="utf-8", newline="") as fh:
+    fh.write("\r\n".join(lines))
 PY
 
 # Drop prior consumer classes (incl. obsolete inner classes) then add kit overlay.

@@ -3003,10 +3003,23 @@ def main() -> int:
     check(
         "Kit prefers server colors over the gray reflective look + uuid-self sync",
         "colorsFor" in kit_preview
-        and "mergeLook(cir.getReturnValue(), extra," in kit_mixin
+        and "partsJsonFor" in kit_preview
+        and "mergeLook(" in kit_mixin
+        and "BodyPartPreview.colorsFor(player)" in kit_mixin
+        and "BodyPartPreview.partsJsonFor(player)" in kit_mixin
         and "colorsOf" in kit_preview
         and "REASON_TRACK" in kit_packet
         and "broadcast contract" in kit_readme.lower(),
+    )
+    kit_test = read(
+        kit_root
+        / "test/com/dmzlegacy/kaipath/ultra/consumers/legacymechanics/GuiModelSyncPacketTest.java"
+    )
+    check(
+        "Kit test pins message-3 colors through mergeLook (JLDK applySync contract)",
+        "mergeLook" in kit_test
+        and "colorsFor" in kit_test
+        and "partsJsonFor" in kit_test,
     )
 
     godki_shop = read(

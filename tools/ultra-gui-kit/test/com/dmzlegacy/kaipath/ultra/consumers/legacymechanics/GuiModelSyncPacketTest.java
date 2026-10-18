@@ -1,10 +1,13 @@
 package com.dmzlegacy.kaipath.ultra.consumers.legacymechanics;
 
+import com.dmzultra.client.forms.FormParts;
+import com.google.gson.JsonObject;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraftforge.network.NetworkEvent;
 
 /**
  * Offline checks for message 3 ({@link GuiModelSyncPacket}) and the world-sync cache in
@@ -20,6 +23,7 @@ public final class GuiModelSyncPacketTest {
         stateFromPartsRules();
         colorsContract();
         applySyncEndToEnd();
+        mergeLookColorsFromMessage3();
         System.out.println("GuiModelSyncPacketTest OK (message 3 + world sync)");
     }
 
@@ -191,6 +195,95 @@ public final class GuiModelSyncPacketTest {
         assertTrue(BodyPartPreview.meshesFor(other).isEmpty(),
                 "clearSync must drop remote state");
         assertEq("local raw cleared", "", BodyPartPreview.localPartsJson());
+    }
+
+    /**
+     * The JLDK failure case, end to end: a message-3 payload with {@code parts.colors}
+     * must reach the merged Look through encode → decode → handle → applySync →
+     * colorsFor/partsJsonFor → mergeLook, beating the gray reflective defaults. Also pins
+     * the {@code partsJson} thread: the raw payload must reach
+     * {@link BodyPartPreview#partsJsonFor}, and mergeLook must derive colors from the
+     * payload when the colors argument itself is absent.
+     */
+    private static void mergeLookColorsFromMessage3() {
+        BodyPartPreview.clearSync();
+        Minecraft mc = Minecraft.m_91087_();
+        LocalPlayer local = new LocalPlayer();
+        mc.f_91074_ = local;
+
+        JsonObject colors = new JsonObject();
+        colors.addProperty("skin", 0x123456);
+        colors.addProperty("second", 0xABCDEF);
+        colors.addProperty("hair", 0x111111);
+        colors.addProperty("own", 0x2ECC71);
+        colors.addProperty("trim", 0xBAD000);
+        colors.addProperty("horn", 0xDEAD00);
+        colors.addProperty("light", 0xFEED00);
+        String payload =
+                "{\"schema\":1,\"subject\":\"uuid:" + local.m_20148_() + "\","
+                        + "\"bodyParts\":[{\"id\":\"saiyan_tail\",\"source\":\"dmzultra\",\"slot\":\"tail\"}],"
+                        + "\"colors\":"
+                        + colors
+                        + ",\"extras\":[]}";
+
+        // Full message-3 path: encode → decode → handle → applySync (inline on the stub).
+        FriendlyByteBuf buf = new FriendlyByteBuf();
+        GuiModelSyncPacket.encode(
+                new GuiModelSyncPacket(payload, GuiModelSyncPacket.REASON_LOGIN), buf);
+        GuiModelSyncPacket received = GuiModelSyncPacket.decode(buf);
+        GuiModelSyncPacket.handle(received, () -> new NetworkEvent.Context());
+
+        JsonObject server = BodyPartPreview.colorsFor(local);
+        assertTrue(server != null, "message-3 colors must reach colorsFor");
+        assertEq(
+                "partsJsonFor threads the raw payload",
+                payload,
+                BodyPartPreview.partsJsonFor(local));
+
+        // A remote player's reflective read comes back gray — seed exactly that.
+        FormParts.Design grayDesign =
+                new FormParts.Design(Set.of(), 0x808080, 0x808080, 0x808080, 0x808080, 0f, 0f);
+        FormParts.Look gray = new FormParts.Look(grayDesign, 0x808080, 0x808080, 0x808080);
+
+        Object merged =
+                BodyPartPreview.mergeLook(
+                        gray,
+                        BodyPartPreview.meshesFor(local),
+                        BodyPartPreview.colorsFor(local),
+                        BodyPartPreview.partsJsonFor(local));
+        assertTrue(
+                merged instanceof FormParts.Look, "merge must build a Look with the dmzultra stubs");
+        FormParts.Look look = (FormParts.Look) merged;
+        assertEq("merged.skin", 0x123456, look.skin());
+        assertEq("merged.second", 0xABCDEF, look.second());
+        assertEq("merged.hair", 0x111111, look.hair());
+        assertEq("merged.design.own", 0x2ECC71, look.design().own());
+        assertEq("merged.design.trim", 0xBAD000, look.design().trim());
+        assertEq("merged.design.horn", 0xDEAD00, look.design().horn());
+        assertEq("merged.design.light", 0xFEED00, look.design().light());
+        assertTrue(
+                look.design().parts().contains("tail_fur"),
+                "merged design must union the synced meshes");
+
+        // The partsJson channel carries colors on its own when the colors arg is null.
+        Object fromPayload = BodyPartPreview.mergeLook(gray, null, null, payload);
+        assertTrue(
+                fromPayload instanceof FormParts.Look, "payload-only merge must build a Look");
+        FormParts.Look pl = (FormParts.Look) fromPayload;
+        assertEq("payload-only skin", 0x123456, pl.skin());
+        assertEq("payload-only own", 0x2ECC71, pl.design().own());
+
+        // Nothing to apply → the original look comes back untouched.
+        Object none = BodyPartPreview.mergeLook(gray, null, null, null);
+        assertTrue(none == gray, "no pieces and no colors must keep the original look");
+
+        BodyPartPreview.clearSync();
+    }
+
+    private static void assertEq(String name, int expected, int actual) {
+        if (expected != actual) {
+            fail(name + ": expected " + expected + " but got " + actual);
+        }
     }
 
     private static void assertTrue(boolean cond, String message) {

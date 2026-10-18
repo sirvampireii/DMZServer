@@ -95,8 +95,50 @@ public class LivingEntity {
 """,
     "com/dmzultra/client/forms/FormParts.java": """
 package com.dmzultra.client.forms;
-/** Test-only marker: lets BodyPartPreview.piecesFor resolve the DMZUltra fallback catalog offline. */
-public class FormParts {}
+import java.util.Set;
+/**
+ * Test-only stand-in for DMZUltra's FormParts. The class itself is the marker that lets
+ * BodyPartPreview.piecesFor resolve the DMZUltra fallback catalog offline; Design/Look
+ * mirror the reflective contract BodyPartPreview.mergeLook binds to (constructor shapes
+ * + accessor names), so the kit can verify the server-colors merge without the mod.
+ */
+public class FormParts {
+  public static final class Design {
+    private final Set<String> parts;
+    private final int own, trim, horn, light;
+    private final float front, back;
+    public Design(Set<String> parts, int own, int trim, int horn, int light, float front, float back) {
+      this.parts = parts;
+      this.own = own;
+      this.trim = trim;
+      this.horn = horn;
+      this.light = light;
+      this.front = front;
+      this.back = back;
+    }
+    public Set<String> parts() { return parts; }
+    public int own() { return own; }
+    public int trim() { return trim; }
+    public int horn() { return horn; }
+    public int light() { return light; }
+    public float front() { return front; }
+    public float back() { return back; }
+  }
+  public static final class Look {
+    private final Design design;
+    private final int skin, second, hair;
+    public Look(Design design, int skin, int second, int hair) {
+      this.design = design;
+      this.skin = skin;
+      this.second = second;
+      this.hair = hair;
+    }
+    public Design design() { return design; }
+    public int skin() { return skin; }
+    public int second() { return second; }
+    public int hair() { return hair; }
+  }
+}
 """,
     "net/minecraft/client/player/LocalPlayer.java": """
 package net.minecraft.client.player;

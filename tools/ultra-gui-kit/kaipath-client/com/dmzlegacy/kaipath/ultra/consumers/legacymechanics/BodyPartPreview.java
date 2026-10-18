@@ -50,14 +50,15 @@ public final class BodyPartPreview {
 
     private BodyPartPreview() {}
 
-    private record Active(UUID playerId, Set<String> meshes, JsonObject colors) {}
+    private record Active(UUID playerId, Set<String> meshes, JsonObject colors, String partsJson) {}
 
     /**
-     * Cached world parts for one subject: the raw {@code partsJson} (for future
-     * head-bone/form rendering), the resolved meshes, and the server-sent {@code colors}
-     * (per-category model colors; {@code null} when the payload has none). {@code noTail} is
-     * {@code meshes} minus the aliased Saiyan tail — served when the entity's race layer
-     * already draws one.
+     * Cached world parts for one subject: the raw {@code partsJson} (threaded to the merge
+     * site via {@link #partsJsonFor} so future per-sync metadata reaches
+     * {@link #mergeLook(Object, Set, JsonObject, String)} without another signature wall),
+     * the resolved meshes, and the server-sent {@code colors} (per-category model colors;
+     * {@code null} when the payload has none). {@code noTail} is {@code meshes} minus the
+     * aliased Saiyan tail — served when the entity's race layer already draws one.
      */
     record WorldState(String partsJson, Set<String> meshes, Set<String> noTail, boolean aliasTailOnly, JsonObject colors) {
         static final WorldState EMPTY = new WorldState("", Set.of(), Set.of(), false, null);
@@ -132,6 +133,38 @@ public final class BodyPartPreview {
             return state == null ? null : state.colors();
         } catch (Throwable ignored) {
             return null;
+        }
+    }
+
+    /**
+     * Server-synced (or menu-preview) raw {@code partsJson} for this entity — empty when
+     * none. Same precedence as {@link #colorsFor}: the menu preview's subject first, then
+     * the local state, then the world cache keyed by the payload's {@code uuid:} subject.
+     */
+    public static String partsJsonFor(Object player) {
+        try {
+            Active active = ACTIVE.get();
+            UUID id = entityUuid(player);
+            if (active != null && active.partsJson() != null && !active.partsJson().isEmpty()) {
+                UUID want = active.playerId();
+                if (want == null || id == null || want.equals(id)) {
+                    return active.partsJson();
+                }
+            }
+            if (id == null) {
+                return "";
+            }
+            UUID local = localId;
+            if (local == null) {
+                local = resolveLocalId();
+                if (local != null) {
+                    localId = local;
+                }
+            }
+            WorldState state = local != null && local.equals(id) ? localState : WORLD.get(id);
+            return state == null ? "" : state.partsJson();
+        } catch (Throwable ignored) {
+            return "";
         }
     }
 
@@ -215,6 +248,15 @@ public final class BodyPartPreview {
         return null;
     }
 
+    /** {@code parts.colors} parsed out of a raw payload — {@code null} when unreadable. */
+    private static JsonObject payloadColors(String partsJson) {
+        try {
+            return colorsOf(JsonParser.parseString(partsJson).getAsJsonObject());
+        } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
     /** The local player's UUID, cached once per session (null while not connected). */
     private static UUID resolveLocalId() {
         try {
@@ -277,7 +319,7 @@ public final class BodyPartPreview {
             if (meshes.isEmpty()) {
                 return;
             }
-            ACTIVE.set(new Active(entityUuid(entity), meshes, colorsOf(parts)));
+            ACTIVE.set(new Active(entityUuid(entity), meshes, colorsOf(parts), parts.toString()));
         } catch (Throwable ignored) {
             end();
         }
@@ -333,17 +375,33 @@ public final class BodyPartPreview {
      * back gray (0x808080 matches none of the fallbacks), and the server's values are the
      * authoritative mirror of {@code FormParts.of}. Returns the original look when
      * DMZUltra's types are missing, or when there is neither a piece nor a color to apply.
-     *
-     * @param colors {@code parts.colors} ({@code skin}/{@code second}/{@code hair}/
-     *     {@code own}/{@code trim}/{@code horn}/{@code light}); {@code null} = keep the
-     *     reflective read
      */
     public static Object mergeLook(Object look, Set<String> extra) {
-        return mergeLook(look, extra, null);
+        return mergeLook(look, extra, null, null);
     }
 
-    /** See {@link #mergeLook(Object, Set, JsonObject)}. */
+    /** See {@link #mergeLook(Object, Set, JsonObject, String)}. */
     public static Object mergeLook(Object look, Set<String> extra, JsonObject colors) {
+        return mergeLook(look, extra, colors, null);
+    }
+
+    /**
+     * Pieces + colors + the raw payload in one merge. Color precedence: {@code colors}
+     * when non-empty, else {@code parts.colors} parsed from {@code partsJson}, else the
+     * reflective read. {@code partsJson} is threaded so future per-sync metadata reaches
+     * this merge site without another signature wall — the same wall that stranded
+     * {@code colors} until it got its own parameter.
+     *
+     * @param colors {@code parts.colors} ({@code skin}/{@code second}/{@code hair}/
+     *     {@code own}/{@code trim}/{@code horn}/{@code light}); {@code null} = derive from
+     *     {@code partsJson}, else keep the reflective read
+     * @param partsJson the raw message-3 payload (or the menu-preview parts object);
+     *     empty or {@code null} = no payload channel
+     */
+    public static Object mergeLook(Object look, Set<String> extra, JsonObject colors, String partsJson) {
+        if ((colors == null || colors.size() == 0) && partsJson != null && !partsJson.isBlank()) {
+            colors = payloadColors(partsJson);
+        }
         boolean hasPieces = extra != null && !extra.isEmpty();
         boolean hasColors = colors != null && colors.size() > 0;
         if (!hasPieces && !hasColors) {
