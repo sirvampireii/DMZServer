@@ -375,8 +375,17 @@ def main() -> int:
         )
     if "SIDE_W = 148" not in config_screens:
         errors.append("UltraConfigScreens category rail must stay 148px wide")
-    if "fillScreen(CONFIG_PANEL_W, CONFIG_PANEL_H)" not in config_screens or "lockPanel" not in config_screens:
-        errors.append("UltraConfigScreens must fill the window with its 1920x1080 panel (fillScreen + lockPanel)")
+    if "fillScreen(CONFIG_DESIGN_W, CONFIG_DESIGN_H)" not in config_screens or "lockPanel" not in config_screens:
+        errors.append(
+            "UltraConfigScreens must fillScreen its 426x240 design box (widget grid) while"
+            " lockPanel keeps the 1920x1080 clamp request — KaiPath 1.3.31 scales panel/design"
+        )
+    if "fillScreen(CONFIG_PANEL_W, CONFIG_PANEL_H)" in config_screens:
+        errors.append(
+            "UltraConfigScreens must not declare the 1920x1080 panel as the fillScreen design"
+            " box — KaiPath 1.3.31 scale = panel / design would shrink the 426-grid widgets"
+            " into the top-left corner"
+        )
     if "margin(0)" not in config_screens or "center(false)" not in config_screens:
         errors.append("UltraConfigScreens must anchor at the window (margin 0, center false)")
     if 'addProperty("fillScreen"' not in spec_text_full:

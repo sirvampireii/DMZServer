@@ -1347,6 +1347,14 @@ public final class UltraConfigScreens {
         return y + ROW_STEP;
     }
 
+    /**
+     * Panel request stays 1920x1080 so KaiPath 1.3.20 (which ignores {@code fillScreen})
+     * clamps the chrome to the window. The {@code fillScreen} design box is
+     * {@link #CONFIG_DESIGN_W}x{@link #CONFIG_DESIGN_H} — the grid the widgets are laid out
+     * in. KaiPath 1.3.31 computes {@code scale = panel / design}: declaring the 1920x1080
+     * panel as the design box made the scale ~1.0 and shrank every 426-grid widget into the
+     * top-left corner.
+     */
     private static UltraScreenSpec frame(String title, String page) {
         return UltraScreenSpec.of("config")
                 .title(title)
@@ -1355,7 +1363,7 @@ public final class UltraConfigScreens {
                 .center(false)
                 .margin(0)
                 .lockPanel()
-                .fillScreen(CONFIG_PANEL_W, CONFIG_PANEL_H)
+                .fillScreen(CONFIG_DESIGN_W, CONFIG_DESIGN_H)
                 .lineGap(2)
                 .bodyPad(4);
     }

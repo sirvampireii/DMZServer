@@ -2,6 +2,10 @@
 
 What changed from **4.5.147** through **4.6.216**.
 
+## The config editor fills the screen again on KaiPath 1.3.31
+
+The 4.6.206 fullscreen patch declared the config editor's design resolution as 1920×1080 — that is the panel clamp request, not the grid the widgets are actually laid out in (426×240, the smallest auto GUI). KaiPath 1.3.31 implements `fillScreen` properly and computes `scale = panel / design`, so a design equal to the panel made the scale ~1.0 and every widget rendered at raw size in the top-left corner instead of filling the window. The editor now declares its real 426×240 design box, so honoring clients scale the whole layout up to the window; the 1920×1080 panel request, `margin 0`, and `lockPanel` are unchanged, so clients that ignore `fillScreen` still clamp the chrome exactly as before. The startup self-test had been pinned to the buggy 1920×1080 design and now pins the correct one, and the protocol doc — which always described the 426×240 contract — finally matches the wire.
+
 ## Other players can finally see your body parts — in color
 
 The world sync that pushes equipped body parts to viewers had two defects. It was addressed `subject:"local"` and sent only to the owning player's client, so no other client ever received your pieces — and the parts a viewer did render came back gray, because the fallback color read for a **remote** player resolves against the observer's own character data, where `0x808080` matches no fallback.
