@@ -2,6 +2,12 @@
 
 What changed from **4.5.147** through **4.6.216**.
 
+## Every body part is reachable in the Body Parts Shop
+
+The Model Customization shop's list was never race-filtered — it has always sourced the full 68-piece DMZUltra `pieces` array, and `resolve(race, …)` only ever fed the world sync that decides which pieces your worn form renders. What hid pieces was a pagination mismatch shipped with the shop in 4.6.207: the catalog paged 14 cards at a time while the screen rendered only the first 8 of each page, so 28 of the 68 pieces — four of the five tails, two of the six wings, cape, mane, star crown, and more — were never drawn, and a piece you cannot see is a piece you cannot unlock or equip. Page one in catalog order contains no tails or wings at all, which made the gap look like race locking.
+
+The page stride now matches the screen's two-up row capacity, and the screen renders exactly the cards the page owns instead of a hard-capped subset, so all 68 pieces are browsable and purchasable by every race. Race filtering stays where it belongs — in the world sync. (`saiyan_tail` is deliberately not a shop item: it is the Saiyan's natural race tail, and the shop sells `tail_fur`, the mesh that id maps to.)
+
 ## The config editor fills the screen again on KaiPath 1.3.31
 
 The 4.6.206 fullscreen patch declared the config editor's design resolution as 1920×1080 — that is the panel clamp request, not the grid the widgets are actually laid out in (426×240, the smallest auto GUI). KaiPath 1.3.31 implements `fillScreen` properly and computes `scale = panel / design`, so a design equal to the panel made the scale ~1.0 and every widget rendered at raw size in the top-left corner instead of filling the window. The editor now declares its real 426×240 design box, so honoring clients scale the whole layout up to the window; the 1920×1080 panel request, `margin 0`, and `lockPanel` are unchanged, so clients that ignore `fillScreen` still clamp the chrome exactly as before. The startup self-test had been pinned to the buggy 1920×1080 design and now pins the correct one, and the protocol doc — which always described the 426×240 contract — finally matches the wire.

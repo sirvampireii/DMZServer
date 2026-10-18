@@ -263,6 +263,20 @@ def main() -> int:
         errors.append("UltraCharacterScreens must show playerModel on Character Home")
     if "sub(player, \"bones:\" + pg, true)" not in char_screens and 'sub(player, "bones:0", true)' not in char_screens:
         errors.append("UltraCharacterScreens must show playerModel on model customize (bones)")
+    # Body Parts Shop: render every card the page owns — a hard numeric cap after the slice
+    # silently dropped pieces (stride 14 vs cap 8 hid 28 of 68, incl. four tails).
+    bp_m = re.search(
+        r"(?ms)^\s{4}private static void openBodyParts\(.*?^\s{4}\}",
+        char_screens,
+    )
+    bp_body = bp_m.group(0) if bp_m else ""
+    if not bp_body:
+        errors.append("UltraCharacterScreens.openBodyParts must exist for the Body Parts Shop")
+    elif re.search(r"placed\s*>=\s*\d+", bp_body):
+        errors.append(
+            "UltraCharacterScreens.openBodyParts must not hard-drop cards after placed >= N "
+            "(the page slice is the render capacity — every catalog piece stays reachable)"
+        )
     if 'base(player, UltraStyle.PAGE_ANDROID_REMOVE, "android", false)' not in char_screens:
         errors.append("UltraCharacterScreens must omit playerModel on Android Removal")
     diff_screens = (ULTRA / "UltraDifficultyScreens.java").read_text(encoding="utf-8")

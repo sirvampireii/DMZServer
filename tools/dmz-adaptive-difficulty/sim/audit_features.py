@@ -2853,6 +2853,10 @@ def main() -> int:
         and '"page:bodyparts:0"' in char_screens_bp,
     )
     check(
+        "Ultra Body Parts Shop lists the full catalog (shopPieceIds source, never race resolve)",
+        "BodyPartCatalog.shopPieceIds()" in body_svc_bp and "resolve(" not in body_svc_bp,
+    )
+    check(
         "Ultra PlayerModelParts sends equipped custom pieces on bodyParts",
         "CosmeticBodyPartService.equippedParts" in parts_bp
         and "BodyPartCatalog.slot" in parts_bp,

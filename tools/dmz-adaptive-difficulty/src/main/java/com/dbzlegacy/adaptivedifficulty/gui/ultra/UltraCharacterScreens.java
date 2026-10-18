@@ -654,7 +654,7 @@ public final class UltraCharacterScreens {
         List<String> cards = CharacterServicesGuiApi.bodyPartCards(player, pg);
         int placed = 0;
         for (String card : cards) {
-            if (placed >= 8 || card == null || card.isBlank()) {
+            if (card == null || card.isBlank()) {
                 continue;
             }
             String[] p = card.split("\t", -1);

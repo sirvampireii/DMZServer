@@ -23,7 +23,12 @@ import net.minecraft.server.level.ServerPlayer;
  * which mirrors the client's known meshes).
  */
 public final class CosmeticBodyPartService {
-    public static final int CARDS_PER_PAGE = 14;
+    /**
+     * Two-up cards per shop page. Must equal what the screen renders — the page slice is the
+     * render capacity, so a larger stride silently drops the tail of every page and the pieces
+     * on it can never be browsed, unlocked, or equipped.
+     */
+    public static final int CARDS_PER_PAGE = 8;
 
     private CosmeticBodyPartService() {}
 
