@@ -1,11 +1,19 @@
 # JLDK brief — KaiPath Ultra GUI client conformance
 
-**Status (LM 4.6.155 live + KaiPath 1.3.17):** Client honors style / activeTab / titleAlign /
+**Status (LM 4.6.216 live + KaiPath 1.3.31):** Client honors style / activeTab / titleAlign /
 playerModel / textInput / headerBottom / accent / palette / sound / buttonSkin / frame /
-paged_book / **fixedFooter** / **portraitFrame** (advertised). LM emits button **`footer:true`**
-(unchanged wire — matches 1.3.17).
+paged_book / **fixedFooter** / **portraitFrame** / **icon** / **bodyParts**. KaiPath **1.3.31**
+registers `GuiModelSyncPacket` (message 3) and advertises **bodyPartsSync**.
 
-**Open gaps:** confirm title vertical centering in the gear-icon band. Merge from this kit: optional `icon`, partner auto-discovery, and the `combined.forms.v1` note below. `slider` / `toggle` stay reserved.
+**Open now — JLDK 1.3.31 bytecode audit vs LM 4.6.216 (2026-10-18):**
+
+1. **Critical — parse `parts.colors` in `BodyPartPreview.applySync`** and thread it to `mergeLook`. The wire already carries `{skin, second, hair, own, trim, horn, light}` (LM 4.6.216, verified); the reflective `FormParts$Look` fallback returns gray for every **remote** player. Contract: use each key **present**; reflective fallback only for absent keys (protocol § playerModel.parts.colors).
+2. **Subject contract** — message 3 subjects are `uuid:<owner-uuid>` (documented; the wire has always shipped `uuid:` — the plain-name episode was server log diagnostics only). Non-`uuid:` → null → local render is the correct guard; keep it.
+3. **`contentScale` is dead** — zero references jar-wide in 1.3.31. The protocol now marks it **deprecated** (client-internal table); LM never sent it. `fillScreen` + `designWidth`/`designHeight` is the scale contract (`panel / design`). Remove residual handling.
+4. **`titleTint`** is not a wire field — drop the read or keep it tolerant and unadvertised; `palette`/`accent` cover title color.
+5. Later, KaiPath-side: dedicated config screen; per-part colors (needs a `BodyPartWire$Entry` format bump); thread `WorldState.partsJson` into `mergeLook` so future per-sync metadata does not hit the colors wall again. Full matrix: [`KAIPATH_BRIDGE_GAPS.md`](KAIPATH_BRIDGE_GAPS.md).
+
+Confirm title vertical centering in the gear-icon band. `slider` / `toggle` stay reserved.
 
 Full matrix + pitfalls: [`KAIPATH_BRIDGE_GAPS.md`](KAIPATH_BRIDGE_GAPS.md).
 
@@ -65,7 +73,7 @@ menu preview keeps overriding for its subject while the world model uses the syn
 `BodyPartPreview.clearSync()` runs on `ClientPlayerNetworkEvent.LoggingOut` (state is
 per-session). A server must never send message 3 to a client that did not advertise the id,
 and a client must never advertise it without registering the message — KaiPath ≤ 1.3.29 has
-messages 0–2 only and drops the connection on an unregistered id. Wire format:
+messages 0–2 only and drops the connection on an unregistered id (**1.3.31 registers message 3**). Wire format:
 [`KAIPATH_GUI_PROTOCOL.md`](KAIPATH_GUI_PROTOCOL.md) § GuiModelSyncPacket.
 
 ### `icon`
@@ -87,7 +95,7 @@ Register `<id>:gui` for each discovered id. `UltraGuiPartners.discoverAndRegiste
 1.3.13+ centers in the header band via `(headerBottom - 2 - 9) / 2`. Confirm alignment
 between the gear icons on all themes. No new protocol field.
 
-## Advertise (1.3.17, plus kit `icon`)
+## Advertise (KaiPath 1.3.31 — full set)
 
 ```java
 UltraGuiConsumerRegistry.advertiseFeatures(
@@ -95,10 +103,10 @@ UltraGuiConsumerRegistry.advertiseFeatures(
     "[\"style\",\"activeTab\",\"titleAlign\",\"playerModel\",\"textInput\","
         + "\"headerBottom\",\"accent\",\"palette\",\"sound\",\"buttonSkin\","
         + "\"frame\",\"pagedBook\",\"portraitFrame\",\"fixedFooter\",\"combined.forms.v1\","
-        + "\"icon\"]");
+        + "\"icon\",\"bodyParts\",\"bodyPartsSync\"]");
 ```
 
-Stock 1.3.17 stops before `"icon"`. LM guitest on that jar: `missingShipped=none pendingNext=icon`. A merged kit client: `pendingNext=none`.
+`bodyPartsSync` goes in the set **only** when message 3 `GuiModelSyncPacket` is registered (1.3.31 does). Stock 1.3.17 stops before `icon`: `missingShipped=none pendingNext=icon`. A merged kit client: `pendingNext=none`.
 
 ## Pitfalls (must-read)
 
@@ -107,7 +115,7 @@ Full list: [`KAIPATH_BRIDGE_GAPS.md`](KAIPATH_BRIDGE_GAPS.md) § Pitfalls & trap
 1. **Server jar ≠ client** — `mods/kaipath-*.jar` on the dedicated server does not paint Ultra; players need the client mod.
 2. **Chrome RLs are enable tokens** — `buttonSkin` / `frame` / `portraitFrame` do not load textures; missing `sound` is a silent no-op. LM uses `minecraft:ui.button.click` + `legacymechanics:*` so DMZUltra is not required.
 3. **Spelling** — advertise `pagedBook`; widget `type` is `paged_book`.
-4. **Do not add wire fields** for `titleTint` / `contentTop` / `contentBottom` / `contentScroll`.
+4. **Do not add wire fields** for `titleTint` / `contentScale` / `contentTop` / `contentBottom` / `contentScroll`. `contentScale` is deprecated (dead in 1.3.31); the scale contract is `fillScreen` + `designWidth`/`designHeight`.
 5. Keep ASCII `fitLabel` ellipsis (`...`).
 
 ## Deferred (not blocking)

@@ -481,6 +481,7 @@ KaiPath 1.3.13 computes these locally — **do not send** them from the server:
 | `contentTop` | Panel Y + cursor after header/tabs | **No** — covered by `headerBottom` / `bodyTop` |
 | `contentBottom` | Client band above pinned footer (1.3.17+) | **No** — derived from `footer:true` / `fixedFooter`, not a server wire field |
 | `contentScroll` | Mouse-wheel offset inside the content band | **No** — client scroll state |
+| `contentScale` | Superseded by `fillScreen` + `designWidth`/`designHeight` — the client derives `scale = panel / design` | **No** — **deprecated**: zero references jar-wide in KaiPath **1.3.31**; LM never sent it. Residual handling may be removed. |
 
 LM already emits the geometry contract as `headerBottom`, `bodyTop`, `bodyMaxHeight`, `scrollBody`, and button `footer:true`. Adopting `contentTop`/`contentBottom`/`contentScroll` as wire fields would fight packing and duplicate the footer pin. KaiPath **1.3.17** honors `footer:true` / `fixedFooter` so the content band sits above the pinned footer.
 

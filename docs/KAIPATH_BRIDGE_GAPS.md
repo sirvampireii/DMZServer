@@ -1,15 +1,15 @@
 # Ultra bridge gap matrix (LM ↔ KaiPath)
 
-**LM 4.6.208** + **KaiPath 1.3.29** (recommended). Official KaiPath updates are owned by the KaiPath mod developer.
+**LM 4.6.216** + **KaiPath 1.3.31** (recommended; bytecode-audited 2026-10-18 — see the audit section below). Official KaiPath updates are owned by the KaiPath mod developer.
 
 **At a glance:** Bridge chrome gaps closed on **1.3.17** — `fixedFooter` pins `footer:true`; `portraitFrame` is advertised. LM wire already matched (`footer:true`); guitest tracks `FEATURE_FIXED_FOOTER` as shipped. Custom **`bodyParts`** closed on **1.3.29** — the client advertises it and LM ships the Body Parts Shop (player-chosen pieces on model customize). JLDK one-pager: [`KAIPATH_JLDK_CLIENT_BRIEF.md`](KAIPATH_JLDK_CLIENT_BRIEF.md).
 
-Advertise set (1.3.29; `bodyParts` added on 1.3.29 after the 1.3.22 sixteen):
+Advertise set (KaiPath 1.3.31; `bodyParts` added on 1.3.29 after the 1.3.22 sixteen; `bodyPartsSync` on 1.3.31 — advertised **only** when message 3 `GuiModelSyncPacket` is registered):
 
 ```text
 style, activeTab, titleAlign, playerModel, textInput, headerBottom, accent,
 palette, sound, buttonSkin, frame, pagedBook, portraitFrame, fixedFooter,
-combined.forms.v1, icon, bodyParts
+combined.forms.v1, icon, bodyParts, bodyPartsSync
 ```
 
 ## Open bridge gaps (KaiPath next)
@@ -19,6 +19,21 @@ combined.forms.v1, icon, bodyParts
 | **Title vertical centering** | **JLDK-only** | N/A (no field) | Confirm | Centers via `(headerBottom - 2 - 9) / 2`. Confirm gear-icon band alignment on all themes. No protocol field. |
 | **Partner auto-discovery** | **JLDK** (kit done) | Ships `META-INF/kaipath-ultra.txt` | Manual list today | Seed `legacymechanics`, then marker jars under `mods/` and `config/kaipath-ultra-partners.txt`. A new mod does not need a KaiPath release. |
 | **`slider` / `toggle`** | Later | Not on the wire | Reserved | Booleans stay styled buttons; numbers stay text + steppers. |
+
+## Open bridge gaps — JLDK 1.3.31 bytecode audit vs LM 4.6.216 (2026-10-18)
+
+LM verified holding its end: the live 4.6.216 jar's sync JSON (`subject uuid:…`, `bodyParts`, `colors` with `{skin, second, hair, own, trim, horn, light}`, `extras`) and the `fillScreen` design box are bytecode-correct. Every open item below is **KaiPath-side**.
+
+| Gap | Owner | LM status | KaiPath action |
+|-----|-------|-----------|----------------|
+| **`parts.colors` dropped in `applySync`** — parts render gray (critical) | **JLDK** | On the wire since 4.6.216 | Parse the `colors` object in `BodyPartPreview.applySync` and thread it to `mergeLook`. Contract (protocol § playerModel.parts.colors): use each key **present**; reflective `FormParts$Look` only for absent keys. Today the parse skips `colors` entirely, so the gray reflection fallback wins for every remote player. |
+| World render depends on dmzultra client-side | JLDK (design note) | Sync pipeline complete | `FormPartsPreviewMixin` is the only world path (optional-mixin guarded on `com.dmzultra.client.forms.FormParts`). Clients without dmzultra draw the base entity with no pieces — intended optional-mod contract, not a sync bug. |
+| No dedicated config screen | Later | Config editor works via `GuiOpenPacket` + `fillScreen` | `LmScreens` registers `hub` / `emptyHub` only; a native config screen id would be cleaner but is not required. |
+| Per-part colors not in wire format | Later (reserved) | Per-category `parts.colors` covers LM | `BodyPartWire$Entry` is the 3-field record `(id, source, slot)` — a per-part color needs a format bump. Reserve; do not overload the record. |
+| `WorldState` strands `partsJson` | JLDK (internal) | n/a | `WorldState` stores the full partsJson but `mergeLook(look, meshes)` never receives it — thread it so future per-sync metadata does not hit the same wall colors did. |
+| `contentScale` dead (0 refs jar-wide) | Closed on LM | Never sent; protocol client-internal table now marks it **deprecated** | Remove residual handling. `fillScreen` + `designWidth`/`designHeight` is the scale contract (`panel / design`). |
+| `titleTint` read but unadvertised | Closed on LM | Never sent — not a wire field (protocol § client-internal) | Drop the read or keep it tolerant and unadvertised; `palette`/`accent` already cover title color. |
+| Subject format drift | Documented | `uuid:<owner-uuid>` on message 3 (protocol § GuiModelSyncPacket) | Keep resolving only `uuid:`-prefixed subjects (already the 1.3.31 guard). Note for the record: LM's wire subject has **always** been `uuid:`; the "plain username" incident was server **log diagnostics** (`safeName`), not the wire. |
 
 `/lm admin guitest` on KaiPath **1.3.29** (advertises `icon` + `bodyParts`):
 
@@ -127,6 +142,10 @@ Pre-1.3.9 ignores field 11. LM Weights / Config show an explicit danger line whe
 ### 10. Slider / toggle deferred
 
 Booleans stay styled buttons; numbers stay text + ± steppers. Not a KaiPath blocker.
+
+### 11. World body parts need dmzultra on the CLIENT
+
+`FormPartsPreviewMixin` — the only world-render path — targets `com.dmzultra.client.forms.FormParts` and is applied only when that class exists. A client without dmzultra renders world players with **no** attached pieces even though the sync pipeline (packet → `applySync` → `WorldState` → `meshesFor`) is complete on both sides. The menu preview attaches only known catalog ids for the same reason. This is the intended optional-mod contract; do not file it as a sync bug.
 
 ## Not bridge gaps (LM-only, already shipped)
 
