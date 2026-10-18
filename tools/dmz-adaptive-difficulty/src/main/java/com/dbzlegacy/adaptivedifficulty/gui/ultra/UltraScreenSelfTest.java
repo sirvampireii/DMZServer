@@ -1054,6 +1054,243 @@ public final class UltraScreenSelfTest {
         }
     }
 
+    /**
+     * Every editable field must say what it accepts, in plain words, and a rejected entry must read
+     * as a friendly sentence - never "Invalid input" or raw parser text. Exercises the numeric,
+     * boolean, and text paths against the live difficulty config when it is registered.
+     */
+    public static void verifyConfigFieldHints() {
+        List<String> broken = new ArrayList<>();
+        String[][] probes = {
+            {"difficulty", "areaDifficultyVariancePercent"},
+            {"difficulty", "enabled"},
+            {"difficulty", "vanillaDifficulty"},
+            {"difficulty", "whitelist"},
+        };
+        int tested = 0;
+        for (String[] probe : probes) {
+            String module = probe[0];
+            String path = probe[1];
+            if (ConfigEditor.tab(module) == null) {
+                continue;
+            }
+            // A section container is not an editable field; this test covers scalar fields.
+            if (ConfigEditor.kindOf(module, path) == ConfigEditor.Kind.GROUP) {
+                continue;
+            }
+            tested++;
+            String desc = ConfigEditor.friendlyDescription(module, path, "");
+            if (desc == null || desc.isBlank()) {
+                broken.add(module + "." + path + " has no plain-language description");
+            } else {
+                String plainDesc = UltraStyle.plain(desc);
+                if (plainDesc.endsWith("(") || plainDesc.endsWith("e.g.") || plainDesc.endsWith("i.e.")
+                        || plainDesc.endsWith(" -") || plainDesc.endsWith("-")
+                        || plainDesc.endsWith("so") || plainDesc.endsWith("the")
+                        || plainDesc.endsWith("still") || plainDesc.endsWith("and")) {
+                    broken.add(module + "." + path + " description ends mid-sentence: " + plainDesc);
+                }
+                // No raw ids, no snake_case. Matched as a whole camelCase token so words like
+                // "CustomNPCs" or "T5" are not mistaken for a field id.
+                if (plainDesc.contains("_")
+                        || plainDesc.matches(".*(?<![A-Za-z0-9])[a-z]+(?:[A-Z][a-z]+)+[A-Za-z0-9]*.*")) {
+                    broken.add(module + "." + path + " description leaks a raw field id: " + plainDesc);
+                }
+            }
+            String accepts = ConfigEditor.acceptedValues(module, path);
+            if (accepts == null || accepts.isBlank()) {
+                broken.add(module + "." + path + " states no accepted values");
+            } else if (accepts.contains("Invalid") || accepts.contains("Exception")
+                    || accepts.contains("java.") || accepts.contains("null")) {
+                broken.add(module + "." + path + " accepted-values text is raw: " + accepts);
+            }
+            String hint = ConfigEditor.invalidHint(module, path, "For input string: \"abc\"");
+            if (hint == null || hint.isBlank()) {
+                broken.add(module + "." + path + " has no friendly inline message");
+            } else if (hint.contains("Invalid input") || hint.contains("Exception")
+                    || hint.contains("java.") || hint.contains("For input string")) {
+                broken.add(module + "." + path + " inline message leaks raw error text: " + hint);
+            }
+        }
+        if (tested == 0) {
+            // Config modules are not registered in this environment; the source-contract audit
+            // covers the strings. Do not fail the startup self-test over a missing registry.
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Config field hint self-test skipped (no config modules registered)",
+                    AdaptiveDifficultyMod.MOD_ID);
+            return;
+        }
+        if (broken.isEmpty()) {
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Config field hint self-test OK ({} fields)",
+                    AdaptiveDifficultyMod.MOD_ID,
+                    tested);
+            return;
+        }
+        AdaptiveDifficultyMod.LOGGER.error(
+                "[{}] Config field hint self-test FAILED: {}",
+                AdaptiveDifficultyMod.MOD_ID,
+                broken);
+        throw new IllegalStateException(
+                "LegacyMechanics config field hint self-test failed (" + broken.size()
+                        + " error(s)): " + broken);
+    }
+
+    /**
+     * No field may be taller than the page budget. A block that outgrows it paints straight
+     * through the Prev / Review / Next row, which is what put those buttons on top of a full-width
+     * Apply / - / + bar. Measured with the code that paints, for every editable module, and it
+     * has to hold both for a valid entry and right after a rejected one - the inline hint row
+     * is what pushes a field over if the layout adds a second row for it.
+     */
+    public static void verifyConfigFieldBudget() {
+        List<String> broken = new ArrayList<>();
+        int budget = UltraConfigScreens.configFieldBudget();
+        int checked = 0;
+        for (ConfigEditor.EditorTab tab : ConfigEditor.editorTabs()) {
+            if (tab == null || !tab.editable()) {
+                continue;
+            }
+            Map<String, Integer> heights = UltraConfigScreens.innerFieldHeights(tab.id());
+            if (heights == null || heights.isEmpty()) {
+                continue;
+            }
+            for (Map.Entry<String, Integer> entry : heights.entrySet()) {
+                checked++;
+                if (entry.getValue() > budget) {
+                    broken.add(
+                            tab.id() + " " + entry.getKey() + " is " + entry.getValue()
+                                    + "px (budget " + budget + ")");
+                }
+            }
+        }
+        if (checked == 0) {
+            // No config modules are registered in this environment; do not fail startup over it.
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Config field budget self-test skipped (no config modules registered)",
+                    AdaptiveDifficultyMod.MOD_ID);
+            return;
+        }
+        if (broken.isEmpty()) {
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Config field budget self-test OK ({} fields, budget {}px)",
+                    AdaptiveDifficultyMod.MOD_ID,
+                    checked,
+                    budget);
+            return;
+        }
+        AdaptiveDifficultyMod.LOGGER.error(
+                "[{}] Config field budget self-test FAILED: {}",
+                AdaptiveDifficultyMod.MOD_ID,
+                broken);
+        throw new IllegalStateException(
+                "LegacyMechanics config field budget self-test failed (" + broken.size()
+                        + " field(s) outgrow the page budget): " + broken);
+    }
+
+    /**
+     * Deeper config screens put Prev / Review / Next on one row. Three 80px buttons plus 8px gaps
+     * are wider than the main column, so the row must shrink its gaps - never its buttons - or the
+     * client's min-width clamp stacks them on top of each other and on the pinned footer bar.
+     * Probes every paging shape and asserts the three stay side by side inside the column.
+     */
+    public static void verifyConfigActionRow() {
+        List<String> broken = new ArrayList<>();
+        record Box(int x, int y, int w, int h, String label) {}
+        int colX = UltraConfigScreens.mainColumnX();
+        int colW = UltraConfigScreens.mainColumnW();
+        int rowY = UltraConfigScreens.reviewRowY();
+        int btnH = UltraConfigScreens.configButtonHeight();
+        int footerY = UltraConfigScreens.footerRowY();
+        // page/pages shapes: single page, first, middle (all three), last.
+        int[][] shapes = {{0, 1}, {0, 3}, {1, 3}, {2, 3}};
+        for (int[] shape : shapes) {
+            int page = shape[0];
+            int pages = shape[1];
+            String tag = "config action row page=" + page + "/" + pages;
+            GuiOpenPacket pkt = UltraConfigScreens.actionRowProbe(page, pages);
+            String err = validatePacket(pkt, "config");
+            if (err != null) {
+                broken.add(tag + ": " + err);
+                continue;
+            }
+            JsonArray arr = JsonParser.parseString(pkt.buttonsJson()).getAsJsonArray();
+            List<Box> boxes = new ArrayList<>();
+            for (JsonElement el : arr) {
+                if (el == null || !el.isJsonObject()) {
+                    continue;
+                }
+                JsonObject b = el.getAsJsonObject();
+                // Labels are inked (dim/confirm), so match on the plain text.
+                String label = UltraStyle.plain(b.has("label") ? b.get("label").getAsString() : "");
+                if (!(label.startsWith("Prev") || label.startsWith("Review") || label.startsWith("Next"))) {
+                    continue;
+                }
+                int x = b.get("x").getAsInt();
+                int y = b.get("y").getAsInt();
+                int w = b.get("w").getAsInt();
+                int h = b.get("h").getAsInt();
+                boxes.add(new Box(x, y, w, h, label));
+                if (y != rowY) {
+                    broken.add(tag + ": '" + label + "' sits at y=" + y + " (expected review row " + rowY + ")");
+                }
+                if (h != btnH) {
+                    broken.add(tag + ": '" + label + "' is " + h + "px tall (expected " + btnH + ")");
+                }
+                if (x < colX || x + w > colX + colW) {
+                    broken.add(
+                            tag + ": '" + label + "' leaves the main column x=" + x + " w=" + w
+                                    + " (column " + colX + ".." + (colX + colW) + ")");
+                }
+                // A min-width button still fits one control row; wider means the gap math broke.
+                if (w < UltraStyle.BTN_MIN_W) {
+                    broken.add(tag + ": '" + label + "' is " + w + "px wide (min " + UltraStyle.BTN_MIN_W + ")");
+                }
+                if (y + h > footerY) {
+                    broken.add(tag + ": '" + label + "' runs into the pinned footer at y=" + footerY);
+                }
+            }
+            int expected = (page > 0 ? 1 : 0) + 1 + (page + 1 < pages ? 1 : 0);
+            if (boxes.size() != expected) {
+                broken.add(tag + ": expected " + expected + " paging button(s), found " + boxes.size());
+            }
+            // Pairwise disjoint: no two buttons may share any X.
+            for (int i = 0; i < boxes.size(); i++) {
+                for (int j = i + 1; j < boxes.size(); j++) {
+                    Box a = boxes.get(i);
+                    Box b = boxes.get(j);
+                    boolean overlap = a.x() < b.x() + b.w() && b.x() < a.x() + a.w();
+                    if (overlap) {
+                        broken.add(
+                                tag + ": '" + a.label() + "' (x=" + a.x() + " w=" + a.w() + ") overlaps '"
+                                        + b.label() + "' (x=" + b.x() + " w=" + b.w() + ")");
+                    }
+                }
+            }
+            // Row must fit the column exactly enough that nothing is squeezed off the right edge.
+            int right = colX;
+            for (Box box : boxes) {
+                right = Math.max(right, box.x() + box.w());
+            }
+            if (right > colX + colW) {
+                broken.add(tag + ": row overruns the main column by " + (right - colX - colW) + "px");
+            }
+        }
+        if (broken.isEmpty()) {
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Config editor paging row self-test OK (4 shapes, no overlap)",
+                    AdaptiveDifficultyMod.MOD_ID);
+            return;
+        }
+        AdaptiveDifficultyMod.LOGGER.error(
+                "[{}] Config editor paging row self-test FAILED: {}",
+                AdaptiveDifficultyMod.MOD_ID,
+                broken);
+        throw new IllegalStateException(
+                "LegacyMechanics config editor paging row self-test failed (" + broken.size()
+                        + " error(s)): " + broken);
+    }
+
     /** Long body copy wraps on spaces and still scrolls; KaiPath must not ellipsize it. */
     private static void checkBodyWrap(List<String> broken) {
         String sentence = "Purchased looks carry over. Your class stays if the new race has it.";

@@ -473,8 +473,7 @@ public final class ConfigEditor {
         } catch (NumberFormatException e) {
             return ChangePreview.bad("That needs to be a number.");
         } catch (IllegalArgumentException e) {
-            String message = e.getMessage();
-            return ChangePreview.bad(message == null || message.isBlank() ? "That value didn't work." : message);
+            return ChangePreview.bad(friendlyEditError(e.getMessage()));
         }
     }
 
@@ -1297,8 +1296,7 @@ public final class ConfigEditor {
         } catch (NumberFormatException e) {
             return "That needs to be a number.";
         } catch (IllegalArgumentException e) {
-            String message = e.getMessage();
-            return message == null || message.isBlank() ? "That value didn't work." : message;
+            return friendlyEditError(e.getMessage());
         }
         return null;
     }
@@ -1566,20 +1564,116 @@ public final class ConfigEditor {
         return sectionForLeaf("", leafName(path));
     }
 
+    /** A "chance" number is a 0-1 fraction; the editor rejects anything outside it. */
+    private static boolean isChanceField(String moduleId, String path) {
+        return path != null
+                && leafName(path).toLowerCase(Locale.ROOT).contains("chance")
+                && kindOf(moduleId, path) == Kind.NUMBER;
+    }
+
     private static String chanceError(String moduleId, String path, String raw) {
-        String leaf = leafName(path).toLowerCase(Locale.ROOT);
-        if (!leaf.contains("chance") || kindOf(moduleId, path) != Kind.NUMBER) {
+        if (!isChanceField(moduleId, path)) {
             return null;
         }
         try {
             double value = Double.parseDouble(raw == null ? "" : raw.trim());
             if (value < 0 || value > 1) {
-                return "Must be between 0 and 1";
+                return "That chance runs from 0 to 1.";
             }
         } catch (NumberFormatException ignored) {
             return null;
         }
         return null;
+    }
+
+    /**
+     * What a field accepts, in plain words: its options when it is a choice, a real range when one
+     * can be derived, otherwise the field type. The config carries no per-field range annotations,
+     * so a "chance" fraction (0-1) is the only range the editor can derive; every other number
+     * falls back to its type.
+     */
+    public static String acceptedValues(String moduleId, String path) {
+        return switch (kindOf(moduleId, path)) {
+            case BOOLEAN -> "true / false";
+            case ENUM -> {
+                List<String> options = enumNames(moduleId, path);
+                yield options.isEmpty()
+                        ? "one of the listed options"
+                        : "one of: " + String.join(" / ", options);
+            }
+            case NUMBER -> isChanceField(moduleId, path)
+                    ? "a number from 0 to 1"
+                    : "any number";
+            case TEXT -> "any text";
+            case LIST -> "a list of values";
+            case MAP -> "a name and a value";
+            case GROUP -> "";
+            default -> "any value";
+        };
+    }
+
+    /**
+     * Friendly inline line for a rejected entry: what went wrong and what to enter instead.
+     * Raw parser or reflection text never reaches the screen.
+     */
+    public static String invalidHint(String moduleId, String path, String reason) {
+        String what = reasonPhrase(reason);
+        Kind kind = kindOf(moduleId, path);
+        if (kind == Kind.NUMBER && isChanceField(moduleId, path)) {
+            return what + " A chance is a number from 0 to 1.";
+        }
+        if (kind == Kind.NUMBER) {
+            return what + " Enter a number, such as 5.";
+        }
+        if (kind == Kind.BOOLEAN) {
+            return what + " Enter true or false.";
+        }
+        String accepts = acceptedValues(moduleId, path);
+        return accepts.isBlank() ? what + "." : what + " Enter " + accepts + ".";
+    }
+
+    /** What went wrong, in plain words. Never echoes a raw parser or reflection message. */
+    private static String reasonPhrase(String reason) {
+        String lower = reason == null ? "" : reason.toLowerCase(Locale.ROOT);
+        if (lower.contains("permission")) {
+            return "That one stays in the config file";
+        }
+        if (lower.contains("between") || lower.contains("from 0 to 1") || lower.contains("range")) {
+            return "That is outside the allowed range";
+        }
+        if (lower.contains("number")) {
+            return "That is not a number";
+        }
+        if (lower.contains("option") || lower.contains("one of")) {
+            return "That is not one of the options";
+        }
+        if (lower.contains("gone") || lower.contains("no longer")) {
+            return "That entry is no longer there";
+        }
+        return "That did not take";
+    }
+
+    /**
+     * Staff-facing text for a failed edit. Curated sentences pass through; anything that reads
+     * like parser or reflection output (class names, "For input string", ...) is replaced, so a
+     * raw error never reaches the screen.
+     */
+    private static String friendlyEditError(String message) {
+        if (message == null || message.isBlank()) {
+            return "That value didn't work.";
+        }
+        String lower = message.toLowerCase(Locale.ROOT);
+        if (lower.contains("class ")
+                || lower.contains("exception")
+                || lower.contains("java.")
+                || lower.contains("for input string")
+                || lower.contains("can not")
+                || lower.contains("cannot")
+                || lower.contains(" field ")
+                || lower.contains("null")) {
+            return "That value didn't work.";
+        }
+        return message;
     }
 
     private static void markInvalid(UUID player, String moduleId, String path, String message) {
@@ -1701,8 +1795,7 @@ public final class ConfigEditor {
         } catch (NumberFormatException e) {
             return "That needs to be a number.";
         } catch (IllegalArgumentException e) {
-            String message = e.getMessage();
-            return message == null || message.isBlank() ? "That value didn't work." : message;
+            return friendlyEditError(e.getMessage());
         } catch (ReflectiveOperationException e) {
             AdaptiveDifficultyMod.LOGGER.warn(
                     "[{}] config edit failed {}.{}: {}",
@@ -1737,8 +1830,7 @@ public final class ConfigEditor {
         } catch (NumberFormatException e) {
             return "That needs to be a number.";
         } catch (IllegalArgumentException e) {
-            String message = e.getMessage();
-            return message == null || message.isBlank() ? "That value didn't work." : message;
+            return friendlyEditError(e.getMessage());
         } catch (ReflectiveOperationException e) {
             return "That entry couldn't be added.";
         }

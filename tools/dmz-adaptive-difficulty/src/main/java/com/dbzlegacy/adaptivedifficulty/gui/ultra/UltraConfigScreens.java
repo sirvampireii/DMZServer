@@ -7,6 +7,7 @@ import com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import com.google.gson.JsonElement;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,16 +49,24 @@ public final class UltraConfigScreens {
     private static final int LABEL_CTRL_GAP = 4;
     /** Min clear space between two controls on one row before we stack instead. */
     private static final int CTRL_GAP = 8;
+    /**
+     * Config-editor button height. Shorter than the shared {@link UltraStyle#BTN_H} (18), so the
+     * label sits closer to the button edges instead of floating in tall empty space. Row spacing,
+     * text-field height, and the footer pin all follow from this one number.
+     */
+    private static final int CONFIG_BTN_H = 15;
     /** One control row plus a 2px gap. Field blocks are multiples of this. */
-    private static final int ROW_STEP = UltraStyle.BTN_H + 2;
+    private static final int ROW_STEP = CONFIG_BTN_H + 2;
     /** First content row under the title divider. */
     private static final int SEARCH_Y = UltraStyle.CONTENT_ROW;
+    /** Live client's close-band inset: the pinned footer is reserved above it. */
+    private static final int CLOSE_BAND_PX = 28;
     /**
-     * Live {@code pinFooterY} on a 240-tall GUI with margin 0 and an 18px footer button.
-     * Reserve is {@code 28 + buttonH + margin} (46), so the pin is {@code 240 - 46 = 194}.
-     * Review and paging use this Y, not the oversized panel height.
+     * Live {@code pinFooterY} on a 240-tall GUI with margin 0. Reserve is
+     * {@code close band + buttonH + margin}, so a {@link #CONFIG_BTN_H} footer button pins at
+     * {@code 240 - 43 = 197}. Review and paging use this Y, not the oversized panel height.
      */
-    private static final int FOOTER_Y = 194;
+    private static final int FOOTER_Y = CONFIG_DESIGN_H - (CLOSE_BAND_PX + CONFIG_BTN_H);
     /** Review / paging row, one step above the pinned footer. */
     private static final int REVIEW_Y = FOOTER_Y - ROW_STEP;
     /**
@@ -291,12 +300,23 @@ public final class UltraConfigScreens {
         return y + ROW_STEP;
     }
 
-    /** Review stays on its own row. Prev and Next share that row when a list spans pages. */
+    /**
+     * Review stays on its own row. Prev and Next share that row when a list spans pages.
+     *
+     * <p>Three {@link UltraStyle#BTN_MIN_W} buttons plus two 8px gaps are wider than the main
+     * column, so a middle page used to emit a row 2px over {@link #MAIN_W}; the client's own
+     * min-width clamp then pushed Review onto Prev/Next. The gaps - never the buttons, which must
+     * keep the 80px minimum - shrink to whatever the column has left, so the row always fits.
+     */
     private static void placeReviewRow(
             UltraScreenSpec spec, int page, int pages, String module, String groupPath, int dirty) {
         int btn = UltraStyle.BTN_MIN_W;
         int prevW = page > 0 ? btn : 0;
         int nextW = page + 1 < pages ? btn : 0;
+        int gap = CTRL_GAP;
+        if (prevW > 0 && nextW > 0) {
+            gap = Math.max(2, (MAIN_W - prevW - btn - nextW) / 2);
+        }
         int x = MAIN_X;
         if (prevW > 0) {
             spec.button(
@@ -306,9 +326,9 @@ public final class UltraConfigScreens {
                     x,
                     REVIEW_Y,
                     prevW);
-            x += prevW + CTRL_GAP;
+            x += prevW + gap;
         }
-        int reviewW = MAIN_W - (x - MAIN_X) - (nextW == 0 ? 0 : nextW + CTRL_GAP);
+        int reviewW = Math.max(btn, MAIN_W - (x - MAIN_X) - (nextW == 0 ? 0 : nextW + gap));
         String review = reviewW >= 160
                 ? "Review changes (" + dirty + ")"
                 : "Review (" + dirty + ")";
@@ -318,7 +338,7 @@ public final class UltraConfigScreens {
                 UltraStyle.STYLE_CONFIRM,
                 x,
                 REVIEW_Y,
-                Math.max(btn, reviewW));
+                reviewW);
         if (nextW > 0) {
             spec.button(
                     "page:" + editPage(module, page + 1, groupPath),
@@ -429,7 +449,9 @@ public final class UltraConfigScreens {
     }
 
     /**
-     * One setting: human label, now-versus-default, one-line description, then the control.
+     * One setting: human label, now-versus-default, a plain-language line for what it does, the
+     * values it accepts, then the control. A rejected entry gets its own friendly line rather than
+     * replacing the description, so the player still sees what the setting does.
      * {@code paint} false measures the same rows the painted field will use.
      */
     private static int paintField(UltraScreenSpec spec, UUID uuid, Row row, int y, boolean paint) {
@@ -496,20 +518,18 @@ public final class UltraConfigScreens {
         }
         String invalid = ConfigEditor.invalidMessage(uuid, module, path);
         boolean bad = invalid != null && !invalid.isBlank();
-        if (bad) {
-            desc = invalid;
-        }
         boolean toggleRow = entry.kind() == ConfigEditor.Kind.BOOLEAN;
         int undoW = dirty ? UltraStyle.BTN_MIN_W : 0;
         int toggleW = toggleRow ? UltraStyle.BTN_MIN_W : 0;
         int extras = (undoW == 0 ? 0 : undoW + CTRL_GAP) + (toggleW == 0 ? 0 : toggleW + CTRL_GAP);
         int descW = Math.max(UltraStyle.BTN_MIN_W, MAIN_W - extras);
+        // What the setting does, in plain words. It stays put even when the last entry failed.
         putButton(
                 spec,
                 paint,
                 "do:refresh",
-                bad ? UltraStyle.danger(oneLine(desc, descW)) : UltraStyle.dim(oneLine(desc, descW)),
-                bad ? UltraStyle.STYLE_DANGER : UltraStyle.STYLE_DIM,
+                UltraStyle.dim(oneLine(desc, descW)),
+                UltraStyle.STYLE_DIM,
                 MAIN_X,
                 y,
                 descW);
@@ -539,6 +559,36 @@ public final class UltraConfigScreens {
                     toggleW);
         }
         y += ROW_STEP;
+        // One guidance row, whichever kind of guidance it is: what the field accepts, or - right
+        // after a rejected entry - what went wrong and what to enter instead. The inline hint
+        // already names the accepted values, so a field keeps the same height either way and
+        // never outgrows the page budget into the review row.
+        if (bad) {
+            putButton(
+                    spec,
+                    paint,
+                    "do:refresh",
+                    UltraStyle.danger(oneLine(ConfigEditor.invalidHint(module, path, invalid), MAIN_W)),
+                    UltraStyle.STYLE_DANGER,
+                    MAIN_X,
+                    y,
+                    MAIN_W);
+            y += ROW_STEP;
+        } else {
+            String accepts = ConfigEditor.acceptedValues(module, path);
+            if (!accepts.isBlank()) {
+                putButton(
+                        spec,
+                        paint,
+                        "do:refresh",
+                        UltraStyle.dim("Accepts: " + oneLine(accepts, MAIN_W)),
+                        UltraStyle.STYLE_DIM,
+                        MAIN_X,
+                        y,
+                        MAIN_W);
+                y += ROW_STEP;
+            }
+        }
         if (!toggleRow) {
             y = paintControl(spec, paint, module, path, entry.kind(), value, y);
         }
@@ -567,39 +617,12 @@ public final class UltraConfigScreens {
                             inputId, value == null ? "" : value, "Type a number...", MAIN_X, MAIN_W);
                 }
                 y += ROW_STEP;
+                // Apply / - / + share one row. Three min-width buttons plus two 8px gaps need
+                // 264px and the column is 254px, so the gaps give way - never the buttons. Four
+                // stacked rows here is what pushed every number field past the review row.
                 int stepW = UltraStyle.BTN_MIN_W;
-                int applyW = 88;
-                if (applyW + CTRL_GAP + stepW + CTRL_GAP + stepW <= MAIN_W) {
-                    putBound(
-                            spec,
-                            paint,
-                            "do:set:" + module + "|" + encoded,
-                            UltraStyle.confirm("Apply"),
-                            UltraStyle.STYLE_CONFIRM,
-                            MAIN_X,
-                            y,
-                            applyW,
-                            inputId);
-                    putButton(
-                            spec,
-                            paint,
-                            "do:step:" + module + "|" + encoded + "|-1",
-                            UltraStyle.dim("-"),
-                            UltraStyle.STYLE_DIM,
-                            MAIN_X + applyW + CTRL_GAP,
-                            y,
-                            stepW);
-                    putButton(
-                            spec,
-                            paint,
-                            "do:step:" + module + "|" + encoded + "|1",
-                            UltraStyle.dim("+"),
-                            UltraStyle.STYLE_DIM,
-                            MAIN_X + applyW + CTRL_GAP + stepW + CTRL_GAP,
-                            y,
-                            stepW);
-                    return y + ROW_STEP;
-                }
+                int applyW = UltraStyle.BTN_MIN_W;
+                int gap = threeUpGap(applyW, stepW, stepW);
                 putBound(
                         spec,
                         paint,
@@ -608,28 +631,26 @@ public final class UltraConfigScreens {
                         UltraStyle.STYLE_CONFIRM,
                         MAIN_X,
                         y,
-                        MAIN_W,
+                        applyW,
                         inputId);
-                y += ROW_STEP;
                 putButton(
                         spec,
                         paint,
                         "do:step:" + module + "|" + encoded + "|-1",
                         UltraStyle.dim("-"),
                         UltraStyle.STYLE_DIM,
-                        MAIN_X,
+                        MAIN_X + applyW + gap,
                         y,
-                        MAIN_W);
-                y += ROW_STEP;
+                        stepW);
                 putButton(
                         spec,
                         paint,
                         "do:step:" + module + "|" + encoded + "|1",
                         UltraStyle.dim("+"),
                         UltraStyle.STYLE_DIM,
-                        MAIN_X,
+                        MAIN_X + applyW + gap + stepW + gap,
                         y,
-                        MAIN_W);
+                        stepW);
                 return y + ROW_STEP;
             }
             case ENUM -> {
@@ -810,6 +831,19 @@ public final class UltraConfigScreens {
     /** True when {@code leftW + gap + rightW} fits in the main column. */
     private static boolean fitsRow(int leftW, int rightW) {
         return leftW + CTRL_GAP + rightW <= MAIN_W;
+    }
+
+    /**
+     * Gap that lets three controls share one row. Only the gaps give way - a button is never
+     * narrowed below {@link UltraStyle#BTN_MIN_W} - so three min-width buttons land exactly on
+     * the column instead of stacking into extra rows.
+     */
+    private static int threeUpGap(int leftW, int midW, int rightW) {
+        int need = leftW + midW + rightW;
+        if (need + 2 * CTRL_GAP <= MAIN_W) {
+            return CTRL_GAP;
+        }
+        return Math.max(2, (MAIN_W - need) / 2);
     }
 
     private static void openReview(ServerPlayer player, int pageNumber) {
@@ -1364,17 +1398,28 @@ public final class UltraConfigScreens {
                 .margin(0)
                 .lockPanel()
                 .fillScreen(CONFIG_DESIGN_W, CONFIG_DESIGN_H)
+                .buttonHeight(CONFIG_BTN_H)
                 .lineGap(2)
                 .bodyPad(4);
     }
 
-    /** One line that fits a control of {@code widthPx}. */
+    /** One line that fits a control of {@code widthPx}, cut on a word boundary. */
     private static String oneLine(String text, int widthPx) {
         String plain = UltraStyle.plain(text == null ? "" : text).trim();
         if (plain.isBlank()) {
             plain = "No description.";
         }
-        return UltraStyle.fitAsciiLabel(plain, UltraStyle.labelMaxWidth(Math.max(40, widthPx)));
+        int labelPx = UltraStyle.labelMaxWidth(Math.max(40, widthPx));
+        int maxChars = Math.max(1, labelPx / UltraStyle.CHAR_W_EST);
+        if (plain.length() > maxChars) {
+            // Trim to the last whole word, then let fitAsciiLabel add the ellipsis, so a
+            // description never ends mid-word ("...scaling a mob (percent, e.g...").
+            int cut = plain.lastIndexOf(' ', maxChars - 4);
+            if (cut > 0) {
+                plain = plain.substring(0, cut).trim();
+            }
+        }
+        return UltraStyle.fitAsciiLabel(plain, labelPx);
     }
 
     /** Current value beside the default. Equal values read as the default. */
@@ -1411,6 +1456,87 @@ public final class UltraConfigScreens {
                 MAIN_W);
         spec.footerBackToMain();
         return spec.toPacket();
+    }
+
+    /**
+     * Paging-row geometry probe for the startup self-test: {@code placeReviewRow} with
+     * {@code page}/{@code pages} picked so the caller can assert Prev / Review / Next never
+     * stack and never leave the main column. No player session and no config files.
+     */
+    static GuiOpenPacket actionRowProbe(int page, int pages) {
+        UltraScreenSpec spec = frame("Difficulty > Player Scaling", "edit:difficulty:" + page + ":~Player Scaling");
+        placeCategoryRail(spec, "difficulty", false, SEARCH_Y);
+        int y = placeSearchRow(spec, "", SEARCH_Y);
+        spec.button(
+                "page:edit:difficulty:" + page + ":",
+                UltraStyle.dim("v Difficulty > Player Scaling"),
+                UltraStyle.STYLE_DIM,
+                MAIN_X,
+                y,
+                MAIN_W);
+        placeReviewRow(spec, page, pages, "difficulty", "~Player Scaling", 2);
+        spec.footerBackToMain();
+        return spec.toPacket();
+    }
+
+    /** Main column X span, for self-test overlap checks. */
+    static int mainColumnX() {
+        return MAIN_X;
+    }
+
+    /** Main column width, for self-test overlap checks. */
+    static int mainColumnW() {
+        return MAIN_W;
+    }
+
+    /** Review-row top Y, for self-test overlap checks. */
+    static int reviewRowY() {
+        return REVIEW_Y;
+    }
+
+    /** Config-editor button height, for self-test overlap checks. */
+    static int configButtonHeight() {
+        return CONFIG_BTN_H;
+    }
+
+    /** Pinned footer Y, for self-test overlap checks. */
+    static int footerRowY() {
+        return FOOTER_Y;
+    }
+
+    /**
+     * Page budget for one inner config screen: content top down to the review row. A field
+     * block taller than this paints straight through the Prev / Review / Next row, so every
+     * field has to fit inside it - in both the valid and the rejected-entry state.
+     */
+    static int configFieldBudget() {
+        return REVIEW_Y - (SEARCH_Y + ROW_STEP + ROW_STEP);
+    }
+
+    /**
+     * Height each editable field on a module's inner screens would occupy, keyed by
+     * {@code "section > path"}. Measured by the same code that paints, so the numbers are the
+     * real ones rather than a hand-count of rows.
+     */
+    static Map<String, Integer> innerFieldHeights(String module) {
+        Map<String, Integer> heights = new LinkedHashMap<>();
+        UUID uuid = UUID.randomUUID();
+        for (ConfigEditor.SectionLink link : ConfigEditor.sections(module)) {
+            String groupPath = link == null ? "" : link.openPath();
+            if (!groupPath.startsWith(ConfigEditor.SECTION_PREFIX)) {
+                continue;
+            }
+            String section = groupPath.substring(ConfigEditor.SECTION_PREFIX.length());
+            List<Row> rows = new ArrayList<>();
+            for (ConfigEditor.Entry entry : ConfigEditor.fieldsInSection(module, section)) {
+                rows.add(new Row(module, link.title(), entry, false));
+            }
+            int[] measured = fieldHeights(uuid, rows);
+            for (int i = 0; i < rows.size(); i++) {
+                heights.put(section + " > " + rows.get(i).entry().path(), measured[i]);
+            }
+        }
+        return heights;
     }
 
     private record Row(String moduleId, String moduleLabel, ConfigEditor.Entry entry, boolean searchHit) {}

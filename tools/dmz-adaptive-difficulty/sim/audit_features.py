@@ -2702,6 +2702,89 @@ def main() -> int:
           and "public static boolean save()" in read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/character/CharacterServicesConfig.java")
           and "public static boolean save()" in read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/quest/SagaResetConfig.java"))
 
+    print("\n=== Config editor paging row + field hints (4.6.216) ===")
+    ultra_config = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraConfigScreens.java")
+    ultra_spec = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraScreenSpec.java")
+    field_help = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/config/editor/ConfigFieldHelp.java")
+    self_test = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraScreenSelfTest.java")
+    gui_net = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/net/gui/LmGuiNetwork.java")
+    # Three 80px buttons + two 8px gaps (256px) overflow the 254px main column, so the
+    # paging row must shrink its gaps - never the buttons - or Prev/Review/Next collide.
+    check("config paging row shrinks gaps so Prev/Review/Next fit the column",
+          "Math.max(2, (MAIN_W - prevW - btn - nextW) / 2)" in ultra_config
+          and "MAIN_X + MAIN_W - nextW" in ultra_config
+          and "UltraStyle.BTN_MIN_W" in ultra_config
+          and "verifyConfigActionRow" in self_test)
+    # Tighter vertical padding, scoped to the config editor; MIN_WIDTH=80 and BTN_PAD=8 stay.
+    check("Ultra config tightens vertical button padding only",
+          "CONFIG_BTN_H" in ultra_config
+          and re.search(r"CONFIG_BTN_H = (\d+)", ultra_config) is not None
+          and int(re.search(r"CONFIG_BTN_H = (\d+)", ultra_config).group(1)) < 18
+          and ".buttonHeight(CONFIG_BTN_H)" in ultra_config
+          and "BTN_PAD" in ultra_spec
+          and "buttonHeight" in ultra_spec)
+    # Every editable field shows accepted values + a plain-language line; rejected input
+    # reads as a friendly "what to enter instead", never "Invalid input" or raw parser text.
+    check("config fields state accepted values and a friendly inline hint",
+          "acceptedValues" in ultra_config
+          and "\"Accepts: \"" in ultra_config
+          and "invalidHint" in ultra_config
+          and "public static String acceptedValues" in config_editor
+          and "public static String invalidHint" in config_editor
+          and "friendlyEditError" in config_editor
+          and "true / false" in config_editor
+          and "isChanceField" in config_editor
+          and "Invalid input" not in config_editor
+          and "Invalid input" not in ultra_config
+          and "verifyConfigFieldHints" in self_test)
+
+    # One guidance row per field: the accepted-values line, or the inline hint right after a
+    # rejected entry. Two rows is what pushed a field past the review row and put Prev / Review /
+    # Next on top of it, so a field has to be the same height either way.
+    check("config fields keep one guidance row so height never outgrows the page",
+          "acceptedValues" in ultra_config
+          and re.search(r"if \(bad\) \{[^}]*invalidHint", ultra_config, re.S) is not None
+          and re.search(r"\} else \{\s*String accepts", ultra_config, re.S) is not None)
+
+    # Apply / - / + share one control row. Three min-width buttons plus two 8px gaps need 264px
+    # and the column is 254px, so only the gaps may give way - four stacked rows here is what
+    # made every number field taller than the page budget.
+    check("number field steps and applies on a single control row",
+          "threeUpGap" in ultra_config
+          and "Math.max(2, (MAIN_W - need) / 2)" in ultra_config
+          and "int applyW = UltraStyle.BTN_MIN_W" in ultra_config)
+
+    # No field may outgrow the page budget: measured by the painting code, for every editable
+    # module, so a field can never paint through the Prev / Review / Next row again.
+    check("config fields are measured against the page budget at startup",
+          "configFieldBudget" in ultra_config
+          and "innerFieldHeights" in ultra_config
+          and "verifyConfigFieldBudget" in self_test
+          and "verifyConfigFieldBudget();" in gui_net)
+
+    # Descriptions stay whole sentences: truncation cuts on a word boundary, and no help line
+    # leaks a raw config id. Only the help text block is scanned; deliberate "#key"
+    # cross-references and "Class#member" pointers are stripped first, so only ids sitting bare
+    # in prose count against this.
+    def bare_field_ids(text: str) -> list[str]:
+        cleaned = re.sub(r"\w+#\w+", "", text)
+        cleaned = re.sub(r"#\w+", "", cleaned)
+        return re.findall(r"\b[a-z]+(?:[A-Z][a-z]+)+[A-Za-z0-9]*\b", cleaned)
+
+    help_block = re.search(r'= """\n(.*?)\n\s*"""', field_help, re.S)
+    help_lines = help_block.group(1).splitlines() if help_block else []
+    leaky_help = [
+        line.split("=", 1)[1].strip()
+        for line in help_lines
+        if "=" in line and line.split("=", 1)[1].strip()
+        and bare_field_ids(line.split("=", 1)[1])
+    ]
+    check("config field descriptions stay whole sentences and free of raw ids",
+          help_block is not None
+          and "lastIndexOf(' ', maxChars - 4)" in ultra_config
+          and not leaky_help,
+          detail=", ".join(leaky_help[:3]))
+
     style = read(cnpc_dir / "CnpcUltraStyle.java")
     prestige_gui = read(cnpc_dir / "CnpcLmPrestigeGui.java")
     hub_gui = read(cnpc_dir / "CnpcLmHubGui.java")

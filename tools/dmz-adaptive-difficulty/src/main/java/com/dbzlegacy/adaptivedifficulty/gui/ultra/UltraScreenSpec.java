@@ -75,6 +75,8 @@ public final class UltraScreenSpec {
     private Integer lineGapOverride;
     /** Optional tighter body pad (null = {@link UltraStyle#BODY_PAD}). */
     private Integer bodyPadOverride;
+    /** Button height this screen emits. Defaults to the shared {@link UltraStyle#BTN_H}. */
+    private int buttonHeight = UltraStyle.BTN_H;
 
     private UltraScreenSpec(String screenId) {
         this.screenId = screenId == null || screenId.isBlank() ? "hub" : screenId.trim();
@@ -152,6 +154,15 @@ public final class UltraScreenSpec {
     /** Tighter body padding for dense lists. */
     public UltraScreenSpec bodyPad(int pad) {
         this.bodyPadOverride = Math.max(0, pad);
+        return this;
+    }
+
+    /**
+     * Button height this screen emits, for editors that need denser rows than the shared
+     * {@link UltraStyle#BTN_H}. Text fields follow the same height so rows stay aligned.
+     */
+    public UltraScreenSpec buttonHeight(int height) {
+        this.buttonHeight = Math.max(12, height);
         return this;
     }
 
@@ -443,7 +454,7 @@ public final class UltraScreenSpec {
                 x,
                 y,
                 width,
-                UltraStyle.BTN_H,
+                buttonHeight,
                 UltraStyle.BTN_PAD,
                 bind,
                 accentCode,
@@ -490,7 +501,7 @@ public final class UltraScreenSpec {
 
     /** Advance {@link #nextRow} by one control row, plus optional extra gap (px). */
     public UltraScreenSpec rowGap(int extraPx) {
-        nextRow += UltraStyle.BTN_H + UltraStyle.BTN_GAP + Math.max(0, extraPx);
+        nextRow += buttonHeight + UltraStyle.BTN_GAP + Math.max(0, extraPx);
         return this;
     }
 
@@ -508,7 +519,7 @@ public final class UltraScreenSpec {
     }
 
     public UltraScreenSpec rowGap() {
-        nextRow += UltraStyle.BTN_H + UltraStyle.BTN_GAP;
+        nextRow += buttonHeight + UltraStyle.BTN_GAP;
         return this;
     }
 
@@ -624,7 +635,7 @@ public final class UltraScreenSpec {
                         x,
                         0,
                         UltraStyle.BTN_W,
-                        UltraStyle.BTN_H,
+                        buttonHeight,
                         UltraStyle.BTN_PAD,
                         null,
                         accentCode,
@@ -711,7 +722,7 @@ public final class UltraScreenSpec {
                 UltraStyle.COL_L,
                 nextRow,
                 width,
-                UltraStyle.BTN_H,
+                buttonHeight,
                 128);
     }
 
@@ -725,7 +736,7 @@ public final class UltraScreenSpec {
                 Math.max(0, x),
                 nextRow,
                 Math.max(40, width),
-                UltraStyle.BTN_H,
+                buttonHeight,
                 128);
     }
 
@@ -735,10 +746,10 @@ public final class UltraScreenSpec {
         int footerReserve =
                 footerButtons.isEmpty()
                         ? 0
-                        : UltraStyle.BTN_H + UltraStyle.BTN_GAP + UltraStyle.PANEL_MARGIN;
+                        : buttonHeight + UltraStyle.BTN_GAP + UltraStyle.PANEL_MARGIN;
         int contentBottom =
                 nextRow
-                        + (buttons.isEmpty() ? 0 : UltraStyle.BTN_H)
+                        + (buttons.isEmpty() ? 0 : buttonHeight)
                         + UltraStyle.PANEL_MARGIN
                         + footerReserve;
         int bodyTop = tabs.isEmpty() ? UltraStyle.BODY_TOP : UltraStyle.BODY_TOP_TABS;
@@ -760,7 +771,7 @@ public final class UltraScreenSpec {
                 buttonTop < 0
                         ? UltraStyle.PANEL_MARGIN + footerReserve
                         : Math.max(
-                                UltraStyle.BTN_H + UltraStyle.PANEL_MARGIN + footerReserve,
+                                buttonHeight + UltraStyle.PANEL_MARGIN + footerReserve,
                                 contentBottom - buttonTop);
         int maxBodyAtCap =
                 Math.max(
@@ -851,7 +862,7 @@ public final class UltraScreenSpec {
         int footerBoxH = fillScreen && designHeight > 0 ? designHeight : height;
         int footerInset = fillScreen && designHeight > 0 ? panelMargin : UltraStyle.PANEL_MARGIN;
         int footerY = Math.max(
-                UltraStyle.CONTENT_ROW, footerBoxH - footerInset - UltraStyle.BTN_H);
+                UltraStyle.CONTENT_ROW, footerBoxH - footerInset - buttonHeight);
         for (Button b : footerButtons) {
             if (b == null) {
                 continue;
@@ -953,7 +964,7 @@ public final class UltraScreenSpec {
         layout.addProperty("buttonPad", UltraStyle.BTN_PAD);
         layout.addProperty("buttonGap", UltraStyle.BTN_GAP);
         layout.addProperty("buttonMinWidth", UltraStyle.BTN_MIN_W);
-        layout.addProperty("buttonHeight", UltraStyle.BTN_H);
+        layout.addProperty("buttonHeight", buttonHeight);
         // Logical system metadata (survives hub wire shim in layoutJson).
         layout.addProperty(UltraScreenIds.META_SYSTEM, screenId);
         layout.addProperty("screen", screenId);
