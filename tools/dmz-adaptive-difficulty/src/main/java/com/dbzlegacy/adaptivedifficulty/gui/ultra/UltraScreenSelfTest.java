@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Startup self-test: every Ultra builder id produces a non-empty {@link GuiOpenPacket}
@@ -1133,6 +1134,105 @@ public final class UltraScreenSelfTest {
                 broken);
         throw new IllegalStateException(
                 "LegacyMechanics config field hint self-test failed (" + broken.size()
+                        + " error(s)): " + broken);
+    }
+
+    /**
+     * Numeric ranges must be derived from the field, not guessed from a single keyword. The config
+     * mixes percent fields ({@code eliteChancePercent} = 2.25, a 0-100 rate) with true 0-1 chance
+     * fractions ({@code ancientCoinDropChance} = 0.05). A chance check that matched every field
+     * containing "chance" rejected the percent fields' own defaults as out of range, so a staff
+     * member could not re-type what was already there. This pins the split both ways: a percent
+     * field states 0-100 and accepts 2.25, a chance field states 0-1 and still rejects 5, and the
+     * boolean and text paths keep their plain-word guidance.
+     */
+    public static void verifyConfigNumberRanges() {
+        List<String> broken = new ArrayList<>();
+        UUID uuid = UUID.randomUUID();
+        int tested = 0;
+        try {
+            // Percent field: must state 0-100 (not 0-1) and accept its own default, 2.25.
+            if (ConfigEditor.tab("difficulty") != null
+                    && ConfigEditor.kindOf("difficulty", "eliteChancePercent")
+                            == ConfigEditor.Kind.NUMBER) {
+                tested++;
+                String accepts = ConfigEditor.acceptedValues("difficulty", "eliteChancePercent");
+                if (accepts == null || !accepts.contains("0 to 100")) {
+                    broken.add("eliteChancePercent should state a 0-100 range, got: " + accepts);
+                }
+                if (accepts != null && accepts.contains("0 to 1") && !accepts.contains("0 to 100")) {
+                    broken.add("eliteChancePercent must not be read as a 0-1 chance: " + accepts);
+                }
+                // The regression: its own default (2.25) used to be rejected as out of range.
+                String error = ConfigEditor.stageSet(
+                        uuid, "difficulty", "eliteChancePercent", "2.25");
+                if (error != null) {
+                    broken.add("eliteChancePercent rejected its own default 2.25: " + error);
+                }
+                // Still a real range: 150 is over the percent cap and must be caught.
+                String over = ConfigEditor.stageSet(
+                        uuid, "difficulty", "eliteChancePercent", "150");
+                if (over == null || !over.contains("0 to 100")) {
+                    broken.add("eliteChancePercent should reject 150 as over 100, got: " + over);
+                }
+            }
+            // True 0-1 chance fraction: must state 0-1 and still reject a value above 1.
+            if (ConfigEditor.tab("difficulty") != null
+                    && ConfigEditor.kindOf("difficulty", "ancientCoinDropChance")
+                            == ConfigEditor.Kind.NUMBER) {
+                tested++;
+                String accepts = ConfigEditor.acceptedValues("difficulty", "ancientCoinDropChance");
+                if (accepts == null || !accepts.contains("0 to 1")) {
+                    broken.add("ancientCoinDropChance should state a 0-1 range, got: " + accepts);
+                }
+                String over = ConfigEditor.stageSet(
+                        uuid, "difficulty", "ancientCoinDropChance", "5");
+                if (over == null || !over.contains("0 to 1")) {
+                    broken.add("ancientCoinDropChance should reject 5 as over 1, got: " + over);
+                }
+            }
+            // A plain number with no derivable range falls back to its type, in plain words.
+            if (ConfigEditor.tab("difficulty") != null
+                    && ConfigEditor.kindOf("difficulty", "mobScaleRadius")
+                            == ConfigEditor.Kind.NUMBER) {
+                tested++;
+                String accepts = ConfigEditor.acceptedValues("difficulty", "mobScaleRadius");
+                if (accepts == null || !accepts.contains("number")) {
+                    broken.add("mobScaleRadius should fall back to its type, got: " + accepts);
+                }
+                if (accepts != null && (accepts.contains("0 to 1") || accepts.contains("0 to 100"))) {
+                    broken.add("mobScaleRadius has no derivable range, got: " + accepts);
+                }
+            }
+            // Boolean and text keep their plain-word guidance alongside the numeric paths.
+            if (ConfigEditor.tab("difficulty") != null) {
+                String bool = ConfigEditor.acceptedValues("difficulty", "enabled");
+                if (bool == null || !bool.contains("true") || !bool.contains("false")) {
+                    broken.add("boolean field should accept true / false, got: " + bool);
+                }
+            }
+        } finally {
+            ConfigEditor.discardAll(uuid);
+        }
+        if (tested == 0) {
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Config number-range self-test skipped (no config modules registered)",
+                    AdaptiveDifficultyMod.MOD_ID);
+            return;
+        }
+        if (broken.isEmpty()) {
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Config number-range self-test OK ({} fields)",
+                    AdaptiveDifficultyMod.MOD_ID,
+                    tested);
+            return;
+        }
+        AdaptiveDifficultyMod.LOGGER.error(
+                "[{}] Config number-range self-test FAILED: {}",
+                AdaptiveDifficultyMod.MOD_ID,
+                broken);
+        throw new IllegalStateException(
+                "LegacyMechanics config number-range self-test failed (" + broken.size()
                         + " error(s)): " + broken);
     }
 

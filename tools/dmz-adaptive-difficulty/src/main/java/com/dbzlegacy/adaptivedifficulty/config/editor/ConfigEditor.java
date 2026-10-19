@@ -1564,24 +1564,50 @@ public final class ConfigEditor {
         return sectionForLeaf("", leafName(path));
     }
 
-    /** A "chance" number is a 0-1 fraction; the editor rejects anything outside it. */
-    private static boolean isChanceField(String moduleId, String path) {
+    /**
+     * A "percent" number is a 0-100 rate; the editor rejects anything outside it. The config
+     * carries no per-field range annotations, so the range is derived from the field name: a
+     * {@code *Percent} field such as {@code eliteChancePercent} (default 2.25) is a percentage,
+     * not a 0-1 fraction. Without this split, a chance check matched every field containing
+     * "chance" and rejected the percent fields' own defaults as out of range.
+     */
+    private static boolean isPercentField(String moduleId, String path) {
         return path != null
-                && leafName(path).toLowerCase(Locale.ROOT).contains("chance")
+                && leafName(path).toLowerCase(Locale.ROOT).contains("percent")
                 && kindOf(moduleId, path) == Kind.NUMBER;
     }
 
+    /**
+     * A "chance" number is a 0-1 fraction; the editor rejects anything outside it. A
+     * {@code *ChancePercent} field is a percent (see {@link #isPercentField}), not a fraction,
+     * so it is excluded here - only a plain chance such as {@code ancientCoinDropChance} (0.05)
+     * is a 0-1 fraction.
+     */
+    private static boolean isChanceField(String moduleId, String path) {
+        return path != null
+                && leafName(path).toLowerCase(Locale.ROOT).contains("chance")
+                && !isPercentField(moduleId, path)
+                && kindOf(moduleId, path) == Kind.NUMBER;
+    }
+
+    /** Friendly inline line for a number outside its derived range, or null when it fits. */
     private static String chanceError(String moduleId, String path, String raw) {
-        if (!isChanceField(moduleId, path)) {
+        boolean percent = isPercentField(moduleId, path);
+        if (!percent && !isChanceField(moduleId, path)) {
             return null;
         }
+        double value;
         try {
-            double value = Double.parseDouble(raw == null ? "" : raw.trim());
-            if (value < 0 || value > 1) {
-                return "That chance runs from 0 to 1.";
-            }
+            value = Double.parseDouble(raw == null ? "" : raw.trim());
         } catch (NumberFormatException ignored) {
             return null;
+        }
+        if (percent) {
+            if (value < 0 || value > 100) {
+                return "That percent runs from 0 to 100.";
+            }
+        } else if (value < 0 || value > 1) {
+            return "That chance runs from 0 to 1.";
         }
         return null;
     }
@@ -1589,8 +1615,8 @@ public final class ConfigEditor {
     /**
      * What a field accepts, in plain words: its options when it is a choice, a real range when one
      * can be derived, otherwise the field type. The config carries no per-field range annotations,
-     * so a "chance" fraction (0-1) is the only range the editor can derive; every other number
-     * falls back to its type.
+     * so ranges are derived from the field name: a {@code *Percent} field is a 0-100 percentage,
+     * a plain chance field is a 0-1 fraction, and every other number falls back to its type.
      */
     public static String acceptedValues(String moduleId, String path) {
         return switch (kindOf(moduleId, path)) {
@@ -1601,9 +1627,15 @@ public final class ConfigEditor {
                         ? "one of the listed options"
                         : "one of: " + String.join(" / ", options);
             }
-            case NUMBER -> isChanceField(moduleId, path)
-                    ? "a number from 0 to 1"
-                    : "any number";
+            case NUMBER -> {
+                if (isPercentField(moduleId, path)) {
+                    yield "a number from 0 to 100";
+                }
+                if (isChanceField(moduleId, path)) {
+                    yield "a number from 0 to 1";
+                }
+                yield "any number";
+            }
             case TEXT -> "any text";
             case LIST -> "a list of values";
             case MAP -> "a name and a value";
@@ -1619,6 +1651,9 @@ public final class ConfigEditor {
     public static String invalidHint(String moduleId, String path, String reason) {
         String what = reasonPhrase(reason);
         Kind kind = kindOf(moduleId, path);
+        if (kind == Kind.NUMBER && isPercentField(moduleId, path)) {
+            return what + " Enter a percent, from 0 to 100.";
+        }
         if (kind == Kind.NUMBER && isChanceField(moduleId, path)) {
             return what + " A chance is a number from 0 to 1.";
         }

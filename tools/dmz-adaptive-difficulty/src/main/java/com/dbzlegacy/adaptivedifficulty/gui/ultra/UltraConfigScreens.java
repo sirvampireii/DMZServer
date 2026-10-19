@@ -50,11 +50,14 @@ public final class UltraConfigScreens {
     /** Min clear space between two controls on one row before we stack instead. */
     private static final int CTRL_GAP = 8;
     /**
-     * Config-editor button height. Shorter than the shared {@link UltraStyle#BTN_H} (18), so the
-     * label sits closer to the button edges instead of floating in tall empty space. Row spacing,
-     * text-field height, and the footer pin all follow from this one number.
+     * Config-editor button height. Tighter than the shared {@link UltraStyle#BTN_H} (18), so the
+     * label sits close to the button edges instead of floating in tall empty space - this is the
+     * vertical padding the config editor tightens, and it applies to the sidebar rail, section
+     * rows, and the Review bar alike (all emit {@link UltraScreenSpec#buttonHeight}). Row spacing,
+     * text-field height, and the footer pin all follow from this one number. The 80px minimum
+     * width and the 8px horizontal padding stay put; only the height gives.
      */
-    private static final int CONFIG_BTN_H = 15;
+    private static final int CONFIG_BTN_H = 13;
     /** One control row plus a 2px gap. Field blocks are multiples of this. */
     private static final int ROW_STEP = CONFIG_BTN_H + 2;
     /** First content row under the title divider. */
@@ -64,7 +67,7 @@ public final class UltraConfigScreens {
     /**
      * Live {@code pinFooterY} on a 240-tall GUI with margin 0. Reserve is
      * {@code close band + buttonH + margin}, so a {@link #CONFIG_BTN_H} footer button pins at
-     * {@code 240 - 43 = 197}. Review and paging use this Y, not the oversized panel height.
+     * {@code 240 - 41 = 199}. Review and paging use this Y, not the oversized panel height.
      */
     private static final int FOOTER_Y = CONFIG_DESIGN_H - (CLOSE_BAND_PX + CONFIG_BTN_H);
     /** Review / paging row, one step above the pinned footer. */

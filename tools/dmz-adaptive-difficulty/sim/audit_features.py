@@ -2702,7 +2702,7 @@ def main() -> int:
           and "public static boolean save()" in read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/character/CharacterServicesConfig.java")
           and "public static boolean save()" in read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/quest/SagaResetConfig.java"))
 
-    print("\n=== Config editor paging row + field hints (4.6.216) ===")
+    print("\n=== Config editor paging row + field hints (4.6.217) ===")
     ultra_config = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraConfigScreens.java")
     ultra_spec = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraScreenSpec.java")
     field_help = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/config/editor/ConfigFieldHelp.java")
@@ -2737,6 +2737,19 @@ def main() -> int:
           and "Invalid input" not in config_editor
           and "Invalid input" not in ultra_config
           and "verifyConfigFieldHints" in self_test)
+
+    # Numeric ranges are derived from the field, not one keyword. The config mixes percent rates
+    # (eliteChancePercent = 2.25, a 0-100 value) with true 0-1 chance fractions
+    # (ancientCoinDropChance = 0.05). A chance check matching every "chance" field rejected the
+    # percent fields' own defaults as out of range. Percent fields now state 0-100; plain chance
+    # fields stay 0-1; every other number falls back to its type in plain words.
+    check("config numbers split percent (0-100) from chance fraction (0-1)",
+          "isPercentField" in config_editor
+          and "public static String acceptedValues" in config_editor
+          and re.search(r"case NUMBER -> \{[^}]*isPercentField", config_editor, re.S) is not None
+          and "0 to 100" in config_editor
+          and "verifyConfigNumberRanges" in self_test
+          and "verifyConfigNumberRanges()" in gui_net)
 
     # One guidance row per field: the accepted-values line, or the inline hint right after a
     # rejected entry. Two rows is what pushed a field past the review row and put Prev / Review /

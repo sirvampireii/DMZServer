@@ -297,6 +297,7 @@ public final class LmGuiNetwork {
         UltraScreenSelfTest.verifyBodyCap();
         UltraScreenSelfTest.verifyConfigActionRow();
         UltraScreenSelfTest.verifyConfigFieldHints();
+        UltraScreenSelfTest.verifyConfigNumberRanges();
         UltraScreenSelfTest.verifyConfigFieldBudget();
         runPacketRoundTripSelfTest();
         AdaptiveDifficultyMod.LOGGER.info(
