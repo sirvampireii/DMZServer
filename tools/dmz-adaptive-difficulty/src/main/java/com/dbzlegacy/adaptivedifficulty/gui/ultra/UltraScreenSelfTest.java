@@ -4,6 +4,8 @@ import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.config.editor.ConfigEditor;
 import com.dbzlegacy.adaptivedifficulty.net.gui.GuiOpenPacket;
 import com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork;
+import com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings;
+import com.dbzlegacy.adaptivedifficulty.sparring.SparStore;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -1560,5 +1562,64 @@ public final class UltraScreenSelfTest {
         if (expectScroll && !scroll) {
             broken.add(name + ": expected scrollBody");
         }
+    }
+
+    /**
+     * Dojo war challenges are one-shot per pair: a finished war (or a lapsed pending challenge)
+     * must stop blocking a fresh challenge the moment it expires, while a still-active war and a
+     * live pending challenge must both keep blocking duplicates. Exercises the real lookup over a
+     * local map so no live {@link SparStore} state is touched.
+     */
+    public static void verifyDojoWarExpiry() {
+        List<String> broken = new ArrayList<>();
+        long now = System.currentTimeMillis();
+        Map<String, SparStore.DojoChallenge> challenges = new LinkedHashMap<>();
+        challenges.put("dojo-b-expired", dojoChallenge("dojo-a", "dojo-b", now - 60_000L, true));
+        challenges.put("dojo-d-pending", dojoChallenge("dojo-c", "dojo-d", now + 3_600_000L, false));
+        challenges.put("dojo-f-war", dojoChallenge("dojo-e", "dojo-f", now + 3_600_000L, true));
+
+        // Expired war: must NOT block a rematch (either direction).
+        if (DojoRankings.findLiveChallengeIn(challenges, "dojo-a", "dojo-b") != null) {
+            broken.add("expired war still blocks a rematch");
+        }
+        if (DojoRankings.findLiveChallengeIn(challenges, "dojo-b", "dojo-a") != null) {
+            broken.add("expired war still blocks a rematch in reverse");
+        }
+        // Live pending challenge: must still block.
+        if (DojoRankings.findLiveChallengeIn(challenges, "dojo-c", "dojo-d") == null) {
+            broken.add("live pending challenge no longer blocks a duplicate");
+        }
+        // Active war: must still block.
+        if (DojoRankings.findLiveChallengeIn(challenges, "dojo-e", "dojo-f") == null) {
+            broken.add("active war no longer blocks a duplicate");
+        }
+        // Unrelated pair: nothing found.
+        if (DojoRankings.findLiveChallengeIn(challenges, "dojo-x", "dojo-y") != null) {
+            broken.add("unrelated dojo pair matched a challenge");
+        }
+        if (broken.isEmpty()) {
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Dojo war challenge expiry self-test OK (3 records)", AdaptiveDifficultyMod.MOD_ID);
+            return;
+        }
+        AdaptiveDifficultyMod.LOGGER.error(
+                "[{}] Dojo war challenge expiry self-test FAILED: {}",
+                AdaptiveDifficultyMod.MOD_ID,
+                broken);
+        throw new IllegalStateException(
+                "LegacyMechanics dojo war challenge expiry self-test failed (" + broken.size()
+                        + " error(s)): " + broken);
+    }
+
+    private static SparStore.DojoChallenge dojoChallenge(
+            String from, String to, long expiresAt, boolean active) {
+        SparStore.DojoChallenge c = new SparStore.DojoChallenge();
+        c.fromDojoUuid = from;
+        c.fromMentorUuid = from;
+        c.toDojoUuid = to;
+        c.toDojoName = to;
+        c.expiresAt = expiresAt;
+        c.active = active;
+        return c;
     }
 }

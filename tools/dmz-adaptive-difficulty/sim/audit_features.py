@@ -1927,6 +1927,26 @@ def main() -> int:
     check("view-only hint",
           "nothing to change here" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcGuiStyle.java"))
 
+    print("\n=== Dojo war: wins gated on active war, expired challenges unblock (4.6.218) ===")
+    # War wins must only be recorded while a war is actually active. RP + activity stay
+    # unconditional; only the W/L/D recording is gated behind `challenge`.
+    check("dojo war wins recorded only under an active challenge",
+          "if (challenge) {" in dojo_score
+          and "recordWarResult(winKey, false, true, false)" in dojo_score
+          and "recordWarResult(loseKey, false, false, true)" in dojo_score
+          and "recordMemberWarWin(winKey, winner)" in dojo_score
+          and "recordMemberWarLoss(loseKey, loser)" in dojo_score)
+    check("dojo base RP award stays unconditional",
+          "awardRp(winKey, rp);" in dojo_score
+          and "bumpMemberRp(winKey, winner, rp);" in dojo_score
+          and "private static void awardRp(String dojoKey, double rp)" in dojo_score)
+    # Expired challenge records must stop blocking a rematch; live ones still do.
+    check("findChallenge skips expired challenges",
+          "c.expiresAt <= now" in dojo_score
+          and "findLiveChallengeIn" in dojo_score
+          and "pruneExpiredChallenges" in dojo_score
+          and "verifyDojoWarExpiry" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraScreenSelfTest.java"))
+
     print("\n=== Reskin gender and head bone preview (4.6.16) ===")
     gender_mixin = read(SRC / "com/dbzlegacy/adaptivedifficulty/mixin/StatsSyncC2SGenderMixin.java")
     mixins_json = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/resources/legacymechanics.mixins.json")

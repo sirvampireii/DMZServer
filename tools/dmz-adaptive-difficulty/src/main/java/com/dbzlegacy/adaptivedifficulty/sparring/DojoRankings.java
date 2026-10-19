@@ -253,12 +253,21 @@ public final class DojoRankings {
         boolean challenge = isActiveChallenge(keyA, keyB);
         double mult = challenge ? CHALLENGE_RP_MULT : 1.0;
 
+        // Season RP and spar activity count for EVERY inter-dojo spar — rival dojos legitimately
+        // spar outside of wars. Only the WAR RECORD (dojo- and member-level wins / losses / draws)
+        // is gated on an actually-declared, still-active war; a friendly spar must not inflate it.
         if (Math.abs(tpA - tpB) < 0.5) {
             double rp = DRAW_RP * mult;
-            awardRp(keyA, rp, true, false, false);
-            awardRp(keyB, rp, true, false, false);
-            bumpMemberDraw(keyA, a, rp);
-            bumpMemberDraw(keyB, b, rp);
+            awardRp(keyA, rp);
+            awardRp(keyB, rp);
+            bumpMemberRp(keyA, a, rp);
+            bumpMemberRp(keyB, b, rp);
+            if (challenge) {
+                recordWarResult(keyA, true, false, false);
+                recordWarResult(keyB, true, false, false);
+                recordMemberWarDraw(keyA, a);
+                recordMemberWarDraw(keyB, b);
+            }
             notifyDojo(a, b, keyA, keyB, UltraStyle.LABEL + "Draw", (int) rp, challenge);
             return;
         }
@@ -268,10 +277,14 @@ public final class DojoRankings {
         String winKey = aWins ? keyA : keyB;
         String loseKey = aWins ? keyB : keyA;
         double rp = BASE_RP_PER_WIN * mult;
-        awardRp(winKey, rp, false, true, false);
-        awardRp(loseKey, 0, false, false, true);
-        bumpMemberWin(winKey, winner, rp);
-        bumpMemberLoss(loseKey, loser);
+        awardRp(winKey, rp);
+        bumpMemberRp(winKey, winner, rp);
+        if (challenge) {
+            recordWarResult(winKey, false, true, false);
+            recordWarResult(loseKey, false, false, true);
+            recordMemberWarWin(winKey, winner);
+            recordMemberWarLoss(loseKey, loser);
+        }
         notifyDojo(winner, loser, winKey, loseKey,
                 UltraStyle.GREEN + winner.m_7755_().getString() + " " + UltraStyle.LABEL + "won", (int) rp, challenge);
     }
@@ -293,23 +306,31 @@ public final class DojoRankings {
         SparStore.get().markDirty();
     }
 
-    private static void bumpMemberWin(String dojoKey, ServerPlayer fighter, double rp) {
+    /** Member's share of the base spar RP — unconditional, feeds the contribution board. */
+    private static void bumpMemberRp(String dojoKey, ServerPlayer fighter, double rp) {
         SparStore.DojoMemberStats m = memberOrCreate(dojoKey, fighter);
-        m.wins++;
         m.rpContributed += rp;
         SparStore.get().markDirty();
     }
 
-    private static void bumpMemberLoss(String dojoKey, ServerPlayer fighter) {
+    /** Member WAR win — only recorded while a war is actually active between the dojos. */
+    private static void recordMemberWarWin(String dojoKey, ServerPlayer fighter) {
+        SparStore.DojoMemberStats m = memberOrCreate(dojoKey, fighter);
+        m.wins++;
+        SparStore.get().markDirty();
+    }
+
+    /** Member WAR loss — only recorded while a war is actually active between the dojos. */
+    private static void recordMemberWarLoss(String dojoKey, ServerPlayer fighter) {
         SparStore.DojoMemberStats m = memberOrCreate(dojoKey, fighter);
         m.losses++;
         SparStore.get().markDirty();
     }
 
-    private static void bumpMemberDraw(String dojoKey, ServerPlayer fighter, double rp) {
+    /** Member WAR draw — only recorded while a war is actually active between the dojos. */
+    private static void recordMemberWarDraw(String dojoKey, ServerPlayer fighter) {
         SparStore.DojoMemberStats m = memberOrCreate(dojoKey, fighter);
         m.draws++;
-        m.rpContributed += rp;
         SparStore.get().markDirty();
     }
 
@@ -327,9 +348,20 @@ public final class DojoRankings {
         });
     }
 
-    private static void awardRp(String dojoKey, double rp, boolean draw, boolean win, boolean loss) {
+    /** Base season RP for an inter-dojo spar — unconditional, feeds the dojo ranking. */
+    private static void awardRp(String dojoKey, double rp) {
         SparStore.DojoEntry e = entryOrCreate(dojoKey, null);
         e.seasonRp += rp;
+        e.updatedAt = System.currentTimeMillis();
+        SparStore.get().markDirty();
+    }
+
+    /**
+     * Dojo-level WAR result (win / loss / draw). Only called while a war is actually active
+     * between the two dojos — a plain rival-dojo spar must not move the war record.
+     */
+    private static void recordWarResult(String dojoKey, boolean draw, boolean win, boolean loss) {
+        SparStore.DojoEntry e = entryOrCreate(dojoKey, null);
         if (draw) {
             e.draws++;
         } else if (win) {
@@ -449,8 +481,26 @@ public final class DojoRankings {
     }
 
     private static SparStore.DojoChallenge findChallenge(String keyA, String keyB) {
-        for (SparStore.DojoChallenge c : SparStore.get().dojoChallenges.values()) {
-            if (c == null) {
+        return findLiveChallengeIn(SparStore.get().dojoChallenges, keyA, keyB);
+    }
+
+    /**
+     * First UNEXPIRED challenge pairing the two dojos in either direction, or null. Expired
+     * records are skipped: a war or a pending challenge is one-shot, so a finished war must
+     * never block the pair from challenging again. A live pending challenge and an active war
+     * both keep a future {@code expiresAt}, so they still block duplicates.
+     *
+     * <p>Takes the challenge map as a parameter so the startup self-test can exercise this
+     * expiry rule over a local map without touching live {@link SparStore} state.
+     */
+    public static SparStore.DojoChallenge findLiveChallengeIn(
+            Map<String, SparStore.DojoChallenge> challenges, String keyA, String keyB) {
+        if (challenges == null) {
+            return null;
+        }
+        long now = System.currentTimeMillis();
+        for (SparStore.DojoChallenge c : challenges.values()) {
+            if (c == null || c.expiresAt <= now) {
                 continue;
             }
             String from = challengerUuid(c);
@@ -464,6 +514,24 @@ public final class DojoRankings {
             }
         }
         return null;
+    }
+
+    /** Drop expired challenge records so a finished war can never block a rematch. */
+    private static void pruneExpiredChallenges() {
+        long now = System.currentTimeMillis();
+        Iterator<Map.Entry<String, SparStore.DojoChallenge>> it =
+                SparStore.get().dojoChallenges.entrySet().iterator();
+        boolean removed = false;
+        while (it.hasNext()) {
+            SparStore.DojoChallenge c = it.next().getValue();
+            if (c == null || c.expiresAt <= now) {
+                it.remove();
+                removed = true;
+            }
+        }
+        if (removed) {
+            SparStore.get().markDirty();
+        }
     }
 
     private static String challengerUuid(SparStore.DojoChallenge c) {
@@ -963,6 +1031,8 @@ public final class DojoRankings {
         if (!isDojoMasterUuid(toKey)) {
             return UltraStyle.DANGER + "That dojo has no master with apprentices.";
         }
+        // Drop any expired records first so a finished war can never linger as a stale blocker.
+        pruneExpiredChallenges();
         if (findChallenge(fromKey, toKey) != null) {
             return UltraStyle.DANGER + "A challenge already exists between these dojos.";
         }
