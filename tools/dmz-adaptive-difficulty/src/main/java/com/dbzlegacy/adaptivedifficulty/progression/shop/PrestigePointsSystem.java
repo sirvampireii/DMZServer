@@ -3,6 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.progression.shop;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil;
 import com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.progression.PersonalLevelCapMirror;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionData;
 import com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess;
@@ -23,7 +24,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Prestige Points shop: turn in held prestiges for points, spend on DMZ skill levels,
- * Permanent Majin / Mutant, and personal level-cap breakthroughs.
+ * Permanent Majin / Mutant / Ultimate, and personal level-cap breakthroughs.
  *
  * <p>Turn-in amounts: {@code 1, 2, 3, 6, 9} only.
  * Points: {@code N + T(N/3)} where {@code T(k)=k(k+1)/2}
@@ -34,6 +35,9 @@ import net.minecraft.server.level.ServerPlayer;
  * Caps come from {@code skills.json} cost ladders.
  * Majin/Mutant: 5 points each, mutually exclusive; unpurchase the current form
  * before buying the other (no refund, no silent swap).
+ * Ultimate: 3 points and independent — it stacks with Majin or Mutant, so neither
+ * the Ultimate buy checks those forms nor a Majin/Mutant buy checks Ultimate.
+ * Removing Ultimate refunds all 3 points and never touches Majin/Mutant.
  * Breakthroughs: raise <b>your</b> DMZ level cap by +10k (max 5 → 150k) so you can
  * level normally into the new cap. Server {@code maxValue} is 150k (client UI/level
  * math); personal soft-locks keep everyone else at 100k. Costs 15, 20, 25, 30, 35.
@@ -46,6 +50,8 @@ public final class PrestigePointsSystem {
     public static final int MAX_BREAKTHROUGHS = 5;
     public static final int ABSOLUTE_LEVEL_CAP = BASE_LEVEL_CAP + MAX_BREAKTHROUGHS * BREAKTHROUGH_STEP;
     public static final int FORM_COST = 5;
+    /** Prestige-point cost of Permanent Ultimate — independent of the Majin/Mutant pair. */
+    public static final int ULTIMATE_COST = 3;
     public static final int SKILL_POINT_COST = 1;
     /** Levels granted per point for Potential Unlock in the prestige shop. */
     public static final int POTENTIAL_UNLOCK_LEVELS_PER_POINT = 2;
@@ -58,6 +64,8 @@ public final class PrestigePointsSystem {
     private static final String KEY_BREAKTHROUGHS = "pp_level_breakthroughs";
     private static final String KEY_MAJIN = "pp_perm_majin";
     private static final String KEY_MUTANT = "pp_perm_mutant";
+    /** Permanent Ultimate — own flag, never part of the Majin/Mutant exclusivity. */
+    private static final String KEY_ULTIMATE = "pp_perm_ultimate";
     private static final String KEY_SKILL_PREFIX = "pp_skill_";
     /** Permanent difficulty-tier unlocks bought with prestige points ({@code pp_tier_1}…{@code 7}). */
     private static final String KEY_TIER_PREFIX = "pp_tier_";
@@ -853,6 +861,10 @@ public final class PrestigePointsSystem {
         return player != null && ProgressionData.storedGetBool(player, KEY_MUTANT);
     }
 
+    public static boolean hasUltimate(ServerPlayer player) {
+        return player != null && ProgressionData.storedGetBool(player, KEY_ULTIMATE);
+    }
+
     /** True when the player may spend points on Permanent Majin (nothing else owned). */
     public static boolean canBuyMajin(ServerPlayer player) {
         return player != null && !hasMajin(player) && !hasMutant(player);
@@ -861,6 +873,14 @@ public final class PrestigePointsSystem {
     /** True when the player may spend points on Permanent Mutant (nothing else owned). */
     public static boolean canBuyMutant(ServerPlayer player) {
         return player != null && !hasMutant(player) && !hasMajin(player);
+    }
+
+    /**
+     * True when the player may spend points on Permanent Ultimate. Ownership is the only
+     * gate — Ultimate is independent, so Majin / Mutant never block it.
+     */
+    public static boolean canBuyUltimate(ServerPlayer player) {
+        return player != null && !hasUltimate(player);
     }
 
     public static String buyMajin(ServerPlayer player) {
@@ -877,6 +897,66 @@ public final class PrestigePointsSystem {
 
     public static String unbuyMutant(ServerPlayer player) {
         return unbuyForm(player, false);
+    }
+
+    /**
+     * Buy Permanent Ultimate for {@link #ULTIMATE_COST} favor. No exclusivity check against
+     * Majin or Mutant — the two permanents stack with Ultimate in either direction.
+     */
+    public static String buyUltimate(ServerPlayer player) {
+        if (player == null) {
+            return UltraStyle.dangerLine("Players only.");
+        }
+        if (hasUltimate(player)) {
+            return UltraStyle.noticeLine("You already own Permanent Ultimate.");
+        }
+        int points = getPoints(player);
+        if (points < ULTIMATE_COST) {
+            return UltraStyle.dangerLine(
+                    "Need " + ULTIMATE_COST + " favor (have " + points + ").");
+        }
+        if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-buy:Permanent Ultimate")) {
+            return UltraStyle.noticeLine(
+                    "Buy Permanent Ultimate for " + ULTIMATE_COST
+                            + " favor? Click again within 10 seconds.");
+        }
+        setPoints(player, points - ULTIMATE_COST);
+        ProgressionData.storedPutBool(player, KEY_ULTIMATE, true);
+        runDmzEffect(player, "ultimate", true);
+        SystemTelemetry.log("prestige_points", "buy_ultimate", player, null, Map.of(
+                "points", getPoints(player)
+        ));
+        return UltraStyle.color("a", "Unlocked Permanent Ultimate (-" + ULTIMATE_COST + " favor)")
+                + "\n"
+                + UltraStyle.dim("Favor left: " + getPoints(player));
+    }
+
+    /**
+     * Remove Permanent Ultimate: click again within 10 seconds to confirm, refund the full
+     * {@link #ULTIMATE_COST}, clear only the Ultimate flag. Majin / Mutant state is untouched.
+     */
+    public static String unbuyUltimate(ServerPlayer player) {
+        if (player == null) {
+            return UltraStyle.dangerLine("Players only.");
+        }
+        if (!hasUltimate(player)) {
+            return UltraStyle.noticeLine("You do not own Permanent Ultimate.");
+        }
+        if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-remove:Permanent Ultimate")) {
+            return UltraStyle.noticeLine(
+                    "Remove Permanent Ultimate? You get your " + ULTIMATE_COST
+                            + " favor back. Click again within 10 seconds.");
+        }
+        ProgressionData.storedPutBool(player, KEY_ULTIMATE, false);
+        runDmzEffect(player, "ultimate", false);
+        setPoints(player, getPoints(player) + ULTIMATE_COST);
+        SystemTelemetry.log("prestige_points", "unbuy_ultimate", player, null, Map.of(
+                "points", getPoints(player)
+        ));
+        return UltraStyle.color(
+                        "a", "Removed Permanent Ultimate (+" + ULTIMATE_COST + " favor refunded)")
+                + "\n"
+                + UltraStyle.dim("Favor left: " + getPoints(player));
     }
 
     private static String buyForm(ServerPlayer player, boolean majin) {
@@ -943,6 +1023,9 @@ public final class PrestigePointsSystem {
         }
         if (hasMutant(player)) {
             runDmzEffect(player, "mutant", true);
+        }
+        if (hasUltimate(player)) {
+            runDmzEffect(player, "ultimate", true);
         }
     }
 
@@ -1117,7 +1200,7 @@ public final class PrestigePointsSystem {
 
     /**
      * After death respawn (or prestige reset), re-apply every prestige-shop purchase:
-     * skill floors, permanent difficulty tiers, Majin/Mutant, and breakthrough soft-lock.
+     * skill floors, permanent difficulty tiers, Majin/Mutant/Ultimate, and breakthrough soft-lock.
      * Immediate + next-tick + delayed ticks + pulse window cover DMZ skill rebuild races.
      */
     public static void scheduleReapplyAfterDeath(ServerPlayer player) {
@@ -1212,8 +1295,8 @@ public final class PrestigePointsSystem {
                 }
             }
         }
-        // Permanent Majin/Mutant stay on the DragonMineZ effect.
-        if (hasMajin(player) || hasMutant(player)) {
+        // Permanent Majin/Mutant/Ultimate stay on the DragonMineZ effect.
+        if (hasMajin(player) || hasMutant(player) || hasUltimate(player)) {
             long next = ProgressionData.tempGetLong(player, KEY_FORM_PULSE_AT, 0L);
             if (next <= 0L || nowMs >= next) {
                 ProgressionData.tempPut(player, KEY_FORM_PULSE_AT, nowMs + FORM_PULSE_MS);

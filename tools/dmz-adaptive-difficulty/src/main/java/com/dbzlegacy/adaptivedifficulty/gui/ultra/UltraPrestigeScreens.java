@@ -333,6 +333,10 @@ public final class UltraPrestigeScreens {
         boolean mutant = "true".equalsIgnoreCase(ph.get("mutant"));
         boolean majinCan = "true".equalsIgnoreCase(ph.get("majin_can_buy"));
         boolean mutantCan = "true".equalsIgnoreCase(ph.get("mutant_can_buy"));
+        String ultimateCost =
+                ph.getOrDefault("ultimate_cost", String.valueOf(PrestigePointsSystem.ULTIMATE_COST));
+        boolean ultimate = "true".equalsIgnoreCase(ph.get("ultimate"));
+        boolean ultimateCan = "true".equalsIgnoreCase(ph.get("ultimate_can_buy"));
         UltraScreenSpec spec = sub("effects")
                 .lineGap(2)
                 .bodyPad(4);
@@ -377,6 +381,24 @@ public final class UltraPrestigeScreens {
                             UltraStyle.STYLE_DIM)
                     .rowGap();
         }
+        // Ultimate is independent of Majin/Mutant: own label line, own row. No
+        // buttonsAfterLines() here - the row cursor already sits below the Mutant button, and
+        // re-deriving it from the line count would drop this button on top of the pair above.
+        spec.line(UltraStyle.LABEL + "Ultimate - " + ultimateCost
+                + " favor. Stacks with Majin and Mutant.");
+        if (ultimate) {
+            spec.button(
+                            "do:unultimate",
+                            UltraStyle.danger("Remove Ultimate"),
+                            UltraStyle.STYLE_DANGER)
+                    .rowGap();
+        } else if (ultimateCan) {
+            spec.button(
+                            "do:ultimate",
+                            UltraStyle.confirm("Buy Ultimate"),
+                            UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
+        }
         int godkiInvested = parseInt(ph.get("godki_invested"), 0);
         boolean godkiMaxed = "true".equalsIgnoreCase(ph.get("godki_maxed"));
         String godkiCost = ph.getOrDefault("godki_cost", "1");
@@ -387,8 +409,10 @@ public final class UltraPrestigeScreens {
                 .labelValue(
                         "Invested",
                         godkiInvested + "/" + GodKiEnhancementShop.MAX_INVESTMENTS)
-                .labelValue("God Ki mastery", godkiMastery)
-                .buttonsAfterLines();
+                .labelValue("God Ki mastery", godkiMastery);
+        // No buttonsAfterLines() anymore: the body estimate caps at 140px, so re-deriving the
+        // God Ki row from the line count would land on top of the Ultimate button. The row
+        // cursor already sits below it.
         if (godkiMaxed) {
             spec.button(
                             "do:godki",

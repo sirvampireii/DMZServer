@@ -926,6 +926,9 @@ public final class ProgressionGuiApi {
         out.put("majin_can_buy", PrestigePointsSystem.canBuyMajin(player) ? "true" : "false");
         out.put("mutant_can_buy", PrestigePointsSystem.canBuyMutant(player) ? "true" : "false");
         out.put("form_cost", String.valueOf(PrestigePointsSystem.FORM_COST));
+        out.put("ultimate", PrestigePointsSystem.hasUltimate(player) ? "true" : "false");
+        out.put("ultimate_can_buy", PrestigePointsSystem.canBuyUltimate(player) ? "true" : "false");
+        out.put("ultimate_cost", String.valueOf(PrestigePointsSystem.ULTIMATE_COST));
         out.put("godki_invested", String.valueOf(GodKiEnhancementShop.invested(player)));
         out.put("godki_maxed", GodKiEnhancementShop.canBuy(player) ? "false" : "true");
         out.put("godki_cost", String.valueOf(GodKiEnhancementShop.INVESTMENT_COST));
@@ -1103,6 +1106,13 @@ public final class ProgressionGuiApi {
         }
         if ("unmutant".equals(act) || "unbuy_mutant".equals(act) || "remove_mutant".equals(act)) {
             return PrestigePointsSystem.unbuyMutant(player);
+        }
+        if ("ultimate".equals(act) || "buy_ultimate".equals(act)) {
+            return PrestigePointsSystem.buyUltimate(player);
+        }
+        if ("unultimate".equals(act) || "unbuy_ultimate".equals(act)
+                || "remove_ultimate".equals(act)) {
+            return PrestigePointsSystem.unbuyUltimate(player);
         }
         if ("godki".equals(act) || "godki_enhancement".equals(act) || "buy_godki".equals(act)) {
             return GodKiEnhancementShop.buy(player);

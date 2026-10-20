@@ -215,7 +215,7 @@ public final class ProgressionCommands {
     }
 
     /**
-     * View-only shop effects (favor, majin/mutant, God Ki) — read from the same
+     * View-only shop effects (favor, majin/mutant/ultimate, God Ki) — read from the same
      * placeholders the Prestige → Effects screens use. No purchase path here.
      */
     private static int prestigeEffects(CommandSourceStack source) {
@@ -231,6 +231,8 @@ public final class ProgressionCommands {
         boolean mutant = "true".equalsIgnoreCase(ph.get("mutant"));
         lines.add(UltraStyle.labelValue("Majin absorption", majin ? "owned" : "not owned"));
         lines.add(UltraStyle.labelValue("Mutant upgrade", mutant ? "owned" : "not owned"));
+        boolean ultimate = "true".equalsIgnoreCase(ph.get("ultimate"));
+        lines.add(UltraStyle.labelValue("Ultimate", ultimate ? "owned" : "not owned"));
         int godki = 0;
         try {
             godki = Integer.parseInt(ph.getOrDefault("godki_invested", "0").trim());

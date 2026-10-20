@@ -554,7 +554,9 @@ public final class PrestigeSystem {
             if (PrestigePointsSystem.getBreakthroughs(player) > 0) {
                 return true;
             }
-            if (PrestigePointsSystem.hasMajin(player) || PrestigePointsSystem.hasMutant(player)) {
+            if (PrestigePointsSystem.hasMajin(player)
+                    || PrestigePointsSystem.hasMutant(player)
+                    || PrestigePointsSystem.hasUltimate(player)) {
                 return true;
             }
         } catch (Throwable ignored) {

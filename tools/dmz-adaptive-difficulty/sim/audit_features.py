@@ -1596,6 +1596,70 @@ def main() -> int:
           and "isPrestigeAdminSub" in
           read(gui_root / "AdaptiveDifficultyGuiPlugin.java"))
     check("form XOR majin/mutant", "buyMajin" in pp and "buyMutant" in pp and "unbuyMajin" in pp)
+
+    # 4.6.221 - Permanent Ultimate: independent third effect that stacks with Majin/Mutant.
+    def _pp_method(signature: str, end: str) -> str:
+        if signature not in pp:
+            return ""
+        body = pp.split(signature, 1)[1]
+        return body.split(end, 1)[0] if end in body else ""
+
+    buy_ult = _pp_method("public static String buyUltimate(ServerPlayer player) {",
+                         "public static String unbuyUltimate(ServerPlayer player)")
+    unbuy_ult = _pp_method("public static String unbuyUltimate(ServerPlayer player) {",
+                           "private static String buyForm(ServerPlayer player, boolean majin)")
+    buy_form = _pp_method("private static String buyForm(ServerPlayer player, boolean majin) {",
+                          "private static String unbuyForm(ServerPlayer player, boolean majin)")
+    unbuy_form = _pp_method("private static String unbuyForm(ServerPlayer player, boolean majin) {",
+                            "private static void clearForm(ServerPlayer player, boolean majin)")
+    reapply_forms = _pp_method("private static void reapplyForms(ServerPlayer player) {",
+                               "public static int getBreakthroughs(ServerPlayer player)")
+    ultra_prestige = read(
+            SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraPrestigeScreens.java")
+    ultra_gui_actions = read(
+            SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraGuiActions.java")
+    check("permanent Ultimate cost + stored flag (4.6.221)",
+          "ULTIMATE_COST = 3" in pp
+          and '"pp_perm_ultimate"' in pp
+          and "hasUltimate(ServerPlayer player)" in pp
+          and "canBuyUltimate(ServerPlayer player)" in pp)
+    check("ultimate buy: 3 favor, no Majin/Mutant gate, silent effect + telemetry",
+          "setPoints(player, points - ULTIMATE_COST)" in buy_ult
+          and "hasMajin" not in buy_ult
+          and "hasMutant" not in buy_ult
+          and 'runDmzEffect(player, "ultimate", true)' in buy_ult
+          and '"buy_ultimate"' in buy_ult
+          and '"Unlocked Permanent Ultimate (-" + ULTIMATE_COST + " favor)"' in buy_ult
+          and '"Need " + ULTIMATE_COST + " favor (have "' in buy_ult)
+    check("ultimate remove: confirm again, full refund, clear Ultimate only",
+          "getPoints(player) + ULTIMATE_COST" in unbuy_ult
+          and 'runDmzEffect(player, "ultimate", false)' in unbuy_ult
+          and '"unbuy_ultimate"' in unbuy_ult
+          and "hasMajin" not in unbuy_ult
+          and "hasMutant" not in unbuy_ult)
+    check("majin/mutant buy+remove never check Ultimate",
+          "hasUltimate" not in buy_form
+          and "ULTIMATE_COST" not in buy_form
+          and "hasUltimate" not in unbuy_form)
+    check("ultimate reapplies like the other permanents",
+          'runDmzEffect(player, "ultimate", true)' in reapply_forms
+          and "hasMajin(player) || hasMutant(player) || hasUltimate(player)" in pp)
+    check("ultimate survives prestige-completion inference",
+          "hasUltimate(player)" in
+          read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeSystem.java")
+          .split("inferCompletedFromShop", 1)[1])
+    check("prestige GUI placeholders + actions for Ultimate (4.6.221)",
+          'out.put("ultimate"' in gui_api_pp
+          and 'out.put("ultimate_can_buy"' in gui_api_pp
+          and 'out.put("ultimate_cost"' in gui_api_pp
+          and "buyUltimate(player)" in gui_api_pp
+          and "unbuyUltimate(player)" in gui_api_pp)
+    check("effects screen Ultimate block + reopen routing",
+          '"do:ultimate"' in ultra_prestige
+          and '"do:unultimate"' in ultra_prestige
+          and "Stacks with Majin and Mutant." in ultra_prestige
+          and '"unbuy_ultimate",' in ultra_gui_actions
+          and '"remove_ultimate",' in ultra_gui_actions)
     # MutantManager.grant always chats message.dragonminez.mutant.gained — pulse must not call it.
     check("silent mutant ensure (no grant chat spam)",
           "ensureMutantSilent" in pp

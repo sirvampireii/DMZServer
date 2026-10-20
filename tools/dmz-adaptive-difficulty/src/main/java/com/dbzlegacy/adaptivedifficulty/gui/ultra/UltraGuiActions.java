@@ -834,6 +834,8 @@ public final class UltraGuiActions {
                 case "majin", "buy_majin", "mutant", "buy_mutant",
                         "unmajin", "unbuy_majin", "remove_majin",
                         "unmutant", "unbuy_mutant", "remove_mutant",
+                        "ultimate", "buy_ultimate", "unultimate", "unbuy_ultimate",
+                        "remove_ultimate",
                         "godki", "buy_godki", "godki_enhancement" -> "effects";
                 default -> homePage(screen);
             };

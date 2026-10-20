@@ -62,6 +62,8 @@ KNOWN_DO: dict[str, set[str]] = {
         "mutant",
         "unmajin",
         "unmutant",
+        "ultimate",
+        "unultimate",
         "godki",
     },
     "progression": {"boost", "toggle_staff_free_coins"},
