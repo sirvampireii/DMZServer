@@ -50,9 +50,6 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName != null && mixinClassName.endsWith("NoeaTravelSafetyCorpseFixMixin")) {
             return travelSafetyPresent();
         }
-        if (mixinClassName != null && mixinClassName.endsWith("DestroyerStoryAssignMixin")) {
-            return destroyerRoleServicePresent();
-        }
         if (mixinClassName != null && mixinClassName.endsWith("DmzultraNemesisSpawnGateMixin")) {
             return dedicatedServer() && dmzultraRivalPresent();
         }
@@ -79,23 +76,6 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
         try {
             Class.forName(
                     "com.butterjaffa.noeabosses.MajinAbsorptionService",
-                    false,
-                    LegacyMechanicsMixinPlugin.class.getClassLoader());
-            return true;
-        } catch (Throwable ignored) {
-            return false;
-        }
-    }
-
-    /**
-     * Noea Destroyer role service. Absent on a server that does not run Noea.
-     * Look the class up without initializing it so mixin config does not load
-     * the target early.
-     */
-    private static boolean destroyerRoleServicePresent() {
-        try {
-            Class.forName(
-                    "com.butterjaffa.noeabosses.DestroyerRoleService",
                     false,
                     LegacyMechanicsMixinPlugin.class.getClassLoader());
             return true;

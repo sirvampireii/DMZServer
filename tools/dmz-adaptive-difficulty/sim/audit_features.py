@@ -2460,27 +2460,23 @@ def main() -> int:
           and "import com.butterjaffa.noeabosses.DestroyerRoleService" not in hakai_gate
           and '"noea.HakaiDestroyerGateMixin"' in hakai_mixins)
 
-    print("\n=== Destroyer story auto-assign blocked (4.6.203) ===")
-    story_assign = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/noea/DestroyerStoryAssignMixin.java")
-    check("story progress does not auto-assign the Destroyer path",
-          '@Mixin(targets = "com.butterjaffa.noeabosses.DestroyerRoleService", remap = false)' in story_assign
-          and 'method = "initiateFromStoryProgress"' in story_assign
-          and 'at = @At("HEAD")' in story_assign
-          and "cancellable = true" in story_assign
-          and "require = 0" in story_assign
-          and "remap = false" in story_assign
-          and "cir.setReturnValue(false)" in story_assign
-          and "private static void lm$blockStoryAutoAssign" in story_assign
-          and "import com.butterjaffa.noeabosses.DestroyerRoleService" not in story_assign
-          and 'method = "beginCandidacy"' not in story_assign
-          and 'method = "acceptApprenticeship"' not in story_assign
-          and "HakaiDestroyerGateMixin" in story_assign
-          and '"noea.DestroyerStoryAssignMixin"' in hakai_mixins
-          and "DestroyerStoryAssignMixin" in mixin_plugin
-          and "destroyerRoleServicePresent()" in mixin_plugin
-          and 'Class.forName(\n                    "com.butterjaffa.noeabosses.DestroyerRoleService"' in mixin_plugin
+    print("\n=== Destroyer story auto-assign handed to KaiPath (4.6.219) ===")
+    # LM's story-progress block was removed: KaiPath's guard is the defense now.
+    # The mixin, its mixins.json entry, and its plugin gate must all be gone --
+    # while the separate Hakai gate and the read-only prestige role check stay.
+    story_assign = ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/noea/DestroyerStoryAssignMixin.java"
+    check("DestroyerStoryAssignMixin removed (KaiPath guards candidacy)",
+          not story_assign.is_file()
+          and "DestroyerStoryAssignMixin" not in hakai_mixins
+          and "DestroyerStoryAssignMixin" not in mixin_plugin
+          and "destroyerRoleServicePresent" not in mixin_plugin
+          and "initiateFromStoryProgress" not in mixin_plugin
+          and "import com.butterjaffa.noeabosses.DestroyerRoleService" not in mixin_plugin)
+    check("hakai gate and prestige role warn survive the story-assign removal",
+          '"noea.HakaiDestroyerGateMixin"' in hakai_mixins
           and "HakaiDestroyerGateMixin" not in mixin_plugin
-          and "DivineImmortalityEvents" not in mixin_plugin)
+          and "DivineImmortalityEvents" not in mixin_plugin
+          and (ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeUniverseRoleWarn.java").is_file())
 
     print("\n=== Fusion cooldown reset (4.6.43) ===")
     fusion_reset = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/command/FusionCooldownReset.java")
