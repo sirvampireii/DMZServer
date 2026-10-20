@@ -553,12 +553,12 @@ public final class UltraRivalScreens {
         boolean instinctOn = "true".equalsIgnoreCase(ph.getOrDefault("instinct", "false"));
         UltraScreenSpec spec = sub("settings")
                 .line(UltraStyle.LABEL + "Rival chat and instinct toggles.")
-                .labelValue("TP chat", tpOn ? "ON" : "OFF")
+                .labelValue("TP Chat", tpOn ? "ON" : "OFF")
                 .labelValue("Instinct", instinctOn ? "ON" : "OFF")
                 .buttonsAfterLines();
         spec.buttonLeft(
                         "do:tpmsg:toggle",
-                        tpOn ? UltraStyle.confirm("TP chat - ON") : UltraStyle.dim("TP chat - OFF"),
+                        tpOn ? UltraStyle.confirm("TP Chat - ON") : UltraStyle.dim("TP Chat - OFF"),
                         tpOn ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM)
                 .buttonRight(
                         "do:instinct",
@@ -588,7 +588,7 @@ public final class UltraRivalScreens {
         String emptyCopy;
         if ("spectate".equals(doAction)) {
             args = RivalGuiApi.activeChallengeArgs(player);
-            emptyCopy = "No active challenges right now";
+            emptyCopy = "No active challenges right now.";
         } else if ("rival_pick".equals(doAction)
                 || "declare".equals(doAction)
                 || "silent".equals(doAction)) {

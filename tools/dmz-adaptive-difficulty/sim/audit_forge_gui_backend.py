@@ -23,7 +23,7 @@ def main() -> int:
             errors.append(f"{rel}: player menu must not call Bukkit/CMI bridge")
         if "gui.cnpc" in text or "CnpcLmGui" in text:
             errors.append(f"{rel}: must not call CNPC menus")
-        if "UltraGui" not in text and path.name not in ("MechanicsChatMenu.java",):
+        if "UltraGui" not in text:
             # Chat menus are text-only; Skills/Progression/etc. must open Ultra.
             if path.name.endswith("Menu.java") and "Chat" not in path.name:
                 if "UltraGui" not in text:

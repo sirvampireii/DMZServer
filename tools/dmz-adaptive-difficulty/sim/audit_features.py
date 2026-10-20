@@ -1399,9 +1399,6 @@ def main() -> int:
     mech_cmds = read(SRC / "com/dbzlegacy/adaptivedifficulty/command/MechanicsCommands.java")
     prog_cmds = read(SRC / "com/dbzlegacy/adaptivedifficulty/command/ProgressionCommands.java")
     diff_cmds = read(SRC / "com/dbzlegacy/adaptivedifficulty/command/DifficultyCommands.java")
-    mech_chat = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/MechanicsChatMenu.java")
-    rival_chat = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/RivalChatMenu.java")
-    spar_chat = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/SparChatMenu.java")
     diff_chat = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/DifficultyChatMenu.java")
     prog_menu = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ProgressionMenu.java")
     audit_md = read(ROOT / "tools" / "dmz-adaptive-difficulty" / "GUI-COMMAND-AUDIT.md")
@@ -1452,9 +1449,11 @@ def main() -> int:
           "StaffAccess::hasSkillCheckSource" in prog_cmds and 'm_82127_("skillcheck")' in prog_cmds)
     check("progression helpOrGui", "helpOrGui" in prog_cmds)
     check("DifficultyCommands StaffAccess", "StaffAccess.isStaff" in diff_cmds)
-    check("chat hub prestige + android_remove",
-          '"/prestige"' in mech_chat and 'android_remove' in mech_chat)
-    check("rival/spar chat hub /lm", '"/lm"' in rival_chat and '"/lm"' in spar_chat)
+    # 4.6.222 - RivalChatMenu/SparChatMenu/MechanicsChatMenu deleted (zero refs in the
+    # shipped jar); their gates become fail-closed "stays deleted" pins.
+    check("dead chat menus stay deleted (4.6.222)",
+          not any((SRC / f"com/dbzlegacy/adaptivedifficulty/gui/{name}.java").is_file()
+                  for name in ("MechanicsChatMenu", "RivalChatMenu", "SparChatMenu")))
     check("difficulty chat hub button", '"/lm"' in diff_chat and 'lmdo lm open hub' not in diff_chat)
     check("ProgressionMenu allows android_remove", "isAndroidRemovePage" in prog_menu)
     cnpc_prog = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmProgressionGui.java")
@@ -1521,8 +1520,8 @@ def main() -> int:
           'SlotAction.cmd("lm")' not in rival_chest
           and 'lmdo lm open hub' in rival_chest
           and 'lmdo lm open hub' in prestige_chest)
-    check("conv code: chat hub android+prestige",
-          "android_remove" in mech_chat and "prestige" in mech_chat)
+    # conv code: chat hub android+prestige — MechanicsChatMenu deleted in 4.6.222;
+    # covered by the "dead chat menus stay deleted (4.6.222)" pin above.
 
     print("\n=== Prestige points shop (2.3.81) ===")
     pp = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigePointsSystem.java")
@@ -1660,6 +1659,38 @@ def main() -> int:
           and "Stacks with Majin and Mutant." in ultra_prestige
           and '"unbuy_ultimate",' in ultra_gui_actions
           and '"remove_ultimate",' in ultra_gui_actions)
+
+    # 4.6.222 - GUI consistency sweep: one dash toggle pattern, sentence empty states.
+    diff_ultra = read(
+            SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraDifficultyScreens.java")
+    rival_ultra = read(
+            SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraRivalScreens.java")
+    check("difficulty toggles use the dash pattern (4.6.222)",
+          '"Coin messages - ON"' in diff_ultra
+          and '"Coin messages - OFF"' in diff_ultra
+          and '"Difficulty - ON"' in diff_ultra
+          and '"Difficulty - OFF"' in diff_ultra
+          and '"Coin messages: ' not in diff_ultra
+          and '"Difficulty: ' not in diff_ultra)
+    check("event log toggles show feature + state, no verbs (4.6.222)",
+          '"Event log - ON"' in diff_ultra
+          and '"Event log - OFF"' in diff_ultra
+          and '"Log ON"' not in diff_ultra
+          and '"Turn ON"' not in diff_ultra
+          and '"Turn OFF"' not in diff_ultra
+          and '"Log OFF"' not in diff_ultra)
+    check("rival TP Chat capitalization matches spar (4.6.222)",
+          '"TP Chat - ON"' in rival_ultra
+          and '"TP Chat - OFF"' in rival_ultra
+          and '"TP chat - ' not in rival_ultra
+          and '.labelValue("TP chat"' not in rival_ultra)
+    check("empty states are full sentences with a next step (4.6.222)",
+          '"No active challenges right now."' in rival_ultra
+          and '"No active challenges right now"' not in rival_ultra
+          and '"Active tier", "None"' not in diff_ultra
+          and '? "None" :' not in diff_ultra
+          and "No tier active yet. Pick one below." in diff_ultra
+          and "No tier active yet. Open the Tiers tab." in diff_ultra)
     # MutantManager.grant always chats message.dragonminez.mutant.gained — pulse must not call it.
     check("silent mutant ensure (no grant chat spam)",
           "ensureMutantSilent" in pp
@@ -2045,17 +2076,11 @@ def main() -> int:
           and "PAGES = 2" in pieces)
 
     print("\n=== GUI humanization (4.6.17) ===")
-    rival_chat = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/RivalChatMenu.java")
-    spar_chat = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/SparChatMenu.java")
     char_api = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/CharacterServicesGuiApi.java")
     rival_gui = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmRivalGui.java")
     prog_gui = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmProgressionGui.java")
-    check("rival chat forfeit is labeled when a challenge is live",
-          "Forfeit your active challenge" in rival_chat
-          and "Cancel your pending challenge request" in rival_chat
-          and "Cancel yours" not in rival_chat)
-    check("spar chat category buttons use the top_ page",
-          'startsWith("top_")' in spar_chat and "top_tp" in spar_chat)
+    # rival/spar chat-menu humanization pins removed in 4.6.222 with the dead menus;
+    # deletion is gated by "dead chat menus stay deleted (4.6.222)" in the hub section.
     check("0% wipe copy keeps head parts and coins",
           "head-part unlocks and coins kept" in char_api
           and "nothing carried over" not in char_api)

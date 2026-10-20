@@ -62,8 +62,6 @@ OPTIONAL_CLASSES = [
     "com.dbzlegacy.adaptivedifficulty.gui.DifficultyChatMenu",
     "com.dbzlegacy.adaptivedifficulty.gui.RivalGuiApi",
     "com.dbzlegacy.adaptivedifficulty.gui.SparGuiApi",
-    "com.dbzlegacy.adaptivedifficulty.gui.RivalChatMenu",
-    "com.dbzlegacy.adaptivedifficulty.gui.SparChatMenu",
     "com.dbzlegacy.adaptivedifficulty.data.PlayerDifficultyData",
     "com.dbzlegacy.adaptivedifficulty.tier.UnlockSystem",
     "com.dbzlegacy.adaptivedifficulty.scaling.AreaDifficulty",

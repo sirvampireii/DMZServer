@@ -293,7 +293,7 @@ merge_onto_base_jar() {
       "$merge/com/dbzlegacy/adaptivedifficulty/progression/shop/" 2>/dev/null || true
   fi
   # Hub/chat fallback + /lm open|page — must ship from src (base jar may still reference /lmdo).
-  for class in MechanicsChatMenu DifficultyChatMenu RivalChatMenu SparChatMenu ProgressionChatMenu GuiClickConfirm DifficultyTeamGuiApi CnpcStaffTestGui; do
+  for class in DifficultyChatMenu ProgressionChatMenu GuiClickConfirm DifficultyTeamGuiApi CnpcStaffTestGui; do
     if [[ -f "$OUT/com/dbzlegacy/adaptivedifficulty/gui/${class}.class" ]]; then
       cp "$OUT/com/dbzlegacy/adaptivedifficulty/gui/${class}.class" \
         "$merge/com/dbzlegacy/adaptivedifficulty/gui/${class}.class"

@@ -600,18 +600,23 @@ def main() -> int:
 
             with zipfile.ZipFile(forge_jar) as zf:
                 jar_names = set(zf.namelist())
-                chat_bytes = zf.read(
-                    "com/dbzlegacy/adaptivedifficulty/gui/MechanicsChatMenu.class"
-                )
                 cmd_bytes = zf.read(
                     "com/dbzlegacy/adaptivedifficulty/command/MechanicsCommands.class"
                 )
                 check(
-                    "shipped MechanicsChatMenu Forge routes (no /lmdo hub hops)",
-                    b"/lmdo lm open difficulty" not in chat_bytes
-                    and b"/difficulty" in chat_bytes
-                    and b"/lm open android_remove" in chat_bytes,
-                    "rebuild overlay — chat menu classes must merge from src",
+                    "dead chat menus absent from jar (4.6.222)",
+                    not any(
+                        name.startswith(
+                            "com/dbzlegacy/adaptivedifficulty/gui/" + dead
+                        )
+                        for dead in (
+                            "MechanicsChatMenu",
+                            "RivalChatMenu",
+                            "SparChatMenu",
+                        )
+                        for name in jar_names
+                    ),
+                    "deleted chat menus must not ship — drop them from build.sh overlay list",
                 )
                 check(
                     "shipped MechanicsCommands top-level /lm open",

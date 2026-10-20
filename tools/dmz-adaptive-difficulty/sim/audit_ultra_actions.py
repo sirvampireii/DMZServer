@@ -284,8 +284,10 @@ def main() -> int:
     diff_screens = (ULTRA / "UltraDifficultyScreens.java").read_text(encoding="utf-8")
     if "Coin settings" in diff_screens or "openSettings" in diff_screens:
         errors.append("Difficulty must not keep a Coin settings submenu")
-    if '"Coin messages: ON"' not in diff_screens or '"Coin messages: OFF"' not in diff_screens:
-        errors.append("Difficulty home must toggle Coin messages: ON/OFF directly")
+    if '"Coin messages - ON"' not in diff_screens or '"Coin messages - OFF"' not in diff_screens:
+        errors.append("Difficulty home must toggle Coin messages - ON/OFF directly")
+    if '"Coin messages: ' in diff_screens:
+        errors.append("Difficulty home Coin messages toggle must use the dash pattern, not a colon")
     if 'case "toggle_coin_chat" -> "settings"' in (
         ULTRA / "UltraGuiActions.java"
     ).read_text(encoding="utf-8"):
@@ -1167,11 +1169,17 @@ def main() -> int:
     if "do:mode:personal" not in team_body or "do:mode:threshold" not in team_body or "do:mode:full" not in team_body:
         errors.append("Rival teams page must keep Personal, Threshold, and Full team")
     if "Personal ON" in diff_screens or "Personal OFF" in diff_screens:
-        errors.append("Difficulty toggle must say Difficulty: ON/OFF, not Personal")
-    if 'UltraStyle.confirm("Difficulty: OFF")' in diff_screens or 'UltraStyle.confirm("Turn personal ON")' in diff_screens:
+        errors.append("Difficulty toggle must say Difficulty - ON/OFF, not Personal")
+    if '"Difficulty: ' in diff_screens:
+        errors.append("Difficulty toggle must use the dash pattern (Difficulty - ON/OFF), not a colon")
+    if 'UltraStyle.confirm("Difficulty - OFF")' in diff_screens or 'UltraStyle.confirm("Turn personal ON")' in diff_screens:
         errors.append("Difficulty OFF must use dim, not confirm/gold")
-    if 'UltraStyle.dim("Difficulty: OFF")' not in diff_screens or "STYLE_DIM" not in diff_screens:
+    if 'UltraStyle.dim("Difficulty - OFF")' not in diff_screens or "STYLE_DIM" not in diff_screens:
         errors.append("Difficulty OFF toggle must be dim")
+    if '"Log ON"' in diff_screens or '"Turn ON"' in diff_screens or '"Turn OFF"' in diff_screens or '"Log OFF"' in diff_screens:
+        errors.append("Event log toggles must use the state pattern, not verb labels (Turn ON/OFF, Log ON/OFF)")
+    if '"Event log - ON"' not in diff_screens or '"Event log - OFF"' not in diff_screens:
+        errors.append("Event log toggles must say Event log - ON/OFF")
     if 'dim("Staff details")' in diff_screens:
         errors.append("Staff details must be danger/red, not dim")
     if 'danger("Staff details")' not in diff_screens:

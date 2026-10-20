@@ -108,7 +108,9 @@ public final class UltraDifficultyScreens {
         DifficultySnapshot snap = DifficultyCache.refresh(player);
         PlayerDifficultyData data = DifficultyCache.data(player);
         boolean personal = data != null && data.isPersonalEnabled();
-        String tierName = snap == null || snap.activeTier <= 0 ? "None" : snap.activeTierName;
+        String tierName = snap == null || snap.activeTier <= 0
+                ? "No tier active yet. Open the Tiers tab."
+                : snap.activeTierName;
         UltraScreenSpec spec = base(player, "main", "home")
                 .labelValue("Personal difficulty", personal ? "On" : "Off")
                 .labelValue("Active tier", tierName)
@@ -163,7 +165,7 @@ public final class UltraDifficultyScreens {
         int active = data.getActiveTier();
         UltraScreenSpec spec = base(player, "tiers", "tiers");
         if (active <= 0) {
-            spec.labelValue("Active tier", "None");
+            spec.line(UltraStyle.dim("No tier active yet. Pick one below."));
         } else {
             spec.labelValue("Active tier", snap == null ? "T" + active : snap.activeTierName);
         }
@@ -402,8 +404,8 @@ public final class UltraDifficultyScreens {
         spec.button(
                         "do:toggle_coin_chat",
                         on
-                                ? UltraStyle.confirm("Coin messages: ON")
-                                : UltraStyle.dim("Coin messages: OFF"),
+                                ? UltraStyle.confirm("Coin messages - ON")
+                                : UltraStyle.dim("Coin messages - OFF"),
                         on ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM)
                 .rowGap();
     }
@@ -412,13 +414,13 @@ public final class UltraDifficultyScreens {
         if (enabled) {
             spec.buttonRight(
                     "do:toggle_personal",
-                    UltraStyle.confirm("Difficulty: ON"),
+                    UltraStyle.confirm("Difficulty - ON"),
                     UltraStyle.STYLE_CONFIRM);
             return;
         }
         spec.buttonLeft(
                 "do:toggle_personal",
-                UltraStyle.dim("Difficulty: OFF"),
+                UltraStyle.dim("Difficulty - OFF"),
                 UltraStyle.STYLE_DIM);
     }
 
@@ -650,12 +652,14 @@ public final class UltraDifficultyScreens {
         spec.buttonLeft("do:syslog:status", UltraStyle.danger("Status"), "danger")
                 .buttonRight(
                         "do:syslog:on",
-                        logOn ? UltraStyle.confirm("Log ON") : UltraStyle.dim("Turn ON"),
+                        logOn ? UltraStyle.confirm("Event log - ON") : UltraStyle.dim("Event log - ON"),
                         logOn ? "confirm" : "dim")
                 .rowGap();
         spec.buttonLeft(
                         "do:syslog:off",
-                        logOn ? UltraStyle.danger("Turn OFF") : UltraStyle.dim("Log OFF"),
+                        logOn
+                                ? UltraStyle.danger("Event log - OFF")
+                                : UltraStyle.dim("Event log - OFF"),
                         logOn ? "danger" : "dim")
                 .buttonRight("do:syslog:flush", UltraStyle.dim("Flush"), "dim")
                 .rowGap();
