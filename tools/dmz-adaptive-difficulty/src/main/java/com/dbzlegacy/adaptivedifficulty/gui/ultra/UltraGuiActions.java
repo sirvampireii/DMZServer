@@ -903,6 +903,12 @@ public final class UltraGuiActions {
                             ? bonePage
                             : (page != null && page.startsWith("bones") ? page : "bones:0");
                 }
+                case "bodypart_color", "bodypart_color_reset" -> {
+                    String colorPage = stringArg(args, "page");
+                    yield colorPage != null && colorPage.startsWith("bodycolors")
+                            ? colorPage
+                            : "bodycolors";
+                }
                 default -> homePage(screen);
             };
             case "admin" -> "admin";

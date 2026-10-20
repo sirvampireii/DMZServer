@@ -166,6 +166,16 @@ public final class CharacterServicesStore {
          * Sent on the KaiPath model preview via {@code playerModel.parts.bodyParts}.
          */
         public List<String> equippedBodyParts = new ArrayList<>();
+        /**
+         * Part-color overrides picked in the Body Parts Shop (own/trim/horn/light channels,
+         * packed RGB 0xRRGGBB). Persisted with the equipped parts; null means no override -
+         * the model falls back to the form design constant, or the base-form palette in base
+         * form. Not cleared by race change, reskin, or class change.
+         */
+        public Integer partColorOwn;
+        public Integer partColorTrim;
+        public Integer partColorHorn;
+        public Integer partColorLight;
     }
 
     private static final class Persist {

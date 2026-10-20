@@ -52,6 +52,10 @@ public final class UltraCharacterScreens {
             openBodyParts(player, parseBodyPartPage(lower));
             return;
         }
+        if (lower.startsWith("bodycolors") || "bodycolors".equals(lower)) {
+            openBodyColors(player, lower);
+            return;
+        }
         if (isStaffAndroidPage(lower)) {
             if (!staffMayEditOthers(player)) {
                 openAndroidRemove(player);
@@ -694,8 +698,10 @@ public final class UltraCharacterScreens {
         spec.buttonLeft(
                         "do:bodypart_clear",
                         UltraStyle.danger("Clear parts"),
-                        UltraStyle.STYLE_DANGER)
-                .rowGap();
+                        UltraStyle.STYLE_DANGER);
+        spec.buttonRight(
+                        "page:bodycolors", UltraStyle.LABEL + "Part colors", UltraStyle.STYLE_NORMAL);
+        spec.rowGap();
         if (pg > 0) {
             spec.buttonLeft(
                     "page:bodyparts:" + (pg - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
@@ -713,6 +719,104 @@ public final class UltraCharacterScreens {
             spec.rowGap();
         }
         spec.footerBack("page:bones:0", "Model");
+        spec.send(player);
+    }
+
+    /**
+     * Part colors - per-channel overrides for the four DMZUltra part channels
+     * (own/trim/horn/light). Each row opens that channel's swatch page; picking a swatch
+     * saves immediately and re-syncs the model (menu preview + world).
+     */
+    private static void openBodyColors(ServerPlayer player, String pageId) {
+        String[] bits = pageId == null ? new String[0] : pageId.split(":", -1);
+        if (bits.length >= 2 && CosmeticBodyPartService.isColorChannel(bits[1])) {
+            int swatchPage = 0;
+            if (bits.length > 2) {
+                try {
+                    swatchPage = Integer.parseInt(bits[2].trim());
+                } catch (NumberFormatException ignored) {
+                    swatchPage = 0;
+                }
+            }
+            openBodyColorSwatches(player, bits[1].trim().toLowerCase(Locale.ROOT), swatchPage);
+            return;
+        }
+        UltraScreenSpec spec = sub(player, "bodycolors", true);
+        appendCompactLines(spec, CharacterServicesGuiApi.linesForPage(player, "bodycolors"));
+        spec.buttonsAfterLines();
+        for (String channel : CosmeticBodyPartService.COLOR_CHANNELS) {
+            String value = CosmeticBodyPartService.partColorValue(player, channel);
+            String action = "page:bodycolors:" + channel + ":0";
+            spec.buttonLeft(
+                    action,
+                    UltraStyle.LABEL
+                            + UltraStyle.buttonText(CosmeticBodyPartService.colorChannelLabel(channel)),
+                    UltraStyle.STYLE_NORMAL);
+            spec.buttonRight(
+                    action,
+                    UltraStyle.LABEL + UltraStyle.buttonText(value),
+                    "Default".equals(value) ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_NORMAL);
+            spec.rowGap();
+        }
+        spec.footerBack("page:bodyparts:0", "Body parts");
+        spec.send(player);
+    }
+
+    /** Preset swatch grid for one channel, laid out like the shop's card pages. */
+    private static void openBodyColorSwatches(ServerPlayer player, String channel, int page) {
+        int pages = CosmeticBodyPartService.colorPageCount();
+        int pg = Math.min(pages - 1, Math.max(0, page));
+        UltraScreenSpec spec =
+                sub(player, "bodycolors:" + channel + ":" + pg, true)
+                        .labelValue(
+                                CosmeticBodyPartService.colorChannelLabel(channel),
+                                CosmeticBodyPartService.partColorValue(player, channel));
+        spec.line(UltraStyle.LABEL + "Pick a swatch. It saves immediately.");
+        spec.buttonsAfterLines();
+        int placed = 0;
+        for (CosmeticBodyPartService.Preset preset : CosmeticBodyPartService.colorPresets(pg)) {
+            String action =
+                    "do:bodypart_color:" + channel + ":" + Integer.toHexString(preset.rgb());
+            String label = UltraStyle.LABEL + UltraStyle.buttonText(preset.name());
+            if (placed % 2 == 0) {
+                spec.buttonLeft(action, label, UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.buttonRight(action, label, UltraStyle.STYLE_NORMAL);
+                spec.rowGap();
+            }
+            placed++;
+        }
+        if (placed % 2 == 1) {
+            spec.rowGap();
+        }
+        spec.buttonLeft(
+                        "do:bodypart_color_reset:" + channel,
+                        UltraStyle.dim("Reset to default"),
+                        UltraStyle.STYLE_DIM)
+                .rowGap();
+        if (pg > 0) {
+            spec.buttonLeft(
+                    "page:bodycolors:" + channel + ":" + (pg - 1),
+                    UltraStyle.dim("Prev"),
+                    UltraStyle.STYLE_DIM);
+        }
+        if (pg + 1 < pages) {
+            if (pg > 0) {
+                spec.buttonRight(
+                        "page:bodycolors:" + channel + ":" + (pg + 1),
+                        UltraStyle.LABEL + "Next",
+                        UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.buttonLeft(
+                        "page:bodycolors:" + channel + ":" + (pg + 1),
+                        UltraStyle.LABEL + "Next",
+                        UltraStyle.STYLE_NORMAL);
+            }
+            spec.rowGap();
+        } else if (pg > 0) {
+            spec.rowGap();
+        }
+        spec.footerBack("page:bodycolors", "Part colors");
         spec.send(player);
     }
 

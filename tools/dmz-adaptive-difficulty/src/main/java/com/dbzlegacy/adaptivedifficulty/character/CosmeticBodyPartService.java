@@ -30,6 +30,35 @@ public final class CosmeticBodyPartService {
      */
     public static final int CARDS_PER_PAGE = 8;
 
+    /** Part-color channels in display order (the four DMZUltra design keys). */
+    public static final List<String> COLOR_CHANNELS = List.of("own", "trim", "horn", "light");
+
+    /**
+     * Preset swatches for the channel picker, two-up like the shop's card pages. Names stay
+     * short enough for a card label.
+     */
+    public static final List<Preset> COLOR_PRESETS =
+            List.of(
+                    new Preset("White", 0xFFFFFF),
+                    new Preset("Silver", 0xC0C0C0),
+                    new Preset("Gray", 0x7D7D7D),
+                    new Preset("Charcoal", 0x36383D),
+                    new Preset("Black", 0x111111),
+                    new Preset("Crimson", 0xA52A2A),
+                    new Preset("Orange", 0xE07B2E),
+                    new Preset("Gold", 0xE3B82F),
+                    new Preset("Lime", 0x9BC33C),
+                    new Preset("Emerald", 0x2E8B57),
+                    new Preset("Teal", 0x2F8F97),
+                    new Preset("Sky", 0x63B3ED),
+                    new Preset("Royal", 0x3B5DC9),
+                    new Preset("Purple", 0x8A45BD),
+                    new Preset("Pink", 0xE77FB5),
+                    new Preset("Brown", 0x7A5230));
+
+    /** One swatch: display name plus packed RGB. */
+    public record Preset(String name, int rgb) {}
+
     private CosmeticBodyPartService() {}
 
     public static boolean shopEnabled() {
@@ -166,6 +195,131 @@ public final class CosmeticBodyPartService {
                 parts == null || parts.isEmpty()
                         ? com.dbzlegacy.adaptivedifficulty.net.gui.GuiModelSyncPacket.REASON_CLEAR
                         : com.dbzlegacy.adaptivedifficulty.net.gui.GuiModelSyncPacket.REASON_EQUIP);
+    }
+
+    /** Player-facing label for a channel ({@code own} -> {@code Part color (own)}). */
+    public static String colorChannelLabel(String channel) {
+        String ch = channel == null ? "" : channel.trim().toLowerCase(Locale.ROOT);
+        return switch (ch) {
+            case "own" -> "Part color (own)";
+            case "trim" -> "Trim color (trim)";
+            case "horn" -> "Horn color (horn)";
+            case "light" -> "Glow color (light)";
+            default -> "?";
+        };
+    }
+
+    /** True for the four part channels the shop offers. */
+    public static boolean isColorChannel(String channel) {
+        return channel != null && COLOR_CHANNELS.contains(channel.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /** The player's stored override for a channel, or null when unset. */
+    public static Integer partColor(ServerPlayer player, String channel) {
+        if (player == null || !isColorChannel(channel)) {
+            return null;
+        }
+        CharacterServicesStore.PlayerRecord rec =
+                CharacterServicesStore.get().record(player.m_20148_().toString());
+        return switch (channel.trim().toLowerCase(Locale.ROOT)) {
+            case "own" -> rec.partColorOwn;
+            case "trim" -> rec.partColorTrim;
+            case "horn" -> rec.partColorHorn;
+            case "light" -> rec.partColorLight;
+            default -> null;
+        };
+    }
+
+    /** Row text for a channel: the picked hex, or {@code Default} when unset. */
+    public static String partColorValue(ServerPlayer player, String channel) {
+        Integer rgb = partColor(player, channel);
+        return rgb == null ? "Default" : hex(rgb);
+    }
+
+    public static String hex(int rgb) {
+        return String.format(Locale.ROOT, "#%06X", rgb & 0xFFFFFF);
+    }
+
+    /** Persist one channel's override (null clears it) and re-sync the model. */
+    private static void persistPartColor(ServerPlayer player, String channel, Integer rgb) {
+        if (player == null || !isColorChannel(channel)) {
+            return;
+        }
+        CharacterServicesStore.PlayerRecord rec =
+                CharacterServicesStore.get().record(player.m_20148_().toString());
+        Integer value = rgb == null ? null : rgb & 0xFFFFFF;
+        switch (channel.trim().toLowerCase(Locale.ROOT)) {
+            case "own" -> rec.partColorOwn = value;
+            case "trim" -> rec.partColorTrim = value;
+            case "horn" -> rec.partColorHorn = value;
+            case "light" -> rec.partColorLight = value;
+            default -> {
+                return;
+            }
+        }
+        CharacterServicesStore.get().markDirty();
+        CharacterServicesStore.get().save();
+        // World sync: menu preview + other clients re-render with the new channel value.
+        com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork.sendModelSync(
+                player, com.dbzlegacy.adaptivedifficulty.net.gui.GuiModelSyncPacket.REASON_COLOR);
+    }
+
+    /** Swatch page count (two-up grid, same stride as the piece cards). */
+    public static int colorPageCount() {
+        return Math.max(1, (COLOR_PRESETS.size() + CARDS_PER_PAGE - 1) / CARDS_PER_PAGE);
+    }
+
+    /** Presets on one swatch page, in catalog order. */
+    public static List<Preset> colorPresets(int page) {
+        int pages = colorPageCount();
+        int p = Math.max(0, Math.min(page, pages - 1));
+        int from = p * CARDS_PER_PAGE;
+        int to = Math.min(COLOR_PRESETS.size(), from + CARDS_PER_PAGE);
+        if (from >= COLOR_PRESETS.size()) {
+            return List.of();
+        }
+        return COLOR_PRESETS.subList(from, to);
+    }
+
+    /** Pick a swatch: {@code arg} is {@code channel:rgb} (rgb packed 0xRRGGBB, hex). */
+    public static String executeColorPick(ServerPlayer player, String arg) {
+        if (!canUse(player)) {
+            return UltraStyle.DANGER
+                    + "Model customization is unavailable right now. Try again later or ask staff.";
+        }
+        String[] bits = arg == null ? new String[0] : arg.split(":", 2);
+        if (bits.length < 2 || !isColorChannel(bits[0])) {
+            return UltraStyle.DANGER + "Pick a color from the swatches.";
+        }
+        int rgb;
+        try {
+            rgb = (int) Long.parseLong(bits[1].trim().replace("#", ""), 16) & 0xFFFFFF;
+        } catch (NumberFormatException e) {
+            return UltraStyle.DANGER + "That swatch is not available. Pick another from the list.";
+        }
+        String channel = bits[0].trim().toLowerCase(Locale.ROOT);
+        persistPartColor(player, channel, rgb);
+        return UltraStyle.CONFIRM + colorChannelLabel(channel) + UltraStyle.CONFIRM + " set to "
+                + UltraStyle.VALUE + hex(rgb) + UltraStyle.CONFIRM + ".";
+    }
+
+    /** Reset a channel to unset - the model follows the form default again. */
+    public static String executeColorReset(ServerPlayer player, String channel) {
+        if (!canUse(player)) {
+            return UltraStyle.DANGER
+                    + "Model customization is unavailable right now. Try again later or ask staff.";
+        }
+        if (!isColorChannel(channel)) {
+            return UltraStyle.DANGER + "Pick a color channel first.";
+        }
+        String ch = channel.trim().toLowerCase(Locale.ROOT);
+        if (partColor(player, ch) == null) {
+            return UltraStyle.LABEL + colorChannelLabel(ch) + UltraStyle.LABEL
+                    + " is already on its default.";
+        }
+        persistPartColor(player, ch, null);
+        return UltraStyle.CONFIRM + colorChannelLabel(ch) + UltraStyle.CONFIRM
+                + " reset to default. " + UltraStyle.LABEL + "It follows your form again.";
     }
 
     /** Header value for the shop page: {@code none} or the worn display names. */

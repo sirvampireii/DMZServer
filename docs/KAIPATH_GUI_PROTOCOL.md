@@ -587,16 +587,20 @@ protocol bump:** the keys mirror the DMZUltra accessor names (`FormParts$Look` /
 | `skin` | Active-form `bodyColor1` override, else the character's body color | white `16777215` |
 | `second` | Active-form `bodyColor2` override, else the character's second body color | computed `skin` |
 | `hair` | Active-form `hairColor` override, else the character's hair color | `2105380` (`0x202024`) |
-| `own` | Form-constant design color (DMZUltra design table key `a`) | reflective read |
-| `trim` | Form-constant design color (key `b`) | reflective read |
-| `horn` | Form-constant design color (key `c`) | reflective read |
-| `light` | Form-constant design color (key `g`) | reflective read |
+| `own` | Player shop override, else form-constant design color (DMZUltra design table key `a`) | base palette `skin` |
+| `trim` | Player shop override, else form-constant design color (key `b`) | base palette `second` |
+| `horn` | Player shop override, else form-constant design color (key `c`) | base palette `hair` |
+| `light` | Player shop override, else form-constant design color (key `g`) | base palette `second` |
 
 `skin`/`second`/`hair` mirror DMZUltra `FormParts.of` byte-for-byte (same override chain
-and fallbacks). `own`/`trim`/`horn`/`light` are form-constant — identical for every player
-wearing the form — and are shipped in LM's `dmzultra-form-parts.json` `designs` map, keyed
-`race/group/form`. `own`/`trim`/`horn`/`light` are omitted when the form has no catalog
-entry (the client then keeps its own reflective path for exactly those keys).
+and fallbacks). Since LM 4.6.223 `own`/`trim`/`horn`/`light` resolve **per key**: a
+per-player body-parts-shop override (picked on Character Services > Body parts >
+Part colors) wins in every form — ultras included — else the form-constant design color
+from the shipped `designs` map (keyed `race/group/form`) while the form has one, else the
+base-form palette (`own`=skin, `trim`=second, `horn`=hair, `light`=second). The four keys
+are now always present once the character is known; the client rule below is unchanged.
+A cape samples one of these channels, so it follows the same resolution with no special
+case.
 
 Client rule: for each key **present** in `colors`, use it; for keys absent, fall back to
 the reflective `FormParts$Look` / `FormParts$Design` read as before. `colors` never

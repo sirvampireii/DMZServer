@@ -238,6 +238,11 @@ public final class DifficultyEvents {
                     if (com.dbzlegacy.adaptivedifficulty.character.RaceHeadBoneSync.syncCharacter(player)) {
                         com.dbzlegacy.adaptivedifficulty.character.RaceHeadBoneSync.syncClient(player);
                     }
+                    // Self-heal: a character stuck with a Saiyan tail flag from an old DMZ
+                    // race change clears it on the next login (next tick, once DMZ data
+                    // attaches - same readiness path as the head-bone reapply above).
+                    com.dbzlegacy.adaptivedifficulty.character.SaiyanTailWipeHelper
+                            .clearIfRaceCannotHaveTail(player, "DifficultyEvents.onLogin");
                 });
             }
             // DMZ Character often attaches after this event — keep pulling level until ready.

@@ -129,8 +129,11 @@ public final class PlayerModelParts {
      * resolves another player's capability data and comes back gray (0x808080 matches none
      * of the fallbacks). Mirrors {@code FormParts.of} byte-for-byte: {@code skin}/{@code second}/
      * {@code hair} are per-player (active-form color override beats the character value, and
-     * the same fallbacks apply), while {@code own}/{@code trim}/{@code horn}/{@code light} are
-     * form-constant design colors from the shipped DMZUltra catalog. Null when the character
+     * the same fallbacks apply), while {@code own}/{@code trim}/{@code horn}/{@code light}
+     * resolve per key since 4.6.223: a stored body-parts-shop choice wins in every form
+     * (ultras included), else the form-constant design color from the shipped DMZUltra
+     * catalog while a design is active, else the base-form palette ({@code own}=skin,
+     * {@code trim}=second, {@code horn}=hair, {@code light}=second). Null when the character
      * is unknown - the client then keeps its own fallback path.
      *
      * <p>Key names are the DMZUltra accessor names so the client maps them 1:1 - see
@@ -198,13 +201,25 @@ public final class PlayerModelParts {
         o.addProperty("hair", hair);
         BodyPartCatalog.Design design =
                 BodyPartCatalog.design(race, group, form, stackGroup, stackForm);
-        if (design != null) {
-            o.addProperty("own", design.own());
-            o.addProperty("trim", design.trim());
-            o.addProperty("horn", design.horn());
-            o.addProperty("light", design.light());
-        }
+        // Per key: a stored shop choice wins in every form (ultras included), else the
+        // form's design constant while one is active, else the base-form palette
+        // (own=skin, trim=second, horn=hair, light=second). Keys are always emitted once
+        // the character is known - the cape and every other part channel sampler follows
+        // whichever value lands here.
+        o.addProperty("own", resolveChannel(player, "own", design != null ? design.own() : skin));
+        o.addProperty(
+                "trim", resolveChannel(player, "trim", design != null ? design.trim() : second));
+        o.addProperty(
+                "horn", resolveChannel(player, "horn", design != null ? design.horn() : hair));
+        o.addProperty(
+                "light", resolveChannel(player, "light", design != null ? design.light() : second));
         return o;
+    }
+
+    /** Stored body-parts-shop override for a channel, else the resolved fallback. */
+    private static int resolveChannel(ServerPlayer player, String key, int fallback) {
+        Integer stored = CosmeticBodyPartService.partColor(player, key);
+        return stored == null ? fallback : stored;
     }
 
     /** DMZUltra {@code FormParts.set}: a color override applies when the string is non-empty. */

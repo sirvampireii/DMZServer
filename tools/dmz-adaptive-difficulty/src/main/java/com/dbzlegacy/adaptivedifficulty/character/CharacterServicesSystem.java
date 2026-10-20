@@ -491,6 +491,11 @@ public final class CharacterServicesSystem {
                     }
                 }
             }
+            // DMZ's race change never clears the tail flag. Every branch above has now
+            // committed the new race, so clear a stuck one the way the bonus wipe strips
+            // old-race splits - family races are never touched.
+            SaiyanTailWipeHelper.clearIfRaceCannotHaveTail(
+                    player, "CharacterServicesSystem.executeRaceChange");
             if (!staffGrant) {
                 CharacterServicesStore.get().record(player.m_20148_().toString()).lastRaceChangeAt =
                         System.currentTimeMillis();

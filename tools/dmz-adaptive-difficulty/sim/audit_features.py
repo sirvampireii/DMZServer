@@ -3228,6 +3228,58 @@ def main() -> int:
         "fallback(String subject)" in sync_pkt_bp
         and "subjectOf(" in sync_pkt_bp,
     )
+    print("\n=== Saiyan tail cleanup + part colors (4.6.223) ===")
+    tail_wipe_bp = read(
+        ROOT
+        / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/character/SaiyanTailWipeHelper.java"
+    )
+    svc_sys_bp = read(
+        SRC / "com/dbzlegacy/adaptivedifficulty/character/CharacterServicesSystem.java"
+    )
+    check(
+        "SaiyanTailWipeHelper clears the stuck flags outside the tail family (clear-only)",
+        'Set.of("saiyan", "ancient_saiyan", "sento_saiyan", "monkey")' in tail_wipe_bp
+        and "ch.isHasSaiyanTail()" in tail_wipe_bp
+        and "ch.setHasSaiyanTail(false)" in tail_wipe_bp
+        and "status.setTailVisible(false)" in tail_wipe_bp
+        and "setHasSaiyanTail(true" not in tail_wipe_bp
+        and "setTailVisible(true" not in tail_wipe_bp,
+    )
+    check(
+        "Tail cleanup runs on race change (new race committed) and login self-heal",
+        "SaiyanTailWipeHelper.clearIfRaceCannotHaveTail(" in svc_sys_bp
+        and ".clearIfRaceCannotHaveTail(player" in evt_bp
+        and "RaceHeadBoneSync.syncCharacter" in evt_bp,
+    )
+    check(
+        "Part colors stored on PlayerRecord (own/trim/horn/light, null = unset)",
+        "partColorOwn" in cs_store_bp
+        and "partColorTrim" in cs_store_bp
+        and "partColorHorn" in cs_store_bp
+        and "partColorLight" in cs_store_bp,
+    )
+    check(
+        "colors() resolves stored choice > design constant > base-form palette per key",
+        'resolveChannel(player, "own"' in parts_bp
+        and 'resolveChannel(player, "trim"' in parts_bp
+        and 'resolveChannel(player, "horn"' in parts_bp
+        and 'resolveChannel(player, "light"' in parts_bp
+        and "design != null ? design.own() : skin" in parts_bp
+        and "design != null ? design.trim() : second" in parts_bp
+        and "design != null ? design.horn() : hair" in parts_bp
+        and "design != null ? design.light() : second" in parts_bp,
+    )
+    check(
+        "Part colors shop: colors page + swatch pick/reset actions + model re-sync",
+        "page:bodycolors" in char_screens_bp
+        and "do:bodypart_color:" in char_screens_bp
+        and "do:bodypart_color_reset:" in char_screens_bp
+        and '"bodypart_color"' in cs_gui_bp
+        and '"bodypart_color_reset"' in cs_gui_bp
+        and "executeColorPick" in body_svc_bp
+        and "executeColorReset" in body_svc_bp
+        and "REASON_COLOR" in body_svc_bp,
+    )
     check(
         "Startup self-test asserts uuid subject + colors survive round-trip",
         '"subject\\":\\"uuid:' in net_bp

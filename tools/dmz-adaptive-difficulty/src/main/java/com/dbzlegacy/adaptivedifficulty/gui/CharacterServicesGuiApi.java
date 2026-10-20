@@ -146,6 +146,20 @@ public final class CharacterServicesGuiApi {
             lines.add("§7Shown on model previews; unlocked pieces stay in your collection.");
             return lines;
         }
+        if (p.startsWith("bodycolors") || "bodycolors".equals(p)) {
+            if (!CharacterServicesConfig.get().bodyPartShop.enabled) {
+                lines.add("§cBody parts are turned off on this server.");
+                return lines;
+            }
+            if (!CharacterServicesAccess.canBodyPartShop(player)) {
+                lines.add("§cYou do not have permission for body parts.");
+                return lines;
+            }
+            lines.add("§7Pick a color for each part channel - own, trim, horn, glow.");
+            lines.add("§7Your choice follows you in every form.");
+            lines.add("§7Reset returns a channel to your form's default colors.");
+            return lines;
+        }
         if ("reskin".equals(p)) {
             if (!CharacterServicesConfig.get().reskin.enabled) {
                 lines.add("§cReskin is turned off on this server.");
@@ -307,6 +321,12 @@ public final class CharacterServicesGuiApi {
         }
         if ("bodypart_clear".equals(act)) {
             return CosmeticBodyPartService.executeClear(player);
+        }
+        if ("bodypart_color".equals(act)) {
+            return CosmeticBodyPartService.executeColorPick(player, a);
+        }
+        if ("bodypart_color_reset".equals(act)) {
+            return CosmeticBodyPartService.executeColorReset(player, a);
         }
         return "§cSomething went wrong. Try again, or ask staff if it keeps happening.";
     }

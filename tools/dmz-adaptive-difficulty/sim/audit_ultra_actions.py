@@ -45,6 +45,8 @@ KNOWN_DO: dict[str, set[str]] = {
         "bodypart_unlock",
         "bodypart_toggle",
         "bodypart_clear",
+        "bodypart_color",
+        "bodypart_color_reset",
         "saga_confirm",
         "saga_reset",
         "android_remove",

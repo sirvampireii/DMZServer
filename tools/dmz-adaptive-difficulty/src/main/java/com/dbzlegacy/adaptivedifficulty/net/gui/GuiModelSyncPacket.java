@@ -50,6 +50,8 @@ public final class GuiModelSyncPacket {
     public static final String REASON_CLEAR = "clear";
     /** Sent to a tracker that just started seeing the subject ({@code PlayerEvent.StartTracking}). */
     public static final String REASON_TRACK = "track";
+    /** A body-parts part-channel color was picked or reset in the shop. */
+    public static final String REASON_COLOR = "color";
 
     private final String partsJson;
     private final String reason;
