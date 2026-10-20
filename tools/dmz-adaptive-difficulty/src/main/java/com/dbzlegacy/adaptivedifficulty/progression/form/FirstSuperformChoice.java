@@ -5,11 +5,10 @@ import java.util.Locale;
 /**
  * Picks the one form a mastery grant writes.
  *
- * <p>The first superform is the superform whose unlock level is 0. That is
- * Oozaru for Saiyans, and the same rule for every other race that has a
- * level 0 superform. A race with no level 0 superform uses its earliest
- * superform. The first legendary form is the earliest legendary form, and
- * it is a separate grant.
+ * <p>The first superform is the earliest superform with unlock level 1 or
+ * higher. Level-0 forms such as Oozaru for Saiyans are skipped, so a race
+ * whose only superform sits at level 0 gets no selection. The first legendary
+ * form is the earliest legendary form, and it is a separate grant.
  */
 public final class FirstSuperformChoice {
     private FirstSuperformChoice() {}
@@ -45,16 +44,15 @@ public final class FirstSuperformChoice {
             return null;
         }
         if (kind == Kind.LEGENDARY) {
-            return earliest(forms, false, false);
+            return earliest(forms, false, 0);
         }
         if (kind != Kind.SUPER) {
             return null;
         }
-        Candidate levelZero = earliest(forms, true, true);
-        if (levelZero != null) {
-            return levelZero;
-        }
-        return earliest(forms, true, false);
+        // The first real superform is the earliest superform past the level-0
+        // form (Oozaru for Saiyans). A race with no superform at level 1 or
+        // higher gets no selection -- never fall back to the level-0 form.
+        return earliest(forms, true, 1);
     }
 
     public static boolean isSuperform(Candidate candidate) {
@@ -66,9 +64,12 @@ public final class FirstSuperformChoice {
     }
 
     /**
-     * @param levelZeroOnly when selecting superforms, keep unlock level 0 only
+     * Earliest qualifying form: lowest unlock level, then group name, then form name.
+     *
+     * @param minUnlockLevel minimum unlock level a superform must reach to qualify;
+     *                       legendary forms ignore it, so a level-0 legendary still counts
      */
-    private static Candidate earliest(java.util.List<Candidate> forms, boolean superform, boolean levelZeroOnly) {
+    private static Candidate earliest(java.util.List<Candidate> forms, boolean superform, int minUnlockLevel) {
         Candidate best = null;
         for (Candidate candidate : forms) {
             if (candidate == null || candidate.stack || candidate.form.isBlank() || candidate.group.isBlank()) {
@@ -78,7 +79,7 @@ public final class FirstSuperformChoice {
                 if (!isSuperform(candidate)) {
                     continue;
                 }
-                if (levelZeroOnly && candidate.unlockLevel != 0) {
+                if (candidate.unlockLevel < minUnlockLevel) {
                     continue;
                 }
             } else if (!isLegendary(candidate)) {

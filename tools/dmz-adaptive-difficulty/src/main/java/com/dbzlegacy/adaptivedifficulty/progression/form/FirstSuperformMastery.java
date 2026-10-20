@@ -21,9 +21,9 @@ import net.minecraft.server.level.ServerPlayer;
  * Quest rewards for the Frieza Saga 16 branch. Each command grants one form:
  * the race's first superform, or its first legendary form.
  *
- * <p>The first superform is the unlock-level 0 superform. Saiyans get Oozaru.
- * Any other race with a level 0 superform gets that form. Races without one
- * get their earliest superform.
+ * <p>The first superform is the earliest superform with unlock level 1 or
+ * higher. Level-0 forms such as Oozaru for Saiyans are skipped, so a race
+ * whose only superform sits at level 0 gets no grant.
  *
  * <p>Race resolution matches {@code TransformationReward.giveReward}:
  * {@code StatsProvider}/{@code StatsCapability} via {@code DmzProgression.stats},
@@ -83,17 +83,24 @@ public final class FirstSuperformMastery {
         boolean stack = false;
         if (chosen == null && kind == FirstSuperformChoice.Kind.SUPER) {
             Candidate helper = fromHelper(data, race, false);
-            if (helper != null && helper.unlockLevel == 0 && FirstSuperformChoice.isSuperform(helper)) {
+            // Same rule as the configured scan: only a superform past level 0 counts.
+            if (helper != null && helper.unlockLevel >= 1 && FirstSuperformChoice.isSuperform(helper)) {
                 chosen = helper;
             }
         }
         if (chosen == null && kind == FirstSuperformChoice.Kind.SUPER) {
-            chosen = fromHelper(data, race, true);
-            stack = chosen != null;
+            Candidate stackHelper = fromHelper(data, race, true);
+            // The helper resolves a stack form; skip it when its config unlock level is 0.
+            if (stackHelper != null && stackHelper.unlockLevel >= 1) {
+                chosen = stackHelper;
+                stack = true;
+            }
         }
         if (chosen == null) {
-            String ladder = kind == FirstSuperformChoice.Kind.LEGENDARY ? "legendary form" : "superform";
-            return fail("No " + ladder + " is set for race " + race + ".");
+            if (kind == FirstSuperformChoice.Kind.LEGENDARY) {
+                return fail("No legendary form is set for race " + race + ".");
+            }
+            return fail("Race has no superform past its level 0 form to grant mastery to.");
         }
         FormMasteries masteries = stack ? character.getStackFormMasteries() : character.getFormMasteries();
         if (masteries == null) {

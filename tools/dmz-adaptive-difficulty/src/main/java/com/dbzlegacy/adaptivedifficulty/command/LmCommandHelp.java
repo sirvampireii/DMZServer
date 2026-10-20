@@ -39,7 +39,7 @@ public final class LmCommandHelp {
                         LmStaffHelp.note("Backup: config/legacymechanics/cnpc-import-backup/")),
                 new LmStaffHelp.Section("Quest rewards",
                         LmStaffHelp.cmd("/lm mastery grant-first-superform <amount>",
-                                "mastery on the level 0 superform (Oozaru for Saiyans)"),
+                                "mastery on the first superform past the level 0 form"),
                         LmStaffHelp.cmd("/lm mastery grant-first-superform <amount> <player>",
                                 "same superform grant for that player"),
                         LmStaffHelp.cmd("/lm mastery grant-first-superform <player> <amount>",

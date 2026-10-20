@@ -4,6 +4,7 @@ import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.config.editor.ConfigEditor;
 import com.dbzlegacy.adaptivedifficulty.net.gui.GuiOpenPacket;
 import com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork;
+import com.dbzlegacy.adaptivedifficulty.progression.form.FirstSuperformChoice;
 import com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings;
 import com.dbzlegacy.adaptivedifficulty.sparring.SparStore;
 import com.google.gson.JsonArray;
@@ -1621,5 +1622,69 @@ public final class UltraScreenSelfTest {
         c.expiresAt = expiresAt;
         c.active = active;
         return c;
+    }
+
+    /**
+     * grant-first-superform must land on a real superform: the earliest with unlock level 1 or
+     * higher. The level-0 form (Oozaru for Saiyans) is skipped and never granted, with no
+     * fallback to it. grant-first-legendary is unchanged — the earliest legendary form, level 0
+     * included. Selections use the live DMZ form types ({@code superforms} / {@code legendaryforms}).
+     */
+    public static void verifyFirstSuperformChoice() {
+        List<String> broken = new ArrayList<>();
+        // Saiyan superforms from the live config: Oozaru at level 0, Super Saiyan at level 1.
+        List<FirstSuperformChoice.Candidate> saiyan = List.of(
+                form("oozaru", "oozaru", "superforms", 0),
+                form("ssgrades", "supersaiyan", "superforms", 1),
+                form("supersaiyan", "supersaiyan2", "superforms", 5));
+        FirstSuperformChoice.Candidate chosen =
+                FirstSuperformChoice.select(saiyan, FirstSuperformChoice.Kind.SUPER);
+        if (chosen == null || !"supersaiyan".equals(chosen.form)) {
+            broken.add("Saiyan super grant must skip Oozaru (level 0) and pick Super Saiyan, got "
+                    + (chosen == null ? "no form" : chosen.label()));
+        }
+        // A race with no level-0 superform still picks its earliest superform.
+        List<FirstSuperformChoice.Candidate> noLevelZero = List.of(
+                form("monkey", "wukongspride", "superforms", 2),
+                form("monkey", "wukongsrage", "superforms", 1));
+        chosen = FirstSuperformChoice.select(noLevelZero, FirstSuperformChoice.Kind.SUPER);
+        if (chosen == null || !"wukongsrage".equals(chosen.form)) {
+            broken.add("a race without a level-0 superform must pick its earliest, got "
+                    + (chosen == null ? "no form" : chosen.label()));
+        }
+        // A race whose only superform is level 0 gets no selection — never the level-0 form.
+        List<FirstSuperformChoice.Candidate> onlyLevelZero = List.of(
+                form("oozaru", "oozaru", "superforms", 0));
+        if (FirstSuperformChoice.select(onlyLevelZero, FirstSuperformChoice.Kind.SUPER) != null) {
+            broken.add("a race whose only superform is level 0 must get no selection");
+        }
+        // Legendary is unchanged: earliest legendary form, level 0 still eligible.
+        List<FirstSuperformChoice.Candidate> legendary = List.of(
+                form("legendaryforms", "ssjfullpower", "legendaryforms", 3),
+                form("legendaryforms", "ikari", "legendaryforms", 1),
+                form("legendaryforms", "levelzerolegend", "legendaryforms", 0));
+        chosen = FirstSuperformChoice.select(legendary, FirstSuperformChoice.Kind.LEGENDARY);
+        if (chosen == null || !"levelzerolegend".equals(chosen.form)) {
+            broken.add("legendary grant must still pick the earliest legendary form (level 0 "
+                    + "included), got " + (chosen == null ? "no form" : chosen.label()));
+        }
+        if (broken.isEmpty()) {
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] First superform choice self-test OK (level-0 forms skipped)",
+                    AdaptiveDifficultyMod.MOD_ID);
+            return;
+        }
+        AdaptiveDifficultyMod.LOGGER.error(
+                "[{}] First superform choice self-test FAILED: {}",
+                AdaptiveDifficultyMod.MOD_ID,
+                broken);
+        throw new IllegalStateException(
+                "LegacyMechanics first superform choice self-test failed (" + broken.size()
+                        + " error(s)): " + broken);
+    }
+
+    private static FirstSuperformChoice.Candidate form(
+            String group, String name, String formType, int unlockLevel) {
+        return new FirstSuperformChoice.Candidate(group, name, formType, unlockLevel, false);
     }
 }

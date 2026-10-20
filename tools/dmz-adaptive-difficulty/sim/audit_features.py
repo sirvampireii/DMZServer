@@ -2494,7 +2494,7 @@ def main() -> int:
     check("fusion reset class is copied into the forge jar",
           "FusionCooldownReset" in read(ROOT / "tools/dmz-adaptive-difficulty/build.sh"))
 
-    print("\n=== First superform mastery grant (4.6.204) ===")
+    print("\n=== First superform mastery grant (4.6.204, level-0 skip 4.6.220) ===")
     mastery_choice = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/progression/form/FirstSuperformChoice.java")
     mastery_grant = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/progression/form/FirstSuperformMastery.java")
     mastery_help = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/command/LmCommandHelp.java")
@@ -2528,12 +2528,21 @@ def main() -> int:
           and "getFirstAvailableStackForm" in mastery_grant
           and "getSkillNameForType" in mastery_grant
           and "setMastery" in mastery_grant
-          and "unlockLevel != 0" in mastery_choice
+          # 4.6.220: super grant skips level-0 forms (Oozaru); earliest with unlock >= 1 wins.
+          and "earliest(forms, true, 1)" in mastery_choice
+          and "unlockLevel < minUnlockLevel" in mastery_choice
           and "Kind.LEGENDARY" in mastery_choice
           and "Kind.SUPER" in mastery_choice
           and "legendaryform" in mastery_choice
           and "superform" in mastery_choice
-          and "Oozaru" in mastery_choice)
+          and "Oozaru" in mastery_choice
+          and "helper.unlockLevel >= 1" in mastery_grant
+          and "stackHelper.unlockLevel >= 1" in mastery_grant
+          and "Race has no superform past its level 0 form to grant mastery to." in mastery_grant
+          and "unlockLevel == 0" not in mastery_choice
+          and "unlockLevel != 0" not in mastery_choice
+          and "verifyFirstSuperformChoice" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraScreenSelfTest.java")
+          and "verifyFirstSuperformChoice" in read(SRC / "com/dbzlegacy/adaptivedifficulty/net/gui/LmGuiNetwork.java"))
     command_java = list((ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/command").glob("*.java"))
     custom_arg_types = [
         str(p.relative_to(ROOT))
