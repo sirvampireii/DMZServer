@@ -197,14 +197,14 @@ public final class CosmeticBodyPartService {
                         : com.dbzlegacy.adaptivedifficulty.net.gui.GuiModelSyncPacket.REASON_EQUIP);
     }
 
-    /** Player-facing label for a channel ({@code own} -> {@code Part color (own)}). */
+    /** Player-facing label for a channel ({@code own} -> {@code Part color}). */
     public static String colorChannelLabel(String channel) {
         String ch = channel == null ? "" : channel.trim().toLowerCase(Locale.ROOT);
         return switch (ch) {
-            case "own" -> "Part color (own)";
-            case "trim" -> "Trim color (trim)";
-            case "horn" -> "Horn color (horn)";
-            case "light" -> "Glow color (light)";
+            case "own" -> "Part color";
+            case "trim" -> "Trim color";
+            case "horn" -> "Horn color";
+            case "light" -> "Glow color";
             default -> "?";
         };
     }
