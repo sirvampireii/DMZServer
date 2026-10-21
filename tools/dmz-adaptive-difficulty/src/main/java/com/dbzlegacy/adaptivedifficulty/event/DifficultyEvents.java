@@ -243,6 +243,10 @@ public final class DifficultyEvents {
                     // attaches - same readiness path as the head-bone reapply above).
                     com.dbzlegacy.adaptivedifficulty.character.SaiyanTailWipeHelper
                             .clearIfRaceCannotHaveTail(player, "DifficultyEvents.onLogin");
+                    // Same self-heal for a Noea Evil Eye stranded off demon by an old race
+                    // change - clears the worn stage (ownership/timers kept).
+                    com.dbzlegacy.adaptivedifficulty.character.EvilEyeWipeHelper
+                            .clearIfNotDemon(player);
                 });
             }
             // DMZ Character often attaches after this event — keep pulling level until ready.

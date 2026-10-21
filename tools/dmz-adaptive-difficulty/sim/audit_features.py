@@ -3344,6 +3344,38 @@ def main() -> int:
         and "partsJsonFor" in kit_test,
     )
 
+    print("\n=== Evil Eye race-change wipe (4.6.225) ===")
+    eye_wipe_bp = read(
+        ROOT
+        / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/character/EvilEyeWipeHelper.java"
+    )
+    check(
+        "EvilEyeWipe clears stranded stage off demon (clear-only, Noea compound)",
+        "DragonBlockNoeaV090" in eye_wipe_bp
+        and '"demonEvilEyeForm"' in eye_wipe_bp
+        and '"demonEvilEyePower"' in eye_wipe_bp
+        and "m_128405_(KEY_FORM, 0)" in eye_wipe_bp
+        and "m_128405_(KEY_POWER, 0)" in eye_wipe_bp
+        and eye_wipe_bp.count("m_128405_(") == 2
+        and "DEMON_RACE.equals(race)" in eye_wipe_bp
+        and "EvilEyeWipe cleared stranded evil eye state" in eye_wipe_bp
+        and "REASON_CLEAR" in eye_wipe_bp
+        and "sendModelSync" in eye_wipe_bp,
+    )
+    check(
+        "EvilEye wipe runs on race change (after tail wipe) and login self-heal",
+        "EvilEyeWipeHelper.clearIfNotDemon(player)" in svc_sys_bp
+        and svc_sys_bp.index("EvilEyeWipeHelper.clearIfNotDemon")
+        > svc_sys_bp.index("SaiyanTailWipeHelper.clearIfRaceCannotHaveTail")
+        and ".clearIfNotDemon(player)" in evt_bp,
+    )
+    check(
+        "Race change recomputes the entity hitbox after the new race is set",
+        "player.m_6210_()" in svc_sys_bp
+        and svc_sys_bp.index("player.m_6210_()")
+        > svc_sys_bp.index("EvilEyeWipeHelper.clearIfNotDemon"),
+    )
+
     godki_shop = read(
         ROOT
         / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty"

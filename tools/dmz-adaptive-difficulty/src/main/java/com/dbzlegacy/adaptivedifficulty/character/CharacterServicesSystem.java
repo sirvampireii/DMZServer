@@ -496,6 +496,13 @@ public final class CharacterServicesSystem {
             // old-race splits - family races are never touched.
             SaiyanTailWipeHelper.clearIfRaceCannotHaveTail(
                     player, "CharacterServicesSystem.executeRaceChange");
+            // The Evil Eye is a Noea overlay whose exit path requires the demon race the
+            // player just left, so the final form's giant hitbox/reach would strand.
+            // Clear-only, and never for demon-race players.
+            EvilEyeWipeHelper.clearIfNotDemon(player);
+            // Recompute the entity hitbox from the new race/form instead of keeping the
+            // previous form's cached dimensions (reach derives from the same box).
+            player.m_6210_(); // refreshDimensions
             if (!staffGrant) {
                 CharacterServicesStore.get().record(player.m_20148_().toString()).lastRaceChangeAt =
                         System.currentTimeMillis();
