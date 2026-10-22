@@ -66,6 +66,14 @@ public final class PrestigePointsSystem {
     private static final String KEY_MUTANT = "pp_perm_mutant";
     /** Permanent Ultimate — own flag, never part of the Majin/Mutant exclusivity. */
     private static final String KEY_ULTIMATE = "pp_perm_ultimate";
+    /**
+     * DMZ skill id that actually grants the Ultimate form group. Old Kai writes
+     * {@code skills.setSkillLevel("ultimate", 1)}; the ultimate stack-form group
+     * ({@code forms/ultimate.json}) unlocks on that skill level. The DMZ effects list has no
+     * Ultimate handler, so an {@code effects.addEffect("ultimate", ...)} entry is dead data —
+     * Ultimate is granted here, never via {@link #runDmzEffect}.
+     */
+    private static final String DMZ_SKILL_ULTIMATE = "ultimate";
     private static final String KEY_SKILL_PREFIX = "pp_skill_";
     /** Permanent difficulty-tier unlocks bought with prestige points ({@code pp_tier_1}…{@code 7}). */
     private static final String KEY_TIER_PREFIX = "pp_tier_";
@@ -877,10 +885,112 @@ public final class PrestigePointsSystem {
 
     /**
      * True when the player may spend points on Permanent Ultimate. Ownership is the only
-     * gate — Ultimate is independent, so Majin / Mutant never block it.
+     * gate — Ultimate is independent, so Majin / Mutant never block it. A player who already
+     * has the DMZ {@code ultimate} skill (earned from Old Kai) is also refused, so a later
+     * Remove can never strip a legitimately earned form.
      */
     public static boolean canBuyUltimate(ServerPlayer player) {
-        return player != null && !hasUltimate(player);
+        return player != null && !hasUltimate(player) && !hasUltimateSkill(player);
+    }
+
+    /**
+     * True when the DMZ {@code ultimate} skill is level 1+ — the real Ultimate form, granted by
+     * Old Kai. Independent of the shop flag: a shop buyer has both, an Old Kai earner only this.
+     */
+    public static boolean hasUltimateSkill(ServerPlayer player) {
+        return ultimateSkillLevel(player) >= 1;
+    }
+
+    /** DMZ {@code ultimate} skill level (0 when missing / player or data unavailable). */
+    public static int ultimateSkillLevel(ServerPlayer player) {
+        if (player == null) {
+            return 0;
+        }
+        return com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.skillLevel(
+                player, DMZ_SKILL_ULTIMATE);
+    }
+
+    /**
+     * Grant Permanent Ultimate through the skill system — the only path DMZ honors. Sets the
+     * {@code ultimate} skill to 1 (same write Old Kai makes) and syncs, then strips the stale
+     * dead {@code effects} entry that older builds wrote for buyers on the broken build.
+     * Soft-fails like {@link #runDmzEffect}: a DMZ API hiccup never breaks the shop flow.
+     */
+    public static void grantUltimate(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        try {
+            var data = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player);
+            if (data == null) {
+                return;
+            }
+            var skills = data.getSkills();
+            if (skills == null) {
+                return;
+            }
+            skills.setSkillLevel(DMZ_SKILL_ULTIMATE, 1);
+            DmzSkillUtil.sync(player);
+        } catch (Throwable t) {
+            AdaptiveDifficultyMod.LOGGER.debug(
+                    "[{}] prestige ultimate grant soft-fail: {}",
+                    AdaptiveDifficultyMod.MOD_ID, t.toString());
+        }
+        stripDeadUltimateEffect(player);
+    }
+
+    /**
+     * Revoke shop-bought Permanent Ultimate: skill back to 0 (below {@code unlockOnSkillLevel 1}),
+     * stale dead effect entry stripped, synced. Only called for shop buyers — the buy gate in
+     * {@link #buyUltimate} guarantees the skill came from the shop, never Old Kai. Soft-fails.
+     */
+    public static void revokeUltimate(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        try {
+            var data = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player);
+            if (data == null) {
+                return;
+            }
+            var skills = data.getSkills();
+            if (skills == null) {
+                return;
+            }
+            skills.setSkillLevel(DMZ_SKILL_ULTIMATE, 0);
+            DmzSkillUtil.sync(player);
+        } catch (Throwable t) {
+            AdaptiveDifficultyMod.LOGGER.debug(
+                    "[{}] prestige ultimate revoke soft-fail: {}",
+                    AdaptiveDifficultyMod.MOD_ID, t.toString());
+        }
+        stripDeadUltimateEffect(player);
+    }
+
+    /**
+     * Remove the dead {@code effects} entry for {@code ultimate} that older builds wrote.
+     * DMZ has no UltimateStatusHandler, so the entry is inert data — but it must be cleaned up
+     * so it never confuses the form state. Soft-fails like {@link #runDmzEffect}.
+     */
+    private static void stripDeadUltimateEffect(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        try {
+            var data = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player);
+            if (data == null) {
+                return;
+            }
+            var effects = data.getEffects();
+            if (effects != null && effects.hasEffect(DMZ_SKILL_ULTIMATE)) {
+                effects.removeEffect(DMZ_SKILL_ULTIMATE);
+                DmzSkillUtil.sync(player);
+            }
+        } catch (Throwable t) {
+            AdaptiveDifficultyMod.LOGGER.debug(
+                    "[{}] prestige ultimate effect cleanup soft-fail: {}",
+                    AdaptiveDifficultyMod.MOD_ID, t.toString());
+        }
     }
 
     public static String buyMajin(ServerPlayer player) {
@@ -902,6 +1012,10 @@ public final class PrestigePointsSystem {
     /**
      * Buy Permanent Ultimate for {@link #ULTIMATE_COST} favor. No exclusivity check against
      * Majin or Mutant — the two permanents stack with Ultimate in either direction.
+     * <p>
+     * Gate: a player who already has the DMZ {@code ultimate} skill (earned from Old Kai) with
+     * the shop flag unset is refused before any charge or flag write, so a later Remove can
+     * never strip a legitimately earned form.
      */
     public static String buyUltimate(ServerPlayer player) {
         if (player == null) {
@@ -909,6 +1023,10 @@ public final class PrestigePointsSystem {
         }
         if (hasUltimate(player)) {
             return UltraStyle.noticeLine("You already own Permanent Ultimate.");
+        }
+        if (hasUltimateSkill(player)) {
+            return UltraStyle.noticeLine(
+                    "You already have the Ultimate form from Old Kai — nothing to buy.");
         }
         int points = getPoints(player);
         if (points < ULTIMATE_COST) {
@@ -922,7 +1040,7 @@ public final class PrestigePointsSystem {
         }
         setPoints(player, points - ULTIMATE_COST);
         ProgressionData.storedPutBool(player, KEY_ULTIMATE, true);
-        runDmzEffect(player, "ultimate", true);
+        grantUltimate(player);
         SystemTelemetry.log("prestige_points", "buy_ultimate", player, null, Map.of(
                 "points", getPoints(player)
         ));
@@ -934,6 +1052,8 @@ public final class PrestigePointsSystem {
     /**
      * Remove Permanent Ultimate: click again within 10 seconds to confirm, refund the full
      * {@link #ULTIMATE_COST}, clear only the Ultimate flag. Majin / Mutant state is untouched.
+     * Revoke only runs when the shop flag was set — the buy gate guarantees the skill came from
+     * the shop, never from Old Kai — so an earned form is never stripped here.
      */
     public static String unbuyUltimate(ServerPlayer player) {
         if (player == null) {
@@ -948,7 +1068,7 @@ public final class PrestigePointsSystem {
                             + " favor back. Click again within 10 seconds.");
         }
         ProgressionData.storedPutBool(player, KEY_ULTIMATE, false);
-        runDmzEffect(player, "ultimate", false);
+        revokeUltimate(player);
         setPoints(player, getPoints(player) + ULTIMATE_COST);
         SystemTelemetry.log("prestige_points", "unbuy_ultimate", player, null, Map.of(
                 "points", getPoints(player)
@@ -1024,8 +1144,14 @@ public final class PrestigePointsSystem {
         if (hasMutant(player)) {
             runDmzEffect(player, "mutant", true);
         }
+        // Ultimate rides the skill system, not the DMZ effect list — reapply is a heal:
+        // re-grant the skill if it is missing, and always strip a stale dead effect entry.
         if (hasUltimate(player)) {
-            runDmzEffect(player, "ultimate", true);
+            if (!hasUltimateSkill(player)) {
+                grantUltimate(player);
+            } else {
+                stripDeadUltimateEffect(player);
+            }
         }
     }
 

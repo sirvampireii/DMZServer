@@ -337,6 +337,10 @@ public final class UltraPrestigeScreens {
                 ph.getOrDefault("ultimate_cost", String.valueOf(PrestigePointsSystem.ULTIMATE_COST));
         boolean ultimate = "true".equalsIgnoreCase(ph.get("ultimate"));
         boolean ultimateCan = "true".equalsIgnoreCase(ph.get("ultimate_can_buy"));
+        // DMZ ultimate skill from Old Kai with the shop flag unset: the form is already active,
+        // so the row shows as unlocked with no Buy and no Remove (a Remove would strip a form the
+        // player legitimately earned outside the shop).
+        boolean ultimateEarned = "true".equalsIgnoreCase(ph.get("ultimate_earned"));
         UltraScreenSpec spec = sub("effects")
                 .lineGap(2)
                 .bodyPad(4);
@@ -391,6 +395,15 @@ public final class UltraPrestigeScreens {
                             "do:unultimate",
                             UltraStyle.danger("Remove Ultimate"),
                             UltraStyle.STYLE_DANGER)
+                    .rowGap();
+        } else if (ultimateEarned) {
+            // Already unlocked via the DMZ ultimate skill (Old Kai) — no Buy, no Remove. Dim
+            // no-op row keeps the button-row cursor on the same slot the other states occupy, so
+            // the God Ki row below never shifts up into it.
+            spec.button(
+                            "do:ultimate",
+                            UltraStyle.dim("Already unlocked"),
+                            UltraStyle.STYLE_DIM)
                     .rowGap();
         } else if (ultimateCan) {
             spec.button(

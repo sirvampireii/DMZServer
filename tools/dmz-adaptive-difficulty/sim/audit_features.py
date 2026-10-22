@@ -1622,17 +1622,20 @@ def main() -> int:
           and '"pp_perm_ultimate"' in pp
           and "hasUltimate(ServerPlayer player)" in pp
           and "canBuyUltimate(ServerPlayer player)" in pp)
-    check("ultimate buy: 3 favor, no Majin/Mutant gate, silent effect + telemetry",
+    check("ultimate buy: 3 favor, no Majin/Mutant gate, skill grant + telemetry",
           "setPoints(player, points - ULTIMATE_COST)" in buy_ult
           and "hasMajin" not in buy_ult
           and "hasMutant" not in buy_ult
-          and 'runDmzEffect(player, "ultimate", true)' in buy_ult
+          and "grantUltimate(player);" in buy_ult
+          and 'runDmzEffect(player, "ultimate"' not in buy_ult
+          and "hasUltimateSkill(player)" in buy_ult
           and '"buy_ultimate"' in buy_ult
           and '"Unlocked Permanent Ultimate (-" + ULTIMATE_COST + " favor)"' in buy_ult
           and '"Need " + ULTIMATE_COST + " favor (have "' in buy_ult)
     check("ultimate remove: confirm again, full refund, clear Ultimate only",
           "getPoints(player) + ULTIMATE_COST" in unbuy_ult
-          and 'runDmzEffect(player, "ultimate", false)' in unbuy_ult
+          and "revokeUltimate(player);" in unbuy_ult
+          and 'runDmzEffect(player, "ultimate"' not in unbuy_ult
           and '"unbuy_ultimate"' in unbuy_ult
           and "hasMajin" not in unbuy_ult
           and "hasMutant" not in unbuy_ult)
@@ -1640,8 +1643,13 @@ def main() -> int:
           "hasUltimate" not in buy_form
           and "ULTIMATE_COST" not in buy_form
           and "hasUltimate" not in unbuy_form)
-    check("ultimate reapplies like the other permanents",
-          'runDmzEffect(player, "ultimate", true)' in reapply_forms
+    check("ultimate reapplies via the skill heal (majin/mutant stay on the effect)",
+          "if (!hasUltimateSkill(player)) {" in reapply_forms
+          and "grantUltimate(player);" in reapply_forms
+          and "stripDeadUltimateEffect(player);" in reapply_forms
+          and 'runDmzEffect(player, "ultimate"' not in reapply_forms
+          and 'runDmzEffect(player, "majin", true)' in reapply_forms
+          and 'runDmzEffect(player, "mutant", true)' in reapply_forms
           and "hasMajin(player) || hasMutant(player) || hasUltimate(player)" in pp)
     check("ultimate survives prestige-completion inference",
           "hasUltimate(player)" in
@@ -2063,6 +2071,61 @@ def main() -> int:
               SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraSparScreens.java")
           and 'return SparringSystem.removeApprentice(player, a.isBlank() ? null : a)' in read(
               SRC / "com/dbzlegacy/adaptivedifficulty/gui/SparGuiApi.java"))
+
+    print("\n=== Permanent Ultimate grants via the skill system, not the dead effect (4.6.228) ===")
+    # DMZ has no UltimateStatusHandler: effects.addEffect("ultimate", ...) is dead data, so the
+    # shop charged 3 favor and never granted the form. Ultimate is skill-granted (Old Kai writes
+    # skills.setSkillLevel("ultimate", 1); forms/ultimate.json unlockOnSkillLevel 1), so buy/unbuy
+    # must go through the skill system and strip the stale effect entry.
+    pps = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigePointsSystem.java")
+    check("grantUltimate sets the DMZ ultimate skill and syncs",
+          "public static void grantUltimate(ServerPlayer player)" in pps
+          and 'skills.setSkillLevel(DMZ_SKILL_ULTIMATE, 1)' in pps
+          and "DmzSkillUtil.sync(player);" in pps
+          and 'private static final String DMZ_SKILL_ULTIMATE = "ultimate";' in pps)
+    check("grantUltimate strips the stale dead effect entry (broken-build buyers)",
+          "stripDeadUltimateEffect(player);" in pps
+          and "private static void stripDeadUltimateEffect(ServerPlayer player)" in pps
+          and 'effects.hasEffect(DMZ_SKILL_ULTIMATE)' in pps
+          and "effects.removeEffect(DMZ_SKILL_ULTIMATE);" in pps)
+    check("revokeUltimate sets the skill to 0 and strips the effect",
+          "public static void revokeUltimate(ServerPlayer player)" in pps
+          and 'skills.setSkillLevel(DMZ_SKILL_ULTIMATE, 0)' in pps
+          and "revokeUltimate(player);" in pps)
+    check("buyUltimate grants via the skill path, never runDmzEffect",
+          "grantUltimate(player);" in pps
+          and 'runDmzEffect(player, "ultimate", true)' not in pps
+          and 'runDmzEffect(player, "ultimate", false)' not in pps)
+    check("buy gate refuses Old Kai earners before charging or setting the flag",
+          "if (hasUltimateSkill(player)) {" in pps
+          and "You already have the Ultimate form from Old Kai" in pps
+          and pps.index("if (hasUltimateSkill(player)) {")
+          < pps.index("setPoints(player, points - ULTIMATE_COST);")
+          and "public static boolean hasUltimateSkill(ServerPlayer player)" in pps
+          and "return ultimateSkillLevel(player) >= 1;" in pps)
+    check("canBuyUltimate also blocks the earned skill (no Buy shown)",
+          "return player != null && !hasUltimate(player) && !hasUltimateSkill(player);" in pps)
+    check("reapplyForms heals Ultimate through the skill path (Majin/Mutant unchanged)",
+          "if (!hasUltimateSkill(player)) {" in pps
+          and "grantUltimate(player);" in pps
+          and "stripDeadUltimateEffect(player);" in pps
+          and 'runDmzEffect(player, "majin", true);' in pps
+          and 'runDmzEffect(player, "mutant", true);' in pps)
+    prog_api = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ProgressionGuiApi.java")
+    check("Effects placeholders expose the earned (skill, no flag) state",
+          'out.put("ultimate_earned",' in prog_api
+          and "hasUltimateSkill(player)" in prog_api
+          and 'out.put("ultimate_can_buy", PrestigePointsSystem.canBuyUltimate(player)' in prog_api)
+    ultra_prestige = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraPrestigeScreens.java")
+    check("Effects page shows Ultimate already unlocked (no Buy/Remove) for earners",
+          'boolean ultimateEarned = "true".equalsIgnoreCase(ph.get("ultimate_earned"));' in ultra_prestige
+          and "UltraStyle.dim(\"Already unlocked\")" in ultra_prestige
+          and "UltraStyle.STYLE_DIM" in ultra_prestige)
+    check("Ultimate cost / flag key / telemetry names unchanged",
+          "public static final int ULTIMATE_COST = 3;" in pps
+          and 'private static final String KEY_ULTIMATE = "pp_perm_ultimate";' in pps
+          and '"prestige_points", "buy_ultimate"' in pps
+          and '"prestige_points", "unbuy_ultimate"' in pps)
 
     print("\n=== Reskin gender and head bone preview (4.6.16) ===")
     gender_mixin = read(SRC / "com/dbzlegacy/adaptivedifficulty/mixin/StatsSyncC2SGenderMixin.java")

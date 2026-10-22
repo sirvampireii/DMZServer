@@ -929,6 +929,11 @@ public final class ProgressionGuiApi {
         out.put("ultimate", PrestigePointsSystem.hasUltimate(player) ? "true" : "false");
         out.put("ultimate_can_buy", PrestigePointsSystem.canBuyUltimate(player) ? "true" : "false");
         out.put("ultimate_cost", String.valueOf(PrestigePointsSystem.ULTIMATE_COST));
+        // DMZ ultimate skill from Old Kai, shop flag unset — the form is already unlocked, so
+        // the Effects page must show it as owned (no Buy / no Remove) instead of offering a buy.
+        out.put("ultimate_earned",
+                (PrestigePointsSystem.hasUltimateSkill(player)
+                        && !PrestigePointsSystem.hasUltimate(player)) ? "true" : "false");
         out.put("godki_invested", String.valueOf(GodKiEnhancementShop.invested(player)));
         out.put("godki_maxed", GodKiEnhancementShop.canBuy(player) ? "false" : "true");
         out.put("godki_cost", String.valueOf(GodKiEnhancementShop.INVESTMENT_COST));

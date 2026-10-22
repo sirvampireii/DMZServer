@@ -232,7 +232,10 @@ public final class ProgressionCommands {
         lines.add(UltraStyle.labelValue("Majin absorption", majin ? "owned" : "not owned"));
         lines.add(UltraStyle.labelValue("Mutant upgrade", mutant ? "owned" : "not owned"));
         boolean ultimate = "true".equalsIgnoreCase(ph.get("ultimate"));
-        lines.add(UltraStyle.labelValue("Ultimate", ultimate ? "owned" : "not owned"));
+        // Real ownership: the shop flag, or the DMZ ultimate skill earned from Old Kai.
+        boolean ultimateEarned = "true".equalsIgnoreCase(ph.get("ultimate_earned"));
+        lines.add(UltraStyle.labelValue(
+                "Ultimate", (ultimate || ultimateEarned) ? "owned" : "not owned"));
         int godki = 0;
         try {
             godki = Integer.parseInt(ph.getOrDefault("godki_invested", "0").trim());
