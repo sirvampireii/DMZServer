@@ -2042,6 +2042,28 @@ def main() -> int:
           and "pruneExpiredChallenges" in dojo_score
           and "verifyDojoWarExpiry" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraScreenSelfTest.java"))
 
+    print("\n=== Dojo Release apprentice accepts a bare uuid (4.6.227) ===")
+    # The Ultra Release picker fires do:mentor_release:<bare uuid> (cards are uuid\tname).
+    # findApprentice used to treat anything without a "uuid:" prefix as a player name, so
+    # the bare uuid matched nothing and every Release failed with "not your apprentice".
+    spar_fix = read(SRC / "com/dbzlegacy/adaptivedifficulty/sparring/SparringSystem.java")
+    check("findApprentice treats a uuid-shaped arg as the uuid key",
+          "isUuidLiteral(raw)" in spar_fix
+          and "private static boolean isUuidLiteral(String s)" in spar_fix
+          and "java.util.UUID.fromString(s)" in spar_fix
+          and "isUuidLiteral" in spar_fix
+          and spar_fix.index("isUuidLiteral(raw)")
+          > spar_fix.index('raw.regionMatches(true, 0, "uuid:", 0, 5)'))
+    check("name lookup stays the fallback for non-uuid args (unchanged)",
+          'raw.regionMatches(true, 0, "uuid:", 0, 5)' in spar_fix
+          and "m_11255_(raw)" in spar_fix
+          and "wantName = raw" in spar_fix)
+    check("Release picker keeps wiring the bare uuid (no wire-format change)",
+          'page:pick_confirm:mentor_release|mentor|" + arg' in read(
+              SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraSparScreens.java")
+          and 'return SparringSystem.removeApprentice(player, a.isBlank() ? null : a)' in read(
+              SRC / "com/dbzlegacy/adaptivedifficulty/gui/SparGuiApi.java"))
+
     print("\n=== Reskin gender and head bone preview (4.6.16) ===")
     gender_mixin = read(SRC / "com/dbzlegacy/adaptivedifficulty/mixin/StatsSyncC2SGenderMixin.java")
     mixins_json = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/resources/legacymechanics.mixins.json")

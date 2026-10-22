@@ -1759,6 +1759,11 @@ public final class SparringSystem {
         String wantName = null;
         if (raw.regionMatches(true, 0, "uuid:", 0, 5)) {
             wantUuid = raw.substring(5).trim();
+        } else if (isUuidLiteral(raw)) {
+            // The Release picker hands the bare uuid (cards are uuid\tname). A uuid-shaped
+            // arg can never match the online-name lookup or the stored-name match below,
+            // so treat it as the uuid key - same as the "uuid:"-prefixed path.
+            wantUuid = raw;
         } else {
             wantName = raw;
             MinecraftServer server = mentor == null ? null : mentor.m_20194_();
@@ -1778,6 +1783,22 @@ public final class SparringSystem {
             }
         }
         return null;
+    }
+
+    /**
+     * True when {@code s} parses as a java UUID. GUI pickers emit the bare uuid from their
+     * card payload, so a uuid-shaped target arg must key the lookup as a uuid, not a name.
+     */
+    private static boolean isUuidLiteral(String s) {
+        if (s == null || s.isBlank()) {
+            return false;
+        }
+        try {
+            java.util.UUID.fromString(s);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private static boolean isOnline(MinecraftServer server, String uuid) {
