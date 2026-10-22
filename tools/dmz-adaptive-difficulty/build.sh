@@ -649,6 +649,68 @@ if ! jar tf "$JAR" | grep -q 'META-INF/kaipath-ultra.txt'; then
   echo "ERROR: META-INF/kaipath-ultra.txt missing from $JAR (KaiPath partner discovery)" >&2
   exit 1
 fi
+# ── Weapon hotpath classes (kube/hotpath): bytecode-authoritative overlay ─
+# Two categories; BOTH must ship the AUDITED live bytecode from weapon-hotpath-source.jar:
+#   * bytecode-only, no repo source at all:
+#       WeaponRatioConfig (+ $Json/$Snapshot), VipersCallBlacklist
+#   * source present but STALE — the repo .java compiles to bytecode that DIFFERS from live,
+#     so a clean compile would silently REVERT the live weapon-ratio / viper work:
+#       WeaponBonusScale (+ $Info/$Result), WeaponBonusTables (+ $WeaponDef)
+# Because the source-backed copies are stale, "is the class present?" is NOT enough. Overlay ALL 9
+# unconditionally (replacing stale compiled copies), then verify each shipped class is
+# byte-identical to the source jar — fail loudly on any drift. Refresh the source jar from the
+# last audited live build (see base/README.md).
+WEAPON_SRC="${LM_WEAPON_SOURCE_JAR:-$HERE/base/weapon-hotpath-source.jar}"
+WEAPON_PKG="com/dbzlegacy/adaptivedifficulty/kube/hotpath"
+WEAPON_CLASSES=(
+  "WeaponBonusScale.class"
+  "WeaponBonusScale\$Info.class"
+  "WeaponBonusScale\$Result.class"
+  "WeaponBonusTables.class"
+  "WeaponBonusTables\$WeaponDef.class"
+  "WeaponRatioConfig.class"
+  "WeaponRatioConfig\$Json.class"
+  "WeaponRatioConfig\$Snapshot.class"
+  "VipersCallBlacklist.class"
+)
+if [[ ! -f "$WEAPON_SRC" ]]; then
+  echo "ERROR: weapon source jar not found: $WEAPON_SRC" >&2
+  echo "  These 9 kube/hotpath classes must ship the audited live bytecode. Provide a" >&2
+  echo "  known-good jar carrying all of them (see base/README.md):" >&2
+  echo "    cp <live-jar> $WEAPON_SRC      (or set LM_WEAPON_SOURCE_JAR=/path/to/live.jar)" >&2
+  exit 1
+fi
+SRC_LIST="$(jar tf "$WEAPON_SRC")"
+for c in "${WEAPON_CLASSES[@]}"; do
+  if ! grep -qF "$WEAPON_PKG/$c" <<<"$SRC_LIST"; then
+    echo "ERROR: weapon source jar $(basename "$WEAPON_SRC") lacks $WEAPON_PKG/$c" >&2
+    echo "  Refresh it from a live jar that carries all 9 weapon hotpath classes." >&2
+    exit 1
+  fi
+done
+# Overlay all 9 unconditionally — replaces stale source-compiled copies too.
+echo "Overlaying 9 weapon hotpath classes from $(basename "$WEAPON_SRC") (bytecode-authoritative)"
+WTMP="$(mktemp -d)"
+(
+  set -e
+  cd "$WTMP"
+  for c in "${WEAPON_CLASSES[@]}"; do
+    unzip -o -q "$WEAPON_SRC" "$WEAPON_PKG/$c"
+  done
+  jar uf "$JAR" $(find . -name '*.class' | sed 's|^\./||')
+)
+rm -rf "$WTMP"
+# Verify every shipped class is byte-identical to the source jar (catches missing + drift).
+for c in "${WEAPON_CLASSES[@]}"; do
+  src_sum="$(unzip -p "$WEAPON_SRC" "$WEAPON_PKG/$c" | sha256sum | awk '{print $1}')"
+  jar_sum="$(unzip -p "$JAR"        "$WEAPON_PKG/$c" | sha256sum | awk '{print $1}')"
+  if [[ "$src_sum" != "$jar_sum" ]]; then
+    echo "ERROR: $WEAPON_PKG/$c in $JAR does not match the audited source jar" >&2
+    echo "  source=$src_sum  shipped=$jar_sum" >&2
+    echo "  Overlay failed or jar drifted. Refresh $(basename "$WEAPON_SRC") from a good live build." >&2
+    exit 1
+  fi
+done
 python3 "$HERE/sim/audit_jar_inner_classes.py" "$JAR"
 python3 - "$JAR" << 'PY'
 import sys, zipfile
