@@ -711,6 +711,20 @@ for c in "${WEAPON_CLASSES[@]}"; do
     exit 1
   fi
 done
+# ── Prestige-shop (4.6.228.1) delta classes: byte-verify against reference set ─
+# reference/prestige-shop-228.1/ holds the 25 audited .class files (15 new shop classes
+# PrestigeCustomShop/PrestigeShopConfig/PrestigeShopHooks + inners, and 10 modified classes) extracted
+# from the live 4.6.228.1 jar. Unlike the weapon guard this is a pure ASSERTION (no overlay): once the
+# authored 228.1 source is compiled into the jar, all 25 must be byte-identical to the reference.
+# Gated on PrestigeShopConfig.java existing in src/ — that class is new in 228.1, so the marker is
+# absent until the authored source is integrated; the guard then stays dormant and the current 4.6.228
+# build remains green. See reference/README.md for the refresh procedure.
+if [[ -f "$SRC/com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeShopConfig.java" ]]; then
+  echo ">> Prestige-shop 228.1 source integrated — verifying 25 delta classes against reference set"
+  python3 "$HERE/sim/audit_prestige_shop_classes.py" "$JAR"
+else
+  echo ">> Prestige-shop 228.1 source not yet integrated (no PrestigeShopConfig.java in src/) — 25-class byte-verify dormant (harness armed)"
+fi
 python3 "$HERE/sim/audit_jar_inner_classes.py" "$JAR"
 python3 - "$JAR" << 'PY'
 import sys, zipfile
