@@ -3,4 +3,5 @@ base/*.jar
 *.class
 !reference/ki-pool-2.4.115/**/*.class
 !reference/prestige-shop-228.1/**/*.class
+!reference/weapon-hotpath-4.6.229/**/*.class
 libraries/ProfTools*.jar

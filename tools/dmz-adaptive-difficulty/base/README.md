@@ -19,32 +19,35 @@ bash scripts/refresh-lm-consolidated-base.sh
 
 Output artifact: **`mods/LegacyMechanics-${VERSION}.jar`** (not the old `direct-dmz-resource-max` filename).
 
-## Weapon hotpath classes (bytecode-authoritative overlay)
+## Weapon hotpath classes (source-compiled, byte-verify baseline)
 
-Nine `kube/hotpath` classes must ship the **audited live bytecode**. They fall into two
-categories, and a clean compile gets **both** wrong, so `build.sh` overlays all nine
-unconditionally from **`base/weapon-hotpath-source.jar`** (gitignored) and then verifies each
-shipped class is **byte-identical** to that jar — failing the build loudly on any drift.
+The nine `kube/hotpath` weapon classes now have **committed source** (reconstructed from the
+audited live bytecode; the old overlay workflow is **retired**). `build.sh` no longer copies
+bytecode — the classes compile from `src/` like everything else.
 
-| Category | Classes | What a clean compile produces |
-|----------|---------|-------------------------------|
-| **Bytecode-only** — no repo source at all | `WeaponRatioConfig` + `$Json` + `$Snapshot`, `VipersCallBlacklist` | Absent from the jar → live weapon-ratio / viper-blacklist work silently lost |
-| **Stale source** — `.java` exists but compiles to bytecode that **differs from live** | `WeaponBonusScale` + `$Info` + `$Result`, `WeaponBonusTables` + `$WeaponDef` | Present but **wrong** → live weapon-scale work silently reverted |
+| Classes | Source |
+|---------|--------|
+| `WeaponBonusScale` + `$Info` + `$Result` | `src/.../kube/hotpath/WeaponBonusScale.java` |
+| `WeaponBonusTables` + `$WeaponDef` | `src/.../kube/hotpath/WeaponBonusTables.java` |
+| `WeaponRatioConfig` + `$Json` + `$Snapshot` | `src/.../kube/hotpath/WeaponRatioConfig.java` |
+| `VipersCallBlacklist` | `src/.../kube/hotpath/VipersCallBlacklist.java` |
 
-Because the source-backed copies are *stale* (present-but-wrong), a mere presence check is
-insufficient — that is exactly the silent-revert bug the guard exists to prevent. The guard
-therefore replaces **all nine** every build and compares sha256 of each against the source jar.
-Override the source path with `LM_WEAPON_SOURCE_JAR=/path/to/good.jar`.
+A **byte-verify guard** keeps them honest: every build checks that all nine shipped classes are
+byte-identical to the committed baseline in **`reference/weapon-hotpath-4.6.229/`**, so a future
+refactor can never silently change or drop them (a dropped class fails the presence check; any
+drift fails the sha256 compare). The guard is **fail-closed** — if the baseline is missing it
+errors rather than shipping unverified classes.
 
-**Refresh the source jar after every good live deploy** so the next build inherits the current
-classes:
+**Re-baseline after a good live deploy** (and after any *intended* source change) so the next
+build inherits the current classes:
 
 ```bash
-cp mods/LegacyMechanics-<good-version>.jar tools/dmz-adaptive-difficulty/base/weapon-hotpath-source.jar
-# or, if the local jar was pruned by a build, pull it from live first:
-#   fetch mods/LegacyMechanics-<good-version>.jar over SFTP, then copy as above
+LM_WEAPON_SEED=1 ./build.sh   # extract the 9 classes from the fresh jar into reference/weapon-hotpath-4.6.229/
+git add reference/weapon-hotpath-4.6.229   # commit the updated baseline
 ```
 
-If you ever recover the correct `.java` source for these classes, drop it into `src/`. The
-source-backed five will then compile to the live bytecode; keep the source jar refreshed (or
-delete the overlay block) once the compile is byte-identical on its own.
+The baseline was reconstructed by decompiling the live 4.6.227 bytecode (CFR) and restoring the
+types CFR dropped; the public API round-trips byte-for-byte against the original jar (verified via
+`javap -p` diff). The recompiled bytecode is functionally identical but not byte-identical to the
+pre-reconstruction live classes — that is expected and why the baseline is re-seeded from the first
+validated build rather than from the old `weapon-hotpath-source.jar`.

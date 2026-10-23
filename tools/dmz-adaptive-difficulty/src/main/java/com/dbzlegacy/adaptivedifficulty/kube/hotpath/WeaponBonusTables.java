@@ -4,350 +4,364 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * Weapon family tables transcribed from kubejs/server_scripts/dmz_weapon_bonus_scale.js.
- * Absent stats are {@link Double#NaN}.
- */
 public final class WeaponBonusTables {
-    public static final String[] STATS = {"STR", "SKP", "RES", "VIT", "PWR", "ENE"};
-    public static final String[] THIRD_ORDER = {"VIT", "ENE", "RES", "PWR", "SKP", "STR"};
-    public static final String[][] SIMPLY_SUFFIXES = {
-        {"_backhand_blade", "backhand_blade"},
-        {"_quarterstaff", "quarterstaff"},
-        {"_great_katana", "great_katana"},
-        {"_great_spear", "great_spear"},
-        {"_deer_horns", "deer_horns"},
-        {"_greathammer", "greathammer"},
-        {"_grandsword", "grandsword"},
-        {"_twinblade", "twinblade"},
-        {"_warglaive", "warglaive"},
-        {"_longsword", "longsword"},
-        {"_greataxe", "greataxe"},
-        {"_chakram", "chakram"},
-        {"_claymore", "claymore"},
-        {"_cutlass", "cutlass"},
-        {"_halberd", "halberd"},
-        {"_khopesh", "khopesh"},
-        {"_pernach", "pernach"},
-        {"_rapier", "rapier"},
-        {"_scythe", "scythe"},
-        {"_glaive", "glaive"},
-        {"_katana", "katana"},
-        {"_dagger", "dagger"},
-        {"_lance", "lance"},
-        {"_spear", "spear"},
-        {"_sai", "sai"},
-    };
-
-    public static final class WeaponDef {
-        public final String family;
-        public final double[] profile;
-
-        WeaponDef(String family, double[] profile) {
-            this.family = family;
-            this.profile = profile;
-        }
-    }
-
+    public static final String[] STATS = new String[]{"STR", "SKP", "RES", "VIT", "PWR", "ENE"};
+    public static final String[] THIRD_ORDER = new String[]{"VIT", "ENE", "RES", "PWR", "SKP", "STR"};
+    public static final String[][] SIMPLY_SUFFIXES = new String[][]{{"_backhand_blade", "backhand_blade"}, {"_quarterstaff", "quarterstaff"}, {"_great_katana", "great_katana"}, {"_great_spear", "great_spear"}, {"_deer_horns", "deer_horns"}, {"_greathammer", "greathammer"}, {"_grandsword", "grandsword"}, {"_twinblade", "twinblade"}, {"_warglaive", "warglaive"}, {"_longsword", "longsword"}, {"_greataxe", "greataxe"}, {"_chakram", "chakram"}, {"_claymore", "claymore"}, {"_cutlass", "cutlass"}, {"_halberd", "halberd"}, {"_khopesh", "khopesh"}, {"_pernach", "pernach"}, {"_rapier", "rapier"}, {"_scythe", "scythe"}, {"_glaive", "glaive"}, {"_katana", "katana"}, {"_dagger", "dagger"}, {"_lance", "lance"}, {"_spear", "spear"}, {"_sai", "sai"}};
     private static final Map<String, double[]> FAMILY;
     private static final Map<String, String> SIMPLY_EXACT;
     private static final Map<String, String> UNIQUE_THIRD;
     private static final Map<String, WeaponDef> IRONS;
     private static final Map<String, WeaponDef> DMZ;
     private static final Map<String, double[]> TINKERS;
+    static final String[] MIMICRY_FORMS;
+
+    private WeaponBonusTables() {
+    }
+
+    public static double[] family(String string) {
+        return string == null ? null : FAMILY.get(string);
+    }
+
+    public static String simplyExact(String string) {
+        return string == null ? null : SIMPLY_EXACT.get(string);
+    }
+
+    public static String uniqueThird(String string) {
+        return string == null ? null : UNIQUE_THIRD.get(string);
+    }
+
+    public static WeaponDef irons(String string) {
+        return string == null ? null : IRONS.get(string);
+    }
+
+    public static WeaponDef dmz(String string) {
+        return string == null ? null : DMZ.get(string);
+    }
+
+    public static double[] tinkers(String string) {
+        return string == null ? null : TINKERS.get(string);
+    }
+
+    static Map<String, double[]> familyMap() {
+        return FAMILY;
+    }
+
+    static Map<String, String> simplyExactMap() {
+        return SIMPLY_EXACT;
+    }
+
+    static Map<String, String> uniqueThirdMap() {
+        return UNIQUE_THIRD;
+    }
+
+    static Map<String, WeaponDef> ironsMap() {
+        return IRONS;
+    }
+
+    static Map<String, WeaponDef> dmzMap() {
+        return DMZ;
+    }
+
+    static Map<String, double[]> tinkersMap() {
+        return TINKERS;
+    }
+
+    private static double[] p(double d, double d2, double d3, double d4, double d5, double d6) {
+        return new double[]{d, d2, d3, d4, d5, d6};
+    }
+
+    private static WeaponDef def(String string, double d, double d2, double d3, double d4, double d5, double d6) {
+        return new WeaponDef(string, WeaponBonusTables.p(d, d2, d3, d4, d5, d6));
+    }
 
     static {
-        Map<String, double[]> family = new LinkedHashMap<>();
-        family.put("backhand_blade", p(Double.NaN, 0.12, Double.NaN, Double.NaN, Double.NaN, 0.05));
-        family.put("chakram", p(Double.NaN, 0.08, Double.NaN, Double.NaN, Double.NaN, 0.12));
-        family.put("claymore", p(0.16, Double.NaN, 0.07, Double.NaN, Double.NaN, Double.NaN));
-        family.put("cutlass", p(0.09, 0.09, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        family.put("dagger", p(Double.NaN, 0.15, Double.NaN, Double.NaN, Double.NaN, 0.04));
-        family.put("deer_horns", p(Double.NaN, 0.12, 0.05, Double.NaN, Double.NaN, Double.NaN));
-        family.put("glaive", p(0.08, 0.11, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        family.put("grandsword", p(0.17, Double.NaN, 0.08, Double.NaN, Double.NaN, Double.NaN));
-        family.put("great_katana", p(0.07, 0.15, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        family.put("great_spear", p(0.10, 0.11, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        family.put("greataxe", p(0.18, Double.NaN, 0.06, Double.NaN, Double.NaN, Double.NaN));
-        family.put("greathammer", p(0.17, Double.NaN, 0.09, Double.NaN, Double.NaN, Double.NaN));
-        family.put("halberd", p(0.11, 0.09, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        family.put("katana", p(Double.NaN, 0.15, Double.NaN, Double.NaN, Double.NaN, 0.04));
-        family.put("khopesh", p(0.09, 0.10, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        family.put("lance", p(0.12, 0.08, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        family.put("longsword", p(0.10, 0.10, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        family.put("pernach", p(0.15, Double.NaN, 0.07, Double.NaN, Double.NaN, Double.NaN));
-        family.put("quarterstaff", p(Double.NaN, 0.10, 0.09, Double.NaN, Double.NaN, Double.NaN));
-        family.put("rapier", p(Double.NaN, 0.17, Double.NaN, Double.NaN, Double.NaN, 0.03));
-        family.put("sai", p(Double.NaN, 0.15, Double.NaN, Double.NaN, Double.NaN, 0.04));
-        family.put("scythe", p(Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.10, 0.18));
-        family.put("sickle", p(Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.08, 0.15));
-        family.put("spear", p(0.08, 0.12, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        family.put("twinblade", p(0.07, 0.12, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        family.put("warglaive", p(0.10, 0.10, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        family.put("mace", p(0.15, Double.NaN, 0.08, Double.NaN, Double.NaN, Double.NaN));
-        FAMILY = Collections.unmodifiableMap(family);
-
-        Map<String, String> simply = new LinkedHashMap<>();
-        simply.put("simplyswords:emberlash", "backhand_blade");
-        simply.put("simplymore:boas_fang", "backhand_blade");
-        simply.put("simplymore:smouldering_ruin", "backhand_blade");
-        simply.put("simplyswords:mjolnir", "chakram");
-        simply.put("simplyswords:tempest", "chakram");
-        simply.put("simplymore:vipers_call", "chakram");
-        simply.put("simplymore:blade_of_the_grotesque", "claymore");
-        simply.put("simplyswords:caelestis", "claymore");
-        simply.put("simplymore:deaths_eyrie", "claymore");
-        simply.put("simplyswords:twisted_blade", "claymore");
-        simply.put("simplyswords:slumbering_lichblade", "claymore");
-        simply.put("simplyswords:waking_lichblade", "claymore");
-        simply.put("simplyswords:awakened_lichblade", "claymore");
-        simply.put("simplyswords:waxweaver", "claymore");
-        simply.put("simplymore:black_pearl", "cutlass");
-        simply.put("simplymore:the_vessel_breach", "dagger");
-        simply.put("simplymore:culterex", "dagger");
-        simply.put("simplymore:tidebreaker", "deer_horns");
-        simply.put("simplymore:brassturn", "deer_horns");
-        simply.put("simplymore:soul_foreseer", "glaive");
-        simply.put("simplyswords:flamewind", "glaive");
-        simply.put("simplymore:grandfrost", "grandsword");
-        simply.put("simplyswords:enigma", "grandsword");
-        simply.put("simplyswords:ribboncleaver", "grandsword");
-        simply.put("simplymore:molten_flare", "grandsword");
-        simply.put("simplymore:great_slither", "great_katana");
-        simply.put("simplymore:lustrous_moxie", "great_katana");
-        simply.put("simplymore:perforiscus", "great_spear");
-        simply.put("simplymore:serpentine_valour", "great_spear");
-        simply.put("simplymore:earthshatter", "greataxe");
-        simply.put("simplyswords:soulpyre", "greataxe");
-        simply.put("simplyswords:hearthflame", "greathammer");
-        simply.put("simplyswords:soulkeeper", "greathammer");
-        simply.put("simplyswords:hiveheart", "greathammer");
-        simply.put("simplyswords:icewhisper", "halberd");
-        simply.put("simplyswords:arcanethyst", "halberd");
-        simply.put("simplyswords:thunderbrand", "halberd");
-        simply.put("simplymore:revvengine", "katana");
-        simply.put("simplyswords:whisperwind", "katana");
-        simply.put("simplymore:timekeeper", "khopesh");
-        simply.put("simplymore:myrmedge", "khopesh");
-        simply.put("simplymore:glimmerstep", "lance");
-        simply.put("simplymore:jester_penetrate", "lance");
-        simply.put("simplymore:exedrill", "lance");
-        simply.put("simplymore:matterbane", "longsword");
-        simply.put("simplyswords:decaying_relic", "longsword");
-        simply.put("simplyswords:stormbringer", "longsword");
-        simply.put("simplyswords:emberblade", "longsword");
-        simply.put("simplyswords:dormant_relic", "longsword");
-        simply.put("simplyswords:righteous_relic", "longsword");
-        simply.put("simplyswords:tainted_relic", "longsword");
-        simply.put("simplyswords:sunfire", "longsword");
-        simply.put("simplyswords:harbinger", "longsword");
-        simply.put("simplymore:the_pan", "pernach");
-        simply.put("simplymore:cindergorge", "pernach");
-        simply.put("simplymore:ruptured_idol", "pernach");
-        simply.put("simplymore:ascended_idol", "pernach");
-        simply.put("simplymore:tarnished_idol", "pernach");
-        simply.put("simplymore:holylight", "pernach");
-        simply.put("simplymore:darksent", "pernach");
-        simply.put("simplymore:stasis", "quarterstaff");
-        simply.put("simplymore:ruyi_jingu_bang", "quarterstaff");
-        simply.put("simplyswords:bramblethorn", "rapier");
-        simply.put("simplyswords:shadowsting", "rapier");
-        simply.put("simplyswords:soulstealer", "sai");
-        simply.put("simplyswords:magiscythe", "scythe");
-        simply.put("simplyswords:soulrender", "scythe");
-        simply.put("simplymore:the_blood_harvester", "scythe");
-        simply.put("simplyswords:wickpiercer", "spear");
-        simply.put("simplyswords:magispear", "spear");
-        simply.put("simplyswords:sword_on_a_stick", "spear");
-        simply.put("simplyswords:storms_edge", "twinblade");
-        simply.put("simplyswords:magiblade", "twinblade");
-        simply.put("simplyswords:stars_edge", "twinblade");
-        simply.put("simplyswords:dreadtide", "twinblade");
-        simply.put("simplyswords:frostfall", "mace");
-        simply.put("simplyswords:livyatan", "sickle");
-        simply.put("simplyswords:molten_edge", "sickle");
-        SIMPLY_EXACT = Collections.unmodifiableMap(simply);
-
-        Map<String, String> unique = new LinkedHashMap<>();
-        unique.put("simplyswords:watcher_claymore", "VIT");
-        unique.put("simplyswords:brimstone_claymore", "PWR");
-        unique.put("simplyswords:storms_edge", "ENE");
-        unique.put("simplyswords:stormbringer", "VIT");
-        unique.put("simplyswords:bramblethorn", "PWR");
-        unique.put("simplyswords:watching_warglaive", "ENE");
-        unique.put("simplyswords:toxic_longsword", "PWR");
-        unique.put("simplyswords:emberblade", "PWR");
-        unique.put("simplyswords:frostfall", "ENE");
-        unique.put("simplyswords:soulpyre", "PWR");
-        unique.put("simplyswords:molten_edge", "VIT");
-        unique.put("simplyswords:livyatan", "RES");
-        unique.put("simplyswords:icewhisper", "ENE");
-        unique.put("simplyswords:arcanethyst", "PWR");
-        unique.put("simplyswords:thunderbrand", "ENE");
-        unique.put("simplyswords:hearthflame", "VIT");
-        unique.put("simplyswords:twisted_blade", "VIT");
-        unique.put("simplyswords:soulrender", "PWR");
-        unique.put("simplyswords:soulkeeper", "VIT");
-        unique.put("simplyswords:soulstealer", "ENE");
-        unique.put("simplyswords:mjolnir", "PWR");
-        unique.put("simplyswords:slumbering_lichblade", "PWR");
-        unique.put("simplyswords:waking_lichblade", "PWR");
-        unique.put("simplyswords:awakened_lichblade", "PWR");
-        unique.put("simplyswords:shadowsting", "PWR");
-        unique.put("simplyswords:dormant_relic", "RES");
-        unique.put("simplyswords:decaying_relic", "RES");
-        unique.put("simplyswords:tainted_relic", "PWR");
-        unique.put("simplyswords:righteous_relic", "VIT");
-        unique.put("simplyswords:sunfire", "VIT");
-        unique.put("simplyswords:harbinger", "PWR");
-        unique.put("simplyswords:whisperwind", "ENE");
-        unique.put("simplyswords:emberlash", "ENE");
-        unique.put("simplyswords:waxweaver", "VIT");
-        unique.put("simplyswords:hiveheart", "VIT");
-        unique.put("simplyswords:stars_edge", "ENE");
-        unique.put("simplyswords:wickpiercer", "ENE");
-        unique.put("simplyswords:tempest", "PWR");
-        unique.put("simplyswords:flamewind", "PWR");
-        unique.put("simplyswords:ribboncleaver", "VIT");
-        unique.put("simplyswords:magiscythe", "RES");
-        unique.put("simplyswords:magiblade", "PWR");
-        unique.put("simplyswords:magispear", "PWR");
-        unique.put("simplyswords:enigma", "ENE");
-        unique.put("simplyswords:caelestis", "ENE");
-        unique.put("simplyswords:dreadtide", "PWR");
-        unique.put("simplymore:great_slither", "PWR");
-        unique.put("simplymore:molten_flare", "PWR");
-        unique.put("simplymore:grandfrost", "RES");
-        unique.put("simplymore:glimmerstep", "PWR");
-        unique.put("simplymore:the_blood_harvester", "VIT");
-        unique.put("simplymore:myrmedge", "VIT");
-        unique.put("simplymore:black_pearl", "VIT");
-        unique.put("simplymore:the_vessel_breach", "VIT");
-        unique.put("simplymore:blade_of_the_grotesque", "VIT");
-        unique.put("simplymore:vipers_call", "PWR");
-        unique.put("simplymore:timekeeper", "PWR");
-        unique.put("simplymore:matterbane", "PWR");
-        unique.put("simplymore:smouldering_ruin", "PWR");
-        unique.put("simplymore:stasis", "ENE");
-        unique.put("simplymore:tidebreaker", "RES");
-        unique.put("simplymore:ruyi_jingu_bang", "VIT");
-        unique.put("simplymore:ruptured_idol", "RES");
-        unique.put("simplymore:ascended_idol", "VIT");
-        unique.put("simplymore:tarnished_idol", "PWR");
-        unique.put("simplymore:holylight", "VIT");
-        unique.put("simplymore:darksent", "PWR");
-        unique.put("simplymore:boas_fang", "PWR");
-        unique.put("simplymore:earthshatter", "VIT");
-        unique.put("simplymore:soul_foreseer", "ENE");
-        unique.put("simplymore:serpentine_valour", "PWR");
-        unique.put("simplymore:lustrous_moxie", "ENE");
-        unique.put("simplymore:brassturn", "RES");
-        unique.put("simplymore:cindergorge", "VIT");
-        unique.put("simplymore:deaths_eyrie", "VIT");
-        unique.put("simplymore:perforiscus", "VIT");
-        unique.put("simplymore:revvengine", "VIT");
-        unique.put("simplymore:exedrill", "VIT");
-        unique.put("simplymore:culterex", "PWR");
-        UNIQUE_THIRD = Collections.unmodifiableMap(unique);
-
-        Map<String, WeaponDef> irons = new LinkedHashMap<>();
-        irons.put("irons_spellbooks:graybeard_staff", def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.12, 0.16));
-        irons.put("irons_spellbooks:pyrium_staff", def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.14, 0.14));
-        irons.put("irons_spellbooks:artificer_cane", def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.10, 0.15));
-        irons.put("irons_spellbooks:ice_staff", def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.13, 0.15));
-        irons.put("irons_spellbooks:lightning_rod", def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.14, 0.13));
-        irons.put("irons_spellbooks:blood_staff", def("staff", Double.NaN, Double.NaN, Double.NaN, 0.08, 0.13, Double.NaN));
-        irons.put("irons_spellbooks:improved_blood_staff", def("staff", Double.NaN, Double.NaN, Double.NaN, 0.10, 0.16, Double.NaN));
-        irons.put("irons_spellbooks:staff_of_the_nines", def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.16, 0.16));
-        irons.put("irons_spellbooks:hither_thither_wand", def("wand", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.08, 0.14));
-        irons.put("irons_spellbooks:dev_staff", def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.12, 0.12));
-        irons.put("irons_spellbooks:amethyst_rapier", def("rapier", Double.NaN, 0.17, Double.NaN, Double.NaN, Double.NaN, 0.04));
-        irons.put("irons_spellbooks:claymore", def("claymore", 0.16, Double.NaN, 0.07, Double.NaN, Double.NaN, Double.NaN));
-        irons.put("irons_spellbooks:keeper_flamberge", def("flamberge", 0.13, 0.09, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        irons.put("irons_spellbooks:legionnaire_flamberge", def("flamberge", 0.14, 0.09, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        irons.put("irons_spellbooks:magehunter", def("sword", 0.10, 0.10, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        irons.put("irons_spellbooks:spellbreaker", def("sword", 0.09, Double.NaN, 0.10, Double.NaN, Double.NaN, Double.NaN));
-        irons.put("irons_spellbooks:misery", def("energy_sword", 0.11, Double.NaN, Double.NaN, Double.NaN, 0.10, Double.NaN));
-        irons.put("irons_spellbooks:hellrazor", def("energy_sword", 0.13, Double.NaN, Double.NaN, Double.NaN, 0.10, Double.NaN));
-        irons.put("irons_spellbooks:decrepit_scythe", def("scythe", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.09, 0.16));
-        irons.put("irons_spellbooks:boreal_blade", def("energy_sword", Double.NaN, 0.10, Double.NaN, Double.NaN, 0.11, Double.NaN));
-        irons.put("irons_spellbooks:twilight_gale", def("energy_sword", Double.NaN, 0.08, Double.NaN, Double.NaN, 0.13, Double.NaN));
-        irons.put("irons_spellbooks:truthseeker", def("greatsword", 0.10, 0.10, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        irons.put("irons_spellbooks:autoloader_crossbow", def("crossbow", Double.NaN, 0.08, Double.NaN, Double.NaN, 0.10, Double.NaN));
-        IRONS = Collections.unmodifiableMap(irons);
-
-        Map<String, WeaponDef> dmz = new LinkedHashMap<>();
-        dmz.put("dragonminez:yajirobe_katana", def("katana", 0.06, 0.16, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        dmz.put("dragonminez:z_sword", def("heavy_sword", 0.18, Double.NaN, 0.08, Double.NaN, Double.NaN, Double.NaN));
-        dmz.put("dragonminez:brave_sword", def("sword", 0.12, 0.12, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        dmz.put("dragonminez:dimensional_sword", def("energy_sword", Double.NaN, 0.10, Double.NaN, Double.NaN, 0.12, Double.NaN));
-        dmz.put("dragonminez:power_pole", def("staff", 0.10, 0.12, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        dmz.put("dragonminez:laser_merus", def("energy_weapon", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.14, 0.12));
-        dmz.put("dragonminez:blaster_cannon", def("energy_weapon", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.12, 0.10));
-        DMZ = Collections.unmodifiableMap(dmz);
-
-        Map<String, double[]> tinkers = new LinkedHashMap<>();
-        tinkers.put("scythe", p(Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.10, 0.18));
-        tinkers.put("cleaver", p(0.18, Double.NaN, 0.06, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("sword", p(0.10, 0.10, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("dagger", p(Double.NaN, 0.15, Double.NaN, Double.NaN, Double.NaN, 0.04));
-        tinkers.put("kama", p(Double.NaN, 0.12, Double.NaN, Double.NaN, Double.NaN, 0.05));
-        tinkers.put("hand_axe", p(0.14, 0.05, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("broad_axe", p(0.18, Double.NaN, 0.07, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("sledge_hammer", p(0.17, Double.NaN, 0.09, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("vein_hammer", p(0.16, Double.NaN, 0.08, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("war_pick", p(0.12, 0.08, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("mattock", p(0.10, 0.07, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("pickadze", p(0.10, 0.07, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("excavator", p(0.15, Double.NaN, 0.06, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("battlesign", p(Double.NaN, Double.NaN, 0.14, 0.04, Double.NaN, Double.NaN));
-        tinkers.put("swasher", p(0.09, 0.10, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("minotaur_axe", p(0.18, Double.NaN, 0.06, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("melting_pan", p(0.12, Double.NaN, 0.07, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("javelin", p(0.07, 0.12, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("shuriken", p(Double.NaN, 0.12, Double.NaN, Double.NaN, Double.NaN, 0.05));
-        tinkers.put("throwing_axe", p(0.08, 0.10, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
-        tinkers.put("crossbow", p(Double.NaN, 0.08, Double.NaN, Double.NaN, 0.10, Double.NaN));
-        tinkers.put("longbow", p(Double.NaN, 0.08, Double.NaN, Double.NaN, 0.10, Double.NaN));
-        tinkers.put("sky_staff", p(Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.12, 0.15));
-        tinkers.put("earth_staff", p(Double.NaN, Double.NaN, 0.10, Double.NaN, 0.10, Double.NaN));
-        tinkers.put("ichor_staff", p(Double.NaN, Double.NaN, Double.NaN, 0.08, 0.14, Double.NaN));
-        tinkers.put("ender_staff", p(Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.13, 0.14));
-        TINKERS = Collections.unmodifiableMap(tinkers);
+        MIMICRY_FORMS = new String[]{"backhand_blade", "chakram", "claymore", "cutlass", "dagger", "deer_horns", "glaive", "grandsword", "great_katana", "great_spear", "greataxe", "greathammer", "halberd", "katana", "khopesh", "lance", "longsword", "pernach", "quarterstaff", "rapier", "sai", "scythe", "spear", "twinblade", "warglaive"};
+        LinkedHashMap<String, double[]> linkedHashMap = new LinkedHashMap<String, double[]>();
+        linkedHashMap.put("backhand_blade", WeaponBonusTables.p(Double.NaN, 0.12, Double.NaN, Double.NaN, Double.NaN, 0.05));
+        linkedHashMap.put("chakram", WeaponBonusTables.p(Double.NaN, 0.08, Double.NaN, Double.NaN, Double.NaN, 0.12));
+        linkedHashMap.put("claymore", WeaponBonusTables.p(0.16, Double.NaN, 0.07, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("cutlass", WeaponBonusTables.p(0.09, 0.09, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("dagger", WeaponBonusTables.p(Double.NaN, 0.15, Double.NaN, Double.NaN, Double.NaN, 0.04));
+        linkedHashMap.put("deer_horns", WeaponBonusTables.p(Double.NaN, 0.12, 0.05, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("glaive", WeaponBonusTables.p(0.08, 0.11, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("grandsword", WeaponBonusTables.p(0.17, Double.NaN, 0.08, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("great_katana", WeaponBonusTables.p(0.07, 0.15, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("great_spear", WeaponBonusTables.p(0.1, 0.11, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("greataxe", WeaponBonusTables.p(0.18, Double.NaN, 0.06, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("greathammer", WeaponBonusTables.p(0.17, Double.NaN, 0.09, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("halberd", WeaponBonusTables.p(0.11, 0.09, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("katana", WeaponBonusTables.p(Double.NaN, 0.15, Double.NaN, Double.NaN, Double.NaN, 0.04));
+        linkedHashMap.put("khopesh", WeaponBonusTables.p(0.09, 0.1, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("lance", WeaponBonusTables.p(0.12, 0.08, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("longsword", WeaponBonusTables.p(0.1, 0.1, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("pernach", WeaponBonusTables.p(0.15, Double.NaN, 0.07, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("quarterstaff", WeaponBonusTables.p(Double.NaN, 0.1, 0.09, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("rapier", WeaponBonusTables.p(Double.NaN, 0.17, Double.NaN, Double.NaN, Double.NaN, 0.03));
+        linkedHashMap.put("sai", WeaponBonusTables.p(Double.NaN, 0.15, Double.NaN, Double.NaN, Double.NaN, 0.04));
+        linkedHashMap.put("scythe", WeaponBonusTables.p(Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.1, 0.18));
+        linkedHashMap.put("sickle", WeaponBonusTables.p(Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.08, 0.15));
+        linkedHashMap.put("spear", WeaponBonusTables.p(0.08, 0.12, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("twinblade", WeaponBonusTables.p(0.07, 0.12, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("warglaive", WeaponBonusTables.p(0.1, 0.1, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap.put("mace", WeaponBonusTables.p(0.15, Double.NaN, 0.08, Double.NaN, Double.NaN, Double.NaN));
+        FAMILY = Collections.unmodifiableMap(linkedHashMap);
+        LinkedHashMap<String, String> linkedHashMap2 = new LinkedHashMap<String, String>();
+        linkedHashMap2.put("simplyswords:emberlash", "backhand_blade");
+        linkedHashMap2.put("simplymore:boas_fang", "backhand_blade");
+        linkedHashMap2.put("simplymore:smouldering_ruin", "backhand_blade");
+        linkedHashMap2.put("simplyswords:mjolnir", "chakram");
+        linkedHashMap2.put("simplyswords:tempest", "chakram");
+        linkedHashMap2.put("simplymore:vipers_call", "chakram");
+        linkedHashMap2.put("simplymore:blade_of_the_grotesque", "claymore");
+        linkedHashMap2.put("simplyswords:caelestis", "claymore");
+        linkedHashMap2.put("simplymore:deaths_eyrie", "claymore");
+        linkedHashMap2.put("simplyswords:twisted_blade", "claymore");
+        linkedHashMap2.put("simplyswords:slumbering_lichblade", "claymore");
+        linkedHashMap2.put("simplyswords:waking_lichblade", "claymore");
+        linkedHashMap2.put("simplyswords:awakened_lichblade", "claymore");
+        linkedHashMap2.put("simplyswords:waxweaver", "claymore");
+        linkedHashMap2.put("simplymore:black_pearl", "cutlass");
+        linkedHashMap2.put("simplymore:the_vessel_breach", "dagger");
+        linkedHashMap2.put("simplymore:culterex", "dagger");
+        linkedHashMap2.put("simplymore:tidebreaker", "deer_horns");
+        linkedHashMap2.put("simplymore:brassturn", "deer_horns");
+        linkedHashMap2.put("simplymore:soul_foreseer", "glaive");
+        linkedHashMap2.put("simplyswords:flamewind", "glaive");
+        linkedHashMap2.put("simplymore:grandfrost", "grandsword");
+        linkedHashMap2.put("simplyswords:enigma", "grandsword");
+        linkedHashMap2.put("simplyswords:ribboncleaver", "grandsword");
+        linkedHashMap2.put("simplymore:molten_flare", "grandsword");
+        linkedHashMap2.put("simplymore:great_slither", "great_katana");
+        linkedHashMap2.put("simplymore:lustrous_moxie", "great_katana");
+        linkedHashMap2.put("simplymore:perforiscus", "great_spear");
+        linkedHashMap2.put("simplymore:serpentine_valour", "great_spear");
+        linkedHashMap2.put("simplymore:earthshatter", "greataxe");
+        linkedHashMap2.put("simplyswords:soulpyre", "greataxe");
+        linkedHashMap2.put("simplyswords:hearthflame", "greathammer");
+        linkedHashMap2.put("simplyswords:soulkeeper", "greathammer");
+        linkedHashMap2.put("simplyswords:hiveheart", "greathammer");
+        linkedHashMap2.put("simplyswords:icewhisper", "halberd");
+        linkedHashMap2.put("simplyswords:arcanethyst", "halberd");
+        linkedHashMap2.put("simplyswords:thunderbrand", "halberd");
+        linkedHashMap2.put("simplymore:revvengine", "katana");
+        linkedHashMap2.put("simplyswords:whisperwind", "katana");
+        linkedHashMap2.put("simplymore:timekeeper", "khopesh");
+        linkedHashMap2.put("simplymore:myrmedge", "khopesh");
+        linkedHashMap2.put("simplymore:glimmerstep", "lance");
+        linkedHashMap2.put("simplymore:jester_penetrate", "lance");
+        linkedHashMap2.put("simplymore:exedrill", "lance");
+        linkedHashMap2.put("simplymore:matterbane", "longsword");
+        linkedHashMap2.put("simplyswords:decaying_relic", "longsword");
+        linkedHashMap2.put("simplyswords:stormbringer", "longsword");
+        linkedHashMap2.put("simplyswords:emberblade", "longsword");
+        linkedHashMap2.put("simplyswords:dormant_relic", "longsword");
+        linkedHashMap2.put("simplyswords:righteous_relic", "longsword");
+        linkedHashMap2.put("simplyswords:tainted_relic", "longsword");
+        linkedHashMap2.put("simplyswords:sunfire", "longsword");
+        linkedHashMap2.put("simplyswords:harbinger", "longsword");
+        linkedHashMap2.put("simplymore:the_pan", "pernach");
+        linkedHashMap2.put("simplymore:cindergorge", "pernach");
+        linkedHashMap2.put("simplymore:ruptured_idol", "pernach");
+        linkedHashMap2.put("simplymore:ascended_idol", "pernach");
+        linkedHashMap2.put("simplymore:tarnished_idol", "pernach");
+        linkedHashMap2.put("simplymore:holylight", "pernach");
+        linkedHashMap2.put("simplymore:darksent", "pernach");
+        linkedHashMap2.put("simplymore:stasis", "quarterstaff");
+        linkedHashMap2.put("simplymore:ruyi_jingu_bang", "quarterstaff");
+        linkedHashMap2.put("simplyswords:bramblethorn", "rapier");
+        linkedHashMap2.put("simplyswords:shadowsting", "rapier");
+        linkedHashMap2.put("simplyswords:soulstealer", "sai");
+        linkedHashMap2.put("simplyswords:magiscythe", "scythe");
+        linkedHashMap2.put("simplyswords:soulrender", "scythe");
+        linkedHashMap2.put("simplymore:the_blood_harvester", "scythe");
+        linkedHashMap2.put("simplyswords:wickpiercer", "spear");
+        linkedHashMap2.put("simplyswords:magispear", "spear");
+        linkedHashMap2.put("simplyswords:sword_on_a_stick", "spear");
+        linkedHashMap2.put("simplyswords:storms_edge", "twinblade");
+        linkedHashMap2.put("simplyswords:magiblade", "twinblade");
+        linkedHashMap2.put("simplyswords:stars_edge", "twinblade");
+        linkedHashMap2.put("simplyswords:dreadtide", "twinblade");
+        linkedHashMap2.put("simplyswords:frostfall", "mace");
+        linkedHashMap2.put("simplyswords:livyatan", "sickle");
+        linkedHashMap2.put("simplyswords:molten_edge", "sickle");
+        linkedHashMap2.put("simplyswords:bloodwake", "cutlass");
+        linkedHashMap2.put("simplyswords:chompolotl", "chakram");
+        linkedHashMap2.put("simplyswords:dawnquiver", "claymore");
+        linkedHashMap2.put("simplyswords:riftmane", "claymore");
+        linkedHashMap2.put("simplyswords:the_devourer", "claymore");
+        linkedHashMap2.put("simplyswords:stormscale", "glaive");
+        linkedHashMap2.put("simplyswords:ionbound_stormscale", "glaive");
+        linkedHashMap2.put("simplyswords:wraithfang", "dagger");
+        linkedHashMap2.put("simplyswords:wraithmaw", "dagger");
+        linkedHashMap2.put("simplyswords:dreadwhisper", "katana");
+        linkedHashMap2.put("simplyswords:gloampiercer", "spear");
+        linkedHashMap2.put("simplyswords:soulstalker", "scythe");
+        SIMPLY_EXACT = Collections.unmodifiableMap(linkedHashMap2);
+        LinkedHashMap<String, String> linkedHashMap3 = new LinkedHashMap<String, String>();
+        linkedHashMap3.put("simplyswords:watcher_claymore", "VIT");
+        linkedHashMap3.put("simplyswords:brimstone_claymore", "PWR");
+        linkedHashMap3.put("simplyswords:storms_edge", "ENE");
+        linkedHashMap3.put("simplyswords:stormbringer", "VIT");
+        linkedHashMap3.put("simplyswords:bramblethorn", "PWR");
+        linkedHashMap3.put("simplyswords:watching_warglaive", "ENE");
+        linkedHashMap3.put("simplyswords:toxic_longsword", "PWR");
+        linkedHashMap3.put("simplyswords:emberblade", "PWR");
+        linkedHashMap3.put("simplyswords:frostfall", "ENE");
+        linkedHashMap3.put("simplyswords:soulpyre", "PWR");
+        linkedHashMap3.put("simplyswords:molten_edge", "VIT");
+        linkedHashMap3.put("simplyswords:livyatan", "RES");
+        linkedHashMap3.put("simplyswords:icewhisper", "ENE");
+        linkedHashMap3.put("simplyswords:arcanethyst", "PWR");
+        linkedHashMap3.put("simplyswords:thunderbrand", "ENE");
+        linkedHashMap3.put("simplyswords:hearthflame", "VIT");
+        linkedHashMap3.put("simplyswords:twisted_blade", "VIT");
+        linkedHashMap3.put("simplyswords:soulrender", "PWR");
+        linkedHashMap3.put("simplyswords:soulkeeper", "VIT");
+        linkedHashMap3.put("simplyswords:soulstealer", "ENE");
+        linkedHashMap3.put("simplyswords:mjolnir", "PWR");
+        linkedHashMap3.put("simplyswords:slumbering_lichblade", "PWR");
+        linkedHashMap3.put("simplyswords:waking_lichblade", "PWR");
+        linkedHashMap3.put("simplyswords:awakened_lichblade", "PWR");
+        linkedHashMap3.put("simplyswords:shadowsting", "PWR");
+        linkedHashMap3.put("simplyswords:dormant_relic", "RES");
+        linkedHashMap3.put("simplyswords:decaying_relic", "RES");
+        linkedHashMap3.put("simplyswords:tainted_relic", "PWR");
+        linkedHashMap3.put("simplyswords:righteous_relic", "VIT");
+        linkedHashMap3.put("simplyswords:sunfire", "VIT");
+        linkedHashMap3.put("simplyswords:harbinger", "PWR");
+        linkedHashMap3.put("simplyswords:whisperwind", "ENE");
+        linkedHashMap3.put("simplyswords:emberlash", "ENE");
+        linkedHashMap3.put("simplyswords:waxweaver", "VIT");
+        linkedHashMap3.put("simplyswords:hiveheart", "VIT");
+        linkedHashMap3.put("simplyswords:stars_edge", "ENE");
+        linkedHashMap3.put("simplyswords:wickpiercer", "ENE");
+        linkedHashMap3.put("simplyswords:tempest", "PWR");
+        linkedHashMap3.put("simplyswords:flamewind", "PWR");
+        linkedHashMap3.put("simplyswords:ribboncleaver", "VIT");
+        linkedHashMap3.put("simplyswords:magiscythe", "RES");
+        linkedHashMap3.put("simplyswords:magiblade", "PWR");
+        linkedHashMap3.put("simplyswords:magispear", "PWR");
+        linkedHashMap3.put("simplyswords:enigma", "ENE");
+        linkedHashMap3.put("simplyswords:caelestis", "ENE");
+        linkedHashMap3.put("simplyswords:dreadtide", "PWR");
+        linkedHashMap3.put("simplymore:great_slither", "PWR");
+        linkedHashMap3.put("simplymore:molten_flare", "PWR");
+        linkedHashMap3.put("simplymore:grandfrost", "RES");
+        linkedHashMap3.put("simplymore:glimmerstep", "PWR");
+        linkedHashMap3.put("simplymore:the_blood_harvester", "VIT");
+        linkedHashMap3.put("simplymore:myrmedge", "VIT");
+        linkedHashMap3.put("simplymore:black_pearl", "VIT");
+        linkedHashMap3.put("simplymore:the_vessel_breach", "VIT");
+        linkedHashMap3.put("simplymore:blade_of_the_grotesque", "VIT");
+        linkedHashMap3.put("simplymore:vipers_call", "PWR");
+        linkedHashMap3.put("simplymore:timekeeper", "PWR");
+        linkedHashMap3.put("simplymore:matterbane", "PWR");
+        linkedHashMap3.put("simplymore:smouldering_ruin", "PWR");
+        linkedHashMap3.put("simplymore:stasis", "ENE");
+        linkedHashMap3.put("simplymore:tidebreaker", "RES");
+        linkedHashMap3.put("simplymore:ruyi_jingu_bang", "VIT");
+        linkedHashMap3.put("simplymore:ruptured_idol", "RES");
+        linkedHashMap3.put("simplymore:ascended_idol", "VIT");
+        linkedHashMap3.put("simplymore:tarnished_idol", "PWR");
+        linkedHashMap3.put("simplymore:holylight", "VIT");
+        linkedHashMap3.put("simplymore:darksent", "PWR");
+        linkedHashMap3.put("simplymore:boas_fang", "PWR");
+        linkedHashMap3.put("simplymore:earthshatter", "VIT");
+        linkedHashMap3.put("simplymore:soul_foreseer", "ENE");
+        linkedHashMap3.put("simplymore:serpentine_valour", "PWR");
+        linkedHashMap3.put("simplymore:lustrous_moxie", "ENE");
+        linkedHashMap3.put("simplymore:brassturn", "RES");
+        linkedHashMap3.put("simplymore:cindergorge", "VIT");
+        linkedHashMap3.put("simplymore:deaths_eyrie", "VIT");
+        linkedHashMap3.put("simplymore:perforiscus", "VIT");
+        linkedHashMap3.put("simplymore:revvengine", "VIT");
+        linkedHashMap3.put("simplymore:exedrill", "VIT");
+        linkedHashMap3.put("simplymore:culterex", "PWR");
+        linkedHashMap3.put("simplyswords:bloodwake", "VIT");
+        linkedHashMap3.put("simplyswords:chompolotl", "VIT");
+        linkedHashMap3.put("simplyswords:dawnquiver", "ENE");
+        linkedHashMap3.put("simplyswords:riftmane", "PWR");
+        linkedHashMap3.put("simplyswords:the_devourer", "VIT");
+        linkedHashMap3.put("simplyswords:stormscale", "ENE");
+        linkedHashMap3.put("simplyswords:ionbound_stormscale", "ENE");
+        linkedHashMap3.put("simplyswords:wraithfang", "PWR");
+        linkedHashMap3.put("simplyswords:wraithmaw", "PWR");
+        linkedHashMap3.put("simplyswords:dreadwhisper", "ENE");
+        linkedHashMap3.put("simplyswords:gloampiercer", "ENE");
+        linkedHashMap3.put("simplyswords:soulstalker", "PWR");
+        UNIQUE_THIRD = Collections.unmodifiableMap(linkedHashMap3);
+        LinkedHashMap<String, WeaponDef> linkedHashMap4 = new LinkedHashMap<String, WeaponDef>();
+        linkedHashMap4.put("irons_spellbooks:graybeard_staff", WeaponBonusTables.def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.12, 0.16));
+        linkedHashMap4.put("irons_spellbooks:pyrium_staff", WeaponBonusTables.def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.14, 0.14));
+        linkedHashMap4.put("irons_spellbooks:artificer_cane", WeaponBonusTables.def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.1, 0.15));
+        linkedHashMap4.put("irons_spellbooks:ice_staff", WeaponBonusTables.def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.13, 0.15));
+        linkedHashMap4.put("irons_spellbooks:lightning_rod", WeaponBonusTables.def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.14, 0.13));
+        linkedHashMap4.put("irons_spellbooks:blood_staff", WeaponBonusTables.def("staff", Double.NaN, Double.NaN, Double.NaN, 0.08, 0.13, Double.NaN));
+        linkedHashMap4.put("irons_spellbooks:improved_blood_staff", WeaponBonusTables.def("staff", Double.NaN, Double.NaN, Double.NaN, 0.1, 0.16, Double.NaN));
+        linkedHashMap4.put("irons_spellbooks:staff_of_the_nines", WeaponBonusTables.def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.16, 0.16));
+        linkedHashMap4.put("irons_spellbooks:hither_thither_wand", WeaponBonusTables.def("wand", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.08, 0.14));
+        linkedHashMap4.put("irons_spellbooks:dev_staff", WeaponBonusTables.def("staff", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.12, 0.12));
+        linkedHashMap4.put("irons_spellbooks:amethyst_rapier", WeaponBonusTables.def("rapier", Double.NaN, 0.17, Double.NaN, Double.NaN, Double.NaN, 0.04));
+        linkedHashMap4.put("irons_spellbooks:claymore", WeaponBonusTables.def("claymore", 0.16, Double.NaN, 0.07, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap4.put("irons_spellbooks:keeper_flamberge", WeaponBonusTables.def("flamberge", 0.13, 0.09, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap4.put("irons_spellbooks:legionnaire_flamberge", WeaponBonusTables.def("flamberge", 0.14, 0.09, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap4.put("irons_spellbooks:magehunter", WeaponBonusTables.def("sword", 0.1, 0.1, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap4.put("irons_spellbooks:spellbreaker", WeaponBonusTables.def("sword", 0.09, Double.NaN, 0.1, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap4.put("irons_spellbooks:misery", WeaponBonusTables.def("energy_sword", 0.11, Double.NaN, Double.NaN, Double.NaN, 0.1, Double.NaN));
+        linkedHashMap4.put("irons_spellbooks:hellrazor", WeaponBonusTables.def("energy_sword", 0.13, Double.NaN, Double.NaN, Double.NaN, 0.1, Double.NaN));
+        linkedHashMap4.put("irons_spellbooks:decrepit_scythe", WeaponBonusTables.def("scythe", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.09, 0.16));
+        linkedHashMap4.put("irons_spellbooks:boreal_blade", WeaponBonusTables.def("energy_sword", Double.NaN, 0.1, Double.NaN, Double.NaN, 0.11, Double.NaN));
+        linkedHashMap4.put("irons_spellbooks:twilight_gale", WeaponBonusTables.def("energy_sword", Double.NaN, 0.08, Double.NaN, Double.NaN, 0.13, Double.NaN));
+        linkedHashMap4.put("irons_spellbooks:truthseeker", WeaponBonusTables.def("greatsword", 0.1, 0.1, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap4.put("irons_spellbooks:autoloader_crossbow", WeaponBonusTables.def("crossbow", Double.NaN, 0.08, Double.NaN, Double.NaN, 0.1, Double.NaN));
+        IRONS = Collections.unmodifiableMap(linkedHashMap4);
+        LinkedHashMap<String, WeaponDef> linkedHashMap5 = new LinkedHashMap<String, WeaponDef>();
+        linkedHashMap5.put("dragonminez:yajirobe_katana", WeaponBonusTables.def("katana", 0.06, 0.16, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap5.put("dragonminez:z_sword", WeaponBonusTables.def("heavy_sword", 0.18, Double.NaN, 0.08, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap5.put("dragonminez:brave_sword", WeaponBonusTables.def("sword", 0.12, 0.12, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap5.put("dragonminez:dimensional_sword", WeaponBonusTables.def("energy_sword", Double.NaN, 0.1, Double.NaN, Double.NaN, 0.12, Double.NaN));
+        linkedHashMap5.put("dragonminez:power_pole", WeaponBonusTables.def("staff", 0.1, 0.12, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap5.put("dragonminez:laser_merus", WeaponBonusTables.def("energy_weapon", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.14, 0.12));
+        linkedHashMap5.put("dragonminez:blaster_cannon", WeaponBonusTables.def("energy_weapon", Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.12, 0.1));
+        DMZ = Collections.unmodifiableMap(linkedHashMap5);
+        LinkedHashMap<String, double[]> linkedHashMap6 = new LinkedHashMap<String, double[]>();
+        linkedHashMap6.put("scythe", WeaponBonusTables.p(Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.1, 0.18));
+        linkedHashMap6.put("cleaver", WeaponBonusTables.p(0.18, Double.NaN, 0.06, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("sword", WeaponBonusTables.p(0.1, 0.1, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("dagger", WeaponBonusTables.p(Double.NaN, 0.15, Double.NaN, Double.NaN, Double.NaN, 0.04));
+        linkedHashMap6.put("kama", WeaponBonusTables.p(Double.NaN, 0.12, Double.NaN, Double.NaN, Double.NaN, 0.05));
+        linkedHashMap6.put("hand_axe", WeaponBonusTables.p(0.14, 0.05, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("broad_axe", WeaponBonusTables.p(0.18, Double.NaN, 0.07, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("sledge_hammer", WeaponBonusTables.p(0.17, Double.NaN, 0.09, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("vein_hammer", WeaponBonusTables.p(0.16, Double.NaN, 0.08, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("war_pick", WeaponBonusTables.p(0.12, 0.08, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("mattock", WeaponBonusTables.p(0.1, 0.07, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("pickadze", WeaponBonusTables.p(0.1, 0.07, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("excavator", WeaponBonusTables.p(0.15, Double.NaN, 0.06, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("battlesign", WeaponBonusTables.p(Double.NaN, Double.NaN, 0.14, 0.04, Double.NaN, Double.NaN));
+        linkedHashMap6.put("swasher", WeaponBonusTables.p(0.09, 0.1, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("minotaur_axe", WeaponBonusTables.p(0.18, Double.NaN, 0.06, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("melting_pan", WeaponBonusTables.p(0.12, Double.NaN, 0.07, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("javelin", WeaponBonusTables.p(0.07, 0.12, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("shuriken", WeaponBonusTables.p(Double.NaN, 0.12, Double.NaN, Double.NaN, Double.NaN, 0.05));
+        linkedHashMap6.put("throwing_axe", WeaponBonusTables.p(0.08, 0.1, Double.NaN, Double.NaN, Double.NaN, Double.NaN));
+        linkedHashMap6.put("crossbow", WeaponBonusTables.p(Double.NaN, 0.08, Double.NaN, Double.NaN, 0.1, Double.NaN));
+        linkedHashMap6.put("longbow", WeaponBonusTables.p(Double.NaN, 0.08, Double.NaN, Double.NaN, 0.1, Double.NaN));
+        linkedHashMap6.put("sky_staff", WeaponBonusTables.p(Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.12, 0.15));
+        linkedHashMap6.put("earth_staff", WeaponBonusTables.p(Double.NaN, Double.NaN, 0.1, Double.NaN, 0.1, Double.NaN));
+        linkedHashMap6.put("ichor_staff", WeaponBonusTables.p(Double.NaN, Double.NaN, Double.NaN, 0.08, 0.14, Double.NaN));
+        linkedHashMap6.put("ender_staff", WeaponBonusTables.p(Double.NaN, Double.NaN, Double.NaN, Double.NaN, 0.13, 0.14));
+        TINKERS = Collections.unmodifiableMap(linkedHashMap6);
     }
 
-    private WeaponBonusTables() {}
+    public static final class WeaponDef {
+        public final String family;
+        public final double[] profile;
 
-    public static double[] family(String name) {
-        return name == null ? null : FAMILY.get(name);
-    }
-
-    public static String simplyExact(String id) {
-        return id == null ? null : SIMPLY_EXACT.get(id);
-    }
-
-    public static String uniqueThird(String id) {
-        return id == null ? null : UNIQUE_THIRD.get(id);
-    }
-
-    public static WeaponDef irons(String id) {
-        return id == null ? null : IRONS.get(id);
-    }
-
-    public static WeaponDef dmz(String id) {
-        return id == null ? null : DMZ.get(id);
-    }
-
-    public static double[] tinkers(String family) {
-        return family == null ? null : TINKERS.get(family);
-    }
-
-    private static double[] p(double str, double skp, double res, double vit, double pwr, double ene) {
-        return new double[] {str, skp, res, vit, pwr, ene};
-    }
-
-    private static WeaponDef def(String family, double str, double skp, double res, double vit, double pwr, double ene) {
-        return new WeaponDef(family, p(str, skp, res, vit, pwr, ene));
+        WeaponDef(String string, double[] dArray) {
+            this.family = string;
+            this.profile = dArray;
+        }
     }
 }
-

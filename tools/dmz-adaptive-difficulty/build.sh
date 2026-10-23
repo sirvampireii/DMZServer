@@ -649,19 +649,14 @@ if ! jar tf "$JAR" | grep -q 'META-INF/kaipath-ultra.txt'; then
   echo "ERROR: META-INF/kaipath-ultra.txt missing from $JAR (KaiPath partner discovery)" >&2
   exit 1
 fi
-# ── Weapon hotpath classes (kube/hotpath): bytecode-authoritative overlay ─
-# Two categories; BOTH must ship the AUDITED live bytecode from weapon-hotpath-source.jar:
-#   * bytecode-only, no repo source at all:
-#       WeaponRatioConfig (+ $Json/$Snapshot), VipersCallBlacklist
-#   * source present but STALE — the repo .java compiles to bytecode that DIFFERS from live,
-#     so a clean compile would silently REVERT the live weapon-ratio / viper work:
-#       WeaponBonusScale (+ $Info/$Result), WeaponBonusTables (+ $WeaponDef)
-# Because the source-backed copies are stale, "is the class present?" is NOT enough. Overlay ALL 9
-# unconditionally (replacing stale compiled copies), then verify each shipped class is
-# byte-identical to the source jar — fail loudly on any drift. Refresh the source jar from the
-# last audited live build (see base/README.md).
-WEAPON_SRC="${LM_WEAPON_SOURCE_JAR:-$HERE/base/weapon-hotpath-source.jar}"
+# ── Weapon hotpath classes (kube/hotpath): source-compiled, byte-verify baseline ─
+# These 9 classes now have COMMITTED source (reconstructed from the audited live bytecode; the
+# overlay workflow is RETIRED). build.sh no longer copies bytecode — the classes compile from src/.
+# A byte-verify guard ensures every build ships bytecode identical to the committed baseline in
+# reference/weapon-hotpath-4.6.229/, so a future refactor can never silently change or drop them.
+# Re-baseline after a good live deploy: run once with LM_WEAPON_SEED=1, then commit the baseline.
 WEAPON_PKG="com/dbzlegacy/adaptivedifficulty/kube/hotpath"
+WEAPON_REF="${LM_WEAPON_REF_DIR:-$HERE/reference/weapon-hotpath-4.6.229}"
 WEAPON_CLASSES=(
   "WeaponBonusScale.class"
   "WeaponBonusScale\$Info.class"
@@ -673,44 +668,45 @@ WEAPON_CLASSES=(
   "WeaponRatioConfig\$Snapshot.class"
   "VipersCallBlacklist.class"
 )
-if [[ ! -f "$WEAPON_SRC" ]]; then
-  echo "ERROR: weapon source jar not found: $WEAPON_SRC" >&2
-  echo "  These 9 kube/hotpath classes must ship the audited live bytecode. Provide a" >&2
-  echo "  known-good jar carrying all of them (see base/README.md):" >&2
-  echo "    cp <live-jar> $WEAPON_SRC      (or set LM_WEAPON_SOURCE_JAR=/path/to/live.jar)" >&2
-  exit 1
-fi
-SRC_LIST="$(jar tf "$WEAPON_SRC")"
+# Every weapon class must be present in the built jar (a dropped class is silent behavior loss).
 for c in "${WEAPON_CLASSES[@]}"; do
-  if ! grep -qF "$WEAPON_PKG/$c" <<<"$SRC_LIST"; then
-    echo "ERROR: weapon source jar $(basename "$WEAPON_SRC") lacks $WEAPON_PKG/$c" >&2
-    echo "  Refresh it from a live jar that carries all 9 weapon hotpath classes." >&2
+  if ! jar tf "$JAR" | grep -qF "$WEAPON_PKG/$c"; then
+    echo "ERROR: $WEAPON_PKG/$c missing from $JAR (weapon hotpath source did not compile/package)" >&2
     exit 1
   fi
 done
-# Overlay all 9 unconditionally — replaces stale source-compiled copies too.
-echo "Overlaying 9 weapon hotpath classes from $(basename "$WEAPON_SRC") (bytecode-authoritative)"
-WTMP="$(mktemp -d)"
-(
-  set -e
-  cd "$WTMP"
+if [[ "${LM_WEAPON_SEED:-0}" == "1" ]]; then
+  echo "SEEDING weapon hotpath baseline from $(basename "$JAR") into $(basename "$WEAPON_REF")"
+  rm -rf "$WEAPON_REF"
+  mkdir -p "$WEAPON_REF"
   for c in "${WEAPON_CLASSES[@]}"; do
-    unzip -o -q "$WEAPON_SRC" "$WEAPON_PKG/$c"
+    unzip -o -q -d "$WEAPON_REF" "$JAR" "$WEAPON_PKG/$c"
   done
-  jar uf "$JAR" $(find . -name '*.class' | sed 's|^\./||')
-)
-rm -rf "$WTMP"
-# Verify every shipped class is byte-identical to the source jar (catches missing + drift).
-for c in "${WEAPON_CLASSES[@]}"; do
-  src_sum="$(unzip -p "$WEAPON_SRC" "$WEAPON_PKG/$c" | sha256sum | awk '{print $1}')"
-  jar_sum="$(unzip -p "$JAR"        "$WEAPON_PKG/$c" | sha256sum | awk '{print $1}')"
-  if [[ "$src_sum" != "$jar_sum" ]]; then
-    echo "ERROR: $WEAPON_PKG/$c in $JAR does not match the audited source jar" >&2
-    echo "  source=$src_sum  shipped=$jar_sum" >&2
-    echo "  Overlay failed or jar drifted. Refresh $(basename "$WEAPON_SRC") from a good live build." >&2
+  echo "  seeded $(find "$WEAPON_REF" -name '*.class' | wc -l) classes — commit this baseline"
+else
+  if [[ ! -d "$WEAPON_REF" ]]; then
+    echo "ERROR: weapon hotpath baseline not seeded: $WEAPON_REF" >&2
+    echo "  Run one known-good build with LM_WEAPON_SEED=1 to extract the baseline, then commit it." >&2
     exit 1
   fi
-done
+  echo "Verifying 9 weapon hotpath classes against baseline $(basename "$WEAPON_REF")"
+  for c in "${WEAPON_CLASSES[@]}"; do
+    ref="$WEAPON_REF/$WEAPON_PKG/$c"
+    if [[ ! -f "$ref" ]]; then
+      echo "ERROR: baseline missing $WEAPON_PKG/$c (re-seed with LM_WEAPON_SEED=1)" >&2
+      exit 1
+    fi
+    ref_sum="$(sha256sum "$ref" | awk '{print $1}')"
+    jar_sum="$(unzip -p "$JAR" "$WEAPON_PKG/$c" | sha256sum | awk '{print $1}')"
+    if [[ "$ref_sum" != "$jar_sum" ]]; then
+      echo "ERROR: $WEAPON_PKG/$c in $JAR does not match the committed baseline" >&2
+      echo "  baseline=$ref_sum  shipped=$jar_sum" >&2
+      echo "  If intended, re-baseline with LM_WEAPON_SEED=1 and commit the new baseline." >&2
+      exit 1
+    fi
+  done
+  echo "  all 9 weapon hotpath classes byte-identical to baseline"
+fi
 # ── Prestige-shop (4.6.228.1) delta classes: byte-verify against reference set ─
 # reference/prestige-shop-228.1/ holds the 25 audited .class files (15 new shop classes
 # PrestigeCustomShop/PrestigeShopConfig/PrestigeShopHooks + inners, and 10 modified classes) extracted
