@@ -11,7 +11,6 @@ import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dbzlegacy.adaptivedifficulty.calc.LmOverhaulScaledCombat;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy;
-import com.dbzlegacy.adaptivedifficulty.rival.NemesisSpawnMode;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -273,9 +272,6 @@ public final class CharacterServicesGuiApi {
         String a = arg == null ? "" : arg.trim();
         if ("page".equals(act) || "refresh".equals(act)) {
             return "";
-        }
-        if ("nemesis_spawn_toggle".equals(act)) {
-            return NemesisSpawnMode.cycle(player);
         }
         if ("race_confirm".equals(act)) {
             String[] bits = a.split(":", 2);

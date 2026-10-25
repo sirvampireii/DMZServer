@@ -176,6 +176,9 @@ public final class LmCommandSuggestions {
             if ("fusionreset".equals(a0) && n >= 2) {
                 return true;
             }
+            if ("revive".equals(a0) && n == 2) {
+                return true;
+            }
             if ("admin".equals(a0) && "clear".equals(a1) && n >= 3) {
                 return true;
             }
@@ -249,7 +252,7 @@ public final class LmCommandSuggestions {
             return "";
         }
         if ("lm".equals(cmd)) {
-            if (n > 0 && "fusionreset".equals(lower(args[0]))) {
+            if (n > 0 && ("fusionreset".equals(lower(args[0])) || "revive".equals(lower(args[0])))) {
                 if (n < 2) {
                     return "";
                 }

@@ -84,6 +84,7 @@ public final class MechanicsCommands {
                                             return open(ctx.getSource(), "logs");
                                         }))))
                 .then(fusionResetLiteral())
+                .then(LmRevive.literal())
                 .then(masteryLiteral())
                 .then(CommandAccess.staffLiteral("admin")
                         .executes(ctx -> adminHelp(ctx.getSource()))
@@ -495,7 +496,7 @@ public final class MechanicsCommands {
         return msg != null && msg.startsWith(UltraStyle.RED) ? 0 : 1;
     }
 
-    private static ServerPlayer onlinePlayer(MinecraftServer server, String raw) {
+    static ServerPlayer onlinePlayer(MinecraftServer server, String raw) {
         if (server == null || raw == null || raw.isBlank()) {
             return null;
         }

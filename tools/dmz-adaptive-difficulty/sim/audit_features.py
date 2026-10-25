@@ -2666,6 +2666,21 @@ def main() -> int:
           'staffLiteral("fusionreset")' in mech
           and "FusionCooldownReset.reset" in mech
           and "/lm fusionreset <player>" in read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/command/LmCommandHelp.java"))
+    lm_revive = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/command/LmRevive.java")
+    lm_help = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/command/LmCommandHelp.java")
+    check("/lm revive: self form is donator (staff exempt), <player> form is staff-only (4.6.236)",
+          "LmRevive.literal()" in mech
+          and "StaffAccess.hasSkillCheck(player) && !StaffAccess.isStaff(player)" in lm_revive
+          and "LmCommandMessages.SKILLCHECK_DONATOR" in lm_revive
+          and "StaffAccess.denyUnlessStaff(source)" in lm_revive
+          and 'LmCommandSuggestions.playerWord("player")' in lm_revive
+          and '"/lm revive"' in lm_help and '"/lm revive <player>"' in lm_help)
+    check("/lm revive calls DMZ revivePlayers reflectively, never dispatches /dmzrevive",
+          '"com.dragonminez.server.commands.ReviveCommand"' in lm_revive
+          and '"revivePlayers"' in lm_revive
+          and "setAccessible(true)" in lm_revive
+          and "dmzrevive" not in lm_revive.split("*/", 1)[-1].lower().replace("/dmzrevive", "")
+          and "performPrefixedCommand" not in lm_revive and ".execute(" not in lm_revive)
     check("fusion reset clears both cooldown stores and the validation error",
           "FusionLifecycleService.resetCooldown" in fusion_reset
           and "fusionCooldownEnd = 0L" in fusion_reset

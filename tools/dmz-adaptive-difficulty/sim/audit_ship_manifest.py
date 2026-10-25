@@ -328,6 +328,18 @@ def main() -> int:
     print("\n--- § commands ---")
     prog_cmds = read(SRC / "command/ProgressionCommands.java")
     cmd_help = read(SRC / "command/LmCommandHelp.java")
+    lm_revive = read(SRC / "command/LmRevive.java")
+    check("manifest lm-revive row", "lm-revive" in manifest)
+    check("/lm revive: donator self form, staff <player> form, DMZ revive called directly",
+          "LmRevive.literal()" in read(SRC / "command/MechanicsCommands.java")
+          and "StaffAccess.hasSkillCheck(player) && !StaffAccess.isStaff(player)" in lm_revive
+          and "StaffAccess.denyUnlessStaff(source)" in lm_revive
+          and '"revivePlayers"' in lm_revive and "setAccessible(true)" in lm_revive
+          and "Revive is not available right now" in lm_revive)
+    check("no top-level /revive or /rev registered by LM",
+          not any('m_82127_("revive")' in read(p) and "LmRevive" not in p.name
+                  for p in (SRC / "command").glob("*.java"))
+          and 'm_82127_("rev")' not in lm_revive)
     check("no meditation slash command",
           'm_82127_("meditation")' not in prog_cmds
           and "/progression meditation" not in cmd_help
@@ -494,8 +506,14 @@ def main() -> int:
     mixins_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
     check("rival nemesis toggle three states",
           "AUTO" in nemesis_mode and "MANUAL" in nemesis_mode and "OFF" in nemesis_mode)
-    check("character nemesis toggle menu action", '"nemesis_spawn_toggle"' in char_api)
-    check("character home nemesis toggle button", '"do:nemesis_spawn_toggle"' in ultra_char)
+    # 4.6.236: the menu toggle is gone (stored modes still gate spawns - see the checks below).
+    check("manifest nemesis-mode-no-menu-toggle row", "nemesis-mode-no-menu-toggle" in manifest)
+    check("character services has no nemesis toggle action or button",
+          '"nemesis_spawn_toggle"' not in char_api
+          and '"do:nemesis_spawn_toggle"' not in ultra_char
+          and "NemesisSpawnMode" not in ultra_char)
+    check("stored nemesis mode still read by the spawn gate",
+          "NemesisSpawnMode" in nemesis_mix and "public static int mode(" in nemesis_mode)
     check("nemesis toggle absent from rival screens",
           '"nemesis_spawn_toggle"' not in rival_api
           and '"do:nemesis_spawn_toggle"' not in ultra_rival)

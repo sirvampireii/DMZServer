@@ -12,7 +12,6 @@ import com.dbzlegacy.adaptivedifficulty.progression.race.AndroidConversion;
 import com.dbzlegacy.adaptivedifficulty.quest.SagaResetConfig;
 import com.dbzlegacy.adaptivedifficulty.quest.SagaResetService;
 import com.dbzlegacy.adaptivedifficulty.quest.SagaResetService.Offer;
-import com.dbzlegacy.adaptivedifficulty.rival.NemesisSpawnMode;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import java.util.List;
 import java.util.Locale;
@@ -139,13 +138,9 @@ public final class UltraCharacterScreens {
         boolean canReskin = "true".equals(ph.get("can_reskin"));
         boolean canBones = "true".equals(ph.get("can_head_bones"));
         boolean monkeyFormModel = "true".equals(ph.get("head_bones_form_model_blocked"));
-        int nemesis = NemesisSpawnMode.mode(player);
         UltraScreenSpec spec = base(player, "main", "home", true)
                 .labelValue("Race", ph.getOrDefault("current_race", "-"))
-                .labelValue("Class", ph.getOrDefault("current_class", "-"))
-                .labelValue("Nemesis spawn", NemesisSpawnMode.stateName(nemesis))
-                // Plain-text policy line for the current mode (OFF keeps the menu summon).
-                .line(UltraStyle.dim(NemesisSpawnMode.description(nemesis)));
+                .labelValue("Class", ph.getOrDefault("current_class", "-"));
         if (monkeyFormModel) {
             spec.line(UltraStyle.LABEL
                     + "Not available for Monkey - this race uses a form model.");
@@ -179,21 +174,6 @@ public final class UltraCharacterScreens {
             spec.buttonRight("page:reskin", UltraStyle.dim("Reskin"), UltraStyle.STYLE_DIM);
         }
         spec.rowGap();
-
-        // Personal spawn preference (moved from Rival > Settings): ON (gold) -> manual -> OFF (dim).
-        spec.button(
-                        "do:nemesis_spawn_toggle",
-                        nemesis == NemesisSpawnMode.AUTO
-                                ? UltraStyle.confirm("Nemesis spawn - ON")
-                                : nemesis == NemesisSpawnMode.MANUAL
-                                        ? UltraStyle.LABEL + "Nemesis spawn - manual"
-                                        : UltraStyle.dim("Nemesis spawn - OFF"),
-                        nemesis == NemesisSpawnMode.AUTO
-                                ? UltraStyle.STYLE_CONFIRM
-                                : nemesis == NemesisSpawnMode.MANUAL
-                                        ? UltraStyle.STYLE_NORMAL
-                                        : UltraStyle.STYLE_DIM)
-                .rowGap();
 
         spec.footerBackToMain();
         spec.send(player);

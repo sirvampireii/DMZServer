@@ -99,6 +99,11 @@ result strings now read UltraStyle fields instead of section-sign literals - sam
 new field references grew the constant pool, so a few unrelated `ldc` became `ldc_w` with identical
 constants). The other 22 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.236 /lm revive + nemesis toggle removal)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
+command and Character Services changes live outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

@@ -52,7 +52,6 @@ KNOWN_DO: dict[str, set[str]] = {
         "android_remove",
         "android",
         "android_staff",
-        "nemesis_spawn_toggle",
     },
     "prestige": {
         "confirm",
