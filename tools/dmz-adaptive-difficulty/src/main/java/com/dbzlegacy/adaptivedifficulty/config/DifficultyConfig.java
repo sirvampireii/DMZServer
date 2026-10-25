@@ -299,11 +299,13 @@ public final class DifficultyConfig {
     public boolean enableOverhaulPrestigeIntegration = true;
     /**
      * Donator Skill Check UI ({@code /skillcheck}, CNPC interact / trigger 21).
-     * Staff always have access; others need {@link #skillCheckPermission}.
+     * Needs {@link #donatorPermission}; staff are not auto-granted.
      */
     public boolean enableSkillCheck = true;
-    /** LuckPerms node for donator Skill Check (default false in plugin.yml). */
-    public String skillCheckPermission = "legacymechanics.skillcheck";
+    /** LuckPerms node for donators: Skill Check, {@code /lm revive} (self), and the terminal. */
+    public String donatorPermission = "legacymechanics.donator";
+    /** LuckPerms node that lets a non-staff player use {@code /lm revive <player>}. */
+    public String reviveOthersPermission = "legacymechanics.revive.others";
     /**
      * CNPC display-name needles (case-insensitive substring) that open Skill Check on interact.
      * Also matches scoreboard tag {@code lm_skillcheck}.
@@ -1636,9 +1638,13 @@ public final class DifficultyConfig {
                 || "*".equals(cfg.adminPermission.trim())) {
             cfg.adminPermission = "difficulty.admin";
         }
-        if (cfg.skillCheckPermission == null || cfg.skillCheckPermission.isBlank()
-                || "*".equals(cfg.skillCheckPermission.trim())) {
-            cfg.skillCheckPermission = "legacymechanics.skillcheck";
+        if (cfg.donatorPermission == null || cfg.donatorPermission.isBlank()
+                || "*".equals(cfg.donatorPermission.trim())) {
+            cfg.donatorPermission = "legacymechanics.donator";
+        }
+        if (cfg.reviveOthersPermission == null || cfg.reviveOthersPermission.isBlank()
+                || "*".equals(cfg.reviveOthersPermission.trim())) {
+            cfg.reviveOthersPermission = "legacymechanics.revive.others";
         }
         if (cfg.skillCheckNpcNameContains == null) {
             cfg.skillCheckNpcNameContains = new ArrayList<>();

@@ -45,7 +45,7 @@ main `/lm` hub window is titled **Legacy Mechanics**.
 | `/difficulty` | All | Unlock tiers · Titles · personal toggle (compat; prefer `/lm`) |
 | `/rival` | All | List · Challenge · Top · Progress submenu |
 | `/spar` (`/sparring`) | All | Stats · Top · Mentor (pickers on Mentor page only) |
-| `/skillcheck` | Donators | Skill Check (core / saga) — LuckPerms `legacymechanics.skillcheck` |
+| `/skillcheck` | Donators | Skill Check (core / saga) — LuckPerms `legacymechanics.donator` |
 | `/progression` (`/prog`) | Staff | Category hub · Flags |
 | `/prestige` | Staff | Prestige confirm |
 | `/skills` | Staff | Skill unlock admin browser (per-skill items) |
@@ -84,9 +84,9 @@ config toggles, CNPC Skill Check setup, and scripts to disable on test. Full aud
 Fabled · Utility (plus Prestige/Skills shortcuts). Also includes End portal
 guard, and Title progression / Admin inspect (from the server-fixes line).
 
-Donators: grant `legacymechanics.skillcheck` (LuckPerms) — hub hides Skill Check without it.
+Donators: grant `legacymechanics.donator` (LuckPerms) — hub hides Skill Check without it.
 CNPC Skill Check: tag `lm_skillcheck` or name “Skill Check” (no NPC script).
-Slash `/skillcheck` needs `legacymechanics.skillcheck`.
+Slash `/skillcheck` needs `legacymechanics.donator`.
 
 NPC command `skillcheck`. Staff Skills: NPC command `skills` or `lm open skills`.
 

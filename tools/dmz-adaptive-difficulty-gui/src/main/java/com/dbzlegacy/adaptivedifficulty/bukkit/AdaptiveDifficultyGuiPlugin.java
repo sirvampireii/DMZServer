@@ -1884,7 +1884,7 @@ public final class AdaptiveDifficultyGuiPlugin extends JavaPlugin {
             return true;
         }
         if (!ForgeBridge.hasSkillCheck(player)) {
-            player.sendMessage("§cNo permission: legacymechanics.skillcheck");
+            player.sendMessage("§cSkill Check is for donators. Ask staff about donator access.");
             return true;
         }
         if (!canUsePlayerGui(player)) {

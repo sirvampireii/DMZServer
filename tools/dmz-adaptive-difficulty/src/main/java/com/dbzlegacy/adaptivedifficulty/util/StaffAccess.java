@@ -3,6 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.util;
 import com.dbzlegacy.adaptivedifficulty.command.LmCommandFeedback;
 import com.dbzlegacy.adaptivedifficulty.command.LmCommandMessages;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -10,7 +11,8 @@ import net.minecraft.server.level.ServerPlayer;
 import java.util.UUID;
 
 /**
- * Shared access checks: staff (op level 2 / {@code difficulty.admin}) and SkillCheck donators.
+ * Shared access checks: staff (op level 2 / {@code difficulty.admin}), donators (one node for
+ * Skill Check, self revive, and the terminal), and revive-others access.
  */
 public final class StaffAccess {
     private StaffAccess() {}
@@ -81,28 +83,52 @@ public final class StaffAccess {
         return hasBukkitPermission(player, node);
     }
 
-    /**
-     * Donator node only ({@code skillCheckPermission}, default {@code legacymechanics.skillcheck}).
-     * Does not require the Skill Check feature flags, so commands that share the donator node
-     * stay available when that service is off.
-     */
-    public static boolean hasDonatorPermission(ServerPlayer player) {
-        if (player == null) {
-            return false;
-        }
-        DifficultyConfig cfg = DifficultyConfig.get();
-        String node = cfg.skillCheckPermission;
-        if (node == null || node.isBlank()) {
-            node = "legacymechanics.skillcheck";
-        }
-        return hasBukkitPermission(player, node);
+    /** The one donator node ({@code donatorPermission}, default {@code legacymechanics.donator}). */
+    public static String donatorNode() {
+        String node = DifficultyConfig.get().donatorPermission;
+        return node == null || node.isBlank() ? "legacymechanics.donator" : node.trim();
     }
 
     /**
-     * Skill Check (donator) access: configured {@code skillCheckPermission}
-     * (default {@code legacymechanics.skillcheck}). Staff are <b>not</b> auto-granted —
-     * without the node they use {@code /skills} (admin) and do not see Skill Check in the hub.
+     * Donator node only. Does not require the Skill Check feature flags, so donator features
+     * (self revive, the terminal) stay available when that service is off.
      */
+    public static boolean hasDonatorPermission(ServerPlayer player) {
+        return player != null && hasBukkitPermission(player, donatorNode());
+    }
+
+    /** Node for {@code /lm revive <player>} without staff (default {@code legacymechanics.revive.others}). */
+    public static String reviveOthersNode() {
+        String node = DifficultyConfig.get().reviveOthersPermission;
+        return node == null || node.isBlank() ? "legacymechanics.revive.others" : node.trim();
+    }
+
+    public static boolean hasReviveOthers(ServerPlayer player) {
+        return player != null && hasBukkitPermission(player, reviveOthersNode());
+    }
+
+    /** Staff (console included) or a player holding the revive-others node. */
+    public static boolean hasReviveOthersSource(CommandSourceStack src) {
+        if (src == null) {
+            return false;
+        }
+        if (isStaffSource(src)) {
+            return true;
+        }
+        ServerPlayer player = src.m_230896_();
+        return player != null && hasReviveOthers(player);
+    }
+
+    /** {@code 1} if staff or revive access; else sends a denial and returns {@code 0}. */
+    public static int denyUnlessReviveOthers(CommandSourceStack source) {
+        if (hasReviveOthersSource(source)) {
+            return 1;
+        }
+        LmCommandFeedback.tell(source, UltraStyle.dangerLine(
+                "Reviving other players is for staff or players with revive access. Ask staff if you need it."));
+        return 0;
+    }
+
     /** Donator Skill Check ({@code /skillcheck}) — staff are not auto-granted; console may use staff op. */
     public static boolean hasSkillCheckSource(CommandSourceStack src) {
         if (src == null) {
@@ -119,9 +145,7 @@ public final class StaffAccess {
         if (hasSkillCheckSource(source)) {
             return 1;
         }
-        source.m_288197_(() -> Component.m_237113_(
-                "§cSkill Check requires donator access (legacymechanics.skillcheck)."
-        ), false);
+        source.m_288197_(() -> Component.m_237113_(LmCommandMessages.SKILLCHECK_DONATOR), false);
         return 0;
     }
 
@@ -133,11 +157,8 @@ public final class StaffAccess {
         if (!cfg.enableSkillCheck || !cfg.enableSkillUnlockService) {
             return false;
         }
-        String node = cfg.skillCheckPermission;
-        if (node == null || node.isBlank()) {
-            node = "legacymechanics.skillcheck";
-        }
-        return hasBukkitPermission(player, node);
+        // Staff are not auto-granted: without the donator node they use /skills (admin).
+        return hasBukkitPermission(player, donatorNode());
     }
 
     private static boolean hasBukkitIsOp(ServerPlayer player) {

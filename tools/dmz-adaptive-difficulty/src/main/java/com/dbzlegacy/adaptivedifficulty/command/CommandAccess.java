@@ -64,9 +64,7 @@ public final class CommandAccess {
     }
 
     public static String skillCheckBukkitPermission() {
-        DifficultyConfig cfg = DifficultyConfig.get();
-        String node = cfg.skillCheckPermission;
-        return node == null || node.isBlank() ? "legacymechanics.skillcheck" : node;
+        return StaffAccess.donatorNode();
     }
 
     /**

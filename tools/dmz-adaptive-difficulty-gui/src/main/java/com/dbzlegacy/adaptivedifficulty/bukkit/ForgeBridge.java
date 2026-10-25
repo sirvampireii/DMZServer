@@ -2680,7 +2680,7 @@ public final class ForgeBridge {
     }
 
     /**
-     * Donator Skill Check: {@code legacymechanics.skillcheck} (config). Staff are not
+     * Donator Skill Check: {@code legacymechanics.donator} (config {@code donatorPermission}). Staff are not
      * auto-granted — without the node they use {@code /skills} and do not see Skill Check in hub.
      */
     public static boolean hasSkillCheck(Player player) {
@@ -2698,14 +2698,14 @@ public final class ForgeBridge {
             if (skillsOn instanceof Boolean b && !b) {
                 return false;
             }
-            Object raw = cfg.getClass().getField("skillCheckPermission").get(cfg);
-            String node = raw == null ? "legacymechanics.skillcheck" : String.valueOf(raw).trim();
+            Object raw = cfg.getClass().getField("donatorPermission").get(cfg);
+            String node = raw == null ? "legacymechanics.donator" : String.valueOf(raw).trim();
             if (node.isEmpty()) {
-                node = "legacymechanics.skillcheck";
+                node = "legacymechanics.donator";
             }
             return player.hasPermission(node);
         } catch (Throwable t) {
-            return player.hasPermission("legacymechanics.skillcheck");
+            return player.hasPermission("legacymechanics.donator");
         }
     }
 

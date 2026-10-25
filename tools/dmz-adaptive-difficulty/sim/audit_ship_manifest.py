@@ -321,6 +321,90 @@ def main() -> int:
           and _terminate(_mob(hp=20.0, last="player")) == "untouched"
           and _terminate(_mob(scaled=False, last="player")) == "untouched")
 
+    print("\n--- § donator node ---")
+    don_staff = read(SRC / "util/StaffAccess.java")
+    don_cfg = read(SRC / "config/DifficultyConfig.java")
+    don_reg = read(SRC / "config/ConfigRegistry.java")
+    don_help = read(SRC / "config/editor/ConfigFieldHelp.java")
+    don_revive = read(SRC / "command/LmRevive.java")
+    don_lm_help = read(SRC / "command/LmCommandHelp.java")
+    has_sc = don_staff.split("public static boolean hasSkillCheck(", 1)[-1].split("\n    }\n", 1)[0]
+    has_don = don_staff.split("public static boolean hasDonatorPermission(", 1)[-1].split("\n    }\n", 1)[0]
+    revive_self = don_revive.split("private static int reviveSelf(", 1)[-1].split("\n    }\n", 1)[0]
+    revive_other = don_revive.split("private static int reviveOther(", 1)[-1].split("\n    }\n", 1)[0]
+    deny_other = don_staff.split("public static int denyUnlessReviveOthers(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest donator-permission-umbrella row", "donator-permission-umbrella" in manifest)
+    check("config: donatorPermission + reviveOthersPermission replace skillCheckPermission",
+          'public String donatorPermission = "legacymechanics.donator";' in don_cfg
+          and 'public String reviveOthersPermission = "legacymechanics.revive.others";' in don_cfg
+          and "skillCheckPermission" not in don_cfg and "skillCheckPermission" not in don_reg
+          and "skillCheckPermission" not in don_help
+          and '"donatorPermission"' in don_reg and '"reviveOthersPermission"' in don_reg
+          and "donatorPermission=" in don_help and "reviveOthersPermission=" in don_help)
+    check("blank or * nodes fall back to the defaults",
+          '"*".equals(cfg.donatorPermission.trim())' in don_cfg
+          and 'cfg.donatorPermission = "legacymechanics.donator";' in don_cfg
+          and '"*".equals(cfg.reviveOthersPermission.trim())' in don_cfg
+          and 'cfg.reviveOthersPermission = "legacymechanics.revive.others";' in don_cfg)
+    check("Skill Check and donator checks read the one donator node; no staff auto-grant",
+          "donatorNode()" in has_sc and "cfg.enableSkillCheck || !cfg.enableSkillUnlockService" in has_sc
+          and "isStaff" not in has_sc and "donatorNode()" in has_don
+          and "legacymechanics.skillcheck" not in "".join(read(f) for f in SRC.rglob("*.java")))
+    check("self revive: donator node only or staff, own message (not the Skill Check one)",
+          "StaffAccess.hasDonatorPermission(player) && !StaffAccess.isStaff(player)" in revive_self
+          and "SELF_DONATOR" in revive_self and "SKILLCHECK_DONATOR" not in don_revive
+          and "hasSkillCheck" not in don_revive)
+    check("revive others: staff source or revive node; human denial without a node string",
+          "StaffAccess.denyUnlessReviveOthers(source) == 0" in revive_other
+          and "isStaffSource(src)" in don_staff.split("hasReviveOthersSource(", 1)[-1].split("\n    }\n", 1)[0]
+          and "legacymechanics" not in deny_other and "staff or players with revive access" in deny_other
+          and '"revive an online player (staff or revive access)"' in don_lm_help)
+
+    # Mirror of StaffAccess / LmRevive gates. perms: set of nodes; staff: op or admin node.
+    def _norm(node, default):
+        return default if node is None or not node.strip() or node.strip() == "*" else node.strip()
+
+    DON = _norm("legacymechanics.donator", "legacymechanics.donator")
+    REV = _norm("legacymechanics.revive.others", "legacymechanics.revive.others")
+
+    def _skill_check(p, flags=True):
+        return p is not None and flags and DON in p["perms"]
+
+    def _terminal(p):
+        return DON in p["perms"] or "cmi.customalias.terminal" in p["perms"]
+
+    def _self_revive(p):
+        return DON in p["perms"] or p["staff"]
+
+    def _revive_others(p):
+        return p is None or p["staff"] or REV in p["perms"]  # None = console (staff source)
+
+    def _pl(perms=(), staff=False):
+        return {"perms": set(perms), "staff": staff}
+
+    donor = _pl([DON])
+    old_node = _pl(["legacymechanics.skillcheck"])
+    staff_only = _pl(staff=True)
+    reviver = _pl([REV])
+    nobody = _pl()
+    check("sim: donator node passes Skill Check, self revive, and the terminal",
+          _skill_check(donor) and _self_revive(donor) and _terminal(donor))
+    check("sim: old skillcheck node alone fails all three",
+          not _skill_check(old_node) and not _self_revive(old_node) and not _terminal(old_node))
+    check("sim: staff without the donator node fail Skill Check, pass self revive and revive others",
+          not _skill_check(staff_only) and _self_revive(staff_only) and _revive_others(staff_only))
+    check("sim: revive-others node only passes revive others, fails self revive and Skill Check",
+          _revive_others(reviver) and not _self_revive(reviver) and not _skill_check(reviver))
+    check("sim: neither node is denied revive others; console passes",
+          not _revive_others(nobody) and _revive_others(None))
+    check("sim: donator self revive ignores Skill Check flags being off",
+          _self_revive(donor) and not _skill_check(donor, flags=False))
+    check("sim: blank or * donatorPermission falls back to the default",
+          _norm("", "legacymechanics.donator") == "legacymechanics.donator"
+          and _norm("*", "legacymechanics.donator") == "legacymechanics.donator"
+          and _norm(None, "legacymechanics.donator") == "legacymechanics.donator"
+          and _norm("vip.node", "legacymechanics.donator") == "vip.node")
+
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
     title_prog = read(SRC / "title/TitleProgress.java")
@@ -544,10 +628,10 @@ def main() -> int:
     cmd_help = read(SRC / "command/LmCommandHelp.java")
     lm_revive = read(SRC / "command/LmRevive.java")
     check("manifest lm-revive row", "lm-revive" in manifest)
-    check("/lm revive: donator self form, staff <player> form, DMZ revive called directly",
+    check("/lm revive: donator self form, staff-or-revive-access <player> form, DMZ revive called directly",
           "LmRevive.literal()" in read(SRC / "command/MechanicsCommands.java")
-          and "StaffAccess.hasSkillCheck(player) && !StaffAccess.isStaff(player)" in lm_revive
-          and "StaffAccess.denyUnlessStaff(source)" in lm_revive
+          and "StaffAccess.hasDonatorPermission(player) && !StaffAccess.isStaff(player)" in lm_revive
+          and "StaffAccess.denyUnlessReviveOthers(source)" in lm_revive
           and '"revivePlayers"' in lm_revive and "setAccessible(true)" in lm_revive
           and "Revive is not available right now" in lm_revive)
     check("no top-level /revive or /rev registered by LM",
@@ -645,7 +729,7 @@ def main() -> int:
           and '"terminal".equals(name)' in terminal_plugin)
     check("/terminal allows donators or the alias permission",
           "hasDonatorPermission" in terminal_staff
-          and "skillCheckPermission" in terminal_staff.split("hasDonatorPermission", 1)[1].split("hasSkillCheck", 1)[0]
+          and "donatorNode()" in terminal_staff.split("hasDonatorPermission", 1)[1].split("hasSkillCheck", 1)[0]
           and "TerminalCommands" in terminal_bridge
           and '"allowed".equals' in terminal_bridge
           and '"terminal", List.of(), null' in terminal_mohist)
@@ -664,7 +748,8 @@ def main() -> int:
     check("no openFromNpc bypass", "openFromNpc" not in skill_svc)
     check("hasSkillCheck does not auto-grant staff", "isStaff(player)" not in staff.split("hasSkillCheck", 1)[1].split("hasBukkitIsOp", 1)[0])
     check("ensureSkillsGuiAccess in plugin", "ensureSkillsGuiAccess" in plugin)
-    check("skillcheck permission in plugin.yml", "legacymechanics.skillcheck" in yml)
+    check("skillcheck permission in plugin.yml is the donator node",
+          "permission: legacymechanics.donator" in yml and "legacymechanics.skillcheck" not in yml)
     check("skills staff permission", "permission: difficulty.admin" in yml)
     hub = read(BUKKIT / "HubChestGui.java")
     check("hub Staff Admin tile staff-gated", "ForgeBridge.isStaff(player)" in hub and "Staff Admin" in hub)

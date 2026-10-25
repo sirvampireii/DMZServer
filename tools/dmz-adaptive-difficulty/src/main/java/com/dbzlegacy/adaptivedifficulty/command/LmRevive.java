@@ -17,9 +17,9 @@ import net.minecraft.server.level.ServerPlayer;
 /**
  * {@code /lm revive [player]} — revive through DMZ's own code without op or a dmzrevive node.
  *
- * <p>No argument revives the executor and is a donator command (the Skill Check donator node;
- * staff are exempt, since the staff form already lets them revive anyone). {@code <player>} is
- * staff-only (LM's staff gate: op 2, Bukkit op, or the configured admin node).
+ * <p>No argument revives the executor and is a donator command (the donator node only, so the
+ * Skill Check feature flags never block it; staff are exempt). {@code <player>} needs staff
+ * (op 2, Bukkit op, or the configured admin node) or the revive-others node.
  *
  * <p>The revive itself is DMZ's private {@code ReviveCommand.revivePlayers(source, targets)},
  * called reflectively with the executor's own source so DMZ's messages reach them exactly as
@@ -31,6 +31,9 @@ import net.minecraft.server.level.ServerPlayer;
 final class LmRevive {
     private static final String REVIVE_CLASS = "com.dragonminez.server.commands.ReviveCommand";
     private static final String REVIVE_METHOD = "revivePlayers";
+
+    private static final String SELF_DONATOR =
+            UltraStyle.dangerLine("Reviving yourself is a donator perk. Ask staff about donator access.");
 
     private static final String UNAVAILABLE =
             UltraStyle.dangerLine("Revive is not available right now. Staff should check the server setup.");
@@ -57,16 +60,16 @@ final class LmRevive {
             source.m_81352_(Component.m_237113_(LmCommandMessages.PLAYERS_ONLY));
             return 0;
         }
-        if (!StaffAccess.hasSkillCheck(player) && !StaffAccess.isStaff(player)) {
-            player.m_213846_(Component.m_237113_(LmCommandMessages.SKILLCHECK_DONATOR));
+        if (!StaffAccess.hasDonatorPermission(player) && !StaffAccess.isStaff(player)) {
+            player.m_213846_(Component.m_237113_(SELF_DONATOR));
             return 0;
         }
         return revive(source, player);
     }
 
-    /** {@code /lm revive <player>}: staff revive a named online player. */
+    /** {@code /lm revive <player>}: staff or revive access revive a named online player. */
     private static int reviveOther(CommandSourceStack source, String name) {
-        if (StaffAccess.denyUnlessStaff(source) == 0) {
+        if (StaffAccess.denyUnlessReviveOthers(source) == 0) {
             return 0;
         }
         ServerPlayer target = MechanicsCommands.onlinePlayer(source.m_81377_(), name);

@@ -135,6 +135,13 @@ Rival changes live outside this set; the other 24 are unchanged.
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
 MobScaling change lives outside this set; the other 24 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.243 donator node + revive others)
+
+Three classes re-extracted: `AdaptiveDifficultyMod` (version constant only), `ConfigRegistry`
+(`skillCheckPermission` replaced by `donatorPermission` and `reviveOthersPermission` in the
+progression field list - javap shows only those strings and the switch rebuilt around them), and
+`ConfigFieldHelp` (the matching help lines; the text block grew one line). The other 22 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

@@ -12,7 +12,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 /**
  * {@code /terminal} — Lightman's Currency network terminal.
- * Donators ({@code legacymechanics.skillcheck}) or players with the retired CMI node
+ * Donators ({@code legacymechanics.donator}) or players with the retired CMI node
  * ({@code cmi.customalias.terminal}).
  */
 public final class TerminalCommands {

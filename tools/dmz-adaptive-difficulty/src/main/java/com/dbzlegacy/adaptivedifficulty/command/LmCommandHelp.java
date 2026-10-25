@@ -63,7 +63,7 @@ public final class LmCommandHelp {
                         LmStaffHelp.cmd("/lm admin character cooldown clear <player> class", "clear class change cooldown"),
                         LmStaffHelp.cmd("/lm admin character cooldown clear <player> reskin", "clear reskin cooldown"),
                         LmStaffHelp.cmd("/lm fusionreset <player>", "clear a stuck fusion cooldown"),
-                        LmStaffHelp.cmd("/lm revive <player>", "revive an online player")),
+                        LmStaffHelp.cmd("/lm revive <player>", "revive an online player (staff or revive access)")),
                 new LmStaffHelp.Section("Character fixes",
                         LmStaffHelp.cmd("/character admin set-race <player> <race>",
                                 "change their race, keeping all stats"),

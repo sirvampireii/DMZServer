@@ -5,7 +5,7 @@ LegacyMechanics ports CNPC “natural progression” scripts into Forge, plus so
 
 **Access:** `/progression` / `/skills` are **staff only** (op level 2 or
 `difficulty.admin`). Normal players use Difficulty / Rival / Spar / **Prestige** /
-Remove Android from `/lm`. Donators with `legacymechanics.skillcheck` get **Skill Check**
+Remove Android from `/lm`. Donators with `legacymechanics.donator` get **Skill Check**
 (`/skillcheck` or CNPC).
 
 Staff UI (`/progression` / `/prog`) is a **category hub** matching the script families below.
@@ -22,14 +22,14 @@ Staff UI (`/progression` / `/prog`) is a **category hub** matching the script fa
 | Audience | Commands |
 |----------|----------|
 | All players | `/lm`, `/difficulty`, `/rival`, `/spar`, `/lm` → Prestige · Remove Android |
-| Donators | `/skillcheck` — requires LuckPerms `legacymechanics.skillcheck` |
+| Donators | `/skillcheck` — requires LuckPerms `legacymechanics.donator` |
 | Staff | `/progression` · `/prog` · `/skills` · Flags / Logs · Android convert |
 
 ## Skill Check (donators)
 
-- Permission: `legacymechanics.skillcheck` (plugin.yml default **false**; grant via LuckPerms).
+- Permission: `legacymechanics.donator` (plugin.yml default **false**; grant via LuckPerms).
 - Staff are **not** auto-granted — without the node they see **Skills** (admin) on the hub, not Skill Check.
-- Config (`legacymechanics.json`): `enableSkillCheck`, `skillCheckPermission`,
+- Config (`legacymechanics.json`): `enableSkillCheck`, `donatorPermission`,
   `skillCheckNpcNameContains` (default needles: `Skill Check`, `SkillCheck`, `Skill Progress`).
 - Reuses the same skill progress lines as staff `/skills` (core / saga) with
   **Skill Check** branding.
@@ -45,7 +45,7 @@ Any of:
 4. NPC command (player): `skillcheck` or `lm open skillcheck`
 
 Right-click a marked CustomNPC → Skill Check UI for **any** player (NPC is the gate).
-Slash `/skillcheck` still needs `legacymechanics.skillcheck`.
+Slash `/skillcheck` still needs `legacymechanics.donator`.
 
 ### CNPC setup (Rival / Spar / Hub / Difficulty / Prestige)
 
@@ -136,7 +136,7 @@ Staff `/skills` has no special CNPC name hook — use an NPC interaction command
 | `enablePrestigeSystem` | true | Prestige levels (staff UI) |
 | `enableSkillUnlockService` | true | Skill unlock progress data |
 | `enableSkillCheck` | true | Donator Skill Check UI / CNPC |
-| `skillCheckPermission` | `legacymechanics.skillcheck` | LuckPerms node |
+| `donatorPermission` | `legacymechanics.donator` | LuckPerms node |
 | `skillCheckNpcNameContains` | Skill Check / SkillCheck / Skill Progress | CNPC name needles |
 
 ### Fabled Bridges

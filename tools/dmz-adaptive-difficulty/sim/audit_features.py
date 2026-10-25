@@ -686,9 +686,10 @@ def main() -> int:
     end = staff_access.find("private static boolean hasBukkitIsOp", start)
     body = staff_access[start:end] if start >= 0 and end > start else staff_access
     check("hasSkillCheck no staff auto-grant", "isStaff(player)" not in body)
-    check("hasSkillCheck uses skillCheckPermission", "skillCheckPermission" in body)
+    check("hasSkillCheck uses the donator node (4.6.243)", "donatorNode()" in body and "skillCheckPermission" not in staff_access)
     gui_yml = read(ROOT / "tools/dmz-adaptive-difficulty-gui/src/main/resources/plugin.yml")
-    check("plugin.yml skillcheck permission", "permission: legacymechanics.skillcheck" in gui_yml)
+    check("plugin.yml skillcheck permission is the donator node", "permission: legacymechanics.donator" in gui_yml
+          and "legacymechanics.skillcheck" not in gui_yml)
     hub = read(gui_root / "HubChestGui.java")
     check("HubChestGui gates on hasSkillCheck", "ForgeBridge.hasSkillCheck(player)" in hub)
 
@@ -2694,11 +2695,12 @@ def main() -> int:
           and "/lm fusionreset <player>" in read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/command/LmCommandHelp.java"))
     lm_revive = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/command/LmRevive.java")
     lm_help = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/command/LmCommandHelp.java")
-    check("/lm revive: self form is donator (staff exempt), <player> form is staff-only (4.6.236)",
+    check("/lm revive: self form is donator node (staff exempt), <player> is staff or revive access (4.6.243)",
           "LmRevive.literal()" in mech
-          and "StaffAccess.hasSkillCheck(player) && !StaffAccess.isStaff(player)" in lm_revive
-          and "LmCommandMessages.SKILLCHECK_DONATOR" in lm_revive
-          and "StaffAccess.denyUnlessStaff(source)" in lm_revive
+          and "StaffAccess.hasDonatorPermission(player) && !StaffAccess.isStaff(player)" in lm_revive
+          and "SKILLCHECK_DONATOR" not in lm_revive
+          and "StaffAccess.denyUnlessReviveOthers(source)" in lm_revive
+          and "denyUnlessStaff" not in lm_revive
           and 'LmCommandSuggestions.playerWord("player")' in lm_revive
           and '"/lm revive"' in lm_help and '"/lm revive <player>"' in lm_help)
     check("/lm revive calls DMZ revivePlayers reflectively, never dispatches /dmzrevive",

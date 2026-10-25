@@ -1,5 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.progression.shop;
 
+import com.dbzlegacy.adaptivedifficulty.command.LmCommandMessages;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.gui.SkillsMenu;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
@@ -80,7 +81,7 @@ public final class SkillCheckService {
             return;
         }
         if (!canUse(player) && !inSession(player)) {
-            DmzRewards.msg(player, "§cNo permission: legacymechanics.skillcheck");
+            DmzRewards.msg(player, LmCommandMessages.SKILLCHECK_DONATOR);
             return;
         }
         markSession(player);

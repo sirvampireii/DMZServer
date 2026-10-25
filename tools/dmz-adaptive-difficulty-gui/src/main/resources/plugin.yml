@@ -1,5 +1,5 @@
 name: LegacyMechanicsGUI
-version: 4.6.242
+version: 4.6.243
 main: com.dbzlegacy.adaptivedifficulty.bukkit.AdaptiveDifficultyGuiPlugin
 api-version: '1.20'
 author: DBZ Legacy Reborn
@@ -44,8 +44,8 @@ commands:
   skillcheck:
     description: Open Skill Check GUI (donator)
     usage: /skillcheck
-    permission: legacymechanics.skillcheck
-    permission-message: "§cNo permission: legacymechanics.skillcheck"
+    permission: legacymechanics.donator
+    permission-message: "§cSkill Check is for donators. Ask staff about donator access."
   terminal:
     description: Open the Lightman's Currency network terminal (donators, or the terminal permission)
     usage: /terminal
@@ -60,10 +60,13 @@ permissions:
     description: Use LegacyMechanics admin commands (op or this node)
     default: op
   cmi.customalias.terminal:
-    description: Open /terminal (Lightman's Currency). Donators with legacymechanics.skillcheck can also open it.
+    description: Open /terminal (Lightman's Currency). Donators with legacymechanics.donator can also open it.
     default: false
-  legacymechanics.skillcheck:
-    description: Open Skill Check UI (donator)
+  legacymechanics.donator:
+    description: Donator access - Skill Check, /lm revive for yourself, and /terminal
+    default: false
+  legacymechanics.revive.others:
+    description: Revive other players with /lm revive <player> without being staff
     default: false
   legacymechanics.character.services:
     description: Open Character Services (race / class / reskin / head parts) from /lm
