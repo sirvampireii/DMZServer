@@ -113,9 +113,9 @@ public final class UltraRivalScreens {
                 .buttonsAfterLines();
         UltraPickHelper.placePageButtons(
                 spec, "top|Leaderboard", "records|Records", "settings|TP Chat",
-                // Home is the index: the rival list and requests pages open from here too,
-                // not only through /rival list or a post-action return.
-                "list|Rival list", "requests|Requests");
+                // Home is the index: the rival list opens from here too, not only through
+                // /rival list or a post-action return. Requests lives on the Rival tab.
+                "list|Rival list");
         if (StaffAccess.isStaff(player)) {
             spec.buttonLeft("page:admin", UltraStyle.danger("Staff Admin"), "danger").rowGap();
         }
@@ -140,7 +140,6 @@ public final class UltraRivalScreens {
     }
 
     private static void openActions(ServerPlayer player, int page) {
-        Map<String, String> ph = RivalGuiApi.placeholders(player);
         // Rivals (8 a page) and incoming declares (4 a page) share one page index on this tab.
         List<String> rivals = rivalListCards(RivalGuiApi.currentRivalCards(player));
         List<String> declares = nonBlank(RivalGuiApi.pendingIncomingDeclareArgs(player));
@@ -150,7 +149,12 @@ public final class UltraRivalScreens {
         int pg = UltraPickHelper.clampPage(page, pages);
         UltraScreenSpec spec = base(UltraPickHelper.pageArg("actions", pg), "actions")
                 .line(UltraStyle.LABEL + "Your rivals. Pick a player, then choose Silent, Declare, or Accept.")
-                .labelValue("Pending invites", ph.getOrDefault("pending_invites", "0"));
+                // Matches the Accept/Decline stacks below; outgoing declares are counted apart.
+                .labelValue("Incoming requests", String.valueOf(declares.size()));
+        int awaiting = RivalGuiApi.outgoingDeclareCount(player);
+        if (awaiting > 0) {
+            spec.labelValue("Awaiting reply", String.valueOf(awaiting));
+        }
         boolean needsMutualSlot = RivalGuiApi.needsMutualReplacePick(player);
         String pendingPlain = "them";
         if (needsMutualSlot) {
@@ -165,7 +169,7 @@ public final class UltraRivalScreens {
         placeIncomingDeclareButtons(
                 spec, player, UltraPickHelper.pageSlice(declares, DECLARES_PER_PAGE, pg));
         UltraPickHelper.placePrevNext(spec, "actions", pg, pages);
-        UltraPickHelper.placePageButtons(spec, "pick_rival|Pick player");
+        UltraPickHelper.placePageButtons(spec, "pick_rival|Pick player", "requests|Requests");
         if (needsMutualSlot) {
             spec.button(
                             "page:pick_replace_mutual",

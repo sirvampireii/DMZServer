@@ -120,6 +120,11 @@ Three classes re-extracted: `AdaptiveDifficultyMod` (version constant only), `Co
 four new summon field names in the progression field list - javap shows only those strings), and
 `ConfigFieldHelp` (four new help lines). The other 22 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.240 Rival requests)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
+Rival changes live outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

@@ -559,6 +559,33 @@ public final class RivalGuiApi {
     }
 
     /**
+     * Declares this player sent that the other player has not answered yet: invite sent,
+     * unexpired, not mutual, and not a mutual confirm. A plain Declared status with no pending
+     * invite is not counted. Shown on the Rival tab as "Awaiting reply".
+     */
+    public static int outgoingDeclareCount(ServerPlayer player) {
+        if (player == null || !DifficultyConfig.get().enableRivalSystem) {
+            return 0;
+        }
+        RivalPlayerRecord me = RivalStore.get().ensurePlayer(player);
+        if (me == null || me.rivals == null) {
+            return 0;
+        }
+        long now = System.currentTimeMillis();
+        int n = 0;
+        for (RivalLink link : me.rivals.values()) {
+            if (link == null || link.mutual || !link.inviteSent || link.needsMutualConfirm()) {
+                continue;
+            }
+            if (link.pendingExpireAt > 0L && now > link.pendingExpireAt) {
+                continue;
+            }
+            n++;
+        }
+        return n;
+    }
+
+    /**
      * Pending incoming declare picker args: {@code uuid:&lt;uuid&gt;} when online, else stored name
      * (decline uses this — invite only). Online first.
      */

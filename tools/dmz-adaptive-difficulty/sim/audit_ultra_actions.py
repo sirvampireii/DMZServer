@@ -1535,11 +1535,14 @@ def main() -> int:
     clip_body = style_src.split("public static String clipPlain(", 1)[-1].split("\n    }\n", 1)[0]
     if 'text.substring(0, maxChars - 3).trim() + "..."' not in clip_body:
         errors.append("UltraStyle.clipPlain must end a clipped name with ... (never a bare cut)")
-    # 4.6.235: Home is the index - the rival list and requests pages open from Rival Home.
+    # 4.6.235: Home is the index for the rival list. 4.6.240: Requests moved to the Rival tab.
     rival_home = (ULTRA / "UltraRivalScreens.java").read_text(encoding="utf-8")
     rival_home_body = rival_home.split("private static void openHome(", 1)[-1].split("\n    }\n", 1)[0]
-    if '"list|Rival list"' not in rival_home_body or '"requests|Requests"' not in rival_home_body:
-        errors.append("UltraRivalScreens.openHome must link page:list and page:requests")
+    rival_tab_body = rival_home.split("private static void openActions(", 1)[-1].split("\n    }\n", 1)[0]
+    if '"list|Rival list"' not in rival_home_body or '"requests|Requests"' in rival_home_body:
+        errors.append("UltraRivalScreens.openHome must link page:list and not page:requests")
+    if '"requests|Requests"' not in rival_tab_body:
+        errors.append("UltraRivalScreens.openActions must link page:requests")
     # 4.6.235: staff settings open the Ultra config editor, not a chat page.
     diff_menu = (ULTRA.parent / "DifficultyMenu.java").read_text(encoding="utf-8")
     if "DifficultyChatMenu" in diff_menu or 'UltraGui.open(player, "config", "edit:difficulty:0:")' not in diff_menu:

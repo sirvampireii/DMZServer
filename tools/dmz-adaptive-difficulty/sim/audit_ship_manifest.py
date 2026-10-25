@@ -160,6 +160,54 @@ def main() -> int:
           and not any("summon_wither" in read(f) or "summon_warden" in read(f)
                       for f in (SRC / "command").glob("*.java")))
 
+    print("\n--- § rival requests ---")
+    rival_ui = read(SRC / "gui/ultra/UltraRivalScreens.java")
+    rival_api = read(SRC / "gui/RivalGuiApi.java")
+    rival_home = rival_ui.split("private static void openHome(", 1)[-1].split("\n    }\n", 1)[0]
+    rival_tab = rival_ui.split("private static void openActions(", 1)[-1].split("\n    }\n", 1)[0]
+    out_body = rival_api.split("public static int outgoingDeclareCount(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest rival-requests-counts row", "rival-requests-counts" in manifest)
+    check("Requests moved from Rival Home to the Rival tab next to Pick player",
+          '"requests|Requests"' not in rival_home and '"list|Rival list"' in rival_home
+          and '"pick_rival|Pick player", "requests|Requests"' in rival_tab
+          and 'case "requests", "pending", "invites" -> openRequests(' in rival_ui)
+    check("Rival tab shows Incoming requests from the Accept/Decline list, Awaiting reply only when > 0",
+          '"Pending invites"' not in rival_ui
+          and '.labelValue("Incoming requests", String.valueOf(declares.size()))' in rival_tab
+          and "if (awaiting > 0) {" in rival_tab and '"Awaiting reply"' in rival_tab
+          and "invite" not in rival_tab.split("int awaiting", 1)[-1].split("UltraPickHelper.pageLabel", 1)[0].lower())
+    check("outgoing count: invite sent, unexpired, not mutual, not a mutual confirm",
+          "link.mutual || !link.inviteSent || link.needsMutualConfirm()" in out_body
+          and "link.pendingExpireAt > 0L && now > link.pendingExpireAt" in out_body)
+
+    # Mirror of RivalGuiApi.matchesIncoming(includeDeclared=false) and outgoingDeclareCount.
+    def _incoming(l, now):
+        return not l["mutual"] and l["inviteReceived"] and (l["exp"] <= 0 or now <= l["exp"])
+
+    def _outgoing(l, now):
+        confirm = l["byMe"] and l["byThem"] and not l["mutual"] and not l["accepted"]
+        return (not l["mutual"] and l["inviteSent"] and not confirm
+                and not (l["exp"] > 0 and now > l["exp"]))
+
+    def _link(**kw):
+        base = dict(mutual=False, inviteSent=False, inviteReceived=False,
+                    byMe=False, byThem=False, accepted=False, exp=0)
+        base.update(kw)
+        return base
+
+    now = 1_000
+    outgoing_only = [_link(inviteSent=True, byMe=True, exp=now + 60)]
+    declared_only = [_link(byMe=True)]
+    expired_out = [_link(inviteSent=True, byMe=True, exp=now - 1)]
+    check("sim: outgoing-only link -> Awaiting reply: 1, Incoming requests: 0",
+          sum(_outgoing(l, now) for l in outgoing_only) == 1
+          and sum(_incoming(l, now) for l in outgoing_only) == 0)
+    check("sim: Declared-only link counts toward neither line",
+          sum(_outgoing(l, now) for l in declared_only) == 0
+          and sum(_incoming(l, now) for l in declared_only) == 0)
+    check("sim: expired outgoing declare is not awaiting a reply",
+          sum(_outgoing(l, now) for l in expired_out) == 0)
+
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
     title_prog = read(SRC / "title/TitleProgress.java")
