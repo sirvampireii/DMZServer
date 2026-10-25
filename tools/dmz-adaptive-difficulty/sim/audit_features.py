@@ -1234,6 +1234,29 @@ def main() -> int:
     check("tier titles ignore activeTier", "snap.activeTier < title.unlockTier.id" not in title_sys)
     check("tier titles use DMZ/prestige", "requiredDmzLevel" in title_sys and "requiredPrestige" in title_sys)
     check("Ascendant uses hasUnlockedTier(7)", "hasUnlockedTier(7)" in title_sys)
+    # 4.6.238: every title carries a description, shown on its Ultra detail page.
+    import re as _re
+    title_consts = _re.findall(r"^    ([A-Z0-9_]+)\(\"", title_def, _re.M)
+    title_descs = _re.findall(r'^            "([^"]+)"\)[,;]', title_def, _re.M)
+    check("all 16 difficulty titles have a description (4.6.238)",
+          len(title_consts) == 16 and len(title_descs) == 16
+          and "public final String description;" in title_def
+          and all("_" not in d and "§" not in d for d in title_descs))
+    diff_ultra_titles = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraDifficultyScreens.java")
+    check("title detail page shows the description after the existing lines",
+          '"About " + UltraStyle.VALUE + title.description' in diff_ultra_titles
+          and diff_ultra_titles.index('labelValue("Title score"')
+              < diff_ultra_titles.index('"About " + UltraStyle.VALUE + title.description'))
+    # 4.6.238: unlocked titles survive prestige - self-test round-trips a prestige-up + respawn
+    # copy, and neither prestige path touches title data.
+    prestige_sys = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeSystem.java")
+    unlock_sys = read(SRC / "com/dbzlegacy/adaptivedifficulty/tier/UnlockSystem.java")
+    check("titles survive prestige: self-test registered, prestige paths never touch titles",
+          "verifyTitlesSurvivePrestige()" in read(SRC / "com/dbzlegacy/adaptivedifficulty/net/gui/LmGuiNetwork.java")
+          and "titles" not in prestige_sys and "Title" not in prestige_sys
+          and "unlockTitle" not in unlock_sys and "setActiveTitle" not in unlock_sys
+          and "copyLmPersistentData(oldTag, neuTag);" in events
+          and "data.writeToPlayerNbt(neuTag);" in events)
     check("landFracRelief helper", "landFracRelief" in title_fx and "presenceDamageBonus" in title_fx)
     check("tpGainBonus helper", "tpGainBonus" in title_fx)
     check("landing applies title relief", "landFracRelief(player)" in events)

@@ -279,7 +279,8 @@ public final class TitleProgress {
         titleSenseChat = !tag.m_128441_("titleSenseChat") || tag.m_128471_("titleSenseChat");
 
         mutationsSeen.clear();
-        if (tag.m_128425_("mutationsSeen", 8)) {
+        // Lists need TAG_LIST (9) in contains(); the element type stays in getList (4.6.238 fix).
+        if (tag.m_128425_("mutationsSeen", 9)) {
             ListTag list = tag.m_128437_("mutationsSeen", 8);
             for (int i = 0; i < list.size(); i++) {
                 String s = list.m_128778_(i);
@@ -298,7 +299,7 @@ public final class TitleProgress {
         }
 
         claimedScoreMilestones.clear();
-        if (tag.m_128425_("scoreMilestones", 10)) {
+        if (tag.m_128425_("scoreMilestones", 9)) {
             ListTag list = tag.m_128437_("scoreMilestones", 10);
             for (int i = 0; i < list.size(); i++) {
                 claimedScoreMilestones.add(Math.max(0, list.m_128728_(i).m_128451_("s")));

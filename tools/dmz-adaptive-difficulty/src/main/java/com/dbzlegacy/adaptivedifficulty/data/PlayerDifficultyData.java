@@ -356,7 +356,9 @@ public final class PlayerDifficultyData {
             }
         }
         titles.clear();
-        if (tag.m_128425_("titles", 8)) {
+        // "titles" is a list of strings: contains() needs TAG_LIST (9). Checking 8 (TAG_STRING)
+        // never matched, so every load dropped all titles (4.6.238 fix).
+        if (tag.m_128425_("titles", 9)) {
             ListTag list = tag.m_128437_("titles", 8);
             for (int i = 0; i < list.size(); i++) {
                 String s = list.m_128778_(i);

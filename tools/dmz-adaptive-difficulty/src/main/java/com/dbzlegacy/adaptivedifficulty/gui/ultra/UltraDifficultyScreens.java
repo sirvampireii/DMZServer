@@ -535,7 +535,9 @@ public final class UltraDifficultyScreens {
                 .line(UltraStyle.LABEL + "How to earn " + UltraStyle.VALUE + humanRequirement(title))
                 .line(UltraStyle.LABEL + "Bonus when worn " + UltraStyle.VALUE
                         + UltraStyle.plain(title.perkTip(mastery)))
-                .labelValue("Title score", "+" + title.scorePoints);
+                .labelValue("Title score", "+" + title.scorePoints)
+                // What the title stands for - added after the existing lines so none of them move.
+                .line(UltraStyle.LABEL + "About " + UltraStyle.VALUE + title.description);
         if (!earned) {
             spec.line(UltraStyle.dim("Equip unlocks after you earn the title."));
         }

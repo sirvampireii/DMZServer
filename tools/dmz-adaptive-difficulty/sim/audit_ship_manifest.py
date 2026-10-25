@@ -120,6 +120,20 @@ def main() -> int:
     check("CNPC prestige no cap button on main", "Level Cap" not in cnpc or '"cap", "breakthrough" -> paintMain' in cnpc)
     check("manifest prestige-turnin-payout row", "prestige-turnin-payout" in manifest)
 
+    print("\n--- § titles ---")
+    diff_data = read(SRC / "data/PlayerDifficultyData.java")
+    title_prog = read(SRC / "title/TitleProgress.java")
+    check("manifest titles-persist row", "titles-persist" in manifest)
+    # Lists are TAG_LIST (9) in contains(); checking the element type silently skipped them
+    # on every load, which is how titles were lost after a relog / restart / prestige.
+    check("titles, score milestones, and mutations seen load as lists (TAG_LIST 9)",
+          'tag.m_128425_("titles", 9)' in diff_data
+          and 'tag.m_128425_("titles", 8)' not in diff_data
+          and 'tag.m_128425_("scoreMilestones", 9)' in title_prog
+          and 'tag.m_128425_("mutationsSeen", 9)' in title_prog)
+    check("title persistence self-test runs at startup",
+          "verifyTitlesSurvivePrestige()" in read(SRC / "net/gui/LmGuiNetwork.java"))
+
     print("\n--- § body parts ---")
     catalog = read(SRC / "gui/ultra/BodyPartCatalog.java")
     model_parts = read(SRC / "gui/ultra/PlayerModelParts.java")

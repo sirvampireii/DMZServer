@@ -1738,6 +1738,75 @@ public final class UltraScreenSelfTest {
                         + " error(s)): " + broken);
     }
 
+    /**
+     * Unlocked difficulty titles survive a prestige-up. Builds title data (tier, combat and
+     * challenge titles, mastery, a claimed score milestone, a counter, the equipped title), then
+     * applies exactly what the prestige-up sync does to this data ({@code UnlockSystem.syncUnlocks}:
+     * reset the level high-water mark, record the new prestige), carries it across a respawn copy
+     * the way the Clone handler does ({@code writeToPlayerNbt} into a fresh tag, then
+     * {@code fromPlayerNbt}), and checks every title field came through unchanged.
+     */
+    public static void verifyTitlesSurvivePrestige() {
+        List<String> broken = new ArrayList<>();
+        com.dbzlegacy.adaptivedifficulty.data.PlayerDifficultyData before =
+                new com.dbzlegacy.adaptivedifficulty.data.PlayerDifficultyData();
+        String[] owned = {"t1_awakened", "t3_elite", "boss_slayer", "untouchable"};
+        for (String id : owned) {
+            before.unlockTitle(id);
+        }
+        before.setActiveTitle("boss_slayer");
+        before.titleProgress().setMasteryLevel("boss_slayer", 3);
+        before.titleProgress().claimMilestone(50);
+        before.titleProgress().addPlaySeconds(3_600L);
+        before.setLastSeenPrestige(2);
+        before.noteDmzLevel(40_000);
+
+        // Prestige-up, as UnlockSystem.syncUnlocks applies it to this data.
+        before.resetHighestDmzLevel(0);
+        before.setLastSeenPrestige(3);
+        // Respawn / clone copy, as DifficultyEvents.onClone writes it to the new player.
+        net.minecraft.nbt.CompoundTag fresh = new net.minecraft.nbt.CompoundTag();
+        before.writeToPlayerNbt(fresh);
+        com.dbzlegacy.adaptivedifficulty.data.PlayerDifficultyData after =
+                com.dbzlegacy.adaptivedifficulty.data.PlayerDifficultyData.fromPlayerNbt(fresh);
+
+        for (String id : owned) {
+            if (!after.hasTitle(id)) {
+                broken.add("title " + id + " lost across prestige");
+            }
+        }
+        if (after.getTitles().size() != owned.length) {
+            broken.add("title count changed: " + after.getTitles());
+        }
+        if (!"boss_slayer".equals(after.getActiveTitle())) {
+            broken.add("equipped title lost: '" + after.getActiveTitle() + "'");
+        }
+        if (after.titleProgress().masteryLevel("boss_slayer") != 3) {
+            broken.add("mastery lost: " + after.titleProgress().masteryLevel("boss_slayer"));
+        }
+        if (!after.titleProgress().hasClaimedMilestone(50)) {
+            broken.add("claimed score milestone lost");
+        }
+        if (after.titleProgress().playSecondsWithTier() != 3_600L) {
+            broken.add("challenge counter lost: " + after.titleProgress().playSecondsWithTier());
+        }
+        // resetHighestDmzLevel clamps to level 1 at minimum - the ladder is still reset.
+        if (after.getHighestDmzLevel() > 1L || after.getLastSeenPrestige() != 3) {
+            broken.add("prestige-up itself changed (level ladder must still reset)");
+        }
+        if (broken.isEmpty()) {
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Title persistence self-test OK (titles, equipped, mastery, milestones, counters survive prestige)",
+                    AdaptiveDifficultyMod.MOD_ID);
+            return;
+        }
+        AdaptiveDifficultyMod.LOGGER.error(
+                "[{}] Title persistence self-test FAILED: {}", AdaptiveDifficultyMod.MOD_ID, broken);
+        throw new IllegalStateException(
+                "LegacyMechanics title persistence self-test failed (" + broken.size()
+                        + " error(s)): " + broken);
+    }
+
     private static FirstSuperformChoice.Candidate form(
             String group, String name, String formType, int unlockLevel) {
         return new FirstSuperformChoice.Candidate(group, name, formType, unlockLevel, false);
