@@ -449,10 +449,22 @@ public final class MobScaling {
             return false;
         }
         APPLIED_PROFILE.remove(entity.m_20148_());
-        try {
-            // Entity.kill() — applies a lethal generic hit and runs normal death.
-            entity.m_6074_();
-        } catch (Throwable ignored) {
+        // A player landed the last hit: die from a source credited to them, or DMZ's kill-TP
+        // bonus (player-source only) pays zero. Mob, environment, or no attacker -> generic.
+        if (entity.m_21188_() instanceof Player killer) { // getLastHurtByMob
+            try {
+                DamageSource src = entity.m_269291_().m_269075_(killer); // playerAttack
+                entity.m_21153_(0.0f);
+                entity.m_6667_(src); // die
+            } catch (Throwable ignored) {
+            }
+        }
+        if (!entity.m_21224_() && !entity.m_213877_()) {
+            try {
+                // Entity.kill() — applies a lethal generic hit and runs normal death.
+                entity.m_6074_();
+            } catch (Throwable ignored) {
+            }
         }
         if (!entity.m_21224_() && !entity.m_213877_()) {
             try {

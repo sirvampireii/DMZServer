@@ -281,6 +281,46 @@ def main() -> int:
     once = _ko_sim(["start", "death:b"])
     check("sim: one KO counts exactly once", once["lossAB"] == 1 and once["winBA"] == 1)
 
+    print("\n--- § kill credit ---")
+    mob_scaling = read(SRC / "scaling/MobScaling.java")
+    term = mob_scaling.split("public static boolean terminateIfZeroHealth(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest cleanup-kill-player-credit row", "cleanup-kill-player-credit" in manifest)
+    check("cleanup kill credits the last player attacker (existing getLastHurtByMob tracking)",
+          "if (entity.m_21188_() instanceof Player killer) {" in term
+          and "entity.m_269291_().m_269075_(killer)" in term
+          and term.index("m_269075_(killer)") < term.index("entity.m_6667_(src); // die")
+          < term.index("entity.m_6074_();"))
+    check("cleanup gates unchanged: EnderDragon, healthy fast reject, unscaled reject, discard last",
+          term.index("entity instanceof EnderDragon") < term.index("if (hp > 0.0f")
+          < term.index("if (!tag.m_128471_(TAG_SCALED)) {") < term.index("m_21188_()")
+          and "entity.m_146870_(); // discard" in term
+          and term.count("m_269425_()") == 1)
+
+    # Mirror of terminateIfZeroHealth: returns the kill path taken.
+    def _terminate(mob):
+        if mob["dragon"]:
+            return "untouched"
+        if mob["hp"] > 0:
+            return "untouched"
+        if not mob["scaled"]:
+            return "untouched"
+        if mob["last"] == "player":
+            return "player"
+        return "generic"
+
+    def _mob(**kw):
+        base = dict(dragon=False, hp=0.0, scaled=True, last=None)
+        base.update(kw)
+        return base
+
+    check("sim: player last attacker -> player-credited kill", _terminate(_mob(last="player")) == "player")
+    check("sim: mob / environment / no attacker -> generic path",
+          all(_terminate(_mob(last=a)) == "generic" for a in ("mob", "environment", None)))
+    check("sim: EnderDragon, healthy, and unscaled mobs untouched",
+          _terminate(_mob(dragon=True, last="player")) == "untouched"
+          and _terminate(_mob(hp=20.0, last="player")) == "untouched"
+          and _terminate(_mob(scaled=False, last="player")) == "untouched")
+
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
     title_prog = read(SRC / "title/TitleProgress.java")

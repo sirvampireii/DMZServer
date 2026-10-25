@@ -130,6 +130,11 @@ Rival changes live outside this set; the other 24 are unchanged.
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
 Rival changes live outside this set; the other 24 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.242 cleanup kill credit)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
+MobScaling change lives outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash
