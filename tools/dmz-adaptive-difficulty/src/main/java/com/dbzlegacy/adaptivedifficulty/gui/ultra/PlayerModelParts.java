@@ -299,12 +299,11 @@ public final class PlayerModelParts {
 
     /**
      * Explicit pieces for {@code parts.bodyParts}. Resolves the worn form (and stack form)
-     * through {@link BodyPartCatalog}, which mirrors DMZUltra FormParts. Also names
-     * {@code saiyan_tail} when the character still has the race tail. Single-tail rule: the
-     * array never carries two {@code SLOT_TAIL} entries — a form tail beats a shop tail, and
-     * the natural {@code saiyan_tail} is only added when no other tail slot is occupied.
-     * Empty when nothing applies. Never throws — a missing catalog still reports the race
-     * tail.
+     * through {@link BodyPartCatalog}, which mirrors DMZUltra FormParts, then adds the Body
+     * Parts Shop pieces the player equipped. The race tail is never named here: DMZ draws it
+     * from the tail flag through the client's race layer, and naming it too showed a second
+     * tail to other players. Single-tail rule: the array never carries two {@code SLOT_TAIL}
+     * entries — a form tail beats a shop tail. Empty when nothing applies. Never throws.
      */
     private static JsonArray bodyParts(ServerPlayer player) {
         JsonArray out = new JsonArray();
@@ -319,12 +318,7 @@ public final class PlayerModelParts {
             String form = "";
             String stackGroup = "";
             String stackForm = "";
-            boolean tail = false;
             if (ch != null) {
-                try {
-                    tail = ch.isHasSaiyanTail();
-                } catch (Throwable ignored) {
-                }
                 try {
                     group = safe(ch.getActiveFormGroup());
                     form = safe(ch.getActiveForm());
@@ -336,22 +330,12 @@ public final class PlayerModelParts {
                 } catch (Throwable ignored) {
                 }
             }
-            // Custom Body Parts Shop pieces the player turned on. Fetched first so the
-            // natural race tail can yield to an explicit shop tail (single-tail rule).
+            // Custom Body Parts Shop pieces the player turned on.
             List<String> custom = CosmeticBodyPartService.equippedParts(player);
-            boolean customTail = false;
-            for (String customId : custom) {
-                if (customId != null
-                        && !customId.isBlank()
-                        && BodyPartCatalog.SLOT_TAIL.equals(BodyPartCatalog.slot(customId))) {
-                    customTail = true;
-                    break;
-                }
-            }
             Set<String> seen = new java.util.LinkedHashSet<>();
             boolean tailOccupied = false;
             for (BodyPartCatalog.Part part :
-                    BodyPartCatalog.resolve(race, group, form, stackGroup, stackForm, tail && !customTail)) {
+                    BodyPartCatalog.resolve(race, group, form, stackGroup, stackForm)) {
                 if (part == null || part.id() == null || part.id().isBlank()) {
                     continue;
                 }

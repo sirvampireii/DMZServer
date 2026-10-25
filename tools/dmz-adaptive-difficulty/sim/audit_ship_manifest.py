@@ -120,6 +120,22 @@ def main() -> int:
     check("CNPC prestige no cap button on main", "Level Cap" not in cnpc or '"cap", "breakthrough" -> paintMain' in cnpc)
     check("manifest prestige-turnin-payout row", "prestige-turnin-payout" in manifest)
 
+    print("\n--- § body parts ---")
+    catalog = read(SRC / "gui/ultra/BodyPartCatalog.java")
+    model_parts = read(SRC / "gui/ultra/PlayerModelParts.java")
+    tail_wipe = read(SRC / "character/SaiyanTailWipeHelper.java")
+    check("manifest no-auto-race-tail row", "no-auto-race-tail" in manifest)
+    check("race tail is never added as a body part (client race layer draws it)",
+          "boolean saiyanTail" not in catalog
+          and "new Part(SAIYAN_TAIL" not in catalog
+          and "isHasSaiyanTail()" not in model_parts
+          and "BodyPartCatalog.resolve(race, group, form, stackGroup, stackForm))" in model_parts)
+    check("a chosen shop tail still hides the race tail (suppressNaturalTail unchanged)",
+          'parts.addProperty("suppressNaturalTail", hasChosenTail(body))' in model_parts
+          and "BodyPartCatalog.SAIYAN_TAIL.equals(text(entry, \"id\"))" in model_parts)
+    check("stuck-tail wipe still clears non-tail races only",
+          "clearIfRaceCannotHaveTail" in tail_wipe and "ch.isHasSaiyanTail()" in tail_wipe)
+
     print("\n--- § ui paging ---")
     ultra_dir = SRC / "gui/ultra"
     check("manifest ultra-pickers-paged row", "ultra-pickers-paged" in manifest)

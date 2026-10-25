@@ -18,9 +18,10 @@ import net.minecraft.server.level.ServerPlayer;
  * {@code Status.TailVisible} choice) and draws the tail from that flag. Per DMZ's own race
  * configs only the tail family defaults it true, and DMZ's race change never clears it — so
  * a character created as a Saiyan keeps the drawn tail forever after changing race, and no
- * shop action can remove it because it is data, not an equipped piece. LM's body-part sync
- * sends {@code saiyan_tail} whenever the flag is set, which is what puts the ghost tail on
- * other players' screens.
+ * shop action can remove it because it is data, not an equipped piece. The client's race
+ * layer draws a tail from that flag, which is what puts the ghost tail on other players'
+ * screens. (Until 4.6.234 LM's body-part sync also sent {@code saiyan_tail} whenever the flag
+ * was set; it no longer adds the race tail as a piece.)
  *
  * <p>Clear-only: neither flag is ever set true, and the tail family is never touched — a
  * Saiyan who lost their tail keeps it lost, and a Saiyan's {@code TailVisible} choice stays

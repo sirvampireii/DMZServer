@@ -86,6 +86,11 @@ javap-verified) and `ConfigEditor` (raw section signs routed through UltraStyle,
 backups get a unique name, pending changes carry their tab and setting path for the Review
 "Last changed by" line). The other 23 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.234 no automatic race tail)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
+body-part change lives in classes outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

@@ -3272,7 +3272,9 @@ def main() -> int:
         "Single-tail rule: bodyParts never carries two SLOT_TAIL entries",
         "tailOccupied" in parts_bp
         and "SLOT_TAIL" in parts_bp
-        and "customTail" in parts_bp,
+        # 4.6.234: the race tail is never added as a piece (the client's race layer draws it),
+        # so there is no automatic tail left to yield to a shop tail.
+        and "isHasSaiyanTail()" not in parts_bp,
     )
     check(
         "GuiModelSync round-trip + oversized-sanitize self-test at startup",

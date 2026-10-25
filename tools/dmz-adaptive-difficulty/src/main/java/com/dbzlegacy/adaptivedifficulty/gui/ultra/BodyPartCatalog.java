@@ -19,14 +19,18 @@ import java.util.Map;
  *
  * <p>The table is the DMZUltra FormParts catalog ({@code race/group/form} → piece ids),
  * shipped as data so a dedicated server can name the pieces without the client mod.
- * Missing or unreadable data omits form pieces. The Saiyan race tail is separate:
- * {@code saiyan_tail} when the character still has one and the form did not already
- * name a tail.
+ * Missing or unreadable data omits form pieces. The Saiyan race tail is not a body part:
+ * DMZ draws it from the character's tail flag through the client's own race layer, so naming
+ * it here as well put a second tail on other players' screens. A tail piece is only sent for a
+ * form that names one, or a shop tail the player equipped.
  */
 public final class BodyPartCatalog {
     /** Wire {@code source} for pieces that live in DMZUltra's form-parts model. */
     public static final String SOURCE_DMZULTRA = "dmzultra";
-    /** Race tail. The client maps this id onto the DMZUltra {@code tail_fur} mesh. */
+    /**
+     * Id of the race tail as a piece. Never added automatically (the race layer draws the race
+     * tail); kept so {@link #slot} and the chosen-tail check still recognise the id.
+     */
     public static final String SAIYAN_TAIL = "saiyan_tail";
 
     /**
@@ -57,30 +61,20 @@ public final class BodyPartCatalog {
     public record Part(String id, String source, String slot) {}
 
     /**
-     * Form pieces for the active form and the stack form, plus the race tail when it is
-     * still on the character. Never throws. An empty list means "send no bodyParts".
+     * Form pieces for the active form and the stack form. The race tail is never added here -
+     * the client's race layer already draws it. Never throws. An empty list means "send no
+     * bodyParts".
      */
     public static List<Part> resolve(
             String race,
             String group,
             String form,
             String stackGroup,
-            String stackForm,
-            boolean saiyanTail) {
+            String stackForm) {
         LinkedHashMap<String, Part> out = new LinkedHashMap<>();
         try {
             addForm(out, race, group, form);
             addForm(out, race, stackGroup, stackForm);
-            boolean namedTail = false;
-            for (Part part : out.values()) {
-                if (SLOT_TAIL.equals(part.slot())) {
-                    namedTail = true;
-                    break;
-                }
-            }
-            if (saiyanTail && !namedTail) {
-                out.put(SAIYAN_TAIL, new Part(SAIYAN_TAIL, SOURCE_DMZULTRA, SLOT_TAIL));
-            }
         } catch (Throwable ignored) {
             return List.of();
         }

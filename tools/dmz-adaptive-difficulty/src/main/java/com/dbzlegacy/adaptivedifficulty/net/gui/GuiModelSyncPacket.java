@@ -35,8 +35,8 @@ import net.minecraftforge.network.NetworkEvent;
  * {@code subject} with the object received ({@code uuid:<id>} keys the cache; {@code local}
  * means the receiving player). Prefer {@code colors} over a reflective {@code FormParts$Look}
  * read — a remote player's reflective read comes back gray. The server already deduplicates
- * tail-slot pieces ({@code saiyan_tail} is only sent when no other {@code tail}-slot piece is
- * present). Unknown trailing fields are ignored.
+ * tail-slot pieces (at most one {@code tail}-slot piece is sent), and never sends the race
+ * tail as a piece — the client's race layer draws it. Unknown trailing fields are ignored.
  */
 public final class GuiModelSyncPacket {
     /** Max {@code partsJson} chars on the wire. Oversized payloads degrade, never truncate. */
