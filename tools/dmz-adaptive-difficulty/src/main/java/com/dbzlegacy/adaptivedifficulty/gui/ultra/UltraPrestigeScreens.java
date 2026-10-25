@@ -374,7 +374,7 @@ public final class UltraPrestigeScreens {
             spec.rowGap();
         }
         if (placed == 0) {
-            spec.line(UltraStyle.dim("No skills for sale right now."));
+            spec.line(UltraStyle.dim("No skills for sale right now. Ask staff to show a skill in the prestige shop settings."));
         }
         spec.footerBack("page:shop", "Shop");
         spec.send(player);

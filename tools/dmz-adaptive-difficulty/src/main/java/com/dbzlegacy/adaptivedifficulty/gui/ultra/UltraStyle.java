@@ -470,8 +470,10 @@ public final class UltraStyle {
     }
 
     /**
-     * Leading glyphs that fit {@code maxWidthPx}. No ellipsis — menu copy should already be
-     * short enough; this only guards dynamic names so the wire never grows a {@code ...}.
+     * Leading glyphs that fit {@code maxWidthPx}. Text that is too long ends in {@code ...}, so a
+     * clipped player name reads as cut off instead of as a different, shorter name. Uses the
+     * wire's ASCII ellipsis - {@link #wireText} turns the single-glyph ellipsis into these three
+     * dots anyway - and the result still fits {@code maxWidthPx}, like {@link #fitAsciiLabel}.
      */
     public static String clipPlain(String styled, int maxWidthPx) {
         String text = plain(wireText(styled));
@@ -483,7 +485,10 @@ public final class UltraStyle {
         if (text.length() <= maxChars) {
             return text;
         }
-        return text.substring(0, maxChars).trim();
+        if (maxChars <= 3) {
+            return text.substring(0, maxChars);
+        }
+        return text.substring(0, maxChars - 3).trim() + "...";
     }
 
     /** {@link #clipPlain} for a standard {@link #BTN_W} button. */

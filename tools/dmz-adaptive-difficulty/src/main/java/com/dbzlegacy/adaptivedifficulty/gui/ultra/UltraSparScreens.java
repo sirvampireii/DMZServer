@@ -655,7 +655,7 @@ public final class UltraSparScreens {
         List<String> lines = SparGuiApi.dojoHallOfFameLines(player);
         if (lines == null || lines.isEmpty()) {
             spec.line(UltraStyle.LABEL + "Hall of Chosen");
-            spec.line(UltraStyle.dim("No past seasons yet."));
+            spec.line(UltraStyle.dim("No past seasons yet. Finish a season to see it here."));
         } else {
             appendBody(spec, lines);
         }
@@ -872,7 +872,7 @@ public final class UltraSparScreens {
             spec.rowGap();
         }
         if (placed == 0) {
-            spec.line(UltraStyle.dim("No rival dojos on the ladder yet."));
+            spec.line(UltraStyle.dim("No rival dojos on the ladder yet. Dojos join automatically once their members spar this season - check back later."));
         }
         UltraPickHelper.placePrevNext(spec, "pick_dojo_challenge", pg, pages);
         spec.footerBack("page:dojo_war", "Wars");

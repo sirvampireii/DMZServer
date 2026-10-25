@@ -1,5 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.gui;
 
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dbzlegacy.adaptivedifficulty.calc.LmOverhaulScaledCombat;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
@@ -769,7 +770,7 @@ public final class ProgressionGuiApi {
      */
     public static String handleDo(ServerPlayer player, String action, String arg, String page) {
         if (player == null) {
-            return "§cThis only works in-game - console can't open this menu.";
+            return UltraStyle.DANGER + "This only works in-game - console can't open this menu.";
         }
         String act = action == null ? "" : action.toLowerCase(Locale.ROOT).trim();
         String a = arg == null ? "" : arg.trim();
@@ -780,14 +781,14 @@ public final class ProgressionGuiApi {
                 || "toggle_staff_free_coins".equals(act) || "staff_free_coins".equals(act)
                 || "stafffree".equals(act) || "staff_free".equals(act));
         if (!DifficultyConfig.get().enableProgression && !staffMaintenance) {
-            return "§cProgression system is disabled.";
+            return UltraStyle.DANGER + "Progression system is disabled.";
         }
         if ("page".equals(act) || "refresh".equals(act)) {
             return "";
         }
         if ("flag".equals(act) || "toggle".equals(act)) {
             if (!StaffAccess.isStaff(player)) {
-                return "§cStaff only.";
+                return UltraStyle.DANGER + "Staff only.";
             }
             String key = a;
             Boolean force = null;
@@ -802,7 +803,7 @@ public final class ProgressionGuiApi {
                 }
             }
             if (key.isBlank()) {
-                return "§cUsage: progression do flag <key>[:on|off]";
+                return UltraStyle.DANGER + "Usage: progression do flag <key>[:on|off]";
             }
             boolean next;
             if (force != null) {
@@ -813,13 +814,13 @@ public final class ProgressionGuiApi {
                 next = !"true".equalsIgnoreCase(cur);
             }
             if (!ProgressionSystem.setFlag(key, next)) {
-                return "§cSomething went wrong. Try again, or ask staff if it keeps happening.";
+                return UltraStyle.DANGER + "Something went wrong. Try again, or ask staff if it keeps happening.";
             }
-            return "§eProgression " + key + " -> " + (next ? "ON" : "OFF");
+            return UltraStyle.YELLOW + "Progression " + key + " -> " + (next ? "ON" : "OFF");
         }
         if ("module_doc".equals(act) || "moduledoc".equals(act) || "module".equals(act)) {
             if (!StaffAccess.isStaff(player)) {
-                return "§cStaff only.";
+                return UltraStyle.DANGER + "Staff only.";
             }
             String targetPage = page == null || page.isBlank() ? "main" : page;
             if (a == null || a.isBlank()) {
@@ -844,7 +845,7 @@ public final class ProgressionGuiApi {
                 || "stafffree".equals(act) || "staff_free".equals(act)) {
             return toggleStaffFreeAncientCoinCosts(player, a);
         }
-        return "§cSomething went wrong. Try again, or ask staff if it keeps happening.";
+        return UltraStyle.DANGER + "Something went wrong. Try again, or ask staff if it keeps happening.";
     }
 
     /**

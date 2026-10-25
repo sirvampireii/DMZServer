@@ -112,7 +112,10 @@ public final class UltraRivalScreens {
                 .line(UltraStyle.LABEL + "Leaderboard, records, and TP chat.")
                 .buttonsAfterLines();
         UltraPickHelper.placePageButtons(
-                spec, "top|Leaderboard", "records|Records", "settings|TP Chat");
+                spec, "top|Leaderboard", "records|Records", "settings|TP Chat",
+                // Home is the index: the rival list and requests pages open from here too,
+                // not only through /rival list or a post-action return.
+                "list|Rival list", "requests|Requests");
         if (StaffAccess.isStaff(player)) {
             spec.buttonLeft("page:admin", UltraStyle.danger("Staff Admin"), "danger").rowGap();
         }
@@ -236,7 +239,7 @@ public final class UltraRivalScreens {
             spec.rowGap();
         }
         if (noRivals) {
-            spec.line(UltraStyle.dim("No rivals on your list yet."));
+            spec.line(UltraStyle.dim("No rivals on your list yet. Declare someone from Pick player."));
         }
     }
 
@@ -454,7 +457,7 @@ public final class UltraRivalScreens {
             spec.rowGap();
         }
         if (placed == 0) {
-            spec.line(UltraStyle.dim("No rivals on your list yet."));
+            spec.line(UltraStyle.dim("No rivals on your list yet. Declare someone from Pick player."));
         }
         UltraPickHelper.placePrevNext(spec, "list", pg, pages);
         spec.footerBack("page:actions", "Rival");
@@ -615,7 +618,7 @@ public final class UltraRivalScreens {
             placed++;
         }
         if (placed == 0) {
-            spec.line(UltraStyle.dim("No incoming declare requests right now."));
+            spec.line(UltraStyle.dim("No incoming declare requests right now. Wait for an invite, or declare someone yourself."));
         }
         UltraPickHelper.placePrevNext(spec, "requests", pg, pages);
         spec.footerBack("page:actions", "Rival");
@@ -663,18 +666,18 @@ public final class UltraRivalScreens {
         String emptyCopy;
         if ("spectate".equals(doAction)) {
             args = RivalGuiApi.activeChallengeArgs(player);
-            emptyCopy = "No active challenges right now.";
+            emptyCopy = "No active challenges right now. Challenge a rival first.";
         } else if ("rival_pick".equals(doAction)
                 || "declare".equals(doAction)
                 || "silent".equals(doAction)) {
             List<String> online = RivalGuiApi.onlinePlayerArgs(player);
             args = RivalGuiApi.excludingCurrentRivals(player, online);
             emptyCopy = online == null || online.isEmpty()
-                    ? "Nobody is available right now."
-                    : "Everyone online is already a rival.";
+                    ? "Nobody is available right now. Try again when other players are on."
+                    : "Everyone online is already a rival. Drop a rival first if you want a new one.";
         } else {
             args = RivalGuiApi.onlinePlayerArgs(player);
-            emptyCopy = "Nobody is available right now.";
+            emptyCopy = "Nobody is available right now. Try again when other players are on.";
         }
         int total = args == null ? 0 : args.size();
         int pages = UltraPickHelper.pageCount(total, PICK_PER_PAGE);
@@ -834,7 +837,7 @@ public final class UltraRivalScreens {
             spec.rowGap();
         }
         if (placed == 0) {
-            spec.line(UltraStyle.dim("No Mutual rivals to drop right now."));
+            spec.line(UltraStyle.dim("No Mutual rivals to drop right now. Mutual rivals appear here once you have one."));
         }
         UltraPickHelper.placePrevNext(spec, "pick_replace_mutual", pg, pages);
         // Escape hatch — do not trap the player on this page.

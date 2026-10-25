@@ -1526,6 +1526,20 @@ def main() -> int:
     spec_fit = (ULTRA / "UltraScreenSpec.java").read_text(encoding="utf-8")
     if "clipPlain" not in spec_fit:
         errors.append("UltraScreenSpec must clipPlain before fitAsciiLabel so buttons do not grow ...")
+    # 4.6.235: a clipped dynamic name ends in "..." so it never reads as a shorter name.
+    style_src = (ULTRA / "UltraStyle.java").read_text(encoding="utf-8")
+    clip_body = style_src.split("public static String clipPlain(", 1)[-1].split("\n    }\n", 1)[0]
+    if 'text.substring(0, maxChars - 3).trim() + "..."' not in clip_body:
+        errors.append("UltraStyle.clipPlain must end a clipped name with ... (never a bare cut)")
+    # 4.6.235: Home is the index - the rival list and requests pages open from Rival Home.
+    rival_home = (ULTRA / "UltraRivalScreens.java").read_text(encoding="utf-8")
+    rival_home_body = rival_home.split("private static void openHome(", 1)[-1].split("\n    }\n", 1)[0]
+    if '"list|Rival list"' not in rival_home_body or '"requests|Requests"' not in rival_home_body:
+        errors.append("UltraRivalScreens.openHome must link page:list and page:requests")
+    # 4.6.235: staff settings open the Ultra config editor, not a chat page.
+    diff_menu = (ULTRA.parent / "DifficultyMenu.java").read_text(encoding="utf-8")
+    if "DifficultyChatMenu" in diff_menu or 'UltraGui.open(player, "config", "edit:difficulty:0:")' not in diff_menu:
+        errors.append("DifficultyMenu staff settings must open the Ultra config editor")
     if 'addProperty("portraitFrame"' in spec_fit:
         errors.append("UltraScreenSpec must not emit playerModel.portraitFrame (no preview border)")
     rival_ui = (ULTRA / "UltraRivalScreens.java").read_text(encoding="utf-8")

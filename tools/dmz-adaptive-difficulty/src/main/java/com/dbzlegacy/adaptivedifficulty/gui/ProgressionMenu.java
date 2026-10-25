@@ -2,6 +2,7 @@ package com.dbzlegacy.adaptivedifficulty.gui;
 
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGui;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGuiFeedback;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
@@ -22,7 +23,11 @@ public final class ProgressionMenu {
             return;
         }
         if (!DifficultyConfig.get().enableProgression && !androidRemove) {
-            ProgressionChatMenu.open(player, page);
+            // Disabled-system notice goes in the menu (the hub opens with it), not chat.
+            UltraGuiFeedback.deliver(player, UltraStyle.dangerLine(
+                    "Progression is turned off on this server. Staff can turn it back on in the"
+                            + " config editor under Progress."));
+            UltraGui.openHub(player, "main");
             return;
         }
 

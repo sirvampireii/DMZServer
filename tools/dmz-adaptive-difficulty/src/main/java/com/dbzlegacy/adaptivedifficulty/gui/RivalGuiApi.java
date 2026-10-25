@@ -89,7 +89,7 @@ public final class RivalGuiApi {
 
     public static List<String> listLines(ServerPlayer player) {
         if (player == null || !DifficultyConfig.get().enableRivalSystem) {
-            return List.of("§cRival system is disabled.");
+            return List.of(UltraStyle.DANGER + "Rival system is disabled.");
         }
         return RivalSystem.listLines(player);
     }
@@ -150,14 +150,14 @@ public final class RivalGuiApi {
 
     public static List<String> statsLines(ServerPlayer player) {
         if (player == null || !DifficultyConfig.get().enableRivalSystem) {
-            return List.of("§cRival system is disabled.");
+            return List.of(UltraStyle.DANGER + "Rival system is disabled.");
         }
         return RivalSystem.statsLines(player);
     }
 
     public static List<String> topLines(ServerPlayer player) {
         if (!DifficultyConfig.get().enableRivalSystem) {
-            return List.of("§cRival system is disabled.");
+            return List.of(UltraStyle.DANGER + "Rival system is disabled.");
         }
         return RivalSystem.topLines(10);
     }
@@ -685,7 +685,7 @@ public final class RivalGuiApi {
     public static String displayPickerArg(ServerPlayer from, String arg) {
         String name = resolveNameArg(from, arg);
         if (!name.isBlank()) {
-            return "§f" + name;
+            return UltraStyle.VALUE + name;
         }
         return com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraText.humanizePickerArg(arg);
     }
@@ -721,42 +721,42 @@ public final class RivalGuiApi {
 
     public static List<String> seasonLines(ServerPlayer player) {
         if (player == null || !DifficultyConfig.get().enableRivalSystem) {
-            return List.of("§cRival system is disabled.");
+            return List.of(UltraStyle.DANGER + "Rival system is disabled.");
         }
         return RivalProgression.get().seasonLines(player);
     }
 
     public static List<String> questLines(ServerPlayer player) {
         if (player == null || !DifficultyConfig.get().enableRivalSystem) {
-            return List.of("§cRival system is disabled.");
+            return List.of(UltraStyle.DANGER + "Rival system is disabled.");
         }
         return RivalProgression.get().questLines(player);
     }
 
     public static List<String> achievementLines(ServerPlayer player) {
         if (player == null || !DifficultyConfig.get().enableRivalSystem) {
-            return List.of("§cRival system is disabled.");
+            return List.of(UltraStyle.DANGER + "Rival system is disabled.");
         }
         return RivalProgression.get().achievementLines(player);
     }
 
     public static List<String> hofLines(ServerPlayer player) {
         if (!DifficultyConfig.get().enableRivalSystem) {
-            return List.of("§cRival system is disabled.");
+            return List.of(UltraStyle.DANGER + "Rival system is disabled.");
         }
         return RivalProgression.get().hofLines();
     }
 
     public static List<String> journalLines(ServerPlayer player) {
         if (player == null || !DifficultyConfig.get().enableRivalSystem) {
-            return List.of("§cRival system is disabled.");
+            return List.of(UltraStyle.DANGER + "Rival system is disabled.");
         }
         return RivalProgression.get().journalLines(player);
     }
 
     public static List<String> titleLines(ServerPlayer player) {
         if (player == null || !DifficultyConfig.get().enableRivalSystem) {
-            return List.of("§cRival system is disabled.");
+            return List.of(UltraStyle.DANGER + "Rival system is disabled.");
         }
         return RivalProgression.get().titleLines(player);
     }
@@ -769,23 +769,23 @@ public final class RivalGuiApi {
             case "history", "past", "previous" -> RivalSystem.historyLines(player);
             case "pending", "invites", "pendinginvites" -> RivalSystem.pendingInviteLines(player);
             case "actions" -> List.of(
-                    "§6§lRival actions",
-                    "§7Declare invites - tap a name to accept, decline, or withdraw",
-                    "§7Declare a rivalry, mark a silent rival, or remove someone from your list",
-                    "§7How rivalries work:",
-                    "§71. §fDeclare §7someone as your rival (or mark them §fSilent§7)",
-                    "§72. §fThey accept §7your invite",
-                    "§73. §fYou're now Mutual §7- bonuses activate"
+                    UltraStyle.HEADER + "Rival actions",
+                    UltraStyle.LABEL + "Declare invites - tap a name to accept, decline, or withdraw",
+                    UltraStyle.LABEL + "Declare a rivalry, mark a silent rival, or remove someone from your list",
+                    UltraStyle.LABEL + "How rivalries work:",
+                    UltraStyle.LABEL + "1. " + UltraStyle.VALUE + "Declare " + UltraStyle.LABEL + "someone as your rival (or mark them " + UltraStyle.VALUE + "Silent" + UltraStyle.LABEL + ")",
+                    UltraStyle.LABEL + "2. " + UltraStyle.VALUE + "They accept " + UltraStyle.LABEL + "your invite",
+                    UltraStyle.LABEL + "3. " + UltraStyle.VALUE + "You're now Mutual " + UltraStyle.LABEL + "- bonuses activate"
             );
             case "stats", "statistics" -> statsLines(player);
             case "challenge", "challenges" -> challengeLines(player);
             case "challenge_pending", "challenge_requests", "challengepending" -> pendingChallengeLines(player);
             case "top", "leaderboard" -> topLines(player);
             case "progress" -> List.of(
-                    "§b§lRival Progress",
-                    "§7Season - Quests - Achievements",
-                    "§7Hall of Fame - Journal - Title",
-                    "§8Open a page from the Progress menu"
+                    UltraStyle.AQUA + UltraStyle.BOLD + "Rival Progress",
+                    UltraStyle.LABEL + "Season - Quests - Achievements",
+                    UltraStyle.LABEL + "Hall of Fame - Journal - Title",
+                    UltraStyle.DIM + "Open a page from the Progress menu"
             );
             case "season" -> seasonLines(player);
             case "quests", "quest" -> questLines(player);
@@ -794,32 +794,32 @@ public final class RivalGuiApi {
             case "journal" -> journalLines(player);
             case "title", "titles" -> titleLines(player);
             case "help" -> List.of(
-                    "§6§l/rival §8- Rival System",
-                    "§7Prefer §e/lm §7-> Rival from the hub",
-                    "§7GUI: List - Challenge - Top - Progress",
-                    "§e/rival <player> §7silent rival",
-                    "§e/rival declare|accept|decline|remove <player>",
-                    "§e/rival challenge send <player> [minutes]",
-                    "§7GUI: pick rival -> choose 1-10 minutes",
-                    "§e/rival spectate [player]|stop",
-                    "§e/rival admin save|refresh|status (staff)"
+                    UltraStyle.HEADER + "/rival " + UltraStyle.DIM + "- Rival System",
+                    UltraStyle.LABEL + "Prefer " + UltraStyle.YELLOW + "/lm " + UltraStyle.LABEL + "-> Rival from the hub",
+                    UltraStyle.LABEL + "GUI: List - Challenge - Top - Progress",
+                    UltraStyle.YELLOW + "/rival <player> " + UltraStyle.LABEL + "silent rival",
+                    UltraStyle.YELLOW + "/rival declare|accept|decline|remove <player>",
+                    UltraStyle.YELLOW + "/rival challenge send <player> [minutes]",
+                    UltraStyle.LABEL + "GUI: pick rival -> choose 1-10 minutes",
+                    UltraStyle.YELLOW + "/rival spectate [player]|stop",
+                    UltraStyle.YELLOW + "/rival admin save|refresh|status (staff)"
             );
             default -> {
                 Map<String, String> ph = placeholders(player);
                 List<String> lore = new ArrayList<>();
-                lore.add("§7RP §f" + ph.getOrDefault("rp", "0")
-                        + " §8(§" + ph.getOrDefault("tier_color", "7")
-                        + ph.getOrDefault("tier", "?") + "§8)");
-                lore.add("§7Mutual §f" + ph.getOrDefault("mutual", "0")
-                        + "§8/§f" + ph.getOrDefault("mutual_max",
+                lore.add(UltraStyle.LABEL + "RP " + UltraStyle.VALUE + ph.getOrDefault("rp", "0")
+                        + " " + UltraStyle.DIM + "(" + UltraStyle.MARK + ph.getOrDefault("tier_color", "7")
+                        + ph.getOrDefault("tier", "?") + UltraStyle.DIM + ")");
+                lore.add(UltraStyle.LABEL + "Mutual " + UltraStyle.VALUE + ph.getOrDefault("mutual", "0")
+                        + UltraStyle.DIM + "/" + UltraStyle.VALUE + ph.getOrDefault("mutual_max",
                         String.valueOf(RivalConstants.MAX_MUTUAL_RIVALS)));
-                lore.add("§7Record §a" + ph.getOrDefault("wins", "0")
-                        + "§7/§c" + ph.getOrDefault("losses", "0")
-                        + "§7/§e" + ph.getOrDefault("draws", "0"));
-                lore.add("§7TP §f"
+                lore.add(UltraStyle.LABEL + "Record " + UltraStyle.GREEN + ph.getOrDefault("wins", "0")
+                        + UltraStyle.LABEL + "/" + UltraStyle.DANGER + ph.getOrDefault("losses", "0")
+                        + UltraStyle.LABEL + "/" + UltraStyle.YELLOW + ph.getOrDefault("draws", "0"));
+                lore.add(UltraStyle.LABEL + "TP " + UltraStyle.VALUE
                         + ("true".equalsIgnoreCase(ph.get("tpMsg")) ? "ON" : "OFF"));
                 if ("true".equalsIgnoreCase(ph.get("challengeActive"))) {
-                    lore.add("§eChallenge active");
+                    lore.add(UltraStyle.YELLOW + "Challenge active");
                 }
                 yield lore;
             }
@@ -835,7 +835,7 @@ public final class RivalGuiApi {
      */
     public static String handleDo(ServerPlayer player, String action, String arg, String page) {
         if (player == null) {
-            return "§cThis only works in-game - console can't open this menu.";
+            return UltraStyle.DANGER + "This only works in-game - console can't open this menu.";
         }
         String act = action == null ? "" : action.toLowerCase(Locale.ROOT).trim();
         String a = arg == null ? "" : arg.trim();
@@ -844,7 +844,7 @@ public final class RivalGuiApi {
             return handleAdmin(player, a);
         }
         if (!DifficultyConfig.get().enableRivalSystem) {
-            return "§cRival system is disabled.";
+            return UltraStyle.DANGER + "Rival system is disabled.";
         }
         if ("page".equals(act) || "refresh".equals(act)) {
             return "";
@@ -861,14 +861,14 @@ public final class RivalGuiApi {
             if ("off".equalsIgnoreCase(a) || "false".equalsIgnoreCase(a)) {
                 return RivalSystem.setTpMsg(player, false);
             }
-            return "§cUsage: rival do tpmsg toggle";
+            return UltraStyle.DANGER + "Usage: rival do tpmsg toggle";
         }
         if ("instinct".equals(act)) {
             if (!DifficultyConfig.get().rivalInstinct) {
-                return "§cRival Instinct is disabled.";
+                return UltraStyle.DANGER + "Rival Instinct is disabled.";
             }
             boolean on = RivalInstinct.toggle(player);
-            return "§eRival Instinct " + (on ? "ON" : "OFF");
+            return UltraStyle.YELLOW + "Rival Instinct " + (on ? "ON" : "OFF");
         }
         if ("challenge".equals(act)) {
             String sub = a.toLowerCase(Locale.ROOT);
@@ -876,7 +876,7 @@ public final class RivalGuiApi {
                 case "accept" -> RivalChallengeManager.get().acceptChallenge(player);
                 case "decline", "deny" -> RivalChallengeManager.get().declineChallenge(player);
                 case "cancel" -> RivalChallengeManager.get().cancelChallenge(player);
-                default -> "§cUsage: rival do challenge accept|decline|cancel";
+                default -> UltraStyle.DANGER + "Usage: rival do challenge accept|decline|cancel";
             };
         }
         if ("challenge_accept".equals(act) || "challengeaccept".equals(act)) {
@@ -890,24 +890,24 @@ public final class RivalGuiApi {
         }
         if ("declare".equals(act)) {
             if (a.isBlank()) {
-                return "§cSelect a player below to declare as your rival.";
+                return UltraStyle.DANGER + "Select a player below to declare as your rival.";
             }
             ServerPlayer target = resolveOnline(player, a);
             if (target == null) {
-                return "§cPlayer not online: " + a;
+                return UltraStyle.DANGER + "Player not online: " + a;
             }
             return RivalSystem.declare(player, target);
         }
         if ("accept".equals(act)) {
             if (a.isBlank()) {
-                return "§cSelect a player below, then accept their rivalry.";
+                return UltraStyle.DANGER + "Select a player below, then accept their rivalry.";
             }
             // Pass uuid: args through — name-only lookup misses offline declarers.
             return RivalSystem.accept(player, a);
         }
         if ("accept_replace".equals(act) || "acceptreplace".equals(act) || "replacemutual".equals(act)) {
             if (a.isBlank()) {
-                return "§cSelect which Mutual rivalry to replace.";
+                return UltraStyle.DANGER + "Select which Mutual rivalry to replace.";
             }
             return RivalSystem.acceptReplace(player, a);
         }
@@ -918,41 +918,41 @@ public final class RivalGuiApi {
         }
         if ("decline".equals(act) || "deny".equals(act)) {
             if (a.isBlank()) {
-                return "§cSelect a player below, then decline their rivalry.";
+                return UltraStyle.DANGER + "Select a player below, then decline their rivalry.";
             }
             return RivalSystem.decline(player, a);
         }
         if ("remove".equals(act)) {
             if (a.isBlank()) {
-                return "§cSelect a player below, then remove that rivalry.";
+                return UltraStyle.DANGER + "Select a player below, then remove that rivalry.";
             }
             String name = resolveNameArg(player, a);
             if (name.isBlank()) {
-                return "§cSelect a player below, then remove that rivalry.";
+                return UltraStyle.DANGER + "Select a player below, then remove that rivalry.";
             }
             return RivalSystem.remove(player, name);
         }
         if ("silent".equals(act)) {
             if (a.isBlank()) {
-                return "§cSelect a player below to mark as a silent rival.";
+                return UltraStyle.DANGER + "Select a player below to mark as a silent rival.";
             }
             ServerPlayer target = resolveOnline(player, a);
             if (target == null) {
-                return "§cPlayer not online: " + a;
+                return UltraStyle.DANGER + "Player not online: " + a;
             }
             return RivalSystem.silentRival(player, target);
         }
         if ("challenge_send".equals(act) || "challengesend".equals(act)) {
             if (a.isBlank()) {
-                return "§cSelect a player below, then send the challenge.";
+                return UltraStyle.DANGER + "Select a player below, then send the challenge.";
             }
             ChallengeSendArg parsed = parseChallengeSendArg(a);
             if (parsed.targetRaw().isBlank()) {
-                return "§cSelect a player below, then send the challenge.";
+                return UltraStyle.DANGER + "Select a player below, then send the challenge.";
             }
             ServerPlayer target = resolveOnline(player, parsed.targetRaw());
             if (target == null) {
-                return "§cPlayer not online: " + parsed.targetRaw();
+                return UltraStyle.DANGER + "Player not online: " + parsed.targetRaw();
             }
             return RivalChallengeManager.get().sendChallenge(player, target, parsed.minutes());
         }
@@ -962,20 +962,20 @@ public final class RivalGuiApi {
             }
             ServerPlayer target = resolveOnline(player, a);
             if (target == null) {
-                return "§cPlayer not online: " + a;
+                return UltraStyle.DANGER + "Player not online: " + a;
             }
             return RivalSpectator.start(player, target);
         }
         if ("spectate_stop".equals(act) || "spectatestop".equals(act)) {
             return RivalSpectator.stop(player);
         }
-        return "§cSomething went wrong. Try again, or ask staff if it keeps happening.";
+        return UltraStyle.DANGER + "Something went wrong. Try again, or ask staff if it keeps happening.";
     }
 
     /** Staff: save / refresh / status / help — used by GUI + {@code /rival admin …}. */
     public static String handleAdmin(ServerPlayer player, String arg) {
         if (!StaffAccess.isStaff(player)) {
-            return "§cStaff only.";
+            return UltraStyle.DANGER + "Staff only.";
         }
         String sub = arg == null || arg.isBlank() ? "help" : arg.trim().toLowerCase(Locale.ROOT);
         // Allow "admin save" style where arg may be "save" or compound.
@@ -983,34 +983,34 @@ public final class RivalGuiApi {
             RivalStore.get().markDirty();
             RivalStore.get().save();
             RivalProgression.get().save();
-            return "§eRival data saved.";
+            return UltraStyle.YELLOW + "Rival data saved.";
         }
         if (sub.startsWith("refresh") || sub.startsWith("reload")) {
             RivalStore.get().load();
             RivalProgression.get().load();
-            return "§eRival data reloaded.";
+            return UltraStyle.YELLOW + "Rival data reloaded.";
         }
         if (sub.startsWith("status")) {
             boolean on = DifficultyConfig.get().enableRivalSystem;
             int players = RivalStore.get().players.size();
-            return "§6Rival admin status\n"
-                    + "§7enabled §f" + (on ? "ON" : "OFF") + "\n"
-                    + "§7players §f" + players + "\n"
-                    + "§8" + RivalStore.path() + "\n"
-                    + "§8" + RivalProgression.path();
+            return UltraStyle.GOLD + "Rival admin status\n"
+                    + UltraStyle.LABEL + "enabled " + UltraStyle.VALUE + (on ? "ON" : "OFF") + "\n"
+                    + UltraStyle.LABEL + "players " + UltraStyle.VALUE + players + "\n"
+                    + UltraStyle.DIM + RivalStore.path() + "\n"
+                    + UltraStyle.DIM + RivalProgression.path();
         }
-        return "§6§l/rival admin\n"
-                + "§e/rival admin save §7- save rivalry and progress data to disk\n"
-                + "§e/rival admin refresh|reload §7- reload stores from disk\n"
-                + "§e/rival admin status §7- enabled + path summary\n"
-                + "§e/rival admin open [page] §7- open rival GUI\n"
-                + "§8GUI buttons run these directly.";
+        return UltraStyle.HEADER + "/rival admin\n"
+                + UltraStyle.YELLOW + "/rival admin save " + UltraStyle.LABEL + "- save rivalry and progress data to disk\n"
+                + UltraStyle.YELLOW + "/rival admin refresh|reload " + UltraStyle.LABEL + "- reload stores from disk\n"
+                + UltraStyle.YELLOW + "/rival admin status " + UltraStyle.LABEL + "- enabled + path summary\n"
+                + UltraStyle.YELLOW + "/rival admin open [page] " + UltraStyle.LABEL + "- open rival GUI\n"
+                + UltraStyle.DIM + "GUI buttons run these directly.";
     }
 
     /** Detail lore for a tab-encoded {@link com.dbzlegacy.adaptivedifficulty.rival.RivalSystem#currentRivalCards} row. */
     public static List<String> rivalCardDetailLines(String card) {
         if (card == null || card.isBlank()) {
-            return List.of("§7Unknown rival.");
+            return List.of(UltraStyle.LABEL + "Unknown rival.");
         }
         String[] p = card.split("\t", -1);
         String name = p.length > 1 && p[1] != null && !p[1].isBlank() ? p[1] : "?";
@@ -1022,20 +1022,20 @@ public final class RivalGuiApi {
         String draws = p.length > 7 ? p[7] : "0";
         boolean online = p.length > 10 && "1".equals(p[10]);
         List<String> lines = new ArrayList<>();
-        lines.add("§f" + name + (online ? " §a* online" : " §8? offline"));
-        lines.add("§7Status §f" + status + "  §8-  §7Tier §6" + tier);
-        lines.add("§7RP §f" + rp + "  §8-  §7W/L/D §f" + wins + "/" + losses + "/" + draws);
+        lines.add(UltraStyle.VALUE + name + (online ? " " + UltraStyle.GREEN + "* online" : " " + UltraStyle.DIM + "? offline"));
+        lines.add(UltraStyle.LABEL + "Status " + UltraStyle.VALUE + status + "  " + UltraStyle.DIM + "-  " + UltraStyle.LABEL + "Tier " + UltraStyle.GOLD + tier);
+        lines.add(UltraStyle.LABEL + "RP " + UltraStyle.VALUE + rp + "  " + UltraStyle.DIM + "-  " + UltraStyle.LABEL + "W/L/D " + UltraStyle.VALUE + wins + "/" + losses + "/" + draws);
         if (p.length > 8) {
-            lines.add("§7Challenge deaths §fyou " + p[8] + " §8/ them " + (p.length > 9 ? p[9] : "0"));
+            lines.add(UltraStyle.LABEL + "Challenge deaths " + UltraStyle.VALUE + "you " + p[8] + " " + UltraStyle.DIM + "/ them " + (p.length > 9 ? p[9] : "0"));
         }
-        lines.add("§8Tap Remove to end this rivalry.");
+        lines.add(UltraStyle.DIM + "Tap Remove to end this rivalry.");
         return lines;
     }
 
     /** Detail for a tab-encoded {@link com.dbzlegacy.adaptivedifficulty.rival.RivalSystem#pendingInviteCards} row. */
     public static List<String> pendingInviteDetailLines(String card) {
         if (card == null || card.isBlank()) {
-            return List.of("§7Unknown invite.");
+            return List.of(UltraStyle.LABEL + "Unknown invite.");
         }
         String[] p = card.split("\t", -1);
         String name = p.length > 1 && p[1] != null && !p[1].isBlank() ? p[1] : "?";
@@ -1043,18 +1043,18 @@ public final class RivalGuiApi {
         boolean online = p.length > 4 && "1".equals(p[4]);
         boolean mutual = p.length > 5 && "mutual".equalsIgnoreCase(p[5]);
         List<String> lines = new ArrayList<>();
-        lines.add("§f" + name + (online ? " §a*" : " §8?"));
+        lines.add(UltraStyle.VALUE + name + (online ? " " + UltraStyle.GREEN + "*" : " " + UltraStyle.DIM + "?"));
         if ("IN".equalsIgnoreCase(dir)) {
             if (mutual) {
-                lines.add("§eIncoming mutual confirm");
-                lines.add("§7You both picked Silent - Accept to go Mutual.");
+                lines.add(UltraStyle.YELLOW + "Incoming mutual confirm");
+                lines.add(UltraStyle.LABEL + "You both picked Silent - Accept to go Mutual.");
             } else {
-                lines.add("§aIncoming declare");
-                lines.add("§7Accept to become Mutual - Decline to ignore.");
+                lines.add(UltraStyle.GREEN + "Incoming declare");
+                lines.add(UltraStyle.LABEL + "Accept to become Mutual - Decline to ignore.");
             }
         } else {
-            lines.add("§6Outgoing declare");
-            lines.add("§7Waiting for them to Accept or Decline.");
+            lines.add(UltraStyle.GOLD + "Outgoing declare");
+            lines.add(UltraStyle.LABEL + "Waiting for them to Accept or Decline.");
         }
         return lines;
     }
@@ -1086,11 +1086,11 @@ public final class RivalGuiApi {
             String[] p = card == null ? new String[0] : card.split("\t", -1);
             String name = p.length > 1 && p[1] != null && !p[1].isBlank() ? p[1].trim() : "?";
             if (pendingInviteCardOutgoing(card)) {
-                out[i] = "§6? §f" + name;
+                out[i] = UltraStyle.GOLD + "? " + UltraStyle.VALUE + name;
             } else if (pendingInviteCardMutualConfirm(card)) {
-                out[i] = "§e? §f" + name + " §8- mutual";
+                out[i] = UltraStyle.YELLOW + "? " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "- mutual";
             } else {
-                out[i] = "§a? §f" + name;
+                out[i] = UltraStyle.GREEN + "? " + UltraStyle.VALUE + name;
             }
         }
         return out;
@@ -1106,7 +1106,7 @@ public final class RivalGuiApi {
 
     public static List<String> pendingChallengeDetailLines(String card) {
         if (card == null || card.isBlank()) {
-            return List.of("§7Unknown challenge request.");
+            return List.of(UltraStyle.LABEL + "Unknown challenge request.");
         }
         String[] p = card.split("\t", -1);
         String name = p.length > 1 && p[1] != null && !p[1].isBlank() ? p[1] : "?";
@@ -1114,15 +1114,15 @@ public final class RivalGuiApi {
         boolean online = p.length > 4 && "1".equals(p[4]);
         String mins = p.length > 5 ? p[5] : "?";
         List<String> lines = new ArrayList<>();
-        lines.add("§f" + name + (online ? " §a* online" : " §8? offline"));
+        lines.add(UltraStyle.VALUE + name + (online ? " " + UltraStyle.GREEN + "* online" : " " + UltraStyle.DIM + "? offline"));
         if ("IN".equalsIgnoreCase(dir)) {
-            lines.add("§aIncoming challenge");
-            lines.add("§7Length §f" + mins + " min");
-            lines.add("§7Accept to start countdown - Decline to refuse.");
+            lines.add(UltraStyle.GREEN + "Incoming challenge");
+            lines.add(UltraStyle.LABEL + "Length " + UltraStyle.VALUE + mins + " min");
+            lines.add(UltraStyle.LABEL + "Accept to start countdown - Decline to refuse.");
         } else {
-            lines.add("§6Outgoing challenge");
-            lines.add("§7Length §f" + mins + " min");
-            lines.add("§7Waiting for them - Cancel to withdraw.");
+            lines.add(UltraStyle.GOLD + "Outgoing challenge");
+            lines.add(UltraStyle.LABEL + "Length " + UltraStyle.VALUE + mins + " min");
+            lines.add(UltraStyle.LABEL + "Waiting for them - Cancel to withdraw.");
         }
         if (p.length > 3) {
             long exp = 0L;
@@ -1134,7 +1134,7 @@ public final class RivalGuiApi {
             if (exp > 0L) {
                 long left = exp - System.currentTimeMillis();
                 if (left > 0L) {
-                    lines.add("§7Expires in §f" + (left / 1000L) + "s");
+                    lines.add(UltraStyle.LABEL + "Expires in " + UltraStyle.VALUE + (left / 1000L) + "s");
                 }
             }
         }
@@ -1168,9 +1168,9 @@ public final class RivalGuiApi {
             String name = p.length > 1 && p[1] != null && !p[1].isBlank() ? p[1].trim() : "?";
             String mins = p.length > 5 ? p[5] : "?";
             if (pendingChallengeCardOutgoing(card)) {
-                out[i] = "§6? §f" + name + " §8- " + mins + "m";
+                out[i] = UltraStyle.GOLD + "? " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "- " + mins + "m";
             } else {
-                out[i] = "§c? §f" + name + " §8- " + mins + "m";
+                out[i] = UltraStyle.DANGER + "? " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "- " + mins + "m";
             }
         }
         return out;

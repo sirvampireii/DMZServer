@@ -1698,7 +1698,8 @@ def main() -> int:
           and '"TP chat - ' not in rival_ultra
           and '.labelValue("TP chat"' not in rival_ultra)
     check("empty states are full sentences with a next step (4.6.222)",
-          '"No active challenges right now."' in rival_ultra
+          # 4.6.235: the empty state also says what to do next.
+          '"No active challenges right now. Challenge a rival first."' in rival_ultra
           and '"No active challenges right now"' not in rival_ultra
           and '"Active tier", "None"' not in diff_ultra
           and '? "None" :' not in diff_ultra

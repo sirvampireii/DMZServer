@@ -17,7 +17,8 @@ public final class DifficultyMenu {
             if (!StaffAccess.isStaff(player)) {
                 target = "main";
             } else {
-                DifficultyChatMenu.open(player, "settings");
+                // Staff settings live in the Ultra config editor, not a chat page.
+                UltraGui.open(player, "config", "edit:difficulty:0:");
                 return;
             }
         }

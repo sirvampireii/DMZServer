@@ -259,7 +259,7 @@ public final class UltraCharacterScreens {
             spec.rowGap();
         }
         if (placed == 0) {
-            spec.line(UltraStyle.dim("No races are available right now."));
+            spec.line(UltraStyle.dim("No races are available right now. Ask staff to check the race data."));
         }
         if (pg > 0) {
             spec.buttonLeft(
@@ -843,7 +843,7 @@ public final class UltraCharacterScreens {
             return;
         }
         if (total == 0) {
-            spec.line(UltraStyle.dim("No sagas are loaded right now."));
+            spec.line(UltraStyle.dim("No sagas are loaded right now. Ask staff to check the saga data."));
         }
         spec.buttonsAfterLines();
         int placed = 0;
@@ -987,7 +987,7 @@ public final class UltraCharacterScreens {
                         "Online",
                         total + (pages > 1 ? " | page " + (pg + 1) + "/" + pages : ""));
         if (total == 0) {
-            spec.line(UltraStyle.dim("Nobody else is online right now."));
+            spec.line(UltraStyle.dim("Nobody else is online right now. Try again when other players are on."));
         }
         spec.buttonsAfterLines();
         int placed = 0;

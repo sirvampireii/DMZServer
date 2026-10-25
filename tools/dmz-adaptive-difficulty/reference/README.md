@@ -91,6 +91,14 @@ backups get a unique name, pending changes carry their tab and setting path for 
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
 body-part change lives in classes outside this set; the other 24 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.235 UI audit fixes)
+
+Three classes re-extracted, all javap-verified: `AdaptiveDifficultyMod` (version constant only);
+`UltraPrestigeScreens` (the empty skill-shop line gains its next step); `ProgressionGuiApi` (`handleDo`
+result strings now read UltraStyle fields instead of section-sign literals - same rendered text; the
+new field references grew the constant pool, so a few unrelated `ldc` became `ldc_w` with identical
+constants). The other 22 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

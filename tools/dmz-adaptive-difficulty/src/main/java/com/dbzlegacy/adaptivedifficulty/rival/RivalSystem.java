@@ -687,10 +687,10 @@ public final class RivalSystem {
     /** Guide when the rival list is empty (CNPC + chat). */
     public static List<String> emptyRivalListGuide() {
         List<String> lines = new ArrayList<>();
-        lines.add("§7You do not have any rivals on your list yet.");
-        lines.add("§7From the Rival menu, open the §fRival §7tab and pick a player.");
-        lines.add("§7When you both accept, they appear here for duels, rival TP, and progress.");
-        lines.add("§8Silent rivals and declare invites are on that same Rival tab.");
+        lines.add(UltraStyle.LABEL + "You do not have any rivals on your list yet.");
+        lines.add(UltraStyle.LABEL + "From the Rival menu, open the " + UltraStyle.VALUE + "Rival " + UltraStyle.LABEL + "tab and pick a player.");
+        lines.add(UltraStyle.LABEL + "When you both accept, they appear here for duels, rival TP, and progress.");
+        lines.add(UltraStyle.DIM + "Silent rivals and declare invites are on that same Rival tab.");
         return lines;
     }
 
@@ -701,7 +701,7 @@ public final class RivalSystem {
             lines.addAll(emptyRivalListGuide());
             return lines;
         }
-        lines.add("§6§lYour rivals");
+        lines.add(UltraStyle.HEADER + "Your rivals");
         List<Map.Entry<String, RivalLink>> entries = new ArrayList<>(me.rivals.entrySet());
         entries.sort(rivalListOrder());
         for (Map.Entry<String, RivalLink> e : entries) {
@@ -719,9 +719,9 @@ public final class RivalSystem {
                 continue;
             }
             RivalConstants.RpTier tier = RivalConstants.tierFor(link.points);
-            lines.add("§f" + link.name + " §8[" + st.label() + "] §"
-                    + tier.color() + tier.name() + " §7RP §f" + (int) link.points
-                    + (link.deathLosses > 0 ? " §7deaths §c" + link.deathLosses : ""));
+            lines.add(UltraStyle.VALUE + link.name + " " + UltraStyle.DIM + "[" + st.label() + "] " + UltraStyle.MARK
+                    + tier.color() + tier.name() + " " + UltraStyle.LABEL + "RP " + UltraStyle.VALUE + (int) link.points
+                    + (link.deathLosses > 0 ? " " + UltraStyle.LABEL + "deaths " + UltraStyle.DANGER + link.deathLosses : ""));
             lines.addAll(ProvingGrounds.listLines(link));
         }
         return lines;
@@ -808,12 +808,12 @@ public final class RivalSystem {
         List<String> cards = pendingInviteCards(player);
         List<String> lines = new ArrayList<>();
         if (cards.isEmpty()) {
-            lines.add("§7No pending declare invites.");
-            lines.add("§8Outgoing: you Declared someone.");
-            lines.add("§8Incoming: they Declared you — Accept or Decline.");
+            lines.add(UltraStyle.LABEL + "No pending declare invites.");
+            lines.add(UltraStyle.DIM + "Outgoing: you Declared someone.");
+            lines.add(UltraStyle.DIM + "Incoming: they Declared you — Accept or Decline.");
             return lines;
         }
-        lines.add("§e§lDeclare Invites");
+        lines.add(UltraStyle.YELLOW + UltraStyle.BOLD + "Declare Invites");
         for (String card : cards) {
             String[] p = card.split("\t", -1);
             if (p.length < 3) {
@@ -825,15 +825,15 @@ public final class RivalSystem {
             boolean mutualConfirm = p.length > 5 && "mutual".equalsIgnoreCase(p[5]);
             if ("IN".equals(dir)) {
                 if (mutualConfirm) {
-                    lines.add("§e◀ Mutual confirm §f" + name + (online ? " §a●" : " §8○")
-                            + " §8— both must Accept");
+                    lines.add(UltraStyle.YELLOW + "◀ Mutual confirm " + UltraStyle.VALUE + name + (online ? " " + UltraStyle.GREEN + "●" : " " + UltraStyle.DIM + "○")
+                            + " " + UltraStyle.DIM + "— both must Accept");
                 } else {
-                    lines.add("§a◀ Incoming §f" + name + (online ? " §a●" : " §8○")
-                            + " §8— Accept or Decline");
+                    lines.add(UltraStyle.GREEN + "◀ Incoming " + UltraStyle.VALUE + name + (online ? " " + UltraStyle.GREEN + "●" : " " + UltraStyle.DIM + "○")
+                            + " " + UltraStyle.DIM + "— Accept or Decline");
                 }
             } else {
-                lines.add("§6▶ Outgoing §f" + name + (online ? " §a●" : " §8○")
-                        + " §8— waiting on them");
+                lines.add(UltraStyle.GOLD + "▶ Outgoing " + UltraStyle.VALUE + name + (online ? " " + UltraStyle.GREEN + "●" : " " + UltraStyle.DIM + "○")
+                        + " " + UltraStyle.DIM + "— waiting on them");
             }
         }
         return lines;
@@ -844,11 +844,11 @@ public final class RivalSystem {
         List<String> lines = new ArrayList<>();
         RivalPlayerRecord me = RivalStore.get().ensurePlayer(player);
         if (me == null || me.pastRivals == null || me.pastRivals.isEmpty()) {
-            lines.add("§7No previous rivals yet.");
-            lines.add("§8Removed rivalries appear here.");
+            lines.add(UltraStyle.LABEL + "No previous rivals yet.");
+            lines.add(UltraStyle.DIM + "Removed rivalries appear here.");
             return lines;
         }
-        lines.add("§6§lPrevious Rivals");
+        lines.add(UltraStyle.HEADER + "Previous Rivals");
         List<Map.Entry<String, RivalLink>> entries = new ArrayList<>(me.pastRivals.entrySet());
         entries.sort(Comparator.comparingDouble((Map.Entry<String, RivalLink> e) ->
                 e.getValue() == null ? 0.0 : e.getValue().points).reversed());
@@ -859,9 +859,9 @@ public final class RivalSystem {
             }
             RivalConstants.RpTier tier = RivalConstants.tierFor(link.points);
             String name = link.name == null || link.name.isBlank() ? e.getKey() : link.name;
-            lines.add("§f" + name + " §8[PAST] §" + tier.color() + tier.name()
-                    + " §7RP §f" + (int) link.points
-                    + " §8· §a" + link.wins + "§7/§c" + link.losses + "§7/§e" + link.draws);
+            lines.add(UltraStyle.VALUE + name + " " + UltraStyle.DIM + "[PAST] " + UltraStyle.MARK + tier.color() + tier.name()
+                    + " " + UltraStyle.LABEL + "RP " + UltraStyle.VALUE + (int) link.points
+                    + " " + UltraStyle.DIM + "· " + UltraStyle.GREEN + link.wins + UltraStyle.LABEL + "/" + UltraStyle.DANGER + link.losses + UltraStyle.LABEL + "/" + UltraStyle.YELLOW + link.draws);
         }
         return lines;
     }
@@ -987,25 +987,25 @@ public final class RivalSystem {
             }
             if (me == null) {
                 List<String> miss = new ArrayList<>();
-                miss.add("§cNo rivalry record for §f" + targetName);
+                miss.add(UltraStyle.DANGER + "No rivalry record for " + UltraStyle.VALUE + targetName);
                 return miss;
             }
         }
         List<String> lines = new ArrayList<>();
-        lines.add("§6§lRival Stats §8— §f" + me.name);
+        lines.add(UltraStyle.HEADER + "Rival Stats " + UltraStyle.DIM + "— " + UltraStyle.VALUE + me.name);
         RivalConstants.RpTier tier = RivalConstants.tierFor(me.totalRp);
-        lines.add("§7Total RP §f" + (int) me.totalRp + " §8(§" + tier.color() + tier.name() + "§8)");
-        lines.add("§7Title perk §e" + (tier.perk() == null || tier.perk().isBlank() ? "None" : tier.perk()));
-        lines.add("§7Rival TP bonus §a+" + Math.round(tier.tpMult() * 100.0) + "%");
-        lines.add("§7Record §a" + me.officialWins + "§7/§c" + me.officialLosses + "§7/§e" + me.officialDraws
-                + " §8(KO " + me.knockouts + ")");
-        lines.add("§7Streak §f" + me.currentWinStreak + " §8(best " + me.bestWinStreak + ")");
-        lines.add("§7Challenges §f" + me.challengesPlayed + " §7Surpass §f" + me.surpassAwards);
-        lines.add("§7Career dmg §f" + (int) me.careerDamageDealt
-                + " §8| combo §f" + me.careerHighestCombo
-                + " §8| hits §f" + me.careerHits);
-        lines.add("§7Mutual slots §f" + me.countMutual() + "§8/§f" + RivalConstants.MAX_MUTUAL_RIVALS);
-        lines.add("§7TP chat §f" + (me.tpMessages ? "ON" : "OFF") + " §8(/rival tpmsg)");
+        lines.add(UltraStyle.LABEL + "Total RP " + UltraStyle.VALUE + (int) me.totalRp + " " + UltraStyle.DIM + "(" + UltraStyle.MARK + tier.color() + tier.name() + UltraStyle.DIM + ")");
+        lines.add(UltraStyle.LABEL + "Title perk " + UltraStyle.YELLOW + (tier.perk() == null || tier.perk().isBlank() ? "None" : tier.perk()));
+        lines.add(UltraStyle.LABEL + "Rival TP bonus " + UltraStyle.GREEN + "+" + Math.round(tier.tpMult() * 100.0) + "%");
+        lines.add(UltraStyle.LABEL + "Record " + UltraStyle.GREEN + me.officialWins + UltraStyle.LABEL + "/" + UltraStyle.DANGER + me.officialLosses + UltraStyle.LABEL + "/" + UltraStyle.YELLOW + me.officialDraws
+                + " " + UltraStyle.DIM + "(KO " + me.knockouts + ")");
+        lines.add(UltraStyle.LABEL + "Streak " + UltraStyle.VALUE + me.currentWinStreak + " " + UltraStyle.DIM + "(best " + me.bestWinStreak + ")");
+        lines.add(UltraStyle.LABEL + "Challenges " + UltraStyle.VALUE + me.challengesPlayed + " " + UltraStyle.LABEL + "Surpass " + UltraStyle.VALUE + me.surpassAwards);
+        lines.add(UltraStyle.LABEL + "Career dmg " + UltraStyle.VALUE + (int) me.careerDamageDealt
+                + " " + UltraStyle.DIM + "| combo " + UltraStyle.VALUE + me.careerHighestCombo
+                + " " + UltraStyle.DIM + "| hits " + UltraStyle.VALUE + me.careerHits);
+        lines.add(UltraStyle.LABEL + "Mutual slots " + UltraStyle.VALUE + me.countMutual() + UltraStyle.DIM + "/" + UltraStyle.VALUE + RivalConstants.MAX_MUTUAL_RIVALS);
+        lines.add(UltraStyle.LABEL + "TP chat " + UltraStyle.VALUE + (me.tpMessages ? "ON" : "OFF") + " " + UltraStyle.DIM + "(/rival tpmsg)");
         ServerPlayer combatSrc = viewer;
         if (targetName != null && !targetName.isBlank() && viewer != null) {
             ServerPlayer online = findOnline(viewer.m_20194_(), targetName);
@@ -1014,7 +1014,7 @@ public final class RivalSystem {
             }
         }
         if (combatSrc != null) {
-            lines.add("§6Combat (after Overhaul)");
+            lines.add(UltraStyle.GOLD + "Combat (after Overhaul)");
             lines.addAll(LmOverhaulScaledCombat.compactLines(DmzProgression.stats(combatSrc)));
         }
         return lines;
@@ -1046,7 +1046,7 @@ public final class RivalSystem {
             case "battles", "battle", "challenges" -> "Battles";
             default -> "RP";
         };
-        lines.add("rp".equals(cat) ? "§6§lRival Leaderboard" : "§6§lRival " + label + " Leaderboard");
+        lines.add("rp".equals(cat) ? UltraStyle.HEADER + "Rival Leaderboard" : UltraStyle.HEADER + "Rival " + label + " Leaderboard");
         int i = 1;
         for (RivalPlayerRecord rec : RivalStore.get().topBy(limit, cat)) {
             String value = switch (cat) {
@@ -1058,14 +1058,14 @@ public final class RivalSystem {
                 case "battles", "battle", "challenges" -> String.valueOf(rec.challengesPlayed);
                 default -> {
                     RivalConstants.RpTier tier = RivalConstants.tierFor(rec.totalRp);
-                    yield (int) rec.totalRp + " §8(§" + tier.color() + tier.name() + "§8)";
+                    yield (int) rec.totalRp + " " + UltraStyle.DIM + "(" + UltraStyle.MARK + tier.color() + tier.name() + UltraStyle.DIM + ")";
                 }
             };
-            lines.add("§e#" + i + " §f" + rec.name + " §7" + value);
+            lines.add(UltraStyle.YELLOW + "#" + i + " " + UltraStyle.VALUE + rec.name + " " + UltraStyle.LABEL + value);
             i++;
         }
         if (i == 1) {
-            lines.add("§7No rivalry data yet.");
+            lines.add(UltraStyle.LABEL + "No rivalry data yet.");
         }
         return lines;
     }
