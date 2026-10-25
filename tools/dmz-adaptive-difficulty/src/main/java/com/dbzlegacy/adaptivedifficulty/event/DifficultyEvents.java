@@ -827,6 +827,14 @@ public final class DifficultyEvents {
         if (victim == null || victim.m_9236_().f_46443_ || SystemGate.isDisabled()) {
             return;
         }
+        // GUI-summoned Wither / Warden: only the summoner may damage them.
+        try {
+            com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.onHurt(event);
+        } catch (Throwable ignored) {
+        }
+        if (event.isCanceled()) {
+            return;
+        }
         var source = event.getSource();
         Entity causing = source == null ? null : source.m_7639_(); // getEntity
 

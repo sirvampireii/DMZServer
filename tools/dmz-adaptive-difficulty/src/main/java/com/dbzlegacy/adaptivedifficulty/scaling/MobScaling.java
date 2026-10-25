@@ -67,6 +67,11 @@ public final class MobScaling {
     public static final String TAG_COUNTER_KIT_CD = "dmz_ad_counter_kit_cd";
     /** Mob is owned by another system (saga/quest/spawner/SDD) — never AD-convert. */
     public static final String TAG_EXEMPT = "dmz_ad_exempt";
+    /**
+     * GUI-summoned Wither / Warden: owned by its summoner like the End Dragon, so nearby
+     * claims, AI kits, and kill rewards leave it alone; its paint comes from the summoner.
+     */
+    public static final String TAG_SUMMONED_BOSS = "lm_summoned_boss";
     /** Stamped at FinalizeSpawn when {@code MobSpawnType.SPAWNER}. */
     public static final String TAG_FROM_SPAWNER = "dmz_ad_from_spawner";
     /** Slime / magma cube spawned by a parent split — never AD-convert. */
@@ -154,6 +159,10 @@ public final class MobScaling {
         }
         // End Strength script owns the dragon fight — never AD-paint it.
         if (entity instanceof EnderDragon) {
+            return true;
+        }
+        // GUI-summoned Wither / Warden are owned by their summoner, like the dragon.
+        if (PersistentDataAccess.get(entity).m_128471_(TAG_SUMMONED_BOSS)) {
             return true;
         }
         if (SlimeSplitGuard.isSplitChild(entity)) {
@@ -261,6 +270,7 @@ public final class MobScaling {
         }
         boolean owned = entity instanceof DBSagasEntity
                 || entity instanceof EnderDragon
+                || tag.m_128471_(TAG_SUMMONED_BOSS)
                 || hasQuestSpawnTags(tag)
                 || hasSddSpawnerMark(tag)
                 || tag.m_128471_(TAG_FROM_SPAWNER);
@@ -1230,100 +1240,19 @@ public final class MobScaling {
             return 0.0;
         }
         try {
-            if (!SystemGate.participates(summoner)) {
-                return 0.0;
-            }
-            DifficultyConfig cfg = DifficultyConfig.get();
-            if (cfg == null || !cfg.enabled) {
-                return 0.0;
-            }
-            PlayerCombatProfile profile = PlayerCombatProfile.of(summoner);
-            if (profile == null || !profile.active()) {
-                return 0.0;
-            }
-            CompoundTag tag = PersistentDataAccess.get(dragon);
-            if (!PersistentDataAccess.isWritable(tag)) {
-                return 0.0;
-            }
-
-            // Capture vanilla bases once so re-paints stay stable.
-            if (!tag.m_128441_(TAG_BASE_HEALTH)) {
-                tag.m_128347_(TAG_BASE_HEALTH, Math.max(1.0, attrBase(dragon, Attributes.f_22276_, 200.0)));
-                tag.m_128347_(TAG_BASE_ATTACK, Math.max(0.0, attrBase(dragon, Attributes.f_22281_, 0.0)));
-                tag.m_128347_(TAG_BASE_ARMOR, Math.max(0.0, attrBase(dragon, Attributes.f_22284_, 0.0)));
-                tag.m_128347_(TAG_BASE_SPEED, Math.max(0.0, attrBase(dragon, Attributes.f_22279_, 0.0)));
-                tag.m_128347_(TAG_BASE_KNOCKBACK, Math.max(0.0, attrBase(dragon, Attributes.f_22278_, 0.0)));
-            }
-
-            long prevSig = tag.m_128441_(TAG_PROFILE_SIG) ? tag.m_128454_(TAG_PROFILE_SIG) : Long.MIN_VALUE;
-            boolean sameSig = prevSig != Long.MIN_VALUE && prevSig == profile.signature && tag.m_128471_(TAG_SCALED);
-            float oldMax = dragon.m_21233_();
-            float oldHp = dragon.m_21223_();
-            double hpRatio = (sameSig && oldMax > 20.0f && oldHp > 0.0f)
-                    ? Math.max(0.0, Math.min(1.0, oldHp / oldMax))
-                    : (tag.m_128471_(TAG_SCALED) && oldMax > 20.0f && oldHp > 0.0f
-                    ? Math.max(0.0, Math.min(1.0, oldHp / oldMax))
-                    : 1.0);
-
-            double bossMul = Math.max(1.0, cfg.bossStatMultiplier);
             // End Dragon is a deliberate boss fight — slightly above a normal AD boss stamp.
-            double dragonBossPad = 1.25;
-            double newMaxHealth = profile.targetMobHealth(cfg) * bossMul * dragonBossPad;
-            if (cfg.maxScaledHealth > 0.0) {
-                newMaxHealth = Math.min(cfg.maxScaledHealth, newMaxHealth);
+            BossPaint paint = paintBossAdProfile(dragon, summoner, 1.25);
+            if (paint == null) {
+                return 0.0;
             }
-            if (!(newMaxHealth > 0.0) || Double.isNaN(newMaxHealth) || Double.isInfinite(newMaxHealth)) {
-                newMaxHealth = Math.max(200.0, tag.m_128459_(TAG_BASE_HEALTH));
-            }
-
-            setAttributeValue(dragon, Attributes.f_22276_, newMaxHealth); // MAX_HEALTH
-            float appliedMax = dragon.m_21233_();
-            if (appliedMax > 0.0f && !Float.isNaN(appliedMax) && !Float.isInfinite(appliedMax)) {
-                float nextHp = (float) (appliedMax * hpRatio);
-                if (!tag.m_128471_(TAG_SCALED) || oldHp >= oldMax - 0.5f) {
-                    nextHp = appliedMax;
-                }
-                if (nextHp > 0.0f) {
-                    dragon.m_21153_(Math.min(appliedMax, Math.max(1.0f, nextHp)));
-                }
-            }
-
-            double nextAtk = profile.targetMobDamage(cfg) * bossMul * dragonBossPad;
-            if (nextAtk > 0.0 && !Double.isNaN(nextAtk) && !Double.isInfinite(nextAtk)) {
-                if (setAttributeValue(dragon, Attributes.f_22281_, nextAtk)) { // ATTACK_DAMAGE
-                    tag.m_128379_(TAG_ATTR_DMG_SCALED, true);
-                }
-            }
-
-            double baseArmor = Math.max(0.0, tag.m_128459_(TAG_BASE_ARMOR));
-            double nextArmor = baseArmor + profile.targetMobArmor(cfg) * bossMul;
-            if (cfg.maxArmorBonus > 0.0) {
-                nextArmor = Math.min(cfg.maxArmorBonus, nextArmor);
-            }
-            if (nextArmor >= 0.0 && !Double.isNaN(nextArmor) && !Double.isInfinite(nextArmor)) {
-                setAttributeValue(dragon, Attributes.f_22284_, nextArmor); // ARMOR
-            }
-
-            tag.m_128379_(TAG_SCALED, true);
-            tag.m_128379_(TAG_DMZ_STYLE, true);
-            tag.m_128379_(BossScaling.TAG_BOSS, true);
-            tag.m_128405_("dmz_ad_unlock_tier", profile.activeTier);
-            tag.m_128350_(TAG_TIER_PERCENT, (float) profile.tierPercent);
-            stampCounterIdentity(tag, profile, cfg);
-            long proxyDifficulty = Math.max(1L, Math.round(profile.offense * profile.tierPercent));
-            tag.m_128356_(TAG_DIFFICULTY, proxyDifficulty);
-            tag.m_128350_(TAG_DMG_MULT, 1.0f);
-            tag.m_128356_(TAG_PROFILE_SIG, profile.signature);
-            APPLIED_PROFILE.put(dragon.m_20148_(), profile.signature);
-
             try {
                 dragon.m_6593_(Component.m_237113_(
-                        "§5Ender Dragon §8[AD T" + profile.activeTier
-                                + " · " + formatWhole(appliedMax > 0 ? appliedMax : newMaxHealth)
-                                + " HP · ATK " + formatWhole(nextAtk) + "]"));
+                        "§5Ender Dragon §8[AD T" + paint.tier
+                                + " · " + formatWhole(paint.appliedMax > 0 ? paint.appliedMax : paint.newMaxHealth)
+                                + " HP · ATK " + formatWhole(paint.nextAtk) + "]"));
             } catch (Throwable ignored) {
             }
-            return appliedMax > 0.0f ? appliedMax : newMaxHealth;
+            return paint.appliedMax > 0.0f ? paint.appliedMax : paint.newMaxHealth;
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.warn(
                     "[{}] End Dragon AD paint failed for {}: {}",
@@ -1332,6 +1261,129 @@ public final class MobScaling {
                     t.toString());
             return 0.0;
         }
+    }
+
+    /**
+     * GUI-summoned Wither / Warden: the same summoner boss profile as the End Dragon (AD boss
+     * stats from the summoner's {@link PlayerCombatProfile}, times the boss multiplier), without
+     * the dragon's extra pad. Never throws.
+     *
+     * @return applied max HP, or {@code 0} if paint failed
+     */
+    public static double applySummonedBossAdProfile(LivingEntity boss, ServerPlayer summoner) {
+        if (boss == null || summoner == null || boss.m_9236_().f_46443_) {
+            return 0.0;
+        }
+        try {
+            BossPaint paint = paintBossAdProfile(boss, summoner, 1.0);
+            if (paint == null) {
+                return 0.0;
+            }
+            return paint.appliedMax > 0.0f ? paint.appliedMax : paint.newMaxHealth;
+        } catch (Throwable t) {
+            AdaptiveDifficultyMod.LOGGER.warn(
+                    "[{}] summoned boss AD paint failed for {}: {}",
+                    AdaptiveDifficultyMod.MOD_ID,
+                    summoner.m_6302_(),
+                    t.getClass().getSimpleName());
+            return 0.0;
+        }
+    }
+
+    private record BossPaint(float appliedMax, double newMaxHealth, double nextAtk, int tier) {}
+
+    /**
+     * Paint a summoned boss from its summoner's AD profile: vanilla bases captured once, max HP /
+     * attack / armor from {@link PlayerCombatProfile} times {@link DifficultyConfig#bossStatMultiplier}
+     * times {@code bossPad}, plus the boss and profile stamps. Null when the summoner is not
+     * participating or has no active profile.
+     */
+    private static BossPaint paintBossAdProfile(LivingEntity boss, ServerPlayer summoner, double bossPad) {
+        if (!SystemGate.participates(summoner)) {
+            return null;
+        }
+        DifficultyConfig cfg = DifficultyConfig.get();
+        if (cfg == null || !cfg.enabled) {
+            return null;
+        }
+        PlayerCombatProfile profile = PlayerCombatProfile.of(summoner);
+        if (profile == null || !profile.active()) {
+            return null;
+        }
+        CompoundTag tag = PersistentDataAccess.get(boss);
+        if (!PersistentDataAccess.isWritable(tag)) {
+            return null;
+        }
+
+        // Capture vanilla bases once so re-paints stay stable.
+        if (!tag.m_128441_(TAG_BASE_HEALTH)) {
+            tag.m_128347_(TAG_BASE_HEALTH, Math.max(1.0, attrBase(boss, Attributes.f_22276_, 200.0)));
+            tag.m_128347_(TAG_BASE_ATTACK, Math.max(0.0, attrBase(boss, Attributes.f_22281_, 0.0)));
+            tag.m_128347_(TAG_BASE_ARMOR, Math.max(0.0, attrBase(boss, Attributes.f_22284_, 0.0)));
+            tag.m_128347_(TAG_BASE_SPEED, Math.max(0.0, attrBase(boss, Attributes.f_22279_, 0.0)));
+            tag.m_128347_(TAG_BASE_KNOCKBACK, Math.max(0.0, attrBase(boss, Attributes.f_22278_, 0.0)));
+        }
+
+        long prevSig = tag.m_128441_(TAG_PROFILE_SIG) ? tag.m_128454_(TAG_PROFILE_SIG) : Long.MIN_VALUE;
+        boolean sameSig = prevSig != Long.MIN_VALUE && prevSig == profile.signature && tag.m_128471_(TAG_SCALED);
+        float oldMax = boss.m_21233_();
+        float oldHp = boss.m_21223_();
+        double hpRatio = (sameSig && oldMax > 20.0f && oldHp > 0.0f)
+                ? Math.max(0.0, Math.min(1.0, oldHp / oldMax))
+                : (tag.m_128471_(TAG_SCALED) && oldMax > 20.0f && oldHp > 0.0f
+                ? Math.max(0.0, Math.min(1.0, oldHp / oldMax))
+                : 1.0);
+
+        double bossMul = Math.max(1.0, cfg.bossStatMultiplier);
+        double newMaxHealth = profile.targetMobHealth(cfg) * bossMul * bossPad;
+        if (cfg.maxScaledHealth > 0.0) {
+            newMaxHealth = Math.min(cfg.maxScaledHealth, newMaxHealth);
+        }
+        if (!(newMaxHealth > 0.0) || Double.isNaN(newMaxHealth) || Double.isInfinite(newMaxHealth)) {
+            newMaxHealth = Math.max(200.0, tag.m_128459_(TAG_BASE_HEALTH));
+        }
+
+        setAttributeValue(boss, Attributes.f_22276_, newMaxHealth); // MAX_HEALTH
+        float appliedMax = boss.m_21233_();
+        if (appliedMax > 0.0f && !Float.isNaN(appliedMax) && !Float.isInfinite(appliedMax)) {
+            float nextHp = (float) (appliedMax * hpRatio);
+            if (!tag.m_128471_(TAG_SCALED) || oldHp >= oldMax - 0.5f) {
+                nextHp = appliedMax;
+            }
+            if (nextHp > 0.0f) {
+                boss.m_21153_(Math.min(appliedMax, Math.max(1.0f, nextHp)));
+            }
+        }
+
+        double nextAtk = profile.targetMobDamage(cfg) * bossMul * bossPad;
+        if (nextAtk > 0.0 && !Double.isNaN(nextAtk) && !Double.isInfinite(nextAtk)) {
+            if (setAttributeValue(boss, Attributes.f_22281_, nextAtk)) { // ATTACK_DAMAGE
+                tag.m_128379_(TAG_ATTR_DMG_SCALED, true);
+            }
+        }
+
+        double baseArmor = Math.max(0.0, tag.m_128459_(TAG_BASE_ARMOR));
+        double nextArmor = baseArmor + profile.targetMobArmor(cfg) * bossMul;
+        if (cfg.maxArmorBonus > 0.0) {
+            nextArmor = Math.min(cfg.maxArmorBonus, nextArmor);
+        }
+        if (nextArmor >= 0.0 && !Double.isNaN(nextArmor) && !Double.isInfinite(nextArmor)) {
+            setAttributeValue(boss, Attributes.f_22284_, nextArmor); // ARMOR
+        }
+
+        tag.m_128379_(TAG_SCALED, true);
+        tag.m_128379_(TAG_DMZ_STYLE, true);
+        tag.m_128379_(BossScaling.TAG_BOSS, true);
+        tag.m_128405_("dmz_ad_unlock_tier", profile.activeTier);
+        tag.m_128350_(TAG_TIER_PERCENT, (float) profile.tierPercent);
+        stampCounterIdentity(tag, profile, cfg);
+        long proxyDifficulty = Math.max(1L, Math.round(profile.offense * profile.tierPercent));
+        tag.m_128356_(TAG_DIFFICULTY, proxyDifficulty);
+        tag.m_128350_(TAG_DMG_MULT, 1.0f);
+        tag.m_128356_(TAG_PROFILE_SIG, profile.signature);
+        APPLIED_PROFILE.put(boss.m_20148_(), profile.signature);
+
+        return new BossPaint(appliedMax, newMaxHealth, nextAtk, profile.activeTier);
     }
 
     private static String formatWhole(double v) {

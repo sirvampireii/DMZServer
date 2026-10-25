@@ -23,6 +23,9 @@ KNOWN_DO: dict[str, set[str]] = {
         "lower_tier",
         "toggle_personal",
         "summon_end_dragon",
+        # 4.6.239: paid Wither / Warden summons, routed like the dragon.
+        "summon_wither",
+        "summon_warden",
         "mode",
         "equip_title",
         "clear_title",

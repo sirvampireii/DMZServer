@@ -1,5 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
+import com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons;
 import com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache;
 import com.dbzlegacy.adaptivedifficulty.calc.DifficultySnapshot;
 import com.dbzlegacy.adaptivedifficulty.calc.PlayerCombatProfile;
@@ -71,6 +72,8 @@ public final class UltraDifficultyScreens {
                     openTiers(player);
             case "summons", "summon" -> openSummons(player);
             case "end_dragon", "dragon", "summon_dragon", "summon_confirm" -> openSummonConfirm(player);
+            case "wither" -> openBossSummonConfirm(player, PlayerBossSummons.Boss.WITHER);
+            case "warden" -> openBossSummonConfirm(player, PlayerBossSummons.Boss.WARDEN);
             case "team", "teams" -> openTeam(player);
             case "titles", "title", "titles_p0" -> openTitles(player, 0);
             case "settings", "coins" -> openHome(player);
@@ -271,6 +274,20 @@ public final class UltraDifficultyScreens {
                         ready ? UltraStyle.confirm(dragonLabel) : UltraStyle.dim(dragonLabel),
                         ready ? "confirm" : "dim")
                 .rowGap();
+        // Wither and Warden: ready / locked from each boss's own gates, same as the dragon button.
+        boolean witherReady = PlayerBossSummons.canOpenSummonMenu(player, PlayerBossSummons.Boss.WITHER);
+        boolean wardenReady = PlayerBossSummons.canOpenSummonMenu(player, PlayerBossSummons.Boss.WARDEN);
+        String witherLabel = witherReady ? "Wither" : "Wither locked";
+        String wardenLabel = wardenReady ? "Warden" : "Warden locked";
+        spec.buttonLeft(
+                        "page:wither",
+                        witherReady ? UltraStyle.confirm(witherLabel) : UltraStyle.dim(witherLabel),
+                        witherReady ? "confirm" : "dim")
+                .buttonRight(
+                        "page:warden",
+                        wardenReady ? UltraStyle.confirm(wardenLabel) : UltraStyle.dim(wardenLabel),
+                        wardenReady ? "confirm" : "dim")
+                .rowGap();
         spec.footerBackToMain();
         spec.send(player);
     }
@@ -297,6 +314,39 @@ public final class UltraDifficultyScreens {
         } else {
             spec.button("do:summon_end_dragon", UltraStyle.dim("Summon locked"), "dim")
                     .rowGap();
+        }
+        spec.footerBack("page:summons", "Summons");
+        spec.send(player);
+    }
+
+    /**
+     * Wither / Warden confirm page, in the End Dragon confirm page's shape: boss, cost, status,
+     * and the requirements (tier range, dimension, personal AD, one living per player).
+     */
+    private static void openBossSummonConfirm(ServerPlayer player, PlayerBossSummons.Boss boss) {
+        boolean ready = PlayerBossSummons.canOpenSummonMenu(player, boss);
+        String page = boss == PlayerBossSummons.Boss.WITHER ? "wither" : "warden";
+        String action = boss == PlayerBossSummons.Boss.WITHER ? "do:summon_wither" : "do:summon_warden";
+        UltraScreenSpec spec = sub(page)
+                .line(UltraStyle.LABEL + boss.display)
+                .labelValue("Cost", PlayerBossSummons.costText(player, boss)
+                        + (PaidFeatureAccess.bypassAncientCoinCost(player)
+                                ? ""
+                                : " (" + boss.netheriteCoins() + " Ancient Netherite)"))
+                .labelValue("Tiers", "T" + boss.minTier + " - T" + boss.maxTier)
+                .labelValue("Where", boss.dimensionName)
+                .labelValue("Status", ready ? "Ready" : "Requirements not met");
+        for (String line : PlayerBossSummons.statusLines(player, boss, ready)) {
+            spec.line(line);
+        }
+        if (!ready) {
+            spec.line(UltraStyle.dim("Select " + boss.display + " first - clear the notes above, then return."));
+        }
+        spec.buttonsAfterLines();
+        if (ready) {
+            spec.button(action, UltraStyle.confirm("Confirm summon"), "confirm").rowGap();
+        } else {
+            spec.button(action, UltraStyle.dim("Summon locked"), "dim").rowGap();
         }
         spec.footerBack("page:summons", "Summons");
         spec.send(player);

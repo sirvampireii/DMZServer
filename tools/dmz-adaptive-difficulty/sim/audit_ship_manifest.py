@@ -120,6 +120,46 @@ def main() -> int:
     check("CNPC prestige no cap button on main", "Level Cap" not in cnpc or '"cap", "breakthrough" -> paintMain' in cnpc)
     check("manifest prestige-turnin-payout row", "prestige-turnin-payout" in manifest)
 
+    print("\n--- § summons ---")
+    boss_src = read(SRC / "progression/boss/PlayerBossSummons.java")
+    boss_cfg = read(SRC / "config/DifficultyConfig.java")
+    boss_ui = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    summon_body = boss_src.split("public static String summon(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest boss-summons-wither-warden row", "boss-summons-wither-warden" in manifest)
+    check("Wither T3-T7 in the Nether; Warden T4-T7 in the Overworld (dimension keys, no id strings)",
+          'WITHER("Wither", 3, 7, Level.f_46429_' in boss_src
+          and 'WARDEN("Warden", 4, 7, Level.f_46428_' in boss_src
+          and "m_46472_() == boss.dimension" in boss_src
+          and '"minecraft:the_nether"' not in boss_src and '"minecraft:overworld"' not in boss_src)
+    check("costs default 1 and 2 Ancient Netherite, clamped like the dragon, priced from NETHERITE value",
+          "public int witherSummonNetheriteCost = 1;" in boss_cfg
+          and "public int wardenSummonNetheriteCost = 2;" in boss_cfg
+          and "cfg.witherSummonNetheriteCost = Math.max(1, Math.min(64, cfg.witherSummonNetheriteCost));" in boss_cfg
+          and "cfg.wardenSummonNetheriteCost = Math.max(1, Math.min(64, cfg.wardenSummonNetheriteCost));" in boss_cfg
+          and "AncientCoinEconomy.CoinKind.NETHERITE.copperValue * (long) netheriteCoins()" in boss_src)
+    check("summon gates run in order and nothing is charged before they all pass",
+          summon_body.index("boss.enabled()") < summon_body.index("SystemGate.participates(player)")
+          < summon_body.index("tier < boss.minTier") < summon_body.index("inDimension(player, boss)")
+          < summon_body.index("findOwned(player, boss)") < summon_body.index("AncientCoinEconomy.charge(player, charge)"))
+    check("one living summon per player per boss; a Wither does not block a Warden",
+          "living.m_6095_() == boss.entityType()" in boss_src
+          and "isSummoner(living, boss, player)" in boss_src
+          and '"lm_wither_summoner"' in boss_src and '"lm_warden_summoner"' in boss_src)
+    check("spawn failure refunds exactly the coins charged",
+          "if (charge > 0L) {\n                AncientCoinEconomy.grantExact(player, AncientCoinEconomy.CoinKind.NETHERITE, boss.netheriteCoins());"
+          in summon_body)
+    check("summoned bosses scale to the summoner and are damage-locked to them",
+          "MobScaling.applySummonedBossAdProfile(spawned, player)" in summon_body
+          and "PlayerBossSummons.onHurt(event)" in read(SRC / "event/DifficultyEvents.java")
+          and "Only the summoner can damage this" in boss_src
+          and "tag.m_128471_(TAG_SUMMONED_BOSS)" in read(SRC / "scaling/MobScaling.java"))
+    check("Summons tab lists Wither and Warden with their own confirm pages; no summon command",
+          '"page:wither"' in boss_ui and '"page:warden"' in boss_ui
+          and '"do:summon_wither"' in boss_ui and '"do:summon_warden"' in boss_ui
+          and '"page:end_dragon"' in boss_ui
+          and not any("summon_wither" in read(f) or "summon_warden" in read(f)
+                      for f in (SRC / "command").glob("*.java")))
+
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
     title_prog = read(SRC / "title/TitleProgress.java")

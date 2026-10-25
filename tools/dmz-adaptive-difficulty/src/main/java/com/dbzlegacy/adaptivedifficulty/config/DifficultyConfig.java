@@ -254,6 +254,14 @@ public final class DifficultyConfig {
     public Boolean endPlayerDragonSummonRestoredV1 = Boolean.FALSE;
     /** Ancient Netherite coins charged for a player GUI End Dragon summon. */
     public int endDragonSummonNetheriteCost = 3;
+    /** Difficulty GUI paid Wither summon (active tier T3-T7, in the Nether). */
+    public boolean enableWitherSummon = true;
+    /** Ancient Netherite coins charged for a player GUI Wither summon. */
+    public int witherSummonNetheriteCost = 1;
+    /** Difficulty GUI paid Warden summon (active tier T4-T7, in the Overworld). */
+    public boolean enableWardenSummon = true;
+    /** Ancient Netherite coins charged for a player GUI Warden summon. */
+    public int wardenSummonNetheriteCost = 2;
     /**
      * Scale Enderman / Shulker / Phantom / Endermite HP/DEF (End Dimension Strength).
      * Default {@code false} matches script v2.11.0 — dragon-only scaling.
@@ -1650,6 +1658,8 @@ public final class DifficultyConfig {
         cfg.maxScaledMobsPerPlayer = Math.max(1, Math.min(5, cfg.maxScaledMobsPerPlayer));
         cfg.endKiMaxAliveWhileDragon = Math.max(1, Math.min(512, cfg.endKiMaxAliveWhileDragon));
         cfg.endDragonSummonNetheriteCost = Math.max(1, Math.min(64, cfg.endDragonSummonNetheriteCost));
+        cfg.witherSummonNetheriteCost = Math.max(1, Math.min(64, cfg.witherSummonNetheriteCost));
+        cfg.wardenSummonNetheriteCost = Math.max(1, Math.min(64, cfg.wardenSummonNetheriteCost));
         cfg.lmTipIntervalSeconds = Math.max(60, Math.min(7200, cfg.lmTipIntervalSeconds));
         cfg.lmTipNewPlayerIntervalSeconds = Math.max(45, Math.min(3600, cfg.lmTipNewPlayerIntervalSeconds));
         cfg.lmTipLoginDelaySeconds = Math.max(15, Math.min(600, cfg.lmTipLoginDelaySeconds));

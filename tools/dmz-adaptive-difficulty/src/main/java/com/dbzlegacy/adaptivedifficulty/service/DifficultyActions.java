@@ -54,6 +54,8 @@ public final class DifficultyActions {
     public static final String ACT_TOGGLE_STAFF_FREE_COINS = "toggle_staff_free_coins";
     public static final String ACT_SUMMON_END_DRAGON = "summon_end_dragon";
     public static final String ACT_END_DRAGON = "end_dragon";
+    public static final String ACT_SUMMON_WITHER = "summon_wither";
+    public static final String ACT_SUMMON_WARDEN = "summon_warden";
 
     /**
      * When true, {@link #openGui} syncs unlocks/titles but does not reopen a menu.
@@ -283,6 +285,14 @@ public final class DifficultyActions {
                 || "summon_dragon".equals(act) || "dragon_summon".equals(act)) {
             return summonEndDragon(player, page);
         }
+        if (ACT_SUMMON_WITHER.equals(act)) {
+            return summonBoss(player, page,
+                    com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.Boss.WITHER, "wither");
+        }
+        if (ACT_SUMMON_WARDEN.equals(act)) {
+            return summonBoss(player, page,
+                    com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.Boss.WARDEN, "warden");
+        }
 
         // Personal OFF freezes buy / lower / reset until the player turns it back on.
         if (!SystemGate.participates(player)
@@ -433,6 +443,21 @@ public final class DifficultyActions {
         String returnPage = page == null || page.isBlank() ? "end_dragon" : page;
         String msg = com.dbzlegacy.adaptivedifficulty.progression.end.EndDimensionStrength
                 .cmdPlayerSummon(player);
+        openGui(player, returnPage);
+        if (msg == null || msg.isBlank()) {
+            return Result.ok("");
+        }
+        return Result.fail(msg);
+    }
+
+    /** Wither / Warden paid summon, routed like {@link #summonEndDragon}. */
+    private static Result summonBoss(
+            ServerPlayer player,
+            String page,
+            com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.Boss boss,
+            String confirmPage) {
+        String returnPage = page == null || page.isBlank() ? confirmPage : page;
+        String msg = com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.summon(player, boss);
         openGui(player, returnPage);
         if (msg == null || msg.isBlank()) {
             return Result.ok("");

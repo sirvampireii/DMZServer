@@ -825,6 +825,8 @@ public final class UltraGuiActions {
                                 ? "team"
                                 : "tiers";
                 case "summon_end_dragon", "end_dragon", "summon_dragon" -> "end_dragon";
+                case "summon_wither" -> "wither";
+                case "summon_warden" -> "warden";
                 case "mode", "set_mode", "team" -> "team";
                 case "equip_title" ->
                         page != null && page.startsWith("title_detail:") ? page : "titles_p0";
