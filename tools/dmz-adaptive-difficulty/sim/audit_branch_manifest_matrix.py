@@ -27,6 +27,9 @@ class Check:
     paths: tuple[str, ...]
     needle: str
     forbidden: str | None = None
+    # Marker lives in code that was deliberately removed (e.g. the CNPC gui/cnpc package,
+    # gone since the Ultra-only GUI): listed in the report, never scored or failed.
+    retired: bool = False
 
 
 CHECKS: list[Check] = [
@@ -71,7 +74,7 @@ CHECKS: list[Check] = [
           "private Inventory main", forbidden="spar.main.end_session"),
     Check("cnpc-defer-reopen", "cnpc",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcGuiSupport.java",),
-          "afterGuiClosed"),
+          "afterGuiClosed", retired=True),
     Check("manifest-doc", "process",
           ("docs/LM_SHIP_MANIFEST.md",),
           "prestige-need"),
@@ -86,31 +89,31 @@ CHECKS: list[Check] = [
           "heldCountForNeed(net.minecraft.server.level.ServerPlayer)"),
     Check("skillcheck-no-redundant-ui", "access",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmSkillCheckGui.java",),
-          "Natural skills", forbidden="Open Skill Check UI"),
+          "Natural skills", forbidden="Open Skill Check UI", retired=True),
     Check("admin-no-cnpc-import-chest", "access",
           ("tools/dmz-adaptive-difficulty-gui/src/main/java/com/dbzlegacy/adaptivedifficulty/bukkit/HubChestGui.java",),
           "Staff Admin", forbidden="hub.admin.migrate"),
     Check("admin-no-cnpc-import-cnpc", "access",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmAdminGui.java",),
-          "Event log", forbidden="migrate-cnpc"),
+          "Event log", forbidden="migrate-cnpc", retired=True),
     Check("cnpc-flash-widget-ids", "cnpc",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcGuiSupport.java",),
-          "ID_FLASH_LABEL_BASE"),
+          "ID_FLASH_LABEL_BASE", retired=True),
     Check("rival-tp-copy", "rival",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmRivalGui.java",),
-          'toggleOn("TP")', forbidden="Teleport msgs"),
+          'toggleOn("TP")', forbidden="Teleport msgs", retired=True),
     Check("gui-tp-audit-script", "process",
           ("tools/dmz-adaptive-difficulty/sim/audit_gui_tp_copy.py",),
           "use TP instead of Teleport"),
     Check("difficulty-tier-personal-gate", "difficulty",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmDifficultyGui.java",),
-          "paintFeatureLocked", forbidden="paintTiersLocked"),
+          "paintFeatureLocked", forbidden="paintTiersLocked", retired=True),
     Check("rival-challenge-persist", "rival",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/rival/RivalStore.java",),
           "challengeRequests"),
     Check("rival-challenge-reopen", "rival",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmRivalGui.java",),
-          '"challenge_send", sendArg, "challenge_pending"'),
+          '"challenge_send", sendArg, "challenge_pending"', retired=True),
     Check("dojo-war-offline", "spar",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/sparring/DojoRankings.java",),
           "challengeDojoByMasterKey"),
@@ -125,7 +128,7 @@ CHECKS: list[Check] = [
           "Human · Saiyan · Frost Demon", forbidden="Saiyan excluded"),
     Check("cnpc-preview-live-sync", "cnpc",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcPlayerPreview.java",),
-          "tryBindLivePlayer", forbidden="Gecko clone first"),
+          "tryBindLivePlayer", forbidden="Gecko clone first", retired=True),
     Check("manifest-android-row", "process",
           ("docs/LM_SHIP_MANIFEST.md",),
           "android-saiyan-eligible"),
@@ -134,7 +137,7 @@ CHECKS: list[Check] = [
           "cnpc-preview-live-player"),
     Check("prestige-tier-cnpc-ids", "prestige",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmPrestigeGui.java",),
-          "ID_PRESTIGE_TIER_GRID", forbidden="paintTwoColumnButtonGrid(player, gui, row, 50,"),
+          "ID_PRESTIGE_TIER_GRID", forbidden="paintTwoColumnButtonGrid(player, gui, row, 50,", retired=True),
     Check("class-stamina-config-scale", "combat",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/StatsDataStatScalingMixin.java",),
           "live / scale", forbidden="live * scale"),
@@ -191,6 +194,8 @@ def eval_check(ref: str, chk: Check) -> bool:
 
 
 def main() -> int:
+    active = [c for c in CHECKS if not c.retired]
+    retired = [c for c in CHECKS if c.retired]
     refs = DEFAULT_REFS
     # Include any other origin/cursor/*-c766 LM branches
     r = subprocess.run(
@@ -218,7 +223,7 @@ def main() -> int:
             continue
         versions[ref] = version_at(ref)
         rows[ref] = {}
-        for chk in CHECKS:
+        for chk in active:
             rows[ref][chk.id] = eval_check(ref, chk)
 
     scores = {ref: sum(1 for v in rows[ref].values() if v) for ref in rows}
@@ -246,8 +251,8 @@ def main() -> int:
     if missing_refs:
         lines.append(f"Missing refs (not fetched): {', '.join(missing_refs)}\n")
 
-    header = "| Branch | LM ver | " + " | ".join(c.id for c in CHECKS) + " | score |"
-    sep = "|---|---|" + "|".join(["---"] * len(CHECKS)) + "|---|"
+    header = "| Branch | LM ver | " + " | ".join(c.id for c in active) + " | score |"
+    sep = "|---|---|" + "|".join(["---"] * len(active)) + "|---|"
     lines.extend([header, sep])
 
     for ref in refs:
@@ -256,31 +261,31 @@ def main() -> int:
         short = ref.replace("origin/", "")
         ver = versions.get(ref) or "?"
         cells = []
-        for chk in CHECKS:
+        for chk in active:
             cells.append("✓" if rows[ref][chk.id] else "✗")
         sc = scores[ref]
         mark = "**" if ref == canonical else ""
-        lines.append(f"| {mark}{short}{mark} | {ver} | " + " | ".join(cells) + f" | {sc}/{len(CHECKS)} |")
+        lines.append(f"| {mark}{short}{mark} | {ver} | " + " | ".join(cells) + f" | {sc}/{len(active)} |")
 
     lines.append("")
     lines.append("## Interpretation")
     lines.append("")
     if best_ref:
         lines.append(
-            f"- **Best tip:** `{best_ref}` ({scores[best_ref]}/{len(CHECKS)}, LM {versions.get(best_ref) or '?'})"
+            f"- **Best tip:** `{best_ref}` ({scores[best_ref]}/{len(active)}, LM {versions.get(best_ref) or '?'})"
         )
     if main_ref in rows and best_ref:
         main_score = scores[main_ref]
         if main_score < best_score or main_ref != best_ref and scores[main_ref] < scores.get(best_ref, 0):
-            failed_vs_best = [c.id for c in CHECKS if rows[best_ref][c.id] and not rows[main_ref][c.id]]
+            failed_vs_best = [c.id for c in active if rows[best_ref][c.id] and not rows[main_ref][c.id]]
             lines.append(
-                f"- **`main` behind best** ({main_score}/{len(CHECKS)}, LM {versions.get(main_ref) or '?'}) "
+                f"- **`main` behind best** ({main_score}/{len(active)}, LM {versions.get(main_ref) or '?'}) "
                 f"— merge `{best_ref}` before the next deploy."
             )
             if failed_vs_best:
                 lines.append(f"- **`main` missing vs best:** {', '.join(failed_vs_best)}")
     if canonical in rows:
-        failed = [c.id for c in CHECKS if not rows[canonical][c.id]]
+        failed = [c.id for c in active if not rows[canonical][c.id]]
         if failed:
             lines.append(f"- **`main` fails matrix:** {', '.join(failed)}")
         elif best_ref == canonical:
@@ -294,7 +299,7 @@ def main() -> int:
         for ref in sorted(rows):
             if ref == best_ref:
                 continue
-            lost = [c.id for c in CHECKS if rows[best_ref][c.id] and not rows[ref][c.id]]
+            lost = [c.id for c in active if rows[best_ref][c.id] and not rows[ref][c.id]]
             if lost:
                 regressions.append(f"- `{ref}` regressed: missing {lost} (present on `{best_ref}`)")
     if regressions:
@@ -306,17 +311,24 @@ def main() -> int:
     lines.append("## Extra markers on feature branches (not on main)")
     lines.append("")
     if main_ref in rows:
-        main_set = {c.id for c in CHECKS if rows[main_ref][c.id]}
+        main_set = {c.id for c in active if rows[main_ref][c.id]}
         any_extra = False
         for ref in sorted(rows, key=lambda x: -scores[x]):
             if ref == main_ref:
                 continue
-            extra_pass = [c.id for c in CHECKS if rows[ref][c.id] and c.id not in main_set]
+            extra_pass = [c.id for c in active if rows[ref][c.id] and c.id not in main_set]
             if extra_pass:
                 any_extra = True
                 lines.append(f"- `{ref}`: {extra_pass}")
         if not any_extra:
             lines.append("- None — merge feature branches into `main` if version is ahead.")
+
+    if retired:
+        lines.append("")
+        lines.append("## Retired checks (not scored)")
+        lines.append("")
+        for c in retired:
+            lines.append(f"- `{c.id}` — {c.paths[0].rsplit('/', 1)[-1]} (removed)")
 
     out = ROOT / "tools/dmz-adaptive-difficulty/sim/out/branch-manifest-matrix.md"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -333,16 +345,16 @@ def main() -> int:
             # Stale feature branches below best LM version are not deploy targets — skip.
             if version_key(ref) < best_ver:
                 continue
-            lost = [c.id for c in CHECKS if rows[best_ref][c.id] and not rows[ref][c.id]]
+            lost = [c.id for c in active if rows[best_ref][c.id] and not rows[ref][c.id]]
             if lost:
                 print(f"\nFAIL {ref} regressed vs {best_ref}: {lost}", file=sys.stderr)
                 exit_code = 1
     if canonical in rows and best_ref:
         if scores[canonical] < scores[best_ref]:
-            missing = [c.id for c in CHECKS if rows[best_ref][c.id] and not rows[canonical][c.id]]
+            missing = [c.id for c in active if rows[best_ref][c.id] and not rows[canonical][c.id]]
             print(f"\nFAIL main behind {best_ref}: {missing}", file=sys.stderr)
             exit_code = 1
-        bad = [c.id for c in CHECKS if not rows[canonical][c.id]]
+        bad = [c.id for c in active if not rows[canonical][c.id]]
         if bad:
             print(f"\nFAIL main missing matrix checks: {bad}", file=sys.stderr)
             exit_code = 1
