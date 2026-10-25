@@ -1,1 +1,66 @@
-IyBNaW1vIHRhc2sgaW5ib3ggd2F0Y2hlciAtIHBvbGxzIEdpdEh1YiBmb3IgbmV3IHRhc2tzIGFuZCBhdXRvLXJ1bnMgdGhlbSBpbiBPcGVuQ29kZS4KIyBSdW4gb25jZTogaXQgbG9vcHMgZm9yZXZlci4gU3RvcCB3aXRoIEN0cmwrQy4KIyBPcHRpb25hbGx5IGluc3RhbGwgYXMgYSBXaW5kb3dzIFNjaGVkdWxlZCBUYXNrIHRvIHN1cnZpdmUgcmVib290cy4KCiRyZXBvRGlyID0gU3BsaXQtUGF0aCAtUGFyZW50ICRNeUludm9jYXRpb24uTXlDb21tYW5kUGF0aAokaW5ib3hEaXIgPSBKb2luLVBhdGggJHJlcG9EaXIgIm1pbW8tdGFza3NcaW5ib3giCiRkb25lRGlyICA9IEpvaW4tUGF0aCAkcmVwb0RpciAibWltby10YXNrc1xkb25lIgokc2VlbkZpbGUgPSBKb2luLVBhdGggJHJlcG9EaXIgIm1pbW8tdGFza3NcLnNlZW4udHh0IgoKU2V0LUxvY2F0aW9uICRyZXBvRGlyCgojIExvYWQgYWxyZWFkeS1oYW5kbGVkIHRhc2tzCiRzZWVuID0gQHt9CmlmIChUZXN0LVBhdGggJHNlZW5GaWxlKSB7IEdldC1Db250ZW50ICRzZWVuRmlsZSB8IEZvckVhY2gtT2JqZWN0IHsgJHNlZW5bJF9dID0gJHRydWUgfSB9CgpXcml0ZS1Ib3N0ICJXYXRjaGluZyBtaW1vLXRhc2tzL2luYm94LyBldmVyeSA1IG1pbnV0ZXMuIEN0cmwrQyB0byBzdG9wLiIgLUZvcmVncm91bmRDb2xvciBHcmVlbgoKd2hpbGUgKCR0cnVlKSB7CiAgICB0cnkgewogICAgICAgIGdpdCBwdWxsIC0tcXVpZXQgMj4kbnVsbAoKICAgICAgICBHZXQtQ2hpbGRJdGVtICIkaW5ib3hEaXJcKi5tZCIgLUVycm9yQWN0aW9uIFNpbGVudGx5Q29udGludWUgfAogICAgICAgICAgICBTb3J0LU9iamVjdCBMYXN0V3JpdGVUaW1lIHwKICAgICAgICAgICAgRm9yRWFjaC1PYmplY3QgewogICAgICAgICAgICAgICAgaWYgKC1ub3QgJHNlZW4uQ29udGFpbnNLZXkoJF8uTmFtZSkpIHsKICAgICAgICAgICAgICAgICAgICBXcml0ZS1Ib3N0ICJgbk5ldyB0YXNrOiAkKCRfLk5hbWUpIiAtRm9yZWdyb3VuZENvbG9yIFllbGxvdwogICAgICAgICAgICAgICAgICAgIFdyaXRlLUhvc3QgIlN0YXJ0aW5nIE9wZW5Db2RlLi4uIiAtRm9yZWdyb3VuZENvbG9yIFllbGxvdwogICAgICAgICAgICAgICAgICAgIG9wZW5jb2RlIHJ1biAiUmVhZCBhbmQgaW1wbGVtZW50IHRoZSB0YXNrIGluIG1pbW8tdGFza3MvaW5ib3gvJCgkXy5OYW1lKS4gV2hlbiBmaW5pc2hlZCwgbW92ZSB0aGUgZmlsZSB0byBtaW1vLXRhc2tzL2RvbmUvLiIKICAgICAgICAgICAgICAgICAgICAkc2VlblskXy5OYW1lXSA9ICR0cnVlCiAgICAgICAgICAgICAgICAgICAgQWRkLUNvbnRlbnQgJHNlZW5GaWxlICRfLk5hbWUKICAgICAgICAgICAgICAgICAgICBXcml0ZS1Ib3N0ICJUYXNrIGhhbmRlZCBvZmYuIiAtRm9yZWdyb3VuZENvbG9yIEdyZWVuCiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgIH0gY2F0Y2ggewogICAgICAgIFdyaXRlLUhvc3QgIlBvbGwgZXJyb3I6ICRfIiAtRm9yZWdyb3VuZENvbG9yIFJlZAogICAgfQogICAgU3RhcnQtU2xlZXAgLVNlY29uZHMgMzAwCn0K
+# Mimo task inbox watcher: polls GitHub for new task files and runs each one with Claude Code.
+# Start it from the repo root and leave the window open:
+#   powershell -ExecutionPolicy Bypass -File .\mimo-tasks\watch-inbox.ps1
+# Stop with Ctrl+C. Needs: Claude Code (`claude`, signed in), Git for Windows, and Java 17 for builds.
+
+$ErrorActionPreference = 'Continue'
+$repoDir  = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$inboxDir = Join-Path $repoDir 'mimo-tasks\inbox'
+$logDir   = Join-Path $repoDir 'mimo-tasks\.logs'
+$seenFile = Join-Path $repoDir 'mimo-tasks\.seen.txt'
+$pollSeconds = 300
+
+Set-Location $repoDir
+New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+
+if (-not (Get-Command claude -ErrorAction SilentlyContinue)) {
+    Write-Host "Claude Code is not installed or not on PATH. Install it with:" -ForegroundColor Red
+    Write-Host "  irm https://claude.ai/install.ps1 | iex" -ForegroundColor Red
+    Write-Host "then run 'claude' once to sign in, and start this watcher again." -ForegroundColor Red
+    exit 1
+}
+
+# Tools Claude Code may use without asking. Anything else is denied, so a task cannot run
+# arbitrary programs: file edits, git, the repo's own build/audit scripts, and Java/Python.
+$allowedTools = @(
+    'Read', 'Edit', 'Write', 'Glob', 'Grep',
+    'Bash(git *)',
+    'Bash(bash tools/*)', 'Bash(bash scripts/*)',
+    'Bash(python3 *)', 'Bash(python *)', 'Bash(py *)',
+    'Bash(java *)', 'Bash(javac *)', 'Bash(javap *)', 'Bash(jar *)', 'Bash(unzip *)',
+    'Bash(ls *)', 'Bash(cat *)', 'Bash(grep *)', 'Bash(find *)', 'Bash(sha256sum *)', 'Bash(mkdir *)', 'Bash(mv *)'
+)
+
+$seen = @{}
+if (Test-Path $seenFile) { Get-Content $seenFile | ForEach-Object { if ($_) { $seen[$_] = $true } } }
+
+Write-Host "Watching mimo-tasks/inbox/ every $($pollSeconds / 60) minutes with Claude Code. Ctrl+C to stop." -ForegroundColor Green
+
+while ($true) {
+    try {
+        git pull --quiet --rebase --autostash 2>$null
+
+        Get-ChildItem (Join-Path $inboxDir '*.md') -ErrorAction SilentlyContinue |
+            Sort-Object Name |
+            ForEach-Object {
+                $name = $_.Name
+                if ($seen.ContainsKey($name)) { return }
+
+                Write-Host "`n[$(Get-Date -Format 'HH:mm')] New task: $name" -ForegroundColor Yellow
+                $log = Join-Path $logDir ($name -replace '\.md$', '.log')
+                $prompt = "Read and carry out the task in mimo-tasks/inbox/$name. Follow the repo's rules in docs/ " +
+                          "(never deploy to or touch the live server, never modify the KaiPath jar). When finished, " +
+                          "move the task file to mimo-tasks/done/, write the report the task asks for, commit, and push."
+
+                claude -p $prompt --permission-mode acceptEdits --allowedTools @allowedTools 2>&1 |
+                    Tee-Object -FilePath $log
+                Write-Host "Exit code $LASTEXITCODE. Log: $log" -ForegroundColor Cyan
+
+                $seen[$name] = $true
+                Add-Content -Path $seenFile -Value $name
+            }
+    } catch {
+        Write-Host "Poll error: $_" -ForegroundColor Red
+    }
+    Start-Sleep -Seconds $pollSeconds
+}

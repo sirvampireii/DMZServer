@@ -60,3 +60,7 @@ live-sftp.env
 hits-*.jsonl
 libraries/dmzrevamp-*.jar
 libraries/live-pull/
+
+# Mimo task watcher local state
+mimo-tasks/.seen.txt
+mimo-tasks/.logs/
