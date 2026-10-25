@@ -1,5 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.config.editor;
 
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeShopHooks;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -233,6 +234,10 @@ saga|enabled=Turns paid saga reset on or off.
 
     /** One sentence that says what this setting does. Never the raw field id. */
     public static String describe(String moduleId, String path) {
+        String shop = PrestigeShopHooks.describe(moduleId, path);
+        if (shop != null) {
+            return shop;
+        }
         String full = path == null ? "" : path.trim();
         String module = moduleId == null ? "" : moduleId.trim();
         if (!module.isEmpty()) {

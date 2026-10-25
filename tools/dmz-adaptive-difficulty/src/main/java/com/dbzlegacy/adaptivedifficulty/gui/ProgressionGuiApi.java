@@ -10,6 +10,7 @@ import com.dbzlegacy.adaptivedifficulty.progression.ProgressionSystem;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.GodKiEnhancementShop;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeAdmin;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeShopHooks;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.SkillUnlockService;
 import com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost;
@@ -879,12 +880,14 @@ public final class ProgressionGuiApi {
         out.put("bridge_ok", "false");
         out.put("system_enabled", "false");
         if (player == null) {
+            PrestigeShopHooks.decoratePlaceholders(out, player);
             return out;
         }
         boolean enabled = DifficultyConfig.get().enablePrestigeSystem;
         out.put("bridge_ok", "true");
         out.put("system_enabled", enabled ? "true" : "false");
         if (!enabled) {
+            PrestigeShopHooks.decoratePlaceholders(out, player);
             return out;
         }
         StatsData data = DmzProgression.stats(player);
@@ -977,6 +980,7 @@ public final class ProgressionGuiApi {
             out.put("turnin_" + n + "_points", String.valueOf(PrestigePointsSystem.pointsForTurnIn(n)));
         }
         out.put("last_spend_ok", ProgressionData.tempGet(player, "pp_last_spend_ok", "false"));
+        PrestigeShopHooks.decoratePlaceholders(out, player);
         return out;
     }
 
@@ -1071,6 +1075,10 @@ public final class ProgressionGuiApi {
      * Dispatch {@code /prestige do} — confirm, turn-in, shop buys.
      */
     public static String handlePrestigeDo(ServerPlayer player, String action, String arg, String page) {
+        String shop = PrestigeShopHooks.handleDo(player, action, arg, page);
+        if (shop != null) {
+            return shop;
+        }
         if (player == null) {
             return "§cThis only works in-game - console can't open this menu.";
         }

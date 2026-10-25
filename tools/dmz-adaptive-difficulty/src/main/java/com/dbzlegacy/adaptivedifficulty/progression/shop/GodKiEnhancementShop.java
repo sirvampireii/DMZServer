@@ -4,332 +4,252 @@ import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
+import com.dbzlegacy.adaptivedifficulty.noea.GodKiWipeHelper;
 import com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionData;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeShopConfig;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.ScreenNotify;
 import com.dragonminez.common.stats.character.Character;
 import com.dragonminez.common.stats.extras.FormMasteries;
 import com.dragonminez.common.stats.skills.Skills;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 
-/**
- * Prestige store: God Ki Enhancement.
- *
- * <p>1 favor buys one investment; each investment grants
- * {@link #MASTERY_PER_POINT} {@code godkienhancement} mastery, up to
- * {@link #MAX_INVESTMENTS} investments (5000 mastery). The investment count
- * is stored per player like the other prestige purchases ({@code pp_*} keys)
- * and survives prestige.
- *
- * <p>On login (and the post-death / pulse reapply window) the character's
- * God Ki mastery is topped up to {@code invested x 1000} — never lowered.
- * The {@code godkienhancement} skill is kept present while invested, so the
- * enhancement exists on the character even though it is not obtainable
- * through normal gameplay.
- *
- * <p>God forms gate on this: custom God forms (group {@code godforms}) need
- * the enhancement present; the true God Ki form (group
- * {@code godkienhancement}) additionally needs the mastery threshold from
- * {@link DifficultyConfig#godKiTrueFormMasteryThreshold}.
- * {@code FormModeHandlerGodKiGateMixin} / {@code StackFormModeHandlerGodKiGateMixin}
- * enforce both gates at transform time.
- */
 public final class GodKiEnhancementShop {
-    /** DMZ group of the Enhance with God Ki form (Noea God Ki enhancement). */
     public static final String ENHANCEMENT_GROUP = "godkienhancement";
-    /** Stock form name inside the enhancement group (Noea overlay). */
     public static final String ENHANCEMENT_FORM = "enhancewithgodki";
-    /** Noea custom God forms group (Super Saiyan God and variants). */
     public static final String GOD_FORMS_GROUP = "godforms";
-    /** Mastery granted per invested prestige point. */
     public static final int MASTERY_PER_POINT = 1000;
-    /** Five investments = 5000 mastery. */
     public static final int MAX_INVESTMENTS = 5;
-    /** Favor per investment. */
     public static final int INVESTMENT_COST = 1;
     private static final String KEY_INVESTED = "pp_godki_enh";
 
-    private GodKiEnhancementShop() {}
-
-    /** Prestige-favor investments bought so far (0–5). */
-    public static int invested(ServerPlayer player) {
-        if (player == null) {
-            return 0;
-        }
-        return Math.max(0, Math.min(MAX_INVESTMENTS,
-                (int) ProgressionData.storedGetLong(player, KEY_INVESTED, 0L)));
+    private GodKiEnhancementShop() {
     }
 
-    /** Mastery the shop guarantees for an investment count. */
-    public static int expectedMastery(int investments) {
-        return Math.max(0, Math.min(MAX_INVESTMENTS, investments)) * MASTERY_PER_POINT;
+    public static int invested(ServerPlayer serverPlayer) {
+        return serverPlayer == null ? 0 : Math.max(0, Math.min(GodKiEnhancementShop.maxInvestments(), (int)ProgressionData.storedGetLong((ServerPlayer)serverPlayer, (String)KEY_INVESTED, (long)0L)));
     }
 
-    /** True while more investments can still be bought. */
-    public static boolean canBuy(ServerPlayer player) {
-        return player != null && invested(player) < MAX_INVESTMENTS;
+    public static int maxInvestments() {
+        return PrestigeShopConfig.get().godKi.maxPoints;
     }
 
-    /**
-     * Highest {@code godkienhancement} mastery on the character — reads every
-     * {@code godkienhancement:*} record across stack and regular masteries, so
-     * a renamed overlay form still counts.
-     */
-    public static double mastery(ServerPlayer player) {
-        Character character = character(player);
+    public static int masteryPerPoint() {
+        return PrestigeShopConfig.get().godKi.masteryPerPoint;
+    }
+
+    public static int expectedMastery(int n) {
+        return Math.max(0, Math.min(GodKiEnhancementShop.maxInvestments(), n)) * GodKiEnhancementShop.masteryPerPoint();
+    }
+
+    public static boolean canBuy(ServerPlayer serverPlayer) {
+        return serverPlayer != null && PrestigeShopConfig.get().godKi.enabled && GodKiEnhancementShop.invested(serverPlayer) < GodKiEnhancementShop.maxInvestments();
+    }
+
+    public static double mastery(ServerPlayer serverPlayer) {
+        Character character = GodKiEnhancementShop.character(serverPlayer);
         if (character == null) {
             return 0.0;
         }
-        double best = masteryGroup(character.getStackFormMasteries());
-        return Math.max(best, masteryGroup(character.getFormMasteries()));
+        double d = GodKiEnhancementShop.masteryGroup(character.getStackFormMasteries());
+        return Math.max(d, GodKiEnhancementShop.masteryGroup(character.getFormMasteries()));
     }
 
-    /**
-     * The enhancement exists on the character: the skill is present or any
-     * mastery record is — presence even when unobtainable in normal play.
-     */
-    public static boolean hasEnhancement(ServerPlayer player) {
-        if (player == null) {
+    public static boolean hasEnhancement(ServerPlayer serverPlayer) {
+        Skills skills;
+        if (serverPlayer == null) {
             return false;
         }
         try {
-            Skills skills = DmzSkillUtil.skills(player);
+            skills = DmzSkillUtil.skills((ServerPlayer)serverPlayer);
             if (skills != null && skills.hasSkill(ENHANCEMENT_GROUP)) {
                 return true;
             }
-        } catch (Throwable ignored) {
         }
-        Character character = character(player);
-        if (character == null) {
-            return false;
+        catch (Throwable throwable) {
+            // empty catch block
         }
-        return masteryRecordPresent(character.getStackFormMasteries())
-                || masteryRecordPresent(character.getFormMasteries());
+        Character character = GodKiEnhancementShop.character(serverPlayer);
+        return character == null ? false : GodKiEnhancementShop.masteryRecordPresent(character.getStackFormMasteries()) || GodKiEnhancementShop.masteryRecordPresent(character.getFormMasteries());
     }
 
-    /** Custom God forms: the enhancement flag alone. */
-    public static boolean canUseCustomGodForms(ServerPlayer player) {
-        return hasEnhancement(player);
+    public static boolean canUseCustomGodForms(ServerPlayer serverPlayer) {
+        return GodKiEnhancementShop.hasEnhancement(serverPlayer);
     }
 
-    /** True God Ki form: the enhancement flag plus the mastery threshold. */
-    public static boolean canUseTrueGodForm(ServerPlayer player) {
-        return hasEnhancement(player) && mastery(player) >= trueFormThreshold();
+    public static boolean canUseTrueGodForm(ServerPlayer serverPlayer) {
+        return GodKiEnhancementShop.hasEnhancement(serverPlayer) && GodKiEnhancementShop.mastery(serverPlayer) >= (double)GodKiEnhancementShop.trueFormThreshold();
     }
 
-    /** Mastery needed before the true God Ki form may transform. */
     public static int trueFormThreshold() {
         return Math.max(1, DifficultyConfig.get().godKiTrueFormMasteryThreshold);
     }
 
-    /**
-     * Gate reason for activating a form in {@code group}, or {@code null}
-     * when allowed. Human copy — no raw ids.
-     */
-    public static String blockReason(ServerPlayer player, String group) {
-        if (player == null || group == null || group.isBlank()) {
+    public static String blockReason(ServerPlayer serverPlayer, String string) {
+        if (serverPlayer != null && string != null && !string.isBlank()) {
+            String string2 = string.trim();
+            if (GOD_FORMS_GROUP.equalsIgnoreCase(string2)) {
+                return GodKiEnhancementShop.hasEnhancement(serverPlayer) ? null : "God forms need God Ki - invest in God Ki Enhancement (Prestige shop, Effects).";
+            }
+            if (ENHANCEMENT_GROUP.equalsIgnoreCase(string2)) {
+                if (!GodKiEnhancementShop.hasEnhancement(serverPlayer)) {
+                    return "You need God Ki - invest in God Ki Enhancement (Prestige shop, Effects).";
+                }
+                if (GodKiEnhancementShop.mastery(serverPlayer) < (double)GodKiEnhancementShop.trueFormThreshold()) {
+                    return "Your God Ki mastery is too low - invest more in God Ki Enhancement (Prestige shop, Effects).";
+                }
+            }
             return null;
-        }
-        String g = group.trim();
-        if (GOD_FORMS_GROUP.equalsIgnoreCase(g)) {
-            return hasEnhancement(player)
-                    ? null
-                    : "God forms need God Ki - invest in God Ki Enhancement (Prestige shop, Effects).";
-        }
-        if (ENHANCEMENT_GROUP.equalsIgnoreCase(g)) {
-            if (!hasEnhancement(player)) {
-                return "You need God Ki - invest in God Ki Enhancement (Prestige shop, Effects).";
-            }
-            if (mastery(player) < trueFormThreshold()) {
-                return "Your God Ki mastery is too low - invest more in God Ki Enhancement"
-                        + " (Prestige shop, Effects).";
-            }
         }
         return null;
     }
 
-    /** Transform-gate feedback: red title + reason, anti-spam cooldown. */
-    public static void notifyBlocked(ServerPlayer player, String reason) {
-        if (player == null || reason == null || reason.isBlank()) {
-            return;
+    public static void notifyBlocked(ServerPlayer serverPlayer, String string) {
+        if (serverPlayer != null && string != null && !string.isBlank()) {
+            ScreenNotify.blocked((ServerPlayer)serverPlayer, (String)"God Ki needed", (String)string, (String)"lm.godki.gate", (long)4000L);
         }
-        ScreenNotify.blocked(player, "God Ki needed", reason, "lm.godki.gate", 4_000L);
     }
 
-    /** Buy the next investment — double-click confirm, menu-inline feedback. */
-    public static String buy(ServerPlayer player) {
-        if (player == null) {
-            return UltraStyle.dangerLine("Players only.");
+    public static String buy(ServerPlayer serverPlayer) {
+        if (serverPlayer == null) {
+            return UltraStyle.dangerLine((String)"Players only.");
         }
-        int have = invested(player);
-        if (have >= MAX_INVESTMENTS) {
-            return UltraStyle.noticeLine(
-                    "God Ki Enhancement is fully invested (" + have + "/" + MAX_INVESTMENTS + ").");
+        int n = GodKiEnhancementShop.invested(serverPlayer);
+        int n2 = GodKiEnhancementShop.maxInvestments();
+        int n3 = PrestigeShopConfig.get().godKi.costPerPoint;
+        double d = GodKiEnhancementShop.masteryPerPoint();
+        if (n >= n2) {
+            return UltraStyle.noticeLine((String)("God Ki Enhancement is fully invested (" + n + "/" + n2 + ")."));
         }
-        int points = PrestigePointsSystem.getPoints(player);
-        if (points < INVESTMENT_COST) {
-            return UltraStyle.dangerLine(
-                    "Need " + INVESTMENT_COST + " favor (have " + points + ").");
+        if (!PrestigeShopConfig.get().godKi.enabled) {
+            return UltraStyle.dangerLine((String)"God Ki Enhancement is not for sale right now.");
         }
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "godki-enh:" + have)) {
-            return UltraStyle.noticeLine(
-                    "Invest " + INVESTMENT_COST + " favor in God Ki Enhancement (+"
-                            + DmzRewards.formatWhole(MASTERY_PER_POINT) + " mastery, " + (have + 1)
-                            + "/" + MAX_INVESTMENTS + ")? Click again within 10 seconds.");
+        int n4 = PrestigePointsSystem.getPoints(serverPlayer);
+        if (n4 < n3) {
+            return UltraStyle.dangerLine((String)("Need " + n3 + " favor (have " + n4 + ")."));
         }
-        int next = have + 1;
-        ProgressionData.storedPut(player, KEY_INVESTED, next);
-        PrestigePointsSystem.setPoints(player, points - INVESTMENT_COST);
-        reapply(player);
-        double now = mastery(player);
-        SystemTelemetry.log("prestige_points", "buy_godki_enhancement", player, null, Map.of(
-                "invested", next,
-                "mastery", (long) now,
-                "points", PrestigePointsSystem.getPoints(player)
-        ));
-        return UltraStyle.color(
-                        "a",
-                        "God Ki Enhancement invested " + next + "/" + MAX_INVESTMENTS
-                                + " (-" + INVESTMENT_COST + " favor)")
-                + "\n"
-                + UltraStyle.dim(
-                        "God Ki mastery: " + DmzRewards.formatWhole((long) now)
-                                + " (+" + DmzRewards.formatWhole(MASTERY_PER_POINT) + " per point)")
-                + (next == 1 ? "\n" + UltraStyle.color("a", "God forms are usable now.") : "")
-                + "\n"
-                + UltraStyle.dim("Favor left: " + PrestigePointsSystem.getPoints(player));
+        if (!GuiClickConfirm.confirmed((UUID)serverPlayer.m_20148_(), (String)("godki-enh:" + n))) {
+            return UltraStyle.noticeLine((String)("Invest " + n3 + " favor in God Ki Enhancement (+" + DmzRewards.formatWhole((double)d) + " mastery, " + (n + 1) + "/" + n2 + ")? Click again within 10 seconds."));
+        }
+        int n5 = n + 1;
+        ProgressionData.storedPut((ServerPlayer)serverPlayer, (String)KEY_INVESTED, (long)n5);
+        PrestigePointsSystem.setPoints(serverPlayer, n4 - n3);
+        GodKiEnhancementShop.reapply(serverPlayer);
+        double d2 = GodKiEnhancementShop.mastery(serverPlayer);
+        SystemTelemetry.log((String)"prestige_points", (String)"buy_godki_enhancement", (ServerPlayer)serverPlayer, null, Map.of("invested", n5, "mastery", (long)d2, "points", PrestigePointsSystem.getPoints(serverPlayer)));
+        return UltraStyle.color((String)"a", (String)("God Ki Enhancement invested " + n5 + "/" + n2 + " (-" + n3 + " favor)")) + "\n" + UltraStyle.dim((String)("God Ki mastery: " + DmzRewards.formatWhole((double)((long)d2)) + " (+" + DmzRewards.formatWhole((double)d) + " per point)")) + (String)(n5 == 1 ? "\n" + UltraStyle.color((String)"a", (String)"God forms are usable now.") : "") + "\n" + UltraStyle.dim((String)("Favor left: " + PrestigePointsSystem.getPoints(serverPlayer)));
     }
 
-    /**
-     * Staff {@code /padmin godki} — store an investment count directly (no favor
-     * charged) and align the enhancement to it: a raise tops mastery up through
-     * {@link #reapply}, a reduce drops the mastery records first so the top-up
-     * lands at the new count, and zero fully strips skill, forms, and history
-     * through {@link com.dbzlegacy.adaptivedifficulty.noea.GodKiWipeHelper#wipe}.
-     */
-    static void adminSetInvested(ServerPlayer player, int count) {
-        if (player == null) {
-            return;
-        }
-        int clamped = Math.max(0, Math.min(MAX_INVESTMENTS, count));
-        int before = invested(player);
-        ProgressionData.storedPut(player, KEY_INVESTED, clamped);
-        if (clamped == 0) {
-            if (before > 0 || hasEnhancement(player)) {
-                com.dbzlegacy.adaptivedifficulty.noea.GodKiWipeHelper.wipe(player, "admin_godki");
+    static void adminSetInvested(ServerPlayer serverPlayer, int n) {
+        if (serverPlayer != null) {
+            int n2 = Math.max(0, Math.min(GodKiEnhancementShop.maxInvestments(), n));
+            int n3 = GodKiEnhancementShop.invested(serverPlayer);
+            ProgressionData.storedPut((ServerPlayer)serverPlayer, (String)KEY_INVESTED, (long)n2);
+            if (n2 != 0) {
+                if (n2 < n3) {
+                    GodKiWipeHelper.dropEnhancementMastery((Player)serverPlayer);
+                }
+                GodKiEnhancementShop.reapply(serverPlayer);
+            } else if (n3 > 0 || GodKiEnhancementShop.hasEnhancement(serverPlayer)) {
+                GodKiWipeHelper.wipe((Player)serverPlayer, (String)"admin_godki");
             }
-            return;
         }
-        if (clamped < before) {
-            com.dbzlegacy.adaptivedifficulty.noea.GodKiWipeHelper.dropEnhancementMastery(player);
-        }
-        reapply(player);
     }
 
-    /**
-     * Login / reapply top-up: set the enhancement skill and raise mastery to
-     * {@code invested x 1000}. Never lowers a higher record. No-op while the
-     * character is not attached — the login reapply window retries.
-     */
-    public static void reapply(ServerPlayer player) {
-        if (player == null) {
-            return;
-        }
-        int investments = invested(player);
-        if (investments <= 0) {
-            return;
-        }
-        Character character = character(player);
-        if (character == null) {
-            return;
-        }
-        double expected = expectedMastery(investments);
-        boolean changed = false;
-        try {
-            Skills skills = DmzSkillUtil.skills(player);
-            if (skills != null) {
-                DmzSkillUtil.ensureRegistered(skills, ENHANCEMENT_GROUP, 1);
-                if (DmzSkillUtil.level(skills, ENHANCEMENT_GROUP) < 1) {
-                    DmzSkillUtil.setLevel(skills, ENHANCEMENT_GROUP, 1);
-                    changed = true;
+    public static void reapply(ServerPlayer serverPlayer) {
+        Character character;
+        int n;
+        if (serverPlayer != null && (n = GodKiEnhancementShop.invested(serverPlayer)) > 0 && (character = GodKiEnhancementShop.character(serverPlayer)) != null) {
+            double d = GodKiEnhancementShop.expectedMastery(n);
+            boolean bl = false;
+            try {
+                Skills skills = DmzSkillUtil.skills((ServerPlayer)serverPlayer);
+                if (skills != null) {
+                    DmzSkillUtil.ensureRegistered((Skills)skills, (String)ENHANCEMENT_GROUP, (int)1);
+                    if (DmzSkillUtil.level((Skills)skills, (String)ENHANCEMENT_GROUP) < 1) {
+                        DmzSkillUtil.setLevel((Skills)skills, (String)ENHANCEMENT_GROUP, (int)1);
+                        bl = true;
+                    }
                 }
             }
-        } catch (Throwable ignored) {
-        }
-        changed |= raiseMastery(character.getStackFormMasteries(), expected);
-        changed |= raiseMastery(character.getFormMasteries(), expected);
-        if (changed) {
-            try {
-                DmzSkillUtil.sync(player);
-            } catch (Throwable ignored) {
+            catch (Throwable throwable) {
+                // empty catch block
+            }
+            bl |= GodKiEnhancementShop.raiseMastery(character.getStackFormMasteries(), d);
+            if (bl |= GodKiEnhancementShop.raiseMastery(character.getFormMasteries(), d)) {
+                try {
+                    DmzSkillUtil.sync((ServerPlayer)serverPlayer);
+                }
+                catch (Throwable throwable) {
+                    // empty catch block
+                }
             }
         }
     }
 
-    private static Character character(ServerPlayer player) {
+    private static Character character(ServerPlayer serverPlayer) {
         try {
-            return DmzProgression.character(player);
-        } catch (Throwable ignored) {
+            return DmzProgression.character((Player)serverPlayer);
+        }
+        catch (Throwable throwable) {
             return null;
         }
     }
 
-    /** Top the group up to {@code expected} — never lower, never below the stock cap. */
-    private static boolean raiseMastery(FormMasteries masteries, double expected) {
-        if (masteries == null || expected <= 0.0) {
-            return false;
+    private static boolean raiseMastery(FormMasteries formMasteries, double d) {
+        if (formMasteries != null && !(d <= 0.0)) {
+            double d2 = GodKiEnhancementShop.masteryGroup(formMasteries);
+            if (d2 >= d) {
+                return false;
+            }
+            formMasteries.setMastery(ENHANCEMENT_GROUP, ENHANCEMENT_FORM, d, d);
+            return true;
         }
-        double current = masteryGroup(masteries);
-        if (current >= expected) {
-            return false;
-        }
-        // The stock Noea form caps mastery at 100 — the shop's top-up must land in full.
-        masteries.setMastery(ENHANCEMENT_GROUP, ENHANCEMENT_FORM, expected, expected);
-        return true;
+        return false;
     }
 
-    /** Highest {@code godkienhancement:*} record in one mastery map (0 when none). */
-    private static double masteryGroup(FormMasteries masteries) {
-        double best = 0.0;
-        for (String form : masteryForms(masteries)) {
-            best = Math.max(best, masteries.getMastery(ENHANCEMENT_GROUP, form));
+    private static double masteryGroup(FormMasteries formMasteries) {
+        double d = 0.0;
+        for (String string : GodKiEnhancementShop.masteryForms(formMasteries)) {
+            d = Math.max(d, formMasteries.getMastery(ENHANCEMENT_GROUP, string));
         }
-        return best;
+        return d;
     }
 
-    private static boolean masteryRecordPresent(FormMasteries masteries) {
-        return !masteryForms(masteries).isEmpty();
+    private static boolean masteryRecordPresent(FormMasteries formMasteries) {
+        return !GodKiEnhancementShop.masteryForms(formMasteries).isEmpty();
     }
 
-    /** Form names recorded under the enhancement group (case-insensitive prefix). */
-    private static java.util.List<String> masteryForms(FormMasteries masteries) {
-        java.util.List<String> out = new java.util.ArrayList<>();
-        if (masteries == null) {
-            return out;
+    private static List<String> masteryForms(FormMasteries formMasteries) {
+        ArrayList<String> arrayList = new ArrayList<String>();
+        if (formMasteries == null) {
+            return arrayList;
         }
         try {
-            CompoundTag tag = masteries.save();
-            if (tag == null) {
-                return out;
+            CompoundTag compoundTag = formMasteries.save();
+            if (compoundTag == null) {
+                return arrayList;
             }
-            String prefix = ENHANCEMENT_GROUP + ":";
-            for (String key : tag.m_128431_()) {
-                if (key == null || key.length() <= prefix.length()
-                        || !key.regionMatches(true, 0, prefix, 0, prefix.length())) {
-                    continue;
-                }
-                String form = key.substring(prefix.length()).trim();
-                if (!form.isEmpty()) {
-                    out.add(form.toLowerCase(Locale.ROOT));
-                }
+            String string = "godkienhancement:";
+            for (String string2 : compoundTag.m_128431_()) {
+                String string3;
+                if (string2 == null || string2.length() <= string.length() || !string2.regionMatches(true, 0, string, 0, string.length()) || (string3 = string2.substring(string.length()).trim()).isEmpty()) continue;
+                arrayList.add(string3.toLowerCase(Locale.ROOT));
             }
-        } catch (Throwable ignored) {
         }
-        return out;
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+        return arrayList;
     }
 }

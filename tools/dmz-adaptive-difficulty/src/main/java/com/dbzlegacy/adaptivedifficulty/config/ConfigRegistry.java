@@ -2,6 +2,7 @@ package com.dbzlegacy.adaptivedifficulty.config;
 
 import com.dbzlegacy.adaptivedifficulty.character.CharacterServicesConfig;
 import com.dbzlegacy.adaptivedifficulty.kube.hotpath.HotPathConfig;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeShopHooks;
 import com.dbzlegacy.adaptivedifficulty.quest.SagaResetConfig;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -117,6 +118,7 @@ public final class ConfigRegistry {
         // rivalry-v4.json and sparring.json are player records, not settings.
         modules.add(data("rival", "Rival records", ConfigPaths.rivalryPath()));
         modules.add(data("sparring", "Sparring records", ConfigPaths.sparringPath()));
+        PrestigeShopHooks.addModules(modules);
         return modules;
     }
 

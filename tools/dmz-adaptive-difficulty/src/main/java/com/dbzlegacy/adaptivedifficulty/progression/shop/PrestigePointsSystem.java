@@ -1,17 +1,37 @@
 package com.dbzlegacy.adaptivedifficulty.progression.shop;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
-import com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil;
+import com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache;
+import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
+import com.dbzlegacy.adaptivedifficulty.data.PlayerDifficultyData;
 import com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
+import com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil;
+import com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration;
 import com.dbzlegacy.adaptivedifficulty.progression.PersonalLevelCapMirror;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionData;
-import com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess;
+import com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge;
+import com.dbzlegacy.adaptivedifficulty.progression.bridge.OverhaulPrestigeResourceScale;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.GodKiEnhancementShop;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCustomShop;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeShopConfig;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
+import com.dbzlegacy.adaptivedifficulty.tier.UnlockSystem;
+import com.dbzlegacy.adaptivedifficulty.tier.UnlockTier;
+import com.dbzlegacy.adaptivedifficulty.title.TitleSystem;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
+import com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess;
+import com.dragonminez.common.config.ConfigManager;
+import com.dragonminez.common.config.GeneralServerConfig;
+import com.dragonminez.common.stats.StatsData;
+import com.dragonminez.common.stats.character.Effects;
 import com.dragonminez.common.stats.skills.Skills;
+import com.dragonminez.server.util.MutantManager;
+import com.dragonminez.server.world.data.MutantSavedData;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -21,1515 +41,1220 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.TickTask;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 
-/**
- * Prestige Points shop: turn in held prestiges for points, spend on DMZ skill levels,
- * Permanent Majin / Mutant / Ultimate, and personal level-cap breakthroughs.
- *
- * <p>Turn-in amounts: {@code 1, 2, 3, 6, 9} only.
- * Points: {@code N + T(N/3)} where {@code T(k)=k(k+1)/2}
- * (3→4, 6→9, 9→15).
- * Skills: 1 point = +1 permanent skill level for Skill Check skills only
- * (Natural + Saga — not ultimates / ki attacks). Survives prestige reset.
- * {@code potentialunlock} is the exception: 1 point = +2 levels.
- * Caps come from {@code skills.json} cost ladders.
- * Majin/Mutant: 5 points each, mutually exclusive; unpurchase the current form
- * before buying the other (no refund, no silent swap).
- * Ultimate: 3 points and independent — it stacks with Majin or Mutant, so neither
- * the Ultimate buy checks those forms nor a Majin/Mutant buy checks Ultimate.
- * Removing Ultimate refunds all 3 points and never touches Majin/Mutant.
- * Breakthroughs: raise <b>your</b> DMZ level cap by +10k (max 5 → 150k) so you can
- * level normally into the new cap. Server {@code maxValue} is 150k (client UI/level
- * math); personal soft-locks keep everyone else at 100k. Costs 15, 20, 25, 30, 35.
- * Difficulty tiers: permanent unlock with prestige points —
- * T1–2 = 1pt, T3–4 = 2pt, T5–6 = 3pt, T7 = 4pt ({@code (tier+1)/2}).
- */
 public final class PrestigePointsSystem {
-    public static final int BASE_LEVEL_CAP = 100_000;
-    public static final int BREAKTHROUGH_STEP = 10_000;
+    public static final int BASE_LEVEL_CAP = 100000;
+    public static final int BREAKTHROUGH_STEP = 10000;
     public static final int MAX_BREAKTHROUGHS = 5;
-    public static final int ABSOLUTE_LEVEL_CAP = BASE_LEVEL_CAP + MAX_BREAKTHROUGHS * BREAKTHROUGH_STEP;
+    public static final int ABSOLUTE_LEVEL_CAP = 150000;
     public static final int FORM_COST = 5;
-    /** Prestige-point cost of Permanent Ultimate — independent of the Majin/Mutant pair. */
     public static final int ULTIMATE_COST = 3;
     public static final int SKILL_POINT_COST = 1;
-    /** Levels granted per point for Potential Unlock in the prestige shop. */
     public static final int POTENTIAL_UNLOCK_LEVELS_PER_POINT = 2;
-    /** Skills shown per prestige shop inventory page. */
     public static final int SKILL_SHOP_PAGE_SIZE = 21;
-
     private static final String KEY_POINTS = "prestige_points";
-    /** Root LongTag backup — same Mohist pattern as breakthroughs ({@code lm_personal_*}). */
     public static final String ROOT_POINTS = "lm_prestige_points";
     private static final String KEY_BREAKTHROUGHS = "pp_level_breakthroughs";
     private static final String KEY_MAJIN = "pp_perm_majin";
     private static final String KEY_MUTANT = "pp_perm_mutant";
-    /** Permanent Ultimate — own flag, never part of the Majin/Mutant exclusivity. */
     private static final String KEY_ULTIMATE = "pp_perm_ultimate";
-    /**
-     * DMZ skill id that actually grants the Ultimate form group. Old Kai writes
-     * {@code skills.setSkillLevel("ultimate", 1)}; the ultimate stack-form group
-     * ({@code forms/ultimate.json}) unlocks on that skill level. The DMZ effects list has no
-     * Ultimate handler, so an {@code effects.addEffect("ultimate", ...)} entry is dead data —
-     * Ultimate is granted here, never via {@link #runDmzEffect}.
-     */
     private static final String DMZ_SKILL_ULTIMATE = "ultimate";
     private static final String KEY_SKILL_PREFIX = "pp_skill_";
-    /** Permanent difficulty-tier unlocks bought with prestige points ({@code pp_tier_1}…{@code 7}). */
     private static final String KEY_TIER_PREFIX = "pp_tier_";
+    public static final Map<String, SkillOffer> SKILL_OFFERS = new LinkedHashMap<String, SkillOffer>();
+    public static final int[] TURN_IN_AMOUNTS;
+    private static final String KEY_REAPPLY_AT = "pp_reapply_at_ms";
+    private static final String KEY_FORM_PULSE_AT = "pp_form_pulse_at_ms";
+    private static final String KEY_SKILL_PULSE_AT = "pp_skill_pulse_at_ms";
+    private static final long FORM_PULSE_MS = 5000L;
+    private static final long SKILL_FLOOR_PULSE_MS = 5000L;
+    private static final long REAPPLY_WINDOW_MS = 30000L;
 
-    /**
-     * Legacy named map kept for callers/audits — resolves to live catalog entries.
-     * Prefer {@link #skillOffers()} / {@link #resolveOffer(String)}.
-     */
-    public static final Map<String, SkillOffer> SKILL_OFFERS = new LinkedHashMap<>();
+    private PrestigePointsSystem() {
+    }
 
-    static {
-        // Seed with Skill Check Natural skills so static audits / early boot still see entries.
-        for (String id : DmzSkillUtil.SKILL_CHECK_NATURAL) {
-            SkillOffer offer = resolveOffer(id);
-            if (offer != null) {
-                SKILL_OFFERS.put(id, offer);
+    public static SkillOffer resolveOffer(String string) {
+        if (string != null && !string.isBlank()) {
+            String string2 = string.toLowerCase(Locale.ROOT).trim();
+            PrestigeShopConfig.SkillShop skillShop = PrestigeShopConfig.get().skillShop;
+            boolean bl = skillShop.extraSkills.contains(string2);
+            if ((DmzSkillUtil.isSkillCheckSkill((String)string2) || bl) && !DmzSkillUtil.isFormSkill((String)string2)) {
+                int n;
+                Integer n2 = skillShop.maxLevelOverrides.get(string2);
+                int n3 = n = n2 != null && n2 > 0 ? n2 : DmzSkillUtil.configuredMaxLevel((String)string2);
+                if (n <= 0 && bl) {
+                    n = 10;
+                }
+                if (n <= 0) {
+                    n = switch (string2) {
+                        case "potentialunlock" -> 30;
+                        case "fusion", "kaioken" -> 5;
+                        case "kiboost" -> 4;
+                        case "kicontrol" -> 1;
+                        case "meditation", "fly", "sprint", "jump", "kimanipulation", "kisense", "defense_penetration", "healing_reduction", "instant_transmission", "ki_infusion", "kiprotection" -> 10;
+                        default -> 0;
+                    };
+                }
+                return n <= 0 ? null : new SkillOffer(string2, DmzSkillUtil.prettySkillLabel((String)string2), n);
             }
+            return null;
         }
+        return null;
     }
 
-    private PrestigePointsSystem() {}
-
-    public record SkillOffer(String id, String label, int maxLevel) {}
-
-    /** Resolve a purchasable offer — Skill Check Natural/Saga skills only. */
-    public static SkillOffer resolveOffer(String skillId) {
-        if (skillId == null || skillId.isBlank()) {
-            return null;
-        }
-        String id = skillId.toLowerCase(Locale.ROOT).trim();
-        if (!DmzSkillUtil.isSkillCheckSkill(id) || DmzSkillUtil.isFormSkill(id)) {
-            return null;
-        }
-        int max = DmzSkillUtil.configuredMaxLevel(id);
-        if (max <= 0) {
-            // Still allow known Skill Check ids before config is loaded.
-            max = switch (id) {
-                case "potentialunlock" -> 30;
-                case "fusion", "kaioken" -> 5;
-                case "kiboost" -> 4;
-                case "kicontrol" -> 1;
-                case "meditation", "fly", "sprint", "jump",
-                     "kimanipulation", "kisense", "defense_penetration",
-                     "healing_reduction", "instant_transmission",
-                     "ki_infusion", "kiprotection" -> 10;
-                default -> 0;
-            };
-        }
-        if (max <= 0) {
-            return null;
-        }
-        return new SkillOffer(id, DmzSkillUtil.prettySkillLabel(id), max);
-    }
-
-    /** Prestige shop catalog — Skill Check Natural + Saga only (no ultimate / attacks). */
     public static List<SkillOffer> skillOffers() {
-        List<SkillOffer> out = new ArrayList<>();
-        for (String id : DmzSkillUtil.skillCheckSkillIds()) {
-            SkillOffer offer = resolveOffer(id);
-            if (offer != null) {
-                out.add(offer);
+        ArrayList<SkillOffer> arrayList = new ArrayList<SkillOffer>();
+        PrestigeShopConfig.SkillShop skillShop = PrestigeShopConfig.get().skillShop;
+        ArrayList<String> arrayList2 = new ArrayList<String>(DmzSkillUtil.skillCheckSkillIds());
+        for (String object : skillShop.extraSkills) {
+            if (arrayList2.contains(object)) continue;
+            arrayList2.add(object);
+        }
+        for (String string : arrayList2) {
+            SkillOffer skillOffer = PrestigePointsSystem.resolveOffer(string);
+            if (skillOffer == null || skillShop.hiddenSkills.contains(skillOffer.id())) continue;
+            arrayList.add(skillOffer);
+        }
+        if (arrayList.isEmpty()) {
+            for (SkillOffer skillOffer : SKILL_OFFERS.values()) {
+                if (skillShop.hiddenSkills.contains(skillOffer.id())) continue;
+                arrayList.add(skillOffer);
             }
         }
-        if (out.isEmpty()) {
-            // Config unavailable — fall back to seeded natural skills.
-            out.addAll(SKILL_OFFERS.values());
-        }
-        return out;
+        return arrayList;
     }
 
     public static int skillShopPageCount() {
-        int n = skillOffers().size();
-        return Math.max(1, (n + SKILL_SHOP_PAGE_SIZE - 1) / SKILL_SHOP_PAGE_SIZE);
+        int n = PrestigePointsSystem.skillOffers().size();
+        return Math.max(1, (n + 21 - 1) / 21);
     }
 
-    public static List<SkillOffer> skillOffersPage(int pageIndex) {
-        List<SkillOffer> all = skillOffers();
-        int pages = Math.max(1, (all.size() + SKILL_SHOP_PAGE_SIZE - 1) / SKILL_SHOP_PAGE_SIZE);
-        int page = Math.max(0, Math.min(pages - 1, pageIndex));
-        int from = page * SKILL_SHOP_PAGE_SIZE;
-        if (from >= all.size()) {
+    public static List<SkillOffer> skillOffersPage(int n) {
+        List<SkillOffer> list = PrestigePointsSystem.skillOffers();
+        int n2 = Math.max(1, (list.size() + 21 - 1) / 21);
+        int n3 = Math.max(0, Math.min(n2 - 1, n));
+        int n4 = n3 * 21;
+        if (n4 >= list.size()) {
             return List.of();
         }
-        int to = Math.min(all.size(), from + SKILL_SHOP_PAGE_SIZE);
-        return all.subList(from, to);
+        int n5 = Math.min(list.size(), n4 + 21);
+        return list.subList(n4, n5);
     }
 
-    // ── Points balance ─────────────────────────────────────────────────
-
-    public static int getPoints(ServerPlayer player) {
-        if (player == null) {
+    public static int getPoints(ServerPlayer serverPlayer) {
+        if (serverPlayer == null) {
             return 0;
         }
-        int fromBag = Math.max(0, (int) ProgressionData.storedGetLong(player, KEY_POINTS, 0L));
-        long fromRoot = PersistentDataAccess.getLong(player, ROOT_POINTS, -1L);
-        int n = fromBag;
-        if (fromRoot > n) {
-            n = (int) Math.min(Integer.MAX_VALUE, fromRoot);
+        int n = Math.max(0, (int)ProgressionData.storedGetLong((ServerPlayer)serverPlayer, (String)KEY_POINTS, (long)0L));
+        long l = PersistentDataAccess.getLong((Entity)serverPlayer, (String)ROOT_POINTS, (long)-1L);
+        int n2 = n;
+        if (l > (long)n) {
+            n2 = (int)Math.min(Integer.MAX_VALUE, l);
         }
-        if (n != fromBag && ProgressionData.storedWritable(player)) {
-            ProgressionData.storedPut(player, KEY_POINTS, n);
-            PersistentDataAccess.putLong(player, ROOT_POINTS, n);
-        } else if (fromRoot < 0 && n > 0) {
-            PersistentDataAccess.putLong(player, ROOT_POINTS, n);
+        if (n2 != n && ProgressionData.storedWritable((ServerPlayer)serverPlayer)) {
+            ProgressionData.storedPut((ServerPlayer)serverPlayer, (String)KEY_POINTS, (long)n2);
+            PersistentDataAccess.putLong((Entity)serverPlayer, (String)ROOT_POINTS, (long)n2);
+        } else if (l < 0L && n2 > 0) {
+            PersistentDataAccess.putLong((Entity)serverPlayer, (String)ROOT_POINTS, (long)n2);
+        }
+        return n2;
+    }
+
+    public static void setPoints(ServerPlayer serverPlayer, int n) {
+        if (serverPlayer != null) {
+            int n2 = Math.max(0, n);
+            ProgressionData.storedPut((ServerPlayer)serverPlayer, (String)KEY_POINTS, (long)n2);
+            PersistentDataAccess.putLong((Entity)serverPlayer, (String)ROOT_POINTS, (long)n2);
+        }
+    }
+
+    public static boolean hasPoints(ServerPlayer serverPlayer, int n) {
+        return serverPlayer != null && n >= 0 && PrestigePointsSystem.getPoints(serverPlayer) >= n;
+    }
+
+    public static boolean trySpend(ServerPlayer serverPlayer, int n, String string) {
+        if (serverPlayer != null && n > 0) {
+            int n2 = PrestigePointsSystem.getPoints(serverPlayer);
+            if (n2 < n) {
+                ProgressionData.tempPut((ServerPlayer)serverPlayer, (String)"pp_last_spend_ok", (String)"false");
+                return false;
+            }
+            PrestigePointsSystem.setPoints(serverPlayer, n2 - n);
+            ProgressionData.tempPut((ServerPlayer)serverPlayer, (String)"pp_last_spend_ok", (String)"true");
+            SystemTelemetry.log((String)KEY_POINTS, (String)"spend", (ServerPlayer)serverPlayer, null, Map.of("amount", n, "reason", string == null ? "" : string, "points", PrestigePointsSystem.getPoints(serverPlayer)));
+            return true;
+        }
+        if (serverPlayer != null) {
+            ProgressionData.tempPut((ServerPlayer)serverPlayer, (String)"pp_last_spend_ok", (String)"false");
+        }
+        return false;
+    }
+
+    public static void grantPoints(ServerPlayer serverPlayer, int n, String string) {
+        if (serverPlayer != null && n > 0) {
+            int n2 = PrestigePointsSystem.getPoints(serverPlayer) + n;
+            PrestigePointsSystem.setPoints(serverPlayer, n2);
+            SystemTelemetry.log((String)KEY_POINTS, (String)"grant", (ServerPlayer)serverPlayer, null, Map.of("amount", n, "reason", string == null ? "" : string, "points", n2));
+        }
+    }
+
+    public static String spendForNpc(ServerPlayer serverPlayer, int n, String string) {
+        if (serverPlayer == null) {
+            return "\u00a7cPlayers only.";
+        }
+        if (n <= 0) {
+            return "\u00a7cAmount must be positive.";
+        }
+        if (!PrestigePointsSystem.trySpend(serverPlayer, n, string)) {
+            return "\u00a7cYou need \u00a7e" + n + " \u00a7cprestige favor. You have \u00a7e" + PrestigePointsSystem.getPoints(serverPlayer) + "\u00a7c.";
+        }
+        String string2 = string != null && !string.isBlank() ? string.trim() : "shop";
+        return "\u00a7aSpent \u00a7e" + n + " \u00a7afavor \u00a77(" + string2 + ") \u00b7 Balance: \u00a7e" + PrestigePointsSystem.getPoints(serverPlayer);
+    }
+
+    public static String grantForNpc(ServerPlayer serverPlayer, int n, String string) {
+        if (serverPlayer == null) {
+            return "\u00a7cPlayers only.";
+        }
+        if (n <= 0) {
+            return "\u00a7cAmount must be positive.";
+        }
+        PrestigePointsSystem.grantPoints(serverPlayer, n, string);
+        return "\u00a7aGranted \u00a7e" + n + " \u00a7aprestige favor \u00b7 Balance: \u00a7e" + PrestigePointsSystem.getPoints(serverPlayer);
+    }
+
+    public static boolean isAllowedTurnInAmount(int n) {
+        return PrestigeShopConfig.get().exchange.amounts.contains(n);
+    }
+
+    public static int[] turnInAmounts() {
+        List<Integer> list = PrestigeShopConfig.get().exchange.amounts;
+        int[] nArray = new int[list.size()];
+        for (int i = 0; i < nArray.length; ++i) {
+            nArray[i] = list.get(i);
+        }
+        return nArray;
+    }
+
+    public static int pointsForTurnIn(int n) {
+        return PrestigeShopConfig.get().exchange.payout(n);
+    }
+
+    private static String turnInAmountsText() {
+        List<Integer> list = PrestigeShopConfig.get().exchange.amounts;
+        StringBuilder stringBuilder = new StringBuilder();
+        for (int i = 0; i < list.size(); ++i) {
+            if (i > 0) {
+                stringBuilder.append(i == list.size() - 1 ? "\u00a77, or " : "\u00a77, ");
+            }
+            stringBuilder.append("\u00a7f").append(list.get(i));
+        }
+        return stringBuilder.toString();
+    }
+
+    public static String turnIn(ServerPlayer serverPlayer, int n) {
+        if (serverPlayer == null) {
+            return "\u00a7cPlayers only.";
+        }
+        int n2 = PrestigeSystem.getHeld((ServerPlayer)serverPlayer);
+        int n3 = Math.max(0, n);
+        if (!PrestigeShopConfig.get().exchange.enabled) {
+            return "\u00a7cPrestige exchange is closed right now.";
+        }
+        if (n3 <= 0) {
+            return "\u00a7cChoose how many prestiges to turn in.";
+        }
+        if (!PrestigePointsSystem.isAllowedTurnInAmount(n3)) {
+            return "\u00a7cTurn in " + PrestigePointsSystem.turnInAmountsText() + " \u00a7cprestiges at a time.";
+        }
+        if (n3 > n2) {
+            return "\u00a7cYour current prestige amount is only \u00a76" + n2 + "\u00a7c. Exchange fewer, or prestige again first.";
+        }
+        int n4 = PrestigePointsSystem.pointsForTurnIn(n3);
+        int n5 = n2 - n3;
+        PrestigeSystem.setHeldPublic((ServerPlayer)serverPlayer, (int)n5);
+        int n6 = PrestigePointsSystem.getPoints(serverPlayer) + n4;
+        PrestigePointsSystem.setPoints(serverPlayer, n6);
+        SystemTelemetry.log((String)KEY_POINTS, (String)"turn_in", (ServerPlayer)serverPlayer, null, Map.of("amount", n3, "gained", n4, "held", n5, "points", n6));
+        return "\u00a7aTurned in \u00a76" + n3 + " \u00a7aprestige" + (n3 == 1 ? "" : "s") + " \u00a77\u2192 \u00a7e+" + n4 + " \u00a77favor \u00a78(+" + (n4 - n3) + " bonus)\n\u00a77Prestige favor: \u00a7e" + n6 + " \u00a77\u00b7 Current prestige amount: \u00a76" + n5;
+    }
+
+    public static int getPurchasedSkillLevels(ServerPlayer serverPlayer, String string) {
+        return serverPlayer != null && string != null && !string.isBlank() ? Math.max(0, (int)ProgressionData.storedGetLong((ServerPlayer)serverPlayer, (String)(KEY_SKILL_PREFIX + string.toLowerCase(Locale.ROOT)), (long)0L)) : 0;
+    }
+
+    public static String adminAdjustSkill(ServerPlayer serverPlayer, String string, String string2, int n) {
+        if (serverPlayer == null) {
+            return "\u00a7cPlayer not online.";
+        }
+        SkillOffer skillOffer = PrestigePointsSystem.resolveOffer(string);
+        if (skillOffer == null) {
+            String string3;
+            String string4 = string3 = string == null ? "" : string.toLowerCase(Locale.ROOT).trim();
+            if (string3.isBlank()) {
+                return "\u00a7cUsage: skill <player> <skillId> <set|add|remove> <levels>\n\u00a78Example: skill Steve potentialunlock set 10";
+            }
+            int n2 = DmzSkillUtil.configuredMaxLevel((String)string3);
+            if (n2 <= 0) {
+                n2 = Math.max(PrestigePointsSystem.getPurchasedSkillLevels(serverPlayer, string3), 10);
+            }
+            skillOffer = new SkillOffer(string3, DmzSkillUtil.prettySkillLabel((String)string3), n2);
+        }
+        if (!ProgressionData.storedWritable((ServerPlayer)serverPlayer)) {
+            return "\u00a7cCould not save prestige data for \u00a7f" + serverPlayer.m_6302_() + "\u00a7c.";
+        }
+        int n3 = PrestigePointsSystem.getPurchasedSkillLevels(serverPlayer, skillOffer.id);
+        Integer n4 = PrestigePointsSystem.applyIntMode(n3, string2, n, 0, skillOffer.maxLevel);
+        if (n4 == null) {
+            return "\u00a7cUsage: skill <player> <skillId> <set|add|remove> <levels>\n\u00a78Example: skill Steve potentialunlock add 2";
+        }
+        ProgressionData.storedPut((ServerPlayer)serverPlayer, (String)(KEY_SKILL_PREFIX + skillOffer.id.toLowerCase(Locale.ROOT)), (long)n4.intValue());
+        Skills skills = DmzSkillUtil.skills((ServerPlayer)serverPlayer);
+        int n5 = 0;
+        int n6 = 0;
+        if (skills != null) {
+            DmzSkillUtil.ensureRegistered((Skills)skills, (String)skillOffer.id, (int)skillOffer.maxLevel);
+            n5 = DmzSkillUtil.level((Skills)skills, (String)skillOffer.id);
+            int n7 = Math.max(skillOffer.maxLevel, DmzSkillUtil.maxLevel((Skills)skills, (String)skillOffer.id, (int)skillOffer.maxLevel));
+            n6 = n4 > n3 ? Math.min(n7, Math.max(n5, n4)) : (n4 < n3 && n5 > n4 ? Math.min(n7, n4) : n5);
+            if (n6 != n5) {
+                DmzSkillUtil.setLevel((Skills)skills, (String)skillOffer.id, (int)n6);
+                DmzSkillUtil.sync((ServerPlayer)serverPlayer);
+            }
+        }
+        PrestigePointsSystem.reapplySkillBonuses(serverPlayer);
+        SystemTelemetry.log((String)"prestige_admin", (String)"admin_skill", (ServerPlayer)serverPlayer, null, Map.of("skill", skillOffer.id, "mode", string2 == null ? "" : string2, "before", n3, "after", n4, "live_before", n5, "live_after", n6));
+        String string5 = PrestigePointsSystem.levelsPerPoint(skillOffer.id) > 1 ? " \u00a78(" + PrestigePointsSystem.levelsPerPoint(skillOffer.id) + " levels per favor in shop)" : "";
+        return "\u00a7a" + skillOffer.label + " \u00a77kept level \u00a7f" + n3 + " \u00a77\u2192 \u00a7f" + n4 + " \u00a78/ \u00a7f" + skillOffer.maxLevel + string5 + "\n\u00a77Live skill \u00a7f" + n5 + " \u00a77\u2192 \u00a7f" + n6 + " \u00a78(" + serverPlayer.m_6302_() + ")";
+    }
+
+    public static List<String> investedSkillSummary(ServerPlayer serverPlayer) {
+        ArrayList<String> arrayList = new ArrayList<String>();
+        if (serverPlayer == null) {
+            return arrayList;
+        }
+        for (SkillOffer skillOffer : PrestigePointsSystem.skillOffers()) {
+            int n = PrestigePointsSystem.getPurchasedSkillLevels(serverPlayer, skillOffer.id);
+            if (n <= 0) continue;
+            arrayList.add(skillOffer.label + " \u00a7f" + n + "\u00a77/\u00a7f" + skillOffer.maxLevel);
+        }
+        return arrayList;
+    }
+
+    private static Integer applyIntMode(int n, String string, int n2, int n3, int n4) {
+        int n5;
+        String string2;
+        if (string == null) {
+            return null;
+        }
+        switch (string2 = string.toLowerCase(Locale.ROOT).trim()) {
+            case "set": {
+                n5 = n2;
+                break;
+            }
+            case "add": {
+                n5 = n + n2;
+                break;
+            }
+            case "remove": 
+            case "take": 
+            case "sub": {
+                n5 = n - n2;
+                break;
+            }
+            default: {
+                return null;
+            }
+        }
+        return Math.max(n3, Math.min(n4, n5));
+    }
+
+    public static String buySkillLevel(ServerPlayer serverPlayer, String string) {
+        if (serverPlayer == null) {
+            return "\u00a7cPlayers only.";
+        }
+        SkillOffer skillOffer = PrestigePointsSystem.resolveOffer(string);
+        PrestigeShopConfig.SkillShop skillShop = PrestigeShopConfig.get().skillShop;
+        if (!skillShop.enabled) {
+            return "\u00a7cThe skill shop is closed right now.";
+        }
+        if (skillOffer == null || skillShop.hiddenSkills.contains(skillOffer.id)) {
+            return "\u00a7cOnly Skill Check skills are purchasable here (Natural + Saga).";
+        }
+        int n = PrestigePointsSystem.getPurchasedSkillLevels(serverPlayer, skillOffer.id);
+        int n2 = Math.max(1, skillOffer.maxLevel);
+        int n3 = skillShop.costFor(skillOffer.id);
+        if (n >= n2) {
+            return "\u00a7c" + skillOffer.label + " kept level is maxed (\u00a7f" + n2 + "\u00a7c).";
+        }
+        int n4 = PrestigePointsSystem.getPoints(serverPlayer);
+        if (n4 < n3) {
+            return "\u00a7cNeed \u00a7e" + n3 + " \u00a7cfavor (have \u00a7e" + n4 + "\u00a7c).";
+        }
+        int n5 = PrestigePointsSystem.levelsPerPoint(skillOffer.id);
+        int n6 = Math.max(0, n2 - n);
+        if (n6 <= 0) {
+            return "\u00a7c" + skillOffer.label + " kept level is maxed (\u00a7f" + n2 + "\u00a7c).";
+        }
+        int n7 = Math.min(n5, n6);
+        PrestigePointsSystem.setPoints(serverPlayer, n4 - n3);
+        int n8 = Math.min(n2, n + n7);
+        ProgressionData.storedPut((ServerPlayer)serverPlayer, (String)(KEY_SKILL_PREFIX + skillOffer.id.toLowerCase(Locale.ROOT)), (long)n8);
+        int n9 = 0;
+        int n10 = 0;
+        Skills skills = DmzSkillUtil.skills((ServerPlayer)serverPlayer);
+        if (skills != null) {
+            DmzSkillUtil.ensureRegistered((Skills)skills, (String)skillOffer.id, (int)n2);
+            n9 = DmzSkillUtil.level((Skills)skills, (String)skillOffer.id);
+            int n11 = Math.max(n2, DmzSkillUtil.maxLevel((Skills)skills, (String)skillOffer.id, (int)n2));
+            n10 = Math.min(n11, Math.max(n9, n8));
+            if (n10 != n9) {
+                DmzSkillUtil.setLevel((Skills)skills, (String)skillOffer.id, (int)n10);
+                DmzSkillUtil.sync((ServerPlayer)serverPlayer);
+            }
+        }
+        SystemTelemetry.log((String)KEY_POINTS, (String)"buy_skill", (ServerPlayer)serverPlayer, null, Map.of("skill", skillOffer.id, "purchased", n8, "level", n10, "gain", n7, "points", PrestigePointsSystem.getPoints(serverPlayer)));
+        String string2 = n10 > n9 ? " \u2192 \u00a7fLv " + n10 : " \u00a78(live already \u00a7f" + n9 + "\u00a78)";
+        return "\u00a7a+" + n7 + " \u00a77" + skillOffer.label + " kept level \u00a7f" + n + " \u00a77\u2192 \u00a7f" + n8 + string2 + " \u00a78(survives prestige, -" + n3 + " favor)\n\u00a77Favor left: \u00a7e" + PrestigePointsSystem.getPoints(serverPlayer);
+    }
+
+    public static int levelsPerPoint(String string) {
+        return PrestigeShopConfig.get().skillShop.levelsFor(string);
+    }
+
+    public static boolean hasAnyPurchasedSkillFloor(ServerPlayer serverPlayer) {
+        if (serverPlayer == null) {
+            return false;
+        }
+        try {
+            CompoundTag compoundTag = ProgressionData.stored((ServerPlayer)serverPlayer);
+            for (String string : compoundTag.m_128431_()) {
+                if (string == null || !string.startsWith(KEY_SKILL_PREFIX) || ProgressionData.storedGetLong((ServerPlayer)serverPlayer, (String)string, (long)0L) <= 0L) continue;
+                return true;
+            }
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+        for (SkillOffer skillOffer : PrestigePointsSystem.skillOffers()) {
+            if (PrestigePointsSystem.getPurchasedSkillLevels(serverPlayer, skillOffer.id) <= 0) continue;
+            return true;
+        }
+        return false;
+    }
+
+    public static void reapplySkillBonuses(ServerPlayer serverPlayer) {
+        if (serverPlayer != null) {
+            Skills skills = DmzSkillUtil.skills((ServerPlayer)serverPlayer);
+            if (skills == null) {
+                if (PrestigePointsSystem.hasAnyPurchasedSkillFloor(serverPlayer)) {
+                    long l = System.currentTimeMillis() + 5000L;
+                    long l2 = ProgressionData.tempGetLong((ServerPlayer)serverPlayer, (String)KEY_REAPPLY_AT, (long)0L);
+                    if (l2 < l) {
+                        ProgressionData.tempPut((ServerPlayer)serverPlayer, (String)KEY_REAPPLY_AT, (long)l);
+                    }
+                }
+                PrestigePointsSystem.reapplyForms(serverPlayer);
+                PrestigePointsSystem.reapplyTierUnlocks(serverPlayer);
+            } else {
+                int n;
+                int n2;
+                boolean bl = false;
+                LinkedHashMap<String, SkillOffer> linkedHashMap = new LinkedHashMap<String, SkillOffer>();
+                for (SkillOffer object : PrestigePointsSystem.skillOffers()) {
+                    linkedHashMap.put(object.id, object);
+                    SKILL_OFFERS.put(object.id, object);
+                }
+                for (String string : DmzSkillUtil.allNonFormSkillIds()) {
+                    int n3;
+                    if (linkedHashMap.containsKey(string) || (n3 = PrestigePointsSystem.getPurchasedSkillLevels(serverPlayer, string)) <= 0) continue;
+                    int n4 = DmzSkillUtil.configuredMaxLevel((String)string);
+                    if (n4 <= 0) {
+                        n4 = Math.max(n3, 10);
+                    }
+                    linkedHashMap.put(string, new SkillOffer(string, DmzSkillUtil.prettySkillLabel((String)string), n4));
+                }
+                try {
+                    CompoundTag offerTag = ProgressionData.stored((ServerPlayer)serverPlayer);
+                    for (String string : offerTag.m_128431_()) {
+                        String string2;
+                        if (string == null || !string.startsWith(KEY_SKILL_PREFIX) || (string2 = string.substring(KEY_SKILL_PREFIX.length()).toLowerCase(Locale.ROOT)).isBlank() || linkedHashMap.containsKey(string2) || (n2 = PrestigePointsSystem.getPurchasedSkillLevels(serverPlayer, string2)) <= 0) continue;
+                        n = DmzSkillUtil.configuredMaxLevel((String)string2);
+                        if (n <= 0) {
+                            n = Math.max(n2, 10);
+                        }
+                        linkedHashMap.put(string2, new SkillOffer(string2, DmzSkillUtil.prettySkillLabel((String)string2), n));
+                    }
+                }
+                catch (Throwable throwable) {
+                    // empty catch block
+                }
+                for (SkillOffer skillOffer : linkedHashMap.values()) {
+                    int n5 = PrestigePointsSystem.getPurchasedSkillLevels(serverPlayer, skillOffer.id);
+                    if (n5 <= 0) continue;
+                    DmzSkillUtil.ensureRegistered((Skills)skills, (String)skillOffer.id, (int)skillOffer.maxLevel);
+                    int n6 = DmzSkillUtil.level((Skills)skills, (String)skillOffer.id);
+                    n2 = Math.max(skillOffer.maxLevel, DmzSkillUtil.maxLevel((Skills)skills, (String)skillOffer.id, (int)skillOffer.maxLevel));
+                    n = Math.min(n2, Math.max(n6, n5));
+                    if (n <= n6) continue;
+                    DmzSkillUtil.setLevel((Skills)skills, (String)skillOffer.id, (int)n);
+                    bl = true;
+                }
+                if (bl) {
+                    DmzSkillUtil.sync((ServerPlayer)serverPlayer);
+                }
+                PrestigePointsSystem.reapplyForms(serverPlayer);
+                PrestigePointsSystem.reapplyTierUnlocks(serverPlayer);
+            }
+        }
+    }
+
+    public static int tierPointCost(int n) {
+        return n >= 1 && n <= 7 ? PrestigeShopConfig.get().tierShop.costFor(n) : 0;
+    }
+
+    public static boolean hasPurchasedTier(ServerPlayer serverPlayer, int n) {
+        return serverPlayer != null && n >= 1 && n <= 7 ? ProgressionData.storedGetBool((ServerPlayer)serverPlayer, (String)(KEY_TIER_PREFIX + n)) : false;
+    }
+
+    public static int highestPurchasedTier(ServerPlayer serverPlayer) {
+        if (serverPlayer == null) {
+            return 0;
+        }
+        int n = 0;
+        for (int i = 1; i <= 7; ++i) {
+            if (!PrestigePointsSystem.hasPurchasedTier(serverPlayer, i)) continue;
+            n = i;
         }
         return n;
     }
 
-    public static void setPoints(ServerPlayer player, int points) {
-        if (player == null) {
-            return;
-        }
-        int n = Math.max(0, points);
-        ProgressionData.storedPut(player, KEY_POINTS, n);
-        PersistentDataAccess.putLong(player, ROOT_POINTS, n);
-    }
-
-    /** True when the player can afford {@code amount} prestige points. */
-    public static boolean hasPoints(ServerPlayer player, int amount) {
-        return player != null && amount >= 0 && getPoints(player) >= amount;
-    }
-
-    /**
-     * Spend prestige points for external shops / NPCs.
-     * @return {@code true} if deducted; {@code false} if insufficient or invalid
-     */
-    public static boolean trySpend(ServerPlayer player, int amount, String reason) {
-        if (player == null || amount <= 0) {
-            if (player != null) {
-                ProgressionData.tempPut(player, "pp_last_spend_ok", "false");
-            }
+    public static boolean isTierUnlockedOrPurchased(ServerPlayer serverPlayer, int n) {
+        if (serverPlayer == null || n < 1 || n > 7) {
             return false;
         }
-        int points = getPoints(player);
-        if (points < amount) {
-            ProgressionData.tempPut(player, "pp_last_spend_ok", "false");
-            return false;
-        }
-        setPoints(player, points - amount);
-        ProgressionData.tempPut(player, "pp_last_spend_ok", "true");
-        SystemTelemetry.log("prestige_points", "spend", player, null, Map.of(
-                "amount", amount,
-                "reason", reason == null ? "" : reason,
-                "points", getPoints(player)
-        ));
-        return true;
-    }
-
-    /** Grant prestige points (admin / quest rewards). */
-    public static void grantPoints(ServerPlayer player, int amount, String reason) {
-        if (player == null || amount <= 0) {
-            return;
-        }
-        int balance = getPoints(player) + amount;
-        setPoints(player, balance);
-        SystemTelemetry.log("prestige_points", "grant", player, null, Map.of(
-                "amount", amount,
-                "reason", reason == null ? "" : reason,
-                "points", balance
-        ));
-    }
-
-    public static String spendForNpc(ServerPlayer player, int amount, String reason) {
-        if (player == null) {
-            return "§cPlayers only.";
-        }
-        if (amount <= 0) {
-            return "§cAmount must be positive.";
-        }
-        if (!trySpend(player, amount, reason)) {
-            return "§cYou need §e" + amount + " §cprestige favor. You have §e" + getPoints(player) + "§c.";
-        }
-        String tag = reason == null || reason.isBlank() ? "shop" : reason.trim();
-        return "§aSpent §e" + amount + " §afavor"
-                + " §7(" + tag + ") · Balance: §e" + getPoints(player);
-    }
-
-    public static String grantForNpc(ServerPlayer player, int amount, String reason) {
-        if (player == null) {
-            return "§cPlayers only.";
-        }
-        if (amount <= 0) {
-            return "§cAmount must be positive.";
-        }
-        grantPoints(player, amount, reason);
-        return "§aGranted §e" + amount + " §aprestige favor"
-                + " · Balance: §e" + getPoints(player);
-    }
-
-    /** Allowed single turn-in pack sizes (GUI + command). */
-    public static final int[] TURN_IN_AMOUNTS = {1, 2, 3, 6, 9};
-
-    public static boolean isAllowedTurnInAmount(int amount) {
-        for (int n : TURN_IN_AMOUNTS) {
-            if (n == amount) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Points for turning in {@code amount} prestiges in one action.
-     * {@code N + triangular(N/3)} → 1→1, 2→2, 3→4, 6→9, 9→15.
-     */
-    public static int pointsForTurnIn(int amount) {
-        int n = Math.max(0, amount);
-        int packs = n / 3;
-        int bonus = packs * (packs + 1) / 2;
-        return n + bonus;
-    }
-
-    /**
-     * Turn in {@code amount} held prestiges for points.
-     * The LM held wallet is the only prestige count.
-     */
-    public static String turnIn(ServerPlayer player, int amount) {
-        if (player == null) {
-            return "§cPlayers only.";
-        }
-        int held = PrestigeSystem.getHeld(player);
-        int want = Math.max(0, amount);
-        if (want <= 0) {
-            return "§cChoose how many prestiges to turn in.";
-        }
-        if (!isAllowedTurnInAmount(want)) {
-            return "§cTurn in §f1§7, §f2§7, §f3§7, §f6§7, or §f9 §cprestiges at a time.";
-        }
-        if (want > held) {
-            return "§cYour current prestige amount is only §6" + held + "§c. Exchange fewer, or prestige again first.";
-        }
-        int gained = pointsForTurnIn(want);
-        int newHeld = held - want;
-        PrestigeSystem.setHeldPublic(player, newHeld);
-        int balance = getPoints(player) + gained;
-        setPoints(player, balance);
-        SystemTelemetry.log("prestige_points", "turn_in", player, null, Map.of(
-                "amount", want,
-                "gained", gained,
-                "held", newHeld,
-                "points", balance
-        ));
-        return "§aTurned in §6" + want + " §aprestige" + (want == 1 ? "" : "s")
-                + " §7→ §e+" + gained + " §7favor"
-                + " §8(+" + (gained - want) + " bonus)"
-                + "\n§7Prestige favor: §e" + balance + " §7· Current prestige amount: §6" + newHeld;
-    }
-
-    // ── Skill upgrades ─────────────────────────────────────────────────
-
-    public static int getPurchasedSkillLevels(ServerPlayer player, String skillId) {
-        if (player == null || skillId == null || skillId.isBlank()) {
-            return 0;
-        }
-        return Math.max(0, (int) ProgressionData.storedGetLong(
-                player, KEY_SKILL_PREFIX + skillId.toLowerCase(Locale.ROOT), 0L));
-    }
-
-    /**
-     * Staff: set the prestige-invested skill floor (levels bought in the prestige shop).
-     * Does not change the wallet. Re-applies the live DMZ skill to match.
-     */
-    public static String adminAdjustSkill(
-            ServerPlayer player, String skillId, String mode, int amount
-    ) {
-        if (player == null) {
-            return "§cPlayer not online.";
-        }
-        SkillOffer offer = resolveOffer(skillId);
-        if (offer == null) {
-            // Allow adjusting a legacy stored id even if it left the catalog.
-            String id = skillId == null ? "" : skillId.toLowerCase(Locale.ROOT).trim();
-            if (id.isBlank()) {
-                return "§cUsage: skill <player> <skillId> <set|add|remove> <levels>"
-                        + "\n§8Example: skill Steve potentialunlock set 10";
-            }
-            int max = DmzSkillUtil.configuredMaxLevel(id);
-            if (max <= 0) {
-                max = Math.max(getPurchasedSkillLevels(player, id), 10);
-            }
-            offer = new SkillOffer(id, DmzSkillUtil.prettySkillLabel(id), max);
-        }
-        if (!ProgressionData.storedWritable(player)) {
-            return "§cCould not save prestige data for §f" + player.m_6302_() + "§c.";
-        }
-        int before = getPurchasedSkillLevels(player, offer.id);
-        Integer next = applyIntMode(before, mode, amount, 0, offer.maxLevel);
-        if (next == null) {
-            return "§cUsage: skill <player> <skillId> <set|add|remove> <levels>"
-                    + "\n§8Example: skill Steve potentialunlock add 2";
-        }
-        ProgressionData.storedPut(player, KEY_SKILL_PREFIX + offer.id.toLowerCase(Locale.ROOT), next);
-        Skills skills = DmzSkillUtil.skills(player);
-        int liveBefore = 0;
-        int liveAfter = 0;
-        if (skills != null) {
-            DmzSkillUtil.ensureRegistered(skills, offer.id, offer.maxLevel);
-            liveBefore = DmzSkillUtil.level(skills, offer.id);
-            int max = Math.max(offer.maxLevel, DmzSkillUtil.maxLevel(skills, offer.id, offer.maxLevel));
-            if (next > before) {
-                liveAfter = Math.min(max, Math.max(liveBefore, next));
-            } else if (next < before && liveBefore > next) {
-                // Lowering invested floor — clamp live skill down with it.
-                liveAfter = Math.min(max, next);
-            } else {
-                liveAfter = liveBefore;
-            }
-            if (liveAfter != liveBefore) {
-                DmzSkillUtil.setLevel(skills, offer.id, liveAfter);
-                DmzSkillUtil.sync(player);
-            }
-        }
-        reapplySkillBonuses(player);
-        SystemTelemetry.log("prestige_admin", "admin_skill", player, null, Map.of(
-                "skill", offer.id,
-                "mode", mode == null ? "" : mode,
-                "before", before,
-                "after", next,
-                "live_before", liveBefore,
-                "live_after", liveAfter
-        ));
-        String perPoint = levelsPerPoint(offer.id) > 1
-                ? " §8(" + levelsPerPoint(offer.id) + " levels per favor in shop)"
-                : "";
-        return "§a" + offer.label + " §7kept level §f" + before + " §7→ §f" + next
-                + " §8/ §f" + offer.maxLevel + perPoint
-                + "\n§7Live skill §f" + liveBefore + " §7→ §f" + liveAfter
-                + " §8(" + player.m_6302_() + ")";
-    }
-
-    /** Skills with a prestige-invested floor &gt; 0 (for admin info). */
-    public static List<String> investedSkillSummary(ServerPlayer player) {
-        List<String> out = new ArrayList<>();
-        if (player == null) {
-            return out;
-        }
-        for (SkillOffer offer : skillOffers()) {
-            int bought = getPurchasedSkillLevels(player, offer.id);
-            if (bought > 0) {
-                out.add(offer.label + " §f" + bought + "§7/§f" + offer.maxLevel);
-            }
-        }
-        return out;
-    }
-
-    private static Integer applyIntMode(int current, String mode, int amount, int min, int max) {
-        if (mode == null) {
-            return null;
-        }
-        String m = mode.toLowerCase(Locale.ROOT).trim();
-        int next;
-        switch (m) {
-            case "set" -> next = amount;
-            case "add" -> next = current + amount;
-            case "remove", "take", "sub" -> next = current - amount;
-            default -> {
-                return null;
-            }
-        }
-        return Math.max(min, Math.min(max, next));
-    }
-
-    /**
-     * Buy prestige-invested skill floor levels.
-     * Gated only on the stored prestige floor vs catalog max — live DMZ skill
-     * level may already be maxed from training; players can still raise the
-     * permanent floor that survives prestige reset.
-     */
-    public static String buySkillLevel(ServerPlayer player, String skillId) {
-        if (player == null) {
-            return "§cPlayers only.";
-        }
-        SkillOffer offer = resolveOffer(skillId);
-        if (offer == null) {
-            return "§cOnly Skill Check skills are purchasable here (Natural + Saga).";
-        }
-        int purchased = getPurchasedSkillLevels(player, offer.id);
-        int floorMax = Math.max(1, offer.maxLevel);
-        if (purchased >= floorMax) {
-            return "§c" + offer.label + " kept level is maxed (§f" + floorMax + "§c).";
-        }
-        int points = getPoints(player);
-        if (points < SKILL_POINT_COST) {
-            return "§cNeed §e" + SKILL_POINT_COST + " §cfavor (have §e" + points + "§c).";
-        }
-        int levelsPerPoint = levelsPerPoint(offer.id);
-        int room = Math.max(0, floorMax - purchased);
-        if (room <= 0) {
-            return "§c" + offer.label + " kept level is maxed (§f" + floorMax + "§c).";
-        }
-        int gain = Math.min(levelsPerPoint, room);
-        setPoints(player, points - SKILL_POINT_COST);
-        int nextPurchased = Math.min(floorMax, purchased + gain);
-        ProgressionData.storedPut(player, KEY_SKILL_PREFIX + offer.id.toLowerCase(Locale.ROOT), nextPurchased);
-
-        // Raise live skill only when below the new floor; never block the floor buy.
-        int liveBefore = 0;
-        int liveAfter = 0;
-        Skills skills = DmzSkillUtil.skills(player);
-        if (skills != null) {
-            DmzSkillUtil.ensureRegistered(skills, offer.id, floorMax);
-            liveBefore = DmzSkillUtil.level(skills, offer.id);
-            int liveMax = Math.max(floorMax, DmzSkillUtil.maxLevel(skills, offer.id, floorMax));
-            liveAfter = Math.min(liveMax, Math.max(liveBefore, nextPurchased));
-            if (liveAfter != liveBefore) {
-                DmzSkillUtil.setLevel(skills, offer.id, liveAfter);
-                DmzSkillUtil.sync(player);
-            }
-        }
-        SystemTelemetry.log("prestige_points", "buy_skill", player, null, Map.of(
-                "skill", offer.id,
-                "purchased", nextPurchased,
-                "level", liveAfter,
-                "gain", gain,
-                "points", getPoints(player)
-        ));
-        String liveNote = liveAfter > liveBefore
-                ? " → §fLv " + liveAfter
-                : " §8(live already §f" + liveBefore + "§8)";
-        return "§a+" + gain + " §7" + offer.label + " kept level §f" + purchased
-                + " §7→ §f" + nextPurchased + liveNote
-                + " §8(survives prestige)"
-                + "\n§7Favor left: §e" + getPoints(player);
-    }
-
-    /** Prestige-shop levels gained per spent point for {@code skillId}. */
-    public static int levelsPerPoint(String skillId) {
-        if (skillId != null && "potentialunlock".equalsIgnoreCase(skillId.trim())) {
-            return POTENTIAL_UNLOCK_LEVELS_PER_POINT;
-        }
-        return 1;
-    }
-
-    /** True when the player owns any prestige-shop skill floor ({@code pp_skill_*}). */
-    public static boolean hasAnyPurchasedSkillFloor(ServerPlayer player) {
-        if (player == null) {
-            return false;
-        }
-        try {
-            CompoundTag tag = ProgressionData.stored(player);
-            for (String key : tag.m_128431_()) {
-                if (key != null && key.startsWith(KEY_SKILL_PREFIX)
-                        && ProgressionData.storedGetLong(player, key, 0L) > 0L) {
-                    return true;
-                }
-            }
-        } catch (Throwable ignored) {
-        }
-        for (SkillOffer offer : skillOffers()) {
-            if (getPurchasedSkillLevels(player, offer.id) > 0) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** Re-apply purchased skill floors after prestige reset / on login. */
-    public static void reapplySkillBonuses(ServerPlayer player) {
-        if (player == null) {
-            return;
-        }
-        Skills skills = DmzSkillUtil.skills(player);
-        if (skills == null) {
-            // DMZ Character / skills bag often missing right after prestige or reset —
-            // keep the pulse window open so floors apply once the bag attaches.
-            if (hasAnyPurchasedSkillFloor(player)) {
-                long minUntil = System.currentTimeMillis() + 5_000L;
-                long until = ProgressionData.tempGetLong(player, KEY_REAPPLY_AT, 0L);
-                if (until < minUntil) {
-                    ProgressionData.tempPut(player, KEY_REAPPLY_AT, minUntil);
-                }
-            }
-            reapplyForms(player);
-            reapplyTierUnlocks(player);
-            return;
-        }
-        boolean changed = false;
-        // Shop catalog + any legacy purchased ids still stored on the player.
-        LinkedHashMap<String, SkillOffer> apply = new LinkedHashMap<>();
-        for (SkillOffer offer : skillOffers()) {
-            apply.put(offer.id, offer);
-            SKILL_OFFERS.put(offer.id, offer);
-        }
-        for (String id : DmzSkillUtil.allNonFormSkillIds()) {
-            if (apply.containsKey(id)) {
-                continue;
-            }
-            int purchased = getPurchasedSkillLevels(player, id);
-            if (purchased <= 0) {
-                continue;
-            }
-            int max = DmzSkillUtil.configuredMaxLevel(id);
-            if (max <= 0) {
-                max = Math.max(purchased, 10);
-            }
-            apply.put(id, new SkillOffer(id, DmzSkillUtil.prettySkillLabel(id), max));
-        }
-        // Also cover any pp_skill_* keys that left the live catalog.
-        try {
-            CompoundTag tag = ProgressionData.stored(player);
-            for (String key : tag.m_128431_()) {
-                if (key == null || !key.startsWith(KEY_SKILL_PREFIX)) {
-                    continue;
-                }
-                String id = key.substring(KEY_SKILL_PREFIX.length()).toLowerCase(Locale.ROOT);
-                if (id.isBlank() || apply.containsKey(id)) {
-                    continue;
-                }
-                int purchased = getPurchasedSkillLevels(player, id);
-                if (purchased <= 0) {
-                    continue;
-                }
-                int max = DmzSkillUtil.configuredMaxLevel(id);
-                if (max <= 0) {
-                    max = Math.max(purchased, 10);
-                }
-                apply.put(id, new SkillOffer(id, DmzSkillUtil.prettySkillLabel(id), max));
-            }
-        } catch (Throwable ignored) {
-        }
-        for (SkillOffer offer : apply.values()) {
-            int purchased = getPurchasedSkillLevels(player, offer.id);
-            if (purchased <= 0) {
-                continue;
-            }
-            DmzSkillUtil.ensureRegistered(skills, offer.id, offer.maxLevel);
-            int current = DmzSkillUtil.level(skills, offer.id);
-            int max = Math.max(offer.maxLevel, DmzSkillUtil.maxLevel(skills, offer.id, offer.maxLevel));
-            int target = Math.min(max, Math.max(current, purchased));
-            if (target > current) {
-                DmzSkillUtil.setLevel(skills, offer.id, target);
-                changed = true;
-            }
-        }
-        if (changed) {
-            DmzSkillUtil.sync(player);
-        }
-        reapplyForms(player);
-        reapplyTierUnlocks(player);
-    }
-
-    // ── Permanent difficulty tiers (prestige points) ───────────────────
-
-    /**
-     * Prestige-point cost for permanent unlock of difficulty tier {@code tierId} (1–7).
-     * T1–2 → 1, T3–4 → 2, T5–6 → 3, T7 → 4.
-     */
-    public static int tierPointCost(int tierId) {
-        if (tierId < 1 || tierId > 7) {
-            return 0;
-        }
-        return (tierId + 1) / 2;
-    }
-
-    public static boolean hasPurchasedTier(ServerPlayer player, int tierId) {
-        if (player == null || tierId < 1 || tierId > 7) {
-            return false;
-        }
-        return ProgressionData.storedGetBool(player, KEY_TIER_PREFIX + tierId);
-    }
-
-    /** Highest permanently purchased tier (0 if none). */
-    public static int highestPurchasedTier(ServerPlayer player) {
-        if (player == null) {
-            return 0;
-        }
-        int best = 0;
-        for (int t = 1; t <= 7; t++) {
-            if (hasPurchasedTier(player, t)) {
-                best = t;
-            }
-        }
-        return best;
-    }
-
-    /**
-     * True when the tier is permanently purchased <b>or</b> actually unlocked in
-     * difficulty data (level/prestige sync).
-     */
-    public static boolean isTierUnlockedOrPurchased(ServerPlayer player, int tierId) {
-        if (player == null || tierId < 1 || tierId > 7) {
-            return false;
-        }
-        if (hasPurchasedTier(player, tierId)) {
+        if (PrestigePointsSystem.hasPurchasedTier(serverPlayer, n)) {
             return true;
         }
         try {
-            var data = com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache.data(player);
-            return data != null && data.hasUnlockedTier(tierId);
-        } catch (Throwable ignored) {
+            PlayerDifficultyData playerDifficultyData = DifficultyCache.data((ServerPlayer)serverPlayer);
+            return playerDifficultyData != null && playerDifficultyData.hasUnlockedTier(n);
+        }
+        catch (Throwable throwable) {
             return false;
         }
     }
 
-    /**
-     * Whether the player may buy permanent T{@code tierId} with prestige points.
-     * Shop ladder: every lower tier must already be <b>permanently purchased</b>
-     * (level unlock alone does not skip the chain — that left gaps after prestige).
-     */
-    public static boolean canBuyDifficultyTier(ServerPlayer player, int tierId) {
-        if (player == null || tierId < 1 || tierId > 7) {
-            return false;
-        }
-        if (hasPurchasedTier(player, tierId)) {
-            return false;
-        }
-        for (int prev = 1; prev < tierId; prev++) {
-            if (!hasPurchasedTier(player, prev)) {
+    public static boolean canBuyDifficultyTier(ServerPlayer serverPlayer, int n) {
+        if (serverPlayer != null && n >= 1 && n <= 7) {
+            PrestigeShopConfig.TierShop tierShop = PrestigeShopConfig.get().tierShop;
+            if (PrestigePointsSystem.hasPurchasedTier(serverPlayer, n) || !tierShop.forSale(n)) {
                 return false;
             }
+            for (int i = 1; tierShop.requireInOrder && i < n; ++i) {
+                if (PrestigePointsSystem.hasPurchasedTier(serverPlayer, i)) continue;
+                return false;
+            }
+            return true;
         }
-        return true;
+        return false;
     }
 
-    /**
-     * Buy a permanent difficulty-tier unlock with prestige points.
-     * Requires T1…T(n-1) permanently purchased first (shop ladder).
-     * Allowed even when the tier is already unlocked via level — purchase makes it
-     * permanent so it survives prestige / level-gate revoke.
-     */
-    public static String buyDifficultyTier(ServerPlayer player, int tierId) {
-        if (player == null) {
-            return "§cPlayers only.";
+    public static String buyDifficultyTier(ServerPlayer serverPlayer, int n) {
+        int n2;
+        if (serverPlayer == null) {
+            return "\u00a7cPlayers only.";
         }
-        var tier = com.dbzlegacy.adaptivedifficulty.tier.UnlockTier.byId(tierId);
-        if (tier == null) {
-            return "§cUnknown tier. Use 1–7.";
+        UnlockTier unlockTier = UnlockTier.byId((int)n);
+        if (unlockTier == null) {
+            return "\u00a7cUnknown tier. Use 1\u20137.";
         }
-        if (!ProgressionData.storedWritable(player)) {
-            return "§cCould not save prestige data — try relogging, then buy again.";
+        if (!ProgressionData.storedWritable((ServerPlayer)serverPlayer)) {
+            return "\u00a7cCould not save prestige data \u2014 try relogging, then buy again.";
         }
-        if (hasPurchasedTier(player, tierId)) {
-            return "§eYou already own permanent §fT" + tierId + " " + tier.display + "§e.";
+        if (PrestigePointsSystem.hasPurchasedTier(serverPlayer, n)) {
+            return "\u00a7eYou already own permanent \u00a7fT" + n + " " + unlockTier.display + "\u00a7e.";
         }
-        if (tierId > 1) {
-            for (int prev = 1; prev < tierId; prev++) {
-                if (!hasPurchasedTier(player, prev)) {
-                    return "§cBuy permanent §fT" + prev + " §cfirst (shop ladder T1→T"
-                            + tierId + ").";
+        if (!PrestigeShopConfig.get().tierShop.forSale(n)) {
+            return "\u00a7cPermanent \u00a7fT" + n + " \u00a7cis not for sale right now.";
+        }
+        if (n > 1 && PrestigeShopConfig.get().tierShop.requireInOrder) {
+            for (n2 = 1; n2 < n; ++n2) {
+                if (PrestigePointsSystem.hasPurchasedTier(serverPlayer, n2)) continue;
+                return "\u00a7cBuy permanent \u00a7fT" + n2 + " \u00a7cfirst (shop ladder T1\u2192T" + n + ").";
+            }
+        }
+        n2 = PrestigePointsSystem.tierPointCost(n);
+        int n3 = PrestigePointsSystem.getPoints(serverPlayer);
+        if (n3 < n2) {
+            return "\u00a7cNeed \u00a7e" + n2 + " \u00a7cfavor (have \u00a7e" + n3 + "\u00a7c).";
+        }
+        if (!GuiClickConfirm.confirmed((UUID)serverPlayer.m_20148_(), (String)("prestige-tier:" + n))) {
+            return "\u00a7eUnlock permanent \u00a7fT" + n + " \u00a7efor \u00a76" + n2 + " \u00a7efavor? Click again within 10 seconds.";
+        }
+        PrestigePointsSystem.setPoints(serverPlayer, n3 - n2);
+        ProgressionData.storedPutBool((ServerPlayer)serverPlayer, (String)(KEY_TIER_PREFIX + n), (boolean)true);
+        PlayerDifficultyData playerDifficultyData = DifficultyCache.data((ServerPlayer)serverPlayer);
+        PrestigePointsSystem.reapplyTierUnlocks(serverPlayer);
+        try {
+            DifficultyCache.save((ServerPlayer)serverPlayer);
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+        try {
+            if (playerDifficultyData != null) {
+                UnlockSystem.syncUnlocks((ServerPlayer)serverPlayer, (PlayerDifficultyData)playerDifficultyData);
+            }
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+        PrestigePointsSystem.reapplyTierUnlocks(serverPlayer);
+        try {
+            DifficultyCache.save((ServerPlayer)serverPlayer);
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+        try {
+            TitleSystem.syncTierTitles((ServerPlayer)serverPlayer, (boolean)true);
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+        SystemTelemetry.log((String)KEY_POINTS, (String)"buy_tier", (ServerPlayer)serverPlayer, null, Map.of("tier", n, "cost", n2, "points", PrestigePointsSystem.getPoints(serverPlayer)));
+        return "\u00a7aPermanent unlock \u00a7fT" + n + " " + unlockTier.display + " \u00a77(\u00a7e-" + n2 + " \u00a77favor)\n\u00a77Survives prestige \u00b7 still activate with Ancient Coins via \u00a7f/difficulty \u00a77Tiers\n\u00a77Favor left: \u00a7e" + PrestigePointsSystem.getPoints(serverPlayer);
+    }
+
+    public static String adminGrantTier(ServerPlayer serverPlayer, int n) {
+        if (serverPlayer == null) {
+            return "\u00a7cPlayer not online.";
+        }
+        if (n < 1 || n > 7) {
+            return "\u00a7cTier must be 1\u20137.";
+        }
+        if (!ProgressionData.storedWritable((ServerPlayer)serverPlayer)) {
+            return "\u00a7cCould not save prestige data for \u00a7f" + serverPlayer.m_6302_() + "\u00a7c.";
+        }
+        for (int i = 1; i <= n; ++i) {
+            ProgressionData.storedPutBool((ServerPlayer)serverPlayer, (String)(KEY_TIER_PREFIX + i), (boolean)true);
+        }
+        PrestigePointsSystem.reapplyTierUnlocks(serverPlayer);
+        try {
+            DifficultyCache.save((ServerPlayer)serverPlayer);
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+        return "\u00a7aGranted permanent difficulty tiers \u00a7fT1\u2013T" + n + " \u00a78(" + serverPlayer.m_6302_() + ")\n\u00a77Activate via \u00a7f/difficulty \u00a77Tiers (Ancient Coins).";
+    }
+
+    public static String adminAdjustHighestTier(ServerPlayer serverPlayer, String string, int n) {
+        if (serverPlayer == null) {
+            return "\u00a7cPlayer not online.";
+        }
+        int n2 = PrestigePointsSystem.highestPurchasedTier(serverPlayer);
+        Integer n3 = PrestigePointsSystem.applyIntMode(n2, string, n, 0, 7);
+        if (n3 == null) {
+            return "\u00a7cUsage: tier <player> <set|add|remove> <0-7>\n\u00a78Or: tier <player> give <1-7> | clear <1-7|all>";
+        }
+        if (!ProgressionData.storedWritable((ServerPlayer)serverPlayer)) {
+            return "\u00a7cCould not save prestige data for \u00a7f" + serverPlayer.m_6302_() + "\u00a7c.";
+        }
+        for (int i = 1; i <= 7; ++i) {
+            if (i <= n3) {
+                ProgressionData.storedPutBool((ServerPlayer)serverPlayer, (String)(KEY_TIER_PREFIX + i), (boolean)true);
+                continue;
+            }
+            ProgressionData.storedRemove((ServerPlayer)serverPlayer, (String)(KEY_TIER_PREFIX + i));
+        }
+        PrestigePointsSystem.reapplyTierUnlocks(serverPlayer);
+        try {
+            DifficultyCache.save((ServerPlayer)serverPlayer);
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+        return "\u00a7aPermanent difficulty tiers \u00a7fT" + n2 + " \u00a77\u2192 \u00a7fT" + n3 + " \u00a78(" + serverPlayer.m_6302_() + ")" + (String)(n3 > 0 ? "\n\u00a77Owns permanent \u00a7fT1\u2013T" + n3 + "\u00a77. Activate via \u00a7f/difficulty\u00a77." : "\n\u00a77No permanent prestige tiers.");
+    }
+
+    public static String adminClearTier(ServerPlayer serverPlayer, int n) {
+        if (serverPlayer == null) {
+            return "\u00a7cPlayer not online.";
+        }
+        if (!ProgressionData.storedWritable((ServerPlayer)serverPlayer)) {
+            return "\u00a7cCould not save prestige data for \u00a7f" + serverPlayer.m_6302_() + "\u00a7c.";
+        }
+        if (n > 0) {
+            if (n > 7) {
+                return "\u00a7cTier must be 1\u20137 (or 0 for all).";
+            }
+            ProgressionData.storedRemove((ServerPlayer)serverPlayer, (String)(KEY_TIER_PREFIX + n));
+            return "\u00a77Cleared permanent \u00a7fT" + n + " \u00a77for \u00a7f" + serverPlayer.m_6302_() + "\u00a77.\n\u00a78Level/prestige unlocks are unchanged.";
+        }
+        for (int i = 1; i <= 7; ++i) {
+            ProgressionData.storedRemove((ServerPlayer)serverPlayer, (String)(KEY_TIER_PREFIX + i));
+        }
+        return "\u00a77Cleared all permanent prestige difficulty tiers for \u00a7f" + serverPlayer.m_6302_() + "\u00a77.";
+    }
+
+    public static void reapplyTierUnlocks(ServerPlayer serverPlayer) {
+        PlayerDifficultyData playerDifficultyData;
+        if (serverPlayer != null && (playerDifficultyData = DifficultyCache.data((ServerPlayer)serverPlayer)) != null) {
+            for (int i = 1; i <= 7; ++i) {
+                if (!PrestigePointsSystem.hasPurchasedTier(serverPlayer, i)) continue;
+                playerDifficultyData.unlockTier(i);
+            }
+        }
+    }
+
+    public static boolean hasMajin(ServerPlayer serverPlayer) {
+        return serverPlayer != null && ProgressionData.storedGetBool((ServerPlayer)serverPlayer, (String)KEY_MAJIN);
+    }
+
+    public static boolean hasMutant(ServerPlayer serverPlayer) {
+        return serverPlayer != null && ProgressionData.storedGetBool((ServerPlayer)serverPlayer, (String)KEY_MUTANT);
+    }
+
+    public static boolean hasUltimate(ServerPlayer serverPlayer) {
+        return serverPlayer != null && ProgressionData.storedGetBool((ServerPlayer)serverPlayer, (String)KEY_ULTIMATE);
+    }
+
+    public static boolean canBuyMajin(ServerPlayer serverPlayer) {
+        PrestigeShopConfig.Forms forms = PrestigeShopConfig.get().forms;
+        return serverPlayer != null && forms.majin.enabled && !PrestigePointsSystem.hasMajin(serverPlayer) && (!forms.majinMutantExclusive || !PrestigePointsSystem.hasMutant(serverPlayer));
+    }
+
+    public static boolean canBuyMutant(ServerPlayer serverPlayer) {
+        PrestigeShopConfig.Forms forms = PrestigeShopConfig.get().forms;
+        return serverPlayer != null && forms.mutant.enabled && !PrestigePointsSystem.hasMutant(serverPlayer) && (!forms.majinMutantExclusive || !PrestigePointsSystem.hasMajin(serverPlayer));
+    }
+
+    public static boolean canBuyUltimate(ServerPlayer serverPlayer) {
+        return serverPlayer != null && PrestigeShopConfig.get().forms.ultimate.enabled && !PrestigePointsSystem.hasUltimate(serverPlayer) && !PrestigePointsSystem.hasUltimateSkill(serverPlayer);
+    }
+
+    public static boolean hasUltimateSkill(ServerPlayer serverPlayer) {
+        return PrestigePointsSystem.ultimateSkillLevel(serverPlayer) >= 1;
+    }
+
+    public static int ultimateSkillLevel(ServerPlayer serverPlayer) {
+        return serverPlayer == null ? 0 : DmzProgression.skillLevel((Player)serverPlayer, (String)DMZ_SKILL_ULTIMATE);
+    }
+
+    public static void grantUltimate(ServerPlayer serverPlayer) {
+        if (serverPlayer != null) {
+            try {
+                StatsData statsData = DmzProgression.stats((Player)serverPlayer);
+                if (statsData == null) {
+                    return;
+                }
+                Skills skills = statsData.getSkills();
+                if (skills == null) {
+                    return;
+                }
+                skills.setSkillLevel(DMZ_SKILL_ULTIMATE, 1);
+                DmzSkillUtil.sync((ServerPlayer)serverPlayer);
+            }
+            catch (Throwable throwable) {
+                AdaptiveDifficultyMod.LOGGER.debug("[{}] prestige ultimate grant soft-fail: {}", (Object)"legacymechanics", (Object)throwable.toString());
+            }
+            PrestigePointsSystem.stripDeadUltimateEffect(serverPlayer);
+        }
+    }
+
+    public static void revokeUltimate(ServerPlayer serverPlayer) {
+        if (serverPlayer != null) {
+            try {
+                StatsData statsData = DmzProgression.stats((Player)serverPlayer);
+                if (statsData == null) {
+                    return;
+                }
+                Skills skills = statsData.getSkills();
+                if (skills == null) {
+                    return;
+                }
+                skills.setSkillLevel(DMZ_SKILL_ULTIMATE, 0);
+                DmzSkillUtil.sync((ServerPlayer)serverPlayer);
+            }
+            catch (Throwable throwable) {
+                AdaptiveDifficultyMod.LOGGER.debug("[{}] prestige ultimate revoke soft-fail: {}", (Object)"legacymechanics", (Object)throwable.toString());
+            }
+            PrestigePointsSystem.stripDeadUltimateEffect(serverPlayer);
+        }
+    }
+
+    private static void stripDeadUltimateEffect(ServerPlayer serverPlayer) {
+        if (serverPlayer != null) {
+            try {
+                StatsData statsData = DmzProgression.stats((Player)serverPlayer);
+                if (statsData == null) {
+                    return;
+                }
+                Effects effects = statsData.getEffects();
+                if (effects != null && effects.hasEffect(DMZ_SKILL_ULTIMATE)) {
+                    effects.removeEffect(DMZ_SKILL_ULTIMATE);
+                    DmzSkillUtil.sync((ServerPlayer)serverPlayer);
                 }
             }
-        }
-        int cost = tierPointCost(tierId);
-        int points = getPoints(player);
-        if (points < cost) {
-            return "§cNeed §e" + cost + " §cfavor"
-                    + " (have §e" + points + "§c).";
-        }
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "prestige-tier:" + tierId)) {
-            return "§eUnlock permanent §fT" + tierId + " §efor §6" + cost
-                    + " §efavor? Click again within 10 seconds.";
-        }
-        setPoints(player, points - cost);
-        ProgressionData.storedPutBool(player, KEY_TIER_PREFIX + tierId, true);
-        // Apply unlock bits for every permanently purchased tier (fills gaps).
-        var data = com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache.data(player);
-        reapplyTierUnlocks(player);
-        try {
-            com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache.save(player);
-        } catch (Throwable ignored) {
-        }
-        try {
-            if (data != null) {
-                com.dbzlegacy.adaptivedifficulty.tier.UnlockSystem.syncUnlocks(player, data);
+            catch (Throwable throwable) {
+                AdaptiveDifficultyMod.LOGGER.debug("[{}] prestige ultimate effect cleanup soft-fail: {}", (Object)"legacymechanics", (Object)throwable.toString());
             }
-        } catch (Throwable ignored) {
         }
-        reapplyTierUnlocks(player);
-        try {
-            com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache.save(player);
-        } catch (Throwable ignored) {
-        }
-        try {
-            com.dbzlegacy.adaptivedifficulty.title.TitleSystem.syncTierTitles(player, true);
-        } catch (Throwable ignored) {
-        }
-        SystemTelemetry.log("prestige_points", "buy_tier", player, null, Map.of(
-                "tier", tierId,
-                "cost", cost,
-                "points", getPoints(player)
-        ));
-        return "§aPermanent unlock §fT" + tierId + " " + tier.display
-                + " §7(§e-" + cost + " §7favor)"
-                + "\n§7Survives prestige · still activate with Ancient Coins via §f/difficulty §7Tiers"
-                + "\n§7Favor left: §e" + getPoints(player);
     }
 
-    /** Staff: grant permanent tier unlock(s) without spending points. */
-    public static String adminGrantTier(ServerPlayer player, int tierId) {
-        if (player == null) {
-            return "§cPlayer not online.";
-        }
-        if (tierId < 1 || tierId > 7) {
-            return "§cTier must be 1–7.";
-        }
-        if (!ProgressionData.storedWritable(player)) {
-            return "§cCould not save prestige data for §f" + player.m_6302_() + "§c.";
-        }
-        // Grant the full ladder through tierId so activation has no gaps.
-        for (int t = 1; t <= tierId; t++) {
-            ProgressionData.storedPutBool(player, KEY_TIER_PREFIX + t, true);
-        }
-        reapplyTierUnlocks(player);
-        try {
-            com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache.save(player);
-        } catch (Throwable ignored) {
-        }
-        return "§aGranted permanent difficulty tiers §fT1–T" + tierId
-                + " §8(" + player.m_6302_() + ")"
-                + "\n§7Activate via §f/difficulty §7Tiers (Ancient Coins).";
+    public static String buyMajin(ServerPlayer serverPlayer) {
+        return PrestigePointsSystem.buyForm(serverPlayer, true);
     }
 
-    /**
-     * Staff: set/add/remove highest permanent difficulty tier (shop ladder).
-     * {@code set 3} → owns T1–T3; {@code set 0} / clear all → none.
-     */
-    public static String adminAdjustHighestTier(ServerPlayer player, String mode, int amount) {
-        if (player == null) {
-            return "§cPlayer not online.";
+    public static String buyMutant(ServerPlayer serverPlayer) {
+        return PrestigePointsSystem.buyForm(serverPlayer, false);
+    }
+
+    public static String unbuyMajin(ServerPlayer serverPlayer) {
+        return PrestigePointsSystem.unbuyForm(serverPlayer, true);
+    }
+
+    public static String unbuyMutant(ServerPlayer serverPlayer) {
+        return PrestigePointsSystem.unbuyForm(serverPlayer, false);
+    }
+
+    public static String buyUltimate(ServerPlayer serverPlayer) {
+        PrestigeShopConfig.FormOffer formOffer = PrestigeShopConfig.get().forms.ultimate;
+        if (serverPlayer == null) {
+            return UltraStyle.dangerLine((String)"Players only.");
         }
-        int before = highestPurchasedTier(player);
-        Integer next = applyIntMode(before, mode, amount, 0, 7);
-        if (next == null) {
-            return "§cUsage: tier <player> <set|add|remove> <0-7>"
-                    + "\n§8Or: tier <player> give <1-7> | clear <1-7|all>";
+        if (PrestigePointsSystem.hasUltimate(serverPlayer)) {
+            return UltraStyle.noticeLine((String)"You already own Permanent Ultimate.");
         }
-        if (!ProgressionData.storedWritable(player)) {
-            return "§cCould not save prestige data for §f" + player.m_6302_() + "§c.";
+        if (PrestigePointsSystem.hasUltimateSkill(serverPlayer)) {
+            return UltraStyle.noticeLine((String)"You already have the Ultimate form from Old Kai \u2014 nothing to buy.");
         }
-        for (int t = 1; t <= 7; t++) {
-            if (t <= next) {
-                ProgressionData.storedPutBool(player, KEY_TIER_PREFIX + t, true);
+        if (!formOffer.enabled) {
+            return UltraStyle.dangerLine((String)"Permanent Ultimate is not for sale right now.");
+        }
+        int n = PrestigePointsSystem.getPoints(serverPlayer);
+        if (n < formOffer.cost) {
+            return UltraStyle.dangerLine((String)("Need " + formOffer.cost + " favor (have " + n + ")."));
+        }
+        if (!GuiClickConfirm.confirmed((UUID)serverPlayer.m_20148_(), (String)"form-buy:Permanent Ultimate")) {
+            return UltraStyle.noticeLine((String)("Buy Permanent Ultimate for " + formOffer.cost + " favor? Click again within 10 seconds."));
+        }
+        PrestigePointsSystem.setPoints(serverPlayer, n - formOffer.cost);
+        ProgressionData.storedPutBool((ServerPlayer)serverPlayer, (String)KEY_ULTIMATE, (boolean)true);
+        PrestigePointsSystem.grantUltimate(serverPlayer);
+        SystemTelemetry.log((String)KEY_POINTS, (String)"buy_ultimate", (ServerPlayer)serverPlayer, null, Map.of("points", PrestigePointsSystem.getPoints(serverPlayer), "cost", formOffer.cost));
+        return UltraStyle.color((String)"a", (String)("Unlocked Permanent Ultimate (-" + formOffer.cost + " favor)")) + "\n" + UltraStyle.dim((String)("Favor left: " + PrestigePointsSystem.getPoints(serverPlayer)));
+    }
+
+    public static String unbuyUltimate(ServerPlayer serverPlayer) {
+        int n = PrestigeShopConfig.get().forms.ultimate.refund();
+        if (serverPlayer == null) {
+            return UltraStyle.dangerLine((String)"Players only.");
+        }
+        if (!PrestigePointsSystem.hasUltimate(serverPlayer)) {
+            return UltraStyle.noticeLine((String)"You do not own Permanent Ultimate.");
+        }
+        if (!GuiClickConfirm.confirmed((UUID)serverPlayer.m_20148_(), (String)"form-remove:Permanent Ultimate")) {
+            return UltraStyle.noticeLine((String)("Remove Permanent Ultimate? " + (String)(n > 0 ? "You get " + n + " favor back." : "No favor is refunded.") + " Click again within 10 seconds."));
+        }
+        ProgressionData.storedPutBool((ServerPlayer)serverPlayer, (String)KEY_ULTIMATE, (boolean)false);
+        PrestigePointsSystem.revokeUltimate(serverPlayer);
+        PrestigePointsSystem.setPoints(serverPlayer, PrestigePointsSystem.getPoints(serverPlayer) + n);
+        SystemTelemetry.log((String)KEY_POINTS, (String)"unbuy_ultimate", (ServerPlayer)serverPlayer, null, Map.of("points", PrestigePointsSystem.getPoints(serverPlayer), "refund", n));
+        return UltraStyle.color((String)"a", (String)("Removed Permanent Ultimate" + (String)(n > 0 ? " (+" + n + " favor refunded)" : " (no refund)"))) + "\n" + UltraStyle.dim((String)("Favor left: " + PrestigePointsSystem.getPoints(serverPlayer)));
+    }
+
+    private static String buyForm(ServerPlayer serverPlayer, boolean bl) {
+        String string;
+        if (serverPlayer == null) {
+            return "\u00a7cPlayers only.";
+        }
+        PrestigeShopConfig.Forms forms = PrestigeShopConfig.get().forms;
+        PrestigeShopConfig.FormOffer formOffer = bl ? forms.majin : forms.mutant;
+        PrestigeShopConfig.FormOffer formOffer2 = bl ? forms.mutant : forms.majin;
+        String string2 = bl ? "Permanent Majin" : "Permanent Mutant";
+        String string3 = string = formOffer2.refund() > 0 ? "\u00a77" + formOffer2.refund() + " favor back" : "\u00a7cno refund";
+        if (bl ? !PrestigePointsSystem.hasMajin(serverPlayer) : !PrestigePointsSystem.hasMutant(serverPlayer)) {
+            int n = PrestigePointsSystem.getPoints(serverPlayer);
+            if (!formOffer.enabled) {
+                return "\u00a7c" + string2 + " is not for sale right now.";
+            }
+            if (n < formOffer.cost) {
+                return "\u00a7cNeed \u00a7e" + formOffer.cost + " \u00a7cfavor (have \u00a7e" + n + "\u00a7c).";
+            }
+            if (forms.majinMutantExclusive && bl && PrestigePointsSystem.hasMutant(serverPlayer)) {
+                return "\u00a7cYou have \u00a7fPermanent Mutant\u00a7c.\n\u00a77Remove Mutant first (" + string + "\u00a77), then buy Majin.";
+            }
+            if (forms.majinMutantExclusive && !bl && PrestigePointsSystem.hasMajin(serverPlayer)) {
+                return "\u00a7cYou have \u00a7fPermanent Majin\u00a7c.\n\u00a77Remove Majin first (" + string + "\u00a77), then buy Mutant.";
+            }
+            if (!GuiClickConfirm.confirmed((UUID)serverPlayer.m_20148_(), (String)("form-buy:" + string2))) {
+                return "\u00a7eBuy \u00a7f" + string2 + " \u00a7efor \u00a76" + formOffer.cost + " \u00a7efavor? Click again within 10 seconds.";
+            }
+            PrestigePointsSystem.setPoints(serverPlayer, n - formOffer.cost);
+            ProgressionData.storedPutBool((ServerPlayer)serverPlayer, (String)(bl ? KEY_MAJIN : KEY_MUTANT), (boolean)true);
+            PrestigePointsSystem.runDmzEffect(serverPlayer, bl ? "majin" : "mutant", true);
+            SystemTelemetry.log((String)KEY_POINTS, (String)(bl ? "buy_majin" : "buy_mutant"), (ServerPlayer)serverPlayer, null, Map.of("points", PrestigePointsSystem.getPoints(serverPlayer), "cost", formOffer.cost));
+            return "\u00a7aUnlocked \u00a7f" + string2 + " \u00a77(\u00a7e-" + formOffer.cost + " \u00a77favor)\n\u00a77Favor left: \u00a7e" + PrestigePointsSystem.getPoints(serverPlayer) + (String)(forms.majinMutantExclusive ? "\n\u00a78To switch: remove it (" + (String)(formOffer.refund() > 0 ? formOffer.refund() + " favor back" : "no refund") + "), then buy the other form." : "");
+        }
+        return "\u00a7eYou already own \u00a7f" + string2 + "\u00a7e.";
+    }
+
+    private static String unbuyForm(ServerPlayer serverPlayer, boolean bl) {
+        if (serverPlayer == null) {
+            return "\u00a7cPlayers only.";
+        }
+        String string = bl ? "Permanent Majin" : "Permanent Mutant";
+        int n = (bl ? PrestigeShopConfig.get().forms.majin : PrestigeShopConfig.get().forms.mutant).refund();
+        if (bl ? PrestigePointsSystem.hasMajin(serverPlayer) : PrestigePointsSystem.hasMutant(serverPlayer)) {
+            if (!GuiClickConfirm.confirmed((UUID)serverPlayer.m_20148_(), (String)("form-remove:" + string))) {
+                return "\u00a7eRemove \u00a7f" + string + "\u00a7e? " + (String)(n > 0 ? "You get \u00a76" + n + " \u00a7efavor back." : "You will \u00a7cnot \u00a7eget your favor back.") + " Click again within 10 seconds.";
+            }
+            PrestigePointsSystem.clearForm(serverPlayer, bl);
+            if (n > 0) {
+                PrestigePointsSystem.setPoints(serverPlayer, PrestigePointsSystem.getPoints(serverPlayer) + n);
+            }
+            SystemTelemetry.log((String)KEY_POINTS, (String)(bl ? "unbuy_majin" : "unbuy_mutant"), (ServerPlayer)serverPlayer, null, Map.of("refund", n));
+            return "\u00a77Removed \u00a7f" + string + "\u00a77. " + (String)(n > 0 ? "\u00a7a+" + n + " favor refunded." : "\u00a7cNo favor refunded.") + "\n\u00a77Favor: \u00a7e" + PrestigePointsSystem.getPoints(serverPlayer);
+        }
+        return "\u00a7eYou do not own \u00a7f" + string + "\u00a7e.";
+    }
+
+    private static void clearForm(ServerPlayer serverPlayer, boolean bl) {
+        ProgressionData.storedPutBool((ServerPlayer)serverPlayer, (String)(bl ? KEY_MAJIN : KEY_MUTANT), (boolean)false);
+        PrestigePointsSystem.runDmzEffect(serverPlayer, bl ? "majin" : "mutant", false);
+    }
+
+    private static void reapplyForms(ServerPlayer serverPlayer) {
+        if (PrestigePointsSystem.hasMajin(serverPlayer)) {
+            PrestigePointsSystem.runDmzEffect(serverPlayer, "majin", true);
+        }
+        if (PrestigePointsSystem.hasMutant(serverPlayer)) {
+            PrestigePointsSystem.runDmzEffect(serverPlayer, "mutant", true);
+        }
+        if (PrestigePointsSystem.hasUltimate(serverPlayer)) {
+            if (!PrestigePointsSystem.hasUltimateSkill(serverPlayer)) {
+                PrestigePointsSystem.grantUltimate(serverPlayer);
             } else {
-                ProgressionData.storedRemove(player, KEY_TIER_PREFIX + t);
-            }
-        }
-        reapplyTierUnlocks(player);
-        try {
-            com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache.save(player);
-        } catch (Throwable ignored) {
-        }
-        return "§aPermanent difficulty tiers §fT" + before + " §7→ §fT" + next
-                + " §8(" + player.m_6302_() + ")"
-                + (next > 0
-                ? "\n§7Owns permanent §fT1–T" + next + "§7. Activate via §f/difficulty§7."
-                : "\n§7No permanent prestige tiers.");
-    }
-
-    /** Staff: clear one or all permanent prestige-purchased tiers. */
-    public static String adminClearTier(ServerPlayer player, int tierId) {
-        if (player == null) {
-            return "§cPlayer not online.";
-        }
-        if (!ProgressionData.storedWritable(player)) {
-            return "§cCould not save prestige data for §f" + player.m_6302_() + "§c.";
-        }
-        if (tierId <= 0) {
-            for (int t = 1; t <= 7; t++) {
-                ProgressionData.storedRemove(player, KEY_TIER_PREFIX + t);
-            }
-            return "§7Cleared all permanent prestige difficulty tiers for §f"
-                    + player.m_6302_() + "§7.";
-        }
-        if (tierId > 7) {
-            return "§cTier must be 1–7 (or 0 for all).";
-        }
-        ProgressionData.storedRemove(player, KEY_TIER_PREFIX + tierId);
-        return "§7Cleared permanent §fT" + tierId + " §7for §f" + player.m_6302_() + "§7."
-                + "\n§8Level/prestige unlocks are unchanged.";
-    }
-
-    /** Ensure prestige-purchased tiers stay unlocked (survives sync revoke + prestige). */
-    public static void reapplyTierUnlocks(ServerPlayer player) {
-        if (player == null) {
-            return;
-        }
-        var data = com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache.data(player);
-        if (data == null) {
-            return;
-        }
-        for (int t = 1; t <= 7; t++) {
-            if (hasPurchasedTier(player, t)) {
-                data.unlockTier(t);
+                PrestigePointsSystem.stripDeadUltimateEffect(serverPlayer);
             }
         }
     }
 
-    public static boolean hasMajin(ServerPlayer player) {
-        return player != null && ProgressionData.storedGetBool(player, KEY_MAJIN);
-    }
-
-    public static boolean hasMutant(ServerPlayer player) {
-        return player != null && ProgressionData.storedGetBool(player, KEY_MUTANT);
-    }
-
-    public static boolean hasUltimate(ServerPlayer player) {
-        return player != null && ProgressionData.storedGetBool(player, KEY_ULTIMATE);
-    }
-
-    /** True when the player may spend points on Permanent Majin (nothing else owned). */
-    public static boolean canBuyMajin(ServerPlayer player) {
-        return player != null && !hasMajin(player) && !hasMutant(player);
-    }
-
-    /** True when the player may spend points on Permanent Mutant (nothing else owned). */
-    public static boolean canBuyMutant(ServerPlayer player) {
-        return player != null && !hasMutant(player) && !hasMajin(player);
-    }
-
-    /**
-     * True when the player may spend points on Permanent Ultimate. Ownership is the only
-     * gate — Ultimate is independent, so Majin / Mutant never block it. A player who already
-     * has the DMZ {@code ultimate} skill (earned from Old Kai) is also refused, so a later
-     * Remove can never strip a legitimately earned form.
-     */
-    public static boolean canBuyUltimate(ServerPlayer player) {
-        return player != null && !hasUltimate(player) && !hasUltimateSkill(player);
-    }
-
-    /**
-     * True when the DMZ {@code ultimate} skill is level 1+ — the real Ultimate form, granted by
-     * Old Kai. Independent of the shop flag: a shop buyer has both, an Old Kai earner only this.
-     */
-    public static boolean hasUltimateSkill(ServerPlayer player) {
-        return ultimateSkillLevel(player) >= 1;
-    }
-
-    /** DMZ {@code ultimate} skill level (0 when missing / player or data unavailable). */
-    public static int ultimateSkillLevel(ServerPlayer player) {
-        if (player == null) {
+    public static int getBreakthroughs(ServerPlayer serverPlayer) {
+        if (serverPlayer == null) {
             return 0;
         }
-        return com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.skillLevel(
-                player, DMZ_SKILL_ULTIMATE);
-    }
-
-    /**
-     * Grant Permanent Ultimate through the skill system — the only path DMZ honors. Sets the
-     * {@code ultimate} skill to 1 (same write Old Kai makes) and syncs, then strips the stale
-     * dead {@code effects} entry that older builds wrote for buyers on the broken build.
-     * Soft-fails like {@link #runDmzEffect}: a DMZ API hiccup never breaks the shop flow.
-     */
-    public static void grantUltimate(ServerPlayer player) {
-        if (player == null) {
-            return;
-        }
-        try {
-            var data = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player);
-            if (data == null) {
-                return;
-            }
-            var skills = data.getSkills();
-            if (skills == null) {
-                return;
-            }
-            skills.setSkillLevel(DMZ_SKILL_ULTIMATE, 1);
-            DmzSkillUtil.sync(player);
-        } catch (Throwable t) {
-            AdaptiveDifficultyMod.LOGGER.debug(
-                    "[{}] prestige ultimate grant soft-fail: {}",
-                    AdaptiveDifficultyMod.MOD_ID, t.toString());
-        }
-        stripDeadUltimateEffect(player);
-    }
-
-    /**
-     * Revoke shop-bought Permanent Ultimate: skill back to 0 (below {@code unlockOnSkillLevel 1}),
-     * stale dead effect entry stripped, synced. Only called for shop buyers — the buy gate in
-     * {@link #buyUltimate} guarantees the skill came from the shop, never Old Kai. Soft-fails.
-     */
-    public static void revokeUltimate(ServerPlayer player) {
-        if (player == null) {
-            return;
-        }
-        try {
-            var data = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player);
-            if (data == null) {
-                return;
-            }
-            var skills = data.getSkills();
-            if (skills == null) {
-                return;
-            }
-            skills.setSkillLevel(DMZ_SKILL_ULTIMATE, 0);
-            DmzSkillUtil.sync(player);
-        } catch (Throwable t) {
-            AdaptiveDifficultyMod.LOGGER.debug(
-                    "[{}] prestige ultimate revoke soft-fail: {}",
-                    AdaptiveDifficultyMod.MOD_ID, t.toString());
-        }
-        stripDeadUltimateEffect(player);
-    }
-
-    /**
-     * Remove the dead {@code effects} entry for {@code ultimate} that older builds wrote.
-     * DMZ has no UltimateStatusHandler, so the entry is inert data — but it must be cleaned up
-     * so it never confuses the form state. Soft-fails like {@link #runDmzEffect}.
-     */
-    private static void stripDeadUltimateEffect(ServerPlayer player) {
-        if (player == null) {
-            return;
-        }
-        try {
-            var data = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player);
-            if (data == null) {
-                return;
-            }
-            var effects = data.getEffects();
-            if (effects != null && effects.hasEffect(DMZ_SKILL_ULTIMATE)) {
-                effects.removeEffect(DMZ_SKILL_ULTIMATE);
-                DmzSkillUtil.sync(player);
-            }
-        } catch (Throwable t) {
-            AdaptiveDifficultyMod.LOGGER.debug(
-                    "[{}] prestige ultimate effect cleanup soft-fail: {}",
-                    AdaptiveDifficultyMod.MOD_ID, t.toString());
-        }
-    }
-
-    public static String buyMajin(ServerPlayer player) {
-        return buyForm(player, true);
-    }
-
-    public static String buyMutant(ServerPlayer player) {
-        return buyForm(player, false);
-    }
-
-    public static String unbuyMajin(ServerPlayer player) {
-        return unbuyForm(player, true);
-    }
-
-    public static String unbuyMutant(ServerPlayer player) {
-        return unbuyForm(player, false);
-    }
-
-    /**
-     * Buy Permanent Ultimate for {@link #ULTIMATE_COST} favor. No exclusivity check against
-     * Majin or Mutant — the two permanents stack with Ultimate in either direction.
-     * <p>
-     * Gate: a player who already has the DMZ {@code ultimate} skill (earned from Old Kai) with
-     * the shop flag unset is refused before any charge or flag write, so a later Remove can
-     * never strip a legitimately earned form.
-     */
-    public static String buyUltimate(ServerPlayer player) {
-        if (player == null) {
-            return UltraStyle.dangerLine("Players only.");
-        }
-        if (hasUltimate(player)) {
-            return UltraStyle.noticeLine("You already own Permanent Ultimate.");
-        }
-        if (hasUltimateSkill(player)) {
-            return UltraStyle.noticeLine(
-                    "You already have the Ultimate form from Old Kai — nothing to buy.");
-        }
-        int points = getPoints(player);
-        if (points < ULTIMATE_COST) {
-            return UltraStyle.dangerLine(
-                    "Need " + ULTIMATE_COST + " favor (have " + points + ").");
-        }
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-buy:Permanent Ultimate")) {
-            return UltraStyle.noticeLine(
-                    "Buy Permanent Ultimate for " + ULTIMATE_COST
-                            + " favor? Click again within 10 seconds.");
-        }
-        setPoints(player, points - ULTIMATE_COST);
-        ProgressionData.storedPutBool(player, KEY_ULTIMATE, true);
-        grantUltimate(player);
-        SystemTelemetry.log("prestige_points", "buy_ultimate", player, null, Map.of(
-                "points", getPoints(player)
-        ));
-        return UltraStyle.color("a", "Unlocked Permanent Ultimate (-" + ULTIMATE_COST + " favor)")
-                + "\n"
-                + UltraStyle.dim("Favor left: " + getPoints(player));
-    }
-
-    /**
-     * Remove Permanent Ultimate: click again within 10 seconds to confirm, refund the full
-     * {@link #ULTIMATE_COST}, clear only the Ultimate flag. Majin / Mutant state is untouched.
-     * Revoke only runs when the shop flag was set — the buy gate guarantees the skill came from
-     * the shop, never from Old Kai — so an earned form is never stripped here.
-     */
-    public static String unbuyUltimate(ServerPlayer player) {
-        if (player == null) {
-            return UltraStyle.dangerLine("Players only.");
-        }
-        if (!hasUltimate(player)) {
-            return UltraStyle.noticeLine("You do not own Permanent Ultimate.");
-        }
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-remove:Permanent Ultimate")) {
-            return UltraStyle.noticeLine(
-                    "Remove Permanent Ultimate? You get your " + ULTIMATE_COST
-                            + " favor back. Click again within 10 seconds.");
-        }
-        ProgressionData.storedPutBool(player, KEY_ULTIMATE, false);
-        revokeUltimate(player);
-        setPoints(player, getPoints(player) + ULTIMATE_COST);
-        SystemTelemetry.log("prestige_points", "unbuy_ultimate", player, null, Map.of(
-                "points", getPoints(player)
-        ));
-        return UltraStyle.color(
-                        "a", "Removed Permanent Ultimate (+" + ULTIMATE_COST + " favor refunded)")
-                + "\n"
-                + UltraStyle.dim("Favor left: " + getPoints(player));
-    }
-
-    private static String buyForm(ServerPlayer player, boolean majin) {
-        if (player == null) {
-            return "§cPlayers only.";
-        }
-        String label = majin ? "Permanent Majin" : "Permanent Mutant";
-        if (majin ? hasMajin(player) : hasMutant(player)) {
-            return "§eYou already own §f" + label + "§e.";
-        }
-        int points = getPoints(player);
-        if (points < FORM_COST) {
-            return "§cNeed §e" + FORM_COST + " §cfavor (have §e" + points + "§c).";
-        }
-        if (majin && hasMutant(player)) {
-            return "§cYou have §fPermanent Mutant§c."
-                    + "\n§7Remove Mutant first (§cno refund§7), then buy Majin.";
-        }
-        if (!majin && hasMajin(player)) {
-            return "§cYou have §fPermanent Majin§c."
-                    + "\n§7Remove Majin first (§cno refund§7), then buy Mutant.";
-        }
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-buy:" + label)) {
-            return "§eBuy §f" + label + " §efor §6" + FORM_COST
-                    + " §efavor? Click again within 10 seconds.";
-        }
-        setPoints(player, points - FORM_COST);
-        ProgressionData.storedPutBool(player, majin ? KEY_MAJIN : KEY_MUTANT, true);
-        runDmzEffect(player, majin ? "majin" : "mutant", true);
-        SystemTelemetry.log("prestige_points", majin ? "buy_majin" : "buy_mutant", player, null, Map.of(
-                "points", getPoints(player)
-        ));
-        return "§aUnlocked §f" + label + " §7(§e-" + FORM_COST + " §7favor)"
-                + "\n§7Favor left: §e" + getPoints(player)
-                + "\n§8To switch: remove it (no refund), then buy the other form.";
-    }
-
-    private static String unbuyForm(ServerPlayer player, boolean majin) {
-        if (player == null) {
-            return "§cPlayers only.";
-        }
-        String label = majin ? "Permanent Majin" : "Permanent Mutant";
-        if (!(majin ? hasMajin(player) : hasMutant(player))) {
-            return "§eYou do not own §f" + label + "§e.";
-        }
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-remove:" + label)) {
-            return "§eRemove §f" + label + "§e? You will §cnot §eget your "
-                    + FORM_COST + " favor back. Click again within 10 seconds.";
-        }
-        clearForm(player, majin);
-        SystemTelemetry.log("prestige_points", majin ? "unbuy_majin" : "unbuy_mutant", player, null, Map.of());
-        return "§7Removed §f" + label + "§7. §cNo favor refunded."
-                + "\n§7Favor: §e" + getPoints(player);
-    }
-
-    private static void clearForm(ServerPlayer player, boolean majin) {
-        ProgressionData.storedPutBool(player, majin ? KEY_MAJIN : KEY_MUTANT, false);
-        runDmzEffect(player, majin ? "majin" : "mutant", false);
-    }
-
-    private static void reapplyForms(ServerPlayer player) {
-        if (hasMajin(player)) {
-            runDmzEffect(player, "majin", true);
-        }
-        if (hasMutant(player)) {
-            runDmzEffect(player, "mutant", true);
-        }
-        // Ultimate rides the skill system, not the DMZ effect list — reapply is a heal:
-        // re-grant the skill if it is missing, and always strip a stale dead effect entry.
-        if (hasUltimate(player)) {
-            if (!hasUltimateSkill(player)) {
-                grantUltimate(player);
-            } else {
-                stripDeadUltimateEffect(player);
-            }
-        }
-    }
-
-    // ── Personal level-cap breakthroughs (maxValue 150k + personal soft-lock) ─
-
-    public static int getBreakthroughs(ServerPlayer player) {
-        if (player == null) {
+        boolean bl = ProgressionData.storedHas((ServerPlayer)serverPlayer, (String)KEY_BREAKTHROUGHS);
+        int n = bl ? (int)ProgressionData.storedGetLong((ServerPlayer)serverPlayer, (String)KEY_BREAKTHROUGHS, (long)0L) : -1;
+        int n2 = PersistentDataAccess.getInt((Entity)serverPlayer, (String)KEY_BREAKTHROUGHS, (int)-1);
+        int n3 = PersistentDataAccess.getInt((Entity)serverPlayer, (String)"lm_personal_breakthroughs", (int)-1);
+        if (n < 0 && n2 < 0 && n3 < 0) {
             return 0;
         }
-        boolean bagHas = ProgressionData.storedHas(player, KEY_BREAKTHROUGHS);
-        int fromBag = bagHas ? (int) ProgressionData.storedGetLong(player, KEY_BREAKTHROUGHS, 0L) : -1;
-        int fromRoot = PersistentDataAccess.getInt(player, PersonalLevelCapMirror.ROOT_BREAKTHROUGHS, -1);
-        int fromMirror = PersistentDataAccess.getInt(player, PersonalLevelCapMirror.KEY_BREAKTHROUGHS, -1);
-        // Explicit NBT only. Inferring from lm_personal_level_cap (Overhaul 50k/150k)
-        // made 0 breakthroughs snap to 5 and padmin set 0 fail at held 1.
-        if (fromBag < 0 && fromRoot < 0 && fromMirror < 0) {
-            return 0;
+        int n4 = 0;
+        if (n >= 0) {
+            n4 = Math.max(n4, n);
         }
-        int n = 0;
-        if (fromBag >= 0) {
-            n = Math.max(n, fromBag);
+        if (n2 >= 0) {
+            n4 = Math.max(n4, n2);
         }
-        if (fromRoot >= 0) {
-            n = Math.max(n, fromRoot);
+        if (n3 >= 0) {
+            n4 = Math.max(n4, n3);
         }
-        if (fromMirror >= 0) {
-            n = Math.max(n, fromMirror);
-        }
-        return Math.max(0, Math.min(MAX_BREAKTHROUGHS, n));
+        return Math.max(0, Math.min(5, n4));
     }
 
-    public static int breakthroughCost(int nextIndex) {
-        // nextIndex 1..5 → 15, 20, 25, 30, 35
-        if (nextIndex < 1 || nextIndex > MAX_BREAKTHROUGHS) {
-            return Integer.MAX_VALUE;
-        }
-        return 15 + (nextIndex - 1) * 5;
+    public static int breakthroughCost(int n) {
+        return n >= 1 && n <= 5 ? 15 + (n - 1) * 5 : Integer.MAX_VALUE;
     }
 
-    public static void setBreakthroughs(ServerPlayer player, int breakthroughs) {
-        if (player == null) {
-            return;
-        }
-        int n = Math.max(0, Math.min(MAX_BREAKTHROUGHS, breakthroughs));
-        ProgressionData.storedPut(player, KEY_BREAKTHROUGHS, n);
-        PersistentDataAccess.putInt(player, PersonalLevelCapMirror.ROOT_BREAKTHROUGHS, n);
-        PersistentDataAccess.putInt(player, PersonalLevelCapMirror.KEY_BREAKTHROUGHS, n);
-        try {
-            PersonalLevelCapMirror.overwrite(player, n, effectiveMaxLevel(n));
-        } catch (Throwable ignored) {
-        }
-        try {
-            DmzSkillUtil.sync(player);
-        } catch (Throwable ignored) {
-        }
-        PersonalLevelCapMirror.markSynced(player, effectiveMaxLevel(n));
-    }
-
-    /** Personal DMZ level cap: 100k + breakthroughs×10k (mixin + soft-locks). */
-    public static int effectiveMaxLevel(ServerPlayer player) {
-        return Math.min(ABSOLUTE_LEVEL_CAP,
-                BASE_LEVEL_CAP + getBreakthroughs(player) * BREAKTHROUGH_STEP);
-    }
-
-    public static int effectiveMaxLevel(int breakthroughs) {
-        int n = Math.max(0, Math.min(MAX_BREAKTHROUGHS, breakthroughs));
-        return Math.min(ABSOLUTE_LEVEL_CAP, BASE_LEVEL_CAP + n * BREAKTHROUGH_STEP);
-    }
-
-    public static String buyBreakthrough(ServerPlayer player) {
-        if (player == null) {
-            return "§cPlayers only.";
-        }
-        int current = getBreakthroughs(player);
-        if (current >= MAX_BREAKTHROUGHS) {
-            return "§cPersonal level cap fully raised (§f"
-                    + DmzRewards.formatWhole(ABSOLUTE_LEVEL_CAP) + "§c).";
-        }
-        int next = current + 1;
-        int cost = breakthroughCost(next);
-        int points = getPoints(player);
-        if (points < cost) {
-            return "§cNeed §e" + cost + " §cfavor for breakthrough §f#" + next
-                    + " §c(have §e" + points + "§c).";
-        }
-        setPoints(player, points - cost);
-        setBreakthroughs(player, next);
-        int newCap = effectiveMaxLevel(player);
-        // Force a live DMZ read so the client/stat screen picks up the raised max.
-        int liveCap = newCap;
-        int liveMaxStats = 0;
-        try {
-            var data = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player);
-            if (data != null) {
-                liveCap = Math.max(newCap, data.getConfiguredMaxValue());
-                liveMaxStats = Math.max(0, data.getConfiguredMaxTotalStats());
-                com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil.sync(player);
-            }
-        } catch (Throwable ignored) {
-        }
-        try {
-            com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
-                    .syncFromLegacy(player);
-        } catch (Throwable ignored) {
-        }
-        SystemTelemetry.log("prestige_points", "breakthrough", player, null, Map.of(
-                "breakthrough", next,
-                "cap", newCap,
-                "live_cap", liveCap,
-                "live_max_stats", liveMaxStats,
-                "cost", cost,
-                "points", getPoints(player)
-        ));
-        String note = liveCap >= newCap
-                ? ""
-                : "\n§cWarning: live DMZ max still §f" + DmzRewards.formatWhole(liveCap)
-                        + " §c(expected §f" + DmzRewards.formatWhole(newCap)
-                        + "§c) — remount / report if this persists.";
-        return "§aPersonal level cap raised to §f" + DmzRewards.formatWhole(newCap)
-                + " §7(§e-" + cost + " §7favor)"
-                + "\n§7Keep leveling with TP / buy stats into the new cap."
-                + "\n§7Future prestige requirements now scale up to §f"
-                + DmzRewards.formatWhole(newCap) + "§7."
-                + "\n§8Others stay soft-locked at their personal cap until they breakthrough too."
-                + "\n§7Breakthrough §f" + next + "§7/§f" + MAX_BREAKTHROUGHS
-                + " · Favor left: §e" + getPoints(player)
-                + "\n§7Live DMZ max now: §f" + DmzRewards.formatWhole(liveCap)
-                + note;
-    }
-
-    // ── Login / post-prestige ──────────────────────────────────────────
-
-    private static final String KEY_REAPPLY_AT = "pp_reapply_at_ms";
-    private static final String KEY_FORM_PULSE_AT = "pp_form_pulse_at_ms";
-    private static final String KEY_SKILL_PULSE_AT = "pp_skill_pulse_at_ms";
-    /** Match old Fabled Passive interval that re-gave majin/mutant when missing. */
-    private static final long FORM_PULSE_MS = 5000L;
-    /**
-     * Keep prestige skill floors live after {@code dmzstats reset} / Character rebuild.
-     * DMZ can wipe skills well after the short post-reset window.
-     */
-    private static final long SKILL_FLOOR_PULSE_MS = 5000L;
-    /** Post-prestige / death / race-lock: keep forcing floors until this deadline. */
-    private static final long REAPPLY_WINDOW_MS = 30_000L;
-
-    public static void onLogin(ServerPlayer player) {
-        if (player == null) {
-            return;
-        }
-        try {
-            com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
-                    .syncFromLegacy(player);
-        } catch (Throwable ignored) {
-        }
-        try {
-            com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration
-                    .syncLmWalletFromOverhaulCount(player);
-        } catch (Throwable ignored) {
-        }
-        try {
-            PrestigeSystem.reconcileNeedFloor(player);
-        } catch (Throwable ignored) {
-        }
-        // Stagger reapply so DMZ / Fabled finish loading (Character attach can lag).
-        ProgressionData.tempPut(player, KEY_REAPPLY_AT, System.currentTimeMillis() + 12_000L);
-        reapplyAllShopPurchases(player);
-    }
-
-    public static void scheduleReapplyAfterPrestige(ServerPlayer player) {
-        scheduleReapplyAfterDeath(player);
-    }
-
-    /**
-     * After death respawn (or prestige reset), re-apply every prestige-shop purchase:
-     * skill floors, permanent difficulty tiers, Majin/Mutant/Ultimate, and breakthrough soft-lock.
-     * Immediate + next-tick + delayed ticks + pulse window cover DMZ skill rebuild races.
-     */
-    public static void scheduleReapplyAfterDeath(ServerPlayer player) {
-        if (player == null) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        // Pulse path: keep reapplying until this deadline (skills/forms/tiers).
-        ProgressionData.tempPut(player, KEY_REAPPLY_AT, now + REAPPLY_WINDOW_MS);
-        reapplyAllShopPurchases(player);
-        MinecraftServer server = player.m_20194_();
-        if (server == null) {
-            return;
-        }
-        final UUID id = player.m_20148_();
-        // Next-tick pass after DMZ finishes respawn rebuild (UUID — clone/original share id).
-        server.execute(() -> {
-            ServerPlayer p = server.m_6846_().m_11259_(id);
-            if (p != null && p.m_6084_()) {
-                reapplyAllShopPurchases(p);
-            }
-        });
-        // dmzstats reset / Character rebuild often finishes seconds later — retry like level pull.
-        for (int delay : new int[] {20, 40, 80, 160, 300, 600}) {
-            final int ticks = delay;
+    public static void setBreakthroughs(ServerPlayer serverPlayer, int n) {
+        if (serverPlayer != null) {
+            int n2 = Math.max(0, Math.min(5, n));
+            ProgressionData.storedPut((ServerPlayer)serverPlayer, (String)KEY_BREAKTHROUGHS, (long)n2);
+            PersistentDataAccess.putInt((Entity)serverPlayer, (String)KEY_BREAKTHROUGHS, (int)n2);
+            PersistentDataAccess.putInt((Entity)serverPlayer, (String)"lm_personal_breakthroughs", (int)n2);
             try {
-                server.m_6937_(new TickTask(server.m_129921_() + ticks, () -> {
-                    ServerPlayer p = server.m_6846_().m_11259_(id);
-                    if (p != null && p.m_6084_()) {
-                        reapplyAllShopPurchases(p);
+                PersonalLevelCapMirror.overwrite((ServerPlayer)serverPlayer, (int)n2, (int)PrestigePointsSystem.effectiveMaxLevel(n2));
+            }
+            catch (Throwable throwable) {
+                // empty catch block
+            }
+            try {
+                DmzSkillUtil.sync((ServerPlayer)serverPlayer);
+            }
+            catch (Throwable throwable) {
+                // empty catch block
+            }
+            PersonalLevelCapMirror.markSynced((ServerPlayer)serverPlayer, (int)PrestigePointsSystem.effectiveMaxLevel(n2));
+        }
+    }
+
+    public static int effectiveMaxLevel(ServerPlayer serverPlayer) {
+        return Math.min(150000, 100000 + PrestigePointsSystem.getBreakthroughs(serverPlayer) * 10000);
+    }
+
+    public static int effectiveMaxLevel(int n) {
+        int n2 = Math.max(0, Math.min(5, n));
+        return Math.min(150000, 100000 + n2 * 10000);
+    }
+
+    public static String buyBreakthrough(ServerPlayer serverPlayer) {
+        Object object;
+        int n;
+        if (serverPlayer == null) {
+            return "\u00a7cPlayers only.";
+        }
+        int n2 = PrestigePointsSystem.getBreakthroughs(serverPlayer);
+        if (n2 >= 5) {
+            return "\u00a7cPersonal level cap fully raised (\u00a7f" + DmzRewards.formatWhole((double)150000.0) + "\u00a7c).";
+        }
+        int n3 = n2 + 1;
+        int n4 = PrestigePointsSystem.breakthroughCost(n3);
+        int n5 = PrestigePointsSystem.getPoints(serverPlayer);
+        if (n5 < n4) {
+            return "\u00a7cNeed \u00a7e" + n4 + " \u00a7cfavor for breakthrough \u00a7f#" + n3 + " \u00a7c(have \u00a7e" + n5 + "\u00a7c).";
+        }
+        PrestigePointsSystem.setPoints(serverPlayer, n5 - n4);
+        PrestigePointsSystem.setBreakthroughs(serverPlayer, n3);
+        int n6 = n = PrestigePointsSystem.effectiveMaxLevel(serverPlayer);
+        int n7 = 0;
+        try {
+            StatsData statsData = DmzProgression.stats((Player)serverPlayer);
+            if (statsData != null) {
+                n6 = Math.max(n, statsData.getConfiguredMaxValue());
+                n7 = Math.max(0, statsData.getConfiguredMaxTotalStats());
+                DmzSkillUtil.sync((ServerPlayer)serverPlayer);
+            }
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+        try {
+            DmzRevampPrestigeBridge.syncFromLegacy((ServerPlayer)serverPlayer);
+        }
+        catch (Throwable throwable) {
+            // empty catch block
+        }
+        SystemTelemetry.log((String)KEY_POINTS, (String)"breakthrough", (ServerPlayer)serverPlayer, null, Map.of("breakthrough", n3, "cap", n, "live_cap", n6, "live_max_stats", n7, "cost", n4, "points", PrestigePointsSystem.getPoints(serverPlayer)));
+        object = n6 >= n ? "" : "\n\u00a7cWarning: live DMZ max still \u00a7f" + DmzRewards.formatWhole((double)n6) + " \u00a7c(expected \u00a7f" + DmzRewards.formatWhole((double)n) + "\u00a7c) \u2014 remount / report if this persists.";
+        return "\u00a7aPersonal level cap raised to \u00a7f" + DmzRewards.formatWhole((double)n) + " \u00a77(\u00a7e-" + n4 + " \u00a77favor)\n\u00a77Keep leveling with TP / buy stats into the new cap.\n\u00a77Future prestige requirements now scale up to \u00a7f" + DmzRewards.formatWhole((double)n) + "\u00a77.\n\u00a78Others stay soft-locked at their personal cap until they breakthrough too.\n\u00a77Breakthrough \u00a7f" + n3 + "\u00a77/\u00a7f5 \u00b7 Favor left: \u00a7e" + PrestigePointsSystem.getPoints(serverPlayer) + "\n\u00a77Live DMZ max now: \u00a7f" + DmzRewards.formatWhole((double)n6) + (String)object;
+    }
+
+    public static void onLogin(ServerPlayer serverPlayer) {
+        if (serverPlayer != null) {
+            try {
+                DmzRevampPrestigeBridge.syncFromLegacy((ServerPlayer)serverPlayer);
+            }
+            catch (Throwable throwable) {
+                // empty catch block
+            }
+            try {
+                LmOverhaulPrestigeIntegration.syncLmWalletFromOverhaulCount((ServerPlayer)serverPlayer);
+            }
+            catch (Throwable throwable) {
+                // empty catch block
+            }
+            try {
+                PrestigeSystem.reconcileNeedFloor((ServerPlayer)serverPlayer);
+            }
+            catch (Throwable throwable) {
+                // empty catch block
+            }
+            ProgressionData.tempPut((ServerPlayer)serverPlayer, (String)KEY_REAPPLY_AT, (long)(System.currentTimeMillis() + 12000L));
+            PrestigePointsSystem.reapplyAllShopPurchases(serverPlayer);
+            PrestigeCustomShop.runReapplyCommands(serverPlayer);
+        }
+    }
+
+    public static void scheduleReapplyAfterPrestige(ServerPlayer serverPlayer) {
+        PrestigePointsSystem.scheduleReapplyAfterDeath(serverPlayer);
+    }
+
+    public static void scheduleReapplyAfterDeath(ServerPlayer serverPlayer) {
+        if (serverPlayer != null) {
+            long l = System.currentTimeMillis();
+            ProgressionData.tempPut((ServerPlayer)serverPlayer, (String)KEY_REAPPLY_AT, (long)(l + 30000L));
+            PrestigePointsSystem.reapplyAllShopPurchases(serverPlayer);
+            PrestigeCustomShop.runReapplyCommands(serverPlayer);
+            MinecraftServer minecraftServer = serverPlayer.m_20194_();
+            if (minecraftServer != null) {
+                UUID uUID = serverPlayer.m_20148_();
+                minecraftServer.execute(() -> {
+                    ServerPlayer sp = minecraftServer.m_6846_().m_11259_(uUID);
+                    if (sp != null && sp.m_6084_()) {
+                        PrestigePointsSystem.reapplyAllShopPurchases(sp);
                     }
-                }));
-            } catch (Throwable ignored) {
-            }
-        }
-    }
-
-    /**
-     * Restore live DMZ / difficulty state from stored prestige-shop purchases.
-     * Does not spend points — only reapplies owned floors / effects / unlocks.
-     */
-    public static void reapplyAllShopPurchases(ServerPlayer player) {
-        if (player == null) {
-            return;
-        }
-        reapplySkillBonuses(player);
-        // God Ki Enhancement: top godkienhancement mastery up to invested x 1000 (never lower).
-        try {
-            GodKiEnhancementShop.reapply(player);
-        } catch (Throwable ignored) {
-        }
-        // Breakthroughs are read live from NBT (effectiveMaxLevel); force a sync so
-        // clients / soft-locks see the personal cap immediately after respawn.
-        try {
-            DmzSkillUtil.sync(player);
-        } catch (Throwable ignored) {
-        }
-        try {
-            com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
-                    .syncFromLegacy(player);
-        } catch (Throwable ignored) {
-        }
-        try {
-            com.dbzlegacy.adaptivedifficulty.progression.bridge.OverhaulPrestigeResourceScale
-                    .pulse(player);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    /** Called from shop pulse — drains delayed reapply markers + keeps forms/skills live. */
-    public static void pulsePlayer(ServerPlayer player, long nowMs) {
-        if (player == null) {
-            return;
-        }
-        long at = ProgressionData.tempGetLong(player, KEY_REAPPLY_AT, 0L);
-        if (at > 0L) {
-            // While a post-death / login window is open, keep reapplying every pulse
-            // until the deadline (DMZ may wipe skills mid-window).
-            reapplyAllShopPurchases(player);
-            if (nowMs >= at) {
-                ProgressionData.tempRemove(player, KEY_REAPPLY_AT);
-            }
-        }
-        // Prestige skill floors must survive late Character rebuilds after the window.
-        if (hasAnyPurchasedSkillFloor(player)) {
-            long nextSkill = ProgressionData.tempGetLong(player, KEY_SKILL_PULSE_AT, 0L);
-            if (nextSkill <= 0L || nowMs >= nextSkill) {
-                ProgressionData.tempPut(player, KEY_SKILL_PULSE_AT, nowMs + SKILL_FLOOR_PULSE_MS);
-                // Skip duplicate work when the intensive reapply window is already open.
-                if (at <= 0L || nowMs >= at) {
-                    reapplySkillBonuses(player);
+                });
+                int[] nArray = new int[]{20, 40, 80, 160, 300, 600};
+                int n = nArray.length;
+                for (int i = 0; i < n; ++i) {
+                    int n2;
+                    int n3 = n2 = nArray[i];
+                    try {
+                        minecraftServer.m_6937_(new TickTask(minecraftServer.m_129921_() + n3, () -> {
+                            ServerPlayer sp = minecraftServer.m_6846_().m_11259_(uUID);
+                            if (sp != null && sp.m_6084_()) {
+                                PrestigePointsSystem.reapplyAllShopPurchases(sp);
+                            }
+                        }));
+                        continue;
+                    }
+                    catch (Throwable throwable) {
+                        // empty catch block
+                    }
                 }
             }
         }
-        // Permanent Majin/Mutant/Ultimate stay on the DragonMineZ effect.
-        if (hasMajin(player) || hasMutant(player) || hasUltimate(player)) {
-            long next = ProgressionData.tempGetLong(player, KEY_FORM_PULSE_AT, 0L);
-            if (next <= 0L || nowMs >= next) {
-                ProgressionData.tempPut(player, KEY_FORM_PULSE_AT, nowMs + FORM_PULSE_MS);
-                reapplyForms(player);
-            }
-        }
     }
 
-    /**
-     * Apply / clear DMZ majin or mutant <b>silently</b>.
-     * <p>
-     * Never call {@code MutantManager.grant} — it always chats
-     * {@code message.dragonminez.mutant.gained} even when already mutant, which
-     * spammed every form pulse / death reapply. Prefer Effects + MutantSavedData
-     * (or {@code reconcileHolder} when already present). No {@code dmzeffect}
-     * command fallback on give — Brigadier {@code sendSuccess} also chats.
-     */
-    private static void runDmzEffect(ServerPlayer player, String effect, boolean give) {
-        if (player == null || effect == null || effect.isBlank()) {
-            return;
-        }
-        String effectId = effect.trim().toLowerCase(Locale.ROOT);
-        boolean mutant = "mutant".equals(effectId);
-        try {
-            var data = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player);
-            if (data == null) {
-                return;
-            }
-            var effects = data.getEffects();
-            if (effects == null) {
-                return;
-            }
-            if (mutant) {
-                if (give) {
-                    ensureMutantSilent(player, data, effects);
-                } else if (com.dragonminez.server.util.MutantManager.isMutant(data)) {
-                    com.dragonminez.server.util.MutantManager.revoke(player, data);
-                }
-                return;
-            }
-            // Majin (and any other non-mutant effect id).
-            if (give) {
-                ensureEffectSilent(player, effects, effectId, majinEffectPower());
-            } else if (effects.hasEffect(effectId)) {
-                effects.removeEffect(effectId);
-                DmzSkillUtil.sync(player);
-            }
-        } catch (Throwable t) {
-            AdaptiveDifficultyMod.LOGGER.debug(
-                    "[{}] prestige form API soft-fail ({}): {}",
-                    AdaptiveDifficultyMod.MOD_ID, effectId, t.toString());
-        }
-    }
-
-    /**
-     * Keep permanent Mutant applied without {@link com.dragonminez.server.util.MutantManager#grant}'s chat.
-     */
-    private static void ensureMutantSilent(
-            ServerPlayer player,
-            com.dragonminez.common.stats.StatsData data,
-            com.dragonminez.common.stats.character.Effects effects
-    ) {
-        if (com.dragonminez.server.util.MutantManager.isMutant(data)) {
-            // Already has effect — only ensure lottery holder registration (no chat).
+    public static void reapplyAllShopPurchases(ServerPlayer serverPlayer) {
+        if (serverPlayer != null) {
+            PrestigePointsSystem.reapplySkillBonuses(serverPlayer);
             try {
-                com.dragonminez.server.util.MutantManager.reconcileHolder(player, data);
-            } catch (Throwable ignored) {
+                GodKiEnhancementShop.reapply(serverPlayer);
             }
-            return;
-        }
-        effects.addEffect("mutant", 1.0, -1);
-        try {
-            MinecraftServer server = player.m_20194_();
-            if (server != null) {
-                com.dragonminez.server.world.data.MutantSavedData.get(server)
-                        .addHolder(player.m_20148_());
+            catch (Throwable throwable) {
+                // empty catch block
             }
-        } catch (Throwable ignored) {
+            try {
+                DmzSkillUtil.sync((ServerPlayer)serverPlayer);
+            }
+            catch (Throwable throwable) {
+                // empty catch block
+            }
+            try {
+                DmzRevampPrestigeBridge.syncFromLegacy((ServerPlayer)serverPlayer);
+            }
+            catch (Throwable throwable) {
+                // empty catch block
+            }
+            try {
+                OverhaulPrestigeResourceScale.pulse((ServerPlayer)serverPlayer);
+            }
+            catch (Throwable throwable) {
+                // empty catch block
+            }
+            PrestigeCustomShop.reapply(serverPlayer);
         }
-        DmzSkillUtil.sync(player);
     }
 
-    /** Apply or upgrade an effect to permanent duration without command chat. */
-    private static void ensureEffectSilent(
-            ServerPlayer player,
-            com.dragonminez.common.stats.character.Effects effects,
-            String effectId,
-            double power
-    ) {
-        if (effects.hasEffect(effectId) && effects.getEffectDuration(effectId) == -1) {
-            return;
+    public static void pulsePlayer(ServerPlayer serverPlayer, long l) {
+        if (serverPlayer != null) {
+            long l2;
+            PrestigeCustomShop.pulse(serverPlayer, l);
+            long l3 = ProgressionData.tempGetLong((ServerPlayer)serverPlayer, (String)KEY_REAPPLY_AT, (long)0L);
+            if (l3 > 0L) {
+                PrestigePointsSystem.reapplyAllShopPurchases(serverPlayer);
+                if (l >= l3) {
+                    ProgressionData.tempRemove((ServerPlayer)serverPlayer, (String)KEY_REAPPLY_AT);
+                }
+            }
+            if (PrestigePointsSystem.hasAnyPurchasedSkillFloor(serverPlayer) && ((l2 = ProgressionData.tempGetLong((ServerPlayer)serverPlayer, (String)KEY_SKILL_PULSE_AT, (long)0L)) <= 0L || l >= l2)) {
+                ProgressionData.tempPut((ServerPlayer)serverPlayer, (String)KEY_SKILL_PULSE_AT, (long)(l + 5000L));
+                if (l3 <= 0L || l >= l3) {
+                    PrestigePointsSystem.reapplySkillBonuses(serverPlayer);
+                }
+            }
+            if ((PrestigePointsSystem.hasMajin(serverPlayer) || PrestigePointsSystem.hasMutant(serverPlayer) || PrestigePointsSystem.hasUltimate(serverPlayer)) && ((l2 = ProgressionData.tempGetLong((ServerPlayer)serverPlayer, (String)KEY_FORM_PULSE_AT, (long)0L)) <= 0L || l >= l2)) {
+                ProgressionData.tempPut((ServerPlayer)serverPlayer, (String)KEY_FORM_PULSE_AT, (long)(l + 5000L));
+                PrestigePointsSystem.reapplyForms(serverPlayer);
+            }
         }
-        effects.addEffect(effectId, power, -1);
-        DmzSkillUtil.sync(player);
+    }
+
+    private static void runDmzEffect(ServerPlayer serverPlayer, String string, boolean bl) {
+        if (serverPlayer != null && string != null && !string.isBlank()) {
+            String string2 = string.trim().toLowerCase(Locale.ROOT);
+            boolean bl2 = "mutant".equals(string2);
+            try {
+                StatsData statsData = DmzProgression.stats((Player)serverPlayer);
+                if (statsData == null) {
+                    return;
+                }
+                Effects effects = statsData.getEffects();
+                if (effects == null) {
+                    return;
+                }
+                if (bl2) {
+                    if (bl) {
+                        PrestigePointsSystem.ensureMutantSilent(serverPlayer, statsData, effects);
+                    } else if (MutantManager.isMutant((StatsData)statsData)) {
+                        MutantManager.revoke((ServerPlayer)serverPlayer, (StatsData)statsData);
+                    }
+                    return;
+                }
+                if (bl) {
+                    PrestigePointsSystem.ensureEffectSilent(serverPlayer, effects, string2, PrestigePointsSystem.majinEffectPower());
+                } else if (effects.hasEffect(string2)) {
+                    effects.removeEffect(string2);
+                    DmzSkillUtil.sync((ServerPlayer)serverPlayer);
+                }
+            }
+            catch (Throwable throwable) {
+                AdaptiveDifficultyMod.LOGGER.debug("[{}] prestige form API soft-fail ({}): {}", (Object)"legacymechanics", (Object)string2, (Object)throwable.toString());
+            }
+        }
+    }
+
+    private static void ensureMutantSilent(ServerPlayer serverPlayer, StatsData statsData, Effects effects) {
+        if (MutantManager.isMutant((StatsData)statsData)) {
+            try {
+                MutantManager.reconcileHolder((ServerPlayer)serverPlayer, (StatsData)statsData);
+            }
+            catch (Throwable throwable) {}
+        } else {
+            effects.addEffect("mutant", 1.0, -1);
+            try {
+                MinecraftServer minecraftServer = serverPlayer.m_20194_();
+                if (minecraftServer != null) {
+                    MutantSavedData.get((MinecraftServer)minecraftServer).addHolder(serverPlayer.m_20148_());
+                }
+            }
+            catch (Throwable throwable) {
+                // empty catch block
+            }
+            DmzSkillUtil.sync((ServerPlayer)serverPlayer);
+        }
+    }
+
+    private static void ensureEffectSilent(ServerPlayer serverPlayer, Effects effects, String string, double d) {
+        if (!effects.hasEffect(string) || effects.getEffectDuration(string) != -1) {
+            effects.addEffect(string, d, -1);
+            DmzSkillUtil.sync((ServerPlayer)serverPlayer);
+        }
     }
 
     private static double majinEffectPower() {
         try {
-            var gameplay = com.dragonminez.common.config.ConfigManager.getServerConfig().getGameplay();
-            // Prefer configured majin power when present; 1.0 matches typical give defaults.
-            Method m = gameplay.getClass().getMethod("getMajinPower");
-            Object v = m.invoke(gameplay);
-            if (v instanceof Number n && n.doubleValue() > 0.0) {
-                return n.doubleValue();
+            Number number;
+            GeneralServerConfig.GameplayConfig gameplayConfig = ConfigManager.getServerConfig().getGameplay();
+            Method method = gameplayConfig.getClass().getMethod("getMajinPower", new Class[0]);
+            Object object = method.invoke(gameplayConfig, new Object[0]);
+            if (object instanceof Number && (number = (Number)object).doubleValue() > 0.0) {
+                return number.doubleValue();
             }
-        } catch (Throwable ignored) {
+        }
+        catch (Throwable throwable) {
+            // empty catch block
         }
         return 1.0;
+    }
+
+    static {
+        for (String string : DmzSkillUtil.SKILL_CHECK_NATURAL) {
+            SkillOffer skillOffer = PrestigePointsSystem.resolveOffer(string);
+            if (skillOffer == null) continue;
+            SKILL_OFFERS.put(string, skillOffer);
+        }
+        TURN_IN_AMOUNTS = new int[]{1, 2, 3, 6, 9};
+    }
+
+    public record SkillOffer(String id, String label, int maxLevel) {
     }
 }

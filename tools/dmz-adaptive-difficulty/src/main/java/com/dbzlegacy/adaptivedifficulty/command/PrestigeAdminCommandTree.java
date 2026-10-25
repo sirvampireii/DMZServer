@@ -1,6 +1,7 @@
 package com.dbzlegacy.adaptivedifficulty.command;
 
 import com.dbzlegacy.adaptivedifficulty.progression.shop.GodKiEnhancementShop;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeShopHooks;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -17,7 +18,7 @@ public final class PrestigeAdminCommandTree {
     ) {
         // Defense-in-depth: hide the whole tree from non-staff. Every handler also
         // checks denyUnlessStaff at execution; the requires() keeps tab-complete honest.
-        return root
+        LiteralArgumentBuilder<CommandSourceStack> tree = root
                 .requires(StaffAccess::isStaffSource)
                 .executes(ctx -> ProgressionCommands.prestigeAdminHelp(ctx.getSource()))
                 .then(Commands.m_82127_("help").executes(ctx -> ProgressionCommands.prestigeAdminHelp(ctx.getSource())))
@@ -59,6 +60,8 @@ public final class PrestigeAdminCommandTree {
                 .then(adjustFieldAmount(
                         "godki",
                         IntegerArgumentType.integer(0, GodKiEnhancementShop.MAX_INVESTMENTS)));
+        PrestigeShopHooks.attachAdminCommands(tree);
+        return tree;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> adjustField(String field) {
