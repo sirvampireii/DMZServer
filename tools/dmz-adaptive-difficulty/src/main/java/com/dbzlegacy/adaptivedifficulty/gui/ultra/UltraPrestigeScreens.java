@@ -131,7 +131,7 @@ public final class UltraPrestigeScreens {
                 .bodyPad(4);
         paintWallet(spec, ph);
         if (!"true".equalsIgnoreCase(ph.get("system_enabled"))) {
-            spec.line(UltraStyle.danger("Prestige system is disabled."));
+            spec.line(UltraStyle.danger("Prestige system is disabled. Ask staff to turn it on."));
         } else {
             spec.labelValue("Need", ph.getOrDefault("required_fmt", "0"));
             if ("true".equalsIgnoreCase(ph.get("ready"))) {
@@ -242,7 +242,7 @@ public final class UltraPrestigeScreens {
                     .rowGap();
         }
         if (StaffAccess.isStaff(player)) {
-            spec.button("page:staff_edit", UltraStyle.dim("Edit shop (staff)"), UltraStyle.STYLE_DIM)
+            spec.button("page:staff_edit", UltraStyle.danger("Edit shop (staff)"), UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
         spec.footerBackToMain();

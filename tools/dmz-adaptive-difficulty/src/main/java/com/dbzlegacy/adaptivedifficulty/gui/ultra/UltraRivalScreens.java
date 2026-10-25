@@ -361,7 +361,7 @@ public final class UltraRivalScreens {
         // Records (Home) is the history page. No per-challenge opponent/result/date log is stored.
         UltraPickHelper.placePageButtons(spec, "pick_challenge|Send challenge");
         spec.buttonLeft("page:pick_spectate", "Spectate", "normal");
-        spec.buttonRight("do:spectate_stop", UltraStyle.dim("Stop spectate"), "dim").rowGap();
+        spec.buttonRight("do:spectate_stop", UltraStyle.confirm("Stop spectate"), UltraStyle.STYLE_CONFIRM).rowGap();
         spec.footerBackToMain();
         spec.send(player);
     }
@@ -517,7 +517,7 @@ public final class UltraRivalScreens {
     private static void openRecords(ServerPlayer player, String sub) {
         String tab = sub == null || sub.isBlank() ? "history" : sub.toLowerCase(Locale.ROOT);
         UltraScreenSpec spec = sub("records:" + tab)
-                .line(UltraStyle.LABEL + "Records - " + tab);
+                .line(UltraStyle.LABEL + "Records - " + recordsTitle(tab));
         List<String> lines = switch (tab) {
             case "stats" -> RivalGuiApi.statsLines(player);
             case "season" -> RivalGuiApi.seasonLines(player);
@@ -548,6 +548,20 @@ public final class UltraRivalScreens {
                 "records:title|Title");
         spec.footerBackHome("Rival Home");
         spec.send(player);
+    }
+
+    /** Records sub-page title, worded like its button (never the page id). */
+    private static String recordsTitle(String tab) {
+        return switch (tab == null ? "" : tab) {
+            case "stats" -> "Stats";
+            case "season" -> "Season";
+            case "quests" -> "Quests";
+            case "achievements" -> "Achievements";
+            case "hof" -> "Hall of fame";
+            case "journal" -> "Journal";
+            case "title" -> "Title";
+            default -> "History";
+        };
     }
 
     private static void openRequests(ServerPlayer player, int page) {

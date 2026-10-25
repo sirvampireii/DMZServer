@@ -71,6 +71,14 @@ re-extracted. Its sole difference from 229-2 is the `VERSION` constant (`javap -
 constant pool #163 plus the matching `ConstantValue` / `ldc`). The other 24 reference classes
 are unchanged, so they are still the 229-2 bytes.
 
+## Re-baseline (2026-10-25, 4.6.232 config editor + UI consistency)
+
+Three classes were re-extracted from the 4.6.232 build, all deliberate changes:
+`AdaptiveDifficultyMod` (version constant only), `ConfigEditor` (per-save backups, reload
+report, save refusal reasons, enum options, list-entry removal, live-editor conflict checks), and
+`UltraPrestigeScreens` (javap-verified: the disabled-system line gains "Ask staff to turn it on."
+and the staff "Edit shop" button is red instead of dim). The other 22 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

@@ -2,7 +2,6 @@ package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
 import com.dbzlegacy.adaptivedifficulty.gui.ProgressionGuiApi;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.SkillCheckService;
-import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import java.util.List;
 import java.util.Locale;
@@ -22,7 +21,8 @@ public final class UltraSkillCheckScreens {
             return;
         }
         if (!SkillCheckService.canUse(player) && !SkillCheckService.inSession(player)) {
-            DmzRewards.msg(
+            // Menu feedback stays in the menu: the hub opens with this notice on it.
+            UltraGuiFeedback.deliver(
                     player,
                     UltraStyle.noticeLine(
                             "Skill Check isn't available to you. Ask staff if you think that's wrong."));
@@ -38,7 +38,8 @@ public final class UltraSkillCheckScreens {
             return;
         }
         if (!StaffAccess.isStaff(player)) {
-            DmzRewards.msg(player, UltraStyle.noticeLine("Staff only."));
+            UltraGuiFeedback.deliver(
+                    player, UltraStyle.noticeLine("Skills admin is for staff only. Ask staff if you need a skill changed."));
             UltraHubScreens.open(player, "main");
             return;
         }

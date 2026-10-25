@@ -121,7 +121,8 @@ public final class UltraDifficultyScreens {
         UltraPickHelper.placePageButtons(spec, "titles|Titles", "team|Rival teams");
         placeCoinMessageToggle(spec, data != null && data.isCoinDropChat());
         if (StaffAccess.isStaff(player)) {
-            UltraPickHelper.placePageButtons(spec, "admin|Server tools");
+            // Staff entry reads red, like Staff Admin on the Rival and Sparring homes.
+            spec.buttonLeft("page:admin", UltraStyle.danger("Server tools"), UltraStyle.STYLE_DANGER).rowGap();
         }
         spec.footerBackToMain();
         spec.send(player);
@@ -543,7 +544,7 @@ public final class UltraDifficultyScreens {
             spec.buttonLeft("do:equip_title:" + title.id, UltraStyle.confirm("Equip this title"), "confirm")
                     .rowGap();
         } else if (earned) {
-            spec.buttonLeft("do:equip_title:" + title.id, UltraStyle.confirm("Already equipped"), "confirm")
+            spec.buttonLeft("do:equip_title:" + title.id, UltraStyle.dim("Already equipped"), UltraStyle.STYLE_DIM)
                     .rowGap();
         }
         spec.footerBack("page:titles_p0", "Titles");
@@ -661,7 +662,7 @@ public final class UltraDifficultyScreens {
                                 ? UltraStyle.danger("Event log - OFF")
                                 : UltraStyle.dim("Event log - OFF"),
                         logOn ? "danger" : "dim")
-                .buttonRight("do:syslog:flush", UltraStyle.dim("Flush"), "dim")
+                .buttonRight("do:syslog:flush", UltraStyle.danger("Flush"), "danger")
                 .rowGap();
         spec.footerBack("page:admin", "Server tools");
         spec.send(player);

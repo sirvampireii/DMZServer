@@ -727,7 +727,7 @@ public final class UltraSparScreens {
         boolean outgoing = "OUT".equalsIgnoreCase(dir);
         String who = RivalGuiApi.displayPickerArg(player, picker);
         if (who == null || who.isBlank()) {
-            who = picker;
+            who = "Unknown dojo";
         }
         UltraScreenSpec spec = sub("dojo_war_pending_decide:"
                         + withReturnPage((outgoing ? "OUT|" : "IN|") + picker, returnPage))
