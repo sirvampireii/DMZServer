@@ -118,6 +118,14 @@ def main() -> int:
     check("no prestige.main.cap on chest", "prestige.main.cap" not in chest)
     check("no Level Cap Breakthrough on chest main", "Level Cap Breakthrough" not in chest.split("private Inventory main", 1)[1].split("private Inventory turnIn", 1)[0] if "private Inventory main" in chest else False)
     check("CNPC prestige no cap button on main", "Level Cap" not in cnpc or '"cap", "breakthrough" -> paintMain' in cnpc)
+    check("manifest prestige-turnin-payout row", "prestige-turnin-payout" in manifest)
+    points = read(SRC / "progression/shop/PrestigePointsSystem.java")
+    turn_in = points.split("public static int pointsForTurnIn(", 1)[1].split("\n    }\n", 1)[0] \
+        if "public static int pointsForTurnIn(" in points else ""
+    check("turn-in payout checks payoutOverrides before the group bonus (4.6.229-2)",
+          "exchange.payoutOverrides" in turn_in and "exchange.bonusGroupSize" in turn_in
+          and turn_in.index("payoutOverrides") < turn_in.index("bonusGroupSize"),
+          "pointsForTurnIn must read prestige-shop.json exchange overrides, then the group bonus")
 
     print("\n--- § death tp ---")
     death_tp = read(SRC / "progression/tp/DeathTpPenalty.java")

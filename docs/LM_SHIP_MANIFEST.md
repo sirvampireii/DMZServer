@@ -52,6 +52,7 @@ When you ask for a behavior change, add a row here and a matching check in `audi
 | progression-no-flag-gui | Progression GUIs have no All Flags / subflags boards or per-module toggle tiles | 4.5.90+ | manifest §progression |
 | cnpc-preview-live-player | Main-system CNPC menus: character preview uses **live player sync** (inventory-style) before Gecko clone fallback | 4.5.84+ | manifest §cnpc |
 | prestige-cnpc-tier-ids | Prestige **Tiers** grid must not reuse CNPC flash widget ids (50+) — avoids menu errors after buy/turn-in | 4.5.85+ | manifest §prestige |
+| prestige-turnin-payout | Turning in prestiges for favor uses `prestige-shop.json` → `exchange`: a `payoutOverrides` entry for that exact amount wins; otherwise the payout is the amount plus the group bonus (each full group of `bonusGroupSize` in one turn-in adds one more than the last group: with the default 3, turning in 3 gives +1, 6 gives +3, 9 gives +6) | 4.6.229-2+ | manifest §prestige |
 | version-handshake | Forge `VERSION`, `mods.toml`, and GUI `plugin.yml` source are the **same version**. `plugins/` does not ship `LegacyMechanicsGUI-*.jar` | always | `audit_gui_abi.py`, manifest §version |
 
 ## Deploy process (do not skip)

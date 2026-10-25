@@ -60,6 +60,17 @@ Parity with the previous reference was checked per method on invoke / field / co
 string-concat call-site renumbering, a cached local) plus `pointsForTurnIn` computing the
 `exchange` payout inline with the same formula as `PrestigeShopConfig.Exchange.payout`.
 
+## Re-baseline (2026-10-25, 4.6.230 ship-line bump)
+
+The repo at `33c1dc2b` built to a jar whose 562 entries are byte-identical to the audited
+`LegacyMechanics-4.6.229-2` jar (sha256 `04594df2…`, 1,632,944 bytes). That jar's
+`exchange.payoutOverrides` / `bonusGroupSize` wiring in `pointsForTurnIn` and its loop-based
+`shopSkillIds` are part of this reference set. The ship line moved to **4.6.230**, because
+two different jars were already labelled 4.6.229. Only `AdaptiveDifficultyMod.class` was
+re-extracted. Its sole difference from 229-2 is the `VERSION` constant (`javap -v` diff:
+constant pool #163 plus the matching `ConstantValue` / `ldc`). The other 24 reference classes
+are unchanged, so they are still the 229-2 bytes.
+
 ## Refresh the reference set
 
 ```bash
