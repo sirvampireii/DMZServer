@@ -158,7 +158,7 @@ public final class UltraRivalScreens {
         UltraPickHelper.pageLabel(spec, pg, pages);
         spec.buttonsAfterLines();
         placeRivalListButtons(
-                spec, player, UltraPickHelper.pageSlice(rivals, RIVALS_PER_PAGE, pg), rivals.isEmpty());
+                spec, player, UltraPickHelper.pageSlice(rivals, RIVALS_PER_PAGE, pg), rivals.isEmpty(), pg);
         placeIncomingDeclareButtons(
                 spec, player, UltraPickHelper.pageSlice(declares, DECLARES_PER_PAGE, pg));
         UltraPickHelper.placePrevNext(spec, "actions", pg, pages);
@@ -206,7 +206,7 @@ public final class UltraRivalScreens {
 
     /** One page of current rivals on the Rival tab — tap for profile / remove. */
     private static void placeRivalListButtons(
-            UltraScreenSpec spec, ServerPlayer player, List<String> cards, boolean noRivals) {
+            UltraScreenSpec spec, ServerPlayer player, List<String> cards, boolean noRivals, int page) {
         int placed = 0;
         if (cards != null) {
             for (String card : cards) {
@@ -221,7 +221,7 @@ public final class UltraRivalScreens {
                 }
                 String plain = UltraStyle.plain(shown);
                 String labelText = rivalListLabel(plain, status);
-                String action = "page:list_detail:" + arg;
+                String action = "page:list_detail:" + profileArg(arg, page);
                 String label = UltraStyle.confirm(labelText);
                 if (placed % 2 == 0) {
                     spec.buttonLeft(action, label, "confirm");
@@ -436,7 +436,7 @@ public final class UltraRivalScreens {
         spec.buttonsAfterLines();
         int placed = 0;
         for (String arg : UltraPickHelper.pageSlice(args, RIVALS_PER_PAGE, pg)) {
-            String action = "page:list_detail:" + arg;
+            String action = "page:list_detail:" + profileArg(arg, pg);
             String shown = RivalGuiApi.displayPickerArg(player, arg);
             if (shown == null || shown.isBlank()) {
                 shown = "-";
@@ -461,9 +461,26 @@ public final class UltraRivalScreens {
         spec.send(player);
     }
 
-    private static void openListDetail(ServerPlayer player, String arg) {
+    /**
+     * Profile link arg: page 2+ rides along as {@code |N} so the profile's Back returns to that
+     * page of the Rival tab. Names and {@code uuid:} args never contain {@code |}.
+     */
+    private static String profileArg(String arg, int page) {
+        return page > 0 ? arg + "|" + page : arg;
+    }
+
+    private static void openListDetail(ServerPlayer player, String payload) {
+        String arg = payload == null ? "" : payload;
+        int returnPage = 0;
+        int bar = arg.lastIndexOf('|');
+        if (bar > 0) {
+            returnPage = UltraPickHelper.pageIndex("p:" + arg.substring(bar + 1));
+            if (returnPage > 0) {
+                arg = arg.substring(0, bar);
+            }
+        }
         String who = RivalGuiApi.displayPickerArg(player, arg);
-        UltraScreenSpec spec = sub("list_detail:" + arg)
+        UltraScreenSpec spec = sub("list_detail:" + payload)
                 .line(UltraStyle.LABEL + "Rival profile")
                 .labelValue("Target", who == null || who.isBlank() ? "-" : who)
                 .notice("Removing a rival cannot be undone from this menu.")
@@ -498,7 +515,7 @@ public final class UltraRivalScreens {
         } else if (arg != null && !arg.isBlank()) {
             spec.line(UltraStyle.dim("Not on your rival list."));
         }
-        spec.footerBack("page:actions", "Rival");
+        spec.footerBack("page:" + UltraPickHelper.pageArg("actions", returnPage), "Rival");
         spec.send(player);
     }
 
@@ -660,20 +677,32 @@ public final class UltraRivalScreens {
             emptyCopy = "Nobody is available right now.";
         }
         int total = args == null ? 0 : args.size();
-        int pages = Math.max(1, (total + PICK_PER_PAGE - 1) / PICK_PER_PAGE);
-        int pg = Math.min(pages - 1, Math.max(0, pageIndex));
+        int pages = UltraPickHelper.pageCount(total, PICK_PER_PAGE);
+        int pg = UltraPickHelper.clampPage(pageIndex, pages);
         int from = pg * PICK_PER_PAGE;
         int to = Math.min(total, from + PICK_PER_PAGE);
-        UltraScreenSpec spec = sub(pg > 0 ? pageBase + ":" + pg : pageBase)
+        UltraScreenSpec spec = sub(UltraPickHelper.pageArg(pageBase, pg))
                 .line(UltraStyle.LABEL + heading)
                 .line(UltraStyle.LABEL + pickExplainer(doAction))
-                .labelValue(
-                        "spectate".equals(doAction) ? "In a fight" : "Players",
-                        total + (pages > 1 ? (" | page " + (pg + 1) + "/" + pages) : ""));
+                .labelValue("spectate".equals(doAction) ? "In a fight" : "Players", String.valueOf(total));
         if (total == 0) {
             spec.line(UltraStyle.dim(emptyCopy));
         }
+        UltraPickHelper.pageLabel(spec, pg, pages);
         spec.buttonsAfterLines();
+        if ("spectate".equals(doAction)) {
+            // Spectate is a plain do: picker, so it uses the shared paged helper (same 8 a page,
+            // same do:spectate:<arg> buttons, same labels). Its empty line is shown above.
+            List<String> choices = new java.util.ArrayList<>();
+            for (String arg : nonBlank(args)) {
+                String shown = RivalGuiApi.displayPickerArg(player, arg);
+                choices.add(arg + "|" + UltraStyle.plain(shown == null || shown.isBlank() ? "-" : shown));
+            }
+            UltraPickHelper.placeNameButtons(spec, doAction, choices, PICK_PER_PAGE, pageBase, pg, null);
+            spec.footerBack("page:challenge", "Challenge");
+            spec.send(player);
+            return;
+        }
         int placed = 0;
         for (int i = from; i < to; i++) {
             String arg = args.get(i);
@@ -715,25 +744,7 @@ public final class UltraRivalScreens {
         if (placed % 2 == 1) {
             spec.rowGap();
         }
-        if (pg > 0) {
-            spec.buttonLeft("page:" + pageBase + ":" + (pg - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
-        }
-        if (pg + 1 < pages) {
-            if (pg > 0) {
-                spec.buttonRight(
-                        "page:" + pageBase + ":" + (pg + 1),
-                        UltraStyle.LABEL + "Next",
-                        UltraStyle.STYLE_NORMAL);
-            } else {
-                spec.buttonLeft(
-                        "page:" + pageBase + ":" + (pg + 1),
-                        UltraStyle.LABEL + "Next",
-                        UltraStyle.STYLE_NORMAL);
-            }
-            spec.rowGap();
-        } else if (pg > 0) {
-            spec.rowGap();
-        }
+        UltraPickHelper.placePrevNext(spec, pageBase, pg, pages);
         spec.footerBack(
                 "page:" + ("challenge".equals(tab) ? "challenge" : "actions"),
                 "challenge".equals(tab) ? "Challenge" : "Rival");

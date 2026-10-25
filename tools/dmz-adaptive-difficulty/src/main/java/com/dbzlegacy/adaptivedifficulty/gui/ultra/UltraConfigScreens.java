@@ -949,7 +949,8 @@ public final class UltraConfigScreens {
         int budget = confirmY - contentTop;
         int[] heights = new int[count];
         for (int i = 0; i < count; i++) {
-            heights[i] = ROW_STEP * 2;
+            // Name, Now a -> b, and who last saved that setting (from the config audit log).
+            heights[i] = ROW_STEP * 3;
         }
         List<int[]> slices = paginate(heights, budget);
         int current = Math.min(Math.max(0, pageNumber), Math.max(0, slices.size() - 1));
@@ -1056,6 +1057,18 @@ public final class UltraConfigScreens {
                 spec.button(
                         "do:refresh",
                         UltraStyle.dim("Now " + prettyRaw(change.before()) + " -> " + prettyRaw(change.after())),
+                        UltraStyle.STYLE_DIM,
+                        MAIN_X,
+                        y,
+                        MAIN_W);
+                y += ROW_STEP;
+                // Read only for the rows on this page: each lookup scans the audit log tail.
+                ConfigEditor.LastChange last = ConfigEditor.lastChange(change.moduleId(), change.path());
+                spec.button(
+                        "do:refresh",
+                        UltraStyle.dim(oneLine(last == null
+                                ? "Not changed from the editor before."
+                                : "Last changed by " + last.actor() + " on " + last.when() + ".", MAIN_W)),
                         UltraStyle.STYLE_DIM,
                         MAIN_X,
                         y,

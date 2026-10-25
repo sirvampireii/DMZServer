@@ -147,6 +147,23 @@ def main() -> int:
           and 'case "pick_apprentice", "pick_mentor" -> "Players"' in spar_ui)
     check("picker paging self-test runs at startup",
           "verifyPickerPaging()" in read(SRC / "net/gui/LmGuiNetwork.java"))
+    pend = spar_ui.split("private static void openPending(", 1)[-1].split("\n    }\n", 1)[0]
+    check("bond invites: lines and buttons share one page slice (4.6.233)",
+          pend.count("for (String card : pageCards)") == 2
+          and "SparGuiApi.pendingMentorLine(card)" in pend)
+    rival_ui = read(ultra_dir / "UltraRivalScreens.java")
+    check("Rival name pickers use Page X of Y + shared Prev/Next; Spectate uses placeNameButtons",
+          "UltraPickHelper.pageLabel(spec, pg, pages)" in rival_ui
+          and "UltraPickHelper.placePrevNext(spec, pageBase, pg, pages)" in rival_ui
+          and '" | page "' not in rival_ui
+          and "UltraPickHelper.placeNameButtons(spec, doAction, choices, PICK_PER_PAGE, pageBase, pg, null)" in rival_ui)
+    check("rival profile Back returns to the Rival tab page it came from",
+          '"page:list_detail:" + profileArg(arg, page)' in rival_ui
+          and '"page:list_detail:" + profileArg(arg, pg)' in rival_ui
+          and 'UltraPickHelper.pageArg("actions", returnPage), "Rival"' in rival_ui)
+    self_test = read(ultra_dir / "UltraScreenSelfTest.java")
+    check("picker paging self-test covers 124 cases (lists 0-30)",
+          "for (int total = 0; total <= 30; total++)" in self_test and "cases != 124" in self_test)
     print("\n--- § config editor ---")
     cfg_editor = read(SRC / "config/editor/ConfigEditor.java")
     cfg_ui = read(SRC / "gui/ultra/UltraConfigScreens.java")
@@ -174,6 +191,15 @@ def main() -> int:
           and "after you staged it. Use Reload and reapply" in cfg_editor
           and '"do:reapply"' in cfg_ui and 'case "reapply" ->' in cfg_ui
           and "ConfigEditor.noteActor(uuid," in cfg_ui)
+    check("same-millisecond backups get a unique name instead of overwriting",
+          'stamp + "~" + String.format(Locale.ROOT, "%02d", next + 1) + ".bak"' in cfg_editor
+          and "never into a gap" in cfg_editor
+          and "REPLACE_EXISTING" not in cfg_editor.split("static boolean backupEverySave(", 1)[-1]
+              .split("private static void writeAudit(", 1)[0])
+    check("Review shows who last changed each staged setting (existing audit-log lookup)",
+          "ConfigEditor.lastChange(change.moduleId(), change.path())" in cfg_ui
+          and '"Last changed by " + last.actor()' in cfg_ui)
+    check("ConfigEditor has no raw section sign", "\u00a7" not in cfg_editor)
     check("player record files stay closed in the editor",
           '{"rival", "Rival"}' in cfg_ui and '{"sparring", "Sparring"}' in cfg_ui
           and "player records are not edited here" in cfg_ui)

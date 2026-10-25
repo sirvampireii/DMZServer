@@ -452,18 +452,32 @@ public final class UltraSparScreens {
     private static void openPending(ServerPlayer player, int page) {
         UltraScreenSpec spec = sub(UltraPickHelper.pageArg("pending", page))
                 .line(UltraStyle.LABEL + "Mentor / apprentice requests only");
-        for (String line : SparGuiApi.pendingMentorLines(player)) {
-            if (line != null && !line.isBlank()) {
-                spec.line(line);
-            }
-        }
-        List<String> cards = actionableCards(SparGuiApi.pendingMentorInviteCards(player));
+        List<String> all = SparGuiApi.pendingMentorInviteCards(player);
+        // One slice feeds both the invite lines and their buttons (as on the war-request page),
+        // so each invite's text shows only on the page that has its button.
+        List<String> cards = actionableCards(all);
         int pages = UltraPickHelper.pageCount(cards.size(), CARDS_PER_PAGE);
         int pg = UltraPickHelper.clampPage(page, pages);
+        List<String> pageCards = UltraPickHelper.pageSlice(cards, CARDS_PER_PAGE, pg);
+        if (all == null || all.isEmpty()) {
+            for (String line : SparGuiApi.pendingMentorLines(player)) {
+                if (line != null && !line.isBlank()) {
+                    spec.line(line);
+                }
+            }
+        } else {
+            spec.line(SparGuiApi.PENDING_MENTOR_HEADER);
+            for (String card : pageCards) {
+                String line = SparGuiApi.pendingMentorLine(card);
+                if (line != null) {
+                    spec.line(line);
+                }
+            }
+        }
         UltraPickHelper.pageLabel(spec, pg, pages);
         spec.buttonsAfterLines();
         int placed = 0;
-        for (String card : UltraPickHelper.pageSlice(cards, CARDS_PER_PAGE, pg)) {
+        for (String card : pageCards) {
             String[] parts = splitCard(card);
             String arg = parts[0].trim();
             String label = parts.length > 1 && !parts[1].isBlank() ? parts[1].trim() : arg;

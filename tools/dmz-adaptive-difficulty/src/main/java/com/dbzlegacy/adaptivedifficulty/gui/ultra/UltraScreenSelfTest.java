@@ -1685,13 +1685,14 @@ public final class UltraScreenSelfTest {
 
     /**
      * Ultra pickers page instead of truncating: at every picker page size (4, 6, 8, 10) and
-     * list length 0-25, walking pages 0..pageCount-1 yields every item exactly once, in the
+     * list length 0-30 (124 cases), walking pages 0..pageCount-1 yields every item exactly once, in the
      * original order, and a page past the end is empty. Also round-trips the page arg.
      */
     public static void verifyPickerPaging() {
         List<String> broken = new ArrayList<>();
+        int cases = 0;
         for (int perPage : new int[] {4, 6, 8, 10}) {
-            for (int total = 0; total <= 25; total++) {
+            for (int total = 0; total <= 30; total++) {
                 List<Integer> items = new ArrayList<>();
                 for (int i = 0; i < total; i++) {
                     items.add(i);
@@ -1705,6 +1706,7 @@ public final class UltraScreenSelfTest {
                     }
                     walked.addAll(slice);
                 }
+                cases++;
                 if (!walked.equals(items)) {
                     broken.add(total + " items at " + perPage + " per page did not page in order once each");
                 }
@@ -1712,6 +1714,9 @@ public final class UltraScreenSelfTest {
                     broken.add(total + " items at " + perPage + ": page past the end repeats items");
                 }
             }
+        }
+        if (cases != 124) {
+            broken.add("expected 124 paging cases (4 page sizes x lists 0-30), ran " + cases);
         }
         if (UltraPickHelper.pageIndex(UltraPickHelper.pageArg("pick_release", 2)) != 2
                 || !"pick_release".equals(UltraPickHelper.pageBase(UltraPickHelper.pageArg("pick_release", 2)))
@@ -1721,8 +1726,9 @@ public final class UltraScreenSelfTest {
         }
         if (broken.isEmpty()) {
             AdaptiveDifficultyMod.LOGGER.info(
-                    "[{}] Picker paging self-test OK (page sizes 4/6/8/10, lists 0-25)",
-                    AdaptiveDifficultyMod.MOD_ID);
+                    "[{}] Picker paging self-test OK ({} cases: page sizes 4/6/8/10, lists 0-30)",
+                    AdaptiveDifficultyMod.MOD_ID,
+                    cases);
             return;
         }
         AdaptiveDifficultyMod.LOGGER.error(

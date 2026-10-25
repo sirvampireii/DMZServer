@@ -38,6 +38,8 @@ MUST_STAY_CLEAN = [
     SRC / "progression" / "form" / "FirstSuperformMastery.java",
     # Cleaned 4.6.213: God Ki shop copy routed through UltraStyle - stay clean.
     SRC / "progression" / "shop" / "GodKiEnhancementShop.java",
+    # Cleaned 4.6.233: config editor strings routed through UltraStyle - stay clean.
+    SRC / "config" / "editor" / "ConfigEditor.java",
 ]
 ALLOW_MARK = {(ULTRA / "UltraStyle.java").resolve()}
 

@@ -4,7 +4,7 @@ license = "MIT"
 
 [[mods]]
 modId = "legacymechanics"
-version = "4.6.232"
+version = "4.6.233"
 displayName = "LegacyMechanics"
 authors = "DBZ Legacy Reborn"
 displayTest = "IGNORE_SERVER_VERSION"

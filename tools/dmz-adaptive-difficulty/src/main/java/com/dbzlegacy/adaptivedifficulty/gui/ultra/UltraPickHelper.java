@@ -116,6 +116,8 @@ public final class UltraPickHelper {
      * Place one page of choices ({@code perPage} each) as left/right buttons, then Prev / Next
      * reopening {@code pageBase}. Each choice is either a bare name (used as both label and
      * {@code do:} arg) or {@code arg|Label}. Add {@link #pageLabel} before buttonsAfterLines().
+     * {@code emptyLine} is shown when there is nothing to pick; null when the caller shows its own.
+     * Rival's Spectate picker is built on this.
      */
     public static void placeNameButtons(
             UltraScreenSpec spec,
@@ -123,7 +125,8 @@ public final class UltraPickHelper {
             List<String> choices,
             int perPage,
             String pageBase,
-            int page) {
+            int page,
+            String emptyLine) {
         if (spec == null || doAction == null || doAction.isBlank() || choices == null) {
             return;
         }
@@ -171,8 +174,8 @@ public final class UltraPickHelper {
         if (placed % 2 == 1) {
             spec.rowGap();
         }
-        if (placed == 0) {
-            spec.line(UltraStyle.dim("Nobody is available right now."));
+        if (placed == 0 && emptyLine != null && !emptyLine.isBlank()) {
+            spec.line(UltraStyle.dim(emptyLine));
         }
         placePrevNext(spec, pageBase, pg, pages);
     }

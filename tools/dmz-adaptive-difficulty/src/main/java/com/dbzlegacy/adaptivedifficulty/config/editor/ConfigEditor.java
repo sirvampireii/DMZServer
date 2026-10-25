@@ -5,6 +5,7 @@ import com.dbzlegacy.adaptivedifficulty.character.CharacterServicesConfig;
 import com.dbzlegacy.adaptivedifficulty.config.ConfigPaths;
 import com.dbzlegacy.adaptivedifficulty.config.ConfigRegistry;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.kube.hotpath.HotPathConfig;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeShopHooks;
 import com.dbzlegacy.adaptivedifficulty.quest.SagaResetConfig;
@@ -116,8 +117,10 @@ public final class ConfigEditor {
     /**
      * One unsaved edit, newest first when listed. {@code changedBy} names the staff member who
      * saved a new value for this same setting after it was staged (blank when nobody did).
+     * {@code moduleId} / {@code path} let Review look up who last saved that setting.
      */
-    public record PendingChange(String name, String before, String after, String changedBy) {}
+    public record PendingChange(
+            String name, String before, String after, String changedBy, String moduleId, String path) {}
 
     public enum DraftOp { SET, ADD, REMOVE }
 
@@ -252,10 +255,10 @@ public final class ConfigEditor {
         Located located = locate(rootId, path);
         List<String> lines = new ArrayList<>();
         if (located == null) {
-            lines.add("§7That setting is not on this config.");
+            lines.add(UltraStyle.LABEL + "That setting is not on this config.");
             return lines;
         }
-        lines.add("§7Current §f" + shortText(located.value));
+        lines.add(UltraStyle.LABEL + "Current " + UltraStyle.VALUE + shortText(located.value));
         if (located.field != null && located.field.getType().isEnum()) {
             Object[] constants = located.field.getType().getEnumConstants();
             StringBuilder names = new StringBuilder();
@@ -269,9 +272,9 @@ public final class ConfigEditor {
                 }
                 names.append(constant);
             }
-            lines.add("§7Use one of §f" + names);
+            lines.add(UltraStyle.LABEL + "Use one of " + UltraStyle.VALUE + names);
         } else {
-            lines.add("§7Saving writes this config file.");
+            lines.add(UltraStyle.LABEL + "Saving writes this config file.");
         }
         return lines;
     }
@@ -1378,7 +1381,8 @@ public final class ConfigEditor {
             String name = section.isBlank() || section.equalsIgnoreCase(label)
                     ? moduleLabel + " > " + label
                     : moduleLabel + " > " + section + " > " + label;
-            out.add(new PendingChange(name, beforeText(draft), afterText(draft), changedBy(draft)));
+            out.add(new PendingChange(name, beforeText(draft), afterText(draft), changedBy(draft),
+                    draft.moduleId(), draft.path()));
         }
         return out;
     }
@@ -2385,8 +2389,30 @@ public final class ConfigEditor {
         Path dir = normal.resolveSibling("backups");
         Files.createDirectories(dir);
         String name = normal.getFileName().toString();
-        Files.copy(normal, dir.resolve(name + "." + BACKUP_STAMP.format(when) + ".bak"),
-                StandardCopyOption.REPLACE_EXISTING);
+        String stamp = name + "." + BACKUP_STAMP.format(when);
+        // Two saves in the same millisecond must not overwrite each other's copy. "~" sorts
+        // after ".", so "stamp~01.bak" stays newer than "stamp.bak" for the pruning sort below.
+        // The counter goes one past the highest already used for this stamp - never into a gap
+        // left by pruning - so a newer copy can never sort as older.
+        int next = -1;
+        try (var same = Files.list(dir)) {
+            for (Path p : (Iterable<Path>) same::iterator) {
+                String n = p.getFileName().toString();
+                if (n.equals(stamp + ".bak")) {
+                    next = Math.max(next, 0);
+                } else if (n.startsWith(stamp + "~") && n.endsWith(".bak")) {
+                    try {
+                        next = Math.max(next, Integer.parseInt(n.substring(stamp.length() + 1, n.length() - 4)));
+                    } catch (NumberFormatException ignored) {
+                        // Not one of ours.
+                    }
+                }
+            }
+        }
+        Path target = next < 0
+                ? dir.resolve(stamp + ".bak")
+                : dir.resolve(stamp + "~" + String.format(Locale.ROOT, "%02d", next + 1) + ".bak");
+        Files.copy(normal, target);
         List<Path> copies = new ArrayList<>();
         try (var listing = Files.list(dir)) {
             listing.filter(p -> {
@@ -2494,7 +2520,7 @@ public final class ConfigEditor {
     private static String line(String name, String summary) {
         String label = displayName(name);
         String detail = summary == null ? "" : summary;
-        String text = "§f" + label + " §8- §7" + detail;
+        String text = UltraStyle.VALUE + label + " " + UltraStyle.DIM + "- " + UltraStyle.LABEL + detail;
         if (text.length() <= LINE_MAX) {
             return text;
         }

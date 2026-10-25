@@ -364,27 +364,41 @@ public final class SparGuiApi {
             lines.add(UltraStyle.DIM + "Incoming: they invited you - Accept or Decline.");
             return lines;
         }
-        lines.add(UltraStyle.YELLOW + UltraStyle.BOLD + "Pending Mentor Invites");
+        lines.add(PENDING_MENTOR_HEADER);
         for (String card : cards) {
-            String[] p = card.split("\t", -1);
-            if (p.length < 3) {
-                continue;
-            }
-            String name = p[1];
-            String dir = p[2];
-            boolean online = p.length > 4 && "1".equals(p[4]);
-            String kind = p.length > 5 ? p[5] : "";
-            String role = "mentor".equalsIgnoreCase(kind) ? "Mentor" : "Apprentice";
-            String onlineWord = online ? "online" : "offline";
-            if ("IN".equals(dir)) {
-                lines.add(UltraStyle.GREEN + "Incoming " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "(" + onlineWord + ")"
-                        + " " + UltraStyle.DIM + "-> you as " + role);
-            } else {
-                lines.add(UltraStyle.GOLD + "Outgoing " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "(" + onlineWord + ")"
-                        + " " + UltraStyle.DIM + "-> them as " + role);
+            String line = pendingMentorLine(card);
+            if (line != null) {
+                lines.add(line);
             }
         }
         return lines;
+    }
+
+    /** Heading above the pending mentor invite lines. */
+    public static final String PENDING_MENTOR_HEADER =
+            UltraStyle.YELLOW + UltraStyle.BOLD + "Pending Mentor Invites";
+
+    /**
+     * The text line for one pending invite card, or null when the card has too few fields.
+     * The Ultra invites page renders this per card from the same page slice as its buttons.
+     */
+    public static String pendingMentorLine(String card) {
+        String[] p = card == null ? new String[0] : card.split("\t", -1);
+        if (p.length < 3) {
+            return null;
+        }
+        String name = p[1];
+        String dir = p[2];
+        boolean online = p.length > 4 && "1".equals(p[4]);
+        String kind = p.length > 5 ? p[5] : "";
+        String role = "mentor".equalsIgnoreCase(kind) ? "Mentor" : "Apprentice";
+        String onlineWord = online ? "online" : "offline";
+        if ("IN".equals(dir)) {
+            return UltraStyle.GREEN + "Incoming " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "(" + onlineWord + ")"
+                    + " " + UltraStyle.DIM + "-> you as " + role;
+        }
+        return UltraStyle.GOLD + "Outgoing " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "(" + onlineWord + ")"
+                + " " + UltraStyle.DIM + "-> them as " + role;
     }
 
     /** Lore lines for a GUI page. */

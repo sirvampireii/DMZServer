@@ -79,6 +79,13 @@ report, save refusal reasons, enum options, list-entry removal, live-editor conf
 `UltraPrestigeScreens` (javap-verified: the disabled-system line gains "Ask staff to turn it on."
 and the staff "Edit shop" button is red instead of dim). The other 22 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.233 audit follow-ups)
+
+Two classes re-extracted from the 4.6.233 build: `AdaptiveDifficultyMod` (version constant only,
+javap-verified) and `ConfigEditor` (raw section signs routed through UltraStyle, same-millisecond
+backups get a unique name, pending changes carry their tab and setting path for the Review
+"Last changed by" line). The other 23 are unchanged.
+
 ## Refresh the reference set
 
 ```bash
