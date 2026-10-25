@@ -527,10 +527,12 @@ public final class UltraCharacterScreens {
                 .labelValue(HeadPartPieces.pageTitle(pg), "On: " + UltraStyle.plain(worn));
         appendCompactLines(spec, CharacterServicesGuiApi.linesForPage(player, "bones:" + pg));
         spec.buttonsAfterLines();
+        // The catalog page is the render page (6 head / 8 horn parts): draw every card it owns,
+        // like the Body Parts Shop, so no part is ever dropped off the end.
         List<String> cards = CharacterServicesGuiApi.headBoneCards(player, pg);
         int placed = 0;
         for (String card : cards) {
-            if (placed >= 8 || card == null || card.isBlank()) {
+            if (card == null || card.isBlank()) {
                 continue;
             }
             String[] p = card.split("\t", -1);

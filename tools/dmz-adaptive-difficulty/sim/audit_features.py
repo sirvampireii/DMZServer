@@ -2071,8 +2071,10 @@ def main() -> int:
           'raw.regionMatches(true, 0, "uuid:", 0, 5)' in spar_fix
           and "m_11255_(raw)" in spar_fix
           and "wantName = raw" in spar_fix)
+    # 4.6.231: the return page is now the release picker page itself (Back lands on it); the
+    # target is still the bare uuid.
     check("Release picker keeps wiring the bare uuid (no wire-format change)",
-          'page:pick_confirm:mentor_release|mentor|" + arg' in read(
+          'page:pick_confirm:mentor_release|" + back + "|" + arg' in read(
               SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraSparScreens.java")
           and 'return SparringSystem.removeApprentice(player, a.isBlank() ? null : a)' in read(
               SRC / "com/dbzlegacy/adaptivedifficulty/gui/SparGuiApi.java"))

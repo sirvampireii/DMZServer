@@ -70,6 +70,9 @@ public final class UltraSparScreens {
             openFightReport(player, raw.substring("fight_report:".length()).trim());
             return;
         }
+        // Pickers page: "pick_release:2" reopens the third page of that picker.
+        int pickPage = UltraPickHelper.pageIndex(lower);
+        lower = UltraPickHelper.pageBase(lower);
         switch (lower) {
             case "stats" -> openStats(player);
             case "top", "leaderboard", "infamy", "hof", "hall_of_infamy" -> openTop(player, "tp");
@@ -79,17 +82,17 @@ public final class UltraSparScreens {
             case "dojo_members_joined" -> openDojo(player, "members_joined");
             case "dojo_hof", "chosen", "hall_of_chosen", "dojo_war_hof" -> openHallOfChosen(player);
             case "mentor", "actions" -> openMentor(player);
-            case "pending", "invites" -> openPending(player);
+            case "pending", "invites" -> openPending(player, pickPage);
             case "settings" -> openSettings(player);
             case "admin" -> openAdmin(player);
             case "wars", "dojo_war" -> openWars(player);
-            case "dojo_war_pending" -> openDojoWarPending(player);
-            case "pick_apprentice" ->
-                    openOnlinePick(player, "Invite apprentice", "mentor_invite", "pick_apprentice", "mentor");
-            case "pick_mentor" ->
-                    openOnlinePick(player, "Ask as apprentice", "apprentice_invite", "pick_mentor", "mentor");
-            case "pick_release" -> openReleasePick(player);
-            case "pick_dojo_challenge" -> openDojoChallengePick(player);
+            case "dojo_war_pending" -> openDojoWarPending(player, pickPage);
+            case "pick_apprentice" -> openOnlinePick(
+                    player, "Invite apprentice", "mentor_invite", "pick_apprentice", "mentor", pickPage);
+            case "pick_mentor" -> openOnlinePick(
+                    player, "Ask as apprentice", "apprentice_invite", "pick_mentor", "mentor", pickPage);
+            case "pick_release" -> openReleasePick(player, pickPage);
+            case "pick_dojo_challenge" -> openDojoChallengePick(player, pickPage);
             case "weights", "weight", "weight_shop" -> UltraWeightShopScreens.openShop(player);
             default -> openHome(player);
         }
@@ -405,46 +408,82 @@ public final class UltraSparScreens {
         spec.send(player);
     }
 
-    private static void openPending(ServerPlayer player) {
-        UltraScreenSpec spec = sub("pending")
+    /** Cards per picker page — the old hard cap, so each page keeps its layout. */
+    private static final int CARDS_PER_PAGE = 8;
+    /** Online-player picker page size (the old cap of 10). */
+    private static final int NAMES_PER_PAGE = 10;
+
+    /** Card rows with a usable first field, in source order — what a picker can act on. */
+    private static List<String> actionableCards(List<String> cards) {
+        List<String> out = new java.util.ArrayList<>();
+        if (cards == null) {
+            return out;
+        }
+        for (String card : cards) {
+            if (card == null || card.isBlank()) {
+                continue;
+            }
+            String[] parts = splitCard(card);
+            if (parts.length > 0 && !parts[0].trim().isBlank()) {
+                out.add(card);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Decide pages carry the list page they came from as a trailing {@code |N} (page 2+ only),
+     * so Back returns to that page. Names and {@code uuid:} args never contain {@code |}.
+     */
+    private static String withReturnPage(String arg, int page) {
+        return page > 0 ? arg + "|" + page : arg;
+    }
+
+    /** {@code [arg, page]} from {@link #withReturnPage}; no suffix means page 0. */
+    private static String[] splitReturnPage(String arg) {
+        String a = arg == null ? "" : arg;
+        int bar = a.lastIndexOf('|');
+        if (bar > 0 && UltraPickHelper.pageIndex("p:" + a.substring(bar + 1)) > 0) {
+            return new String[] {a.substring(0, bar), a.substring(bar + 1)};
+        }
+        return new String[] {a, "0"};
+    }
+
+    private static void openPending(ServerPlayer player, int page) {
+        UltraScreenSpec spec = sub(UltraPickHelper.pageArg("pending", page))
                 .line(UltraStyle.LABEL + "Mentor / apprentice requests only");
         for (String line : SparGuiApi.pendingMentorLines(player)) {
             if (line != null && !line.isBlank()) {
                 spec.line(line);
             }
         }
-        List<String> cards = SparGuiApi.pendingMentorInviteCards(player);
+        List<String> cards = actionableCards(SparGuiApi.pendingMentorInviteCards(player));
+        int pages = UltraPickHelper.pageCount(cards.size(), CARDS_PER_PAGE);
+        int pg = UltraPickHelper.clampPage(page, pages);
+        UltraPickHelper.pageLabel(spec, pg, pages);
         spec.buttonsAfterLines();
         int placed = 0;
-        if (cards != null) {
-            for (String card : cards) {
-                if (placed >= 8 || card == null || card.isBlank()) {
-                    continue;
-                }
-                String[] parts = splitCard(card);
-                String arg = parts.length > 0 ? parts[0].trim() : "";
-                String label = parts.length > 1 && !parts[1].isBlank() ? parts[1].trim() : arg;
-                String dir = parts.length > 2 ? parts[2].trim() : "IN";
-                if (arg.isBlank()) {
-                    continue;
-                }
-                String picker = arg.contains(":") ? arg : "uuid:" + arg;
-                String packed = ("OUT".equalsIgnoreCase(dir) ? "OUT|" : "IN|") + picker;
-                String action = "page:pending_decide:" + packed;
-                String shown = label.isBlank()
-                        ? RivalGuiApi.displayPickerArg(player, picker)
-                        : label;
-                if (shown == null || shown.isBlank()) {
-                    shown = "-";
-                }
-                if (placed % 2 == 0) {
-                    spec.buttonLeft(action, UltraStyle.confirm(shown), "confirm");
-                } else {
-                    spec.buttonRight(action, UltraStyle.confirm(shown), "confirm");
-                    spec.rowGap();
-                }
-                placed++;
+        for (String card : UltraPickHelper.pageSlice(cards, CARDS_PER_PAGE, pg)) {
+            String[] parts = splitCard(card);
+            String arg = parts[0].trim();
+            String label = parts.length > 1 && !parts[1].isBlank() ? parts[1].trim() : arg;
+            String dir = parts.length > 2 ? parts[2].trim() : "IN";
+            String picker = arg.contains(":") ? arg : "uuid:" + arg;
+            String packed = ("OUT".equalsIgnoreCase(dir) ? "OUT|" : "IN|") + picker;
+            String action = "page:pending_decide:" + withReturnPage(packed, pg);
+            String shown = label.isBlank()
+                    ? RivalGuiApi.displayPickerArg(player, picker)
+                    : label;
+            if (shown == null || shown.isBlank()) {
+                shown = "-";
             }
+            if (placed % 2 == 0) {
+                spec.buttonLeft(action, UltraStyle.confirm(shown), "confirm");
+            } else {
+                spec.buttonRight(action, UltraStyle.confirm(shown), "confirm");
+                spec.rowGap();
+            }
+            placed++;
         }
         if (placed % 2 == 1) {
             spec.rowGap();
@@ -453,13 +492,16 @@ public final class UltraSparScreens {
             spec.line(UltraStyle.dim(
                     "No bond invites waiting. Send one from Actions, or wait for someone to invite you."));
         }
+        UltraPickHelper.placePrevNext(spec, "pending", pg, pages);
         spec.footerBack("page:mentor", "Actions");
         spec.send(player);
     }
 
     private static void openPendingDecide(ServerPlayer player, String pickerArg) {
+        String[] withPage = splitReturnPage(pickerArg);
+        int returnPage = Integer.parseInt(withPage[1]);
         String dir = "IN";
-        String picker = pickerArg == null ? "" : pickerArg;
+        String picker = withPage[0];
         if (picker.regionMatches(true, 0, "OUT|", 0, 4) || picker.regionMatches(true, 0, "IN|", 0, 3)) {
             int bar = picker.indexOf('|');
             dir = picker.substring(0, bar);
@@ -467,7 +509,8 @@ public final class UltraSparScreens {
         }
         boolean outgoing = "OUT".equalsIgnoreCase(dir);
         String who = RivalGuiApi.displayPickerArg(player, picker);
-        UltraScreenSpec spec = sub("pending_decide:" + (outgoing ? "OUT|" : "IN|") + picker)
+        UltraScreenSpec spec = sub("pending_decide:"
+                + withReturnPage((outgoing ? "OUT|" : "IN|") + picker, returnPage))
                 .line(UltraStyle.LABEL + "Training bond invite")
                 .labelValue("Player", who == null || who.isBlank() ? "-" : who);
         if (outgoing) {
@@ -487,7 +530,7 @@ public final class UltraSparScreens {
             spec.button("do:mentor_decline:" + picker, UltraStyle.danger("Decline"), "danger")
                     .rowGap();
         }
-        spec.footerBack("page:pending", "Invites");
+        spec.footerBack("page:" + UltraPickHelper.pageArg("pending", returnPage), "Invites");
         spec.send(player);
     }
 
@@ -515,8 +558,13 @@ public final class UltraSparScreens {
                         destructive ? UltraStyle.danger("Confirm") : UltraStyle.confirm("Confirm"),
                         destructive ? UltraStyle.STYLE_DANGER : UltraStyle.STYLE_CONFIRM)
                 .rowGap();
+        // Pickers pass their own page (with its index) as the return page, so Back lands on
+        // the same picker page the player chose from.
         String backLabel =
-                switch (returnPage == null ? "" : returnPage) {
+                switch (UltraPickHelper.pageBase(returnPage == null ? "" : returnPage)) {
+                    case "pick_apprentice", "pick_mentor" -> "Players";
+                    case "pick_release" -> "Apprentices";
+                    case "pick_dojo_challenge" -> "Rival dojos";
                     case "mentor", "pending" -> "Actions";
                     case "dojo_war", "dojo_war_pending", "wars" -> "Wars";
                     default -> "Spar Home";
@@ -613,19 +661,22 @@ public final class UltraSparScreens {
         }
     }
 
-    private static void openDojoWarPending(ServerPlayer player) {
-        UltraScreenSpec spec = sub("dojo_war_pending")
+    private static void openDojoWarPending(ServerPlayer player, int page) {
+        UltraScreenSpec spec = sub(UltraPickHelper.pageArg("dojo_war_pending", page))
                 .line(UltraStyle.LABEL + "Pending war requests")
                 .line(UltraStyle.LABEL + "Accept or deny even if the other master is offline.");
-        List<String> cards = SparGuiApi.pendingDojoWarCards(player);
-        if (cards == null || cards.isEmpty()) {
+        List<String> all = SparGuiApi.pendingDojoWarCards(player);
+        // One slice feeds both the request lines and their buttons, so every request shown
+        // on a page has its button on that same page.
+        List<String> cards = actionableCards(all);
+        int pages = UltraPickHelper.pageCount(cards.size(), CARDS_PER_PAGE);
+        int pg = UltraPickHelper.clampPage(page, pages);
+        List<String> shown = UltraPickHelper.pageSlice(cards, CARDS_PER_PAGE, pg);
+        if (all == null || all.isEmpty()) {
             spec.line(UltraStyle.dim(
                     "No war requests waiting. Challenge another dojo when your roster is ready."));
         } else {
-            for (String card : cards) {
-                if (card == null || card.isBlank()) {
-                    continue;
-                }
+            for (String card : shown) {
                 String[] parts = splitCard(card);
                 String label = parts.length > 1 && !parts[1].isBlank() ? parts[1].trim() : parts[0];
                 String dir = parts.length > 2 ? parts[2].trim() : "IN";
@@ -637,41 +688,37 @@ public final class UltraSparScreens {
                 }
             }
         }
+        UltraPickHelper.pageLabel(spec, pg, pages);
         spec.buttonsAfterLines();
         int placed = 0;
-        if (cards != null) {
-            for (String card : cards) {
-                if (placed >= 8 || card == null || card.isBlank()) {
-                    continue;
-                }
-                String[] parts = splitCard(card);
-                String arg = parts.length > 0 ? parts[0].trim() : "";
-                String label = parts.length > 1 && !parts[1].isBlank() ? parts[1].trim() : arg;
-                String dir = parts.length > 2 ? parts[2].trim() : "IN";
-                if (arg.isBlank()) {
-                    continue;
-                }
-                String packed = ("OUT".equalsIgnoreCase(dir) ? "OUT|" : "IN|") + arg;
-                String action = "page:dojo_war_pending_decide:" + packed;
-                if (placed % 2 == 0) {
-                    spec.buttonLeft(action, UltraStyle.confirm(label), "confirm");
-                } else {
-                    spec.buttonRight(action, UltraStyle.confirm(label), "confirm");
-                    spec.rowGap();
-                }
-                placed++;
+        for (String card : shown) {
+            String[] parts = splitCard(card);
+            String arg = parts[0].trim();
+            String label = parts.length > 1 && !parts[1].isBlank() ? parts[1].trim() : arg;
+            String dir = parts.length > 2 ? parts[2].trim() : "IN";
+            String packed = ("OUT".equalsIgnoreCase(dir) ? "OUT|" : "IN|") + arg;
+            String action = "page:dojo_war_pending_decide:" + withReturnPage(packed, pg);
+            if (placed % 2 == 0) {
+                spec.buttonLeft(action, UltraStyle.confirm(label), "confirm");
+            } else {
+                spec.buttonRight(action, UltraStyle.confirm(label), "confirm");
+                spec.rowGap();
             }
+            placed++;
         }
         if (placed % 2 == 1) {
             spec.rowGap();
         }
+        UltraPickHelper.placePrevNext(spec, "dojo_war_pending", pg, pages);
         spec.footerBack("page:dojo_war", "Wars");
         spec.send(player);
     }
 
     private static void openDojoWarDecide(ServerPlayer player, String pickerArg) {
+        String[] withPage = splitReturnPage(pickerArg);
+        int returnPage = Integer.parseInt(withPage[1]);
         String dir = "IN";
-        String picker = pickerArg == null ? "" : pickerArg;
+        String picker = withPage[0];
         if (picker.regionMatches(true, 0, "OUT|", 0, 4) || picker.regionMatches(true, 0, "IN|", 0, 3)) {
             int bar = picker.indexOf('|');
             dir = picker.substring(0, bar);
@@ -682,7 +729,8 @@ public final class UltraSparScreens {
         if (who == null || who.isBlank()) {
             who = picker;
         }
-        UltraScreenSpec spec = sub("dojo_war_pending_decide:" + (outgoing ? "OUT|" : "IN|") + picker)
+        UltraScreenSpec spec = sub("dojo_war_pending_decide:"
+                        + withReturnPage((outgoing ? "OUT|" : "IN|") + picker, returnPage))
                 .line(UltraStyle.LABEL + "Dojo war request")
                 .labelValue("Dojo", who == null || who.isBlank() ? "-" : who);
         if (outgoing) {
@@ -700,32 +748,39 @@ public final class UltraSparScreens {
             spec.button("do:dojo_accept:" + picker, UltraStyle.confirm("Accept"), "confirm").rowGap();
             spec.button("do:dojo_decline:" + picker, UltraStyle.danger("Deny"), "danger").rowGap();
         }
-        spec.footerBack("page:dojo_war_pending", "Requests");
+        spec.footerBack("page:" + UltraPickHelper.pageArg("dojo_war_pending", returnPage), "Requests");
         spec.send(player);
     }
 
     private static void openOnlinePick(
-            ServerPlayer player, String heading, String action, String page, String back) {
-        UltraScreenSpec spec = sub(page)
-                .line(UltraStyle.LABEL + heading)
-                .line(UltraStyle.LABEL + "Choose an online player.")
-                .buttonsAfterLines();
-        List<String> names = RivalGuiApi.onlinePlayerNames(player);
-        int placed = 0;
-        if (names != null) {
-            for (String name : names) {
-                if (placed >= 10 || name == null || name.isBlank()) {
-                    continue;
+            ServerPlayer player, String heading, String action, String page, String back, int pageIndex) {
+        List<String> names = new java.util.ArrayList<>();
+        List<String> online = RivalGuiApi.onlinePlayerNames(player);
+        if (online != null) {
+            for (String name : online) {
+                if (name != null && !name.isBlank()) {
+                    names.add(name);
                 }
-                String nav = "page:pick_confirm:" + action + "|" + back + "|" + name;
-                if (placed % 2 == 0) {
-                    spec.buttonLeft(nav, UltraStyle.confirm(name), "confirm");
-                } else {
-                    spec.buttonRight(nav, UltraStyle.confirm(name), "confirm");
-                    spec.rowGap();
-                }
-                placed++;
             }
+        }
+        int pages = UltraPickHelper.pageCount(names.size(), NAMES_PER_PAGE);
+        int pg = UltraPickHelper.clampPage(pageIndex, pages);
+        String here = UltraPickHelper.pageArg(page, pg);
+        UltraScreenSpec spec = sub(here)
+                .line(UltraStyle.LABEL + heading)
+                .line(UltraStyle.LABEL + "Choose an online player.");
+        UltraPickHelper.pageLabel(spec, pg, pages);
+        spec.buttonsAfterLines();
+        int placed = 0;
+        for (String name : UltraPickHelper.pageSlice(names, NAMES_PER_PAGE, pg)) {
+            String nav = "page:pick_confirm:" + action + "|" + here + "|" + name;
+            if (placed % 2 == 0) {
+                spec.buttonLeft(nav, UltraStyle.confirm(name), "confirm");
+            } else {
+                spec.buttonRight(nav, UltraStyle.confirm(name), "confirm");
+                spec.rowGap();
+            }
+            placed++;
         }
         if (placed % 2 == 1) {
             spec.rowGap();
@@ -733,37 +788,34 @@ public final class UltraSparScreens {
         if (placed == 0) {
             spec.line(UltraStyle.dim("Nobody else is online right now - try again when other players are on."));
         }
+        UltraPickHelper.placePrevNext(spec, page, pg, pages);
         spec.footerBack("page:" + back, "Actions");
         spec.send(player);
     }
 
-    private static void openReleasePick(ServerPlayer player) {
-        UltraScreenSpec spec = sub("pick_release")
+    private static void openReleasePick(ServerPlayer player, int page) {
+        List<String> cards = actionableCards(SparGuiApi.apprenticeCards(player));
+        int pages = UltraPickHelper.pageCount(cards.size(), CARDS_PER_PAGE);
+        int pg = UltraPickHelper.clampPage(page, pages);
+        String back = UltraPickHelper.pageArg("pick_release", pg);
+        UltraScreenSpec spec = sub(back)
                 .line(UltraStyle.LABEL + "Release apprentice")
-                .line(UltraStyle.LABEL + "Choose an apprentice.")
-                .buttonsAfterLines();
-        List<String> cards = SparGuiApi.apprenticeCards(player);
+                .line(UltraStyle.LABEL + "Choose an apprentice.");
+        UltraPickHelper.pageLabel(spec, pg, pages);
+        spec.buttonsAfterLines();
         int placed = 0;
-        if (cards != null) {
-            for (String card : cards) {
-                if (placed >= 8 || card == null || card.isBlank()) {
-                    continue;
-                }
-                String[] parts = splitCard(card);
-                String arg = parts.length > 0 ? parts[0].trim() : "";
-                String label = parts.length > 1 && !parts[1].isBlank() ? parts[1].trim() : arg;
-                if (arg.isBlank()) {
-                    continue;
-                }
-                String nav = "page:pick_confirm:mentor_release|mentor|" + arg;
-                if (placed % 2 == 0) {
-                    spec.buttonLeft(nav, UltraStyle.confirm(label), "confirm");
-                } else {
-                    spec.buttonRight(nav, UltraStyle.confirm(label), "confirm");
-                    spec.rowGap();
-                }
-                placed++;
+        for (String card : UltraPickHelper.pageSlice(cards, CARDS_PER_PAGE, pg)) {
+            String[] parts = splitCard(card);
+            String arg = parts[0].trim();
+            String label = parts.length > 1 && !parts[1].isBlank() ? parts[1].trim() : arg;
+            String nav = "page:pick_confirm:mentor_release|" + back + "|" + arg;
+            if (placed % 2 == 0) {
+                spec.buttonLeft(nav, UltraStyle.confirm(label), "confirm");
+            } else {
+                spec.buttonRight(nav, UltraStyle.confirm(label), "confirm");
+                spec.rowGap();
             }
+            placed++;
         }
         if (placed % 2 == 1) {
             spec.rowGap();
@@ -771,39 +823,36 @@ public final class UltraSparScreens {
         if (placed == 0) {
             spec.line(UltraStyle.dim("No apprentices to release. Take an apprentice from Actions first."));
         }
+        UltraPickHelper.placePrevNext(spec, "pick_release", pg, pages);
         spec.footerBack("page:mentor", "Actions");
         spec.send(player);
     }
 
-    private static void openDojoChallengePick(ServerPlayer player) {
-        UltraScreenSpec spec = sub("pick_dojo_challenge")
+    private static void openDojoChallengePick(ServerPlayer player, int page) {
+        List<String> cards = actionableCards(SparGuiApi.rivalDojoCards(player));
+        int pages = UltraPickHelper.pageCount(cards.size(), CARDS_PER_PAGE);
+        int pg = UltraPickHelper.clampPage(page, pages);
+        String back = UltraPickHelper.pageArg("pick_dojo_challenge", pg);
+        UltraScreenSpec spec = sub(back)
                 .line(UltraStyle.LABEL + "Challenge another dojo")
-                .line(UltraStyle.LABEL + "Pick a rival dojo. The master does not need to be online.")
-                .buttonsAfterLines();
-        List<String> cards = SparGuiApi.rivalDojoCards(player);
+                .line(UltraStyle.LABEL + "Pick a rival dojo. The master does not need to be online.");
+        UltraPickHelper.pageLabel(spec, pg, pages);
+        spec.buttonsAfterLines();
         int placed = 0;
-        if (cards != null) {
-            for (String card : cards) {
-                if (placed >= 8 || card == null || card.isBlank()) {
-                    continue;
-                }
-                String[] parts = splitCard(card);
-                String arg = parts.length > 0 ? parts[0].trim() : "";
-                String label = parts.length > 1 && !parts[1].isBlank() ? parts[1].trim() : arg;
-                if (arg.isBlank()) {
-                    continue;
-                }
-                // Prefer uuid: so challenge works while the defending master is offline.
-                String target = arg.contains(":") ? arg : "uuid:" + arg;
-                String nav = "page:pick_confirm:dojo_challenge|dojo_war|" + target;
-                if (placed % 2 == 0) {
-                    spec.buttonLeft(nav, UltraStyle.confirm(label), "confirm");
-                } else {
-                    spec.buttonRight(nav, UltraStyle.confirm(label), "confirm");
-                    spec.rowGap();
-                }
-                placed++;
+        for (String card : UltraPickHelper.pageSlice(cards, CARDS_PER_PAGE, pg)) {
+            String[] parts = splitCard(card);
+            String arg = parts[0].trim();
+            String label = parts.length > 1 && !parts[1].isBlank() ? parts[1].trim() : arg;
+            // Prefer uuid: so challenge works while the defending master is offline.
+            String target = arg.contains(":") ? arg : "uuid:" + arg;
+            String nav = "page:pick_confirm:dojo_challenge|" + back + "|" + target;
+            if (placed % 2 == 0) {
+                spec.buttonLeft(nav, UltraStyle.confirm(label), "confirm");
+            } else {
+                spec.buttonRight(nav, UltraStyle.confirm(label), "confirm");
+                spec.rowGap();
             }
+            placed++;
         }
         if (placed % 2 == 1) {
             spec.rowGap();
@@ -811,6 +860,7 @@ public final class UltraSparScreens {
         if (placed == 0) {
             spec.line(UltraStyle.dim("No rival dojos on the ladder yet."));
         }
+        UltraPickHelper.placePrevNext(spec, "pick_dojo_challenge", pg, pages);
         spec.footerBack("page:dojo_war", "Wars");
         spec.send(player);
     }

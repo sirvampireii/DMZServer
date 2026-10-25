@@ -119,6 +119,34 @@ def main() -> int:
     check("no Level Cap Breakthrough on chest main", "Level Cap Breakthrough" not in chest.split("private Inventory main", 1)[1].split("private Inventory turnIn", 1)[0] if "private Inventory main" in chest else False)
     check("CNPC prestige no cap button on main", "Level Cap" not in cnpc or '"cap", "breakthrough" -> paintMain' in cnpc)
     check("manifest prestige-turnin-payout row", "prestige-turnin-payout" in manifest)
+
+    print("\n--- § ui paging ---")
+    ultra_dir = SRC / "gui/ultra"
+    check("manifest ultra-pickers-paged row", "ultra-pickers-paged" in manifest)
+    capped = [
+        f"{name}:{n + 1}"
+        for name in ("UltraSparScreens.java", "UltraRivalScreens.java",
+                     "UltraCharacterScreens.java", "UltraPickHelper.java")
+        for n, line in enumerate(read(ultra_dir / name).splitlines())
+        if re.search(r"placed\s*>=\s*\w+\s*\|\|", line)
+    ]
+    check("Ultra pickers never drop items past a hard cap (placed >= N)", not capped,
+          ", ".join(capped[:4]))
+    pick_helper = read(ultra_dir / "UltraPickHelper.java")
+    check("UltraPickHelper pages: pageSlice + placePrevNext + Page X of Y",
+          "public static <T> List<T> pageSlice(" in pick_helper
+          and "public static void placePrevNext(" in pick_helper
+          and '"Page " + (page + 1) + " of " + pages' in pick_helper
+          and "placePrevNext(spec, pageBase, pg, pages)" in pick_helper)
+    spar_ui = read(ultra_dir / "UltraSparScreens.java")
+    war = spar_ui.split("private static void openDojoWarPending(", 1)[-1].split("\n    }\n", 1)[0]
+    check("war requests: lines and Accept/Deny buttons share one page slice",
+          war.count("for (String card : shown)") == 2 and "pageSlice(cards, CARDS_PER_PAGE, pg)" in war)
+    check("Spar picker confirm Back returns to the picker page",
+          '"page:pick_confirm:" + action + "|" + here + "|" + name' in spar_ui
+          and 'case "pick_apprentice", "pick_mentor" -> "Players"' in spar_ui)
+    check("picker paging self-test runs at startup",
+          "verifyPickerPaging()" in read(SRC / "net/gui/LmGuiNetwork.java"))
     points = read(SRC / "progression/shop/PrestigePointsSystem.java")
     turn_in = points.split("public static int pointsForTurnIn(", 1)[1].split("\n    }\n", 1)[0] \
         if "public static int pointsForTurnIn(" in points else ""

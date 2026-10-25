@@ -301,6 +301,7 @@ public final class LmGuiNetwork {
         UltraScreenSelfTest.verifyConfigFieldBudget();
         UltraScreenSelfTest.verifyDojoWarExpiry();
         UltraScreenSelfTest.verifyFirstSuperformChoice();
+        UltraScreenSelfTest.verifyPickerPaging();
         runPacketRoundTripSelfTest();
         AdaptiveDifficultyMod.LOGGER.info(
                 "[{}] Ultra GUI bridge ready channel={} protocol={} — KaiPath {}+ dynamic UI "

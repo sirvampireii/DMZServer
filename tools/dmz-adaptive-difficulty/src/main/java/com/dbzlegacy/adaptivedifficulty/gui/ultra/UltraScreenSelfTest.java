@@ -1683,6 +1683,55 @@ public final class UltraScreenSelfTest {
                         + " error(s)): " + broken);
     }
 
+    /**
+     * Ultra pickers page instead of truncating: at every picker page size (4, 6, 8, 10) and
+     * list length 0-25, walking pages 0..pageCount-1 yields every item exactly once, in the
+     * original order, and a page past the end is empty. Also round-trips the page arg.
+     */
+    public static void verifyPickerPaging() {
+        List<String> broken = new ArrayList<>();
+        for (int perPage : new int[] {4, 6, 8, 10}) {
+            for (int total = 0; total <= 25; total++) {
+                List<Integer> items = new ArrayList<>();
+                for (int i = 0; i < total; i++) {
+                    items.add(i);
+                }
+                int pages = UltraPickHelper.pageCount(total, perPage);
+                List<Integer> walked = new ArrayList<>();
+                for (int pg = 0; pg < pages; pg++) {
+                    List<Integer> slice = UltraPickHelper.pageSlice(items, perPage, pg);
+                    if (slice.size() > perPage) {
+                        broken.add(total + " items at " + perPage + ": page " + (pg + 1) + " overfull");
+                    }
+                    walked.addAll(slice);
+                }
+                if (!walked.equals(items)) {
+                    broken.add(total + " items at " + perPage + " per page did not page in order once each");
+                }
+                if (!UltraPickHelper.pageSlice(items, perPage, pages).isEmpty()) {
+                    broken.add(total + " items at " + perPage + ": page past the end repeats items");
+                }
+            }
+        }
+        if (UltraPickHelper.pageIndex(UltraPickHelper.pageArg("pick_release", 2)) != 2
+                || !"pick_release".equals(UltraPickHelper.pageBase(UltraPickHelper.pageArg("pick_release", 2)))
+                || !"pick_release".equals(UltraPickHelper.pageArg("pick_release", 0))
+                || UltraPickHelper.pageIndex("pending_decide:IN|uuid:abc") != 0) {
+            broken.add("page arg does not round-trip");
+        }
+        if (broken.isEmpty()) {
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Picker paging self-test OK (page sizes 4/6/8/10, lists 0-25)",
+                    AdaptiveDifficultyMod.MOD_ID);
+            return;
+        }
+        AdaptiveDifficultyMod.LOGGER.error(
+                "[{}] Picker paging self-test FAILED: {}", AdaptiveDifficultyMod.MOD_ID, broken);
+        throw new IllegalStateException(
+                "LegacyMechanics picker paging self-test failed (" + broken.size()
+                        + " error(s)): " + broken);
+    }
+
     private static FirstSuperformChoice.Candidate form(
             String group, String name, String formType, int unlockLevel) {
         return new FirstSuperformChoice.Candidate(group, name, formType, unlockLevel, false);
