@@ -7,6 +7,9 @@ import com.dbzlegacy.adaptivedifficulty.noea.GodKiWipeHelper;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy;
 import com.dbzlegacy.adaptivedifficulty.progression.race.RaceLock;
+import com.dbzlegacy.adaptivedifficulty.progression.race.AndroidConversion;
+import com.dbzlegacy.adaptivedifficulty.progression.ProgressionConfig;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.progression.classdef.FightingClassCatalog;
 import com.dragonminez.common.network.NetworkHandler;
@@ -236,6 +239,79 @@ public final class CharacterServicesSystem {
 
     public static long reskinAmountDue(ServerPlayer player) {
         return amountDue(player, reskinCost(player));
+    }
+
+    /**
+     * Listed Android conversion price in copper: {@code 1 + level / 100} Gold Ancient Coins
+     * (integer division), from the same DMZ level character-service pricing reads.
+     * Levels 0-99 cost 1 Gold, 100-199 cost 2 Gold, 250 costs 3 Gold.
+     */
+    public static long androidCost(ServerPlayer player) {
+        int level = Math.max(0, DmzProgression.tierScalingDmzLevel(player));
+        long gold = 1L + level / 100;
+        return gold * AncientCoinEconomy.CoinKind.GOLD.copperValue;
+    }
+
+    /** {@link #androidCost} after the existing staff/bypass waiver. */
+    public static long androidAmountDue(ServerPlayer player) {
+        return amountDue(player, androidCost(player));
+    }
+
+    /**
+     * Self-service Android conversion from the Character Services Android tab. Charges first
+     * (nothing is charged or changed when the player cannot afford it), then converts through
+     * {@link AndroidConversion#convert}, the single conversion path; refunds when the upgrade did
+     * not take. Staff converting another player use the free staff path instead.
+     */
+    public static String executeAndroidConversion(ServerPlayer player) {
+        if (player == null) {
+            return UltraStyle.dangerLine("This only works in-game.");
+        }
+        if (!ProgressionConfig.androidConversion()) {
+            return UltraStyle.dangerLine("Android conversion is turned off right now. Ask staff to turn it on.");
+        }
+        switch (AndroidConversion.eligibility(player)) {
+            case UPGRADED -> {
+                return UltraStyle.dangerLine("You are already an Android. Use Remove Android if you want to undo it.");
+            }
+            case ANDROID_RACE -> {
+                return UltraStyle.dangerLine("You are already an Android by race, so the upgrade does not apply.");
+            }
+            case INELIGIBLE -> {
+                return UltraStyle.dangerLine("Android conversion is only for certain races. Become one of them first: "
+                        + AndroidConversion.eligibleRaceHint() + ".");
+            }
+            case UNKNOWN -> {
+                return UltraStyle.dangerLine("Your character is still loading. Wait a moment and try again.");
+            }
+            default -> {
+                // ELIGIBLE - continue.
+            }
+        }
+        long cost = androidAmountDue(player);
+        AncientCoinEconomy.migrateWalletToItems(player);
+        if (cost > 0L && !AncientCoinEconomy.canAfford(player, cost)) {
+            return insufficientFunds(player, cost);
+        }
+        if (cost > 0L && !chargeAc(player, cost)) {
+            return insufficientFunds(player, cost);
+        }
+        try {
+            AndroidConversion.convert(player);
+        } catch (Throwable ignored) {
+            // Checked below: the upgrade flag is the source of truth.
+        }
+        if (!AndroidConversion.isAndroidUpgraded(player)) {
+            refund(player, cost);
+            audit(player, "Android Conversion", "not android", "android", 100, cost, false);
+            return UltraStyle.dangerLine(
+                    "Android conversion failed. Your coins were returned when possible. Try again or ask staff.");
+        }
+        audit(player, "Android Conversion", "not android", "android", 100, cost, true);
+        String paid = cost > 0L
+                ? " " + UltraStyle.LABEL + "Paid " + UltraStyle.VALUE + formatCost(cost) + UltraStyle.LABEL + "."
+                : "";
+        return UltraStyle.GREEN + "You are now an Android." + paid;
     }
 
     /** Listed copper after the staff/bypass waiver. Zero means the charge call takes nothing. */

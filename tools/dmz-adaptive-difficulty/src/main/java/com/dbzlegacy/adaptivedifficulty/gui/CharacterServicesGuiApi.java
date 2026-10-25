@@ -339,6 +339,14 @@ public final class CharacterServicesGuiApi {
         out.put("coins_netherite", String.valueOf(AncientCoinEconomy.countOf(player, AncientCoinEconomy.CoinKind.NETHERITE)));
     }
 
+    /**
+     * Android tab cost line: the level-priced conversion after the existing staff/bypass waiver,
+     * worded like the other character-service cost lines (free shows its existing reason).
+     */
+    public static String androidCostLine(ServerPlayer player) {
+        return costLine(player, CharacterServicesSystem.androidAmountDue(player));
+    }
+
     private static String costLine(ServerPlayer player, long copperCost) {
         if (copperCost <= 0L) {
             if (CharacterServicesAccess.bypassCost(player)) {

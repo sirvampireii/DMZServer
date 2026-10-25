@@ -626,6 +626,17 @@ public final class UltraGuiActions {
             }
             return applyAndroidStaff(viewer, arg);
         }
+        // Paid self-conversion from the Android tab (player-facing). It charges whoever clicked,
+        // so it never runs while staff are inspecting another player's menu.
+        if ("android_self".equals(act)) {
+            if (subject != null && subject != viewer) {
+                return UltraStyle.dangerLine(
+                        "That converts you, not the player you are viewing. Use Another player instead.");
+            }
+            String msg = com.dbzlegacy.adaptivedifficulty.character.CharacterServicesSystem
+                    .executeAndroidConversion(viewer);
+            return msg == null ? "" : msg;
+        }
         // Staff convert only - Removal stays available to players. Staff gate = viewer.
         if ("android".equals(act)) {
             if (!StaffAccess.isStaff(viewer)) {
@@ -887,7 +898,7 @@ public final class UltraGuiActions {
             };
             case "character" -> switch (parts.action == null ? "" : parts.action) {
                 case "android_staff" -> androidStaffReopen(parts.arg);
-                case "android_remove", "android" -> UltraStyle.PAGE_ANDROID_REMOVE;
+                case "android_remove", "android", "android_self" -> UltraStyle.PAGE_ANDROID_REMOVE;
                 case "race_confirm" -> "race:0";
                 case "class_confirm" -> "class:0";
                 case "reskin_confirm" -> "reskin";

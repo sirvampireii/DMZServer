@@ -52,6 +52,8 @@ KNOWN_DO: dict[str, set[str]] = {
         "android_remove",
         "android",
         "android_staff",
+        # 4.6.237: paid self-conversion from the Android tab.
+        "android_self",
     },
     "prestige": {
         "confirm",

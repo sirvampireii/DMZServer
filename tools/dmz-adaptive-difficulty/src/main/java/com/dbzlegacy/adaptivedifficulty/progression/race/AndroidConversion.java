@@ -81,6 +81,53 @@ public final class AndroidConversion {
         doRemove(player, data, true);
     }
 
+    /** Which Android tab state applies to a player. Read-only: never converts or charges. */
+    public enum Eligibility {
+        /** Already has the Gero upgrade - only removal applies. */
+        UPGRADED,
+        /** Race has androidforms configured and is not an android lineage - may convert. */
+        ELIGIBLE,
+        /** Race has no androidforms configured. */
+        INELIGIBLE,
+        /** Bio-Android: already an android lineage, cannot take the Gero upgrade. */
+        ANDROID_RACE,
+        /** Character data not loaded yet. */
+        UNKNOWN
+    }
+
+    /**
+     * The same checks {@link #convert} makes, in the same order, without changing anything —
+     * so menus show only the button that applies.
+     */
+    public static Eligibility eligibility(ServerPlayer player) {
+        if (player == null) {
+            return Eligibility.UNKNOWN;
+        }
+        try {
+            StatsData data = DmzProgression.stats(player);
+            Character character = data == null ? null : data.getCharacter();
+            Status status = data == null ? null : data.getStatus();
+            if (character == null || status == null) {
+                return Eligibility.UNKNOWN;
+            }
+            if (status.isAndroidUpgraded()) {
+                return Eligibility.UPGRADED;
+            }
+            String raceName = raceName(character);
+            if (raceName.isBlank()) {
+                return Eligibility.UNKNOWN;
+            }
+            if (BLOCKED.contains(raceName.toLowerCase(Locale.ROOT))) {
+                return Eligibility.ANDROID_RACE;
+            }
+            return raceAllowsAndroidForms(player, character, raceName)
+                    ? Eligibility.ELIGIBLE
+                    : Eligibility.INELIGIBLE;
+        } catch (Throwable ignored) {
+            return Eligibility.UNKNOWN;
+        }
+    }
+
     /** True when the player has the Gero Android upgrade flag. */
     public static boolean isAndroidUpgraded(ServerPlayer player) {
         if (player == null) {

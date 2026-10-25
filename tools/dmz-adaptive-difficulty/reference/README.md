@@ -104,6 +104,11 @@ constants). The other 22 are unchanged.
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
 command and Character Services changes live outside this set; the other 24 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.237 Android tab)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
+Android tab changes live outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

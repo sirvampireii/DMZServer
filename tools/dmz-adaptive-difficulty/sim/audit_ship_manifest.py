@@ -604,6 +604,30 @@ def main() -> int:
     check("Android Gero convert no Saiyan deny list", "GERO_RACE_DENY" not in android)
     check("Android CNPC copy does not deny Saiyan", "Saiyan races cannot" not in read(SRC / "gui/cnpc/CnpcLmProgressionGui.java"))
     check("Android convert allows self (not staff-only)", "you can convert yourself" in read(SRC / "gui/ProgressionGuiApi.java"))
+    # 4.6.237: Android tab button logic + level-priced self conversion.
+    cs_sys = read(SRC / "character/CharacterServicesSystem.java")
+    char_ui = read(SRC / "gui/ultra/UltraCharacterScreens.java")
+    gui_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    check("Android self conversion costs 1 + level/100 Gold, charged before converting",
+          "long gold = 1L + level / 100;" in cs_sys
+          and "AncientCoinEconomy.CoinKind.GOLD.copperValue" in cs_sys
+          and cs_sys.index("chargeAc(player, cost)", cs_sys.index("executeAndroidConversion"))
+              < cs_sys.index("AndroidConversion.convert(player)")
+          and "refund(player, cost);" in cs_sys.split("executeAndroidConversion", 1)[1].split("public static long amountDue", 1)[0])
+    check("Android tab shows only the applicable button (Convert / Remove / none)",
+          "AndroidConversion.eligibility(player)" in char_ui
+          and "case UPGRADED ->" in char_ui and "case ELIGIBLE ->" in char_ui
+          and '"Eligible races: " + AndroidConversion.eligibleRaceHint()' in char_ui
+          and "already an Android by race" in char_ui
+          and 'UltraStyle.confirm("Convert to Android")' in char_ui
+          and '"do:android"' not in char_ui)
+    check("staff target page shows only Convert or Remove; staff tools stay free",
+          "targetState == AndroidConversion.Eligibility.ELIGIBLE" in char_ui
+          and "targetState == AndroidConversion.Eligibility.UPGRADED" in char_ui
+          and "applyAndroidStaff" in gui_act)
+    check("self conversion is player-facing and never charges an inspected player",
+          '"android_self".equals(act)' in gui_act
+          and "subject != null && subject != viewer" in gui_act)
     cnpc_rival = read(SRC / "gui/cnpc/CnpcLmRivalGui.java")
     check("CNPC rival empty labels avoid flash ids", "ID_EMPTY_PLACEHOLDER" in cnpc_rival
           and "addLabel(50," not in cnpc_rival)

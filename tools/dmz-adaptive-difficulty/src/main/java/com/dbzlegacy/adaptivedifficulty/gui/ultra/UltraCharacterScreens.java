@@ -91,6 +91,7 @@ public final class UltraCharacterScreens {
         switch (lower) {
             case "android_remove", "android", "androidremove", "remove_android" ->
                     openAndroidRemove(player);
+            case "android_convert_confirm" -> openAndroidConvertConfirm(player);
             case "reskin" -> openReskin(player);
             case "reskin_confirm" -> openReskinConfirm(player);
             default -> openHome(player);
@@ -914,19 +915,50 @@ public final class UltraCharacterScreens {
         spec.send(player);
     }
 
+    /**
+     * The viewer's own Android tab. Shows only what applies: an upgraded Android gets Remove
+     * (always free); an eligible race gets Convert with its level-priced cost; any other race gets
+     * the eligible-race list and no button; a Bio-Android is told they already are one.
+     */
     private static void openAndroidRemove(ServerPlayer player) {
-        UltraScreenSpec spec = base(player, UltraStyle.PAGE_ANDROID_REMOVE, "android", false)
-                .line(UltraStyle.LABEL + "Remove Android forms and restore your previous look.")
-                .notice("Click again within 10 seconds. This cannot be undone.")
-                .buttonsAfterLines();
-        spec.button(
-                        "do:" + UltraStyle.PAGE_ANDROID_REMOVE,
-                        UltraStyle.danger("Remove Android"),
-                        UltraStyle.STYLE_DANGER)
-                .rowGap();
-        if (StaffAccess.isStaff(player) && CharacterServicesConfig.get().enabled) {
-            spec.button("do:android", UltraStyle.confirm("Convert to Android"), UltraStyle.STYLE_CONFIRM)
-                    .rowGap();
+        AndroidConversion.Eligibility state = AndroidConversion.eligibility(player);
+        UltraScreenSpec spec = base(player, UltraStyle.PAGE_ANDROID_REMOVE, "android", false);
+        switch (state) {
+            case UPGRADED -> {
+                // Upgraded wins over race: never trap an upgraded player without a way out.
+                spec.line(UltraStyle.LABEL + "Remove Android forms and restore your previous look.")
+                        .line(UltraStyle.LABEL + "Cost " + UltraStyle.GREEN + "free")
+                        .notice("Click again within 10 seconds. This cannot be undone.")
+                        .buttonsAfterLines();
+                spec.button(
+                                "do:" + UltraStyle.PAGE_ANDROID_REMOVE,
+                                UltraStyle.danger("Remove Android"),
+                                UltraStyle.STYLE_DANGER)
+                        .rowGap();
+            }
+            case ELIGIBLE -> {
+                spec.line(UltraStyle.LABEL + "Convert to Android: Android forms replace your Super and"
+                                + " Legendary forms.")
+                        .line(CharacterServicesGuiApi.androidCostLine(player))
+                        .line(UltraStyle.dim("Priced by level: 1 Gold coin, plus 1 per 100 levels."
+                                + " Removing Android later is free."))
+                        .buttonsAfterLines();
+                spec.button(
+                                "page:android_convert_confirm",
+                                UltraStyle.confirm("Convert to Android"),
+                                UltraStyle.STYLE_CONFIRM)
+                        .rowGap();
+            }
+            case ANDROID_RACE -> spec.line(UltraStyle.LABEL
+                            + "You are already an Android by race, so the Android upgrade does not apply.")
+                    .buttonsAfterLines();
+            case UNKNOWN -> spec.line(UltraStyle.dim(
+                            "Your character is still loading. Reopen this tab in a moment."))
+                    .buttonsAfterLines();
+            default -> spec.line(UltraStyle.LABEL + "Android conversion is only for certain races."
+                            + " Become one of those races to convert.")
+                    .line(UltraStyle.dim("Eligible races: " + AndroidConversion.eligibleRaceHint()))
+                    .buttonsAfterLines();
         }
         if (staffMayEditOthers(player) && CharacterServicesConfig.get().enabled) {
             spec.button(
@@ -936,6 +968,27 @@ public final class UltraCharacterScreens {
                     .rowGap();
         }
         spec.footerBackToMain();
+        spec.send(player);
+    }
+
+    /**
+     * Confirm step for paying to convert: states the action and the exact cost (or the existing
+     * free reason) before anything is charged, and that removing Android later is free.
+     */
+    private static void openAndroidConvertConfirm(ServerPlayer player) {
+        if (AndroidConversion.eligibility(player) != AndroidConversion.Eligibility.ELIGIBLE) {
+            openAndroidRemove(player);
+            return;
+        }
+        UltraScreenSpec spec = sub(player, "android_convert_confirm", false)
+                .line(UltraStyle.LABEL + "Convert to Android")
+                .line(CharacterServicesGuiApi.androidCostLine(player))
+                .notice("Converting replaces your Super and Legendary forms with Android forms."
+                        + " Removing Android later is free and restores them.")
+                .buttonsAfterLines();
+        spec.button("do:android_self", UltraStyle.confirm("Confirm and pay"), UltraStyle.STYLE_CONFIRM)
+                .rowGap();
+        spec.footerBack("tab:android", "Android");
         spec.send(player);
     }
 
@@ -1031,21 +1084,35 @@ public final class UltraCharacterScreens {
         } else {
             state = "Not an Android";
         }
+        // Only the button that applies to this target - never both. Staff tools stay free.
+        AndroidConversion.Eligibility targetState =
+                target == null ? AndroidConversion.Eligibility.UNKNOWN : AndroidConversion.eligibility(target);
         UltraScreenSpec spec = sub(player, "android_target:" + canonical, false)
                 .line(UltraStyle.LABEL + "Android tools for " + name)
                 .labelValue("Player", name)
-                .labelValue("Status", state)
-                .buttonsAfterLines();
-        spec.button(
-                        "page:android_confirm:convert:" + canonical,
-                        UltraStyle.confirm("Convert Android"),
-                        UltraStyle.STYLE_CONFIRM)
-                .rowGap();
-        spec.button(
-                        "page:android_confirm:remove:" + canonical,
-                        UltraStyle.danger("Remove Android"),
-                        UltraStyle.STYLE_DANGER)
-                .rowGap();
+                .labelValue("Status", state);
+        if (targetState == AndroidConversion.Eligibility.INELIGIBLE
+                || targetState == AndroidConversion.Eligibility.ANDROID_RACE) {
+            spec.line(UltraStyle.LABEL + "Android conversion is only for certain races, and "
+                            + name + "'s race is not one of them.")
+                    .line(UltraStyle.dim("Eligible races: " + AndroidConversion.eligibleRaceHint()));
+        } else if (targetState == AndroidConversion.Eligibility.UNKNOWN && target != null) {
+            spec.line(UltraStyle.dim("Their character is still loading. Reopen this page in a moment."));
+        }
+        spec.buttonsAfterLines();
+        if (targetState == AndroidConversion.Eligibility.ELIGIBLE) {
+            spec.button(
+                            "page:android_confirm:convert:" + canonical,
+                            UltraStyle.confirm("Convert Android"),
+                            UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
+        } else if (targetState == AndroidConversion.Eligibility.UPGRADED) {
+            spec.button(
+                            "page:android_confirm:remove:" + canonical,
+                            UltraStyle.danger("Remove Android"),
+                            UltraStyle.STYLE_DANGER)
+                    .rowGap();
+        }
         spec.footerBack("page:android_staff", "Players");
         spec.send(player);
     }
