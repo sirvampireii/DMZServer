@@ -2,6 +2,7 @@ package com.dbzlegacy.adaptivedifficulty.rival;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.LmChat;
@@ -581,6 +582,11 @@ public final class RivalChallengeManager {
                 applyWinLoss(recA, recB, ch, winner, loser, knockout, false, pg);
             }
             deliverReport(server, ch, winner, loser, false);
+            if ("knockout".equals(reason)) {
+                // The only Nemesis increment: one per KO, whatever the killing damage source.
+                registerNemesisKo(store, winner, loser, winP, loseP,
+                        nameOf(ch, winner), nameOf(ch, loser), now);
+            }
             RivalProgression.get().onChallengeEnd(winP, loseP, ch, false, knockout);
             SystemTelemetry.log("rival", "challenge_end", winP, loseP,
                     SystemTelemetry.fields("result", knockout ? "ko" : "win", "reason", reason,
@@ -590,6 +596,59 @@ public final class RivalChallengeManager {
                     + " §8(" + (int) ch.damageOf(winner) + " / " + (int) ch.damageOf(loser) + ")");
         }
         store.markDirty();
+    }
+
+    /**
+     * Nemesis climb for a challenge knockout: the loser's mutual link toward the winner gains a
+     * death loss (the winner's link a death win). At {@link RivalConstants#NEMESIS_DEATH_LOSSES}
+     * the winner becomes the loser's Nemesis. Open-world deaths, forfeits, logouts, disconnects,
+     * damage wins, and timeouts never reach here. The caller marks the store dirty.
+     */
+    private static boolean registerNemesisKo(
+            RivalStore store,
+            UUID winner,
+            UUID loser,
+            ServerPlayer winP,
+            ServerPlayer loseP,
+            String winName,
+            String loseName,
+            long now
+    ) {
+        if (store == null || winner == null || loser == null) {
+            return false;
+        }
+        RivalPlayerRecord winRec = store.get(winner.toString());
+        RivalPlayerRecord loseRec = store.get(loser.toString());
+        if (winRec == null || loseRec == null || loseRec.rivals == null) {
+            return false;
+        }
+        RivalLink loseLink = loseRec.rivals.get(winRec.uuid);
+        if (loseLink == null || !loseLink.mutual) {
+            return false;
+        }
+        RivalLink winLink = winRec.rivals == null ? null : winRec.rivals.get(loseRec.uuid);
+        loseLink.deathLosses++;
+        loseLink.touch(now);
+        if (winLink != null) {
+            winLink.deathWins++;
+            winLink.touch(now);
+        }
+        if (loseLink.deathLosses >= RivalConstants.NEMESIS_DEATH_LOSSES) {
+            loseLink.isNemesis = true;
+            loseRec.nemesisUuid = winRec.uuid;
+            String winShown = winP != null ? winP.m_7755_().getString() : winName;
+            String loseShown = loseP != null ? loseP.m_7755_().getString() : loseName;
+            if (loseP != null) {
+                DmzRewards.msg(loseP, LmChat.fail("Rival", UltraStyle.WHITE + winShown
+                        + " " + UltraStyle.RED + "is now your Nemesis (" + loseLink.deathLosses
+                        + " challenge deaths)."));
+            }
+            if (winP != null) {
+                DmzRewards.msg(winP, LmChat.note("Rival", UltraStyle.YELLOW + "You became Nemesis to "
+                        + UltraStyle.WHITE + loseShown + " " + UltraStyle.GRAY + "(3 challenge deaths)."));
+            }
+        }
+        return true;
     }
 
     private void deliverReport(

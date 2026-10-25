@@ -168,7 +168,7 @@ def main() -> int:
     out_body = rival_api.split("public static int outgoingDeclareCount(", 1)[-1].split("\n    }\n", 1)[0]
     check("manifest rival-requests-counts row", "rival-requests-counts" in manifest)
     check("Requests moved from Rival Home to the Rival tab next to Pick player",
-          '"requests|Requests"' not in rival_home and '"list|Rival list"' in rival_home
+          '"requests|Requests"' not in rival_home
           and '"pick_rival|Pick player", "requests|Requests"' in rival_tab
           and 'case "requests", "pending", "invites" -> openRequests(' in rival_ui)
     check("Rival tab shows Incoming requests from the Accept/Decline list, Awaiting reply only when > 0",
@@ -207,6 +207,79 @@ def main() -> int:
           and sum(_incoming(l, now) for l in declared_only) == 0)
     check("sim: expired outgoing declare is not awaiting a reply",
           sum(_outgoing(l, now) for l in expired_out) == 0)
+
+    print("\n--- § rival profile ---")
+    rival_sys = read(SRC / "rival/RivalSystem.java")
+    rival_mgr = read(SRC / "rival/RivalChallengeManager.java")
+    detail = rival_ui.split("private static void openListDetail(", 1)[-1].split("\n    }\n", 1)[0]
+    status_body = rival_ui.split("private static void profileStatus(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest rival-profile-status and rival-nemesis-every-ko rows",
+          "rival-profile-status" in manifest and "rival-nemesis-every-ko" in manifest)
+    check("profile shows status, tier, RP, record from the link (current rivals only)",
+          "if (stillRival) {\n            profileStatus(spec, RivalGuiApi.rivalLinkFor(player, arg));" in detail
+          and 'labelValue("Status", st.label())' in status_body
+          and 'labelValue("Rival tier", tier.name())' in status_body
+          and 'labelValue("RP", String.valueOf((int) link.points))' in status_body
+          and '"Record"' in status_body and "link.wins" in status_body
+          and "link.losses" in status_body and "link.draws" in status_body)
+    check("profile deaths line only for mutual, not Nemesis; grounds lines or one claim hint",
+          "if (link.mutual && st != RivalStatus.NEMESIS) {" in status_body
+          and "link.deathLosses" in status_body
+          and "ProvingGrounds.listLines(link)" in status_body
+          and "Win a challenge against this rival to claim Proving Grounds." in status_body)
+    check("profile keeps Declare / Accept their declare / Remove / not-on-list / Back to Rival tab",
+          '"do:declare:" + arg' in detail and '"page:accept_confirm:" + arg' in detail
+          and '"do:remove:" + arg' in detail and "Not on your rival list." in detail
+          and 'UltraPickHelper.pageArg("actions", returnPage), "Rival"' in detail)
+    check("Rival list page removed; Home has no Rival list; page:list opens the Rival tab",
+          "private static void openList(" not in rival_ui
+          and '"list|Rival list"' not in rival_home
+          and 'case "list" -> openActions(player, 0);' in rival_ui
+          and 'case "list" ->' in rival_api)
+    ko_branch = rival_mgr.split('if ("knockout".equals(reason)) {', 1)
+    check("Nemesis increment lives only in endChallenge's knockout branch",
+          len(ko_branch) == 2 and "registerNemesisKo(store, winner, loser" in ko_branch[1][:400]
+          and rival_mgr.count("registerNemesisKo(") == 2
+          and rival_mgr.count("deathLosses++") == 1
+          and "deathLosses++" not in rival_sys and "registerNemesisDeath" not in rival_sys
+          and "RivalChallengeManager.get().onDeath(victim, killer);" in rival_sys)
+
+    # Mirror of RivalSystem.onDeath -> RivalChallengeManager.onDeath -> endChallenge(knockout).
+    def _ko_sim(events):
+        st = {"lossAB": 0, "winBA": 0, "nemesis": False, "active": False, "ended": False}
+
+        def end(reason):
+            if not st["active"] or st["ended"]:
+                return
+            st["ended"] = True
+            st["active"] = False
+            if reason == "knockout":  # mutual pair; winner resolved even with no killer
+                st["lossAB"] += 1
+                st["winBA"] += 1
+                if st["lossAB"] >= 3:
+                    st["nemesis"] = True
+
+        for ev in events:
+            if ev == "start":
+                st["active"], st["ended"] = True, False
+            elif ev.startswith("death"):  # death:<killer or none>, a dies
+                if st["active"]:
+                    end("knockout")
+                    end("knockout")  # a second death event in the same fight must not count
+            elif ev in ("forfeit", "logout", "disconnect", "damage", "draw"):
+                end(ev)
+        return st
+
+    ki = _ko_sim(["start", "death:none"])
+    check("sim: KO with no player killer (ki-style) still adds a challenge death", ki["lossAB"] == 1)
+    three = _ko_sim(["start", "death:none", "start", "death:none", "start", "death:b"])
+    check("sim: third KO sets Nemesis", three["lossAB"] == 3 and three["nemesis"])
+    open_world = _ko_sim(["death:b", "death:none"])
+    check("sim: open-world deaths do not count", open_world["lossAB"] == 0)
+    forfeit = _ko_sim(["start", "forfeit", "start", "logout", "start", "damage"])
+    check("sim: forfeit / logout / damage win do not count", forfeit["lossAB"] == 0)
+    once = _ko_sim(["start", "death:b"])
+    check("sim: one KO counts exactly once", once["lossAB"] == 1 and once["winBA"] == 1)
 
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
@@ -277,7 +350,6 @@ def main() -> int:
           and "UltraPickHelper.placeNameButtons(spec, doAction, choices, PICK_PER_PAGE, pageBase, pg, null)" in rival_ui)
     check("rival profile Back returns to the Rival tab page it came from",
           '"page:list_detail:" + profileArg(arg, page)' in rival_ui
-          and '"page:list_detail:" + profileArg(arg, pg)' in rival_ui
           and 'UltraPickHelper.pageArg("actions", returnPage), "Rival"' in rival_ui)
     self_test = read(ultra_dir / "UltraScreenSelfTest.java")
     check("picker paging self-test covers 124 cases (lists 0-30)",

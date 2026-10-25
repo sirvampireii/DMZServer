@@ -92,54 +92,12 @@ public final class RivalSystem {
             return;
         }
         ServerPlayer killer = killerEntity instanceof ServerPlayer sp ? sp : null;
-        // Nemesis climbs only from challenge knockouts (not open-world PvP).
-        boolean challengeKo = false;
-        if (killer != null && DifficultyConfig.get().rivalChallenges) {
-            RivalChallenge ch = RivalChallengeManager.get().getChallenge(victim.m_20148_());
-            challengeKo = ch != null
-                    && ch.status == RivalChallenge.Phase.ACTIVE
-                    && ch.involves(killer.m_20148_());
-        }
+        // A challenge KO (any damage source, ki and projectiles included) ends the challenge
+        // here; the Nemesis climb is counted once in RivalChallengeManager.endChallenge.
         RivalChallengeManager.get().onDeath(victim, killer);
         if (killer != null) {
-            if (challengeKo) {
-                registerNemesisDeath(victim, killer);
-            }
             RivalProximity.handleKillNearRivals(killer, victim);
         }
-    }
-
-    private static void registerNemesisDeath(ServerPlayer victim, ServerPlayer killer) {
-        RivalStore store = RivalStore.get();
-        RivalPlayerRecord vRec = store.ensurePlayer(victim);
-        RivalPlayerRecord kRec = store.ensurePlayer(killer);
-        if (vRec == null || kRec == null) {
-            return;
-        }
-        RivalLink vLink = vRec.rivals.get(kRec.uuid);
-        RivalLink kLink = kRec.rivals.get(vRec.uuid);
-        if (vLink == null || !vLink.mutual) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        // Challenge KOs only — open-world PvP never reaches here.
-        // wins/losses are recorded by RivalChallengeManager.applyWinLoss; only
-        // deathLosses/deathWins drive the Nemesis climb.
-        vLink.deathLosses++;
-        vLink.touch(now);
-        if (kLink != null) {
-            kLink.deathWins++;
-            kLink.touch(now);
-        }
-        if (vLink.deathLosses >= RivalConstants.NEMESIS_DEATH_LOSSES) {
-            vLink.isNemesis = true;
-            vRec.nemesisUuid = kRec.uuid;
-            DmzRewards.msg(victim, LmChat.fail("Rival", "§f" + killer.m_7755_().getString()
-                    + " §cis now your Nemesis (" + vLink.deathLosses + " challenge deaths)."));
-            DmzRewards.msg(killer, LmChat.note("Rival", "§eYou became Nemesis to §f"
-                    + victim.m_7755_().getString() + " §7(3 challenge deaths)."));
-        }
-        store.markDirty();
     }
 
     /* ========================= Command API ========================= */

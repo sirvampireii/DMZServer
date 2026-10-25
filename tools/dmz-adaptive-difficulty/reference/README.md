@@ -125,6 +125,11 @@ four new summon field names in the progression field list - javap shows only tho
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
 Rival changes live outside this set; the other 24 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.241 Rival profile + Nemesis KO count)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
+Rival changes live outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

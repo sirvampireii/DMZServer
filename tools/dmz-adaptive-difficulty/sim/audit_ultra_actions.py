@@ -1315,16 +1315,12 @@ def main() -> int:
     detail = detail_m.group(0) if detail_m else ""
     if "displayPickerArg" not in detail:
         errors.append("UltraRivalScreens.openListDetail must resolve Target via RivalGuiApi.displayPickerArg")
-    list_m = re.search(
-        r"private static void openList\b.*?^\s*private static void ",
-        rival,
-        re.S | re.M,
-    )
-    list_block = list_m.group(0) if list_m else ""
-    if "displayPickerArg" not in list_block:
-        errors.append("UltraRivalScreens.openList must resolve button labels via RivalGuiApi.displayPickerArg")
-    if "lastIndexOf(':')" in list_block or "substring(arg.lastIndexOf" in list_block:
-        errors.append("UltraRivalScreens.openList must not substring uuid: args for button labels")
+    # 4.6.241: the Rival list page is gone; its route opens the Rival tab and the profile
+    # carries the status the list used to show.
+    if re.search(r"private static void openList\b", rival):
+        errors.append("UltraRivalScreens.openList was removed - the Rival tab opens each profile")
+    if 'case "list" -> openActions(player, 0);' not in rival:
+        errors.append("UltraRivalScreens page:list must land on the Rival tab (openActions)")
     replace_m = re.search(
         r"private static void openReplacePick\b.*?^\s*private static void ",
         rival,
@@ -1535,12 +1531,12 @@ def main() -> int:
     clip_body = style_src.split("public static String clipPlain(", 1)[-1].split("\n    }\n", 1)[0]
     if 'text.substring(0, maxChars - 3).trim() + "..."' not in clip_body:
         errors.append("UltraStyle.clipPlain must end a clipped name with ... (never a bare cut)")
-    # 4.6.235: Home is the index for the rival list. 4.6.240: Requests moved to the Rival tab.
+    # 4.6.240: Requests moved to the Rival tab. 4.6.241: the Rival list page is gone.
     rival_home = (ULTRA / "UltraRivalScreens.java").read_text(encoding="utf-8")
     rival_home_body = rival_home.split("private static void openHome(", 1)[-1].split("\n    }\n", 1)[0]
     rival_tab_body = rival_home.split("private static void openActions(", 1)[-1].split("\n    }\n", 1)[0]
-    if '"list|Rival list"' not in rival_home_body or '"requests|Requests"' in rival_home_body:
-        errors.append("UltraRivalScreens.openHome must link page:list and not page:requests")
+    if '"list|Rival list"' in rival_home_body or '"requests|Requests"' in rival_home_body:
+        errors.append("UltraRivalScreens.openHome must not link page:list or page:requests")
     if '"requests|Requests"' not in rival_tab_body:
         errors.append("UltraRivalScreens.openActions must link page:requests")
     # 4.6.235: staff settings open the Ultra config editor, not a chat page.

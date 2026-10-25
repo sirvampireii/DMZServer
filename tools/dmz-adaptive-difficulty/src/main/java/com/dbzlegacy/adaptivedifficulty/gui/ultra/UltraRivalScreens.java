@@ -1,6 +1,10 @@
 package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
 import com.dbzlegacy.adaptivedifficulty.gui.RivalGuiApi;
+import com.dbzlegacy.adaptivedifficulty.rival.ProvingGrounds;
+import com.dbzlegacy.adaptivedifficulty.rival.RivalConstants;
+import com.dbzlegacy.adaptivedifficulty.rival.RivalLink;
+import com.dbzlegacy.adaptivedifficulty.rival.RivalStatus;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,7 +80,8 @@ public final class UltraRivalScreens {
             case "actions", "action", "rival" -> openActions(player, listPage);
             case "info", "information" -> openInfo(player);
             case "challenge", "challenges" -> openChallenge(player, listPage);
-            case "list" -> openList(player, listPage);
+            // The Rival tab lists rivals and opens each profile; stale page:list links land there.
+            case "list" -> openActions(player, 0);
             case "top", "leaderboard" -> openTop(player);
             case "records" -> openRecords(player, "history");
             case "requests", "pending", "invites" -> openRequests(player, listPage);
@@ -111,11 +116,8 @@ public final class UltraRivalScreens {
         UltraScreenSpec spec = base("home", "home")
                 .line(UltraStyle.LABEL + "Leaderboard, records, and TP chat.")
                 .buttonsAfterLines();
-        UltraPickHelper.placePageButtons(
-                spec, "top|Leaderboard", "records|Records", "settings|TP Chat",
-                // Home is the index: the rival list opens from here too, not only through
-                // /rival list or a post-action return. Requests lives on the Rival tab.
-                "list|Rival list");
+        // Rivals, their profiles, and Requests live on the Rival tab.
+        UltraPickHelper.placePageButtons(spec, "top|Leaderboard", "records|Records", "settings|TP Chat");
         if (StaffAccess.isStaff(player)) {
             spec.buttonLeft("page:admin", UltraStyle.danger("Staff Admin"), "danger").rowGap();
         }
@@ -428,46 +430,6 @@ public final class UltraRivalScreens {
         }
     }
 
-    private static void openList(ServerPlayer player, int page) {
-        List<String> args = nonBlank(RivalGuiApi.currentRivalArgs(player));
-        int pages = UltraPickHelper.pageCount(args.size(), RIVALS_PER_PAGE);
-        int pg = UltraPickHelper.clampPage(page, pages);
-        UltraScreenSpec spec = sub(UltraPickHelper.pageArg("list", pg))
-                .line(UltraStyle.LABEL + "Your current rivals.");
-        for (String line : RivalGuiApi.listLines(player)) {
-            if (line != null && !line.isBlank()) {
-                spec.line(line);
-            }
-        }
-        UltraPickHelper.pageLabel(spec, pg, pages);
-        spec.buttonsAfterLines();
-        int placed = 0;
-        for (String arg : UltraPickHelper.pageSlice(args, RIVALS_PER_PAGE, pg)) {
-            String action = "page:list_detail:" + profileArg(arg, pg);
-            String shown = RivalGuiApi.displayPickerArg(player, arg);
-            if (shown == null || shown.isBlank()) {
-                shown = "-";
-            }
-            String label = UltraStyle.confirm(shown);
-            if (placed % 2 == 0) {
-                spec.buttonLeft(action, label, "confirm");
-            } else {
-                spec.buttonRight(action, label, "confirm");
-                spec.rowGap();
-            }
-            placed++;
-        }
-        if (placed % 2 == 1) {
-            spec.rowGap();
-        }
-        if (placed == 0) {
-            spec.line(UltraStyle.dim("No rivals on your list yet. Declare someone from Pick player."));
-        }
-        UltraPickHelper.placePrevNext(spec, "list", pg, pages);
-        spec.footerBack("page:actions", "Rival");
-        spec.send(player);
-    }
-
     /**
      * Profile link arg: page 2+ rides along as {@code |N} so the profile's Back returns to that
      * page of the Rival tab. Names and {@code uuid:} args never contain {@code |}.
@@ -487,11 +449,6 @@ public final class UltraRivalScreens {
             }
         }
         String who = RivalGuiApi.displayPickerArg(player, arg);
-        UltraScreenSpec spec = sub("list_detail:" + payload)
-                .line(UltraStyle.LABEL + "Rival profile")
-                .labelValue("Target", who == null || who.isBlank() ? "-" : who)
-                .notice("Removing a rival cannot be undone from this menu.")
-                .buttonsAfterLines();
         boolean stillRival = false;
         if (arg != null && !arg.isBlank()) {
             for (String cur : RivalGuiApi.currentRivalArgs(player)) {
@@ -501,6 +458,14 @@ public final class UltraRivalScreens {
                 }
             }
         }
+        UltraScreenSpec spec = sub("list_detail:" + payload)
+                .line(UltraStyle.LABEL + "Rival profile")
+                .labelValue("Target", who == null || who.isBlank() ? "-" : who);
+        if (stillRival) {
+            profileStatus(spec, RivalGuiApi.rivalLinkFor(player, arg));
+        }
+        spec.notice("Removing a rival cannot be undone from this menu.")
+                .buttonsAfterLines();
         if (stillRival) {
             // Silent can be upgraded from the profile. Declared and above already sent that step.
             if ("silent".equalsIgnoreCase(RivalGuiApi.rivalStatusLabel(player, arg))) {
@@ -524,6 +489,40 @@ public final class UltraRivalScreens {
         }
         spec.footerBack("page:" + UltraPickHelper.pageArg("actions", returnPage), "Rival");
         spec.send(player);
+    }
+
+    /**
+     * Status block on the rival profile: the same link fields the rival list renders (status,
+     * RP tier, RP, record, deaths toward Nemesis, Proving Grounds). Read only.
+     */
+    private static void profileStatus(UltraScreenSpec spec, RivalLink link) {
+        if (link == null) {
+            return;
+        }
+        RivalStatus st = link.status();
+        RivalConstants.RpTier tier = RivalConstants.tierFor(link.points);
+        spec.labelValue("Status", st.label())
+                .labelValue("Rival tier", tier.name())
+                .labelValue("RP", String.valueOf((int) link.points))
+                .labelValue("Record", count(link.wins, "win", "wins") + ", "
+                        + count(link.losses, "loss", "losses") + ", "
+                        + count(link.draws, "draw", "draws"));
+        if (link.mutual && st != RivalStatus.NEMESIS) {
+            spec.labelValue("Challenge deaths",
+                    link.deathLosses + "/" + RivalConstants.NEMESIS_DEATH_LOSSES + " toward Nemesis");
+        }
+        List<String> grounds = ProvingGrounds.listLines(link);
+        if (grounds.isEmpty()) {
+            spec.line(UltraStyle.dim("Win a challenge against this rival to claim Proving Grounds."));
+        } else {
+            for (String line : grounds) {
+                spec.line(line);
+            }
+        }
+    }
+
+    private static String count(int n, String one, String many) {
+        return n + " " + (n == 1 ? one : many);
     }
 
     private static void openTop(ServerPlayer player) {

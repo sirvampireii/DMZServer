@@ -411,6 +411,35 @@ public final class RivalGuiApi {
         return "";
     }
 
+    /**
+     * The viewer's link for a picker arg ({@code uuid:<uuid>} or a stored name), or null. Read only:
+     * the profile page renders it with the same fields {@code RivalSystem.listLines} uses.
+     */
+    public static RivalLink rivalLinkFor(ServerPlayer viewer, String pickerArg) {
+        if (viewer == null || pickerArg == null || pickerArg.isBlank()
+                || !DifficultyConfig.get().enableRivalSystem) {
+            return null;
+        }
+        RivalPlayerRecord me = RivalStore.get().ensurePlayer(viewer);
+        if (me == null || me.rivals == null) {
+            return null;
+        }
+        String want = pickerArg.trim();
+        String wantUuid = want.regionMatches(true, 0, "uuid:", 0, 5) ? want.substring(5).trim() : "";
+        for (Map.Entry<String, RivalLink> e : me.rivals.entrySet()) {
+            RivalLink link = e.getValue();
+            if (link == null) {
+                continue;
+            }
+            String uuid = link.uuid == null || link.uuid.isBlank() ? e.getKey() : link.uuid.trim();
+            if (!wantUuid.isBlank() ? wantUuid.equalsIgnoreCase(uuid)
+                    : want.equalsIgnoreCase(link.name)) {
+                return link;
+            }
+        }
+        return null;
+    }
+
     private static java.util.Set<String> currentRivalKeys(ServerPlayer viewer) {
         java.util.Set<String> keys = new java.util.HashSet<>();
         for (String card : currentRivalCards(viewer)) {

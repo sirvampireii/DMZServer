@@ -778,7 +778,10 @@ def main() -> int:
     check("visibleDeclare flag", "visibleDeclare" in rival_sys and "visibleDeclare" in rival_link)
     check("declare sets visibleDeclare", "myLink.visibleDeclare = true" in rival_sys)
     check("accept/decline resolve uuid", 'regionMatches(true, 0, "uuid:"' in rival_sys)
-    check("nemesis only from challenge death KO", "challengeKo" in rival_sys and "Phase.ACTIVE" in rival_sys)
+    rival_mgr = read(SRC / "com/dbzlegacy/adaptivedifficulty/rival/RivalChallengeManager.java")
+    check("nemesis only from challenge KO (counted in endChallenge)",
+          "deathLosses++" not in rival_sys and '"knockout".equals(reason)' in rival_mgr
+          and "status != RivalChallenge.Phase.ACTIVE" in rival_mgr)
     check("dual silent → Declared", "promoteDeclared" in rival_sys)
     rival_chest = read(gui_root / "RivalChestGui.java")
     cmi_rival = read(gui_root / "CmiRivalGui.java")
