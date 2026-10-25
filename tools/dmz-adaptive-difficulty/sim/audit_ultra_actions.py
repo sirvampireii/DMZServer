@@ -67,6 +67,11 @@ KNOWN_DO: dict[str, set[str]] = {
         "ultimate",
         "unultimate",
         "godki",
+        # Custom-shop perk pages (live 228.1 UltraPrestigeScreens.openPerk/openCustom):
+        # routed UltraGuiActions "prestige" -> ProgressionGuiApi.handlePrestigeDo ->
+        # PrestigeShopHooks.handleDo -> PrestigeCustomShop.buy / .remove.
+        "custom_buy",
+        "custom_remove",
     },
     "progression": {"boost", "toggle_staff_free_coins"},
     "rival": {

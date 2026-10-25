@@ -1617,23 +1617,28 @@ def main() -> int:
             SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraPrestigeScreens.java")
     ultra_gui_actions = read(
             SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraGuiActions.java")
+    shop_cfg = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeShopConfig.java")
+    # 4.6.228.1: the Ultimate price / refund moved to prestige-shop.json; defaults stay 3 favor, 100% back.
     check("permanent Ultimate cost + stored flag (4.6.221)",
           "ULTIMATE_COST = 3" in pp
+          and "ultimate = new FormOffer(3, 100)" in shop_cfg
           and '"pp_perm_ultimate"' in pp
           and "hasUltimate(ServerPlayer player)" in pp
           and "canBuyUltimate(ServerPlayer player)" in pp)
     check("ultimate buy: 3 favor, no Majin/Mutant gate, skill grant + telemetry",
-          "setPoints(player, points - ULTIMATE_COST)" in buy_ult
+          "PrestigeShopConfig.get().forms.ultimate" in buy_ult
+          and "setPoints(player, points - cost)" in buy_ult
           and "hasMajin" not in buy_ult
           and "hasMutant" not in buy_ult
           and "grantUltimate(player);" in buy_ult
           and 'runDmzEffect(player, "ultimate"' not in buy_ult
           and "hasUltimateSkill(player)" in buy_ult
           and '"buy_ultimate"' in buy_ult
-          and '"Unlocked Permanent Ultimate (-" + ULTIMATE_COST + " favor)"' in buy_ult
-          and '"Need " + ULTIMATE_COST + " favor (have "' in buy_ult)
+          and '"Unlocked Permanent Ultimate (-" + cost + " favor)"' in buy_ult
+          and '"Need " + cost + " favor (have "' in buy_ult)
     check("ultimate remove: confirm again, full refund, clear Ultimate only",
-          "getPoints(player) + ULTIMATE_COST" in unbuy_ult
+          "PrestigeShopConfig.get().forms.ultimate.refund()" in unbuy_ult
+          and "getPoints(player) + refund" in unbuy_ult
           and "revokeUltimate(player);" in unbuy_ult
           and 'runDmzEffect(player, "ultimate"' not in unbuy_ult
           and '"unbuy_ultimate"' in unbuy_ult
@@ -2099,12 +2104,12 @@ def main() -> int:
     check("buy gate refuses Old Kai earners before charging or setting the flag",
           "if (hasUltimateSkill(player)) {" in pps
           and "You already have the Ultimate form from Old Kai" in pps
-          and pps.index("if (hasUltimateSkill(player)) {")
-          < pps.index("setPoints(player, points - ULTIMATE_COST);")
+          and buy_ult.index("if (hasUltimateSkill(player)) {")
+          < buy_ult.index("setPoints(player, points - cost);")
           and "public static boolean hasUltimateSkill(ServerPlayer player)" in pps
           and "return ultimateSkillLevel(player) >= 1;" in pps)
     check("canBuyUltimate also blocks the earned skill (no Buy shown)",
-          "return player != null && !hasUltimate(player) && !hasUltimateSkill(player);" in pps)
+          "&& !hasUltimate(player) && !hasUltimateSkill(player);" in pps)
     check("reapplyForms heals Ultimate through the skill path (Majin/Mutant unchanged)",
           "if (!hasUltimateSkill(player)) {" in pps
           and "grantUltimate(player);" in pps

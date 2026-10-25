@@ -43,17 +43,29 @@ import net.minecraft.server.level.ServerPlayer;
  * math); personal soft-locks keep everyone else at 100k. Costs 15, 20, 25, 30, 35.
  * Difficulty tiers: permanent unlock with prestige points —
  * T1–2 = 1pt, T3–4 = 2pt, T5–6 = 3pt, T7 = 4pt ({@code (tier+1)/2}).
+ *
+ * <p>Since 4.6.228.1 the exchange, skill shop, tier shop, Majin / Mutant / Ultimate and
+ * God Ki prices come from {@link PrestigeShopConfig} ({@code prestige-shop.json}); the
+ * numbers above and the constants below are its defaults. Majin / Mutant removal refunds
+ * {@code refundPercent} of the price (default 0), Ultimate defaults to a full refund.
+ * Breakthroughs are not configurable. {@link PrestigeCustomShop} ("Special perks") is
+ * reapplied alongside every other purchase here.
  */
 public final class PrestigePointsSystem {
     public static final int BASE_LEVEL_CAP = 100_000;
     public static final int BREAKTHROUGH_STEP = 10_000;
     public static final int MAX_BREAKTHROUGHS = 5;
     public static final int ABSOLUTE_LEVEL_CAP = BASE_LEVEL_CAP + MAX_BREAKTHROUGHS * BREAKTHROUGH_STEP;
+    /** Default Majin / Mutant price ({@code forms.majin.cost} / {@code forms.mutant.cost}). */
     public static final int FORM_COST = 5;
-    /** Prestige-point cost of Permanent Ultimate — independent of the Majin/Mutant pair. */
+    /**
+     * Default prestige-point cost of Permanent Ultimate ({@code forms.ultimate.cost}) —
+     * independent of the Majin/Mutant pair.
+     */
     public static final int ULTIMATE_COST = 3;
+    /** Default skill-shop price per purchase ({@code skillShop.costPerPurchase}). */
     public static final int SKILL_POINT_COST = 1;
-    /** Levels granted per point for Potential Unlock in the prestige shop. */
+    /** Default levels granted per point for Potential Unlock in the prestige shop. */
     public static final int POTENTIAL_UNLOCK_LEVELS_PER_POINT = 2;
     /** Skills shown per prestige shop inventory page. */
     public static final int SKILL_SHOP_PAGE_SIZE = 21;
@@ -98,16 +110,28 @@ public final class PrestigePointsSystem {
 
     public record SkillOffer(String id, String label, int maxLevel) {}
 
-    /** Resolve a purchasable offer — Skill Check Natural/Saga skills only. */
+    /**
+     * Resolve a purchasable offer — Skill Check Natural/Saga skills, plus any
+     * {@code skillShop.extraSkills}. {@code skillShop.maxLevelOverrides} wins over skills.json.
+     */
     public static SkillOffer resolveOffer(String skillId) {
         if (skillId == null || skillId.isBlank()) {
             return null;
         }
         String id = skillId.toLowerCase(Locale.ROOT).trim();
-        if (!DmzSkillUtil.isSkillCheckSkill(id) || DmzSkillUtil.isFormSkill(id)) {
+        PrestigeShopConfig.SkillShop shop = PrestigeShopConfig.get().skillShop;
+        boolean extra = shop.extraSkills.contains(id);
+        if (!(DmzSkillUtil.isSkillCheckSkill(id) || extra) || DmzSkillUtil.isFormSkill(id)) {
             return null;
         }
-        int max = DmzSkillUtil.configuredMaxLevel(id);
+        Integer maxOverride = shop.maxLevelOverrides.get(id);
+        int max = maxOverride != null && maxOverride > 0
+                ? maxOverride
+                : DmzSkillUtil.configuredMaxLevel(id);
+        if (max <= 0 && extra) {
+            // Extra skill with no skills.json ladder — sell 10 levels.
+            max = 10;
+        }
         if (max <= 0) {
             // Still allow known Skill Check ids before config is loaded.
             max = switch (id) {
@@ -128,18 +152,32 @@ public final class PrestigePointsSystem {
         return new SkillOffer(id, DmzSkillUtil.prettySkillLabel(id), max);
     }
 
-    /** Prestige shop catalog — Skill Check Natural + Saga only (no ultimate / attacks). */
+    /**
+     * Prestige shop catalog — Skill Check Natural + Saga (no ultimate / attacks), plus
+     * {@code skillShop.extraSkills}, minus {@code skillShop.hiddenSkills}.
+     */
     public static List<SkillOffer> skillOffers() {
+        PrestigeShopConfig.SkillShop shop = PrestigeShopConfig.get().skillShop;
+        List<String> ids = new ArrayList<>(DmzSkillUtil.skillCheckSkillIds());
+        for (String extra : shop.extraSkills) {
+            if (!ids.contains(extra)) {
+                ids.add(extra);
+            }
+        }
         List<SkillOffer> out = new ArrayList<>();
-        for (String id : DmzSkillUtil.skillCheckSkillIds()) {
+        for (String id : ids) {
             SkillOffer offer = resolveOffer(id);
-            if (offer != null) {
+            if (offer != null && !shop.hiddenSkills.contains(offer.id())) {
                 out.add(offer);
             }
         }
         if (out.isEmpty()) {
             // Config unavailable — fall back to seeded natural skills.
-            out.addAll(SKILL_OFFERS.values());
+            for (SkillOffer offer : SKILL_OFFERS.values()) {
+                if (!shop.hiddenSkills.contains(offer.id())) {
+                    out.add(offer);
+                }
+            }
         }
         return out;
     }
@@ -263,27 +301,52 @@ public final class PrestigePointsSystem {
                 + " · Balance: §e" + getPoints(player);
     }
 
-    /** Allowed single turn-in pack sizes (GUI + command). */
+    /** Default single turn-in pack sizes ({@code exchange.amounts}); live list is {@link #turnInAmounts()}. */
     public static final int[] TURN_IN_AMOUNTS = {1, 2, 3, 6, 9};
 
     public static boolean isAllowedTurnInAmount(int amount) {
-        for (int n : TURN_IN_AMOUNTS) {
-            if (n == amount) {
-                return true;
-            }
+        return PrestigeShopConfig.get().exchange.amounts.contains(amount);
+    }
+
+    /** Configured single turn-in pack sizes (GUI + command). */
+    public static int[] turnInAmounts() {
+        List<Integer> amounts = PrestigeShopConfig.get().exchange.amounts;
+        int[] out = new int[amounts.size()];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = amounts.get(i);
         }
-        return false;
+        return out;
     }
 
     /**
-     * Points for turning in {@code amount} prestiges in one action.
-     * {@code N + triangular(N/3)} → 1→1, 2→2, 3→4, 6→9, 9→15.
+     * Points for turning in {@code amount} prestiges in one action: a configured payout
+     * override, else {@code N + triangular(N/bonusGroupSize)} → with the default group of 3:
+     * 1→1, 2→2, 3→4, 6→9, 9→15.
      */
     public static int pointsForTurnIn(int amount) {
+        PrestigeShopConfig.Exchange exchange = PrestigeShopConfig.get().exchange;
+        Integer override = exchange.payoutOverrides == null
+                ? null : exchange.payoutOverrides.get(String.valueOf(amount));
+        if (override != null) {
+            return Math.max(0, override);
+        }
         int n = Math.max(0, amount);
-        int packs = n / 3;
+        int packs = exchange.bonusGroupSize > 0 ? n / exchange.bonusGroupSize : 0;
         int bonus = packs * (packs + 1) / 2;
         return n + bonus;
+    }
+
+    /** "§f1§7, §f2§7, ... or §f9" for the turn-in usage message. */
+    private static String turnInAmountsText() {
+        List<Integer> amounts = PrestigeShopConfig.get().exchange.amounts;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < amounts.size(); i++) {
+            if (i > 0) {
+                sb.append(i == amounts.size() - 1 ? "§7, or " : "§7, ");
+            }
+            sb.append("§f").append(amounts.get(i));
+        }
+        return sb.toString();
     }
 
     /**
@@ -296,11 +359,14 @@ public final class PrestigePointsSystem {
         }
         int held = PrestigeSystem.getHeld(player);
         int want = Math.max(0, amount);
+        if (!PrestigeShopConfig.get().exchange.enabled) {
+            return "§cPrestige exchange is closed right now.";
+        }
         if (want <= 0) {
             return "§cChoose how many prestiges to turn in.";
         }
         if (!isAllowedTurnInAmount(want)) {
-            return "§cTurn in §f1§7, §f2§7, §f3§7, §f6§7, or §f9 §cprestiges at a time.";
+            return "§cTurn in " + turnInAmountsText() + " §cprestiges at a time.";
         }
         if (want > held) {
             return "§cYour current prestige amount is only §6" + held + "§c. Exchange fewer, or prestige again first.";
@@ -447,17 +513,22 @@ public final class PrestigePointsSystem {
             return "§cPlayers only.";
         }
         SkillOffer offer = resolveOffer(skillId);
-        if (offer == null) {
+        PrestigeShopConfig.SkillShop shop = PrestigeShopConfig.get().skillShop;
+        if (!shop.enabled) {
+            return "§cThe skill shop is closed right now.";
+        }
+        if (offer == null || shop.hiddenSkills.contains(offer.id)) {
             return "§cOnly Skill Check skills are purchasable here (Natural + Saga).";
         }
         int purchased = getPurchasedSkillLevels(player, offer.id);
         int floorMax = Math.max(1, offer.maxLevel);
+        int cost = shop.costFor(offer.id);
         if (purchased >= floorMax) {
             return "§c" + offer.label + " kept level is maxed (§f" + floorMax + "§c).";
         }
         int points = getPoints(player);
-        if (points < SKILL_POINT_COST) {
-            return "§cNeed §e" + SKILL_POINT_COST + " §cfavor (have §e" + points + "§c).";
+        if (points < cost) {
+            return "§cNeed §e" + cost + " §cfavor (have §e" + points + "§c).";
         }
         int levelsPerPoint = levelsPerPoint(offer.id);
         int room = Math.max(0, floorMax - purchased);
@@ -465,7 +536,7 @@ public final class PrestigePointsSystem {
             return "§c" + offer.label + " kept level is maxed (§f" + floorMax + "§c).";
         }
         int gain = Math.min(levelsPerPoint, room);
-        setPoints(player, points - SKILL_POINT_COST);
+        setPoints(player, points - cost);
         int nextPurchased = Math.min(floorMax, purchased + gain);
         ProgressionData.storedPut(player, KEY_SKILL_PREFIX + offer.id.toLowerCase(Locale.ROOT), nextPurchased);
 
@@ -495,16 +566,17 @@ public final class PrestigePointsSystem {
                 : " §8(live already §f" + liveBefore + "§8)";
         return "§a+" + gain + " §7" + offer.label + " kept level §f" + purchased
                 + " §7→ §f" + nextPurchased + liveNote
-                + " §8(survives prestige)"
+                + " §8(survives prestige, -" + cost + " favor)"
                 + "\n§7Favor left: §e" + getPoints(player);
     }
 
-    /** Prestige-shop levels gained per spent point for {@code skillId}. */
+    /**
+     * Prestige-shop levels gained per purchase for {@code skillId} — {@code skillShop}
+     * override, else {@code levelsPerPurchase} (Potential Unlock defaults to
+     * {@link #POTENTIAL_UNLOCK_LEVELS_PER_POINT}).
+     */
     public static int levelsPerPoint(String skillId) {
-        if (skillId != null && "potentialunlock".equalsIgnoreCase(skillId.trim())) {
-            return POTENTIAL_UNLOCK_LEVELS_PER_POINT;
-        }
-        return 1;
+        return PrestigeShopConfig.get().skillShop.levelsFor(skillId);
     }
 
     /** True when the player owns any prestige-shop skill floor ({@code pp_skill_*}). */
@@ -618,14 +690,14 @@ public final class PrestigePointsSystem {
     // ── Permanent difficulty tiers (prestige points) ───────────────────
 
     /**
-     * Prestige-point cost for permanent unlock of difficulty tier {@code tierId} (1–7).
-     * T1–2 → 1, T3–4 → 2, T5–6 → 3, T7 → 4.
+     * Prestige-point cost for permanent unlock of difficulty tier {@code tierId} (1–7):
+     * {@code tierShop.costs}, else the default T1–2 → 1, T3–4 → 2, T5–6 → 3, T7 → 4.
      */
     public static int tierPointCost(int tierId) {
         if (tierId < 1 || tierId > 7) {
             return 0;
         }
-        return (tierId + 1) / 2;
+        return PrestigeShopConfig.get().tierShop.costFor(tierId);
     }
 
     public static boolean hasPurchasedTier(ServerPlayer player, int tierId) {
@@ -670,17 +742,19 @@ public final class PrestigePointsSystem {
 
     /**
      * Whether the player may buy permanent T{@code tierId} with prestige points.
-     * Shop ladder: every lower tier must already be <b>permanently purchased</b>
-     * (level unlock alone does not skip the chain — that left gaps after prestige).
+     * Shop ladder ({@code tierShop.requireInOrder}): every lower tier must already be
+     * <b>permanently purchased</b> (level unlock alone does not skip the chain — that left
+     * gaps after prestige). Tiers listed in {@code tierShop.notForSale} are never buyable.
      */
     public static boolean canBuyDifficultyTier(ServerPlayer player, int tierId) {
         if (player == null || tierId < 1 || tierId > 7) {
             return false;
         }
-        if (hasPurchasedTier(player, tierId)) {
+        PrestigeShopConfig.TierShop shop = PrestigeShopConfig.get().tierShop;
+        if (hasPurchasedTier(player, tierId) || !shop.forSale(tierId)) {
             return false;
         }
-        for (int prev = 1; prev < tierId; prev++) {
+        for (int prev = 1; shop.requireInOrder && prev < tierId; prev++) {
             if (!hasPurchasedTier(player, prev)) {
                 return false;
             }
@@ -708,7 +782,10 @@ public final class PrestigePointsSystem {
         if (hasPurchasedTier(player, tierId)) {
             return "§eYou already own permanent §fT" + tierId + " " + tier.display + "§e.";
         }
-        if (tierId > 1) {
+        if (!PrestigeShopConfig.get().tierShop.forSale(tierId)) {
+            return "§cPermanent §fT" + tierId + " §cis not for sale right now.";
+        }
+        if (tierId > 1 && PrestigeShopConfig.get().tierShop.requireInOrder) {
             for (int prev = 1; prev < tierId; prev++) {
                 if (!hasPurchasedTier(player, prev)) {
                     return "§cBuy permanent §fT" + prev + " §cfirst (shop ladder T1→T"
@@ -873,24 +950,29 @@ public final class PrestigePointsSystem {
         return player != null && ProgressionData.storedGetBool(player, KEY_ULTIMATE);
     }
 
-    /** True when the player may spend points on Permanent Majin (nothing else owned). */
+    /** True when Permanent Majin is on sale and buyable (Mutant not owned, while exclusive). */
     public static boolean canBuyMajin(ServerPlayer player) {
-        return player != null && !hasMajin(player) && !hasMutant(player);
+        PrestigeShopConfig.Forms forms = PrestigeShopConfig.get().forms;
+        return player != null && forms.majin.enabled && !hasMajin(player)
+                && (!forms.majinMutantExclusive || !hasMutant(player));
     }
 
-    /** True when the player may spend points on Permanent Mutant (nothing else owned). */
+    /** True when Permanent Mutant is on sale and buyable (Majin not owned, while exclusive). */
     public static boolean canBuyMutant(ServerPlayer player) {
-        return player != null && !hasMutant(player) && !hasMajin(player);
+        PrestigeShopConfig.Forms forms = PrestigeShopConfig.get().forms;
+        return player != null && forms.mutant.enabled && !hasMutant(player)
+                && (!forms.majinMutantExclusive || !hasMajin(player));
     }
 
     /**
      * True when the player may spend points on Permanent Ultimate. Ownership is the only
      * gate — Ultimate is independent, so Majin / Mutant never block it. A player who already
      * has the DMZ {@code ultimate} skill (earned from Old Kai) is also refused, so a later
-     * Remove can never strip a legitimately earned form.
+     * Remove can never strip a legitimately earned form. Off-sale in config refuses too.
      */
     public static boolean canBuyUltimate(ServerPlayer player) {
-        return player != null && !hasUltimate(player) && !hasUltimateSkill(player);
+        return player != null && PrestigeShopConfig.get().forms.ultimate.enabled
+                && !hasUltimate(player) && !hasUltimateSkill(player);
     }
 
     /**
@@ -1010,7 +1092,8 @@ public final class PrestigePointsSystem {
     }
 
     /**
-     * Buy Permanent Ultimate for {@link #ULTIMATE_COST} favor. No exclusivity check against
+     * Buy Permanent Ultimate for {@code forms.ultimate.cost} favor (default
+     * {@link #ULTIMATE_COST}). No exclusivity check against
      * Majin or Mutant — the two permanents stack with Ultimate in either direction.
      * <p>
      * Gate: a player who already has the DMZ {@code ultimate} skill (earned from Old Kai) with
@@ -1028,30 +1111,37 @@ public final class PrestigePointsSystem {
             return UltraStyle.noticeLine(
                     "You already have the Ultimate form from Old Kai — nothing to buy.");
         }
+        PrestigeShopConfig.FormOffer offer = PrestigeShopConfig.get().forms.ultimate;
+        if (!offer.enabled) {
+            return UltraStyle.dangerLine("Permanent Ultimate is not for sale right now.");
+        }
+        int cost = offer.cost;
         int points = getPoints(player);
-        if (points < ULTIMATE_COST) {
+        if (points < cost) {
             return UltraStyle.dangerLine(
-                    "Need " + ULTIMATE_COST + " favor (have " + points + ").");
+                    "Need " + cost + " favor (have " + points + ").");
         }
         if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-buy:Permanent Ultimate")) {
             return UltraStyle.noticeLine(
-                    "Buy Permanent Ultimate for " + ULTIMATE_COST
+                    "Buy Permanent Ultimate for " + cost
                             + " favor? Click again within 10 seconds.");
         }
-        setPoints(player, points - ULTIMATE_COST);
+        setPoints(player, points - cost);
         ProgressionData.storedPutBool(player, KEY_ULTIMATE, true);
         grantUltimate(player);
         SystemTelemetry.log("prestige_points", "buy_ultimate", player, null, Map.of(
-                "points", getPoints(player)
+                "points", getPoints(player),
+                "cost", cost
         ));
-        return UltraStyle.color("a", "Unlocked Permanent Ultimate (-" + ULTIMATE_COST + " favor)")
+        return UltraStyle.color("a", "Unlocked Permanent Ultimate (-" + cost + " favor)")
                 + "\n"
                 + UltraStyle.dim("Favor left: " + getPoints(player));
     }
 
     /**
-     * Remove Permanent Ultimate: click again within 10 seconds to confirm, refund the full
-     * {@link #ULTIMATE_COST}, clear only the Ultimate flag. Majin / Mutant state is untouched.
+     * Remove Permanent Ultimate: click again within 10 seconds to confirm, refund
+     * {@code forms.ultimate.refundPercent} of the price (default 100 — the full
+     * {@link #ULTIMATE_COST}), clear only the Ultimate flag. Majin / Mutant state is untouched.
      * Revoke only runs when the shop flag was set — the buy gate guarantees the skill came from
      * the shop, never from Old Kai — so an earned form is never stripped here.
      */
@@ -1062,19 +1152,23 @@ public final class PrestigePointsSystem {
         if (!hasUltimate(player)) {
             return UltraStyle.noticeLine("You do not own Permanent Ultimate.");
         }
+        int refund = PrestigeShopConfig.get().forms.ultimate.refund();
         if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-remove:Permanent Ultimate")) {
             return UltraStyle.noticeLine(
-                    "Remove Permanent Ultimate? You get your " + ULTIMATE_COST
-                            + " favor back. Click again within 10 seconds.");
+                    "Remove Permanent Ultimate? "
+                            + (refund > 0 ? "You get " + refund + " favor back." : "No favor is refunded.")
+                            + " Click again within 10 seconds.");
         }
         ProgressionData.storedPutBool(player, KEY_ULTIMATE, false);
         revokeUltimate(player);
-        setPoints(player, getPoints(player) + ULTIMATE_COST);
+        setPoints(player, getPoints(player) + refund);
         SystemTelemetry.log("prestige_points", "unbuy_ultimate", player, null, Map.of(
-                "points", getPoints(player)
+                "points", getPoints(player),
+                "refund", refund
         ));
         return UltraStyle.color(
-                        "a", "Removed Permanent Ultimate (+" + ULTIMATE_COST + " favor refunded)")
+                        "a", "Removed Permanent Ultimate"
+                                + (refund > 0 ? " (+" + refund + " favor refunded)" : " (no refund)"))
                 + "\n"
                 + UltraStyle.dim("Favor left: " + getPoints(player));
     }
@@ -1087,31 +1181,45 @@ public final class PrestigePointsSystem {
         if (majin ? hasMajin(player) : hasMutant(player)) {
             return "§eYou already own §f" + label + "§e.";
         }
+        PrestigeShopConfig.Forms forms = PrestigeShopConfig.get().forms;
+        PrestigeShopConfig.FormOffer offer = majin ? forms.majin : forms.mutant;
+        PrestigeShopConfig.FormOffer other = majin ? forms.mutant : forms.majin;
+        // What removing the other form gives back, for the "remove it first" hint.
+        String otherRefund = other.refund() > 0
+                ? "§7" + other.refund() + " favor back" : "§cno refund";
+        if (!offer.enabled) {
+            return "§c" + label + " is not for sale right now.";
+        }
         int points = getPoints(player);
-        if (points < FORM_COST) {
-            return "§cNeed §e" + FORM_COST + " §cfavor (have §e" + points + "§c).";
+        if (points < offer.cost) {
+            return "§cNeed §e" + offer.cost + " §cfavor (have §e" + points + "§c).";
         }
-        if (majin && hasMutant(player)) {
+        if (forms.majinMutantExclusive && majin && hasMutant(player)) {
             return "§cYou have §fPermanent Mutant§c."
-                    + "\n§7Remove Mutant first (§cno refund§7), then buy Majin.";
+                    + "\n§7Remove Mutant first (" + otherRefund + "§7), then buy Majin.";
         }
-        if (!majin && hasMajin(player)) {
+        if (forms.majinMutantExclusive && !majin && hasMajin(player)) {
             return "§cYou have §fPermanent Majin§c."
-                    + "\n§7Remove Majin first (§cno refund§7), then buy Mutant.";
+                    + "\n§7Remove Majin first (" + otherRefund + "§7), then buy Mutant.";
         }
         if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-buy:" + label)) {
-            return "§eBuy §f" + label + " §efor §6" + FORM_COST
+            return "§eBuy §f" + label + " §efor §6" + offer.cost
                     + " §efavor? Click again within 10 seconds.";
         }
-        setPoints(player, points - FORM_COST);
+        setPoints(player, points - offer.cost);
         ProgressionData.storedPutBool(player, majin ? KEY_MAJIN : KEY_MUTANT, true);
         runDmzEffect(player, majin ? "majin" : "mutant", true);
         SystemTelemetry.log("prestige_points", majin ? "buy_majin" : "buy_mutant", player, null, Map.of(
-                "points", getPoints(player)
+                "points", getPoints(player),
+                "cost", offer.cost
         ));
-        return "§aUnlocked §f" + label + " §7(§e-" + FORM_COST + " §7favor)"
+        return "§aUnlocked §f" + label + " §7(§e-" + offer.cost + " §7favor)"
                 + "\n§7Favor left: §e" + getPoints(player)
-                + "\n§8To switch: remove it (no refund), then buy the other form.";
+                + (forms.majinMutantExclusive
+                        ? "\n§8To switch: remove it ("
+                                + (offer.refund() > 0 ? offer.refund() + " favor back" : "no refund")
+                                + "), then buy the other form."
+                        : "");
     }
 
     private static String unbuyForm(ServerPlayer player, boolean majin) {
@@ -1122,13 +1230,24 @@ public final class PrestigePointsSystem {
         if (!(majin ? hasMajin(player) : hasMutant(player))) {
             return "§eYou do not own §f" + label + "§e.";
         }
+        PrestigeShopConfig.Forms forms = PrestigeShopConfig.get().forms;
+        int refund = (majin ? forms.majin : forms.mutant).refund();
         if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-remove:" + label)) {
-            return "§eRemove §f" + label + "§e? You will §cnot §eget your "
-                    + FORM_COST + " favor back. Click again within 10 seconds.";
+            return "§eRemove §f" + label + "§e? "
+                    + (refund > 0
+                            ? "You get §6" + refund + " §efavor back."
+                            : "You will §cnot §eget your favor back.")
+                    + " Click again within 10 seconds.";
         }
         clearForm(player, majin);
-        SystemTelemetry.log("prestige_points", majin ? "unbuy_majin" : "unbuy_mutant", player, null, Map.of());
-        return "§7Removed §f" + label + "§7. §cNo favor refunded."
+        if (refund > 0) {
+            setPoints(player, getPoints(player) + refund);
+        }
+        SystemTelemetry.log("prestige_points", majin ? "unbuy_majin" : "unbuy_mutant", player, null, Map.of(
+                "refund", refund
+        ));
+        return "§7Removed §f" + label + "§7. "
+                + (refund > 0 ? "§a+" + refund + " favor refunded." : "§cNo favor refunded.")
                 + "\n§7Favor: §e" + getPoints(player);
     }
 
@@ -1318,6 +1437,8 @@ public final class PrestigePointsSystem {
         // Stagger reapply so DMZ / Fabled finish loading (Character attach can lag).
         ProgressionData.tempPut(player, KEY_REAPPLY_AT, System.currentTimeMillis() + 12_000L);
         reapplyAllShopPurchases(player);
+        // Special perks: commandsOnReapply run once per login, not every reapply pass.
+        PrestigeCustomShop.runReapplyCommands(player);
     }
 
     public static void scheduleReapplyAfterPrestige(ServerPlayer player) {
@@ -1337,6 +1458,7 @@ public final class PrestigePointsSystem {
         // Pulse path: keep reapplying until this deadline (skills/forms/tiers).
         ProgressionData.tempPut(player, KEY_REAPPLY_AT, now + REAPPLY_WINDOW_MS);
         reapplyAllShopPurchases(player);
+        PrestigeCustomShop.runReapplyCommands(player);
         MinecraftServer server = player.m_20194_();
         if (server == null) {
             return;
@@ -1394,6 +1516,8 @@ public final class PrestigePointsSystem {
                     .pulse(player);
         } catch (Throwable ignored) {
         }
+        // Special perks: potions / attributes / DMZ stats, skills and effects.
+        PrestigeCustomShop.reapply(player);
     }
 
     /** Called from shop pulse — drains delayed reapply markers + keeps forms/skills live. */
@@ -1401,6 +1525,8 @@ public final class PrestigePointsSystem {
         if (player == null) {
             return;
         }
+        // Special perks keep their potion effects topped up on their own timer.
+        PrestigeCustomShop.pulse(player, nowMs);
         long at = ProgressionData.tempGetLong(player, KEY_REAPPLY_AT, 0L);
         if (at > 0L) {
             // While a post-death / login window is open, keep reapplying every pulse

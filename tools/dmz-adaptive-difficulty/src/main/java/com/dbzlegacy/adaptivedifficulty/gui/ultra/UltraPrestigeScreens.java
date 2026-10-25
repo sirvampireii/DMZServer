@@ -1,9 +1,13 @@
 package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
 import com.dbzlegacy.adaptivedifficulty.gui.ProgressionGuiApi;
-import com.dbzlegacy.adaptivedifficulty.progression.shop.GodKiEnhancementShop;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCustomShop;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeShopConfig;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeUniverseRoleWarn;
+import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import net.minecraft.server.level.ServerPlayer;
@@ -13,6 +17,11 @@ import net.minecraft.server.level.ServerPlayer;
  *
  * <p>Prestige tab: prestige now (GUI confirm) + favor wording. Exchange shop lives under Shop.
  * Shop catalogs show Prestige favor balance only (no full wallet dump).
+ *
+ * <p>Prices, sections and the Custom Shop ("Special perks") come from
+ * {@link PrestigeShopConfig}; a section switched off there drops its Shop button
+ * (and shows as closed when deep-linked). Staff get an "Edit shop" button that opens
+ * the config editor on {@code prestige-shop}.
  */
 public final class UltraPrestigeScreens {
     private UltraPrestigeScreens() {}
@@ -28,6 +37,10 @@ public final class UltraPrestigeScreens {
             openSkillsShop(player);
             return;
         }
+        if (p.startsWith("perk:")) {
+            openPerk(player, p.substring("perk:".length()));
+            return;
+        }
         switch (p) {
             case "turnin", "points", "prestige" -> openTurnIn(player);
             case "confirm", "prestige_confirm" -> openConfirm(player);
@@ -36,6 +49,14 @@ public final class UltraPrestigeScreens {
             case "skills", "skill", "skills_p0" -> openSkillsShop(player);
             case "tiers", "tier", "difficulty" -> openTiers(player);
             case "effects", "effect", "forms", "form" -> openEffects(player);
+            case "custom", "perks" -> openCustom(player);
+            case "staff_edit" -> {
+                if (StaffAccess.isStaff(player)) {
+                    UltraGui.open(player, "config", "edit:prestige-shop:0:");
+                } else {
+                    openShopHub(player);
+                }
+            }
             default -> openHome(player);
         }
     }
@@ -131,8 +152,10 @@ public final class UltraPrestigeScreens {
                 .lineGap(2)
                 .bodyPad(4);
         paintWallet(spec, ph);
-        spec.line(UltraStyle.LABEL
-                + "Prestige favor - exchange current prestige on the Shop tab (loses the stat bonus).");
+        if (PrestigeShopConfig.get().exchange.enabled) {
+            spec.line(UltraStyle.LABEL
+                    + "Prestige favor - exchange current prestige on the Shop tab (loses the stat bonus).");
+        }
         spec.buttonsAfterLines();
         boolean ready = "true".equalsIgnoreCase(ph.get("ready"));
         if (ready) {
@@ -184,26 +207,44 @@ public final class UltraPrestigeScreens {
         spec.send(player);
     }
 
-    /** Shop hub - favor catalogs + exchange submenu. */
+    /** Shop hub - favor catalogs + exchange submenu; sections switched off in config are hidden. */
     private static void openShopHub(ServerPlayer player) {
         Map<String, String> ph = ProgressionGuiApi.prestigePlaceholders(player);
+        PrestigeShopConfig cfg = PrestigeShopConfig.get();
         UltraScreenSpec spec = base("shop", "shop")
                 .lineGap(2)
                 .bodyPad(4);
         paintFavorBalance(spec, ph);
         spec.line(UltraStyle.LABEL + "Spend Prestige favor. Purchases survive prestige.")
                 .buttonsAfterLines();
-        spec.button("page:exchange", UltraStyle.confirm("Exchange shop"), UltraStyle.STYLE_CONFIRM)
-                .rowGap();
-        spec.button("page:skills", UltraStyle.confirm("Skill shop"), UltraStyle.STYLE_CONFIRM)
-                .rowGap();
-        spec.button(
-                        "page:tiers",
-                        UltraStyle.confirm("Difficulty tiers"),
-                        UltraStyle.STYLE_CONFIRM)
-                .rowGap();
+        if (cfg.exchange.enabled) {
+            spec.button("page:exchange", UltraStyle.confirm("Exchange shop"), UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
+        }
+        if (cfg.skillShop.enabled) {
+            spec.button("page:skills", UltraStyle.confirm("Skill shop"), UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
+        }
+        if (cfg.tierShop.enabled) {
+            spec.button(
+                            "page:tiers",
+                            UltraStyle.confirm("Difficulty tiers"),
+                            UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
+        }
         spec.button("page:effects", UltraStyle.confirm("Effects"), UltraStyle.STYLE_CONFIRM)
                 .rowGap();
+        if (cfg.customShop.enabled && !customRows(player).isEmpty()) {
+            spec.button(
+                            "page:custom",
+                            UltraStyle.confirm(UltraStyle.buttonText(cfg.customShop.menuLabel)),
+                            UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
+        }
+        if (StaffAccess.isStaff(player)) {
+            spec.button("page:staff_edit", UltraStyle.dim("Edit shop (staff)"), UltraStyle.STYLE_DIM)
+                    .rowGap();
+        }
         spec.footerBackToMain();
         spec.send(player);
     }
@@ -220,49 +261,87 @@ public final class UltraPrestigeScreens {
                 "Current prestige amount",
                 ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", "10"));
         spec.line(UltraStyle.danger(
-                        "Exchanging prestige for Prestige favor removes the stat bonus."))
-                .line(UltraStyle.LABEL + "Bulk: 3 for 4 favor, 6 for 9, or 9 for 15.")
-                .buttonsAfterLines();
-        int[] amounts = PrestigePointsSystem.TURN_IN_AMOUNTS;
-        for (int i = 0; i < amounts.length; i += 2) {
-            int a = amounts[i];
-            String gainA = ph.getOrDefault("turnin_" + a + "_points", "0");
-            String rawA = held >= a
-                    ? "Exchange " + a + " (+" + gainA + " favor)"
-                    : "Exchange " + a + " - need " + a;
-            if (!UltraStyle.fitsButton(rawA)) {
-                rawA = held >= a ? "Exchange " + a : "Need " + a;
+                "Exchanging prestige for Prestige favor removes the stat bonus."));
+        // Bulk line lists only the amounts that pay a bonus, from the configured payouts.
+        int[] amounts = PrestigePointsSystem.turnInAmounts();
+        StringBuilder bulk = new StringBuilder();
+        for (int a : amounts) {
+            int gain = PrestigePointsSystem.pointsForTurnIn(a);
+            if (gain > a) {
+                bulk.append(bulk.length() == 0 ? "Bulk: " : ", ")
+                        .append(a).append(" for ").append(gain).append(" favor");
             }
-            String labelA = held >= a ? UltraStyle.confirm(rawA) : UltraStyle.dim(rawA);
-            spec.buttonLeft("do:turnin:" + a, labelA, held >= a ? "confirm" : "dim");
-            if (i + 1 < amounts.length) {
-                int b = amounts[i + 1];
-                String gainB = ph.getOrDefault("turnin_" + b + "_points", "0");
-                String rawB = held >= b
-                        ? "Exchange " + b + " (+" + gainB + " favor)"
-                        : "Exchange " + b + " - need " + b;
-                if (!UltraStyle.fitsButton(rawB)) {
-                    rawB = held >= b ? "Exchange " + b : "Need " + b;
+        }
+        if (bulk.length() > 0) {
+            spec.line(UltraStyle.LABEL + bulk + ".");
+        }
+        spec.buttonsAfterLines();
+        if (!PrestigeShopConfig.get().exchange.enabled) {
+            spec.line(UltraStyle.dim("The exchange is closed right now."));
+        } else {
+            for (int i = 0; i < amounts.length; i += 2) {
+                exchangeButton(spec, amounts[i], held, true);
+                if (i + 1 < amounts.length) {
+                    exchangeButton(spec, amounts[i + 1], held, false);
                 }
-                String labelB = held >= b ? UltraStyle.confirm(rawB) : UltraStyle.dim(rawB);
-                spec.buttonRight("do:turnin:" + b, labelB, held >= b ? "confirm" : "dim");
+                spec.rowGap();
             }
-            spec.rowGap();
         }
         spec.footerBack("page:shop", "Shop");
         spec.send(player);
     }
 
+    /** One exchange button (left or right half of a row); dim when not enough held. */
+    private static void exchangeButton(UltraScreenSpec spec, int amount, int held, boolean left) {
+        String gain = String.valueOf(PrestigePointsSystem.pointsForTurnIn(amount));
+        String raw = held >= amount
+                ? "Exchange " + amount + " (+" + gain + " favor)"
+                : "Exchange " + amount + " - need " + amount;
+        if (!UltraStyle.fitsButton(raw)) {
+            raw = held >= amount ? "Exchange " + amount : "Need " + amount;
+        }
+        String label = held >= amount ? UltraStyle.confirm(raw) : UltraStyle.dim(raw);
+        String style = held >= amount ? "confirm" : "dim";
+        if (left) {
+            spec.buttonLeft("do:turnin:" + amount, label, style);
+        } else {
+            spec.buttonRight("do:turnin:" + amount, label, style);
+        }
+    }
+
     /** All skills on one page. */
     private static void openSkillsShop(ServerPlayer player) {
         Map<String, String> ph = ProgressionGuiApi.prestigePlaceholders(player);
+        PrestigeShopConfig.SkillShop shop = PrestigeShopConfig.get().skillShop;
         String[] ids = shopSkillIds(ph);
         UltraScreenSpec spec = sub("skills")
                 .lineGap(2)
                 .bodyPad(4);
         paintFavorBalance(spec, ph);
-        spec.line(UltraStyle.LABEL + "Skill levels - 1 favor each (Potential Unlock +2)")
-                .buttonsAfterLines();
+        // Header from config, e.g. "Skill levels - 1 favor each (Potential Unlock +2)".
+        StringBuilder header = new StringBuilder(
+                "Skill levels - " + shop.costPerPurchase + " favor each");
+        if (shop.levelsPerPurchase > 1) {
+            header.append(" (+").append(shop.levelsPerPurchase).append(" levels)");
+        }
+        for (Map.Entry<String, Integer> o : shop.levelsPerPurchaseOverrides.entrySet()) {
+            if (o.getValue() == shop.levelsPerPurchase || !List.of(ids).contains(o.getKey())) {
+                continue;
+            }
+            header.append(header.indexOf("(") < 0 ? " (" : ", ")
+                    .append(ph.getOrDefault("skill_" + o.getKey() + "_label", o.getKey()))
+                    .append(" +").append(o.getValue());
+        }
+        if (header.indexOf("(") >= 0 && header.charAt(header.length() - 1) != ')') {
+            header.append(')');
+        }
+        spec.line(UltraStyle.LABEL + header).buttonsAfterLines();
+        if (!shop.enabled) {
+            spec.line(UltraStyle.dim("The skill shop is closed right now."));
+            spec.footerBack("page:shop", "Shop");
+            spec.send(player);
+            return;
+        }
         int placed = 0;
         for (String id : ids) {
             if (id == null || id.isBlank()) {
@@ -271,8 +350,11 @@ public final class UltraPrestigeScreens {
             String label = ph.getOrDefault("skill_" + id + "_label", id);
             int bought = parseInt(ph.get("skill_" + id), 0);
             int max = parseInt(ph.get("skill_" + id + "_max"), 0);
+            int cost = shop.costFor(id);
             boolean maxed = max > 0 && bought >= max;
-            String caption = skillCaption(label, bought, max, maxed);
+            // Price tag only when this skill's cost differs from the header price.
+            String caption = skillCaption(label, bought, max, maxed,
+                    cost != shop.costPerPurchase ? cost : -1);
             String action = "do:skill:" + id;
             if (placed % 2 == 0) {
                 spec.buttonLeft(
@@ -300,11 +382,14 @@ public final class UltraPrestigeScreens {
 
     private static void openTiers(ServerPlayer player) {
         Map<String, String> ph = ProgressionGuiApi.prestigePlaceholders(player);
+        PrestigeShopConfig.TierShop shop = PrestigeShopConfig.get().tierShop;
         UltraScreenSpec spec = sub("tiers")
                 .lineGap(2)
                 .bodyPad(4);
         paintFavorBalance(spec, ph);
-        spec.line(UltraStyle.LABEL + "Difficulty tiers - buy in order, activate with coins.")
+        spec.line(UltraStyle.LABEL + (shop.requireInOrder
+                        ? "Difficulty tiers - buy in order, activate with coins."
+                        : "Difficulty tiers - activate with coins."))
                 .labelValue("Highest owned", "T" + ph.getOrDefault("tier_highest_purchased", "0"))
                 .buttonsAfterLines();
         for (int t = 1; t <= 7; t++) {
@@ -313,7 +398,7 @@ public final class UltraPrestigeScreens {
             boolean owned = "true".equalsIgnoreCase(ph.get("tier_" + t + "_owned"));
             boolean canBuy = "true".equalsIgnoreCase(ph.get("tier_" + t + "_can_buy"));
             String action = "do:tier:" + t;
-            String tail = owned ? "owned" : (canBuy ? cost : "lock");
+            String tail = owned ? "owned" : (!shop.forSale(t) ? "n/a" : (canBuy ? cost : "lock"));
             String withName = "T" + t + " " + label + " " + tail;
             String caption = UltraStyle.fitsButton(withName) ? withName : ("T" + t + " " + tail);
             if (owned || !canBuy) {
@@ -328,13 +413,12 @@ public final class UltraPrestigeScreens {
 
     private static void openEffects(ServerPlayer player) {
         Map<String, String> ph = ProgressionGuiApi.prestigePlaceholders(player);
-        String formCost = ph.getOrDefault("form_cost", String.valueOf(PrestigePointsSystem.FORM_COST));
+        PrestigeShopConfig cfg = PrestigeShopConfig.get();
+        PrestigeShopConfig.Forms forms = cfg.forms;
         boolean majin = "true".equalsIgnoreCase(ph.get("majin"));
         boolean mutant = "true".equalsIgnoreCase(ph.get("mutant"));
         boolean majinCan = "true".equalsIgnoreCase(ph.get("majin_can_buy"));
         boolean mutantCan = "true".equalsIgnoreCase(ph.get("mutant_can_buy"));
-        String ultimateCost =
-                ph.getOrDefault("ultimate_cost", String.valueOf(PrestigePointsSystem.ULTIMATE_COST));
         boolean ultimate = "true".equalsIgnoreCase(ph.get("ultimate"));
         boolean ultimateCan = "true".equalsIgnoreCase(ph.get("ultimate_can_buy"));
         // DMZ ultimate skill from Old Kai with the shop flag unset: the form is already active,
@@ -345,74 +429,105 @@ public final class UltraPrestigeScreens {
                 .lineGap(2)
                 .bodyPad(4);
         paintFavorBalance(spec, ph);
-        spec.line(UltraStyle.LABEL + "Majin / Mutant - " + formCost + " favor. One at a time.")
-                .buttonsAfterLines();
-        if (majin) {
-            spec.button(
-                            "do:unmajin",
-                            UltraStyle.danger("Remove Majin"),
-                            UltraStyle.STYLE_DANGER)
-                    .rowGap();
-        } else if (majinCan) {
-            spec.button(
-                            "do:majin",
-                            UltraStyle.confirm("Buy Majin"),
-                            UltraStyle.STYLE_CONFIRM)
-                    .rowGap();
+        // A form switched off in config still shows for owners, so they can remove it.
+        boolean showMajin = forms.majin.enabled || majin;
+        boolean showMutant = forms.mutant.enabled || mutant;
+        if (showMajin || showMutant) {
+            String price;
+            if (showMajin && showMutant && forms.majin.cost != forms.mutant.cost) {
+                price = "Majin " + forms.majin.cost + " / Mutant " + forms.mutant.cost + " favor";
+            } else {
+                String name = showMajin && showMutant
+                        ? "Majin / Mutant - " : (showMajin ? "Majin - " : "Mutant - ");
+                price = name + (showMajin ? forms.majin.cost : forms.mutant.cost) + " favor";
+            }
+            spec.line(UltraStyle.LABEL + price
+                            + (forms.majinMutantExclusive && showMajin && showMutant
+                                    ? ". One at a time." : "."))
+                    .buttonsAfterLines();
+            if (majin) {
+                spec.button(
+                                "do:unmajin",
+                                UltraStyle.danger("Remove Majin"),
+                                UltraStyle.STYLE_DANGER)
+                        .rowGap();
+            } else if (forms.majin.enabled) {
+                if (majinCan) {
+                    spec.button(
+                                    "do:majin",
+                                    UltraStyle.confirm("Buy Majin"),
+                                    UltraStyle.STYLE_CONFIRM)
+                            .rowGap();
+                } else {
+                    spec.button(
+                                    "do:majin",
+                                    UltraStyle.dim("Need Mutant off"),
+                                    UltraStyle.STYLE_DIM)
+                            .rowGap();
+                }
+            }
+            if (mutant) {
+                spec.button(
+                                "do:unmutant",
+                                UltraStyle.danger("Remove Mutant"),
+                                UltraStyle.STYLE_DANGER)
+                        .rowGap();
+            } else if (forms.mutant.enabled) {
+                if (mutantCan) {
+                    spec.button(
+                                    "do:mutant",
+                                    UltraStyle.confirm("Buy Mutant"),
+                                    UltraStyle.STYLE_CONFIRM)
+                            .rowGap();
+                } else {
+                    spec.button(
+                                    "do:mutant",
+                                    UltraStyle.dim("Need Majin off"),
+                                    UltraStyle.STYLE_DIM)
+                            .rowGap();
+                }
+            }
         } else {
-            spec.button(
-                            "do:majin",
-                            UltraStyle.dim("Need Mutant off"),
-                            UltraStyle.STYLE_DIM)
-                    .rowGap();
-        }
-        if (mutant) {
-            spec.button(
-                            "do:unmutant",
-                            UltraStyle.danger("Remove Mutant"),
-                            UltraStyle.STYLE_DANGER)
-                    .rowGap();
-        } else if (mutantCan) {
-            spec.button(
-                            "do:mutant",
-                            UltraStyle.confirm("Buy Mutant"),
-                            UltraStyle.STYLE_CONFIRM)
-                    .rowGap();
-        } else {
-            spec.button(
-                            "do:mutant",
-                            UltraStyle.dim("Need Majin off"),
-                            UltraStyle.STYLE_DIM)
-                    .rowGap();
+            spec.buttonsAfterLines();
         }
         // Ultimate is independent of Majin/Mutant: own label line, own row. No
         // buttonsAfterLines() here - the row cursor already sits below the Mutant button, and
         // re-deriving it from the line count would drop this button on top of the pair above.
-        spec.line(UltraStyle.LABEL + "Ultimate - " + ultimateCost
-                + " favor. Stacks with Majin and Mutant.");
-        if (ultimate) {
-            spec.button(
-                            "do:unultimate",
-                            UltraStyle.danger("Remove Ultimate"),
-                            UltraStyle.STYLE_DANGER)
-                    .rowGap();
-        } else if (ultimateEarned) {
-            // Already unlocked via the DMZ ultimate skill (Old Kai) — no Buy, no Remove. Dim
-            // no-op row keeps the button-row cursor on the same slot the other states occupy, so
-            // the God Ki row below never shifts up into it.
-            spec.button(
-                            "do:ultimate",
-                            UltraStyle.dim("Already unlocked"),
-                            UltraStyle.STYLE_DIM)
-                    .rowGap();
-        } else if (ultimateCan) {
-            spec.button(
-                            "do:ultimate",
-                            UltraStyle.confirm("Buy Ultimate"),
-                            UltraStyle.STYLE_CONFIRM)
-                    .rowGap();
+        // Off in config and not owned: no Ultimate row at all.
+        boolean showUltimate = forms.ultimate.enabled || ultimate;
+        if (showUltimate) {
+            spec.line(UltraStyle.LABEL + "Ultimate - " + forms.ultimate.cost
+                    + " favor. Stacks with Majin and Mutant.");
+            if (ultimate) {
+                spec.button(
+                                "do:unultimate",
+                                UltraStyle.danger("Remove Ultimate"),
+                                UltraStyle.STYLE_DANGER)
+                        .rowGap();
+            } else if (ultimateEarned) {
+                // Already unlocked via the DMZ ultimate skill (Old Kai) — no Buy, no Remove. Dim
+                // no-op row keeps the button-row cursor on the same slot the other states occupy, so
+                // the God Ki row below never shifts up into it.
+                spec.button(
+                                "do:ultimate",
+                                UltraStyle.dim("Already unlocked"),
+                                UltraStyle.STYLE_DIM)
+                        .rowGap();
+            } else if (ultimateCan) {
+                spec.button(
+                                "do:ultimate",
+                                UltraStyle.confirm("Buy Ultimate"),
+                                UltraStyle.STYLE_CONFIRM)
+                        .rowGap();
+            }
         }
         int godkiInvested = parseInt(ph.get("godki_invested"), 0);
+        // God Ki off in config: hidden unless the player already invested.
+        if (!cfg.godKi.enabled && godkiInvested <= 0) {
+            spec.footerBack("page:shop", "Shop");
+            spec.send(player);
+            return;
+        }
         boolean godkiMaxed = "true".equalsIgnoreCase(ph.get("godki_maxed"));
         String godkiCost = ph.getOrDefault("godki_cost", "1");
         String godkiPerPoint = ph.getOrDefault("godki_per_point", "1,000");
@@ -421,7 +536,7 @@ public final class UltraPrestigeScreens {
                         + " favor per point (+" + godkiPerPoint + " mastery).")
                 .labelValue(
                         "Invested",
-                        godkiInvested + "/" + GodKiEnhancementShop.MAX_INVESTMENTS)
+                        godkiInvested + "/" + cfg.godKi.maxPoints)
                 .labelValue("God Ki mastery", godkiMastery);
         // No buttonsAfterLines() anymore: the body estimate caps at 140px, so re-deriving the
         // God Ki row from the line count would land on top of the Ultimate button. The row
@@ -429,7 +544,8 @@ public final class UltraPrestigeScreens {
         if (godkiMaxed) {
             spec.button(
                             "do:godki",
-                            UltraStyle.dim("Fully invested"),
+                            UltraStyle.dim(godkiInvested >= cfg.godKi.maxPoints
+                                    ? "Fully invested" : "Not for sale"),
                             UltraStyle.STYLE_DIM)
                     .rowGap();
         } else {
@@ -443,8 +559,124 @@ public final class UltraPrestigeScreens {
         spec.send(player);
     }
 
-    /** Skill button: short name plus level. Drops the max tag when the full caption would clip. */
-    private static String skillCaption(String label, int bought, int max, boolean maxed) {
+    /** Custom Shop rows: entries on sale, plus switched-off ones the player still owns. */
+    private static List<Map.Entry<String, PrestigeShopConfig.CustomEntry>> customRows(ServerPlayer player) {
+        List<Map.Entry<String, PrestigeShopConfig.CustomEntry>> rows = new ArrayList<>();
+        for (Map.Entry<String, PrestigeShopConfig.CustomEntry> e
+                : PrestigeShopConfig.get().customEntries.entrySet()) {
+            if (e.getValue().enabled || PrestigeCustomShop.owned(player, e.getKey()) > 0) {
+                rows.add(e);
+            }
+        }
+        return rows;
+    }
+
+    /** Custom Shop list - one button per perk, opening its detail page. */
+    private static void openCustom(ServerPlayer player) {
+        Map<String, String> ph = ProgressionGuiApi.prestigePlaceholders(player);
+        PrestigeShopConfig.CustomShop shop = PrestigeShopConfig.get().customShop;
+        UltraScreenSpec spec = sub("custom")
+                .lineGap(2)
+                .bodyPad(4);
+        paintFavorBalance(spec, ph);
+        spec.line(UltraStyle.LABEL + shop.menuLabel + " - permanent, survive prestige.")
+                .buttonsAfterLines();
+        List<Map.Entry<String, PrestigeShopConfig.CustomEntry>> rows =
+                shop.enabled ? customRows(player) : List.of();
+        for (Map.Entry<String, PrestigeShopConfig.CustomEntry> e : rows) {
+            PrestigeShopConfig.CustomEntry entry = e.getValue();
+            int owned = PrestigeCustomShop.owned(player, e.getKey());
+            boolean maxed = entry.maxPurchases > 0 && owned >= entry.maxPurchases;
+            String tail = maxed
+                    ? (entry.maxPurchases == 1 ? "owned" : "max")
+                    : entry.costFor(owned) + " favor";
+            String caption = entry.name
+                    + (owned > 0 && entry.maxPurchases != 1 ? " " + owned : "") + " - " + tail;
+            if (!UltraStyle.fitsButton(caption)) {
+                caption = UltraStyle.buttonText(entry.name);
+            }
+            boolean buyable = !maxed && PrestigeCustomShop.blockReason(player, e.getKey(), entry) == null;
+            spec.button(
+                            "page:perk:" + e.getKey(),
+                            buyable ? UltraStyle.confirm(caption) : UltraStyle.dim(caption),
+                            buyable ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM)
+                    .rowGap();
+        }
+        if (rows.isEmpty()) {
+            spec.line(UltraStyle.dim("Nothing for sale right now."));
+        }
+        spec.footerBack("page:shop", "Shop");
+        spec.send(player);
+    }
+
+    /** One perk: description, rewards, price, Buy / Remove. Staff also see config problems. */
+    private static void openPerk(ServerPlayer player, String id) {
+        PrestigeShopConfig.CustomEntry entry = PrestigeShopConfig.get().entry(id);
+        if (entry == null) {
+            openCustom(player);
+            return;
+        }
+        Map<String, String> ph = ProgressionGuiApi.prestigePlaceholders(player);
+        int owned = PrestigeCustomShop.owned(player, id);
+        UltraScreenSpec spec = sub("perk:" + id)
+                .lineGap(2)
+                .bodyPad(4);
+        paintFavorBalance(spec, ph);
+        spec.line(UltraStyle.LABEL + entry.name);
+        if (!entry.description.isBlank()) {
+            spec.line(UltraStyle.dim(entry.description));
+        }
+        boolean maxed = entry.maxPurchases > 0 && owned >= entry.maxPurchases;
+        if (entry.maxPurchases != 1) {
+            spec.labelValue("Owned", owned + (entry.maxPurchases > 0 ? "/" + entry.maxPurchases : ""));
+        } else {
+            spec.labelValue("Owned", owned > 0 ? "yes" : "no");
+        }
+        if (!maxed) {
+            spec.labelValue("Price", entry.costFor(owned) + " favor");
+        }
+        for (String line : PrestigeCustomShop.rewardLines(entry)) {
+            spec.line(UltraStyle.dim(line));
+        }
+        if (entry.maxPurchases != 1) {
+            spec.line(UltraStyle.dim("Each level adds the rewards again."));
+        }
+        String blockReason = maxed ? null : PrestigeCustomShop.blockReason(player, id, entry);
+        if (blockReason != null) {
+            spec.line(UltraStyle.danger(blockReason));
+        }
+        if (StaffAccess.isStaff(player)) {
+            for (String problem : PrestigeCustomShop.problems(id, entry)) {
+                spec.line(UltraStyle.danger("Staff: " + problem));
+            }
+            spec.line(UltraStyle.dim("Staff: id " + id + (entry.enabled ? "" : " (not for sale)")));
+        }
+        spec.buttonsAfterLines();
+        if (!maxed) {
+            String buy = (owned > 0 ? "Buy level " + (owned + 1) : "Buy")
+                    + " (" + entry.costFor(owned) + ")";
+            spec.button(
+                            "do:custom_buy:" + id,
+                            blockReason == null ? UltraStyle.confirm(buy) : UltraStyle.dim(buy),
+                            blockReason == null ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM)
+                    .rowGap();
+        }
+        if (owned > 0 && entry.removable) {
+            spec.button(
+                            "do:custom_remove:" + id,
+                            UltraStyle.danger(entry.maxPurchases == 1 ? "Remove" : "Remove one level"),
+                            UltraStyle.STYLE_DANGER)
+                    .rowGap();
+        }
+        spec.footerBack("page:custom", UltraStyle.buttonText(PrestigeShopConfig.get().customShop.menuLabel));
+        spec.send(player);
+    }
+
+    /**
+     * Skill button: short name plus level, and the price when {@code cost >= 0}. Drops the max tag
+     * (or price) when the full caption would clip.
+     */
+    private static String skillCaption(String label, int bought, int max, boolean maxed, int cost) {
         String name = switch (label == null ? "" : label) {
             case "Instant Transmission" -> "Transmit";
             case "Defense Penetration" -> "Def Pen";
@@ -455,7 +687,8 @@ public final class UltraPrestigeScreens {
             default -> label == null || label.isBlank() ? "Skill" : label;
         };
         String prog = bought + "/" + (max > 0 ? max : "?");
-        String withMax = name + " " + prog + (maxed ? " max" : "");
+        String priceTag = cost >= 0 && !maxed ? " (" + cost + ")" : "";
+        String withMax = name + " " + prog + (maxed ? " max" : priceTag);
         if (UltraStyle.fitsButton(withMax)) {
             return withMax;
         }

@@ -6,6 +6,7 @@ import com.dbzlegacy.adaptivedifficulty.config.ConfigPaths;
 import com.dbzlegacy.adaptivedifficulty.config.ConfigRegistry;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.kube.hotpath.HotPathConfig;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeShopHooks;
 import com.dbzlegacy.adaptivedifficulty.quest.SagaResetConfig;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -1933,6 +1934,10 @@ public final class ConfigEditor {
     }
 
     private static Object freshInstance(String moduleId) {
+        Object shopDefault = PrestigeShopHooks.freshInstance(moduleId);
+        if (shopDefault != null) {
+            return shopDefault;
+        }
         return switch (moduleId) {
             case "difficulty", "progression", "currency" -> DifficultyConfig.freshDefaults();
             case "character-services" -> CharacterServicesConfig.freshDefaults();
@@ -2285,6 +2290,10 @@ public final class ConfigEditor {
     }
 
     private static Object coerce(Type type, String raw) {
+        Object shopValue = PrestigeShopHooks.coerce(type, raw);
+        if (shopValue != null) {
+            return shopValue;
+        }
         String text = raw == null ? "" : raw.trim();
         Class<?> rawClass = rawClass(type);
         if (rawClass == String.class || rawClass == null || rawClass == Object.class) {
