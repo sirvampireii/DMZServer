@@ -127,6 +127,11 @@ KNOWN_DO: dict[str, set[str]] = {
         "undo",
         "search",
         "search_clear",
+        # 4.6.232: pick an enum value on its Options page, stage a list/map entry removal,
+        # and reload-then-reapply after another editor saved the same file.
+        "choose",
+        "remove",
+        "reapply",
         # Flow-layout setting titles (label-above-control rows) use a no-op refresh hit target.
         "refresh",
     },

@@ -325,7 +325,7 @@ public final class UltraCharacterScreens {
         String confirmArg = raceId + ":" + selected;
         long due = CharacterServicesSystem.raceAmountDue(player, selected);
         String costText = due <= 0L ? "Free" : CharacterServicesSystem.formatCost(due);
-        String raceLabel = raceId.isBlank() ? "?" : raceId;
+        String raceLabel = CharacterServicesSystem.raceDisplayName(raceId);
         UltraScreenSpec spec = sub(player, "race_confirm:" + confirmArg, false)
                 .line(UltraStyle.LABEL + "Confirm race change")
                 .labelValue("Race", raceLabel)
@@ -791,8 +791,8 @@ public final class UltraCharacterScreens {
         }
         spec.buttonLeft(
                         "do:bodypart_color_reset:" + channel,
-                        UltraStyle.dim("Reset to default"),
-                        UltraStyle.STYLE_DIM)
+                        UltraStyle.confirm("Reset to default"),
+                        UltraStyle.STYLE_CONFIRM)
                 .rowGap();
         if (pg > 0) {
             spec.buttonLeft(

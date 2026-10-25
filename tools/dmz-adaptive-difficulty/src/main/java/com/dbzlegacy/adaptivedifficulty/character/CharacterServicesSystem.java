@@ -944,6 +944,11 @@ public final class CharacterServicesSystem {
         return s;
     }
 
+    /** Player-facing race name, the same one the race cards show ("frost_demon" -> "Frost Demon"). */
+    public static String raceDisplayName(String id) {
+        return titleCase(id);
+    }
+
     private static String titleCase(String id) {
         if (id == null || id.isBlank()) {
             return "?";

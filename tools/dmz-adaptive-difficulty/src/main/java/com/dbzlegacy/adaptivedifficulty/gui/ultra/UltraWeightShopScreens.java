@@ -180,8 +180,8 @@ public final class UltraWeightShopScreens {
         if (!free && !AncientCoinEconomy.canAfford(player, cost)) {
             spec.button(
                             "page:weights_input:" + offer.id,
-                            UltraStyle.dim("Change value"),
-                            UltraStyle.STYLE_DIM)
+                            UltraStyle.LABEL + "Change value",
+                            UltraStyle.STYLE_NORMAL)
                     .rowGap();
         } else {
             spec.button(
@@ -196,8 +196,8 @@ public final class UltraWeightShopScreens {
                     .rowGap();
             spec.buttonLeft(
                             "page:weights_input:" + offer.id,
-                            UltraStyle.dim("Change value"),
-                            UltraStyle.STYLE_DIM)
+                            UltraStyle.LABEL + "Change value",
+                            UltraStyle.STYLE_NORMAL)
                     .rowGap();
         }
         spec.footerBack("page:weights", "Weights shop");

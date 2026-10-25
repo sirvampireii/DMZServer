@@ -56,7 +56,7 @@ public final class UltraDifficultyTierUi {
     public static String tierActionLabel(
             ServerPlayer player, int t, int activeTier, boolean unlocked, boolean eligible) {
         if (t <= 0) {
-            return UltraStyle.DIM + "-";
+            return UltraStyle.dim("-");
         }
         if (activeTier == t) {
             return UltraStyle.confirm("T" + t + " on");

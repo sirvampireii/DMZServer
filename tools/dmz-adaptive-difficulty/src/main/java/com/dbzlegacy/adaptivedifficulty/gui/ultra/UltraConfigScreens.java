@@ -106,6 +106,13 @@ public final class UltraConfigScreens {
             openReview(player, Math.max(0, number(part(raw, 1))));
             return;
         }
+        if (lower.startsWith("options:")) {
+            // options:<module>:<page>:<path> - the path may itself contain ':'.
+            String[] bits = raw.split(":", 4);
+            openOptions(player, bits.length > 1 ? bits[1] : "", bits.length > 2 ? number(bits[2]) : 0,
+                    bits.length > 3 ? bits[3] : "");
+            return;
+        }
         // Legacy drill-down pages → search-first editor.
         if ("modules".equals(lower) || "main".equals(lower) || "list".equals(lower)) {
             openEditor(player, "difficulty", 0, "");
@@ -295,8 +302,8 @@ public final class UltraConfigScreens {
                 inputId);
         spec.button(
                 "do:search_clear",
-                UltraStyle.dim("Clear"),
-                UltraStyle.STYLE_DIM,
+                UltraStyle.LABEL + "Clear",
+                UltraStyle.STYLE_NORMAL,
                 searchX + btn + CTRL_GAP,
                 y,
                 btn);
@@ -495,19 +502,35 @@ public final class UltraConfigScreens {
                 MAIN_X,
                 y,
                 nameW);
-        putButton(
-                spec,
-                paint,
-                "do:refresh",
-                dirty ? UltraStyle.confirm(indicator) : UltraStyle.dim(indicator),
-                dirty ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM,
-                MAIN_X + nameW + CTRL_GAP,
-                y,
-                indicatorW);
+        ConfigEditor.EditorTab moduleTab = ConfigEditor.tab(module);
+        boolean editableTab = moduleTab != null && moduleTab.editable();
+        if (editableTab && ConfigEditor.isCollectionEntry(module, path)) {
+            // One entry of a list or map: "Now x - def y" means little here, so the slot becomes
+            // Remove (staged until Save, like every other change) or Keep to take it back.
+            boolean removing = ConfigEditor.removing(uuid, module, path);
+            putButton(
+                    spec,
+                    paint,
+                    "do:remove:" + module + "|" + encodePath(path),
+                    removing ? UltraStyle.confirm("Keep entry") : UltraStyle.danger("Remove"),
+                    removing ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DANGER,
+                    MAIN_X + nameW + CTRL_GAP,
+                    y,
+                    indicatorW);
+        } else {
+            putButton(
+                    spec,
+                    paint,
+                    "do:refresh",
+                    dirty ? UltraStyle.confirm(indicator) : UltraStyle.dim(indicator),
+                    dirty ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM,
+                    MAIN_X + nameW + CTRL_GAP,
+                    y,
+                    indicatorW);
+        }
         y += ROW_STEP;
 
-        ConfigEditor.EditorTab moduleTab = ConfigEditor.tab(module);
-        if (moduleTab == null || !moduleTab.editable()) {
+        if (!editableTab) {
             putButton(
                     spec,
                     paint,
@@ -542,8 +565,8 @@ public final class UltraConfigScreens {
                     spec,
                     paint,
                     "do:undo:" + module + "|" + encodePath(path),
-                    UltraStyle.dim("Undo"),
-                    UltraStyle.STYLE_DIM,
+                    UltraStyle.LABEL + "Undo",
+                    UltraStyle.STYLE_NORMAL,
                     x,
                     y,
                     undoW);
@@ -555,7 +578,7 @@ public final class UltraConfigScreens {
                     spec,
                     paint,
                     "do:toggle:" + module + "|" + encodePath(path),
-                    on ? UltraStyle.confirm("On") : UltraStyle.dim("Off"),
+                    on ? UltraStyle.confirm("ON") : UltraStyle.dim("OFF"),
                     on ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM,
                     x,
                     y,
@@ -640,8 +663,8 @@ public final class UltraConfigScreens {
                         spec,
                         paint,
                         "do:step:" + module + "|" + encoded + "|-1",
-                        UltraStyle.dim("-"),
-                        UltraStyle.STYLE_DIM,
+                        UltraStyle.LABEL + "-",
+                        UltraStyle.STYLE_NORMAL,
                         MAIN_X + applyW + gap,
                         y,
                         stepW);
@@ -649,8 +672,8 @@ public final class UltraConfigScreens {
                         spec,
                         paint,
                         "do:step:" + module + "|" + encoded + "|1",
-                        UltraStyle.dim("+"),
-                        UltraStyle.STYLE_DIM,
+                        UltraStyle.LABEL + "+",
+                        UltraStyle.STYLE_NORMAL,
                         MAIN_X + applyW + gap + stepW + gap,
                         y,
                         stepW);
@@ -664,28 +687,10 @@ public final class UltraConfigScreens {
                             inputId, value == null ? "" : value, "Type an option...", MAIN_X, MAIN_W);
                 }
                 y += ROW_STEP;
-                if (fitsRow(90, 90)) {
-                    putBound(
-                            spec,
-                            paint,
-                            "do:set:" + module + "|" + encoded,
-                            UltraStyle.confirm("Apply"),
-                            UltraStyle.STYLE_CONFIRM,
-                            MAIN_X,
-                            y,
-                            90,
-                            inputId);
-                    putButton(
-                            spec,
-                            paint,
-                            "do:cycle:" + module + "|" + encoded,
-                            UltraStyle.confirm("Next"),
-                            UltraStyle.STYLE_CONFIRM,
-                            MAIN_X + 90 + CTRL_GAP,
-                            y,
-                            90);
-                    return y + ROW_STEP;
-                }
+                // Apply / Next / Options share one row like the number steppers: only the gaps
+                // give way. Options is the dropdown - a page listing every allowed value.
+                int w = UltraStyle.BTN_MIN_W;
+                int gap = threeUpGap(w, w, w);
                 putBound(
                         spec,
                         paint,
@@ -694,18 +699,26 @@ public final class UltraConfigScreens {
                         UltraStyle.STYLE_CONFIRM,
                         MAIN_X,
                         y,
-                        MAIN_W,
+                        w,
                         inputId);
-                y += ROW_STEP;
                 putButton(
                         spec,
                         paint,
                         "do:cycle:" + module + "|" + encoded,
                         UltraStyle.confirm("Next"),
                         UltraStyle.STYLE_CONFIRM,
-                        MAIN_X,
+                        MAIN_X + w + gap,
                         y,
-                        MAIN_W);
+                        w);
+                putButton(
+                        spec,
+                        paint,
+                        "page:" + optionsPage(module, 0, path),
+                        UltraStyle.LABEL + "Options",
+                        UltraStyle.STYLE_NORMAL,
+                        MAIN_X + 2 * (w + gap),
+                        y,
+                        w);
                 return y + ROW_STEP;
             }
             case LIST, MAP, GROUP -> {
@@ -790,7 +803,7 @@ public final class UltraConfigScreens {
                         spec,
                         paint,
                         "do:refresh",
-                        UltraStyle.dim("This field type has no Ultra editor yet."),
+                        UltraStyle.dim("Can't be edited in the menu yet - ask an admin to change it."),
                         UltraStyle.STYLE_DIM,
                         MAIN_X,
                         y,
@@ -849,13 +862,88 @@ public final class UltraConfigScreens {
         return Math.max(2, (MAIN_W - need) / 2);
     }
 
+    private static String optionsPage(String module, int page, String path) {
+        return "options:" + module + ":" + page + ":" + (path == null ? "" : path);
+    }
+
+    /**
+     * Dropdown for an enum setting, as a server-driven page: every allowed value is a button,
+     * the staged (or saved) one is gold. Picking stages it exactly like Apply; Back returns to the
+     * settings page.
+     */
+    private static void openOptions(ServerPlayer player, String moduleId, int pageNumber, String path) {
+        UUID uuid = player.m_20148_();
+        String module = moduleId == null || moduleId.isBlank() ? "difficulty" : moduleId;
+        List<String> options = ConfigEditor.enumOptions(module, path);
+        String current = ConfigEditor.effectiveRaw(uuid, module, path);
+        String name = ConfigEditor.staffLabel(path);
+        int contentTop = SEARCH_Y + ROW_STEP;
+        int[] heights = new int[options.size()];
+        java.util.Arrays.fill(heights, ROW_STEP);
+        List<int[]> slices = paginate(heights, REVIEW_Y - contentTop);
+        int page = Math.min(Math.max(0, pageNumber), Math.max(0, slices.size() - 1));
+        UltraScreenSpec spec = frame(categoryLabel(module, ConfigEditor.tab(module)) + " > " + name,
+                optionsPage(module, page, path));
+        placeCategoryRail(spec, module, false, SEARCH_Y);
+        spec.button(
+                "do:refresh",
+                UltraStyle.dim(oneLine("Choose a value for " + name + ". Nothing is saved until Review.", MAIN_W)),
+                UltraStyle.STYLE_DIM,
+                MAIN_X,
+                SEARCH_Y,
+                MAIN_W);
+        int y = contentTop;
+        if (options.isEmpty()) {
+            spec.button(
+                    "do:refresh",
+                    UltraStyle.dim("This setting has no fixed list of values. Type one on the settings page."),
+                    UltraStyle.STYLE_DIM,
+                    MAIN_X,
+                    y,
+                    MAIN_W);
+        }
+        int from = slices.get(page)[0];
+        int to = Math.min(options.size(), slices.get(page)[1]);
+        for (int i = from; i < to; i++) {
+            String option = options.get(i);
+            boolean chosen = option.equalsIgnoreCase(current == null ? "" : current.trim());
+            String label = ConfigEditor.displayName(option);
+            spec.button(
+                    "do:choose:" + module + "|" + encodePath(path) + "|" + option,
+                    chosen ? UltraStyle.confirm(label + " (chosen)") : UltraStyle.LABEL + label,
+                    chosen ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL,
+                    MAIN_X,
+                    y,
+                    MAIN_W);
+            y += ROW_STEP;
+        }
+        int pages = slices.size();
+        int x = MAIN_X;
+        if (page > 0) {
+            spec.button("page:" + optionsPage(module, page - 1, path), UltraStyle.dim("Prev"),
+                    UltraStyle.STYLE_DIM, x, REVIEW_Y, UltraStyle.BTN_MIN_W);
+        }
+        if (page + 1 < pages) {
+            spec.button("page:" + optionsPage(module, page + 1, path), UltraStyle.LABEL + "Next",
+                    UltraStyle.STYLE_NORMAL, MAIN_X + MAIN_W - UltraStyle.BTN_MIN_W, REVIEW_Y,
+                    UltraStyle.BTN_MIN_W);
+        }
+        spec.footerBack("page:" + ConfigEditor.editorPage(uuid), "settings");
+        spec.send(player);
+    }
+
     private static void openReview(ServerPlayer player, int pageNumber) {
         UUID uuid = player.m_20148_();
         List<ConfigEditor.PendingChange> pending = ConfigEditor.pendingChanges(uuid);
         int count = pending == null ? 0 : pending.size();
         String editorPage = ConfigEditor.editorPage(uuid);
         String module = moduleFromPage(editorPage);
-        int contentTop = SEARCH_Y + ROW_STEP;
+        // Live-editor awareness: another staff member saved a file this editor is changing, or
+        // is changing it right now. Warn above the list instead of letting Save overwrite.
+        List<ConfigEditor.EditConflict> conflicts = count == 0 ? List.of() : ConfigEditor.conflicts(uuid);
+        List<String> others = count == 0 ? List.of() : ConfigEditor.otherEditors(uuid);
+        int warnRows = (conflicts.isEmpty() ? 0 : 2) + (others.isEmpty() ? 0 : 1);
+        int contentTop = SEARCH_Y + ROW_STEP + warnRows * ROW_STEP;
         int confirmY = FOOTER_Y - 2 * ROW_STEP;
         int discardY = FOOTER_Y - ROW_STEP;
         int budget = confirmY - contentTop;
@@ -889,25 +977,78 @@ public final class UltraConfigScreens {
                 MAIN_X + summaryW + CTRL_GAP,
                 SEARCH_Y,
                 reloadW);
-        int y = contentTop;
-        if (count == 0) {
+        int y = SEARCH_Y + ROW_STEP;
+        if (!conflicts.isEmpty()) {
+            ConfigEditor.EditConflict first = conflicts.get(0);
+            String more = conflicts.size() > 1 ? " (and " + (conflicts.size() - 1) + " more)" : "";
             spec.button(
                     "do:refresh",
-                    UltraStyle.dim("Nothing is written until you confirm a change."),
+                    UltraStyle.danger(oneLine(first.actor() + " saved " + first.modules() + " at " + first.when()
+                            + more + " after you started.", MAIN_W)),
+                    UltraStyle.STYLE_DANGER,
+                    MAIN_X,
+                    y,
+                    MAIN_W);
+            y += ROW_STEP;
+            spec.button(
+                    "do:reapply",
+                    UltraStyle.confirm("Reload and reapply my changes"),
+                    UltraStyle.STYLE_CONFIRM,
+                    MAIN_X,
+                    y,
+                    MAIN_W);
+            y += ROW_STEP;
+        }
+        if (!others.isEmpty()) {
+            spec.button(
+                    "do:refresh",
+                    UltraStyle.dim(oneLine("Also editing: " + String.join(", ", others), MAIN_W)),
                     UltraStyle.STYLE_DIM,
                     MAIN_X,
                     y,
                     MAIN_W);
+            y += ROW_STEP;
+        }
+        if (count == 0) {
+            // After a save: what was written, what reloaded or failed, and the backup.
+            List<ConfigEditor.ReportLine> report = ConfigEditor.lastSaveReport(uuid);
+            if (report.isEmpty()) {
+                spec.button(
+                        "do:refresh",
+                        UltraStyle.dim("Nothing is written until you confirm a change."),
+                        UltraStyle.STYLE_DIM,
+                        MAIN_X,
+                        y,
+                        MAIN_W);
+            }
+            for (ConfigEditor.ReportLine line : report) {
+                if (y + ROW_STEP > confirmY) {
+                    break;
+                }
+                String text = oneLine(line.text(), MAIN_W);
+                spec.button(
+                        "do:refresh",
+                        line.failed() ? UltraStyle.danger(text) : UltraStyle.dim(text),
+                        line.failed() ? UltraStyle.STYLE_DANGER : UltraStyle.STYLE_DIM,
+                        MAIN_X,
+                        y,
+                        MAIN_W);
+                y += ROW_STEP;
+            }
         } else {
             for (int i = from; i < to; i++) {
                 ConfigEditor.PendingChange change = pending.get(i);
                 if (change == null) {
                     continue;
                 }
+                boolean overwritten = change.changedBy() != null && !change.changedBy().isBlank();
+                String title = overwritten
+                        ? oneLine(change.changedBy() + " changed this since: " + change.name(), MAIN_W)
+                        : change.name();
                 spec.button(
                         "do:refresh",
-                        UltraStyle.dim(change.name()),
-                        UltraStyle.STYLE_DIM,
+                        overwritten ? UltraStyle.danger(title) : UltraStyle.dim(title),
+                        overwritten ? UltraStyle.STYLE_DANGER : UltraStyle.STYLE_DIM,
                         MAIN_X,
                         y,
                         MAIN_W);
@@ -1028,6 +1169,7 @@ public final class UltraConfigScreens {
         String act = action == null ? "" : action.toLowerCase(Locale.ROOT).trim();
         String a = arg == null ? "" : arg.trim();
         UUID uuid = player.m_20148_();
+        ConfigEditor.noteActor(uuid, player.m_7755_().getString());
         return switch (act) {
             case "save_all", "save" -> {
                 ConfigEditor.SaveResult result =
@@ -1035,9 +1177,38 @@ public final class UltraConfigScreens {
                 if (result.error() != null && !result.error().isBlank()) {
                     yield UltraStyle.dangerLine(result.error());
                 }
-                yield result.message() == null || result.message().isBlank()
-                        ? UltraStyle.noticeLine("Saved.")
-                        : UltraStyle.noticeLine(result.message());
+                if (result.count() <= 0) {
+                    yield UltraStyle.noticeLine(result.message() == null ? "Nothing to save." : result.message());
+                }
+                // The full reload report stays on the Review page; the notice sums it up.
+                boolean reloadFailed = result.report().stream().anyMatch(ConfigEditor.ReportLine::failed);
+                String summary = result.message() + (reloadFailed
+                        ? " Some settings did not reload - see the report below."
+                        : " Everything reloaded and a backup was taken.");
+                yield reloadFailed ? UltraStyle.dangerLine(summary) : UltraStyle.noticeLine(summary);
+            }
+            case "reapply" -> UltraStyle.noticeLine(ConfigEditor.reloadAndReapply(uuid));
+            case "remove" -> {
+                String[] parts = splitModulePath(a);
+                if (parts == null || !ConfigEditor.isCollectionEntry(parts[0], parts[1])) {
+                    yield UltraStyle.dangerLine("That entry can't be removed here. Open its list and try again.");
+                }
+                boolean wasRemoving = ConfigEditor.removing(uuid, parts[0], parts[1]);
+                ConfigEditor.stageRemove(uuid, parts[0], parts[1]);
+                yield UltraStyle.noticeLine(wasRemoving
+                        ? "Kept the entry."
+                        : "Entry marked for removal. It is removed when you confirm the save on Review.");
+            }
+            case "choose" -> {
+                String[] parts = splitModulePathDir(a);
+                if (parts == null) {
+                    yield UltraStyle.dangerLine("That option is no longer available. Open Options again.");
+                }
+                String error = ConfigEditor.stageSet(uuid, parts[0], parts[1], parts[2]);
+                yield error == null
+                        ? UltraStyle.noticeLine("Chose " + ConfigEditor.displayName(parts[2])
+                                + ". Review changes to save it.")
+                        : UltraStyle.dangerLine(error);
             }
             case "discard_all", "discard" -> {
                 int count = ConfigEditor.discardAll(uuid);

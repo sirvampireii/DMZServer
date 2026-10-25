@@ -119,6 +119,37 @@ def main() -> int:
     check("no Level Cap Breakthrough on chest main", "Level Cap Breakthrough" not in chest.split("private Inventory main", 1)[1].split("private Inventory turnIn", 1)[0] if "private Inventory main" in chest else False)
     check("CNPC prestige no cap button on main", "Level Cap" not in cnpc or '"cap", "breakthrough" -> paintMain' in cnpc)
     check("manifest prestige-turnin-payout row", "prestige-turnin-payout" in manifest)
+
+    print("\n--- § config editor ---")
+    cfg_editor = read(SRC / "config/editor/ConfigEditor.java")
+    cfg_ui = read(SRC / "gui/ultra/UltraConfigScreens.java")
+    check("manifest config-editor-save-safety row", "config-editor-save-safety" in manifest)
+    check("config editor backs up every save and prunes to the newest copies",
+          "static boolean backupEverySave(Path file, Instant when)" in cfg_editor
+          and "static final int BACKUPS_KEPT = 20;" in cfg_editor
+          and "backedUp |= backupEverySave(file, now);" in cfg_editor
+          and 'resolveSibling("backups")' in cfg_editor)
+    check("save returns a reload report and Review shows it",
+          "public record ReportLine(String text, boolean failed)" in cfg_editor
+          and "reloading failed, so the server still runs the" in cfg_editor
+          and "ConfigEditor.lastSaveReport(uuid)" in cfg_ui)
+    check("refused save names the setting and the next step",
+          "was refused: " in cfg_editor and "Fix the red rows or Undo them, then save again." in cfg_editor)
+    check("enum settings get an Options page; list entries get Remove / Keep",
+          "public static List<String> enumOptions(" in cfg_editor
+          and 'lower.startsWith("options:")' in cfg_ui
+          and 'case "choose" ->' in cfg_ui
+          and 'case "remove" ->' in cfg_ui
+          and 'UltraStyle.danger("Remove")' in cfg_ui)
+    check("another editor's save is caught: Review warns, offers reapply, save refuses overwrite",
+          "public static List<EditConflict> conflicts(UUID player)" in cfg_editor
+          and "public static String reloadAndReapply(UUID player)" in cfg_editor
+          and "after you staged it. Use Reload and reapply" in cfg_editor
+          and '"do:reapply"' in cfg_ui and 'case "reapply" ->' in cfg_ui
+          and "ConfigEditor.noteActor(uuid," in cfg_ui)
+    check("player record files stay closed in the editor",
+          '{"rival", "Rival"}' in cfg_ui and '{"sparring", "Sparring"}' in cfg_ui
+          and "player records are not edited here" in cfg_ui)
     points = read(SRC / "progression/shop/PrestigePointsSystem.java")
     turn_in = points.split("public static int pointsForTurnIn(", 1)[1].split("\n    }\n", 1)[0] \
         if "public static int pointsForTurnIn(" in points else ""

@@ -97,8 +97,8 @@ public final class UltraProgressionScreens {
         }
         spec.buttonsAfterLines();
         String toggle = staffFree
-                ? UltraStyle.confirm("Staff free costs " + UltraStyle.SEP + " ON")
-                : UltraStyle.dim("Staff free costs " + UltraStyle.SEP + " OFF");
+                ? UltraStyle.confirm("Staff free costs - ON")
+                : UltraStyle.dim("Staff free costs - OFF");
         spec.button(
                         "do:toggle_staff_free_coins:" + (staffFree ? "off" : "on"),
                         toggle,

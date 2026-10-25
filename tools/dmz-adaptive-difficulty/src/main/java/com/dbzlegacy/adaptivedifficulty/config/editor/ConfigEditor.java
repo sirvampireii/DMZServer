@@ -50,6 +50,16 @@ public final class ConfigEditor {
     private static final Map<UUID, Session> SESSIONS = new ConcurrentHashMap<>();
     private static final DateTimeFormatter AUDIT_WHEN =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter BACKUP_STAMP =
+            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter CLOCK =
+            DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault());
+    /** Timestamped copies kept per settings file; older ones are pruned on each save. */
+    static final int BACKUPS_KEPT = 20;
+    /** Last successful editor save per settings file — how other open editors learn of it. */
+    private static final Map<Path, FileStamp> FILE_STAMPS = new ConcurrentHashMap<>();
+    private static final java.util.concurrent.atomic.AtomicLong SAVE_SEQ =
+            new java.util.concurrent.atomic.AtomicLong();
 
     private ConfigEditor() {}
 
@@ -103,18 +113,40 @@ public final class ConfigEditor {
     /** Page paths that start with this are a named section, not a nested field. */
     public static final String SECTION_PREFIX = "~";
 
-    /** One unsaved edit, newest first when listed. */
-    public record PendingChange(String name, String before, String after) {}
+    /**
+     * One unsaved edit, newest first when listed. {@code changedBy} names the staff member who
+     * saved a new value for this same setting after it was staged (blank when nobody did).
+     */
+    public record PendingChange(String name, String before, String after, String changedBy) {}
 
     public enum DraftOp { SET, ADD, REMOVE }
 
-    /** A change held in memory until Save all. */
-    public record Draft(String moduleId, String path, DraftOp op, String raw, String addKey) {}
+    /**
+     * A change held in memory until Save all. {@code base} is the live value when it was staged,
+     * so a later save by another editor to the same setting is caught instead of overwritten.
+     */
+    public record Draft(String moduleId, String path, DraftOp op, String raw, String addKey, String base) {}
 
     public enum BannerTone { NONE, OK, INFO, ERROR }
 
-    /** {@code error} is set when a save was refused. {@code message} is the status line. */
-    public record SaveResult(String error, int count, String message) {}
+    /**
+     * {@code error} is set when a save was refused. {@code message} is the status line.
+     * {@code report} lists what was written, what reloaded or failed, and the backup.
+     */
+    public record SaveResult(String error, int count, String message, List<ReportLine> report) {
+        SaveResult(String error, int count, String message) {
+            this(error, count, message, List.of());
+        }
+    }
+
+    /** One report line; {@code failed} lines render as errors. */
+    public record ReportLine(String text, boolean failed) {}
+
+    /** The last editor save of one settings file. */
+    private record FileStamp(long version, UUID by, String actor, Instant when) {}
+
+    /** Another staff member saved a file this editor has unsaved changes for. */
+    public record EditConflict(String actor, String when, String modules) {}
 
     public record LastChange(String actor, String when) {}
 
@@ -794,7 +826,9 @@ public final class ConfigEditor {
             if (session.drafts.size() >= 100) {
                 return "Save or discard before changing more settings.";
             }
-            session.drafts.add(new Draft(moduleId, path, DraftOp.SET, raw == null ? "" : raw.trim(), ""));
+            noteSeen(session, moduleId);
+            session.drafts.add(new Draft(
+                    moduleId, path, DraftOp.SET, raw == null ? "" : raw.trim(), "", currentText(moduleId, path)));
             touchRecent(player, moduleId, path);
         }
         return null;
@@ -828,7 +862,9 @@ public final class ConfigEditor {
         if (session.drafts.size() >= 100) {
             return "Save or discard before changing more settings.";
         }
-        session.drafts.add(new Draft(moduleId, path, DraftOp.ADD, raw == null ? "" : raw.trim(), trimmedKey));
+        noteSeen(session, moduleId);
+        session.drafts.add(new Draft(
+                moduleId, path, DraftOp.ADD, raw == null ? "" : raw.trim(), trimmedKey, ""));
         touchRecent(player, moduleId, path);
         return null;
     }
@@ -854,8 +890,190 @@ public final class ConfigEditor {
         if (already) {
             return;
         }
-        session.drafts.add(new Draft(moduleId, path, DraftOp.REMOVE, "", key));
+        noteSeen(session, moduleId);
+        session.drafts.add(new Draft(moduleId, path, DraftOp.REMOVE, "", key, currentText(moduleId, path)));
         touchRecent(player, moduleId, path);
+    }
+
+    /** Remember the file's save version the first time this editor stages a change to it. */
+    private static void noteSeen(Session session, String moduleId) {
+        Path file = fileOf(moduleId);
+        if (file != null) {
+            session.seen.putIfAbsent(file, fileVersion(file));
+        }
+    }
+
+    private static long fileVersion(Path file) {
+        FileStamp stamp = file == null ? null : FILE_STAMPS.get(file);
+        return stamp == null ? 0L : stamp.version();
+    }
+
+    /** Who is editing: shown to other staff editors when this editor saves or has unsaved changes. */
+    public static void noteActor(UUID player, String name) {
+        if (name != null && !name.isBlank()) {
+            session(player).actor = name.trim();
+        }
+    }
+
+    /**
+     * Files this editor has unsaved changes for that another staff member saved since this
+     * editor started changing them. Each conflict names who saved, when, and which tabs.
+     */
+    public static List<EditConflict> conflicts(UUID player) {
+        Session session = session(player);
+        List<EditConflict> out = new ArrayList<>();
+        for (Map.Entry<Path, Long> seen : session.seen.entrySet()) {
+            FileStamp stamp = FILE_STAMPS.get(seen.getKey());
+            if (stamp == null || stamp.version() <= seen.getValue() || Objects.equals(stamp.by(), player)) {
+                continue;
+            }
+            if (session.drafts.stream().noneMatch(d -> seen.getKey().equals(fileOf(d.moduleId())))) {
+                continue;
+            }
+            out.add(new EditConflict(stamp.actor(), CLOCK.format(stamp.when()), modulesOf(session, seen.getKey())));
+        }
+        return out;
+    }
+
+    /** Other staff with unsaved changes to a file this editor is also changing: "Name (Tab)". */
+    public static List<String> otherEditors(UUID player) {
+        Session mine = session(player);
+        Set<Path> myFiles = new HashSet<>();
+        for (Draft draft : mine.drafts) {
+            Path file = fileOf(draft.moduleId());
+            if (file != null) {
+                myFiles.add(file);
+            }
+        }
+        List<String> out = new ArrayList<>();
+        for (Map.Entry<UUID, Session> entry : SESSIONS.entrySet()) {
+            Session other = entry.getValue();
+            if (entry.getKey().equals(player) || other.drafts.isEmpty()) {
+                continue;
+            }
+            Set<String> shared = new java.util.TreeSet<>();
+            for (Draft draft : other.drafts) {
+                if (myFiles.contains(fileOf(draft.moduleId()))) {
+                    shared.add(tabLabel(draft.moduleId()));
+                }
+            }
+            if (!shared.isEmpty()) {
+                String who = other.actor == null || other.actor.isBlank() ? "Another staff member" : other.actor;
+                out.add(who + " (" + String.join(", ", shared) + ")");
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Reload every file this editor has changes for, then put the same changes back on top of
+     * what is on disk now. Changes that now match the file drop out; ones that no longer fit
+     * stay marked for fixing. Returns a one-line summary.
+     */
+    public static String reloadAndReapply(UUID player) {
+        Session session = session(player);
+        List<Draft> mine = new ArrayList<>(session.drafts);
+        if (mine.isEmpty()) {
+            return "No unsaved changes to reapply.";
+        }
+        Set<String> reloaded = new java.util.LinkedHashSet<>();
+        for (Draft draft : mine) {
+            Path file = fileOf(draft.moduleId());
+            if (file == null || reloaded.contains(file.toString())) {
+                continue;
+            }
+            String error = reloadModule(player, draft.moduleId());
+            if (error != null) {
+                session.drafts.clear();
+                session.drafts.addAll(mine);
+                return "Could not reload the settings file, so your changes were kept as they were. Try again.";
+            }
+            reloaded.add(file.toString());
+        }
+        session.seen.clear();
+        int failed = 0;
+        for (Draft draft : mine) {
+            String error = switch (draft.op()) {
+                case ADD -> stageAdd(player, draft.moduleId(), draft.path(), draft.addKey(), draft.raw());
+                case REMOVE -> {
+                    // An entry someone else already removed simply drops out.
+                    if (mutateWouldRemove(draft.moduleId(), draft.path()) == null) {
+                        stageRemove(player, draft.moduleId(), draft.path());
+                    }
+                    yield null;
+                }
+                default -> stageSet(player, draft.moduleId(), draft.path(), draft.raw());
+            };
+            if (error != null) {
+                failed++;
+            }
+        }
+        int kept = session.drafts.size();
+        int dropped = Math.max(0, mine.size() - kept - failed);
+        StringBuilder msg = new StringBuilder("Reloaded the latest file and reapplied ")
+                .append(kept).append(kept == 1 ? " change" : " changes").append('.');
+        if (failed > 0) {
+            msg.append(' ').append(failed).append(failed == 1 ? " needs" : " need")
+                    .append(" fixing - see the red rows.");
+        }
+        if (dropped > 0) {
+            msg.append(' ').append(dropped).append(" already matched the file and dropped out.");
+        }
+        return msg.toString();
+    }
+
+    /** Report lines from this editor's last save. Empty until something is saved. */
+    public static List<ReportLine> lastSaveReport(UUID player) {
+        return session(player).lastReport;
+    }
+
+    /** Full option list for an enum setting, in declared order. Empty for any other kind. */
+    public static List<String> enumOptions(String moduleId, String path) {
+        Located located = locate(moduleId, path);
+        if (located == null || located.field == null) {
+            return List.of();
+        }
+        Class<?> type = located.key == null
+                ? located.field.getType()
+                : rawClass(valueType(located.field, located.container instanceof List<?> ? 0 : 1));
+        if (type == null || !type.isEnum() || type.getEnumConstants() == null) {
+            return List.of();
+        }
+        List<String> names = new ArrayList<>();
+        for (Object constant : type.getEnumConstants()) {
+            names.add(constant.toString());
+        }
+        return names;
+    }
+
+    /** True when {@code path} is one entry of a list or map, so it can be removed. */
+    public static boolean isCollectionEntry(String moduleId, String path) {
+        if (path == null || path.isBlank() || !path.endsWith("]")) {
+            return false;
+        }
+        Kind parent = kindOf(moduleId, parentPath(path));
+        return parent == Kind.LIST || parent == Kind.MAP;
+    }
+
+    /** True when this entry is staged for removal. */
+    public static boolean removing(UUID player, String moduleId, String path) {
+        return findDraft(player, moduleId, path, DraftOp.REMOVE) != null;
+    }
+
+    private static String tabLabel(String moduleId) {
+        EditorTab t = tab(moduleId);
+        return t == null ? displayName(moduleId) : t.label();
+    }
+
+    /** Tab names this editor has changes in for one file, e.g. "Difficulty, Currency". */
+    private static String modulesOf(Session session, Path file) {
+        Set<String> labels = new java.util.TreeSet<>();
+        for (Draft draft : session.drafts) {
+            if (file.equals(fileOf(draft.moduleId()))) {
+                labels.add(tabLabel(draft.moduleId()));
+            }
+        }
+        return String.join(", ", labels);
     }
 
     public static void undo(UUID player, String moduleId, String path, DraftOp op, String addKey) {
@@ -903,7 +1121,14 @@ public final class ConfigEditor {
     public static SaveResult saveAll(UUID player, String actor) {
         Session session = session(player);
         if (!session.invalid.isEmpty()) {
-            return new SaveResult(session.invalid.size() + " fields need fixing", 0, null);
+            String first = session.invalid.keySet().iterator().next();
+            int tab = first.indexOf('\t');
+            String firstName = staffLabel(tab < 0 ? first : first.substring(tab + 1));
+            int n = session.invalid.size();
+            return new SaveResult(
+                    (n == 1 ? "1 field needs fixing" : n + " fields need fixing")
+                            + " before saving (first: " + firstName + "). Fix the red rows or Undo them, then save again.",
+                    0, null);
         }
         if (session.drafts.isEmpty()) {
             return new SaveResult(null, 0, "Nothing to save.");
@@ -912,7 +1137,18 @@ public final class ConfigEditor {
         for (Draft draft : drafts) {
             String error = validateDraft(draft);
             if (error != null) {
-                return new SaveResult(displayName(leafName(draft.path())) + ": " + error, 0, null);
+                return new SaveResult(staffLabel(draft.path()) + " was refused: " + error
+                        + " Change it or Undo it, then save again.", 0, null);
+            }
+        }
+        // Another editor saved a new value for a setting this editor also changed: saving now
+        // would silently overwrite theirs. Different settings in the same file are safe.
+        for (Draft draft : drafts) {
+            String by = changedBy(draft);
+            if (!by.isBlank()) {
+                return new SaveResult(by + " changed " + staffLabel(draft.path())
+                        + " after you staged it. Use Reload and reapply on this page to build on"
+                        + " their save, or Undo that setting.", 0, null);
             }
         }
         drafts.sort(Comparator.comparingInt(draft -> switch (draft.op()) {
@@ -947,43 +1183,111 @@ public final class ConfigEditor {
                 return new SaveResult(error, 0, null);
             }
         }
-        Set<Path> saved = new HashSet<>();
-        try {
-            for (Map.Entry<Path, Runnable> entry : saves.entrySet()) {
-                backupOnce(entry.getKey());
-                entry.getValue().run();
-                saved.add(entry.getKey());
-            }
-            for (Runnable reload : reloads.values()) {
-                if (reload != null) {
-                    reload.run();
-                }
-            }
-        } catch (Throwable t) {
-            AdaptiveDifficultyMod.LOGGER.warn(
-                    "[{}] config save failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
-            restore(reloads.values());
-            String who = actor == null || actor.isBlank() ? "staff" : actor;
-            for (Change change : changes) {
-                if (saved.contains(change.file())) {
-                    writeAudit(who, change.draft().moduleId(), change.draft().path(), change.before(), change.after());
-                }
-            }
-            session.drafts.removeIf(draft -> saved.contains(fileOf(draft.moduleId())));
-            return new SaveResult("The file could not be saved.", 0, null);
-        }
         String who = actor == null || actor.isBlank() ? "staff" : actor;
+        Set<Path> saved = new HashSet<>();
+        List<ReportLine> report = new ArrayList<>();
+        Instant now = Instant.now();
+        boolean backedUp = false;
+        for (Map.Entry<Path, Runnable> entry : saves.entrySet()) {
+            Path file = entry.getKey();
+            try {
+                backupOnce(file);
+                backedUp |= backupEverySave(file, now);
+                entry.getValue().run();
+                saved.add(file);
+            } catch (Throwable t) {
+                AdaptiveDifficultyMod.LOGGER.warn(
+                        "[{}] config save failed for {}: {}", AdaptiveDifficultyMod.MOD_ID, file, t.toString());
+                restore(reloads.values());
+                for (Change change : changes) {
+                    if (saved.contains(change.file())) {
+                        writeAudit(who, change.draft().moduleId(), change.draft().path(), change.before(), change.after());
+                    }
+                }
+                session.drafts.removeIf(draft -> saved.contains(fileOf(draft.moduleId())));
+                String labels = labelsFor(changes, file);
+                return new SaveResult(
+                        "The " + labels + " settings could not be written to disk, so they were not changed."
+                                + (saved.isEmpty() ? "" : " Settings saved before it stay saved.")
+                                + " Try again; if it keeps failing, check the server log.",
+                        0, null);
+            }
+        }
+        // Each file reloads on its own, so one bad reload is named instead of hiding the rest.
+        List<String> reloadedOk = new ArrayList<>();
+        for (Map.Entry<Path, Runnable> entry : reloads.entrySet()) {
+            String labels = labelsFor(changes, entry.getKey());
+            try {
+                if (entry.getValue() != null) {
+                    entry.getValue().run();
+                }
+                reloadedOk.add(labels);
+            } catch (Throwable t) {
+                AdaptiveDifficultyMod.LOGGER.warn(
+                        "[{}] config reload failed for {}: {}",
+                        AdaptiveDifficultyMod.MOD_ID, entry.getKey(), t.toString());
+                report.add(new ReportLine(
+                        labels + ": saved to disk, but reloading failed, so the server still runs the"
+                                + " old values. Press Reload disk or restart to load them.", true));
+            }
+        }
         for (Change change : changes) {
             if (saved.contains(change.file())) {
                 writeAudit(who, change.draft().moduleId(), change.draft().path(), change.before(), change.after());
             }
         }
+        for (Path file : saved) {
+            FILE_STAMPS.put(file, new FileStamp(SAVE_SEQ.incrementAndGet(), player, who, now));
+        }
+        int count = changes.size();
+        String message = count == 1 ? "Saved 1 change." : "Saved " + count + " changes.";
+        report.add(0, new ReportLine(message.substring(0, message.length() - 1) + " at " + CLOCK.format(now)
+                + " by " + who + ".", false));
+        if (!reloadedOk.isEmpty()) {
+            report.add(1, new ReportLine("Reloaded and live now: " + String.join(", ", reloadedOk) + ".", false));
+        }
+        report.add(new ReportLine(backedUp
+                ? "Backup taken before writing (the last " + BACKUPS_KEPT + " are kept per settings file)."
+                : "No backup was needed - the settings file did not exist yet.", false));
         session.drafts.clear();
         session.invalid.clear();
         session.recent.clear();
-        int count = changes.size();
-        String message = count == 1 ? "Saved 1 change." : "Saved " + count + " changes.";
-        return new SaveResult(null, count, message);
+        session.seen.clear();
+        session.lastReport = List.copyOf(report);
+        return new SaveResult(null, count, message, session.lastReport);
+    }
+
+    /** Tab names for the changes going into one file, e.g. "Difficulty and Currency". */
+    private static String labelsFor(List<Change> changes, Path file) {
+        Set<String> labels = new java.util.TreeSet<>();
+        for (Change change : changes) {
+            if (file.equals(change.file())) {
+                labels.add(tabLabel(change.draft().moduleId()));
+            }
+        }
+        if (labels.isEmpty()) {
+            return "settings";
+        }
+        List<String> list = new ArrayList<>(labels);
+        return list.size() == 1
+                ? list.get(0)
+                : String.join(", ", list.subList(0, list.size() - 1)) + " and " + list.get(list.size() - 1);
+    }
+
+    /**
+     * Who saved a new value for this setting after it was staged, or blank. Only SET and REMOVE
+     * carry a base; an add never overwrites an existing value.
+     */
+    private static String changedBy(Draft draft) {
+        if (draft.op() == DraftOp.ADD || draft.base() == null) {
+            return "";
+        }
+        String live = currentText(draft.moduleId(), draft.path());
+        if (Objects.equals(live, draft.base())) {
+            return "";
+        }
+        FileStamp stamp = FILE_STAMPS.get(fileOf(draft.moduleId()));
+        return stamp == null ? "Someone" : stamp.actor();
     }
 
     /** Reloads one settings file and drops unsaved edits for every tab that shares it. */
@@ -1003,6 +1307,9 @@ public final class ConfigEditor {
         session(player).drafts.removeIf(draft -> sharesFile(draft.moduleId(), file));
         session(player).invalid.keySet().removeIf(key -> sharesFile(moduleOfKey(key), file));
         session(player).recent.removeIf(key -> sharesFile(moduleOfKey(key), file));
+        if (file != null) {
+            session(player).seen.remove(file);
+        }
         return null;
     }
 
@@ -1012,6 +1319,7 @@ public final class ConfigEditor {
         session.drafts.clear();
         session.invalid.clear();
         session.recent.clear();
+        session.seen.clear();
         return count;
     }
 
@@ -1070,7 +1378,7 @@ public final class ConfigEditor {
             String name = section.isBlank() || section.equalsIgnoreCase(label)
                     ? moduleLabel + " > " + label
                     : moduleLabel + " > " + section + " > " + label;
-            out.add(new PendingChange(name, beforeText(draft), afterText(draft)));
+            out.add(new PendingChange(name, beforeText(draft), afterText(draft), changedBy(draft)));
         }
         return out;
     }
@@ -2018,6 +2326,12 @@ public final class ConfigEditor {
         private final Set<String> collapsed = new HashSet<>();
         private final Map<String, String> invalid = new LinkedHashMap<>();
         private final List<String> recent = new ArrayList<>();
+        /** Display name of the staff member editing, for other editors' warnings. */
+        private String actor = "";
+        /** Save version of each file when this editor first staged a change to it. */
+        private final Map<Path, Long> seen = new LinkedHashMap<>();
+        /** Report from this editor's last save, shown on Review. */
+        private List<ReportLine> lastReport = List.of();
     }
 
     private record Change(Draft draft, String before, String after, Path file) {}
@@ -2027,6 +2341,7 @@ public final class ConfigEditor {
         try {
             if (module != null) {
                 backupOnce(module.file());
+                backupEverySave(module.file(), Instant.now());
             }
             root.persist().run();
             if (module != null && module.reload() != null) {
@@ -2054,6 +2369,37 @@ public final class ConfigEditor {
         Path bak = normal.resolveSibling(normal.getFileName().toString() + ".bak");
         Files.copy(normal, bak, StandardCopyOption.REPLACE_EXISTING);
         BACKED_THIS_SESSION.add(normal);
+    }
+
+    /**
+     * Copy the json before every save into a {@code backups} folder beside it, stamped with the
+     * save time, and keep only the newest {@link #BACKUPS_KEPT} copies of that file.
+     *
+     * @return true when a copy was written (false when the file does not exist yet)
+     */
+    static boolean backupEverySave(Path file, Instant when) throws IOException {
+        if (file == null || !Files.isRegularFile(file)) {
+            return false;
+        }
+        Path normal = file.toAbsolutePath().normalize();
+        Path dir = normal.resolveSibling("backups");
+        Files.createDirectories(dir);
+        String name = normal.getFileName().toString();
+        Files.copy(normal, dir.resolve(name + "." + BACKUP_STAMP.format(when) + ".bak"),
+                StandardCopyOption.REPLACE_EXISTING);
+        List<Path> copies = new ArrayList<>();
+        try (var listing = Files.list(dir)) {
+            listing.filter(p -> {
+                String n = p.getFileName().toString();
+                return n.startsWith(name + ".") && n.endsWith(".bak");
+            }).forEach(copies::add);
+        }
+        // The stamp sorts by time, so the oldest names come first.
+        copies.sort(Comparator.comparing(p -> p.getFileName().toString()));
+        for (int i = 0; i < copies.size() - BACKUPS_KEPT; i++) {
+            Files.deleteIfExists(copies.get(i));
+        }
+        return true;
     }
 
     private static void writeAudit(String actor, String module, String path, String before, String after) {
