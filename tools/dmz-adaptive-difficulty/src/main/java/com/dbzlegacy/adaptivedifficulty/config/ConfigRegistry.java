@@ -206,7 +206,8 @@ public final class ConfigRegistry {
     }
 
     private static boolean aiField(String name) {
-        return "enableAdaptiveAi".equals(name) || "adaptiveAiMinUnlockTier".equals(name);
+        return "enableAdaptiveAi".equals(name) || name.startsWith("adaptiveAi")
+                || "enableDodgeCounter".equals(name) || "dodgeCounterTier".equals(name);
     }
 
     private static boolean bossField(String name) {

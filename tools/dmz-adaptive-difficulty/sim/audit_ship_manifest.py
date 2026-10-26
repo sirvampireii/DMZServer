@@ -870,6 +870,89 @@ def main() -> int:
     check("menu-first: spectate confirmation is returned, not chatted",
           "DmzRewards.msg" not in gf_start and '"Watching "' in gf_start)
 
+    print("\n--- § kit duels + dodge counter ---")
+    kd_ai = read(SRC / "ai/AdaptiveAiSystem.java")
+    kd_evo = read(SRC / "evolution/EnemyEvolution.java")
+    kd_dc = read(SRC / "ai/DodgeCounter.java")
+    kd_ev = read(SRC / "event/DifficultyEvents.java")
+    kd_cfg = read(SRC / "config/DifficultyConfig.java")
+    kd_pack = kd_ai.split("static int packSize(DifficultyTier tier) {", 1)[-1].split("\n    }\n", 1)[0]
+    kd_hook = kd_ev.split("public void onAttackDodgeCounter(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest kit-duels-dodge-counter row", "kit-duels-dodge-counter" in manifest)
+    check("config defaults: pack cap 4, pack off Mythic, kit-fighter Mythic, counter on at Master",
+          "public int adaptiveAiPackCallMaxAllies = 4;" in kd_cfg
+          and 'public String adaptiveAiPackCallOffTier = "MYTHIC";' in kd_cfg
+          and 'public String adaptiveAiKitFighterTier = "MYTHIC";' in kd_cfg
+          and "public boolean enableDodgeCounter = true;" in kd_cfg
+          and 'public String dodgeCounterTier = "MASTER";' in kd_cfg)
+    check("pack calls shrink with tier and stop at the off tier; frenzy follows the same cap",
+          "return 0;" in kd_pack and "Math.min(Math.max(0, cfg.adaptiveAiPackCallMaxAllies), basePackSize(tier))" in kd_pack
+          and "if (pack > 0) {" in kd_ai and "frenzyAllies(mob, level, Math.min(10.0, scan), packSize(tier));" in kd_ai
+          and "if (maxAllies <= 0) {" in kd_ai)
+    check("duel kit: one action per beat, cycled by range, kitCooldownScale cadence",
+          "duelKit(mob, target, tier, tag, age, dist);" in kd_evo
+          and 'DUEL_CLOSE = {"combo", "slam", "dodge", "retreat"}' in kd_evo
+          and 'DUEL_MID = {"blast", "dash", "dodge"}' in kd_evo
+          and 'DUEL_FAR = {"laser", "wave", "leap"}' in kd_evo
+          and 'age - tag.m_128454_("dmz_ad_kit_act") < beat' in kd_evo
+          and "long beat = kitCd(" in kd_evo and "dmz_ad_duel_reengage" in kd_evo)
+    check("dodge counter: HIGH priority (before Iron's NORMAL), scaled attacker at counter tier, Evasion + Shroud only",
+          "@SubscribeEvent(priority = EventPriority.HIGH)\n    public void onAttackDodgeCounter(" in kd_ev
+          and "DodgeCounter.onAttack(event);" in kd_hook
+          and "MobScaling.TAG_SCALED" in kd_dc and "tier.ordinalPower() < counter.ordinalPower()" in kd_dc
+          and '"irons_spellbooks", "evasion"' in kd_dc and '"irons_spellbooks", "abyssal_shroud"' in kd_dc
+          and "shield" not in kd_dc.lower().replace("never touches shield", "")
+          and "scapegoat" not in kd_dc.lower().replace("or scapegoat", "")
+          and "m_19564_" not in kd_dc  # never reads/edits Evasion's amplifier (hit budget)
+          and "ironsspellbooks" not in kd_dc and "simplymore" not in kd_dc)
+
+    # Mirrors of packSize / duelKit / DodgeCounter.
+    order = ["NONE", "AWAKENED", "ENHANCED", "ELITE", "ADVANCED", "MASTER", "LEGENDARY", "GOD", "DIVINE",
+             "IMPOSSIBLE", "TRANSCENDENT", "ETERNAL", "MYTHIC", "OMEGA", "ABSOLUTE", "APEX", "ZENITH"]
+    P = {n: i for i, n in enumerate(order)}
+
+    def _base(t):
+        b = 2
+        for name, v in (("GOD", 4), ("IMPOSSIBLE", 6), ("OMEGA", 8), ("ZENITH", 10)):
+            if P[t] >= P[name]:
+                b = v
+        return b
+
+    def _pack(t, cap=4, off="MYTHIC"):
+        return 0 if P[t] >= P[off] else min(cap, _base(t))
+
+    check("sim: pack sizes Master 2, God 4, Impossible 4 (was 6), Eternal 4, Mythic+ 0 (was 6-10)",
+          [_pack(t) for t in ("MASTER", "GOD", "IMPOSSIBLE", "ETERNAL", "MYTHIC", "OMEGA", "ZENITH")]
+          == [2, 4, 4, 4, 0, 0, 0])
+
+    def _rotation(band, beats, cds=None):
+        step, out = 0, []
+        for _ in range(beats):
+            for i in range(len(band)):
+                act = band[(step + i) % len(band)]
+                if not cds or act not in cds:
+                    out.append(act)
+                    step = (step + i + 1) % len(band)
+                    break
+        return out
+
+    check("sim: close-range duel cycles combo, slam, dodge, retreat (no repeats in a cycle)",
+          _rotation(["combo", "slam", "dodge", "retreat"], 4) == ["combo", "slam", "dodge", "retreat"])
+    check("sim: an action on cooldown is skipped, the next one fires",
+          _rotation(["blast", "dash", "dodge"], 2, cds={"blast"}) == ["dash", "dodge"])
+
+    def _strip(attacker_scaled, attacker_tier, counter="MASTER", enabled=True, irons=True, effects=("evasion",)):
+        if not enabled or not irons or not attacker_scaled or not effects:
+            return ()
+        return effects if P[attacker_tier] >= P[counter] else ()
+
+    check("sim: Master+ scaled hit strips Evasion and Shroud; a re-cast is stripped again next hit",
+          _strip(True, "MASTER", effects=("evasion", "abyssal_shroud")) == ("evasion", "abyssal_shroud")
+          and _strip(True, "OMEGA", effects=("abyssal_shroud",)) == ("abyssal_shroud",))
+    check("sim: low-tier or unscaled hits, counter off, or Iron's absent: nothing stripped",
+          _strip(True, "ADVANCED") == () and _strip(False, "ZENITH") == ()
+          and _strip(True, "ZENITH", enabled=False) == () and _strip(True, "ZENITH", irons=False) == ())
+
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
     title_prog = read(SRC / "title/TitleProgress.java")

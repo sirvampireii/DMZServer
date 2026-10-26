@@ -374,7 +374,11 @@ public final class EnemyEvolution {
         long slamEvery = kitCd(mob, power >= DifficultyTier.IMPOSSIBLE.ordinalPower() ? 30
                 : power >= DifficultyTier.DIVINE.ordinalPower() ? 42 : 58);
         boolean close = dist < 3.8;
-        if (close && power >= DifficultyTier.ADVANCED.ordinalPower()
+        DifficultyTier duelTier = DifficultyTier.parse(
+                DifficultyConfig.get().adaptiveAiKitFighterTier, DifficultyTier.MYTHIC);
+        if (power >= duelTier.ordinalPower()) {
+            duelKit(mob, target, tier, tag, age, dist);
+        } else if (close && power >= DifficultyTier.ADVANCED.ordinalPower()
                 && age - tag.m_128454_("dmz_ad_slam") > slamEvery) {
             tag.m_128356_("dmz_ad_slam", age);
             markKitAct(tag, age);
@@ -415,6 +419,128 @@ public final class EnemyEvolution {
             mob.m_7292_(new MobEffectInstance(MobEffects.f_19600_, 40,
                     power >= DifficultyTier.APEX.ordinalPower() ? 2 : 1, false, false));
         }
+    }
+
+    // ── Duel kit-fighter (high tiers): one action per beat, cycled by range ──
+
+    private static final String[] DUEL_CLOSE = {"combo", "slam", "dodge", "retreat"};
+    private static final String[] DUEL_MID = {"blast", "dash", "dodge"};
+    private static final String[] DUEL_FAR = {"laser", "wave", "leap"};
+
+    /**
+     * Saga-style duel: instead of winning by numbers, the mob commits to ONE action per beat and
+     * cycles through the actions that fit its range - close: melee combo, slam, dodge,
+     * retreat-then-reengage; mid: ki blast, dash, dodge; far: ki laser, ki wave, leap. Each
+     * action keeps its own cooldown; all cadence follows kitCooldownScale via {@link #kitCd}.
+     */
+    static void duelKit(Mob mob, LivingEntity target, DifficultyTier tier, CompoundTag tag, long age, double dist) {
+        int power = tier.ordinalPower();
+        long beat = kitCd(mob, power >= DifficultyTier.OMEGA.ordinalPower() ? 14 : 18);
+        if (age - tag.m_128454_("dmz_ad_kit_act") < beat) {
+            return;
+        }
+        // Retreat-reengage: the step back is followed by a dash straight back in.
+        long reengageAt = tag.m_128454_("dmz_ad_duel_reengage");
+        if (reengageAt > 0L && age >= reengageAt) {
+            tag.m_128473_("dmz_ad_duel_reengage");
+            pushToward(mob, target, power >= DifficultyTier.OMEGA.ordinalPower() ? 1.5 : 1.3, 0.14);
+            markKitAct(tag, age);
+            return;
+        }
+        String[] band;
+        String key;
+        if (dist < 3.8) {
+            band = DUEL_CLOSE;
+            key = "dmz_ad_duel_close";
+        } else if (dist < 10.0) {
+            band = DUEL_MID;
+            key = "dmz_ad_duel_mid";
+        } else if (dist < 24.0) {
+            band = DUEL_FAR;
+            key = "dmz_ad_duel_far";
+        } else {
+            return;
+        }
+        int step = Math.floorMod(tag.m_128451_(key), band.length);
+        for (int i = 0; i < band.length; i++) {
+            int idx = (step + i) % band.length;
+            if (duelAction(mob, target, tier, band[idx], tag, age)) {
+                tag.m_128405_(key, (idx + 1) % band.length);
+                markKitAct(tag, age);
+                return;
+            }
+        }
+    }
+
+    private static boolean duelAction(
+            Mob mob, LivingEntity target, DifficultyTier tier, String act, CompoundTag tag, long age) {
+        int power = tier.ordinalPower();
+        String cdKey = "dmz_ad_duel_cd_" + act;
+        long cd = kitCd(mob, switch (act) {
+            case "combo" -> 20;
+            case "slam" -> 40;
+            case "dodge" -> 30;
+            case "retreat" -> 70;
+            case "blast" -> 30;
+            case "dash" -> 24;
+            case "laser" -> 50;
+            case "wave" -> 90;
+            default -> 30; // leap
+        });
+        if (age - tag.m_128454_(cdKey) < cd) {
+            return false;
+        }
+        boolean done;
+        switch (act) {
+            case "combo" -> {
+                double ratio = power >= DifficultyTier.OMEGA.ordinalPower() ? 0.72 : 0.60;
+                paintedMeleeHit(mob, target, (float) ratio);
+                pushToward(mob, target, 0.35, 0.05); // stay on them for the next beat
+                done = true;
+            }
+            case "slam" -> {
+                groundSlam(mob, target, 3.2 + Math.min(2.2, power * 0.12),
+                        power >= DifficultyTier.OMEGA.ordinalPower() ? 2 : 1);
+                done = true;
+            }
+            case "dodge" -> {
+                sidestep(mob, target, power >= DifficultyTier.OMEGA.ordinalPower() ? 0.95 : 0.8);
+                done = true;
+            }
+            case "retreat" -> {
+                pushAway(mob, target, 1.0);
+                tag.m_128356_("dmz_ad_duel_reengage", age + kitCd(mob, 16));
+                done = true;
+            }
+            case "blast" -> done = KiAttackHelper.fireKiBlast(
+                    mob, target, tier, power >= DifficultyTier.GOD.ordinalPower());
+            case "dash" -> {
+                pushToward(mob, target, power >= DifficultyTier.OMEGA.ordinalPower() ? 1.45 : 1.25, 0.14);
+                done = true;
+            }
+            case "laser" -> done = KiAttackHelper.fireKiLaser(mob, target, tier);
+            case "wave" -> done = KiAttackHelper.fireKiBeam(mob, target, tier, false);
+            default -> {
+                pushToward(mob, target, 1.35 + Math.min(0.7, power * 0.045), 0.62);
+                done = true;
+            }
+        }
+        if (done) {
+            tag.m_128356_(cdKey, age);
+        }
+        return done;
+    }
+
+    /** Quick lateral step, alternating sides, so the duel mob is not a straight-line target. */
+    private static void sidestep(Mob mob, LivingEntity target, double force) {
+        double dx = target.m_20185_() - mob.m_20185_();
+        double dz = target.m_20189_() - mob.m_20189_();
+        double len = Math.sqrt(dx * dx + dz * dz);
+        if (len < 0.001) {
+            return;
+        }
+        double side = ThreadLocalRandom.current().nextBoolean() ? 1.0 : -1.0;
+        mob.m_5997_((-dz / len) * force * side, 0.12, (dx / len) * force * side);
     }
 
     // ── Skeletons: Ki only (blast / laser / beam / charge) ────────────────

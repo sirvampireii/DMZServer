@@ -73,6 +73,18 @@ public enum DifficultyTier {
         return best;
     }
 
+    /** Tier from a config name ("MYTHIC", "mythic"); {@code fallback} when blank or unknown. */
+    public static DifficultyTier parse(String raw, DifficultyTier fallback) {
+        if (raw == null || raw.isBlank()) {
+            return fallback;
+        }
+        try {
+            return valueOf(raw.trim().toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return fallback;
+        }
+    }
+
     public int ordinalPower() {
         return ordinal();
     }

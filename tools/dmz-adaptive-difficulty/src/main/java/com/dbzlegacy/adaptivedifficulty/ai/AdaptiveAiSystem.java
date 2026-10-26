@@ -166,7 +166,10 @@ public final class AdaptiveAiSystem {
 
         // Master+: rare pack call via combat-index peers (no world scan)
         if (tier.ordinalPower() >= DifficultyTier.MASTER.ordinalPower()) {
-            coordinate(mob, level, Math.min(12.0, scan), packSize(tier));
+            int pack = packSize(tier);
+            if (pack > 0) {
+                coordinate(mob, level, Math.min(12.0, scan), pack);
+            }
         }
 
         // Legendary+: anti-flight (moved later so early tiers stay grounded-melee)
@@ -209,7 +212,7 @@ public final class AdaptiveAiSystem {
 
         // Omega+: rare frenzy — buff nearby scaled allies
         if (tier.ordinalPower() >= DifficultyTier.OMEGA.ordinalPower() && mob.f_19797_ % 200 == 0) {
-            frenzyAllies(mob, level, Math.min(10.0, scan));
+            frenzyAllies(mob, level, Math.min(10.0, scan), packSize(tier));
         }
 
         // Absolute+: wither touch while in melee. One mob owns it.
@@ -261,7 +264,7 @@ public final class AdaptiveAiSystem {
         }
     }
 
-    private static DifficultyTier resolveTier(LivingEntity entity, long difficulty) {
+    static DifficultyTier resolveTier(LivingEntity entity, long difficulty) {
         int unlockTier = 0;
         if (entity != null) {
             CompoundTag tag = PersistentDataAccess.get(entity);
@@ -282,7 +285,21 @@ public final class AdaptiveAiSystem {
         return 16.0 + Math.min(16.0, Math.max(0, tier.ordinalPower() - DifficultyTier.ENHANCED.ordinalPower()) * 1.2);
     }
 
-    private static int packSize(DifficultyTier tier) {
+    /**
+     * Allies one pack call (or frenzy) may pull in. High tiers fight as duels, so the curve goes
+     * down: capped at {@code adaptiveAiPackCallMaxAllies} (default 4) from Master up, and 0 from
+     * {@code adaptiveAiPackCallOffTier} (default Mythic) up.
+     */
+    static int packSize(DifficultyTier tier) {
+        DifficultyConfig cfg = DifficultyConfig.get();
+        DifficultyTier off = DifficultyTier.parse(cfg.adaptiveAiPackCallOffTier, DifficultyTier.MYTHIC);
+        if (tier.ordinalPower() >= off.ordinalPower()) {
+            return 0;
+        }
+        return Math.min(Math.max(0, cfg.adaptiveAiPackCallMaxAllies), basePackSize(tier));
+    }
+
+    private static int basePackSize(DifficultyTier tier) {
         int base = 2;
         if (tier.ordinalPower() >= DifficultyTier.GOD.ordinalPower()) {
             base = 4;
@@ -477,14 +494,17 @@ public final class AdaptiveAiSystem {
         HostileMobs.clearCivilWarAggro(mob);
     }
 
-    private static void frenzyAllies(Mob mob, ServerLevel level, double radius) {
+    private static void frenzyAllies(Mob mob, ServerLevel level, double radius, int maxAllies) {
         AtomicInteger buffed = new AtomicInteger();
         // Self-buff always.
         mob.m_7292_(new MobEffectInstance(MobEffects.f_19596_, 80, 1, false, false));
         mob.m_7292_(new MobEffectInstance(MobEffects.f_19600_, 80, 0, false, false));
         buffed.incrementAndGet();
-        CombatIndex.forEachNear(mob, Math.min(10.0, radius), 12, ally -> {
-            if (buffed.get() >= 8) {
+        if (maxAllies <= 0) {
+            return; // duel tiers: the frenzy buffs only this mob
+        }
+        CombatIndex.forEachNear(mob, Math.min(10.0, radius), maxAllies + 4, ally -> {
+            if (buffed.get() >= 1 + maxAllies) {
                 return;
             }
             if (!PersistentDataAccess.flag(ally, MobScaling.TAG_SCALED)) {

@@ -666,6 +666,21 @@ public final class DifficultyEvents {
     }
 
     /**
+     * High-tier dodge counter: HIGH runs before Iron's Spells' NORMAL dodge handler on the same
+     * event, so the stripped Evasion / Abyssal Shroud cannot dodge this hit.
+     */
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public void onAttackDodgeCounter(LivingAttackEvent event) {
+        if (SystemGate.isDisabled()) {
+            return;
+        }
+        try {
+            com.dbzlegacy.adaptivedifficulty.ai.DodgeCounter.onAttack(event);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /**
      * Concept §17 — one server-pulse scheduler instead of LivingTick on every entity.
      */
     @SubscribeEvent

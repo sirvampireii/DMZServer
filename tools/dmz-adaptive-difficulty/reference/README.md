@@ -183,6 +183,13 @@ string), and `ConfigFieldHelp` (its help line in the text block). The other 22 a
 javap shows only that call, those strings, and the shifted offsets after them. The other 24
 are unchanged.
 
+## Re-baseline (2026-10-26, 4.6.250 kit duels + dodge counter)
+
+Three classes re-extracted: `AdaptiveDifficultyMod` (version constant only), `ConfigRegistry`
+(`aiField` now groups every `adaptiveAi*` field plus `enableDodgeCounter` / `dodgeCounterTier` -
+javap shows only that method changed), and `ConfigFieldHelp` (five new help lines). The other 22
+are unchanged.
+
 ## Refresh the reference set
 
 ```bash

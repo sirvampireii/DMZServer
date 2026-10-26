@@ -191,6 +191,16 @@ public final class DifficultyConfig {
      */
     public Boolean rarityChanceMigratedV3 = Boolean.FALSE;
     public boolean enableAdaptiveAi = true;
+    /** Most allies one pack call pulls in, from Master tier up (lower tiers keep 2). */
+    public int adaptiveAiPackCallMaxAllies = 4;
+    /** From this mob tier up there is no pack call and frenzy buffs only the mob itself. */
+    public String adaptiveAiPackCallOffTier = "MYTHIC";
+    /** From this mob tier up, melee kit mobs fight as duel kit-fighters (one action per beat). */
+    public String adaptiveAiKitFighterTier = "MYTHIC";
+    /** High-tier mobs strip Iron's Spells Evasion / Abyssal Shroud from players they hit. */
+    public boolean enableDodgeCounter = true;
+    /** Lowest mob tier whose hits strip those dodge effects. */
+    public String dodgeCounterTier = "MASTER";
     public boolean enableEnemyEvolution = true;
     public boolean enableBossScaling = true;
 
@@ -1684,6 +1694,13 @@ public final class DifficultyConfig {
         cfg.witherSummonNetheriteCost = Math.max(1, Math.min(64, cfg.witherSummonNetheriteCost));
         cfg.wardenSummonNetheriteCost = Math.max(1, Math.min(64, cfg.wardenSummonNetheriteCost));
         cfg.summonLootBonusPerTierPercent = Math.max(0, Math.min(100, cfg.summonLootBonusPerTierPercent));
+        cfg.adaptiveAiPackCallMaxAllies = Math.max(0, Math.min(10, cfg.adaptiveAiPackCallMaxAllies));
+        cfg.adaptiveAiPackCallOffTier = com.dbzlegacy.adaptivedifficulty.tier.DifficultyTier
+                .parse(cfg.adaptiveAiPackCallOffTier, com.dbzlegacy.adaptivedifficulty.tier.DifficultyTier.MYTHIC).name();
+        cfg.adaptiveAiKitFighterTier = com.dbzlegacy.adaptivedifficulty.tier.DifficultyTier
+                .parse(cfg.adaptiveAiKitFighterTier, com.dbzlegacy.adaptivedifficulty.tier.DifficultyTier.MYTHIC).name();
+        cfg.dodgeCounterTier = com.dbzlegacy.adaptivedifficulty.tier.DifficultyTier
+                .parse(cfg.dodgeCounterTier, com.dbzlegacy.adaptivedifficulty.tier.DifficultyTier.MASTER).name();
         cfg.lmTipIntervalSeconds = Math.max(60, Math.min(7200, cfg.lmTipIntervalSeconds));
         cfg.lmTipNewPlayerIntervalSeconds = Math.max(45, Math.min(3600, cfg.lmTipNewPlayerIntervalSeconds));
         cfg.lmTipLoginDelaySeconds = Math.max(15, Math.min(600, cfg.lmTipLoginDelaySeconds));
