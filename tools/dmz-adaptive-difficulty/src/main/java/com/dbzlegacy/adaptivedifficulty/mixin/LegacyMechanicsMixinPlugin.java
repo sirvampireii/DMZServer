@@ -50,6 +50,9 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName != null && mixinClassName.endsWith("NoeaTravelSafetyCorpseFixMixin")) {
             return travelSafetyPresent();
         }
+        if (mixinClassName != null && mixinClassName.endsWith("VipersCallUnendingVenomMixin")) {
+            return vipersCallPresent();
+        }
         if (mixinClassName != null && mixinClassName.endsWith("DmzultraNemesisSpawnGateMixin")) {
             return dedicatedServer() && dmzultraRivalPresent();
         }
@@ -79,6 +82,20 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
                     false,
                     LegacyMechanicsMixinPlugin.class.getClassLoader());
             return true;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Simply More's Viper's Call. Look the class file up (it is the mixin target, so it must not
+     * be loaded here). Absent on a server without Simply More.
+     */
+    private static boolean vipersCallPresent() {
+        try {
+            ClassLoader loader = LegacyMechanicsMixinPlugin.class.getClassLoader();
+            return loader != null && loader.getResource(
+                    "net/rosemarythyme/simplymore/item/uniques/VipersCallItem.class") != null;
         } catch (Throwable ignored) {
             return false;
         }

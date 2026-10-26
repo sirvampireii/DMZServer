@@ -492,6 +492,11 @@ merge_onto_base_jar() {
       cp -a "$OUT/com/dbzlegacy/adaptivedifficulty/mixin/dmzultra/." \
         "$merge/com/dbzlegacy/adaptivedifficulty/mixin/dmzultra/"
     fi
+    if [[ -d "$OUT/com/dbzlegacy/adaptivedifficulty/mixin/simplymore" ]]; then
+      mkdir -p "$merge/com/dbzlegacy/adaptivedifficulty/mixin/simplymore"
+      cp -a "$OUT/com/dbzlegacy/adaptivedifficulty/mixin/simplymore/." \
+        "$merge/com/dbzlegacy/adaptivedifficulty/mixin/simplymore/"
+    fi
     # Ordinary classes cannot live in the mixin package. The server classloader
     # does not resolve them, so the Majin wipe never runs.
     mkdir -p "$merge/com/dbzlegacy/adaptivedifficulty/noea"

@@ -953,6 +953,52 @@ def main() -> int:
           _strip(True, "ADVANCED") == () and _strip(False, "ZENITH") == ()
           and _strip(True, "ZENITH", enabled=False) == () and _strip(True, "ZENITH", irons=False) == ())
 
+    print("\n--- § vipers call ---")
+    vc_mix = read(SRC / "mixin/simplymore/VipersCallUnendingVenomMixin.java")
+    vc_cap = read(SRC / "progression/combat/VipersCallCloudCap.java")
+    vc_plugin = read(SRC / "mixin/LegacyMechanicsMixinPlugin.java")
+    vc_json = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/resources/legacymechanics.mixins.json")
+    vc_ev = read(SRC / "event/DifficultyEvents.java")
+    vc_build = read(ROOT / "tools/dmz-adaptive-difficulty/build.sh")
+    vc_join = vc_ev.split("public void onLivingJoin(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest vipers-call-balance row", "vipers-call-balance" in manifest)
+    check("Unending Venom off: string-targeted mixin redirects the held re-add to a no-op",
+          '@Mixin(targets = "net.rosemarythyme.simplymore.item.uniques.VipersCallItem", remap = false)' in vc_mix
+          and 'method = "m_6883_"' in vc_mix
+          and "Lnet/minecraft/world/entity/player/Player;m_7292_(Lnet/minecraft/world/effect/MobEffectInstance;)Z" in vc_mix
+          and "return false;" in vc_mix and "private boolean lm$noUnendingVenom(" in vc_mix and "require = 0)" in vc_mix
+          and "import net.rosemarythyme" not in vc_mix)
+    check("mixin applies only with Simply More present (class-file lookup, no early load); registered and packaged",
+          'endsWith("VipersCallUnendingVenomMixin")' in vc_plugin and "return vipersCallPresent();" in vc_plugin
+          and '"net/rosemarythyme/simplymore/item/uniques/VipersCallItem.class"' in vc_plugin
+          and '"simplymore.VipersCallUnendingVenomMixin"' in vc_json
+          and "mixin/simplymore/." in vc_build)
+    check("right-click cloud capped at 200 ticks on join, matched by class name; damage/poison/blacklist untouched",
+          "MAX_TICKS = 200;" in vc_cap and "cloud.m_19734_(MAX_TICKS);" in vc_cap
+          and '"net.rosemarythyme.simplymore.entity.VipersCallProjectileAreaEffectCloudEntity"' in vc_cap
+          and "VipersCallCloudCap.onJoin(event.getEntity());" in vc_join
+          and "m_19738_" not in vc_cap and "m_19732_" not in vc_cap and "addEffect" not in vc_cap
+          and "VipersCallBlacklist" not in vc_cap + vc_mix)
+
+    def _cloud(duration):
+        return min(duration, 200)
+
+    check("sim: Simply More's 360-tick cloud becomes 200 (10 s); a shorter cloud is left alone",
+          _cloud(360) == 200 and _cloud(120) == 120)
+
+    def _held(effect_ticks, ticks_held, unending=False):
+        t = effect_ticks
+        for _ in range(ticks_held):
+            t -= 1
+            if unending and t < 25:
+                t = 25
+            if t <= 0:
+                return 0
+        return t
+
+    check("sim: holding Viper's Call no longer pins an effect (was pinned at 25 forever)",
+          _held(100, 400, unending=True) == 25 and _held(100, 400, unending=False) == 0)
+
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
     title_prog = read(SRC / "title/TitleProgress.java")

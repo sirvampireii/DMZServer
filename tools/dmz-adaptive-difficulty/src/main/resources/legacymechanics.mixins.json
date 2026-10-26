@@ -28,6 +28,7 @@
     "noea.NoeaTravelSafetyCorpseFixMixin",
     "noea.HakaiDestroyerGateMixin",
     "dmzultra.DmzultraNemesisSpawnGateMixin",
+    "simplymore.VipersCallUnendingVenomMixin",
     "FusionBonusReadGateMixin",
     "StrikeTechniqueReadGateMixin",
     "FusionUnfuseBonusClearMixin",

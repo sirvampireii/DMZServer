@@ -190,6 +190,11 @@ Three classes re-extracted: `AdaptiveDifficultyMod` (version constant only), `Co
 javap shows only that method changed), and `ConfigFieldHelp` (five new help lines). The other 22
 are unchanged.
 
+## Re-baseline (2026-10-26, 4.6.251 Viper's Call balance)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
+Viper's Call changes live outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

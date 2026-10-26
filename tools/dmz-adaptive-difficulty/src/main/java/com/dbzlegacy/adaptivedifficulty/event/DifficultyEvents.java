@@ -561,6 +561,11 @@ public final class DifficultyEvents {
         if (SystemGate.isDisabled() || event.getLevel().m_5776_()) {
             return;
         }
+        // Viper's Call right-click venom cloud: 10 seconds at most.
+        try {
+            com.dbzlegacy.adaptivedifficulty.progression.combat.VipersCallCloudCap.onJoin(event.getEntity());
+        } catch (Throwable ignored) {
+        }
         // Block vanilla / natural End Dragon when LM owns End Strength (GUI/staff only).
         try {
             if (com.dbzlegacy.adaptivedifficulty.progression.end.EndDimensionStrength
