@@ -12,7 +12,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 /**
  * {@code /terminal} — Lightman's Currency network terminal.
- * Donators ({@code legacymechanics.donator}) or players with the retired CMI node
+ * Terminal node holders ({@code legacymechanics.donator.terminal}) or players with the retired CMI node
  * ({@code cmi.customalias.terminal}).
  */
 public final class TerminalCommands {
@@ -21,12 +21,12 @@ public final class TerminalCommands {
 
     private TerminalCommands() {}
 
-    /** Donators, or anyone granted {@link #ALIAS_PERMISSION}. */
+    /** Terminal node holders, or anyone granted {@link #ALIAS_PERMISSION}. */
     public static boolean allowed(ServerPlayer player) {
         if (player == null) {
             return false;
         }
-        return StaffAccess.hasDonatorPermission(player)
+        return StaffAccess.hasTerminalPermission(player)
                 || StaffAccess.hasPermission(player, ALIAS_PERMISSION);
     }
 
@@ -43,7 +43,7 @@ public final class TerminalCommands {
         AdaptiveDifficultyMod.LOGGER.info("[{}] registered /terminal", AdaptiveDifficultyMod.MOD_ID);
     }
 
-    /** Donators or players with {@link #ALIAS_PERMISSION}. Console cannot open the menu. */
+    /** Terminal node holders or players with {@link #ALIAS_PERMISSION}. Console cannot open the menu. */
     static boolean mayOpen(CommandSourceStack source) {
         if (source == null || !CommandAccess.isPlayerSlashUser(source)) {
             return false;

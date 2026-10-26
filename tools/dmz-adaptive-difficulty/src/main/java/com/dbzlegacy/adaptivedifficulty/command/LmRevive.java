@@ -17,8 +17,8 @@ import net.minecraft.server.level.ServerPlayer;
 /**
  * {@code /lm revive [player]} — revive through DMZ's own code without op or a dmzrevive node.
  *
- * <p>No argument revives the executor and is a donator command (the donator node only, so the
- * Skill Check feature flags never block it; staff are exempt). {@code <player>} needs staff
+ * <p>No argument revives the executor: staff, or the self-revive node alone (a higher donator
+ * rank; the base donator node is not enough, and Skill Check flags never matter). {@code <player>} needs staff
  * (op 2, Bukkit op, or the configured admin node) or the revive-others node.
  *
  * <p>The revive itself is DMZ's private {@code ReviveCommand.revivePlayers(source, targets)},
@@ -33,7 +33,7 @@ final class LmRevive {
     private static final String REVIVE_METHOD = "revivePlayers";
 
     private static final String SELF_DONATOR =
-            UltraStyle.dangerLine("Reviving yourself is a donator perk. Ask staff about donator access.");
+            UltraStyle.dangerLine("Reviving yourself is a perk of higher donator ranks. Ask staff about upgrading your rank.");
 
     private static final String UNAVAILABLE =
             UltraStyle.dangerLine("Revive is not available right now. Staff should check the server setup.");
@@ -53,14 +53,14 @@ final class LmRevive {
                                 ctx.getSource(), StringArgumentType.getString(ctx, "player"))));
     }
 
-    /** {@code /lm revive}: donators (or staff) revive themselves. */
+    /** {@code /lm revive}: self-revive node holders (or staff) revive themselves. */
     private static int reviveSelf(CommandSourceStack source) {
         ServerPlayer player = source.m_230896_();
         if (player == null) {
             source.m_81352_(Component.m_237113_(LmCommandMessages.PLAYERS_ONLY));
             return 0;
         }
-        if (!StaffAccess.hasDonatorPermission(player) && !StaffAccess.isStaff(player)) {
+        if (!StaffAccess.hasSelfRevive(player) && !StaffAccess.isStaff(player)) {
             player.m_213846_(Component.m_237113_(SELF_DONATOR));
             return 0;
         }

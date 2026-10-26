@@ -1651,7 +1651,7 @@ public final class ForgeBridge {
             }
             Object ok = allowed.invoke(null, nms);
             if (!(ok instanceof Boolean openOk) || !openOk) {
-                return "§cTerminal is for donators, or needs the terminal permission.";
+                return "§cThe terminal is a perk of higher donator ranks. Ask staff about upgrading your rank.";
             }
             Class<?> api = Class.forName(
                     "com.dbzlegacy.adaptivedifficulty.currency.LightmanTerminal",

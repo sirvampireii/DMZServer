@@ -11,8 +11,8 @@ import net.minecraft.server.level.ServerPlayer;
 import java.util.UUID;
 
 /**
- * Shared access checks: staff (op level 2 / {@code difficulty.admin}), donators (one node for
- * Skill Check, self revive, and the terminal), and revive-others access.
+ * Shared access checks: staff (op level 2 / {@code difficulty.admin}), donators (Skill Check),
+ * the donator sub-nodes for self revive and the terminal, and revive-others access.
  */
 public final class StaffAccess {
     private StaffAccess() {}
@@ -89,12 +89,29 @@ public final class StaffAccess {
         return node == null || node.isBlank() ? "legacymechanics.donator" : node.trim();
     }
 
-    /**
-     * Donator node only. Does not require the Skill Check feature flags, so donator features
-     * (self revive, the terminal) stay available when that service is off.
-     */
+    /** Donator node only, without the Skill Check feature flags. */
     public static boolean hasDonatorPermission(ServerPlayer player) {
         return player != null && hasBukkitPermission(player, donatorNode());
+    }
+
+    /** Self revive node (default {@code legacymechanics.donator.selfrevive}); the base donator node is not enough. */
+    public static String selfReviveNode() {
+        String node = DifficultyConfig.get().selfRevivePermission;
+        return node == null || node.isBlank() ? "legacymechanics.donator.selfrevive" : node.trim();
+    }
+
+    public static boolean hasSelfRevive(ServerPlayer player) {
+        return player != null && hasBukkitPermission(player, selfReviveNode());
+    }
+
+    /** Terminal node (default {@code legacymechanics.donator.terminal}); the base donator node is not enough. */
+    public static String terminalNode() {
+        String node = DifficultyConfig.get().terminalPermission;
+        return node == null || node.isBlank() ? "legacymechanics.donator.terminal" : node.trim();
+    }
+
+    public static boolean hasTerminalPermission(ServerPlayer player) {
+        return player != null && hasBukkitPermission(player, terminalNode());
     }
 
     /** Node for {@code /lm revive <player>} without staff (default {@code legacymechanics.revive.others}). */

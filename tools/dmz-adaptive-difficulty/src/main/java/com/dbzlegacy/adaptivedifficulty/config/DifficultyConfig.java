@@ -302,8 +302,12 @@ public final class DifficultyConfig {
      * Needs {@link #donatorPermission}; staff are not auto-granted.
      */
     public boolean enableSkillCheck = true;
-    /** LuckPerms node for donators: Skill Check, {@code /lm revive} (self), and the terminal. */
+    /** LuckPerms node for donators: Skill Check. */
     public String donatorPermission = "legacymechanics.donator";
+    /** LuckPerms node for {@code /lm revive} on yourself (higher donator ranks; staff always may). */
+    public String selfRevivePermission = "legacymechanics.donator.selfrevive";
+    /** LuckPerms node for {@code /terminal} (higher donator ranks). */
+    public String terminalPermission = "legacymechanics.donator.terminal";
     /** LuckPerms node that lets a non-staff player use {@code /lm revive <player>}. */
     public String reviveOthersPermission = "legacymechanics.revive.others";
     /**
@@ -1641,6 +1645,14 @@ public final class DifficultyConfig {
         if (cfg.donatorPermission == null || cfg.donatorPermission.isBlank()
                 || "*".equals(cfg.donatorPermission.trim())) {
             cfg.donatorPermission = "legacymechanics.donator";
+        }
+        if (cfg.selfRevivePermission == null || cfg.selfRevivePermission.isBlank()
+                || "*".equals(cfg.selfRevivePermission.trim())) {
+            cfg.selfRevivePermission = "legacymechanics.donator.selfrevive";
+        }
+        if (cfg.terminalPermission == null || cfg.terminalPermission.isBlank()
+                || "*".equals(cfg.terminalPermission.trim())) {
+            cfg.terminalPermission = "legacymechanics.donator.terminal";
         }
         if (cfg.reviveOthersPermission == null || cfg.reviveOthersPermission.isBlank()
                 || "*".equals(cfg.reviveOthersPermission.trim())) {

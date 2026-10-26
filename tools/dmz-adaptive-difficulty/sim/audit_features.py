@@ -2697,7 +2697,7 @@ def main() -> int:
     lm_help = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/command/LmCommandHelp.java")
     check("/lm revive: self form is donator node (staff exempt), <player> is staff or revive access (4.6.243)",
           "LmRevive.literal()" in mech
-          and "StaffAccess.hasDonatorPermission(player) && !StaffAccess.isStaff(player)" in lm_revive
+          and "StaffAccess.hasSelfRevive(player) && !StaffAccess.isStaff(player)" in lm_revive
           and "SKILLCHECK_DONATOR" not in lm_revive
           and "StaffAccess.denyUnlessReviveOthers(source)" in lm_revive
           and "denyUnlessStaff" not in lm_revive

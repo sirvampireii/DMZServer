@@ -142,6 +142,13 @@ Three classes re-extracted: `AdaptiveDifficultyMod` (version constant only), `Co
 progression field list - javap shows only those strings and the switch rebuilt around them), and
 `ConfigFieldHelp` (the matching help lines; the text block grew one line). The other 22 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.244 donator sub-nodes)
+
+Three classes re-extracted: `AdaptiveDifficultyMod` (version constant only), `ConfigRegistry`
+(`selfRevivePermission` and `terminalPermission` added to the progression field list - javap
+shows only those two new strings), and `ConfigFieldHelp` (their help lines plus the shorter
+`donatorPermission` line). The other 22 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

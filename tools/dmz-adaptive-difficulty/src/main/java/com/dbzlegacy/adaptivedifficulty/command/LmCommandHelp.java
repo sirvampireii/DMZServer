@@ -19,7 +19,7 @@ public final class LmCommandHelp {
                         LmStaffHelp.cmd("/lm saga", "open saga resets"),
                         LmStaffHelp.cmd("/lm open skillcheck", "donator skill check (if permitted)")),
                 new LmStaffHelp.Section("Donator",
-                        LmStaffHelp.cmd("/lm revive", "revive yourself (donators)")),
+                        LmStaffHelp.cmd("/lm revive", "revive yourself (higher donator ranks)")),
                 new LmStaffHelp.Section("Quick actions",
                         LmStaffHelp.cmd("/prestige balance", "favor, held shards, completed runs"),
                         LmStaffHelp.cmd("/prestige buy majin|mutant|godki", "buy a shop effect")),

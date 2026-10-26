@@ -350,8 +350,8 @@ def main() -> int:
           "donatorNode()" in has_sc and "cfg.enableSkillCheck || !cfg.enableSkillUnlockService" in has_sc
           and "isStaff" not in has_sc and "donatorNode()" in has_don
           and "legacymechanics.skillcheck" not in "".join(read(f) for f in SRC.rglob("*.java")))
-    check("self revive: donator node only or staff, own message (not the Skill Check one)",
-          "StaffAccess.hasDonatorPermission(player) && !StaffAccess.isStaff(player)" in revive_self
+    check("self revive: self-revive node or staff, own message (not the Skill Check one)",
+          "StaffAccess.hasSelfRevive(player) && !StaffAccess.isStaff(player)" in revive_self
           and "SELF_DONATOR" in revive_self and "SKILLCHECK_DONATOR" not in don_revive
           and "hasSkillCheck" not in don_revive)
     check("revive others: staff source or revive node; human denial without a node string",
@@ -365,16 +365,18 @@ def main() -> int:
         return default if node is None or not node.strip() or node.strip() == "*" else node.strip()
 
     DON = _norm("legacymechanics.donator", "legacymechanics.donator")
+    SELF = _norm("legacymechanics.donator.selfrevive", "legacymechanics.donator.selfrevive")
+    TERM = _norm("legacymechanics.donator.terminal", "legacymechanics.donator.terminal")
     REV = _norm("legacymechanics.revive.others", "legacymechanics.revive.others")
 
     def _skill_check(p, flags=True):
         return p is not None and flags and DON in p["perms"]
 
-    def _terminal(p):
-        return DON in p["perms"] or "cmi.customalias.terminal" in p["perms"]
+    def _terminal(p):  # no staff bypass, same as before
+        return TERM in p["perms"] or "cmi.customalias.terminal" in p["perms"]
 
     def _self_revive(p):
-        return DON in p["perms"] or p["staff"]
+        return SELF in p["perms"] or p["staff"]
 
     def _revive_others(p):
         return p is None or p["staff"] or REV in p["perms"]  # None = console (staff source)
@@ -383,27 +385,61 @@ def main() -> int:
         return {"perms": set(perms), "staff": staff}
 
     donor = _pl([DON])
+    self_only = _pl([SELF])
+    term_only = _pl([TERM])
     old_node = _pl(["legacymechanics.skillcheck"])
     staff_only = _pl(staff=True)
     reviver = _pl([REV])
     nobody = _pl()
-    check("sim: donator node passes Skill Check, self revive, and the terminal",
-          _skill_check(donor) and _self_revive(donor) and _terminal(donor))
+    check("sim: base donator node passes Skill Check only (no self revive, no terminal)",
+          _skill_check(donor) and not _self_revive(donor) and not _terminal(donor))
+    check("sim: self-revive node alone passes self revive (no donator node needed), not Skill Check or terminal",
+          _self_revive(self_only) and not _skill_check(self_only) and not _terminal(self_only))
+    check("sim: terminal node alone passes the terminal, not Skill Check or self revive",
+          _terminal(term_only) and not _skill_check(term_only) and not _self_revive(term_only))
     check("sim: old skillcheck node alone fails all three",
           not _skill_check(old_node) and not _self_revive(old_node) and not _terminal(old_node))
-    check("sim: staff without the donator node fail Skill Check, pass self revive and revive others",
-          not _skill_check(staff_only) and _self_revive(staff_only) and _revive_others(staff_only))
+    check("sim: staff without nodes fail Skill Check and terminal, pass self revive and revive others",
+          not _skill_check(staff_only) and not _terminal(staff_only)
+          and _self_revive(staff_only) and _revive_others(staff_only))
     check("sim: revive-others node only passes revive others, fails self revive and Skill Check",
           _revive_others(reviver) and not _self_revive(reviver) and not _skill_check(reviver))
     check("sim: neither node is denied revive others; console passes",
           not _revive_others(nobody) and _revive_others(None))
-    check("sim: donator self revive ignores Skill Check flags being off",
-          _self_revive(donor) and not _skill_check(donor, flags=False))
+    check("sim: self revive ignores Skill Check flags being off",
+          _self_revive(self_only) and not _skill_check(donor, flags=False))
     check("sim: blank or * donatorPermission falls back to the default",
           _norm("", "legacymechanics.donator") == "legacymechanics.donator"
           and _norm("*", "legacymechanics.donator") == "legacymechanics.donator"
           and _norm(None, "legacymechanics.donator") == "legacymechanics.donator"
           and _norm("vip.node", "legacymechanics.donator") == "vip.node")
+
+    print("\n--- § donator sub-nodes ---")
+    sub_term = read(SRC / "command/TerminalCommands.java")
+    sub_bridge = read(BUKKIT / "ForgeBridge.java")
+    check("manifest donator-subnodes row", "donator-subnodes" in manifest)
+    check("config: selfRevivePermission + terminalPermission with defaults, fallback, registry, help",
+          'public String selfRevivePermission = "legacymechanics.donator.selfrevive";' in don_cfg
+          and 'public String terminalPermission = "legacymechanics.donator.terminal";' in don_cfg
+          and 'cfg.selfRevivePermission = "legacymechanics.donator.selfrevive";' in don_cfg
+          and 'cfg.terminalPermission = "legacymechanics.donator.terminal";' in don_cfg
+          and '"*".equals(cfg.selfRevivePermission.trim())' in don_cfg
+          and '"*".equals(cfg.terminalPermission.trim())' in don_cfg
+          and '"selfRevivePermission"' in don_reg and '"terminalPermission"' in don_reg
+          and "selfRevivePermission=" in don_help and "terminalPermission=" in don_help)
+    check("self revive and terminal read their own nodes, not donatorNode()",
+          "selfReviveNode()" in don_staff.split("public static boolean hasSelfRevive(", 1)[1].split("}", 1)[0]
+          and "terminalNode()" in don_staff.split("public static boolean hasTerminalPermission(", 1)[1].split("}", 1)[0]
+          and "hasDonatorPermission" not in don_revive and "hasDonatorPermission" not in sub_term
+          and "StaffAccess.hasTerminalPermission(player)" in sub_term
+          and "StaffAccess.hasPermission(player, ALIAS_PERMISSION)" in sub_term
+          and "isStaff" not in sub_term)
+    check("denials say higher donator ranks, no raw node string",
+          "perk of higher donator ranks" in don_revive
+          and "perk of higher donator ranks" in sub_bridge
+          and "legacymechanics" not in don_revive.split("SELF_DONATOR =", 1)[1].split(";", 1)[0])
+    check("Skill Check still the base donator node; revive others unchanged",
+          "donatorNode()" in has_sc and "StaffAccess.denyUnlessReviveOthers(source) == 0" in revive_other)
 
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
@@ -630,7 +666,7 @@ def main() -> int:
     check("manifest lm-revive row", "lm-revive" in manifest)
     check("/lm revive: donator self form, staff-or-revive-access <player> form, DMZ revive called directly",
           "LmRevive.literal()" in read(SRC / "command/MechanicsCommands.java")
-          and "StaffAccess.hasDonatorPermission(player) && !StaffAccess.isStaff(player)" in lm_revive
+          and "StaffAccess.hasSelfRevive(player) && !StaffAccess.isStaff(player)" in lm_revive
           and "StaffAccess.denyUnlessReviveOthers(source)" in lm_revive
           and '"revivePlayers"' in lm_revive and "setAccessible(true)" in lm_revive
           and "Revive is not available right now" in lm_revive)
@@ -721,15 +757,14 @@ def main() -> int:
     check("/terminal is a player command",
           'playerRoot("terminal")' in terminal_cmd
           and "cmi.customalias.terminal" in terminal_cmd
-          and "hasDonatorPermission" in terminal_cmd)
+          and "hasTerminalPermission" in terminal_cmd and "hasDonatorPermission" not in terminal_cmd)
     check("bukkit /terminal is registered",
           "\n  terminal:" in terminal_yml
           and "cmi.customalias.terminal" in terminal_yml
           and "permission:" not in term_block
           and '"terminal".equals(name)' in terminal_plugin)
-    check("/terminal allows donators or the alias permission",
-          "hasDonatorPermission" in terminal_staff
-          and "donatorNode()" in terminal_staff.split("hasDonatorPermission", 1)[1].split("hasSkillCheck", 1)[0]
+    check("/terminal allows the terminal node or the alias permission",
+          "terminalNode()" in terminal_staff.split("public static boolean hasTerminalPermission(", 1)[1].split("}", 1)[0]
           and "TerminalCommands" in terminal_bridge
           and '"allowed".equals' in terminal_bridge
           and '"terminal", List.of(), null' in terminal_mohist)
