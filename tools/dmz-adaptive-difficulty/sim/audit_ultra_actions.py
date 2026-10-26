@@ -144,6 +144,25 @@ KNOWN_DO: dict[str, set[str]] = {
 }
 
 
+def _mc_width(text: str) -> int:
+    """Mirror of UltraStyle.textWidthPx (Minecraft default font advance, 1px gap included)."""
+    w = 0
+    for c in text:
+        if c in "i!,.:;|'`":
+            w += 2
+        elif c == "l":
+            w += 3
+        elif c in " It[]":
+            w += 4
+        elif c in 'fk"()*<>{}':
+            w += 5
+        elif c in "@~":
+            w += 7
+        else:
+            w += 6
+    return w
+
+
 def extract_actions(text: str) -> list[str]:
     found: list[str] = []
     for m in re.finditer(r'"(do:[^"]+|tab:[^"]+|nav:[^"]+|open:[^"]+)"', text):
@@ -815,20 +834,16 @@ def main() -> int:
     hub = (ULTRA / "UltraHubScreens.java").read_text(encoding="utf-8")
     if "do:reload" not in hub:
         errors.append("UltraHubScreens missing do:reload")
-    if ".footerBackToMain()" in hub:
-        errors.append(
-            "UltraHubScreens must not call .footerBackToMain() "
-            "(hub main has no back; Staff Admin uses footerBack to the hub)"
-        )
     admin_m = re.search(
         r"private static void openAdmin\b.*?^\s*private static void ",
         hub,
         re.S | re.M,
     )
     admin_body = admin_m.group(0) if admin_m else ""
-    if 'footerBack("nav:hub", "Home")' not in admin_body and "footerBack(\"nav:hub\", \"Home\")" not in admin_body:
+    # 4.6.249: Staff Admin has one footer exit, "Back to main menu" (the hub).
+    if "spec.footerBackToMain();" not in admin_body or 'footerBack("nav:hub"' in admin_body:
         errors.append(
-            "UltraHubScreens.openAdmin must pin Back to Home and Main menu (footerBack nav:hub)"
+            "UltraHubScreens.openAdmin must use a single Back to main menu footer (footerBackToMain)"
         )
     if "BACK_TO_MAIN" in admin_body:
         errors.append(
@@ -964,14 +979,14 @@ def main() -> int:
         if "nav:refresh" in body or "Refresh" in body:
             errors.append(f"UltraScreenSpec.{method} must not include Refresh / nav:refresh")
         if method == "footerBackToMain":
-            # Tabbed pages: right Main menu only — no left Back.
-            if "BACK_TO_MAIN" in body:
+            # 4.6.249: Home tabs read "Back to main menu" (named like every Back to {destination}).
+            if "BACK_TO_MAIN" not in body or "MAIN_MENU" in body.replace("BACK_TO_MAIN", ""):
                 errors.append(
-                    "UltraScreenSpec.footerBackToMain must use MAIN_MENU (not BACK_TO_MAIN)"
+                    "UltraScreenSpec.footerBackToMain must use BACK_TO_MAIN (not a lone Main menu)"
                 )
-            if "MAIN_MENU" not in body or '"nav:hub"' not in body:
+            if '"nav:hub"' not in body:
                 errors.append(
-                    "UltraScreenSpec.footerBackToMain must place nav:hub + MAIN_MENU on the right"
+                    "UltraScreenSpec.footerBackToMain must place nav:hub on the right"
                 )
             if "backTo(" in body or "COL_L" in body:
                 errors.append(
@@ -1156,14 +1171,14 @@ def main() -> int:
         re.S | re.M,
     )
     notice_body = notice_m.group(0) if notice_m else ""
-    if "footerBackHome(\"Home\")" not in team_body and 'footerBackHome("Home")' not in team_body:
-        errors.append("UltraDifficultyScreens.openTeam must pin Back to Home + Main menu")
+    if 'footerBackHome("Difficulty Home")' not in team_body:
+        errors.append("UltraDifficultyScreens.openTeam must pin Back to Difficulty Home + Main menu")
     if "openFeatureLocked" in team_body:
         errors.append(
             "UltraDifficultyScreens.openTeam must not use the tabbed locked page (no left Back)"
         )
-    if "footerBackHome(\"Home\")" not in notice_body and 'footerBackHome("Home")' not in notice_body:
-        errors.append("UltraDifficultyScreens.openTeamNotice must pin Back to Home + Main menu")
+    if 'footerBackHome("Difficulty Home")' not in notice_body:
+        errors.append("UltraDifficultyScreens.openTeamNotice must pin Back to Difficulty Home + Main menu")
     diff_home_m = re.search(
         r"private static void openHome\b.*?^\s*private static void ",
         diff_screens,
@@ -1591,8 +1606,9 @@ def main() -> int:
         text = path.read_text(encoding="utf-8")
         for m in footer_re.finditer(text):
             dest = m.group(1)
-            if len("Back to " + dest) > 22:
-                errors.append(f"{path.name} footer {dest!r} exceeds the 22-glyph button")
+            # Real glyph widths (UltraStyle.textWidthPx): 150px button minus 2 x 8px padding.
+            if _mc_width("Back to " + dest) > 134:
+                errors.append(f"{path.name} footer {dest!r} does not fit the 150px button")
         for phrase in banned:
             for line in text.splitlines():
                 if phrase not in line:

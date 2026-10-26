@@ -102,17 +102,17 @@ public final class ProgressionGuiApi {
             return "§cProgression system is disabled.";
         }
         if (flag == null || flag.isBlank()) {
-            return "§cUsage: /progression admin <flag> <on|off>";
+            return "§cName a setting and ON or OFF, for example §f/progression admin potential on§c.";
         }
         boolean on = "on".equalsIgnoreCase(value) || "true".equalsIgnoreCase(value) || "1".equals(value);
         boolean off = "off".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value) || "0".equals(value);
         if (!on && !off) {
-            return "§cUse on|off (got: §f" + value + "§c).";
+            return "§cUse ON or OFF (you typed §f" + value + "§c).";
         }
         if (!ProgressionSystem.setFlag(flag, on)) {
             return "§cSomething went wrong. Try again, or ask staff if it keeps happening.";
         }
-        return "§eProgression " + flag + " -> " + (on ? "ON" : "OFF");
+        return "§e" + ProgressionSystem.flagLabel(flag) + " - " + (on ? "ON" : "OFF");
     }
 
     /**
@@ -803,7 +803,7 @@ public final class ProgressionGuiApi {
                 }
             }
             if (key.isBlank()) {
-                return UltraStyle.DANGER + "Usage: progression do flag <key>[:on|off]";
+                return UltraStyle.DANGER + "Pick a setting to turn on or off on the Progression panel.";
             }
             boolean next;
             if (force != null) {
@@ -816,7 +816,7 @@ public final class ProgressionGuiApi {
             if (!ProgressionSystem.setFlag(key, next)) {
                 return UltraStyle.DANGER + "Something went wrong. Try again, or ask staff if it keeps happening.";
             }
-            return UltraStyle.YELLOW + "Progression " + key + " -> " + (next ? "ON" : "OFF");
+            return UltraStyle.YELLOW + ProgressionSystem.flagLabel(key) + " - " + (next ? "ON" : "OFF");
         }
         if ("module_doc".equals(act) || "moduledoc".equals(act) || "module".equals(act)) {
             if (!StaffAccess.isStaff(player)) {

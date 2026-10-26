@@ -824,6 +824,39 @@ def main() -> int:
           abs(_copies / (_trials * len(_stacks)) - 0.75) < 0.01)
     check("sim: natural bosses (no stamp) get nothing", _pct(-1, 3) == 0)
 
+    print("\n--- § gui follow-ups 4.6.249 ---")
+    gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    gf_style = read(SRC / "gui/ultra/UltraStyle.java")
+    gf_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    gf_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    gf_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
+    gf_prog = read(SRC / "gui/ProgressionGuiApi.java")
+    gf_main = gf_spec.split("public UltraScreenSpec footerBackToMain()", 1)[-1].split("\n    }\n", 1)[0]
+    gf_admin = gf_hub.split("private static void openAdmin(", 1)[-1].split("\n    }\n", 1)[0]
+    gf_chal = gf_rival.split("private static void openChallenge(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest gui-followups-249 row", "gui-followups-249" in manifest)
+    check("Home-tab footer reads Back to main menu (no lone Main menu)",
+          "UltraStyle.BACK_TO_MAIN" in gf_main and "MAIN_MENU" not in gf_main.replace("BACK_TO_MAIN", ""))
+    check("Staff Admin has one footer: Back to main menu",
+          "spec.footerBackToMain();" in gf_admin and 'footerBack("nav:hub"' not in gf_admin)
+    check("Difficulty sub-pages say Back to Difficulty Home and the label fits (real glyph widths)",
+          'footerBackHome("Home")' not in gf_diff and gf_diff.count('footerBackHome("Difficulty Home")') == 4
+          and "public static int textWidthPx(" in gf_style
+          and "UltraStyle.textWidthPx(plainLabel) <= labelPx" in gf_spec)
+    check("staff progression toggles reply with the display label",
+          "ProgressionSystem.flagLabel(flag)" in gf_prog and "ProgressionSystem.flagLabel(key)" in gf_prog
+          and '"Progression " + flag' not in gf_prog and '"Progression " + key' not in gf_prog
+          and "Usage: /progression admin" not in gf_prog and "Usage: progression do flag" not in gf_prog)
+    check("Rival Challenge tab: pending lines come from the same page as their buttons",
+          "RivalGuiApi.pendingChallengeLinesFor(pageChallenges)" in gf_chal
+          and "placePerChallengeButtons(spec, player, pageChallenges);" in gf_chal)
+
+    def _w(t):
+        return sum(2 if c in "i!,.:;|'`" else 3 if c == "l" else 4 if c in " It[]" else
+                   5 if c in 'fk"()*<>{}' else 7 if c in "@~" else 6 for c in t)
+
+    check("sim: Back to Difficulty Home fits the 134px label area (real widths)", _w("Back to Difficulty Home") <= 134)
+
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
     title_prog = read(SRC / "title/TitleProgress.java")

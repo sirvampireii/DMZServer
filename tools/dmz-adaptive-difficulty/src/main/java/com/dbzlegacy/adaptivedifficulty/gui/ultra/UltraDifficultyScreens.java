@@ -443,7 +443,7 @@ public final class UltraDifficultyScreens {
                         mode == TeamMode.FULL_TEAM_SCALING ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM)
                 .rowGap();
         // "Home" fits the footer button. "Difficulty Home" truncates to "Back to Difficulty...".
-        spec.footerBackHome("Home");
+        spec.footerBackHome("Difficulty Home");
         spec.send(player);
     }
 
@@ -489,7 +489,7 @@ public final class UltraDifficultyScreens {
             placeDifficultyToggle(spec, false);
             spec.rowGap();
         }
-        spec.footerBackHome("Home");
+        spec.footerBackHome("Difficulty Home");
         spec.send(player);
     }
 
@@ -560,7 +560,7 @@ public final class UltraDifficultyScreens {
                         sense ? "confirm" : "dim")
                 .buttonRight("do:clear_title", UltraStyle.danger("Unequip title"), "danger")
                 .rowGap();
-        spec.footerBackHome("Home");
+        spec.footerBackHome("Difficulty Home");
         spec.send(player);
     }
 
@@ -689,7 +689,7 @@ public final class UltraDifficultyScreens {
         spec.buttonLeft("open:admin", UltraStyle.danger("LM Staff Admin"), "danger")
                 .buttonRight("page:eventlog", UltraStyle.danger("Event log"), "danger")
                 .rowGap();
-        spec.footerBackHome("Home");
+        spec.footerBackHome("Difficulty Home");
         spec.send(player);
     }
 

@@ -550,11 +550,11 @@ public final class UltraScreenSpec {
     }
 
     /**
-     * Tabbed system-page footer: right {@code Main menu} only ({@code nav:hub}). Tabs are the
-     * in-system navigation — no left {@code Back to …}. Pinned ({@code footer:true}).
+     * System Home-tab footer: one {@code Back to main menu} button on the right ({@code nav:hub}),
+     * named like every other {@code Back to {destination}}. Pinned ({@code footer:true}).
      */
     public UltraScreenSpec footerBackToMain() {
-        return placeFooter(null, null, "nav:hub", UltraStyle.MAIN_MENU);
+        return placeFooter(null, null, "nav:hub", UltraStyle.BACK_TO_MAIN);
     }
 
     /**
@@ -623,7 +623,12 @@ public final class UltraScreenSpec {
         // forced to it (Rival's white accent, accent-less screens) read as grayed out.
         String accentCode = UltraStyle.readableButtonInk(face, UltraStyle.systemAccentCode(screenId));
         int labelPx = UltraStyle.labelMaxWidth(UltraStyle.BTN_W);
-        String fitted = UltraStyle.fitAsciiLabel(UltraStyle.clipPlain(label, labelPx), labelPx);
+        // Footer labels name a destination; measure with real glyph widths so a label that fits
+        // the button ("Back to Difficulty Home") is not cut by the 6px-per-character estimate.
+        String plainLabel = UltraStyle.plain(label);
+        String fitted = UltraStyle.textWidthPx(plainLabel) <= labelPx
+                ? plainLabel
+                : UltraStyle.fitAsciiLabel(UltraStyle.clipPlain(label, labelPx), labelPx);
         String wireLabel = plainWireLabel(fitted, accentCode);
         footerButtons.add(
                 new Button(

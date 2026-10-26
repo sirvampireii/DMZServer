@@ -176,6 +176,13 @@ Three classes re-extracted: `AdaptiveDifficultyMod` (version constant only), `Co
 (`summonLootBonusPerTierPercent` added to the progression field list - javap shows only that new
 string), and `ConfigFieldHelp` (its help line in the text block). The other 22 are unchanged.
 
+## Re-baseline (2026-10-26, 4.6.249 GUI follow-ups)
+
+`ProgressionGuiApi` re-extracted: staff progression toggle replies now call
+`ProgressionSystem.flagLabel` for the display label and three usage strings were reworded -
+javap shows only that call, those strings, and the shifted offsets after them. The other 24
+are unchanged.
+
 ## Refresh the reference set
 
 ```bash

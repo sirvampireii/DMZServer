@@ -357,16 +357,16 @@ public final class UltraRivalScreens {
                 spec.line(line);
             }
         }
-        // 2) Active / pending challenges
-        for (String line : RivalGuiApi.pendingChallengeLines(player)) {
+        // 2) Active / pending challenges - this page's only, matching its Accept/Decline buttons.
+        List<String> pageChallenges = UltraPickHelper.pageSlice(challenges, CHALLENGES_PER_PAGE, pg);
+        for (String line : RivalGuiApi.pendingChallengeLinesFor(pageChallenges)) {
             if (line != null && !line.isBlank()) {
                 spec.line(line);
             }
         }
         UltraPickHelper.pageLabel(spec, pg, pages);
         spec.buttonsAfterLines();
-        placePerChallengeButtons(
-                spec, player, UltraPickHelper.pageSlice(challenges, CHALLENGES_PER_PAGE, pg));
+        placePerChallengeButtons(spec, player, pageChallenges);
         UltraPickHelper.placePrevNext(spec, "challenge", pg, pages);
         // 3) Challenge actions, then Spectate with Stop spectate on the same row.
         // Records (Home) is the history page. No per-challenge opponent/result/date log is stored.

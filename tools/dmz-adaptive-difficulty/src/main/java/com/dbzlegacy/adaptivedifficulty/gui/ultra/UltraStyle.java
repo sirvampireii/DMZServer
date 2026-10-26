@@ -521,6 +521,29 @@ public final class UltraStyle {
         return text.substring(0, maxChars - 3) + "...";
     }
 
+    /**
+     * Pixel width of plain ASCII in Minecraft's default font (glyph advance, 1px gap included).
+     * Narrow glyphs (i, l, t, punctuation, space) are what the 6px estimate overcounts.
+     */
+    public static int textWidthPx(String plainText) {
+        if (plainText == null) {
+            return 0;
+        }
+        int w = 0;
+        for (int i = 0; i < plainText.length(); i++) {
+            char c = plainText.charAt(i);
+            w += switch (c) {
+                case 'i', '!', ',', '.', ':', ';', '|', '\'', '`' -> 2;
+                case 'l' -> 3;
+                case ' ', 'I', 't', '[', ']' -> 4;
+                case 'f', 'k', '"', '(', ')', '*', '<', '>', '{', '}' -> 5;
+                case '@', '~' -> 7;
+                default -> 6;
+            };
+        }
+        return w;
+    }
+
     /** Usable text width inside a button/tab of width {@code controlW} with {@link #BTN_PAD}. */
     public static int labelMaxWidth(int controlW) {
         return Math.max(CHAR_W_EST, controlW - BTN_PAD * 2);

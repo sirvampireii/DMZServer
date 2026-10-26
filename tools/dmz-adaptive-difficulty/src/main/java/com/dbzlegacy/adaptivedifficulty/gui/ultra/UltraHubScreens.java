@@ -120,8 +120,8 @@ public final class UltraHubScreens {
         spec.buttonLeft("open:progression", "Progression panel", UltraStyle.STYLE_NORMAL)
                 .buttonRight("open:config", "Config editor", UltraStyle.STYLE_NORMAL)
                 .rowGap();
-        // Sub-page of the hub. nav:home would reopen this page (homePage is "admin").
-        spec.footerBack("nav:hub", "Home");
+        // Sub-page of the hub: one exit back to it (nav:home would reopen this page).
+        spec.footerBackToMain();
         spec.send(player);
     }
 

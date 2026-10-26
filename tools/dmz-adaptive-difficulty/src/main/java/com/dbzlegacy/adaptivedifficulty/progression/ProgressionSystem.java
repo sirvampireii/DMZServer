@@ -305,6 +305,38 @@ public final class ProgressionSystem {
                 + "\n" + GlobalTpBoost.statusLine();
     }
 
+    /** Display label for a {@link #setFlag} key ("potential" -> the setting's config editor label). */
+    public static String flagLabel(String key) {
+        String field = switch (key == null ? "" : key.toLowerCase(java.util.Locale.ROOT)) {
+            case "master", "progression", "enableprogression" -> "enableProgression";
+            case "potential", "enablepotential" -> "enablePotential";
+            case "boost", "globaltpboost", "enableglobaltpboost" -> "enableGlobalTpBoost";
+            case "bio", "bioandroid", "enablebioandroid" -> "enableBioAndroid";
+            case "racelock", "lock", "enableracelock" -> "enableRaceLock";
+            case "yardrat", "enableyardrat" -> "enableYardrat";
+            case "spiritualist", "spirit", "enablespiritualistki" -> "enableSpiritualistKi";
+            case "android", "enableandroidconversion" -> "enableAndroidConversion";
+            case "kiweapons", "enablekiweapons" -> "enableKiWeapons";
+            case "piercing", "enablepiercingbonus" -> "enablePiercingBonus";
+            case "dot", "enabledotextradamage" -> "enableDotExtraDamage";
+            case "apothic", "enableapothicelemental" -> "enableApothicElemental";
+            case "end", "endstrength", "enableenddimensionstrength" -> "enableEndDimensionStrength";
+            case "endportal", "endportalguard", "enableendportalguard" -> "enableEndPortalGuard";
+            case "endnatural", "enableendnaturaldragonspawn" -> "enableEndNaturalDragonSpawn";
+            case "endsummon", "enableendplayerdragonsummon", "enddragonsummon" -> "enableEndPlayerDragonSummon";
+            case "shadow", "shadowdummy", "enableshadowdummylimiter" -> "enableShadowDummyLimiter";
+            case "statchecker", "playerstatchecker", "enableplayerstatchecker" -> "enablePlayerStatChecker";
+            case "skills", "skillunlock", "enableskillunlockservice" -> "enableSkillUnlockService";
+            case "prestige", "enableprestigesystem" -> "enablePrestigeSystem";
+            case "overhaulprestige", "overhaului", "enableoverhaulprestigeintegration" ->
+                    "enableOverhaulPrestigeIntegration";
+            default -> "";
+        };
+        return field.isEmpty()
+                ? "That setting"
+                : com.dbzlegacy.adaptivedifficulty.config.editor.ConfigFieldHelp.label(field);
+    }
+
     public static boolean setFlag(String key, boolean on) {
         DifficultyConfig cfg = DifficultyConfig.get();
         if (cfg == null || key == null) {

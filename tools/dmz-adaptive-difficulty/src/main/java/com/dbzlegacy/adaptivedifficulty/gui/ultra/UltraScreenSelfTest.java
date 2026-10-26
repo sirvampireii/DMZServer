@@ -1525,7 +1525,9 @@ public final class UltraScreenSelfTest {
             }
             JsonObject o = el.getAsJsonObject();
             String label = o.has("label") ? o.get("label").getAsString() : "";
-            if (UltraStyle.plain(label).contains(labelContains)) {
+            // Case-insensitive: "Main menu" (sub-page pair) and "Back to main menu" (Home tab).
+            if (UltraStyle.plain(label).toLowerCase(java.util.Locale.ROOT)
+                    .contains(labelContains.toLowerCase(java.util.Locale.ROOT))) {
                 return o;
             }
         }

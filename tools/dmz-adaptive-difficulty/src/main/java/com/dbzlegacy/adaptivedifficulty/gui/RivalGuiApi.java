@@ -246,8 +246,15 @@ public final class RivalGuiApi {
     }
 
     public static List<String> pendingChallengeLines(ServerPlayer player) {
-        List<String> cards = pendingChallengeCards(player);
+        return pendingChallengeLinesFor(pendingChallengeCards(player));
+    }
+
+    /** Lines for these challenge cards only (one picker page), so lines and buttons match. */
+    public static List<String> pendingChallengeLinesFor(List<String> cards) {
         List<String> lines = new ArrayList<>();
+        if (cards == null) {
+            return lines;
+        }
         if (cards.isEmpty()) {
             return lines;
         }
