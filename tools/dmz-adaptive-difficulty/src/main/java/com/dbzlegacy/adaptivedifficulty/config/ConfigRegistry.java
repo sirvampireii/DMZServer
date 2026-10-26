@@ -187,7 +187,7 @@ public final class ConfigRegistry {
                     "enableDotExtraDamage", "enableApothicElemental", "enableEndDimensionStrength",
                     "enableEndPortalGuard", "enableEndNaturalDragonSpawn", "enableEndPlayerDragonSummon",
                     "endDragonSummonNetheriteCost", "enableWitherSummon", "witherSummonNetheriteCost",
-                    "enableWardenSummon", "wardenSummonNetheriteCost",
+                    "enableWardenSummon", "wardenSummonNetheriteCost", "summonLootBonusPerTierPercent",
                     "enableEndMobScaling", "endEnforceSingleDragon",
                     "endKiCleanupEnabled", "endKiPurgeWhenNoDragon", "endKiMaxAliveWhileDragon",
                     "enableShadowDummyLimiter", "enableSkillUnlockService", "enablePrestigeSystem",

@@ -263,6 +263,11 @@ public final class DifficultyConfig {
     /** Ancient Netherite coins charged for a player GUI Warden summon. */
     public int wardenSummonNetheriteCost = 2;
     /**
+     * Paid boss summons (End Dragon, Wither, Warden): chance in percent per tier above the
+     * boss's minimum tier that each dropped stack gets one bonus copy (capped at 100).
+     */
+    public int summonLootBonusPerTierPercent = 25;
+    /**
      * Scale Enderman / Shulker / Phantom / Endermite HP/DEF (End Dimension Strength).
      * Default {@code false} matches script v2.11.0 — dragon-only scaling.
      */
@@ -1678,6 +1683,7 @@ public final class DifficultyConfig {
         cfg.endDragonSummonNetheriteCost = Math.max(1, Math.min(64, cfg.endDragonSummonNetheriteCost));
         cfg.witherSummonNetheriteCost = Math.max(1, Math.min(64, cfg.witherSummonNetheriteCost));
         cfg.wardenSummonNetheriteCost = Math.max(1, Math.min(64, cfg.wardenSummonNetheriteCost));
+        cfg.summonLootBonusPerTierPercent = Math.max(0, Math.min(100, cfg.summonLootBonusPerTierPercent));
         cfg.lmTipIntervalSeconds = Math.max(60, Math.min(7200, cfg.lmTipIntervalSeconds));
         cfg.lmTipNewPlayerIntervalSeconds = Math.max(45, Math.min(3600, cfg.lmTipNewPlayerIntervalSeconds));
         cfg.lmTipLoginDelaySeconds = Math.max(15, Math.min(600, cfg.lmTipLoginDelaySeconds));

@@ -305,6 +305,7 @@ public final class UltraDifficultyScreens {
         for (String line : summonStatusLines(player, ready)) {
             spec.line(line);
         }
+        spec.line(UltraStyle.VALUE + EndDimensionStrength.summonLootBonusLine(player));
         if (!ready) {
             spec.line(UltraStyle.dim("Select End Dragon first - clear the notes above, then return."));
         }

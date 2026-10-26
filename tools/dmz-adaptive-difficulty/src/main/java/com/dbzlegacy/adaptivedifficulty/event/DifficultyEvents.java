@@ -1045,6 +1045,14 @@ public final class DifficultyEvents {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onLivingDrops(LivingDropsEvent event) {
         LivingEntity dead = event.getEntity();
+        if (dead instanceof net.minecraft.world.entity.boss.wither.WitherBoss
+                || dead instanceof net.minecraft.world.entity.monster.warden.Warden) {
+            try {
+                com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.onDrops(event);
+            } catch (Throwable ignored) {
+            }
+            return;
+        }
         if (!(dead instanceof net.minecraft.world.entity.boss.enderdragon.EnderDragon)) {
             return;
         }

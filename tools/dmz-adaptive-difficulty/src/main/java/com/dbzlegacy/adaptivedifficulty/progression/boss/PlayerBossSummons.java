@@ -173,6 +173,7 @@ public final class PlayerBossSummons {
                 + UltraStyle.YELLOW + " HP " + UltraStyle.DIM + "(T" + tier + " AD)");
         DmzRewards.msg(player, UltraStyle.DIM + "Cost " + UltraStyle.VALUE + costText
                 + UltraStyle.DIM + " · AD boss profile · only you can damage this " + boss.display + ".");
+        DmzRewards.msg(player, UltraStyle.YELLOW + SummonLootBonus.describe(tier, boss.minTier));
         SystemTelemetry.log("difficulty", "boss_summon", player, null, Map.of(
                 "boss", boss.name().toLowerCase(java.util.Locale.ROOT),
                 "tier", tier,
@@ -196,6 +197,14 @@ public final class PlayerBossSummons {
                 + UltraStyle.LABEL + " through " + UltraStyle.VALUE + "T" + boss.maxTier
                 + UltraStyle.LABEL + ", personal difficulty ON, and you must be in " + boss.dimensionName + ".");
         lines.add(UltraStyle.LABEL + "One living " + boss.display + " at a time per player.");
+        int myTier = DifficultyCache.data(player).getActiveTier();
+        if (myTier >= boss.minTier && myTier <= boss.maxTier) {
+            lines.add(UltraStyle.VALUE + SummonLootBonus.describe(myTier, boss.minTier));
+        } else {
+            lines.add(UltraStyle.LABEL + "Higher tiers drop more: +"
+                    + Math.max(0, DifficultyConfig.get().summonLootBonusPerTierPercent)
+                    + "% chance of a bonus copy of each drop per tier above T" + boss.minTier + ".");
+        }
         if (!ready) {
             if (!SystemGate.participates(player)) {
                 lines.add(UltraStyle.LABEL + "Turn on personal difficulty on the Tiers tab first.");
@@ -243,6 +252,29 @@ public final class PlayerBossSummons {
             return;
         }
         MobScaling.applySummonedBossAdProfile(target, attacker);
+    }
+
+    /**
+     * Death drops of a paid Wither / Warden summon (LOWEST priority, after every mod added its
+     * drops): tier bonus copies. Natural Withers and shrieker Wardens carry no stamp and are untouched.
+     */
+    public static void onDrops(net.minecraftforge.event.entity.living.LivingDropsEvent event) {
+        if (event == null || event.isCanceled()) {
+            return;
+        }
+        LivingEntity dead = event.getEntity();
+        if (dead == null || dead.m_9236_().f_46443_) {
+            return;
+        }
+        Boss boss = stampedBoss(dead);
+        if (boss == null) {
+            return;
+        }
+        int added = SummonLootBonus.applyToDrops(dead, event.getDrops(), boss.minTier);
+        if (added > 0) {
+            AdaptiveDifficultyMod.LOGGER.info("[{}] {} summon loot bonus: +{} stack(s) (T{})",
+                    AdaptiveDifficultyMod.MOD_ID, boss.display, added, SummonLootBonus.stampedTier(dead));
+        }
     }
 
     /** The boss kind this entity was summoned as, or null for any other entity. */
@@ -332,6 +364,7 @@ public final class PlayerBossSummons {
         }
         tag.m_128359_(boss.nbtSummoner, player.m_20148_().toString());
         tag.m_128379_(MobScaling.TAG_SUMMONED_BOSS, true);
+        SummonLootBonus.stampTier(mob, DifficultyCache.data(player).getActiveTier());
         mob.m_21530_(); // setPersistenceRequired
         try {
             if (!level.m_7967_(mob)) { // addFreshEntity

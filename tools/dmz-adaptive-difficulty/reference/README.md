@@ -170,6 +170,12 @@ Two classes re-extracted: `AdaptiveDifficultyMod` (version constant only) and
 `ProgressionGuiApi` (three boost error strings reworded from "Invalid ..." - javap shows only
 those string-concat recipes changed, no code). The other 23 are unchanged.
 
+## Re-baseline (2026-10-26, 4.6.249 summon loot bonus)
+
+Three classes re-extracted: `AdaptiveDifficultyMod` (version constant only), `ConfigRegistry`
+(`summonLootBonusPerTierPercent` added to the progression field list - javap shows only that new
+string), and `ConfigFieldHelp` (its help line in the text block). The other 22 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

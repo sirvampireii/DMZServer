@@ -53,6 +53,7 @@ enableWitherSummon=Difficulty GUI paid Wither summon (T3-T7, in the Nether, Anci
 witherSummonNetheriteCost=Ancient Netherite coins charged for a player GUI Wither summon.
 enableWardenSummon=Difficulty GUI paid Warden summon (T4-T7, in the Overworld, Ancient Netherite cost).
 wardenSummonNetheriteCost=Ancient Netherite coins charged for a player GUI Warden summon.
+summonLootBonusPerTierPercent=Paid boss summons: percent chance per tier above the boss's lowest tier that each drop gets a bonus copy.
 enableEndMobScaling=Scale Enderman / Shulker / Phantom / Endermite HP/DEF (End Dimension Strength).
 endEnforceSingleDragon=Cap living End dragons: at most one player-summoned dragon per summoner, and strip unauthorized vanilla dragons.
 endKiCleanupEnabled=Purge / cap leftover DMZ ki_laser / ki_blast in The End (v2.12.0).

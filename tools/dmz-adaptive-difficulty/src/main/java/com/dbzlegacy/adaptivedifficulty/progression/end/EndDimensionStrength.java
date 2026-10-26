@@ -692,6 +692,21 @@ public final class EndDimensionStrength {
         if (stacks.isEmpty()) {
             return 0;
         }
+        // Paid summons: tier bonus copies of every stack this single roll produced (all mods).
+        if (isPlayerSummonedDragon(dragon)
+                && com.dbzlegacy.adaptivedifficulty.progression.boss.SummonLootBonus.markDone(dragon)) {
+            int lootTier = com.dbzlegacy.adaptivedifficulty.progression.boss.SummonLootBonus.stampedTier(dragon);
+            int pct = lootTier < 0 ? 0
+                    : com.dbzlegacy.adaptivedifficulty.progression.boss.SummonLootBonus.percent(
+                            lootTier, PLAYER_SUMMON_MIN_TIER);
+            java.util.List<ItemStack> bonus = com.dbzlegacy.adaptivedifficulty.progression.boss.SummonLootBonus
+                    .rollCopies(stacks, pct, end.f_46441_);
+            if (!bonus.isEmpty()) {
+                AdaptiveDifficultyMod.LOGGER.info("[{}] End dragon summon loot bonus: +{} stack(s) (T{})",
+                        AdaptiveDifficultyMod.MOD_ID, bonus.size(), lootTier);
+                stacks.addAll(bonus);
+            }
+        }
         int spawned = 0;
         for (ItemStack stack : stacks) {
             if (stack == null || stack.m_41619_()) {
@@ -797,6 +812,9 @@ public final class EndDimensionStrength {
                 + " §eHP §8(T" + tier + " AD · " + power.name + " / Lv" + power.level + ")");
         msg(player, "§8Cost §f" + costText
                 + " §8· AD boss profile · only you can damage this dragon.");
+        msg(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.YELLOW
+                + com.dbzlegacy.adaptivedifficulty.progression.boss.SummonLootBonus.describe(
+                        tier, PLAYER_SUMMON_MIN_TIER));
         SystemTelemetry.log("end_strength", "dragon_spawn", player, null, Map.of(
                 "via", "gui_summon",
                 "tier", tier,
@@ -838,6 +856,18 @@ public final class EndDimensionStrength {
         }
         int tier = DifficultyCache.data(player).getActiveTier();
         return tier >= PLAYER_SUMMON_MIN_TIER && tier <= PLAYER_SUMMON_MAX_TIER;
+    }
+
+    /** Loot bonus line for the dragon confirm page at the player's current tier. */
+    public static String summonLootBonusLine(ServerPlayer player) {
+        int tier = player == null ? 0 : DifficultyCache.data(player).getActiveTier();
+        if (tier >= PLAYER_SUMMON_MIN_TIER && tier <= PLAYER_SUMMON_MAX_TIER) {
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.SummonLootBonus.describe(
+                    tier, PLAYER_SUMMON_MIN_TIER);
+        }
+        return "Higher tiers drop more: +"
+                + Math.max(0, DifficultyConfig.get().summonLootBonusPerTierPercent)
+                + "% chance of a bonus copy of each drop per tier above T" + PLAYER_SUMMON_MIN_TIER + ".";
     }
 
     /** Lore for Difficulty → End Dragon submenu (CNPC / chest / CMI). */
@@ -2868,6 +2898,7 @@ public final class EndDimensionStrength {
         tag.m_128359_(NBT_SUMMONER, summoner.m_20148_().toString());
         tag.m_128379_(NBT_PLAYER_SUMMON, true);
         tag.m_128405_(NBT_AD_TIER, Math.max(0, tier));
+        com.dbzlegacy.adaptivedifficulty.progression.boss.SummonLootBonus.stampTier(dragon, tier);
         if (power != null) {
             tag.m_128347_(NBT_KI_MELEE, Math.max(0.0, power.melee));
         }

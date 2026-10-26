@@ -772,6 +772,58 @@ def main() -> int:
     check("no Invalid / Usage replies in progression boosts or spar mentor settings",
           "Invalid" not in g_prog and "Usage: spar do mentor_tpmsg" not in g_spar and "Pick Mentor TP - ON or OFF" in g_spar)
 
+    print("\n--- § summon loot bonus ---")
+    sl = read(SRC / "progression/boss/SummonLootBonus.java")
+    sl_boss = read(SRC / "progression/boss/PlayerBossSummons.java")
+    sl_end = read(SRC / "progression/end/EndDimensionStrength.java")
+    sl_events = read(SRC / "event/DifficultyEvents.java")
+    sl_cfg = read(SRC / "config/DifficultyConfig.java")
+    sl_drops = sl_events.split("public void onLivingDrops(", 1)[-1].split("\n    }\n", 1)[0]
+    sl_roll = sl_end.split("private static int rollEnderDragonLootTable(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest summon-loot-bonus row", "summon-loot-bonus" in manifest)
+    check("config summonLootBonusPerTierPercent default 25, clamped 0-100, registry + help",
+          "public int summonLootBonusPerTierPercent = 25;" in sl_cfg
+          and "cfg.summonLootBonusPerTierPercent = Math.max(0, Math.min(100, cfg.summonLootBonusPerTierPercent));" in sl_cfg
+          and '"summonLootBonusPerTierPercent"' in read(SRC / "config/ConfigRegistry.java")
+          and "summonLootBonusPerTierPercent=" in read(SRC / "config/editor/ConfigFieldHelp.java"))
+    check("tier stamped once at summon for all three bosses",
+          "!tag.m_128441_(TAG_TIER)" in sl
+          and "SummonLootBonus.stampTier(mob, DifficultyCache.data(player).getActiveTier());" in sl_boss
+          and "SummonLootBonus.stampTier(dragon, tier);" in sl_end)
+    check("Wither/Warden: bonus at the drop stage (LOWEST), summoner stamp only, once per boss",
+          "PlayerBossSummons.onDrops(event);" in sl_drops
+          and "WitherBoss" in sl_drops and "Warden" in sl_drops
+          and "Boss boss = stampedBoss(dead);" in sl_boss
+          and "tag.m_128471_(TAG_DONE)" in sl and "drops.addAll(extra);" in sl)
+    check("dragon: bonus copies on the single full-table roll, player summons only, guarded once",
+          "isPlayerSummonedDragon(dragon)" in sl_roll and "SummonLootBonus.markDone(dragon)" in sl_roll
+          and ".rollCopies(stacks, pct, end.f_46441_);" in sl_roll
+          and sl_roll.index("rollCopies") < sl_roll.index("int spawned = 0;"))
+    check("XP untouched; confirm pages and summon messages state the bonus",
+          "awardVanillaDragonExperience" not in sl and "Experience" not in sl
+          and "SummonLootBonus.describe(myTier, boss.minTier)" in sl_boss
+          and "SummonLootBonus.describe(tier, boss.minTier)" in sl_boss
+          and "summonLootBonusLine(player)" in read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+          and "SummonLootBonus.describe(\n                        tier, PLAYER_SUMMON_MIN_TIER)" in sl_end)
+
+    # Mirror of SummonLootBonus.percent / rollCopies.
+    def _pct(tier, min_tier, per=25):
+        return max(0, min(100, (tier - min_tier) * max(0, min(100, per))))
+
+    check("sim: Wither T3 0%, T4 25%, T5 50%, T6 75%, T7 100% (second nether star guaranteed)",
+          [_pct(t, 3) for t in range(3, 8)] == [0, 25, 50, 75, 100])
+    check("sim: Warden T4 0%, T5 25%, T6 50%, T7 75%",
+          [_pct(t, 4) for t in range(4, 8)] == [0, 25, 50, 75])
+    check("sim: Dragon T4 0% up to T7 75%", [_pct(t, 4) for t in range(4, 8)] == [0, 25, 50, 75])
+    import random as _r
+    _rng = _r.Random(7)
+    _stacks = ["star", "simplymore", "tendril", "simplyswords_unique"]
+    _trials = 20000
+    _copies = sum(sum(1 for _ in _stacks if _rng.randrange(100) < 75) for _ in range(_trials))
+    check("sim: per-stack independent chance (75% -> ~0.75 copies per stack, every stack eligible)",
+          abs(_copies / (_trials * len(_stacks)) - 0.75) < 0.01)
+    check("sim: natural bosses (no stamp) get nothing", _pct(-1, 3) == 0)
+
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
     title_prog = read(SRC / "title/TitleProgress.java")
