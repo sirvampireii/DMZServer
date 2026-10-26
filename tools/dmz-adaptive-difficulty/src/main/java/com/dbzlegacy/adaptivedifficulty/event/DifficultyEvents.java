@@ -382,6 +382,7 @@ public final class DifficultyEvents {
             } catch (Throwable ignored) {
             }
             com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.onLogout(player);
+            com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.onLogout(player);
             com.dbzlegacy.adaptivedifficulty.util.TpBossNotify.onLogout(player);
             // Flush player AD data only — do NOT clear active tier on disconnect.
             DifficultyCache.save(player);
@@ -705,8 +706,14 @@ public final class DifficultyEvents {
 
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || !(event.player instanceof ServerPlayer player)
-                || SystemGate.isDisabled() || !SystemGate.allows(player)) {
+        if (event.phase != TickEvent.Phase.END || !(event.player instanceof ServerPlayer player)) {
+            return;
+        }
+        // Proving Grounds bar is a rival feature, independent of personal difficulty.
+        if (player.f_19797_ % 20 == 0) {
+            com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.tick(player);
+        }
+        if (SystemGate.isDisabled() || !SystemGate.allows(player)) {
             return;
         }
         // Level / prestige / transform-power / form-mult poll.

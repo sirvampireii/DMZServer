@@ -441,6 +441,59 @@ def main() -> int:
     check("Skill Check still the base donator node; revive others unchanged",
           "donatorNode()" in has_sc and "StaffAccess.denyUnlessReviveOthers(source) == 0" in revive_other)
 
+    print("\n--- § grounds bar ---")
+    pg_src = read(SRC / "rival/ProvingGrounds.java")
+    pg_bar = read(SRC / "rival/ProvingGroundsBar.java")
+    pg_events = read(SRC / "event/DifficultyEvents.java")
+    pg_mgr = read(SRC / "rival/RivalChallengeManager.java")
+    pg_mult = pg_src.split("public static float challengeTpMultiplier(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest proving-grounds-bar row", "proving-grounds-bar" in manifest)
+    check("grounds constants unchanged (1.35 / 1.25 / 12 RP / 12000 TP / 45 RP / 0.40 / 5-15 wins / radius 48)",
+          "ON_GROUNDS_TP_MULT = 1.35;" in pg_src and "UNDERDOG_TP_MULT = 1.25;" in pg_src
+          and "ON_GROUNDS_RP_BONUS = 12;" in pg_src and "RECLAIM_TP = 12000;" in pg_src
+          and "RECLAIM_RP = 45;" in pg_src and "CHALLENGE_TP_BONUS = 0.40;" in pg_src
+          and "TIER2_WINS = 5;" in pg_src and "TIER3_WINS = 15;" in pg_src and "RADIUS = 48.0;" in pg_src)
+    check("underdog multiplier path unchanged; reclaim still pays RECLAIM_TP and RECLAIM_RP",
+          "!pg.championUuid.isBlank() && !pg.championUuid.equals(player.m_20148_().toString())" in pg_mult
+          and "mult *= (float) UNDERDOG_TP_MULT;" in pg_mult
+          and "RivalTpCurve.scale(winnerPlayer, RECLAIM_TP, \"burst\")" in pg_src
+          and "winRp += ProvingGrounds.RECLAIM_RP;" in pg_mgr)
+    check("bar is display only: own map, no bonus, TP, RP, death-penalty or TP notify bar calls",
+          "ConcurrentHashMap<UUID, ServerBossEvent> BARS = new ConcurrentHashMap<>();" in pg_bar
+          and not any(t in pg_bar for t in ("awardTp", "addRp", "challengeTpMultiplier", "DeathTpPenalty",
+                                            "TpBossNotify", "Scoreboard", "UNDERDOG_TP_MULT")))
+    check("bar checks the player's own rival links with onGrounds, once a second, and hides on logout",
+          "RivalStore.get().get(myUuid)" in pg_bar and "me.rivals.values()" in pg_bar
+          and "ProvingGrounds.onGrounds(player, pg)" in pg_bar
+          and "m_11314_" not in pg_bar
+          and "if (player.f_19797_ % 20 == 0) {\n            com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.tick(player);" in pg_events
+          and "ProvingGroundsBar.onLogout(player);" in pg_events)
+    check("bar created once, renamed only on text change, removed on leave",
+          pg_bar.count("new ServerBossEvent(") == 1 and "if (bar == null) {" in pg_bar
+          and "!text.equals(TEXT.get(id))" in pg_bar and "BARS.remove(id)" in pg_bar)
+    check("bar text names the grounds, tier, champion, battles, and the viewer's role",
+          "ProvingGrounds.displayName(pg)" in pg_bar and '"Legendary"' in pg_bar and '"Dominant"' in pg_bar
+          and '"Claimed"' in pg_bar and '" - Champion "' in pg_bar and "pg.battles" in pg_bar
+          and '"You are the champion"' in pg_bar and '"You are the underdog challenger"' in pg_bar)
+
+    # Mirror of ProvingGrounds.challengeTpMultiplier and the reclaim payout.
+    def _pg_mult(on_grounds, champion, me):
+        if not on_grounds:
+            return 1.0
+        m = 1.35
+        if champion and champion != me:
+            m *= 1.25
+        return m * (1.0 + 0.40)
+
+    def _reclaim(winner, champion):
+        return (12000, 45) if champion and champion != winner else (0, 0)
+
+    check("sim: non-champion on grounds still gets the 1.25 underdog multiplier",
+          abs(_pg_mult(True, "champ", "challenger") - 1.35 * 1.25 * 1.40) < 1e-9)
+    check("sim: champion on grounds does not get the underdog multiplier",
+          abs(_pg_mult(True, "champ", "champ") - 1.35 * 1.40) < 1e-9)
+    check("sim: reclaim still pays 12000 TP and 45 RP", _reclaim("challenger", "champ") == (12000, 45))
+
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
     title_prog = read(SRC / "title/TitleProgress.java")

@@ -149,6 +149,11 @@ Three classes re-extracted: `AdaptiveDifficultyMod` (version constant only), `Co
 shows only those two new strings), and `ConfigFieldHelp` (their help lines plus the shorter
 `donatorPermission` line). The other 22 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.245 Proving Grounds bar)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
+grounds bar lives outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash
