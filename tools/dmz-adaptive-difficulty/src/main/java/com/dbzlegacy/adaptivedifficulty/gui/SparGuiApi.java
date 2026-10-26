@@ -526,7 +526,7 @@ public final class SparGuiApi {
             if ("off".equalsIgnoreCase(a) || "false".equalsIgnoreCase(a)) {
                 return SparringSystem.setMentorTpMsg(player, false);
             }
-            return UltraStyle.DANGER + "Usage: spar do mentor_tpmsg toggle|on|off";
+            return UltraStyle.DANGER + "Pick Mentor TP - ON or OFF on the Settings page.";
         }
         if ("mentor".equals(act)) {
             String sub = a.toLowerCase(Locale.ROOT).trim();

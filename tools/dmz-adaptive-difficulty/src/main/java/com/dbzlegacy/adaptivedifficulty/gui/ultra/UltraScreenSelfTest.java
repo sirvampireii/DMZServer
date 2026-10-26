@@ -129,7 +129,7 @@ public final class UltraScreenSelfTest {
                             .title("Rival")
                             .page("home")
                             .activeTab("home")
-                            .tabs("home|Home", "actions|Rival", "challenge|Challenge", "info|Info")
+                            .tabs("home|Home", "actions|Rival", "challenge|Challenge")
                             .line("self-test")
                             .footerBackToMain();
                     case "spar" -> UltraScreenSpec.of("spar")
@@ -667,6 +667,12 @@ public final class UltraScreenSelfTest {
             if (mainX != UltraStyle.COL_R) {
                 broken.add(id + " hub footer must keep the standard right column, x=" + mainX);
             }
+            // Dark gray is the disabled look; footers use the same ink as the system's body buttons.
+            String bodyInk = UltraStyle.readableButtonInk(
+                    UltraStyle.STYLE_NORMAL, UltraStyle.systemAccentCode(id));
+            if (!"8".equals(bodyInk) && footerButtons.contains(UltraStyle.MARK + "8Main menu")) {
+                broken.add(id + " footer must not use the dark-gray disabled ink");
+            }
         }
         if (!"End Dimension Strength".equals(ConfigEditor.staffLabel("enableEndDimensionStrength"))) {
             broken.add("config label must read End Dimension Strength, not the raw field id");
@@ -867,7 +873,7 @@ public final class UltraScreenSelfTest {
                         .title("Rivals")
                         .page("actions")
                         .activeTab("actions")
-                        .tabs("home|Home", "actions|Rival", "challenge|Challenge", "info|Info")
+                        .tabs("home|Home", "actions|Rival", "challenge|Challenge")
                         .line("Your rivals.")
                         .line("Pending invites: 1")
                         .setRow(UltraStyle.CONTENT_ROW_TABS + 70)

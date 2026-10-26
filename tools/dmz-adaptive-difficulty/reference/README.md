@@ -164,6 +164,12 @@ grounds bonus changes live outside this set; the other 24 are unchanged.
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
 penalty bar change lives outside this set; the other 24 are unchanged.
 
+## Re-baseline (2026-10-26, 4.6.248 GUI audit)
+
+Two classes re-extracted: `AdaptiveDifficultyMod` (version constant only) and
+`ProgressionGuiApi` (three boost error strings reworded from "Invalid ..." - javap shows only
+those string-concat recipes changed, no code). The other 23 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

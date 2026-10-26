@@ -705,13 +705,13 @@ public final class UltraDifficultyScreens {
         spec.buttonLeft("do:syslog:status", UltraStyle.danger("Status"), "danger")
                 .buttonRight(
                         "do:syslog:on",
-                        logOn ? UltraStyle.confirm("Event log - ON") : UltraStyle.dim("Event log - ON"),
-                        logOn ? "confirm" : "dim")
+                        logOn ? UltraStyle.confirm("Event log - ON") : "Turn event log on",
+                        logOn ? "confirm" : UltraStyle.STYLE_NORMAL)
                 .rowGap();
         spec.buttonLeft(
                         "do:syslog:off",
                         logOn
-                                ? UltraStyle.danger("Event log - OFF")
+                                ? UltraStyle.danger("Turn event log off")
                                 : UltraStyle.dim("Event log - OFF"),
                         logOn ? "danger" : "dim")
                 .buttonRight("do:syslog:flush", UltraStyle.danger("Flush"), "danger")

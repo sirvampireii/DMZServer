@@ -928,7 +928,7 @@ public final class UltraConfigScreens {
                     UltraStyle.STYLE_NORMAL, MAIN_X + MAIN_W - UltraStyle.BTN_MIN_W, REVIEW_Y,
                     UltraStyle.BTN_MIN_W);
         }
-        spec.footerBack("page:" + ConfigEditor.editorPage(uuid), "settings");
+        spec.footerBack("page:" + ConfigEditor.editorPage(uuid), "Settings");
         spec.send(player);
     }
 

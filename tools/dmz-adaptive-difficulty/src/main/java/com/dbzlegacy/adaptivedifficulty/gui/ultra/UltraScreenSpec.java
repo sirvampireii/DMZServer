@@ -619,11 +619,9 @@ public final class UltraScreenSpec {
     private void addFooterButton(String actionId, String label, int x, String style) {
         UltraScreenIds.requireValidActionId(screenId, actionId, label);
         String face = UltraStyle.STYLE_DIM.equals(style) ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_NORMAL;
+        // Same ink as this system's body buttons. Dark gray is the disabled look, so a footer
+        // forced to it (Rival's white accent, accent-less screens) read as grayed out.
         String accentCode = UltraStyle.readableButtonInk(face, UltraStyle.systemAccentCode(screenId));
-        // White or unset ink disappears on the light normal face. Dark gray stays readable.
-        if (UltraStyle.STYLE_NORMAL.equals(face) && (accentCode.isEmpty() || "f".equals(accentCode))) {
-            accentCode = "8";
-        }
         int labelPx = UltraStyle.labelMaxWidth(UltraStyle.BTN_W);
         String fitted = UltraStyle.fitAsciiLabel(UltraStyle.clipPlain(label, labelPx), labelPx);
         String wireLabel = plainWireLabel(fitted, accentCode);

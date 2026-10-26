@@ -750,6 +750,28 @@ def main() -> int:
     check("sim: continuous grants keep it up by design, then it hides 3 s after the last",
           _flash([0, 2_000, 4_000], 6_750) is True and _flash([0, 2_000, 4_000], 7_250) is False)
 
+    print("\n--- § gui audit 4.6.248 ---")
+    g_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    g_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
+    g_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    g_prog = read(SRC / "gui/ProgressionGuiApi.java")
+    g_spar = read(SRC / "gui/SparGuiApi.java")
+    g_footer = g_spec.split("private void addFooterButton(", 1)[-1].split("\n    }\n", 1)[0]
+    g_info = g_rival.split("private static void openInfo(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest gui-audit-248 row", "gui-audit-248" in manifest)
+    check("footer ink matches the system's body buttons (no forced dark gray)",
+          'accentCode = "8";' not in g_footer
+          and "UltraStyle.readableButtonInk(face, UltraStyle.systemAccentCode(screenId))" in g_footer)
+    check("Rival has three tabs; stats open from Home and return to Rival Home",
+          '.tabs("home|Home", "actions|Rival", "challenge|Challenge");' in g_rival
+          and '"info|My rival stats"' in g_rival and 'sub("info")' in g_info
+          and 'footerBackHome("Rival Home")' in g_info)
+    check("event log: the turn-on action is never dim while the log is off",
+          'logOn ? UltraStyle.confirm("Event log - ON") : "Turn event log on"' in g_diff
+          and 'UltraStyle.dim("Event log - ON")' not in g_diff)
+    check("no Invalid / Usage replies in progression boosts or spar mentor settings",
+          "Invalid" not in g_prog and "Usage: spar do mentor_tpmsg" not in g_spar and "Pick Mentor TP - ON or OFF" in g_spar)
+
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
     title_prog = read(SRC / "title/TitleProgress.java")

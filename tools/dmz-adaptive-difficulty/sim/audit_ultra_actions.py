@@ -1376,8 +1376,11 @@ def main() -> int:
         errors.append("UltraRivalScreens.openHome settings button must read TP Chat")
     if "settings|Settings" in home_body:
         errors.append("UltraRivalScreens.openHome must not label TP Chat as Settings")
-    if '"actions|Rival"' not in rival or '"info|Info"' not in rival:
-        errors.append("UltraRivalScreens tabs must be Home, Rival, Challenge, and Info")
+    # 4.6.248: every system has exactly three tabs; Rival stats open from a Home button.
+    if '.tabs("home|Home", "actions|Rival", "challenge|Challenge");' not in rival or '"info|Info"' in rival:
+        errors.append("UltraRivalScreens tabs must be Home, Rival, and Challenge (stats are a Home button)")
+    if '"info|My rival stats"' not in home_body:
+        errors.append("UltraRivalScreens.openHome must link page:info (My rival stats)")
     if '"actions|Actions"' in rival:
         errors.append("UltraRivalScreens must not keep the Actions tab label")
     if "Wins" in home_body or "Losses" in home_body:

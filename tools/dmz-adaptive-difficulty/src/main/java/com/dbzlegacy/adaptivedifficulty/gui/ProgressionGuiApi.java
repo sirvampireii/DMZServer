@@ -274,7 +274,7 @@ public final class ProgressionGuiApi {
                 }
                 return ProgressionSystem.boostStartEncoded(actor, encoded, defaultPurchaser);
             } catch (NumberFormatException e) {
-                return "§cInvalid encoded value: §f" + num + "\n" + boostUsage();
+                return "§cThat boost code is not a number: §f" + num + "§c. Use one of the forms below.\n" + boostUsage();
             }
         }
         if (raw.contains(":")) {
@@ -288,7 +288,7 @@ public final class ProgressionGuiApi {
                 }
                 return ProgressionSystem.boostStart(actor, mult, minutes, defaultPurchaser);
             } catch (NumberFormatException e) {
-                return "§cInvalid boost preset: §f" + raw + "\n" + boostUsage();
+                return "§cThat boost needs a multiplier and minutes, like §f2:30§c. You typed: §f" + raw + "\n" + boostUsage();
             }
         }
 
@@ -344,7 +344,7 @@ public final class ProgressionGuiApi {
                 }
                 return ProgressionSystem.boostStartEncoded(actor, encoded, purchaser);
             } catch (NumberFormatException e) {
-                return "§cInvalid encoded boost: §f" + parts[i] + "\n" + boostUsage();
+                return "§cThat boost code is not a number: §f" + parts[i] + "§c. Use one of the forms below.\n" + boostUsage();
             }
         }
         return "§cThat boost amount did not work. Try again, or ask staff if it keeps happening.";

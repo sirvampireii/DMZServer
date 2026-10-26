@@ -101,7 +101,7 @@ public final class UltraRivalScreens {
                 .title("Rivals")
                 .page(page)
                 .activeTab(tab)
-                .tabs("home|Home", "actions|Rival", "challenge|Challenge", "info|Info");
+                .tabs("home|Home", "actions|Rival", "challenge|Challenge");
     }
 
     /** Subpage: no tab row — dual footer (Back + Main menu). */
@@ -114,10 +114,11 @@ public final class UltraRivalScreens {
 
     private static void openHome(ServerPlayer player) {
         UltraScreenSpec spec = base("home", "home")
-                .line(UltraStyle.LABEL + "Leaderboard, records, and TP chat.")
+                .line(UltraStyle.LABEL + "Your stats, leaderboard, records, and TP chat.")
                 .buttonsAfterLines();
         // Rivals, their profiles, and Requests live on the Rival tab.
-        UltraPickHelper.placePageButtons(spec, "top|Leaderboard", "records|Records", "settings|TP Chat");
+        UltraPickHelper.placePageButtons(
+                spec, "info|My rival stats", "top|Leaderboard", "records|Records", "settings|TP Chat");
         if (StaffAccess.isStaff(player)) {
             spec.buttonLeft("page:admin", UltraStyle.danger("Staff Admin"), "danger").rowGap();
         }
@@ -128,7 +129,8 @@ public final class UltraRivalScreens {
     /** Standing (RP, tier, nemesis, mutual) lives on Info, not Home. */
     private static void openInfo(ServerPlayer player) {
         Map<String, String> ph = RivalGuiApi.placeholders(player);
-        UltraScreenSpec spec = base("info", "info")
+        UltraScreenSpec spec = sub("info")
+                .line(UltraStyle.LABEL + "My rival stats")
                 .labelValue("Current RP", ph.getOrDefault("rp", "0"))
                 .labelValue("Rival tier", ph.getOrDefault("tier", "-"))
                 .labelValue("Nemesis", RivalGuiApi.nemesisNames(player))
@@ -137,7 +139,7 @@ public final class UltraRivalScreens {
                         "Mutual slots",
                         ph.getOrDefault("mutual", "0") + "/" + ph.getOrDefault("mutual_max", "0"))
                 .buttonsAfterLines();
-        spec.footerBackToMain();
+        spec.footerBackHome("Rival Home");
         spec.send(player);
     }
 
