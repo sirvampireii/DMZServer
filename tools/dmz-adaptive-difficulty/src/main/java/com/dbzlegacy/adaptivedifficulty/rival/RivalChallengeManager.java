@@ -509,13 +509,19 @@ public final class RivalChallengeManager {
         long duration = Math.max(0L, now - ch.startAt);
 
         if ("draw".equals(reason) || "distance".equals(reason) || winner == null) {
+            float drawBase = RivalConstants.CH_DRAW_TP;
+            if (related && recA != null && recB != null && ProvingGrounds.fightingOnGrounds(pA, pB,
+                    ProvingGrounds.pairGrounds(recA.rivals.get(recB.uuid), recB.rivals.get(recA.uuid)))) {
+                drawBase = (float) (drawBase * ProvingGrounds.ON_GROUNDS_TP_MULT);
+            }
+            String drawNote = drawBase > RivalConstants.CH_DRAW_TP ? "Rival Draw (Proving Grounds)" : "Rival Draw";
             if (pA != null) {
-                float tp = RivalTpCurve.scale(pA, RivalConstants.CH_DRAW_TP, "burst");
-                DmzRewards.awardTp(pA, tp, "Rival Draw", true, "Challenge");
+                float tp = RivalTpCurve.scale(pA, drawBase, "burst");
+                DmzRewards.awardTp(pA, tp, drawNote, true, "Challenge");
             }
             if (pB != null) {
-                float tp = RivalTpCurve.scale(pB, RivalConstants.CH_DRAW_TP, "burst");
-                DmzRewards.awardTp(pB, tp, "Rival Draw", true, "Challenge");
+                float tp = RivalTpCurve.scale(pB, drawBase, "burst");
+                DmzRewards.awardTp(pB, tp, drawNote, true, "Challenge");
             }
             if (related && recA != null && recB != null) {
                 awardDrawRp(recA, recB, ch);
@@ -550,36 +556,46 @@ public final class RivalChallengeManager {
                     + (knockout ? RivalConstants.CH_KO_WIN_TP_BONUS : 0);
             ServerPlayer winP = winner.equals(ch.a) ? pA : pB;
             ServerPlayer loseP = loser != null && loser.equals(ch.a) ? pA : pB;
-            RivalLink winLink = null;
             RivalPlayerRecord winRec = null;
             RivalPlayerRecord loseRec = null;
+            ProvingGrounds.Grounds pairPg = ProvingGrounds.fresh();
             if (related && recA != null && recB != null) {
                 winRec = winner.toString().equals(recA.uuid) ? recA : recB;
                 loseRec = loser.toString().equals(recA.uuid) ? recA : recB;
-                winLink = winRec.rivals.get(loseRec.uuid);
+                // Either side may hold the claim (one-sided links exist in live data).
+                pairPg = ProvingGrounds.pairGrounds(winRec.rivals.get(loseRec.uuid), loseRec.rivals.get(winRec.uuid));
             }
-            float pgMult = ProvingGrounds.challengeTpMultiplier(winP, winLink);
-            // Script: lose TP also gets on-grounds mult when applicable.
+            // Script: on grounds when EITHER fighter is inside at the end, read before the claim
+            // changes. Winner x1.35 x1.40 (x1.25 more as underdog); loser x1.35.
+            boolean onPg = ProvingGrounds.fightingOnGrounds(winP, loseP, pairPg);
+            float pgMult = ProvingGrounds.winnerTpMultiplier(pairPg, winner, onPg);
             float loseBase = RivalConstants.CH_LOSE_TP;
-            if (loseP != null && winLink != null && ProvingGrounds.onGrounds(loseP,
-                    ProvingGrounds.normalize(winLink.provingGrounds))) {
+            if (onPg) {
                 loseBase = (float) (loseBase * ProvingGrounds.ON_GROUNDS_TP_MULT);
             }
             float winTp = RivalTpCurve.scale(winP, baseWin * pgMult, "burst");
             float loseTp = RivalTpCurve.scale(loseP, loseBase, "burst");
-            if (winP != null) {
-                DmzRewards.awardTp(winP, winTp, knockout ? "Rival KO Win" : "Rival Win", true,
-                        "Challenge");
-            }
-            if (loseP != null) {
-                DmzRewards.awardTp(loseP, loseTp, "Rival Loss", true, "Challenge");
-            }
+            ProvingGrounds.BattleResult pg = null;
             if (related && winRec != null && loseRec != null) {
                 RivalChallenge.Combat wC = ch.combatOf(winner);
                 RivalChallenge.Combat lC = ch.combatOf(loser);
-                ProvingGrounds.BattleResult pg = ProvingGrounds.processBattle(winP, loseP, winRec, loseRec,
+                pg = ProvingGrounds.processBattle(winP, loseP, winRec, loseRec,
                         wC.damage, lC.damage, wC.biggestHit, lC.biggestHit, duration);
                 applyWinLoss(recA, recB, ch, winner, loser, knockout, false, pg);
+            }
+            // One grant per player: TP notices share a short cooldown, so a second grant right
+            // after the first (the reclaim TP) used to be paid but never shown.
+            boolean reclaimed = pg != null && pg.reclaimed;
+            if (reclaimed && winP != null) {
+                winTp += RivalTpCurve.scale(winP, ProvingGrounds.RECLAIM_TP, "burst");
+            }
+            String pgNote = onPg ? " (Proving Grounds)" : "";
+            if (winP != null) {
+                DmzRewards.awardTp(winP, winTp, reclaimed ? "Reclaimed Proving Grounds"
+                        : (knockout ? "Rival KO Win" : "Rival Win") + pgNote, true, "Challenge");
+            }
+            if (loseP != null) {
+                DmzRewards.awardTp(loseP, loseTp, "Rival Loss" + pgNote, true, "Challenge");
             }
             deliverReport(server, ch, winner, loser, false);
             if ("knockout".equals(reason)) {
@@ -812,7 +828,7 @@ public final class RivalChallengeManager {
             rp += RivalConstants.CH_CLOSE_BATTLE_RP;
         }
         rp += longRivalryBonus(aLink);
-        if (aLink.provingGrounds != null && aLink.provingGrounds.active) {
+        if (ProvingGrounds.pairGrounds(aLink, bLink).active) {
             rp += ProvingGrounds.ON_GROUNDS_RP_BONUS;
         }
         RivalStore.get().addRp(a, b.uuid, rp, "challenge_draw");

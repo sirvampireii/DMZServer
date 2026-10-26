@@ -5,6 +5,7 @@ import com.dbzlegacy.adaptivedifficulty.util.LmChat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -162,15 +163,27 @@ public final class ProvingGrounds {
         if (b.contains("cherry")) {
             return "the Sacred Blossoms";
         }
-        String clean = biome == null ? "" : biome.replaceFirst("(?i)^minecraft:", "").replace('_', ' ');
+        if (b.contains("time_chamber") || d.contains("time_chamber")) {
+            return "the Hyperbolic Time Chamber";
+        }
+        String clean = biome == null ? "" : biome.replaceFirst("^[a-z0-9_.-]+:", "").replace('_', ' ');
         return clean.isBlank() ? "Unknown Lands" : clean;
+    }
+
+    /**
+     * Stored place name for display. Claims made before 4.6.246 could store a raw biome id
+     * (for example the time chamber); those are renamed from their biome and dimension.
+     */
+    private static String placeName(Grounds pg) {
+        String place = pg.name == null || pg.name.isBlank() ? "Unknown Lands" : pg.name;
+        return place.indexOf(':') >= 0 ? battlefieldName(pg.biome, pg.dim) : place;
     }
 
     public static String displayName(Grounds pg) {
         if (pg == null || !pg.active) {
             return "-";
         }
-        String place = pg.name == null || pg.name.isBlank() ? "Unknown Lands" : pg.name;
+        String place = placeName(pg);
         if (place.startsWith("the ") || place.startsWith("The ")) {
             return "Proving Grounds of " + place;
         }
@@ -185,7 +198,7 @@ public final class ProvingGrounds {
         if (pg == null || !pg.active) {
             return "-";
         }
-        return pg.name == null || pg.name.isBlank() ? "Unknown Lands" : pg.name;
+        return placeName(pg);
     }
 
     public static Grounds captureLocation(ServerPlayer player) {
@@ -279,7 +292,9 @@ public final class ProvingGrounds {
         if (wLink == null || lLink == null) {
             return out;
         }
-        Grounds pg = normalize(wLink.provingGrounds);
+        // The claim from either side: a winner whose own link lost it must not start a new claim
+        // over the pair's existing one. syncPair below writes it back to both links.
+        Grounds pg = pairGrounds(wLink, lLink);
         long now = System.currentTimeMillis();
         double totalDmg = wDamage + lDamage;
         double bestHit = Math.max(wBiggest, lBiggest);
@@ -349,8 +364,7 @@ public final class ProvingGrounds {
             if (winnerPlayer != null) {
                 DmzRewards.msg(winnerPlayer, LmChat.ok("Proving", "You have reclaimed your honor."));
                 DmzRewards.msg(winnerPlayer, LmChat.info("Proving", displayName(pg) + " §8is yours again."));
-                float reclaimTp = RivalTpCurve.scale(winnerPlayer, RECLAIM_TP, "burst");
-                DmzRewards.awardTp(winnerPlayer, reclaimTp, "PG Reclaim", true, "Proving");
+                // RECLAIM_TP is paid by RivalChallengeManager.endChallenge in the winner's one grant.
             }
             if (loserPlayer != null) {
                 DmzRewards.msg(loserPlayer, LmChat.fail("Proving", "§f" + winnerRecord.name
@@ -400,7 +414,7 @@ public final class ProvingGrounds {
         if (linkA == null || linkB == null) {
             return;
         }
-        Grounds pg = normalize(linkA.provingGrounds);
+        Grounds pg = pairGrounds(linkA, linkB);
         if (!pg.active) {
             return;
         }
@@ -443,16 +457,36 @@ public final class ProvingGrounds {
         return lines;
     }
 
-    public static float challengeTpMultiplier(ServerPlayer player, RivalLink link) {
-        Grounds pg = normalize(link == null ? null : link.provingGrounds);
-        if (!pg.active || player == null || !onGrounds(player, pg)) {
+    /** The pair's claim, normalized: {@code a}'s when active, else {@code b}'s, else an inactive one. */
+    public static Grounds pairGrounds(RivalLink a, RivalLink b) {
+        if (a != null && a.provingGrounds != null && a.provingGrounds.active) {
+            return normalize(a.provingGrounds);
+        }
+        if (b != null && b.provingGrounds != null && b.provingGrounds.active) {
+            return normalize(b.provingGrounds);
+        }
+        return fresh();
+    }
+
+    /** Script {@code fightingOnGrounds}: the claim is active and EITHER fighter stands on it. */
+    public static boolean fightingOnGrounds(ServerPlayer a, ServerPlayer b, Grounds pg) {
+        return pg != null && pg.active
+                && ((a != null && onGrounds(a, pg)) || (b != null && onGrounds(b, pg)));
+    }
+
+    /**
+     * Winner TP multiplier: x{@link #ON_GROUNDS_TP_MULT} x(1 + {@link #CHALLENGE_TP_BONUS}) when the
+     * fight is on grounds, and x{@link #UNDERDOG_TP_MULT} more when someone else was champion.
+     */
+    public static float winnerTpMultiplier(Grounds pg, UUID winner, boolean fightingOnGrounds) {
+        if (!fightingOnGrounds || pg == null || !pg.active) {
             return 1.0f;
         }
         float mult = (float) ON_GROUNDS_TP_MULT;
-        if (!pg.championUuid.isBlank() && !pg.championUuid.equals(player.m_20148_().toString())) {
+        mult *= (float) (1.0 + CHALLENGE_TP_BONUS);
+        if (!pg.championUuid.isBlank() && (winner == null || !pg.championUuid.equals(winner.toString()))) {
             mult *= (float) UNDERDOG_TP_MULT;
         }
-        mult *= (float) (1.0 + CHALLENGE_TP_BONUS);
         return mult;
     }
 }

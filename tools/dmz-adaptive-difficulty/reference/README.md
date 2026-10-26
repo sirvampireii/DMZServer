@@ -154,6 +154,11 @@ shows only those two new strings), and `ConfigFieldHelp` (their help lines plus 
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
 grounds bar lives outside this set; the other 24 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.246 Proving Grounds bonus parity)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
+grounds bonus changes live outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

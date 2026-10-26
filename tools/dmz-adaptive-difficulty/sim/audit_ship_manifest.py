@@ -446,17 +446,17 @@ def main() -> int:
     pg_bar = read(SRC / "rival/ProvingGroundsBar.java")
     pg_events = read(SRC / "event/DifficultyEvents.java")
     pg_mgr = read(SRC / "rival/RivalChallengeManager.java")
-    pg_mult = pg_src.split("public static float challengeTpMultiplier(", 1)[-1].split("\n    }\n", 1)[0]
+    pg_mult = pg_src.split("public static float winnerTpMultiplier(", 1)[-1].split("\n    }\n", 1)[0]
     check("manifest proving-grounds-bar row", "proving-grounds-bar" in manifest)
     check("grounds constants unchanged (1.35 / 1.25 / 12 RP / 12000 TP / 45 RP / 0.40 / 5-15 wins / radius 48)",
           "ON_GROUNDS_TP_MULT = 1.35;" in pg_src and "UNDERDOG_TP_MULT = 1.25;" in pg_src
           and "ON_GROUNDS_RP_BONUS = 12;" in pg_src and "RECLAIM_TP = 12000;" in pg_src
           and "RECLAIM_RP = 45;" in pg_src and "CHALLENGE_TP_BONUS = 0.40;" in pg_src
           and "TIER2_WINS = 5;" in pg_src and "TIER3_WINS = 15;" in pg_src and "RADIUS = 48.0;" in pg_src)
-    check("underdog multiplier path unchanged; reclaim still pays RECLAIM_TP and RECLAIM_RP",
-          "!pg.championUuid.isBlank() && !pg.championUuid.equals(player.m_20148_().toString())" in pg_mult
+    check("underdog multiplier for a non-champion winner; reclaim still pays RECLAIM_TP and RECLAIM_RP",
+          "!pg.championUuid.isBlank() && (winner == null || !pg.championUuid.equals(winner.toString()))" in pg_mult
           and "mult *= (float) UNDERDOG_TP_MULT;" in pg_mult
-          and "RivalTpCurve.scale(winnerPlayer, RECLAIM_TP, \"burst\")" in pg_src
+          and "RivalTpCurve.scale(winP, ProvingGrounds.RECLAIM_TP, \"burst\")" in pg_mgr
           and "winRp += ProvingGrounds.RECLAIM_RP;" in pg_mgr)
     check("bar is display only: own map, no bonus, TP, RP, death-penalty or TP notify bar calls",
           "ConcurrentHashMap<UUID, ServerBossEvent> BARS = new ConcurrentHashMap<>();" in pg_bar
@@ -493,6 +493,87 @@ def main() -> int:
     check("sim: champion on grounds does not get the underdog multiplier",
           abs(_pg_mult(True, "champ", "champ") - 1.35 * 1.40) < 1e-9)
     check("sim: reclaim still pays 12000 TP and 45 RP", _reclaim("challenger", "champ") == (12000, 45))
+
+    print("\n--- § grounds bonus ---")
+    end_win = pg_mgr.split("float baseWin = (related ? RivalConstants.CH_WIN_TP", 1)[-1].split(
+        "RivalProgression.get().onChallengeEnd(winP, loseP, ch, false, knockout);", 1)[0]
+    end_draw = pg_mgr.split('if ("draw".equals(reason) || "distance".equals(reason) || winner == null) {', 1)[-1].split("deliverReport(", 1)[0]
+    pb_body = pg_src.split("public static BattleResult processBattle(", 1)[-1].split("\n    public static void touchDraw(", 1)[0]
+    check("manifest proving-grounds-bonus-parity row", "proving-grounds-bonus-parity" in manifest)
+    check("win TP: on grounds when EITHER fighter is inside (script fightingOnGrounds), read before the claim changes",
+          "boolean onPg = ProvingGrounds.fightingOnGrounds(winP, loseP, pairPg);" in end_win
+          and "float pgMult = ProvingGrounds.winnerTpMultiplier(pairPg, winner, onPg);" in end_win
+          and "if (onPg) {\n                loseBase = (float) (loseBase * ProvingGrounds.ON_GROUNDS_TP_MULT);" in end_win
+          and end_win.index("winnerTpMultiplier") < end_win.index("ProvingGrounds.processBattle(")
+          and "challengeTpMultiplier" not in pg_src + pg_mgr)
+    check("claim read from either link of the pair (one-sided links), in endChallenge, processBattle, and draws",
+          "ProvingGrounds.pairGrounds(winRec.rivals.get(loseRec.uuid), loseRec.rivals.get(winRec.uuid))" in end_win
+          and "Grounds pg = pairGrounds(wLink, lLink);" in pb_body
+          and "Grounds pg = pairGrounds(linkA, linkB);" in pg_src
+          and "ProvingGrounds.pairGrounds(aLink, bLink).active" in pg_mgr)
+    check("draw on grounds pays the 1.35 TP multiplier (script parity) with a grounds label",
+          "drawBase = (float) (drawBase * ProvingGrounds.ON_GROUNDS_TP_MULT);" in end_draw
+          and '"Rival Draw (Proving Grounds)"' in end_draw)
+    check("one TP grant per player at the end: reclaim TP folded into the winner's grant, labels name the grounds",
+          "awardTp" not in pb_body
+          and "winTp += RivalTpCurve.scale(winP, ProvingGrounds.RECLAIM_TP, \"burst\");" in end_win
+          and '"Reclaimed Proving Grounds"' in end_win and 'String pgNote = onPg ? " (Proving Grounds)" : "";' in end_win
+          and end_win.count("DmzRewards.awardTp(") == 2
+          and end_win.index("ProvingGrounds.processBattle(") < end_win.index("DmzRewards.awardTp("))
+    check("RP stays mutual-only (script: challenge RP only for mutual pairs)",
+          "// Script: challenge RP only when the pair is mutual.\n        if (!mutual) {\n            return;" in pg_mgr)
+    check("raw-id grounds names (time chamber) display as a place name",
+          '"the Hyperbolic Time Chamber"' in pg_src and "place.indexOf(':') >= 0 ? battlefieldName(pg.biome, pg.dim)" in pg_src)
+
+    # Mirror of endChallenge (win/KO/damage), processBattle, and applyWinLoss, using raw bases
+    # before the level curve. Constants are the shipped ones.
+    WIN, KO_BONUS, LOSE, DRAW = 1.0, 0.0, 1.0, 1.0  # relative bases: multipliers are what matter
+
+    def _end(winner, loser, mutual, champion, win_on, lose_on, claim_on_winner_side=True, ko=True):
+        claim = {"active": True, "champion": champion}
+        links = {"w": claim if claim_on_winner_side else None, "l": None if claim_on_winner_side else claim}
+        pair = links["w"] or links["l"]  # pairGrounds
+        on = bool(pair and pair["active"] and (win_on or lose_on))  # fightingOnGrounds
+        wm = 1.0
+        if on:
+            wm = 1.35 * 1.40
+            if pair["champion"] and pair["champion"] != winner:
+                wm *= 1.25
+        lm = 1.35 if on else 1.0
+        reclaimed = on and pair["champion"] and pair["champion"] != winner
+        rp_w = rp_l = 0
+        if mutual:
+            if on:
+                rp_w += 12
+                rp_l += 12
+            if reclaimed:
+                rp_w += 45
+        new_champ = winner if reclaimed else pair["champion"]
+        return {"wm": wm, "lm": lm, "reclaim_tp": 12000 if reclaimed else 0, "rp_w": rp_w, "rp_l": rp_l,
+                "champion": new_champ, "note": "Reclaimed Proving Grounds" if reclaimed else ("Rival KO Win (Proving Grounds)" if on else "Rival KO Win")}
+
+    champ_ko = _end("A", "B", True, "A", True, True)
+    check("sim: mutual KO on grounds, champion wins -> winner x1.89, loser x1.35, +12 RP both, no reclaim",
+          abs(champ_ko["wm"] - 1.35 * 1.40) < 1e-9 and abs(champ_ko["lm"] - 1.35) < 1e-9
+          and champ_ko["rp_w"] == 12 and champ_ko["rp_l"] == 12 and champ_ko["reclaim_tp"] == 0)
+    reclaim = _end("B", "A", True, "A", True, True)
+    check("sim: underdog reclaim on grounds -> x1.35 x1.40 x1.25, champion swaps, 12000 TP, +12+45 RP",
+          abs(reclaim["wm"] - 1.35 * 1.40 * 1.25) < 1e-9 and reclaim["champion"] == "B"
+          and reclaim["reclaim_tp"] == 12000 and reclaim["rp_w"] == 57 and reclaim["rp_l"] == 12
+          and reclaim["note"] == "Reclaimed Proving Grounds")
+    non_mutual = _end("A", "B", False, "A", True, True)
+    check("sim: non-mutual pair on grounds -> TP multipliers apply, RP bonus none (mutual-only by script)",
+          abs(non_mutual["wm"] - 1.35 * 1.40) < 1e-9 and abs(non_mutual["lm"] - 1.35) < 1e-9
+          and non_mutual["rp_w"] == 0 and non_mutual["rp_l"] == 0)
+    win_off = _end("A", "B", True, "A", False, True)
+    check("sim: winner off grounds at the end, loser on -> fight still counts as on grounds (was 1.0 before 4.6.246)",
+          abs(win_off["wm"] - 1.35 * 1.40) < 1e-9 and abs(win_off["lm"] - 1.35) < 1e-9 and win_off["rp_w"] == 12)
+    both_off = _end("A", "B", True, "A", False, False)
+    check("sim: both off grounds at the end -> no grounds bonus at all",
+          both_off["wm"] == 1.0 and both_off["lm"] == 1.0 and both_off["rp_w"] == 0 and both_off["reclaim_tp"] == 0)
+    one_sided = _end("B", "A", True, "A", True, True, claim_on_winner_side=False)
+    check("sim: claim only on the loser's link -> still found, underdog reclaim pays",
+          one_sided["reclaim_tp"] == 12000 and abs(one_sided["wm"] - 1.35 * 1.40 * 1.25) < 1e-9)
 
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
