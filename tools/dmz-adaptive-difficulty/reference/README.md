@@ -159,6 +159,11 @@ grounds bar lives outside this set; the other 24 are unchanged.
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
 grounds bonus changes live outside this set; the other 24 are unchanged.
 
+## Re-baseline (2026-10-25, 4.6.247 death penalty bar)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
+penalty bar change lives outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

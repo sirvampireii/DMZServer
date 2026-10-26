@@ -622,6 +622,134 @@ def main() -> int:
     check("sim: boost ends with the challenge and never boosts ki",
           _underdog("B", "A", True, active=False)[0] == 1.0 and _underdog("B", "A", True, ki=True)[0] == 1.0)
 
+    print("\n--- § death penalty bar ---")
+    dp = read(SRC / "progression/tp/DeathTpPenalty.java")
+    dp_events = read(SRC / "event/DifficultyEvents.java")
+    dp_notify = read(SRC / "util/TpBossNotify.java")
+    dp_pulse = dp.split("public static void pulse(", 1)[-1].split("\n    }\n", 1)[0]
+    dp_show = dp.split("private static void showBar(", 1)[-1].split("\n    }\n", 1)[0]
+    dp_hide = dp.split("private static void hideBar(", 1)[-1].split("\n    }\n", 1)[0]
+    dp_clear = dp.split("private static void clearExpired(", 1)[-1].split("\n    }\n", 1)[0]
+    dp_respawn = dp_events.split("public void onRespawn(", 1)[-1].split("\n    }\n", 1)[0]
+    dp_clone = dp_events.split("DifficultyCache.putData(neu, data);", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest death-penalty-one-bar row", "death-penalty-one-bar" in manifest)
+    check("one penalty bar: announcement and countdown on the same bar, no second notice bar",
+          "TpBossNotify" not in dp and "ANNOUNCE.put(" in dp and dp.count("new ServerBossEvent(") == 1
+          and 'EFFECT_LABEL + " - " + remainingLabel(player) + " left"' in dp
+          and "Component.m_237113_(barText(player))" in dp_show)
+    check("duration, effect, and messages unchanged",
+          "DURATION_MS = 10L * 60L * 1000L;" in dp and 'EFFECT_LABEL = "Effect: x0.5";' in dp
+          and "PENALTY_AMPLIFIER = -3;" in dp and "Death penalty ended. TP gain is back to normal." in dp
+          and "Death penalty refreshed." in dp)
+    check("pulse hides a bar with no timer; expiry hides; showBar never raises an inactive penalty",
+          "if (BARS.containsKey(player.m_20148_())) {\n                    hideBar(player);" in dp_pulse
+          and "clearExpired(player, true);" in dp_pulse and dp_clear.count("hideBar(player);") == 2
+          and "if (!active(player)) {\n                return;" in dp_show)
+    check("respawn instance swap: bar moves to the new player; hide removes every holder",
+          "if (!bar.m_8324_().contains(player)) {\n                bar.m_7706_();\n                bar.m_6543_(player);" in dp_show
+          and "bar.m_6539_(player);\n            bar.m_7706_();" in dp_hide)
+    check("only a death stamps: clone needs wasDeath, respawn skips End-conquered",
+          "if (event.isWasDeath()) {" in dp_clone and "DeathTpPenalty.tellLiving(neu);" in dp_clone
+          and dp_respawn.index("if (event.isEndConquered()) {") < dp_respawn.index("DeathTpPenalty.tellLiving(player);"))
+    check("TP award notice bar: 3 s window reset per grant, removed for all holders on expiry",
+          "SHOW_MS = 3_000L;" in dp_notify and "held.hideAt = System.currentTimeMillis() + SHOW_MS;" in dp_notify
+          and "held.event.m_7706_();" in dp_notify)
+
+    # Mirror of DeathTpPenalty (single bar) and TpBossNotify, in ms. pulse every 1000 ms.
+    DUR, ANN = 600_000, 3_000
+
+    class _P:
+        def __init__(self):
+            self.until = 0
+            self.bar = None  # (text, progress) or None
+            self.ann = None
+            self.online = True
+
+    def _active(p, now):
+        return p.until > now
+
+    def _show(p, now):
+        if not _active(p, now):
+            return
+        text = p.ann[0] if p.ann and now < p.ann[1] else "countdown"
+        p.bar = (text, max(0.0, min(1.0, (p.until - now) / DUR)))
+
+    def _hide(p):
+        p.bar = None
+        p.ann = None
+
+    def _death(p, now):
+        p.until = now + DUR
+        p.ann = ("announce", now + ANN)
+        _show(p, now)
+
+    def _pulse(p, now):
+        if p.until <= 0:
+            if p.bar:
+                _hide(p)
+            return
+        if p.until <= now:
+            p.until = 0
+            _hide(p)
+            return
+        _show(p, now)
+
+    def _login(p, now):
+        if not _active(p, now):
+            p.until = 0
+            _hide(p)
+            return
+        _show(p, now)
+
+    pl = _P()
+    _death(pl, 0)
+    _pulse(pl, DUR - 500)
+    on_before = pl.bar is not None
+    _pulse(pl, DUR + 500)
+    check("sim: penalty expiry while online hides the bar within one pulse", on_before and pl.bar is None)
+    pl = _P()
+    _death(pl, 0)
+    _hide(pl)  # logout
+    _login(pl, DUR + 60_000)
+    check("sim: expiry while offline -> login shows no bar", pl.bar is None and pl.until == 0)
+    pl = _P()
+    _death(pl, 0)
+    _hide(pl)
+    _login(pl, 120_000)
+    check("sim: logout/login with an active penalty -> exactly one bar, countdown text",
+          pl.bar is not None and pl.bar[0] == "countdown" and abs(pl.bar[1] - 0.8) < 1e-9)
+    pl = _P()
+    _death(pl, 0)
+    _pulse(pl, 300_000)
+    half = pl.bar[1]
+    _death(pl, 300_000)
+    check("sim: death refresh restarts progress from full", abs(half - 0.5) < 1e-9 and pl.bar[1] == 1.0
+          and pl.until == 900_000)
+    pl = _P()
+    _death(pl, 0)
+    _pulse(pl, 2_000)
+    ann_up = pl.bar[0] == "announce"
+    _pulse(pl, 4_000)
+    check("sim: announcement shows on the same bar, then the countdown", ann_up and pl.bar[0] == "countdown")
+
+    def _respawn_stamps(was_death, end_conquered):
+        return was_death and not end_conquered  # clone: wasDeath; respawn: not End-conquered
+
+    check("sim: no non-death respawn stamps a penalty (End return)", not _respawn_stamps(False, True))
+
+    def _flash(grants, until):
+        hide_at, t, shown = None, 0, False
+        for g in grants:
+            hide_at = g + 3_000
+        while t <= until:  # pulse every 250 ms (5 ticks)
+            shown = hide_at is not None and t < hide_at and any(g <= t for g in grants)
+            t += 250
+        return shown
+
+    check("sim: TP notice bar hides 3 s after the last grant", _flash([0], 3_250) is False and _flash([0], 2_750) is True)
+    check("sim: continuous grants keep it up by design, then it hides 3 s after the last",
+          _flash([0, 2_000, 4_000], 6_750) is True and _flash([0, 2_000, 4_000], 7_250) is False)
+
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")
     title_prog = read(SRC / "title/TitleProgress.java")

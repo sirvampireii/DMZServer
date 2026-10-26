@@ -2,7 +2,6 @@ package com.dbzlegacy.adaptivedifficulty.progression.tp;
 
 import com.dbzlegacy.adaptivedifficulty.util.LmChat;
 import com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess;
-import com.dbzlegacy.adaptivedifficulty.util.TpBossNotify;
 import com.dragonminez.common.init.MainEffects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,7 +46,15 @@ public final class DeathTpPenalty {
     private static final int EFFECT_REFRESH_BUFFER_TICKS = 100;
     /** Living-player explanation, so a corpse chat and the respawn chat are not the same slot. */
     private static final ConcurrentHashMap<UUID, Long> LIVING_TOLD = new ConcurrentHashMap<>();
+    /**
+     * The one penalty bar per player. Before 4.6.247 a second red flash bar carried the
+     * announcement next to this one, and this one only said "Effect: x0.5" while draining
+     * 1/600 a second, so it looked frozen. Now this bar carries both.
+     */
     private static final ConcurrentHashMap<UUID, ServerBossEvent> BARS = new ConcurrentHashMap<>();
+    /** Announcement text shown on the bar until the time stored here, then the countdown. */
+    private static final ConcurrentHashMap<UUID, Announce> ANNOUNCE = new ConcurrentHashMap<>();
+    static final long ANNOUNCE_MS = 3_000L;
     private static final long LIVING_TELL_GAP_MS = 3_000L;
 
     private DeathTpPenalty() {}
@@ -118,6 +125,10 @@ public final class DeathTpPenalty {
             }
             long until = PersistentDataAccess.getLong(player, KEY, 0L);
             if (until <= 0L) {
+                // No timer (or unreadable data) but a bar is up: take it down.
+                if (BARS.containsKey(player.m_20148_())) {
+                    hideBar(player);
+                }
                 continue;
             }
             if (until <= System.currentTimeMillis()) {
@@ -195,13 +206,31 @@ public final class DeathTpPenalty {
         flashBar(player, remainingLabel(player));
     }
 
-    /** Penalty announcement. The duration bar stays; this one hides itself. */
+    /** Penalty announcement on the same bar for a few seconds; the countdown follows. */
     private static void flashBar(ServerPlayer player, String detail) {
+        if (player == null) {
+            return;
+        }
         String text = detail == null || detail.isBlank()
                 ? EFFECT_LABEL
                 : EFFECT_LABEL + " - " + detail;
-        TpBossNotify.show(player, text, ChatFormatting.RED, "", 0L);
+        ANNOUNCE.put(player.m_20148_(), new Announce(text, System.currentTimeMillis() + ANNOUNCE_MS));
+        showBar(player);
     }
+
+    /** Bar text: the announcement while it lasts, else the effect and the time left. */
+    private static String barText(ServerPlayer player) {
+        Announce a = ANNOUNCE.get(player.m_20148_());
+        if (a != null) {
+            if (System.currentTimeMillis() < a.until) {
+                return a.text;
+            }
+            ANNOUNCE.remove(player.m_20148_());
+        }
+        return EFFECT_LABEL + " - " + remainingLabel(player) + " left";
+    }
+
+    private record Announce(String text, long until) {}
 
     public static String remainingLabel(ServerPlayer player) {
         long rem = Math.max(0L, PersistentDataAccess.getLong(player, KEY, 0L) - System.currentTimeMillis());
@@ -243,8 +272,11 @@ public final class DeathTpPenalty {
             return;
         }
         try {
+            if (!active(player)) {
+                return;
+            }
             UUID id = player.m_20148_();
-            Component name = Component.m_237113_(EFFECT_LABEL).m_130940_(ChatFormatting.RED);
+            Component name = Component.m_237113_(barText(player)).m_130940_(ChatFormatting.RED);
             ServerBossEvent bar = BARS.get(id);
             if (bar == null) {
                 bar = new ServerBossEvent(
@@ -273,6 +305,7 @@ public final class DeathTpPenalty {
             return;
         }
         try {
+            ANNOUNCE.remove(player.m_20148_());
             ServerBossEvent bar = BARS.remove(player.m_20148_());
             if (bar == null) {
                 return;

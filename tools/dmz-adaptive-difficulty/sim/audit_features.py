@@ -1282,9 +1282,9 @@ def main() -> int:
           and "ScreenNotify.subtitleOnly" not in rewards
           and "LmChat.tp(resolveTpSystem" not in rewards)
     death_tp_ui = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/tp/DeathTpPenalty.java")
-    check("death TP announcement is a boss bar",
-          "TpBossNotify.show" in death_tp_ui
-          and "flashBar" in death_tp_ui
+    check("death TP announcement is on the one penalty boss bar (4.6.247)",
+          "TpBossNotify" not in death_tp_ui
+          and "flashBar" in death_tp_ui and "ANNOUNCE.put(" in death_tp_ui
           and "ScreenNotify" not in death_tp_ui)
     check("GuiChat mirrors aliases", "TAG_ALIASES" in guichat and "normalizeOpenTip" in guichat)
     check("Mentor invite uses LmChat.tip", 'LmChat.tip("/spar"' in spar_sys)
