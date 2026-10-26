@@ -113,43 +113,43 @@ public final class PlayerBossSummons {
      *
      * @return a message for the menu; blank when the summon already messaged the player
      */
-    public static String summon(ServerPlayer player, Boss boss) {
+    public static SummonOutcome summonOutcome(ServerPlayer player, Boss boss) {
         if (player == null || boss == null) {
-            return UltraStyle.dangerLine("This only works in-game.");
+            return SummonOutcome.fail(UltraStyle.dangerLine("This only works in-game."));
         }
         if (!DifficultyConfig.get().enabled) {
-            return UltraStyle.dangerLine("Adaptive Difficulty is turned off. Ask staff to turn it on.");
+            return SummonOutcome.fail(UltraStyle.dangerLine("Adaptive Difficulty is turned off. Ask staff to turn it on."));
         }
         if (!boss.enabled()) {
-            return UltraStyle.dangerLine(boss.display + " summoning is turned off. Ask staff to turn it on.");
+            return SummonOutcome.fail(UltraStyle.dangerLine(boss.display + " summoning is turned off. Ask staff to turn it on."));
         }
         if (!SystemGate.participates(player)) {
-            return UltraStyle.dangerLine("Turn personal Adaptive Difficulty ON to summon the " + boss.display + ".");
+            return SummonOutcome.fail(UltraStyle.dangerLine("Turn personal Adaptive Difficulty ON to summon the " + boss.display + "."));
         }
         int tier = DifficultyCache.data(player).getActiveTier();
         if (tier < boss.minTier || tier > boss.maxTier) {
-            return UltraStyle.dangerLine("You need an active difficulty tier from T" + boss.minTier + " to T"
+            return SummonOutcome.fail(UltraStyle.dangerLine("You need an active difficulty tier from T" + boss.minTier + " to T"
                     + boss.maxTier + " (yours: T" + tier + "). A higher tier unlocks this boss - unlock and"
-                    + " activate one on the Tiers tab first.");
+                    + " activate one on the Tiers tab first."));
         }
         if (!inDimension(player, boss)) {
-            return UltraStyle.dangerLine("You must be in " + boss.dimensionName + " to summon the "
-                    + boss.display + ". Travel there, then confirm again.");
+            return SummonOutcome.fail(UltraStyle.dangerLine("You must be in " + boss.dimensionName + " to summon the "
+                    + boss.display + ". Travel there, then confirm again."));
         }
         LivingEntity owned = findOwned(player, boss);
         if (owned != null) {
-            return UltraStyle.dangerLine("Your " + boss.display + " is already alive (HP "
-                    + DmzRewards.formatWhole(owned.m_21223_()) + "). Defeat it before summoning another.");
+            return SummonOutcome.fail(UltraStyle.dangerLine("Your " + boss.display + " is already alive (HP "
+                    + DmzRewards.formatWhole(owned.m_21223_()) + "). Defeat it before summoning another."));
         }
         long cost = boss.copperCost();
         boolean free = PaidFeatureAccess.bypassAncientCoinCost(player);
         long charge = free ? 0L : cost;
         String costText = free ? "free (staff)" : AncientCoinEconomy.formatExactCost(cost);
         if (charge > 0L && !AncientCoinEconomy.canAfford(player, charge)) {
-            return AncientCoinEconomy.missingText(player, charge);
+            return SummonOutcome.fail(AncientCoinEconomy.missingText(player, charge));
         }
         if (charge > 0L && !AncientCoinEconomy.charge(player, charge)) {
-            return AncientCoinEconomy.missingText(player, charge);
+            return SummonOutcome.fail(AncientCoinEconomy.missingText(player, charge));
         }
         LivingEntity spawned = spawnNear(player, boss);
         if (spawned == null) {
@@ -157,8 +157,8 @@ public final class PlayerBossSummons {
             if (charge > 0L) {
                 AncientCoinEconomy.grantExact(player, AncientCoinEconomy.CoinKind.NETHERITE, boss.netheriteCoins());
             }
-            return UltraStyle.dangerLine("Could not find room for the " + boss.display
-                    + " - try again in open space nearby. Your coins were returned.");
+            return SummonOutcome.fail(UltraStyle.dangerLine("Could not find room for the " + boss.display
+                    + " - try again in open space nearby. Your coins were returned."));
         }
         double hp = MobScaling.applySummonedBossAdProfile(spawned, player);
         if (spawned instanceof Warden warden) {
@@ -168,17 +168,35 @@ public final class PlayerBossSummons {
             } catch (Throwable ignored) {
             }
         }
-        DmzRewards.msg(player, UltraStyle.GOLD + "[Difficulty] " + UltraStyle.YELLOW + "Summoned Adaptive "
-                + boss.display + " with " + UltraStyle.DANGER + DmzRewards.formatWhole(hp > 0 ? hp : spawned.m_21233_())
-                + UltraStyle.YELLOW + " HP " + UltraStyle.DIM + "(T" + tier + " AD)");
-        DmzRewards.msg(player, UltraStyle.DIM + "Cost " + UltraStyle.VALUE + costText
-                + UltraStyle.DIM + " · AD boss profile · only you can damage this " + boss.display + ".");
-        DmzRewards.msg(player, UltraStyle.YELLOW + SummonLootBonus.describe(tier, boss.minTier));
+        // Menu-first: the confirmation paints on the summon page, not in chat.
+        String done = UltraStyle.YELLOW + "Summoned Adaptive " + boss.display + " with "
+                + UltraStyle.DANGER + DmzRewards.formatWhole(hp > 0 ? hp : spawned.m_21233_())
+                + UltraStyle.YELLOW + " HP (T" + tier + " AD)."
+                + "\n" + UltraStyle.LABEL + "Cost " + UltraStyle.VALUE + costText
+                + UltraStyle.LABEL + " - only you can damage this " + boss.display + "."
+                + "\n" + UltraStyle.YELLOW + SummonLootBonus.describe(tier, boss.minTier);
         SystemTelemetry.log("difficulty", "boss_summon", player, null, Map.of(
                 "boss", boss.name().toLowerCase(java.util.Locale.ROOT),
                 "tier", tier,
                 "cost", charge));
-        return "";
+        return SummonOutcome.ok(done);
+    }
+
+    /** Legacy string form: blank on success (the outcome text is for the menu). */
+    public static String summon(ServerPlayer player, Boss boss) {
+        SummonOutcome out = summonOutcome(player, boss);
+        return out.ok() ? "" : out.text();
+    }
+
+    /** Result of a paid summon: success with its confirmation, or the reason it did not happen. */
+    public record SummonOutcome(boolean ok, String text) {
+        public static SummonOutcome ok(String text) {
+            return new SummonOutcome(true, text == null ? "" : text);
+        }
+
+        public static SummonOutcome fail(String text) {
+            return new SummonOutcome(false, text == null ? "" : text);
+        }
     }
 
     /** Status lines for the confirm page, in the dragon confirm page's pattern. */

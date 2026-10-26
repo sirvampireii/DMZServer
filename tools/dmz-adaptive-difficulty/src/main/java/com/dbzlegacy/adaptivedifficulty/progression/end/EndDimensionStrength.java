@@ -744,82 +744,93 @@ public final class EndDimensionStrength {
      *
      * @return chat message (empty = silent success path already messaged)
      */
-    public static String cmdPlayerSummon(ServerPlayer player) {
+    public static com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome playerSummonOutcome(ServerPlayer player) {
         if (player == null) {
-            return "§cPlayers only.";
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.fail("§cPlayers only.");
         }
         if (!DifficultyConfig.get().enableEndDimensionStrength) {
-            return "§cEnd Dimension Strength is disabled.";
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.fail("§cEnd Dimension Strength is disabled.");
         }
         if (!DifficultyConfig.get().enableEndPlayerDragonSummon) {
-            return "§cDragon spawn is disabled. §7Ask staff to clear the dragon.";
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.fail("§cDragon spawn is disabled. §7Ask staff to clear the dragon.");
         }
         if (!SystemGate.participates(player)) {
-            return "§cTurn personal Adaptive Difficulty ON to summon the End Dragon.";
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.fail("§cTurn personal Adaptive Difficulty ON to summon the End Dragon.");
         }
         PlayerDifficultyData data = DifficultyCache.data(player);
         int tier = data.getActiveTier();
         if (tier < PLAYER_SUMMON_MIN_TIER || tier > PLAYER_SUMMON_MAX_TIER) {
-            return "§cNeed an active Unlock Tier T"
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.fail("§cNeed an active Unlock Tier T"
                     + PLAYER_SUMMON_MIN_TIER + "–T" + PLAYER_SUMMON_MAX_TIER
                     + " (you: T" + tier + "). Prestige "
                     + PLAYER_SUMMON_MIN_TIER + "+ unlocks T"
-                    + PLAYER_SUMMON_MIN_TIER + " eligibility — buy/activate it first.";
+                    + PLAYER_SUMMON_MIN_TIER + " eligibility — buy/activate it first.");
         }
         if (!isTheEnd(player.m_9236_())) {
-            return "§cYou must be in The End to summon the dragon. §7Use TP to reach it.";
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.fail("§cYou must be in The End to summon the dragon. §7Use TP to reach it.");
         }
         MinecraftServer server = player.m_20194_();
         if (server == null) {
-            return "§cServer unavailable.";
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.fail("§cServer unavailable.");
         }
         ServerLevel end = server.m_129880_(Level.f_46430_);
         if (end == null) {
-            return "§cEnd dimension unavailable.";
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.fail("§cEnd dimension unavailable.");
         }
         hygieneDragons(end);
         EnderDragon owned = findOwnedDragon(end, player);
         if (owned != null && owned.m_6084_()) {
-            return "§eYour Ender Dragon is already alive."
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.fail("§eYour Ender Dragon is already alive."
                     + " §8HP §c" + DmzRewards.formatWhole(owned.m_21233_())
-                    + " §8· AD T" + Math.max(0, PersistentDataAccess.getLong(owned, NBT_AD_TIER, tier));
+                    + " §8· AD T" + Math.max(0, PersistentDataAccess.getLong(owned, NBT_AD_TIER, tier)));
         }
         long cost = summonCopperCost();
         boolean free = PaidFeatureAccess.bypassAncientCoinCost(player);
         long charge = free ? 0L : cost;
         String costText = free ? "free (staff)" : AncientCoinEconomy.formatExactCost(cost);
         if (charge > 0L && !AncientCoinEconomy.canAfford(player, charge)) {
-            return AncientCoinEconomy.missingText(player, charge);
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.fail(AncientCoinEconomy.missingText(player, charge));
         }
         if (charge > 0L && !AncientCoinEconomy.charge(player, charge)) {
-            return AncientCoinEconomy.missingText(player, charge);
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.fail(AncientCoinEconomy.missingText(player, charge));
         }
-        msg(player, "§7[The End] Spawning Ender Dragon near you (T" + tier + " AD)…");
         PlayerPower power = adScaledPower(player);
         EnderDragon dragon = spawnNearPlayerDragon(end, player);
         if (dragon == null) {
             AncientCoinEconomy.grantExact(player, AncientCoinEconomy.CoinKind.NETHERITE,
                     PLAYER_SUMMON_NETHERITE_COST);
-            return "§cFailed to spawn — try again in open sky nearby.";
+            return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.fail("§cFailed to spawn — try again in open sky nearby.");
         }
         stampPlayerSummon(dragon, player, tier, power);
         applySummonerAdStats(dragon, player, "spawn");
         lastDragonScaleScore = score(power);
         lastNaturalSpawnAt = System.currentTimeMillis();
         naturalTimerArmed = true;
-        msg(player, "§6[The End] §eSummoned Adaptive Ender Dragon with §c"
+        // Menu-first: the confirmation paints on the summon page, not in chat.
+        String done = com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.YELLOW
+                + "Summoned Adaptive Ender Dragon with "
+                + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.DANGER
                 + DmzRewards.formatWhole(dragon.m_21233_())
-                + " §eHP §8(T" + tier + " AD · " + power.name + " / Lv" + power.level + ")");
-        msg(player, "§8Cost §f" + costText
-                + " §8· AD boss profile · only you can damage this dragon.");
-        msg(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.YELLOW
+                + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.YELLOW
+                + " HP (T" + tier + " AD, " + power.name + " / Lv" + power.level + ")."
+                + "\n" + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL + "Cost "
+                + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.VALUE + costText
+                + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL
+                + " - only you can damage this dragon."
+                + "\n" + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.YELLOW
                 + com.dbzlegacy.adaptivedifficulty.progression.boss.SummonLootBonus.describe(
-                        tier, PLAYER_SUMMON_MIN_TIER));
+                        tier, PLAYER_SUMMON_MIN_TIER);
         SystemTelemetry.log("end_strength", "dragon_spawn", player, null, Map.of(
                 "via", "gui_summon",
                 "tier", tier,
                 "cost", cost));
-        return ""; // already messaged; GUI treats blank as silent ok
+        return com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.SummonOutcome.ok(done);
+    }
+
+    /** Legacy string form: blank on success (the outcome text is for the menu). */
+    public static String cmdPlayerSummon(ServerPlayer player) {
+        var out = playerSummonOutcome(player);
+        return out.ok() ? "" : out.text();
     }
 
     /** Copper value of {@link #PLAYER_SUMMON_NETHERITE_COST} Ancient Netherite coins. */

@@ -37,8 +37,13 @@ public final class RivalSpectator {
         st.until = System.currentTimeMillis() + DEFAULT_DURATION_MS;
         st.lastPulse = 0L;
         ACTIVE.put(spectator.m_20148_(), st);
-        DmzRewards.msg(spectator, "§a[Spec] Watching §f" + ch.nameA + " §7vs §f" + ch.nameB);
-        return "§8/rival spectate stop §7to end early.";
+        // Menu-first: the confirmation is the return value (the menu paints it; /rival chats it).
+        return com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.GREEN + "Watching "
+                + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.WHITE + ch.nameA
+                + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.GRAY + " vs "
+                + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.WHITE + ch.nameB
+                + "\n" + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.GRAY
+                + "Tap Stop spectate (or /rival spectate stop) to end early.";
     }
 
     public static String stop(ServerPlayer spectator) {

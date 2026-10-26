@@ -124,7 +124,7 @@ def main() -> int:
     boss_src = read(SRC / "progression/boss/PlayerBossSummons.java")
     boss_cfg = read(SRC / "config/DifficultyConfig.java")
     boss_ui = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
-    summon_body = boss_src.split("public static String summon(", 1)[-1].split("\n    }\n", 1)[0]
+    summon_body = boss_src.split("public static SummonOutcome summonOutcome(", 1)[-1].split("\n    }\n", 1)[0]
     check("manifest boss-summons-wither-warden row", "boss-summons-wither-warden" in manifest)
     check("Wither T3-T7 in the Nether; Warden T4-T7 in the Overworld (dimension keys, no id strings)",
           'WITHER("Wither", 3, 7, Level.f_46429_' in boss_src
@@ -856,6 +856,19 @@ def main() -> int:
                    5 if c in 'fk"()*<>{}' else 7 if c in "@~" else 6 for c in t)
 
     check("sim: Back to Difficulty Home fits the 134px label area (real widths)", _w("Back to Difficulty Home") <= 134)
+    gf_boss = read(SRC / "progression/boss/PlayerBossSummons.java")
+    gf_end = read(SRC / "progression/end/EndDimensionStrength.java")
+    gf_act = read(SRC / "service/DifficultyActions.java")
+    gf_spec2 = read(SRC / "rival/RivalSpectator.java")
+    gf_bsum = gf_boss.split("public static SummonOutcome summonOutcome(", 1)[-1].split("\n    }\n", 1)[0]
+    gf_dsum = gf_end.split("playerSummonOutcome(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    gf_start = gf_spec2.split("public static String start(", 1)[-1].split("\n    }\n", 1)[0]
+    check("menu-first: boss summon confirmations paint on the page, not in chat",
+          "DmzRewards.msg" not in gf_bsum and "return SummonOutcome.ok(done);" in gf_bsum
+          and "msg(player" not in gf_dsum and "SummonOutcome.ok(done)" in gf_dsum
+          and gf_act.count("out.ok() ? Result.ok(out.text()) : Result.fail(out.text())") == 2)
+    check("menu-first: spectate confirmation is returned, not chatted",
+          "DmzRewards.msg" not in gf_start and '"Watching "' in gf_start)
 
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")

@@ -441,13 +441,10 @@ public final class DifficultyActions {
 
     private static Result summonEndDragon(ServerPlayer player, String page) {
         String returnPage = page == null || page.isBlank() ? "end_dragon" : page;
-        String msg = com.dbzlegacy.adaptivedifficulty.progression.end.EndDimensionStrength
-                .cmdPlayerSummon(player);
+        var out = com.dbzlegacy.adaptivedifficulty.progression.end.EndDimensionStrength
+                .playerSummonOutcome(player);
         openGui(player, returnPage);
-        if (msg == null || msg.isBlank()) {
-            return Result.ok("");
-        }
-        return Result.fail(msg);
+        return out.ok() ? Result.ok(out.text()) : Result.fail(out.text());
     }
 
     /** Wither / Warden paid summon, routed like {@link #summonEndDragon}. */
@@ -457,12 +454,9 @@ public final class DifficultyActions {
             com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.Boss boss,
             String confirmPage) {
         String returnPage = page == null || page.isBlank() ? confirmPage : page;
-        String msg = com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.summon(player, boss);
+        var out = com.dbzlegacy.adaptivedifficulty.progression.boss.PlayerBossSummons.summonOutcome(player, boss);
         openGui(player, returnPage);
-        if (msg == null || msg.isBlank()) {
-            return Result.ok("");
-        }
-        return Result.fail(msg);
+        return out.ok() ? Result.ok(out.text()) : Result.fail(out.text());
     }
 
     private static Result equipTitle(ServerPlayer player, String titleId, String page) {
