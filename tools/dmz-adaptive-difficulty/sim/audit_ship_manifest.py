@@ -510,7 +510,7 @@ def main() -> int:
           "ProvingGrounds.pairGrounds(winRec.rivals.get(loseRec.uuid), loseRec.rivals.get(winRec.uuid))" in end_win
           and "Grounds pg = pairGrounds(wLink, lLink);" in pb_body
           and "Grounds pg = pairGrounds(linkA, linkB);" in pg_src
-          and "ProvingGrounds.pairGrounds(aLink, bLink).active" in pg_mgr)
+          and "ProvingGrounds.pairGrounds(recA.rivals.get(recB.uuid), recB.rivals.get(recA.uuid))" in pg_mgr)
     check("draw on grounds pays the 1.35 TP multiplier (script parity) with a grounds label",
           "drawBase = (float) (drawBase * ProvingGrounds.ON_GROUNDS_TP_MULT);" in end_draw
           and '"Rival Draw (Proving Grounds)"' in end_draw)
@@ -574,6 +574,53 @@ def main() -> int:
     one_sided = _end("B", "A", True, "A", True, True, claim_on_winner_side=False)
     check("sim: claim only on the loser's link -> still found, underdog reclaim pays",
           one_sided["reclaim_tp"] == 12000 and abs(one_sided["wm"] - 1.35 * 1.40 * 1.25) < 1e-9)
+
+    print("\n--- § grounds underdog + draw RP ---")
+    ud_events = read(SRC / "event/DifficultyEvents.java")
+    draw_rp = pg_mgr.split("private void awardDrawRp(", 1)[-1].split("\n    }\n", 1)[0]
+    ud_scale = pg_mgr.split("public float underdogDamageScale(", 1)[-1].split("\n    }\n", 1)[0]
+    ud_notice = pg_src.split("public static void underdogNotice(", 1)[-1].split("\n    }\n", 1)[0]
+    ud_is = pg_src.split("public static boolean isUnderdogOnGrounds(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest proving-grounds-underdog-boost row", "proving-grounds-underdog-boost" in manifest)
+    check("draw +12 RP only when either fighter is on the grounds; draw RP still mutual-only",
+          "awardDrawRp(recA, recB, ch, drawOnPg);" in pg_mgr
+          and "if (onGrounds) {\n            rp += ProvingGrounds.ON_GROUNDS_RP_BONUS;" in draw_rp
+          and "!aLink.mutual || !bLink.mutual" in draw_rp and "pairGrounds" not in draw_rp)
+    check("underdog boost x1.12: active challenge, opponent only, non-champion on grounds, melee only, nothing stored",
+          "UNDERDOG_OFFENSE = 1.12;" in pg_src
+          and "kiDamage" in ud_scale and "ch.status != RivalChallenge.Phase.ACTIVE" in ud_scale
+          and "!ch.involves(victim.m_20148_())" in ud_scale
+          and "ProvingGrounds.isUnderdogOnGrounds(attacker, pg)" in ud_scale
+          and "!pg.championUuid.isBlank()" in ud_is and "!pg.championUuid.equals(player.m_20148_().toString())" in ud_is
+          and "onGrounds(player, pg)" in ud_is
+          and not any(t in ud_scale for t in ("addBonus", "getBonusStats", "PersistentDataAccess", "markDirty")))
+    check("boost applied in the PvP hurt path; offense aura stays off",
+          ".underdogDamageScale(pvpVictim, pvpAttacker," in ud_events
+          and "event.setAmount(event.getAmount() * underdog);" in ud_events
+          and "OFFENSE_ENABLED = false;" in read(SRC / "rival/RivalConstants.java"))
+    check("challenge start: only the underdog on the grounds gets the notice, plain words",
+          "ProvingGrounds.underdogNotice(a, startPg);" in pg_mgr and "ProvingGrounds.underdogNotice(b, startPg);" in pg_mgr
+          and "if (!isUnderdogOnGrounds(player, pg)) {\n            return;" in ud_notice
+          and "Underdog bonus active on " in ud_notice and "challengeFlavor" not in pg_src)
+
+    # Mirror of awardDrawRp and underdogDamageScale.
+    def _draw_rp(mutual, claim_active, a_on, b_on, base=0):
+        if not mutual:
+            return None
+        return base + (12 if claim_active and (a_on or b_on) else 0)
+
+    def _underdog(me, champion, on_grounds, active=True, ki=False):
+        boosted = active and not ki and bool(champion) and champion != me and on_grounds
+        return (1.12 if boosted else 1.0), boosted  # (damage scale, start notice)
+
+    check("sim: draw on grounds, mutual pair -> +12 RP", _draw_rp(True, True, True, False) == 12)
+    check("sim: draw off grounds, mutual pair with an active claim -> no +12", _draw_rp(True, True, False, False) == 0)
+    ud = _underdog("B", "A", True)
+    check("sim: underdog on grounds at start -> notice, melee x1.12 during the challenge", ud == (1.12, True))
+    check("sim: champion on grounds -> no boost, no notice", _underdog("A", "A", True) == (1.0, False))
+    check("sim: underdog off grounds -> no boost, no notice", _underdog("B", "A", False) == (1.0, False))
+    check("sim: boost ends with the challenge and never boosts ki",
+          _underdog("B", "A", True, active=False)[0] == 1.0 and _underdog("B", "A", True, ki=True)[0] == 1.0)
 
     print("\n--- § titles ---")
     diff_data = read(SRC / "data/PlayerDifficultyData.java")

@@ -29,6 +29,8 @@ public final class ProvingGrounds {
     public static final int RECLAIM_TP = 12000;
     public static final int RECLAIM_RP = 45;
     public static final double CHALLENGE_TP_BONUS = 0.40;
+    /** Script PG_UNDERDOG_OFFENSE: the underdog's melee damage on the grounds in a challenge. */
+    public static final double UNDERDOG_OFFENSE = 1.12;
 
     private ProvingGrounds() {}
 
@@ -432,16 +434,20 @@ public final class ProvingGrounds {
         RivalStore.get().markDirty();
     }
 
-    public static void challengeFlavor(ServerPlayer player, Grounds pg, String myUuid) {
-        if (player == null || pg == null || !pg.active || !onGrounds(player, pg)) {
+    /** Not the champion (someone else holds the claim) and standing on it. */
+    public static boolean isUnderdogOnGrounds(ServerPlayer player, Grounds pg) {
+        return player != null && pg != null && pg.active && !pg.championUuid.isBlank()
+                && !pg.championUuid.equals(player.m_20148_().toString()) && onGrounds(player, pg);
+    }
+
+    /** Challenge start: tells the underdog on the grounds that their boost is on. Nobody else. */
+    public static void underdogNotice(ServerPlayer player, Grounds pg) {
+        if (!isUnderdogOnGrounds(player, pg)) {
             return;
         }
-        if (myUuid != null && myUuid.equals(pg.championUuid)) {
-            DmzRewards.msg(player, LmChat.info("Proving", "Your rival awaits where your last battle ended."));
-        } else {
-            DmzRewards.msg(player, LmChat.info("Proving", "Your rival awaits on §e" + shortPlace(pg) + "§7."));
-            DmzRewards.msg(player, LmChat.info("Proving", "Underdog bonus active. Reclaim your honor."));
-        }
+        DmzRewards.msg(player, LmChat.info("Proving", "Underdog bonus active on " + shortPlace(pg)
+                + ": your melee hits deal 12% more damage while you fight here."));
+        DmzRewards.msg(player, LmChat.info("Proving", "Win on these grounds to reclaim your honor."));
     }
 
     public static List<String> listLines(RivalLink link) {

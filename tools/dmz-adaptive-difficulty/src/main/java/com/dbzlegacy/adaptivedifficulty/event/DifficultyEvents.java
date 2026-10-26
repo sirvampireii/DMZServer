@@ -931,6 +931,14 @@ public final class DifficultyEvents {
         // Rival / Sparring PvP scoring + natural-progression combat/End/dummy.
         if (victim instanceof ServerPlayer pvpVictim
                 && causing instanceof ServerPlayer pvpAttacker) {
+            if (event.getAmount() > 0.0f && DifficultyConfig.get().enableRivalSystem) {
+                float underdog = com.dbzlegacy.adaptivedifficulty.rival.RivalChallengeManager.get()
+                        .underdogDamageScale(pvpVictim, pvpAttacker,
+                                com.dbzlegacy.adaptivedifficulty.util.DmzRewards.isKiDamage(source));
+                if (underdog != 1.0f) {
+                    event.setAmount(event.getAmount() * underdog);
+                }
+            }
             RivalSystem.onPlayerHurt(pvpVictim, pvpAttacker, source);
             SparringSystem.onPlayerHurt(pvpVictim, pvpAttacker, source);
         }

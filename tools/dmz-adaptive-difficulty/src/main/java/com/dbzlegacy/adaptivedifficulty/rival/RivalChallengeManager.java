@@ -3,6 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.rival;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
+import com.dbzlegacy.adaptivedifficulty.rival.ProvingGrounds.Grounds;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.LmChat;
@@ -356,6 +357,38 @@ public final class RivalChallengeManager {
         pendingHp.put(victim.m_20148_(), pending);
     }
 
+    /**
+     * Underdog boost (script PG_UNDERDOG_OFFENSE): during an ACTIVE challenge, the fighter who is
+     * not the champion and stands on the pair's grounds deals x1.12 melee damage to their
+     * opponent. The script multiplied the higher of STR / Strike Power, both melee stats, so ki
+     * damage is not boosted. Checked per hit: nothing is stored, and it stops the moment the
+     * challenge ends or the fighter leaves the grounds.
+     */
+    public float underdogDamageScale(ServerPlayer victim, ServerPlayer attacker, boolean kiDamage) {
+        if (victim == null || attacker == null || kiDamage || !DifficultyConfig.get().rivalChallenges) {
+            return 1.0f;
+        }
+        RivalChallenge ch = getChallenge(attacker.m_20148_());
+        if (ch == null || ch.status != RivalChallenge.Phase.ACTIVE || !ch.involves(victim.m_20148_())) {
+            return 1.0f;
+        }
+        Grounds pg = pairGroundsOf(attacker.m_20148_(), victim.m_20148_());
+        return ProvingGrounds.isUnderdogOnGrounds(attacker, pg) ? (float) ProvingGrounds.UNDERDOG_OFFENSE : 1.0f;
+    }
+
+    /** The pair's claim from either player's link (read only). */
+    private static Grounds pairGroundsOf(UUID a, UUID b) {
+        if (a == null || b == null) {
+            return ProvingGrounds.fresh();
+        }
+        RivalStore store = RivalStore.get();
+        RivalPlayerRecord recA = store.get(a.toString());
+        RivalPlayerRecord recB = store.get(b.toString());
+        RivalLink ab = recA == null || recA.rivals == null ? null : recA.rivals.get(b.toString());
+        RivalLink ba = recB == null || recB.rivals == null ? null : recB.rivals.get(a.toString());
+        return ProvingGrounds.pairGrounds(ab, ba);
+    }
+
     public void onDeath(ServerPlayer victim, ServerPlayer killer) {
         if (victim == null) {
             return;
@@ -407,6 +440,9 @@ public final class RivalChallengeManager {
                     ch.endsAt = now + ch.durationMs;
                     broadcast(server, "§6FIGHT! §e" + ch.nameA + " §7vs §e" + ch.nameB
                             + " §8(" + (ch.durationMs / 1000L) + "s)");
+                    Grounds startPg = pairGroundsOf(ch.a, ch.b);
+                    ProvingGrounds.underdogNotice(a, startPg);
+                    ProvingGrounds.underdogNotice(b, startPg);
                 }
                 continue;
             }
@@ -510,8 +546,9 @@ public final class RivalChallengeManager {
 
         if ("draw".equals(reason) || "distance".equals(reason) || winner == null) {
             float drawBase = RivalConstants.CH_DRAW_TP;
-            if (related && recA != null && recB != null && ProvingGrounds.fightingOnGrounds(pA, pB,
-                    ProvingGrounds.pairGrounds(recA.rivals.get(recB.uuid), recB.rivals.get(recA.uuid)))) {
+            boolean drawOnPg = related && recA != null && recB != null && ProvingGrounds.fightingOnGrounds(pA, pB,
+                    ProvingGrounds.pairGrounds(recA.rivals.get(recB.uuid), recB.rivals.get(recA.uuid)));
+            if (drawOnPg) {
                 drawBase = (float) (drawBase * ProvingGrounds.ON_GROUNDS_TP_MULT);
             }
             String drawNote = drawBase > RivalConstants.CH_DRAW_TP ? "Rival Draw (Proving Grounds)" : "Rival Draw";
@@ -524,7 +561,7 @@ public final class RivalChallengeManager {
                 DmzRewards.awardTp(pB, tp, drawNote, true, "Challenge");
             }
             if (related && recA != null && recB != null) {
-                awardDrawRp(recA, recB, ch);
+                awardDrawRp(recA, recB, ch, drawOnPg);
                 ProvingGrounds.touchDraw(pA, pB, recA, recB,
                         cA.damage, cB.damage, cA.biggestHit, cB.biggestHit, duration);
             }
@@ -804,7 +841,7 @@ public final class RivalChallengeManager {
         }
     }
 
-    private void awardDrawRp(RivalPlayerRecord a, RivalPlayerRecord b, RivalChallenge ch) {
+    private void awardDrawRp(RivalPlayerRecord a, RivalPlayerRecord b, RivalChallenge ch, boolean onGrounds) {
         RivalLink aLink = a.rivals.get(b.uuid);
         RivalLink bLink = b.rivals.get(a.uuid);
         if (aLink != null) {
@@ -828,7 +865,8 @@ public final class RivalChallengeManager {
             rp += RivalConstants.CH_CLOSE_BATTLE_RP;
         }
         rp += longRivalryBonus(aLink);
-        if (ProvingGrounds.pairGrounds(aLink, bLink).active) {
+        // Script: +12 only when either fighter is on the pair's grounds at the draw.
+        if (onGrounds) {
             rp += ProvingGrounds.ON_GROUNDS_RP_BONUS;
         }
         RivalStore.get().addRp(a, b.uuid, rp, "challenge_draw");
