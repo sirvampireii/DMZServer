@@ -135,6 +135,10 @@ public final class DifficultyEvents {
         } catch (Throwable ignored) {
         }
         try {
+            com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.load();
+        } catch (Throwable ignored) {
+        }
+        try {
             com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampConfigBridge.onServerStarting();
         } catch (Throwable ignored) {
         }
@@ -173,6 +177,10 @@ public final class DifficultyEvents {
             SparStore.get().save();
             RivalProgression.get().save();
             com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.save();
+        } catch (Throwable ignored) {
+        }
+        try {
+            com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.save();
         } catch (Throwable ignored) {
         }
         try {

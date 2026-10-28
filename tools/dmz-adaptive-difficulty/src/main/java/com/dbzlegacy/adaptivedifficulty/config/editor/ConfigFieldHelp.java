@@ -166,6 +166,7 @@ enableEnemyEvolution=Lets enemies grow stronger after repeated fights nearby.
 enableBossScaling=Applies extra health and damage scaling to boss mobs.
 enablePotential=Master switch for the Potential progression module.
 enableGlobalTpBoost=Master switch for the global training-points boost.
+enableGlobalMasteryBoost=Master switch for the global form-mastery boost.
 enableBioAndroid=Master switch for Bio-Android progression.
 enableRaceLock=Master switch for race-lock rules.
 enableYardrat=Master switch for Yardrat progression.

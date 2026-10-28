@@ -234,6 +234,7 @@ public final class DifficultyConfig {
             60, 300, 900, 1800, 3600, 7200, 14400, 21600, 28800, 36000
     };
     public boolean enableGlobalTpBoost = true;
+    public boolean enableGlobalMasteryBoost = true;
     public boolean enableBioAndroid = true;
     public boolean enableRaceLock = true;
     public boolean enableYardrat = true;

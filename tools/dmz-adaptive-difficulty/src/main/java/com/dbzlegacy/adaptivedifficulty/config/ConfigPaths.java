@@ -46,6 +46,10 @@ public final class ConfigPaths {
         return dataDir().resolve("global-tp-boost.json");
     }
 
+    public static Path globalMasteryBoostPath() {
+        return dataDir().resolve("global-mastery-boost.json");
+    }
+
     private static void ensureMigrated(Path preferred) {
         if (migrated) {
             return;

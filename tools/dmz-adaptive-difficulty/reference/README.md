@@ -213,6 +213,14 @@ javap shows only those eight call targets changed), and `PrestigePointsSystem$Sk
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
 loader fix lives outside this set; the other 24 are unchanged.
 
+## Re-baseline (2026-10-28, 4.6.255 global mastery boost)
+
+Four classes re-extracted: `AdaptiveDifficultyMod` (version constant only), `ConfigRegistry`
+(one new `enableGlobalMasteryBoost` key in the progression group - the only new string; the rest
+is the rebuilt switch table), `ConfigFieldHelp` (one new help line), and `ProgressionGuiApi`
+(new `mastery_boost` placeholder and its default lore line - the only new strings and calls;
+other changes are bytecode offsets). javap-verified; the other 21 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

@@ -42,6 +42,7 @@ public final class ProgressionChatMenu {
         send(player, Component.m_237113_(""));
         send(player, Component.m_237113_("§8── §fLegacy Mechanics · Progression §8──"));
         send(player, Component.m_237113_(GlobalTpBoost.statusLine()));
+        send(player, Component.m_237113_(com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.statusLine()));
         send(player, Component.m_237113_("§7Spar to raise Potential Unlock."));
         send(player, Component.m_237113_(""));
         send(player, Component.m_237113_("§7")

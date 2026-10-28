@@ -528,6 +528,38 @@ public final class ProgressionCommands {
                         .then(Commands.m_82127_("end")
                                 .requires(ProgressionCommands::staff)
                                 .executes(ctx -> boostEnd(ctx.getSource()))))
+                .then(Commands.m_82127_("masteryboost")
+                        .requires(ProgressionCommands::staff)
+                        .executes(ctx -> masteryBoostStatus(ctx.getSource()))
+                        .then(Commands.m_82127_("status").executes(ctx -> masteryBoostStatus(ctx.getSource())))
+                        .then(Commands.m_82127_("start")
+                                .requires(ProgressionCommands::staff)
+                                .then(Commands.m_82129_("encoded", IntegerArgumentType.integer(1))
+                                        .executes(ctx -> masteryBoostEncoded(
+                                                ctx.getSource(),
+                                                IntegerArgumentType.getInteger(ctx, "encoded"),
+                                                null))
+                                        .then(Commands.m_82129_("purchaser", StringArgumentType.greedyString())
+                                                .executes(ctx -> masteryBoostEncoded(
+                                                        ctx.getSource(),
+                                                        IntegerArgumentType.getInteger(ctx, "encoded"),
+                                                        StringArgumentType.getString(ctx, "purchaser")))))
+                                .then(Commands.m_82129_("multiplier", DoubleArgumentType.doubleArg(1.25))
+                                        .then(Commands.m_82129_("minutes", IntegerArgumentType.integer(1))
+                                                .executes(ctx -> masteryBoostMinutes(
+                                                        ctx.getSource(),
+                                                        DoubleArgumentType.getDouble(ctx, "multiplier"),
+                                                        IntegerArgumentType.getInteger(ctx, "minutes"),
+                                                        null))
+                                                .then(Commands.m_82129_("purchaser", StringArgumentType.greedyString())
+                                                        .executes(ctx -> masteryBoostMinutes(
+                                                                ctx.getSource(),
+                                                                DoubleArgumentType.getDouble(ctx, "multiplier"),
+                                                                IntegerArgumentType.getInteger(ctx, "minutes"),
+                                                                StringArgumentType.getString(ctx, "purchaser")))))))
+                        .then(Commands.m_82127_("end")
+                                .requires(ProgressionCommands::staff)
+                                .executes(ctx -> masteryBoostEnd(ctx.getSource()))))
                 .then(Commands.m_82127_("android")
                         .executes(ctx -> androidSelfOrHint(ctx.getSource()))
                         .then(Commands.m_82127_("remove")
@@ -646,6 +678,38 @@ public final class ProgressionCommands {
     private static int boostEnd(CommandSourceStack source) {
         String msg = ProgressionSystem.boostEnd();
         reply(source, playerOrNull(source), msg);
+        return 1;
+    }
+
+    private static int masteryBoostEncoded(CommandSourceStack source, int encoded, String purchaser) {
+        ServerPlayer actor = playerOrNull(source);
+        reply(source, actor, ProgressionSystem.masteryBoostStartEncoded(actor, encoded, purchaser));
+        return 1;
+    }
+
+    private static int masteryBoostMinutes(CommandSourceStack source, double mult, int minutes, String purchaser) {
+        ServerPlayer actor = playerOrNull(source);
+        reply(source, actor, ProgressionSystem.masteryBoostStart(actor, mult, minutes, purchaser));
+        return 1;
+    }
+
+    private static int masteryBoostEnd(CommandSourceStack source) {
+        reply(source, playerOrNull(source), ProgressionSystem.masteryBoostEnd());
+        return 1;
+    }
+
+    private static int masteryBoostStatus(CommandSourceStack source) {
+        ServerPlayer actor = playerOrNull(source);
+        String msg = com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.statusLine()
+                + "\n" + UltraStyle.YELLOW + "/progression masteryboost " + UltraStyle.GRAY + "- status"
+                + "\n" + UltraStyle.YELLOW + "/progression masteryboost end " + UltraStyle.GRAY + "- stop the active boost"
+                + "\n" + UltraStyle.YELLOW + "/progression masteryboost start <multiplier> <minutes> [name] "
+                + UltraStyle.GRAY + "- for example " + UltraStyle.WHITE + "2 30 PlayerName"
+                + "\n" + UltraStyle.YELLOW + "/progression masteryboost start <code> [name] "
+                + UltraStyle.GRAY + "- store code, same format as the TP boost";
+        for (String line : msg.split("\n")) {
+            reply(source, actor, line);
+        }
         return 1;
     }
 

@@ -58,6 +58,7 @@ public final class UltraProgressionScreens {
         Map<String, String> ph = ProgressionGuiApi.placeholders(player);
         UltraScreenSpec spec = base("boosts", "boosts")
                 .line(ph.getOrDefault("boost", UltraStyle.LABEL + "Global TP boost: Off"))
+                .line(ph.getOrDefault("mastery_boost", UltraStyle.LABEL + "Global mastery boost: Off"))
                 .line(UltraStyle.LABEL + "Presets start a boost " + UltraStyle.SEP + " End stops it")
                 .buttonsAfterLines();
         spec.buttonLeft(

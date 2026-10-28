@@ -12,6 +12,7 @@ import com.dbzlegacy.adaptivedifficulty.progression.shop.ShopProgression;
 import com.dbzlegacy.adaptivedifficulty.progression.skills.PotentialProgression;
 import com.dbzlegacy.adaptivedifficulty.progression.tp.BioAndroidAbsorb;
 import com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty;
+import com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost;
 import com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -39,6 +40,10 @@ public final class ProgressionSystem {
         if (ProgressionConfig.masterEnabled()) {
             try {
                 GlobalTpBoost.onLogin(player);
+            } catch (Throwable ignored) {
+            }
+            try {
+                GlobalMasteryBoost.onLogin(player);
             } catch (Throwable ignored) {
             }
         }
@@ -139,6 +144,10 @@ public final class ProgressionSystem {
             }
             try {
                 GlobalTpBoost.pulse(server, tick);
+            } catch (Throwable ignored) {
+            }
+            try {
+                GlobalMasteryBoost.pulse(server, tick);
             } catch (Throwable ignored) {
             }
             try {
@@ -292,6 +301,18 @@ public final class ProgressionSystem {
         return GlobalTpBoost.endBoost(true);
     }
 
+    public static String masteryBoostStartEncoded(ServerPlayer actor, int encoded, String purchaser) {
+        return GlobalMasteryBoost.startBoost(actor, encoded, purchaser);
+    }
+
+    public static String masteryBoostStart(ServerPlayer actor, double mult, int minutes, String purchaser) {
+        return GlobalMasteryBoost.startBoostMinutes(actor, mult, minutes, purchaser);
+    }
+
+    public static String masteryBoostEnd() {
+        return GlobalMasteryBoost.endBoost(true);
+    }
+
     public static String androidConvert(ServerPlayer target) {
         return AndroidConversion.convert(target);
     }
@@ -302,7 +323,8 @@ public final class ProgressionSystem {
 
     public static String statusSummary() {
         return ProgressionConfig.statusSummary()
-                + "\n" + GlobalTpBoost.statusLine();
+                + "\n" + GlobalTpBoost.statusLine()
+                + "\n" + GlobalMasteryBoost.statusLine();
     }
 
     /** Display label for a {@link #setFlag} key ("potential" -> the setting's config editor label). */
@@ -311,6 +333,7 @@ public final class ProgressionSystem {
             case "master", "progression", "enableprogression" -> "enableProgression";
             case "potential", "enablepotential" -> "enablePotential";
             case "boost", "globaltpboost", "enableglobaltpboost" -> "enableGlobalTpBoost";
+            case "masteryboost", "globalmasteryboost", "enableglobalmasteryboost" -> "enableGlobalMasteryBoost";
             case "bio", "bioandroid", "enablebioandroid" -> "enableBioAndroid";
             case "racelock", "lock", "enableracelock" -> "enableRaceLock";
             case "yardrat", "enableyardrat" -> "enableYardrat";
@@ -346,6 +369,7 @@ public final class ProgressionSystem {
             case "master", "progression", "enableprogression" -> cfg.enableProgression = on;
             case "potential", "enablepotential" -> cfg.enablePotential = on;
             case "boost", "globaltpboost", "enableglobaltpboost" -> cfg.enableGlobalTpBoost = on;
+            case "masteryboost", "globalmasteryboost", "enableglobalmasteryboost" -> cfg.enableGlobalMasteryBoost = on;
             case "bio", "bioandroid", "enablebioandroid" -> cfg.enableBioAndroid = on;
             case "racelock", "lock", "enableracelock" -> cfg.enableRaceLock = false;
             case "yardrat", "enableyardrat" -> cfg.enableYardrat = on;

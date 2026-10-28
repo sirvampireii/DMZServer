@@ -25,6 +25,10 @@ public final class ProgressionConfig {
         return masterEnabled() && DifficultyConfig.get().enableGlobalTpBoost;
     }
 
+    public static boolean globalMasteryBoost() {
+        return masterEnabled() && DifficultyConfig.get().enableGlobalMasteryBoost;
+    }
+
     public static boolean bioAndroid() {
         return masterEnabled() && DifficultyConfig.get().enableBioAndroid;
     }
@@ -97,6 +101,7 @@ public final class ProgressionConfig {
                 + " pot=" + onOff(c.enablePotential)
                 + " med=" + onOff(c.enableLivingWorldMeditation)
                 + "\n§6TP§7: boost=" + onOff(c.enableGlobalTpBoost)
+                + " mastery=" + onOff(c.enableGlobalMasteryBoost)
                 + " bio=" + onOff(c.enableBioAndroid)
                 + "\n§bRace§7: yard=" + onOff(c.enableYardrat)
                 + " spirit=" + onOff(c.enableSpiritualistKi)

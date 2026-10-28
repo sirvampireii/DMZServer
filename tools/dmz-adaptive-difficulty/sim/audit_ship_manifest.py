@@ -932,6 +932,77 @@ def main() -> int:
           "before.unlockTier(id);" in ut_test and "unlocked tiers lost on save/load" in ut_test
           and ut_test.index("before.unlockTier(id);") < ut_test.index("before.writeToPlayerNbt(fresh);"))
 
+    print("\n--- § global mastery boost ---")
+    gm = read(SRC / "progression/tp/GlobalMasteryBoost.java")
+    gt = read(SRC / "progression/tp/GlobalTpBoost.java")
+    gm_sys = read(SRC / "progression/ProgressionSystem.java")
+    gm_cfg = read(SRC / "progression/ProgressionConfig.java")
+    gm_cmd = read(SRC / "command/ProgressionCommands.java")
+    gm_events = read(SRC / "event/DifficultyEvents.java")
+    gm_start = gm_events.split("public void onServerStarting(", 1)[-1].split("\n    }\n", 1)[0]
+    gm_stop = gm_events.split("public void onServerStopping(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest global-mastery-boost row", "global-mastery-boost" in manifest)
+    check("mastery boost applies DMZ MASTERY_GAIN, persisted to its own file; no new mixin",
+          "MainEffects.MASTERY_GAIN.get()" in gm and "TP_GAIN" not in gm
+          and 'resolve("global-mastery-boost.json")' in read(SRC / "config/ConfigPaths.java")
+          and "ConfigPaths.globalMasteryBoostPath()" in gm
+          and not any("MASTERY_GAIN" in p.read_text(encoding="utf-8", errors="ignore")
+                      for p in (SRC / "mixin").rglob("*.java")))
+    _same = ["ENCODED_MINUTE_DIVISOR = 10_000", "EFFECT_REFRESH_BUFFER_TICKS = 100",
+             "TRIGGER_LOCK_MS = 3000L", "END_LOCK_MS = 5000L",
+             "int amplifier = (int) Math.round(((multiplier - 1.0) / 0.25) - 1.0);",
+             "double keptMult = extending ? Math.max(prevMult, multiplier) : multiplier;",
+             "long newEnd = extending ? Math.max(now, currentEnd) + durationMs : now + durationMs;",
+             "if (DeathTpPenalty.active(player)) {", "player.m_21195_(effect);",
+             "(int) Math.ceil(remainingMs / 50.0) + EFFECT_REFRESH_BUFFER_TICKS",
+             "sig.equals(TRIGGER_SIGNATURE.get())"]
+    check("same window, debounce, encoding, stacking, and death-penalty guard as the TP boost",
+          all(s in gm and s in gt for s in _same)
+          and gm.count("if (DeathTpPenalty.active(player)) {") == 2)
+    check("broadcasts mirror the TP boost wording; telemetry start/end events",
+          '"GLOBAL MASTERY BOOST ACTIVATED!"' in gm and '"GLOBAL MASTERY BOOST "' in gm
+          and "(highest wins; lower packs only add time)." in gm
+          and '"mastery_boost_start"' in gm and gm.count('"mastery_boost_start"') == 2
+          and '"mastery_boost_end"' in gm)
+    check("config flag enableGlobalMasteryBoost (default true like the TP flag) gates start, pulse, login",
+          "public boolean enableGlobalMasteryBoost = true;" in read(SRC / "config/DifficultyConfig.java")
+          and "public boolean enableGlobalTpBoost = true;" in read(SRC / "config/DifficultyConfig.java")
+          and "DifficultyConfig.get().enableGlobalMasteryBoost" in gm_cfg
+          and gm.count("if (!ProgressionConfig.globalMasteryBoost()") == 4
+          and '"enableGlobalMasteryBoost"' in read(SRC / "config/ConfigRegistry.java")
+          and "enableGlobalMasteryBoost=" in read(SRC / "config/editor/ConfigFieldHelp.java"))
+    check("loaded on server start, flushed on stop, pulsed and applied on login",
+          "GlobalMasteryBoost.load();" in gm_start and "GlobalMasteryBoost.save();" in gm_stop
+          and "GlobalMasteryBoost.pulse(server, tick);" in gm_sys
+          and "GlobalMasteryBoost.onLogin(player);" in gm_sys)
+    check("commands: masteryboost status / start code / start mult minutes / end beside boost",
+          'Commands.m_82127_("masteryboost")' in gm_cmd
+          and gm_cmd.index('Commands.m_82127_("boost")') < gm_cmd.index('Commands.m_82127_("masteryboost")')
+          and "masteryBoostEncoded(" in gm_cmd and "masteryBoostMinutes(" in gm_cmd
+          and "masteryBoostEnd(" in gm_cmd and "masteryBoostStatus(" in gm_cmd)
+    check("status line beside the TP boost line in GUI home, Boosts tab, legacy lore, and chat menu",
+          "GlobalMasteryBoost.statusLine();" in gm_sys
+          and '"mastery_boost"' in read(SRC / "gui/ProgressionGuiApi.java")
+          and '"mastery_boost"' in read(SRC / "gui/ultra/UltraProgressionScreens.java")
+          and "GlobalMasteryBoost.statusLine()" in read(SRC / "gui/ProgressionChatMenu.java"))
+    check("mastery boost copy: no raw section signs, no Invalid, errors say what to do",
+          "\u00a7" not in gm and "Invalid" not in gm and "Turn it on in the progression settings first." in gm)
+
+    def _amp(m):
+        if not m >= 1.25:
+            return -1
+        a = round(((m - 1.0) / 0.25) - 1.0)
+        return a if abs(1.0 + (a + 1) * 0.25 - m) <= 0.0001 and a >= 0 else -1
+
+    check("sim: 1.25x->0, 1.5x->1, 2x->3, 3x->7; 1.1x and 1.3x rejected",
+          [_amp(m) for m in (1.25, 1.5, 2.0, 3.0, 1.1, 1.3)] == [0, 1, 3, 7, -1, -1])
+
+    def _stack(active_mult, active_left, new_mult, new_min):
+        return max(active_mult, new_mult), active_left + new_min
+
+    check("sim: stacking a lower pack adds time and keeps the higher multiplier",
+          _stack(2.0, 20, 1.5, 30) == (2.0, 50) and _stack(1.5, 20, 2.0, 30) == (2.0, 50))
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")

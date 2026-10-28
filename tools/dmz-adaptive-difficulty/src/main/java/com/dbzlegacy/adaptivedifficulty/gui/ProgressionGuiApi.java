@@ -536,6 +536,7 @@ public final class ProgressionGuiApi {
         out.put("system_enabled", enabled ? "true" : "false");
         out.put("staff", StaffAccess.isStaff(player) ? "true" : "false");
         out.put("boost", GlobalTpBoost.statusLine());
+        out.put("mastery_boost", com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.statusLine());
         out.put("flags", ProgressionConfig.statusSummary());
         out.put("prestige_enabled", c.enablePrestigeSystem ? "true" : "false");
         out.put("skills_enabled", c.enableSkillUnlockService ? "true" : "false");
@@ -679,6 +680,8 @@ public final class ProgressionGuiApi {
             default -> {
                 List<String> lore = new ArrayList<>();
                 lore.add(ph.getOrDefault("boost", "§7Global TP boost: §cOFF"));
+                lore.add(ph.getOrDefault("mastery_boost",
+                        UltraStyle.GRAY + "Global mastery boost: " + UltraStyle.RED + "OFF"));
                 lore.add("§8Browse categories to see script ports.");
                 yield lore;
             }
