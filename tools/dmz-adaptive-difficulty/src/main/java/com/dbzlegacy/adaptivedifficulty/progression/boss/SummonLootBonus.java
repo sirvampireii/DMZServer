@@ -14,9 +14,10 @@ import net.minecraft.world.item.ItemStack;
 /**
  * Tier-scaled loot bonus for paid Difficulty GUI boss summons (End Dragon, Wither, Warden).
  * <p>
- * Each stack the boss actually drops - vanilla or mod-added, after every loot table, loot
- * modifier, and drop handler has run - gets an independent chance at one extra copy:
- * {@code summonLootBonusPerTierPercent} per tier above the boss's minimum tier, capped at 100%.
+ * One roll per kill: on success, every stack the boss actually drops - vanilla or mod-added,
+ * after every loot table, loot modifier, and drop handler has run - gets one extra copy; on a
+ * miss, none do. Chance: {@code summonLootBonusPerTierPercent} per tier above the boss's
+ * minimum tier, capped at 100%.
  * The tier is the summoner's active tier at summon time, stamped once on the boss. Item drops
  * only; XP is never scaled. Applied once per boss (guard tag), never on a later loot pass.
  */
@@ -46,7 +47,7 @@ public final class SummonLootBonus {
         return Math.max(0, Math.min(100, (tier - minTier) * per));
     }
 
-    /** "Loot bonus at T6: +50% chance of a bonus copy of each drop" (or the lowest-tier note). */
+    /** "Loot bonus at T6: 50% chance per kill to double every drop." (or the lowest-tier note). */
     public static String describe(int tier, int minTier) {
         int pct = percent(tier, minTier);
         int per = Math.max(0, Math.min(100, DifficultyConfig.get().summonLootBonusPerTierPercent));
@@ -57,20 +58,31 @@ public final class SummonLootBonus {
             return "Loot bonus at T" + tier + ": none at this boss's lowest tier (+" + per
                     + "% per tier above T" + minTier + ").";
         }
-        return "Loot bonus at T" + tier + ": +" + pct + "% chance of a bonus copy of each drop.";
+        if (pct >= 100) {
+            return "Loot bonus at T" + tier + ": every drop is doubled on each kill.";
+        }
+        return "Loot bonus at T" + tier + ": " + pct + "% chance per kill to double every drop.";
     }
 
-    /** Extra copies for {@code stacks}: one per stack, each with an independent chance. */
+    /**
+     * The one bonus roll per kill, shared by both paths: true iff {@code pct >= 100} or
+     * {@code nextInt(100) < pct}. No roll at all when {@code pct <= 0}.
+     */
+    static boolean rollOnce(int pct, RandomSource rng) {
+        if (pct <= 0 || rng == null) {
+            return false;
+        }
+        return pct >= 100 || rng.m_188503_(100) < pct;
+    }
+
+    /** Dragon path: one roll; on success a full copy of every stack, on failure none. */
     public static List<ItemStack> rollCopies(Collection<ItemStack> stacks, int pct, RandomSource rng) {
         List<ItemStack> out = new ArrayList<>();
-        if (stacks == null || pct <= 0 || rng == null) {
+        if (stacks == null || stacks.isEmpty() || !rollOnce(pct, rng)) {
             return out;
         }
         for (ItemStack stack : stacks) {
-            if (stack == null || stack.m_41619_()) {
-                continue;
-            }
-            if (pct >= 100 || rng.m_188503_(100) < pct) {
+            if (stack != null && !stack.m_41619_()) {
                 out.add(stack.m_41777_());
             }
         }
@@ -92,10 +104,9 @@ public final class SummonLootBonus {
         tag.m_128379_(TAG_DONE, true);
         int tier = stampedTier(boss);
         int pct = tier < 0 ? 0 : percent(tier, minTier);
-        if (pct <= 0) {
+        if (!rollOnce(pct, boss.m_217043_())) {
             return 0;
         }
-        RandomSource rng = boss.m_217043_();
         List<ItemEntity> extra = new ArrayList<>();
         for (ItemEntity drop : drops) {
             if (drop == null) {
@@ -105,12 +116,10 @@ public final class SummonLootBonus {
             if (stack == null || stack.m_41619_()) {
                 continue;
             }
-            if (pct >= 100 || rng.m_188503_(100) < pct) {
-                ItemEntity copy = new ItemEntity(
-                        drop.m_9236_(), drop.m_20185_(), drop.m_20186_(), drop.m_20189_(), stack.m_41777_());
-                copy.m_32060_(); // setDefaultPickUpDelay
-                extra.add(copy);
-            }
+            ItemEntity copy = new ItemEntity(
+                    drop.m_9236_(), drop.m_20185_(), drop.m_20186_(), drop.m_20189_(), stack.m_41777_());
+            copy.m_32060_(); // setDefaultPickUpDelay
+            extra.add(copy);
         }
         drops.addAll(extra);
         return extra.size();

@@ -221,7 +221,7 @@ public final class PlayerBossSummons {
         } else {
             lines.add(UltraStyle.LABEL + "Higher tiers drop more: +"
                     + Math.max(0, DifficultyConfig.get().summonLootBonusPerTierPercent)
-                    + "% chance of a bonus copy of each drop per tier above T" + boss.minTier + ".");
+                    + "% chance per kill to double every drop, per tier above T" + boss.minTier + ".");
         }
         if (!ready) {
             if (!SystemGate.participates(player)) {

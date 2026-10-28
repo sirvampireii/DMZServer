@@ -815,13 +815,38 @@ def main() -> int:
     check("sim: Warden T4 0%, T5 25%, T6 50%, T7 75%",
           [_pct(t, 4) for t in range(4, 8)] == [0, 25, 50, 75])
     check("sim: Dragon T4 0% up to T7 75%", [_pct(t, 4) for t in range(4, 8)] == [0, 25, 50, 75])
+    sl_once = sl.split("static boolean rollOnce(", 1)[-1].split("\n    }\n", 1)[0]
+    sl_copies = sl.split("public static List<ItemStack> rollCopies(", 1)[-1].split("\n    }\n", 1)[0]
+    sl_apply = sl.split("public static int applyToDrops(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest summon-loot-single-roll row", "summon-loot-single-roll" in manifest)
+    check("one shared roll per kill: rollOnce is the only nextInt, no roll at pct <= 0",
+          "if (pct <= 0 || rng == null) {" in sl_once
+          and "return pct >= 100 || rng.m_188503_(100) < pct;" in sl_once
+          and sl.count("m_188503_") == 1)
+    check("Wither/Warden: one roll with the entity random, then every drop copied once",
+          "if (!rollOnce(pct, boss.m_217043_())) {" in sl_apply
+          and sl_apply.index("rollOnce(") < sl_apply.index("for (ItemEntity drop : drops)")
+          and "stack.m_41777_()" in sl_apply and "m_41764_" not in sl)
+    check("dragon: one roll with the level random, then every stack copied once",
+          "!rollOnce(pct, rng)" in sl_copies
+          and sl_copies.index("rollOnce(") < sl_copies.index("for (ItemStack stack : stacks)")
+          and "out.add(stack.m_41777_());" in sl_copies)
+    check("confirm copy states one roll per kill (no per-drop wording)",
+          "% chance per kill to double every drop." in sl
+          and "each drop" not in sl and "each drop" not in sl_boss and "each drop" not in sl_end)
     import random as _r
     _rng = _r.Random(7)
     _stacks = ["star", "simplymore", "tendril", "simplyswords_unique"]
     _trials = 20000
-    _copies = sum(sum(1 for _ in _stacks if _rng.randrange(100) < 75) for _ in range(_trials))
-    check("sim: per-stack independent chance (75% -> ~0.75 copies per stack, every stack eligible)",
-          abs(_copies / (_trials * len(_stacks)) - 0.75) < 0.01)
+
+    def _roll_once(pct, rng):
+        return pct > 0 and (pct >= 100 or rng.randrange(100) < pct)
+
+    _kills = [len(_stacks) if _roll_once(75, _rng) else 0 for _ in range(_trials)]
+    check("sim: one roll per kill (75% -> all-or-nothing, ~75% of kills doubled)",
+          set(_kills) <= {0, len(_stacks)} and abs(sum(1 for k in _kills if k) / _trials - 0.75) < 0.01)
+    check("sim: 0% never rolls, 100% always doubles",
+          not _roll_once(0, _rng) and all(_roll_once(100, _rng) for _ in range(100)))
     check("sim: natural bosses (no stamp) get nothing", _pct(-1, 3) == 0)
 
     print("\n--- § gui follow-ups 4.6.249 ---")

@@ -692,7 +692,7 @@ public final class EndDimensionStrength {
         if (stacks.isEmpty()) {
             return 0;
         }
-        // Paid summons: tier bonus copies of every stack this single roll produced (all mods).
+        // Paid summons: one bonus roll per kill; a hit copies every stack this table roll produced.
         if (isPlayerSummonedDragon(dragon)
                 && com.dbzlegacy.adaptivedifficulty.progression.boss.SummonLootBonus.markDone(dragon)) {
             int lootTier = com.dbzlegacy.adaptivedifficulty.progression.boss.SummonLootBonus.stampedTier(dragon);
@@ -878,7 +878,7 @@ public final class EndDimensionStrength {
         }
         return "Higher tiers drop more: +"
                 + Math.max(0, DifficultyConfig.get().summonLootBonusPerTierPercent)
-                + "% chance of a bonus copy of each drop per tier above T" + PLAYER_SUMMON_MIN_TIER + ".";
+                + "% chance per kill to double every drop, per tier above T" + PLAYER_SUMMON_MIN_TIER + ".";
     }
 
     /** Lore for Difficulty → End Dragon submenu (CNPC / chest / CMI). */

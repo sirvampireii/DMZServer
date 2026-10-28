@@ -195,6 +195,12 @@ are unchanged.
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
 Viper's Call changes live outside this set; the other 24 are unchanged.
 
+## Re-baseline (2026-10-28, 4.6.252 summon loot single roll)
+
+Two classes re-extracted: `AdaptiveDifficultyMod` (version constant only) and `ConfigFieldHelp`
+(the `summonLootBonusPerTierPercent` help line now says one roll per kill). javap shows only
+those constants changed; the other 23 are unchanged.
+
 ## Refresh the reference set
 
 ```bash
