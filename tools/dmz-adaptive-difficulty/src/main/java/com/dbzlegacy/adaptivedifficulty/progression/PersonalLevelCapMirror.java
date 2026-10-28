@@ -16,7 +16,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.server.ServerLifecycleHooks;
 
 /**
- * Mirrors the server personal level cap onto player persistent data for DMZ client UI
+ * Mirrors the server personal level cap into the player's LM-owned file for DMZ client UI
  * (LegacyMechanics is server-only — clients read Overhaul/DMZ configured max, not our mixins).
  */
 public final class PersonalLevelCapMirror {
@@ -55,13 +55,13 @@ public final class PersonalLevelCapMirror {
         CAP_BY_UUID.put(id, c);
         bindStatsData(player, c);
         rememberOwner(player, c);
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.root(player);
         if (!PersistentDataAccess.isWritable(tag)) {
             return;
         }
         tag.m_128405_(KEY, c);
         tag.m_128405_(KEY_BREAKTHROUGHS, n);
-        PersistentDataAccess.putInt(player, ROOT_BREAKTHROUGHS, n);
+        com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.putInt(player, ROOT_BREAKTHROUGHS, n);
     }
 
     /** Remember this StatsData's personal cap so mixins work when {@code getPlayer()} is null. */
@@ -201,7 +201,7 @@ public final class PersonalLevelCapMirror {
         if (cached > 0) {
             return cached;
         }
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.root(player);
         if (!tag.m_128441_(KEY)) {
             return inferCapFromBreakthroughs(player);
         }
@@ -260,8 +260,8 @@ public final class PersonalLevelCapMirror {
     }
 
     private static int inferCapFromBreakthroughs(Player player) {
-        CompoundTag tag = PersistentDataAccess.get(player);
-        int bt = PersistentDataAccess.getInt(player, ROOT_BREAKTHROUGHS, -1);
+        CompoundTag tag = com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.root(player);
+        int bt = com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.getInt(player, ROOT_BREAKTHROUGHS, -1);
         if (bt < 0 && tag.m_128441_(KEY_BREAKTHROUGHS)) {
             bt = tag.m_128451_(KEY_BREAKTHROUGHS);
         }

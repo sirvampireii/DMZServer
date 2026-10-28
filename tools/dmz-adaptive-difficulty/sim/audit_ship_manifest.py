@@ -849,6 +849,69 @@ def main() -> int:
           not _roll_once(0, _rng) and all(_roll_once(100, _rng) for _ in range(100)))
     check("sim: natural bosses (no stamp) get nothing", _pct(-1, 3) == 0)
 
+    print("\n--- § lm-owned player data ---")
+    pd_store = read(SRC / "data/LmPlayerStore.java")
+    pd_mig = read(SRC / "data/LmPlayerDataMigration.java")
+    pd_cache = read(SRC / "cache/DifficultyCache.java")
+    pd_prog = read(SRC / "progression/ProgressionData.java")
+    pd_events = read(SRC / "event/DifficultyEvents.java")
+    pd_start = pd_events.split("public void onServerStarting(", 1)[-1].split("\n    }\n", 1)[0]
+    pd_clone = pd_events.split("public void onClone(", 1)[-1].split("\n    }\n", 1)[0]
+    pd_owned = {
+        "cache/DifficultyCache.java": pd_cache,
+        "progression/ProgressionData.java": pd_prog,
+        "progression/shop/PrestigeSystem.java": read(SRC / "progression/shop/PrestigeSystem.java"),
+        "progression/shop/PrestigePointsSystem.java": read(SRC / "progression/shop/PrestigePointsSystem.java"),
+        "progression/PersonalLevelCapMirror.java": read(SRC / "progression/PersonalLevelCapMirror.java"),
+        "rival/NemesisSpawnMode.java": read(SRC / "rival/NemesisSpawnMode.java"),
+    }
+    check("manifest lm-owned-player-data row", "lm-owned-player-data" in manifest)
+    check("store: one JSON file per UUID under config/legacymechanics/players, exact SNBT per record",
+          'ConfigPaths.dataDir().resolve("players")' in pd_store and '+ ".json"' in pd_store
+          and "blob.records.put(key, value.toString());" in pd_store and 'TagParser.m_129359_("{v:" + snbt + "}")' in pd_store)
+    durable = ["PlayerDifficultyData.NBT_ROOT", '"lm_progression"', '"prestige_total_completed"',
+               '"prestige_total_staff_override"', '"prestige_need_floor"', '"lm_prestige_held"',
+               '"lm_prestige_points"', '"pp_level_breakthroughs"', '"lm_personal_level_cap"',
+               '"lm_personal_breakthroughs"', '"lmNemesisSpawnMode"']
+    pd_keys = pd_store.split("DURABLE_KEYS = Set.of(", 1)[-1].split(");", 1)[0]
+    check("store: every durable record key is listed for the bulk pass",
+          all(k in pd_keys for k in durable))
+    check("durable record owners never read or write Forge persistent data",
+          all("PersistentDataAccess.get(player)" not in s and "PersistentDataAccess.putInt(player" not in s
+              and "PersistentDataAccess.putLong(player" not in s and "PersistentDataAccess.getInt(player" not in s
+              and "PersistentDataAccess.getLong(player" not in s for s in pd_owned.values())
+          and "LmPlayerStore.root(" in pd_cache and "LmPlayerStore.root(player)" in pd_prog
+          and "writeToPlayerNbt(neuTag)" not in pd_clone)
+    check("migration: once at server start before joins, marker-guarded, playerdata from the running server",
+          "LmPlayerDataMigration.runIfNeeded(event.getServer());" in pd_start
+          and pd_start.index("LmPlayerStore.clearCache();") < pd_start.index("runIfNeeded")
+          and "if (Files.exists(marker)) {" in pd_mig
+          and "server.m_129843_(LevelResource.f_78176_)" in pd_mig and '"world"' not in pd_mig)
+    check("migration: unreadable skipped, no-data skipped without a file, never overwrites, old keys kept",
+          "unreadable ({}); skipped" in pd_mig and "result.noData++;" in pd_mig
+          and "if (Files.exists(path(id))) {" in pd_store
+          and "m_128473_" not in pd_mig and "m_128944_" not in pd_mig)
+    check("no per-login migration; flushed on save, logout, timer, and stop",
+          "LmPlayerDataMigration" not in pd_events.replace("LmPlayerDataMigration.runIfNeeded(event.getServer());", "")
+          and "LmPlayerStore.flush(player.m_20148_());" in pd_events
+          and "LmPlayerStore.unload(player.m_20148_());" in pd_events
+          and "LmPlayerStore::flushAll" in pd_events and "LmPlayerStore.flushAll();" in pd_events)
+
+    def _mig_sim(forge, has_file=False, marker=False):
+        if marker:
+            return "skip-pass"
+        rec = {k: v for k, v in forge.items() if k in {"lm_prestige_held", "prestige_total_completed",
+                                                        "dmz_adaptive_difficulty", "lm_progression"}}
+        if not rec:
+            return "no-file"
+        return "kept-existing" if has_file else rec
+
+    check("sim: migration copies only LM keys, skips empty players, keeps existing files, second boot skips",
+          _mig_sim({"lm_prestige_held": 2, "dmz_ad_scaled": 1}) == {"lm_prestige_held": 2}
+          and _mig_sim({"dmz_ad_scaled": 1}) == "no-file"
+          and _mig_sim({"lm_prestige_held": 2}, has_file=True) == "kept-existing"
+          and _mig_sim({"lm_prestige_held": 2}, marker=True) == "skip-pass")
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")

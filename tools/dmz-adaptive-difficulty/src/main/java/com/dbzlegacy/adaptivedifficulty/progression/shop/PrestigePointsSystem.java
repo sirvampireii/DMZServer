@@ -6,7 +6,6 @@ import com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.progression.PersonalLevelCapMirror;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionData;
-import com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dragonminez.common.stats.skills.Skills;
@@ -206,16 +205,16 @@ public final class PrestigePointsSystem {
             return 0;
         }
         int fromBag = Math.max(0, (int) ProgressionData.storedGetLong(player, KEY_POINTS, 0L));
-        long fromRoot = PersistentDataAccess.getLong(player, ROOT_POINTS, -1L);
+        long fromRoot = com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.getLong(player, ROOT_POINTS, -1L);
         int n = fromBag;
         if (fromRoot > n) {
             n = (int) Math.min(Integer.MAX_VALUE, fromRoot);
         }
         if (n != fromBag && ProgressionData.storedWritable(player)) {
             ProgressionData.storedPut(player, KEY_POINTS, n);
-            PersistentDataAccess.putLong(player, ROOT_POINTS, n);
+            com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.putLong(player, ROOT_POINTS, n);
         } else if (fromRoot < 0 && n > 0) {
-            PersistentDataAccess.putLong(player, ROOT_POINTS, n);
+            com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.putLong(player, ROOT_POINTS, n);
         }
         return n;
     }
@@ -226,7 +225,7 @@ public final class PrestigePointsSystem {
         }
         int n = Math.max(0, points);
         ProgressionData.storedPut(player, KEY_POINTS, n);
-        PersistentDataAccess.putLong(player, ROOT_POINTS, n);
+        com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.putLong(player, ROOT_POINTS, n);
     }
 
     /** True when the player can afford {@code amount} prestige points. */
@@ -1282,8 +1281,8 @@ public final class PrestigePointsSystem {
         }
         boolean bagHas = ProgressionData.storedHas(player, KEY_BREAKTHROUGHS);
         int fromBag = bagHas ? (int) ProgressionData.storedGetLong(player, KEY_BREAKTHROUGHS, 0L) : -1;
-        int fromRoot = PersistentDataAccess.getInt(player, PersonalLevelCapMirror.ROOT_BREAKTHROUGHS, -1);
-        int fromMirror = PersistentDataAccess.getInt(player, PersonalLevelCapMirror.KEY_BREAKTHROUGHS, -1);
+        int fromRoot = com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.getInt(player, PersonalLevelCapMirror.ROOT_BREAKTHROUGHS, -1);
+        int fromMirror = com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.getInt(player, PersonalLevelCapMirror.KEY_BREAKTHROUGHS, -1);
         // Explicit NBT only. Inferring from lm_personal_level_cap (Overhaul 50k/150k)
         // made 0 breakthroughs snap to 5 and padmin set 0 fail at held 1.
         if (fromBag < 0 && fromRoot < 0 && fromMirror < 0) {
@@ -1316,8 +1315,8 @@ public final class PrestigePointsSystem {
         }
         int n = Math.max(0, Math.min(MAX_BREAKTHROUGHS, breakthroughs));
         ProgressionData.storedPut(player, KEY_BREAKTHROUGHS, n);
-        PersistentDataAccess.putInt(player, PersonalLevelCapMirror.ROOT_BREAKTHROUGHS, n);
-        PersistentDataAccess.putInt(player, PersonalLevelCapMirror.KEY_BREAKTHROUGHS, n);
+        com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.putInt(player, PersonalLevelCapMirror.ROOT_BREAKTHROUGHS, n);
+        com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.putInt(player, PersonalLevelCapMirror.KEY_BREAKTHROUGHS, n);
         try {
             PersonalLevelCapMirror.overwrite(player, n, effectiveMaxLevel(n));
         } catch (Throwable ignored) {

@@ -1,6 +1,5 @@
 package com.dbzlegacy.adaptivedifficulty.rival;
 
-import com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -41,7 +40,7 @@ public final class NemesisSpawnMode {
         if (player == null) {
             return AUTO;
         }
-        int stored = PersistentDataAccess.getInt(player, KEY, AUTO);
+        int stored = com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.getInt(player, KEY, AUTO);
         return stored == MANUAL || stored == OFF ? stored : AUTO;
     }
 
@@ -69,7 +68,7 @@ public final class NemesisSpawnMode {
             case MANUAL -> OFF;
             default -> AUTO;
         };
-        PersistentDataAccess.putInt(player, KEY, next);
+        com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.putInt(player, KEY, next);
         return switch (next) {
             case MANUAL -> "§eNemesis spawn - manual. " + description(MANUAL);
             case OFF -> "§8Nemesis spawn - OFF. " + description(OFF);

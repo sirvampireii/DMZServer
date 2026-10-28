@@ -1,6 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.progression;
 
-import com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess;
+import com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,7 +9,8 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Session temp + persistent NBT storage for progression scripts
- * (replaces CNPC tempdata / storeddata).
+ * (replaces CNPC tempdata / storeddata). The stored bag lives in the player's LM-owned file
+ * ({@link LmPlayerStore}), not Forge persistent data.
  */
 public final class ProgressionData {
     private static final String ROOT = "lm_progression";
@@ -84,10 +85,7 @@ public final class ProgressionData {
     }
 
     public static CompoundTag stored(ServerPlayer player) {
-        CompoundTag root = PersistentDataAccess.get(player);
-        if (!PersistentDataAccess.isWritable(root)) {
-            return new CompoundTag();
-        }
+        CompoundTag root = LmPlayerStore.root(player);
         if (!root.m_128441_(ROOT)) {
             root.m_128365_(ROOT, new CompoundTag());
         }
@@ -95,7 +93,14 @@ public final class ProgressionData {
     }
 
     public static boolean storedWritable(ServerPlayer player) {
-        return PersistentDataAccess.isWritable(PersistentDataAccess.get(player));
+        return player != null;
+    }
+
+    /** Drop the whole stored bag (staff progression wipe). */
+    public static void storedClearAll(ServerPlayer player) {
+        if (player != null) {
+            LmPlayerStore.root(player).m_128473_(ROOT);
+        }
     }
 
     public static boolean storedHas(ServerPlayer player, String key) {

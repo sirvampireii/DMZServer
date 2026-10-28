@@ -99,6 +99,15 @@ public final class DifficultyEvents {
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
         DifficultyConfig.load();
+        // LM-owned player files: forget cached roots, then the one-time bulk move out of
+        // Forge persistent data (marker-guarded). Runs before anyone can join.
+        com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.clearCache();
+        try {
+            com.dbzlegacy.adaptivedifficulty.data.LmPlayerDataMigration.runIfNeeded(event.getServer());
+        } catch (Throwable t) {
+            AdaptiveDifficultyMod.LOGGER.error(
+                    "[{}] player data migration failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
+        }
         try {
             com.dbzlegacy.adaptivedifficulty.progression.race.RaceLockConfig.load();
             com.dbzlegacy.adaptivedifficulty.character.CharacterServicesConfig.load();
@@ -165,6 +174,11 @@ public final class DifficultyEvents {
             RivalProgression.get().save();
             com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.save();
         } catch (Throwable ignored) {
+        }
+        try {
+            com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.flushAll();
+        } catch (Throwable t) {
+            AdaptiveDifficultyMod.LOGGER.warn("[{}] player store stop: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
         }
     }
 
@@ -371,6 +385,7 @@ public final class DifficultyEvents {
     public void onSaveToFile(PlayerEvent.SaveToFile event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             DifficultyCache.save(player);
+            com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.flush(player.m_20148_());
         }
     }
 
@@ -407,6 +422,7 @@ public final class DifficultyEvents {
             SparringSystem.onLogout(player);
             ProgressionSystem.onLogout(player);
             DifficultyActions.clearLevelPull(player.m_20148_());
+            com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.unload(player.m_20148_());
         }
     }
 
@@ -420,14 +436,10 @@ public final class DifficultyEvents {
         var oldTag = PersistentDataAccess.get(old);
         var neuTag = PersistentDataAccess.get(neu);
         if (PersistentDataAccess.isWritable(neuTag) && PersistentDataAccess.isWritable(oldTag)) {
-            // Death respawn builds a new player entity. Forge does not always copy
-            // Entity#getPersistentData() for wasDeath — without this, the whole
-            // prestige shop (wallet, skills, tiers, Majin/Mutant, breakthroughs)
-            // under lm_progression is wiped.
+            // Durable records live in LM files keyed by UUID, so respawn cannot lose them.
+            // Death respawn builds a new entity and Forge does not copy persistent data on
+            // death: carry the transient timers and the frozen pre-4.6.253 keys (rollback).
             copyLmPersistentData(oldTag, neuTag);
-            data.writeToPlayerNbt(neuTag);
-        } else if (PersistentDataAccess.isWritable(neuTag)) {
-            data.writeToPlayerNbt(neuTag);
         }
         // Original and clone share the same UUID — never remove() after putData(),
         // or the restored cache entry is dropped and the next read may race an empty bag.
@@ -705,6 +717,9 @@ public final class DifficultyEvents {
         safePulse("sparring", () -> SparringSystem.pulse(server, tick));
         safePulse("progression", () -> ProgressionSystem.pulse(server, tick));
         safePulse("level-pull", () -> DifficultyActions.pulseLevelPulls(server));
+        if (tick % 600 == 0) {
+            safePulse("player-store", com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore::flushAll);
+        }
     }
 
     private static void safePulse(String name, Runnable pulse) {

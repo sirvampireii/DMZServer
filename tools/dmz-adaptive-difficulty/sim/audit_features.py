@@ -1260,7 +1260,9 @@ def main() -> int:
           and "titles" not in prestige_sys and "Title" not in prestige_sys
           and "unlockTitle" not in unlock_sys and "setActiveTitle" not in unlock_sys
           and "copyLmPersistentData(oldTag, neuTag);" in events
-          and "data.writeToPlayerNbt(neuTag);" in events)
+          # 4.6.253: titles live in the LM player file (UUID-keyed), so respawn cannot drop them.
+          and "LmPlayerStore.root(" in read(SRC / "com/dbzlegacy/adaptivedifficulty/cache/DifficultyCache.java")
+          and "TagParser.m_129359_(fresh.toString())" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraScreenSelfTest.java"))
     check("landFracRelief helper", "landFracRelief" in title_fx and "presenceDamageBonus" in title_fx)
     check("tpGainBonus helper", "tpGainBonus" in title_fx)
     check("landing applies title relief", "landFracRelief(player)" in events)

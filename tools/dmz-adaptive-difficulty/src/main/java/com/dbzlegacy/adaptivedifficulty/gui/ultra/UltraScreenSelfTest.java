@@ -1772,9 +1772,15 @@ public final class UltraScreenSelfTest {
         // Prestige-up, as UnlockSystem.syncUnlocks applies it to this data.
         before.resetHighestDmzLevel(0);
         before.setLastSeenPrestige(3);
-        // Respawn / clone copy, as DifficultyEvents.onClone writes it to the new player.
+        // Save to the LM player file and load it back, as DifficultyCache does through
+        // LmPlayerStore: the record is written as SNBT text and parsed again.
         net.minecraft.nbt.CompoundTag fresh = new net.minecraft.nbt.CompoundTag();
         before.writeToPlayerNbt(fresh);
+        try {
+            fresh = net.minecraft.nbt.TagParser.m_129359_(fresh.toString());
+        } catch (Exception e) {
+            broken.add("LM file SNBT round trip failed: " + e);
+        }
         com.dbzlegacy.adaptivedifficulty.data.PlayerDifficultyData after =
                 com.dbzlegacy.adaptivedifficulty.data.PlayerDifficultyData.fromPlayerNbt(fresh);
 

@@ -101,6 +101,7 @@ public final class PlayerDataClear {
                 done.add(clearProgression(target.online, target.uuid));
             }
             if (target.online == null && (difficulty || progression)) {
+                done.add(clearOfflineLmFile(target.uuid, difficulty, progression));
                 done.add(clearOfflinePlayerFile(server, target.uuid, difficulty, progression));
             }
             if (done.isEmpty()) {
@@ -335,19 +336,50 @@ public final class PlayerDataClear {
             com.dbzlegacy.adaptivedifficulty.progression.ProgressionSystem.onLogout(online);
         } catch (Throwable ignored) {
         }
-        // Wipe lm_progression NBT bag (flight / meditation / potential / migrate mark).
+        // Wipe the lm_progression bag (flight / meditation / potential / migrate mark) in the LM file.
         try {
-            var tag = com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess.get(online);
-            if (tag != null && com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess.isWritable(tag)) {
-                tag.m_128473_("lm_progression");
-            }
+            ProgressionData.storedClearAll(online);
         } catch (Throwable ignored) {
         }
         // Allow CNPC→LM player migrate to run again if CNPC keys remain.
         ProgressionData.storedRemove(online, "lm_cnpc_player_migrated");
         ProgressionData.clearPlayer(online.m_20148_());
+        LmPlayerStore.flush(online.m_20148_());
         return "§7Progression: §aNBT + temp cleared (re-migrate allowed)";
     }
+
+    /** LM-owned records for someone who is not online (the source of truth since 4.6.253). */
+    private static String clearOfflineLmFile(String uuid, boolean difficulty, boolean progression) {
+        UUID id;
+        try {
+            id = UUID.fromString(uuid);
+        } catch (Throwable t) {
+            return "§7LM file: §eskipped";
+        }
+        CompoundTag root = LmPlayerStore.root(id);
+        boolean changed = false;
+        if (difficulty && root.m_128441_(PlayerDifficultyData.NBT_ROOT)) {
+            root.m_128473_(PlayerDifficultyData.NBT_ROOT);
+            changed = true;
+        }
+        if (progression) {
+            for (String key : OFFLINE_PROGRESSION_KEYS) {
+                if (root.m_128441_(key)) {
+                    root.m_128473_(key);
+                    changed = true;
+                }
+            }
+        }
+        LmPlayerStore.unload(id);
+        return changed ? "§7LM file: §acleared" : "§7LM file: §enothing to clear";
+    }
+
+    private static final String[] OFFLINE_PROGRESSION_KEYS = {
+            "lm_progression",
+            "lm_personal_level_cap",
+            "lm_personal_breakthroughs",
+            "pp_level_breakthroughs"
+    };
 
     /**
      * Saved player file for someone who is not online. Removes difficulty and
@@ -386,12 +418,7 @@ public final class PlayerDataClear {
             changed = true;
         }
         if (progression) {
-            for (String key : new String[] {
-                    "lm_progression",
-                    "lm_personal_level_cap",
-                    "lm_personal_breakthroughs",
-                    "pp_level_breakthroughs"
-            }) {
+            for (String key : OFFLINE_PROGRESSION_KEYS) {
                 if (forge.m_128441_(key)) {
                     forge.m_128473_(key);
                     changed = true;

@@ -7,6 +7,7 @@ import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.LmChat;
+import com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore;
 import com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess;
 import com.dragonminez.common.stats.StatsData;
 import java.util.Map;
@@ -93,7 +94,7 @@ public final class PrestigeSystem {
 
         long now = System.currentTimeMillis();
         Long until = CONFIRM_UNTIL.get(player.m_20148_());
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (until == null && PersistentDataAccess.isWritable(tag) && tag.m_128441_(KEY_CONFIRM_UNTIL)) {
             until = tag.m_128454_(KEY_CONFIRM_UNTIL);
         }
@@ -144,7 +145,7 @@ public final class PrestigeSystem {
             ServerPlayer player, StatsData data, int completed, int required, int level
     ) {
         CONFIRM_UNTIL.remove(player.m_20148_());
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128473_(KEY_CONFIRM_UNTIL);
         }
@@ -429,7 +430,7 @@ public final class PrestigeSystem {
         if (player == null) {
             return 0;
         }
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (PersistentDataAccess.isWritable(tag) && tag.m_128441_(KEY_HELD)) {
             return Math.max(0, Math.min(MAX_HELD, readStoredInt(tag, KEY_HELD)));
         }
@@ -444,7 +445,7 @@ public final class PrestigeSystem {
         if (player == null) {
             return;
         }
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (!PersistentDataAccess.isWritable(tag) || tag.m_128441_(KEY_HELD)) {
             return;
         }
@@ -479,7 +480,7 @@ public final class PrestigeSystem {
         if (player == null || maxAllowed < 0) {
             return;
         }
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (!PersistentDataAccess.isWritable(tag) || !tag.m_128441_(KEY_NEED_FLOOR)) {
             return;
         }
@@ -490,7 +491,7 @@ public final class PrestigeSystem {
     }
 
     private static void clampVeteranNeedFloor(ServerPlayer player, int veteranNeed) {
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (!PersistentDataAccess.isWritable(tag) || !tag.m_128441_(KEY_NEED_FLOOR)) {
             return;
         }
@@ -512,7 +513,7 @@ public final class PrestigeSystem {
         if (player == null) {
             return 0;
         }
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (staffOverrideActive(tag)) {
             return Math.max(0, readStoredInt(tag, KEY_TOTAL));
         }
@@ -565,7 +566,7 @@ public final class PrestigeSystem {
     }
 
     private static int getNeedFloor(ServerPlayer player) {
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         return Math.max(0, readStoredInt(tag, KEY_NEED_FLOOR));
     }
 
@@ -573,7 +574,7 @@ public final class PrestigeSystem {
         if (player == null || requiredMet <= 0) {
             return;
         }
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (!PersistentDataAccess.isWritable(tag)) {
             return;
         }
@@ -603,14 +604,14 @@ public final class PrestigeSystem {
         if (player == null) {
             return;
         }
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128473_(KEY_TOTAL_STAFF_OVERRIDE);
         }
     }
 
     private static void alignNeedFloorForStaff(ServerPlayer player, int completed) {
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (!PersistentDataAccess.isWritable(tag)) {
             return;
         }
@@ -622,7 +623,7 @@ public final class PrestigeSystem {
     }
 
     public static int getHeld(ServerPlayer player) {
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (PersistentDataAccess.isWritable(tag) && tag.m_128441_(KEY_HELD)) {
             return heldCountForNeed(player);
         }
@@ -645,7 +646,7 @@ public final class PrestigeSystem {
             return;
         }
         int clamped = Math.max(0, value);
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128359_(KEY_TOTAL, Integer.toString(clamped));
             tag.m_128379_(KEY_TOTAL_STAFF_OVERRIDE, true);
@@ -660,7 +661,7 @@ public final class PrestigeSystem {
 
     /** Public for staff admin tools. */
     public static void setCompletedPublic(ServerPlayer player, int value) {
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128359_(KEY_TOTAL, Integer.toString(Math.max(0, value)));
         }
@@ -682,7 +683,7 @@ public final class PrestigeSystem {
     /** Public for prestige-points turn-in and padmin. Wallet NBT is source of truth. */
     public static void setHeldPublic(ServerPlayer player, int value) {
         int clamped = Math.max(0, Math.min(MAX_HELD, value));
-        CompoundTag tag = PersistentDataAccess.get(player);
+        CompoundTag tag = LmPlayerStore.root(player);
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128405_(KEY_HELD, clamped);
         }

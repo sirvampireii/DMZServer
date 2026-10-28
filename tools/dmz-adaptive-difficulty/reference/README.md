@@ -201,6 +201,13 @@ Two classes re-extracted: `AdaptiveDifficultyMod` (version constant only) and `C
 (the `summonLootBonusPerTierPercent` help line now says one roll per kill). javap shows only
 those constants changed; the other 23 are unchanged.
 
+## Re-baseline (2026-10-28, 4.6.253 LM-owned player data)
+
+Three classes re-extracted: `AdaptiveDifficultyMod` (version constant only), `PrestigePointsSystem`
+(the root wallet and breakthrough mirrors now call `LmPlayerStore` instead of `PersistentDataAccess` -
+javap shows only those eight call targets changed), and `PrestigePointsSystem$SkillOffer`
+(constant-pool renumbering only, no code change). The other 22 are unchanged.
+
 ## Refresh the reference set
 
 ```bash
