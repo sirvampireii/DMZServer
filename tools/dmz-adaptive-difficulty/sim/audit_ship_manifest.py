@@ -912,6 +912,26 @@ def main() -> int:
           and _mig_sim({"lm_prestige_held": 2}, has_file=True) == "kept-existing"
           and _mig_sim({"lm_prestige_held": 2}, marker=True) == "skip-pass")
 
+    print("\n--- § unlocked tiers load ---")
+    ut_data = read(SRC / "data/PlayerDifficultyData.java")
+    ut_tp = read(SRC / "title/TitleProgress.java")
+    ut_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    ut_load = ut_data.split("public void load(CompoundTag tag) {", 1)[-1].split("\n    }\n", 1)[0]
+    ut_tp_load = ut_tp.split("public void load(CompoundTag tag) {", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest unlocked-tiers-load row", "unlocked-tiers-load" in manifest)
+    check("unlockedTiers: contains() checks TAG_LIST (9), getList keeps compound elements (10)",
+          'tag.m_128425_("unlockedTiers", 9)' in ut_load and 'tag.m_128437_("unlockedTiers", 10)' in ut_load
+          and 'tag.m_128425_("unlockedTiers", 10)' not in ut_data
+          and 'tag.m_128365_("unlockedTiers", tiers);' in ut_data)
+    import re as _re
+    _lists = _re.findall(r'm_128425_\("([A-Za-z]+)", (\d+)\)', ut_load + ut_tp_load)
+    check("every list key in difficulty / title-progress load checks TAG_LIST (9)",
+          sorted(_lists) == sorted([("unlockedTiers", "9"), ("titles", "9"),
+                                    ("mutationsSeen", "9"), ("scoreMilestones", "9")]))
+    check("self-test round-trips unlocked tiers through save, SNBT text, and load",
+          "before.unlockTier(id);" in ut_test and "unlocked tiers lost on save/load" in ut_test
+          and ut_test.index("before.unlockTier(id);") < ut_test.index("before.writeToPlayerNbt(fresh);"))
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")

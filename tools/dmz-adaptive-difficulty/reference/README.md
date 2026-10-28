@@ -208,6 +208,11 @@ Three classes re-extracted: `AdaptiveDifficultyMod` (version constant only), `Pr
 javap shows only those eight call targets changed), and `PrestigePointsSystem$SkillOffer`
 (constant-pool renumbering only, no code change). The other 22 are unchanged.
 
+## Re-baseline (2026-10-28, 4.6.254 unlocked tiers load)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The
+loader fix lives outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

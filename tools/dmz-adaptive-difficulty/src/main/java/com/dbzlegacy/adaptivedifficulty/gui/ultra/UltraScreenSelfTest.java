@@ -1768,6 +1768,10 @@ public final class UltraScreenSelfTest {
         before.titleProgress().addPlaySeconds(3_600L);
         before.setLastSeenPrestige(2);
         before.noteDmzLevel(40_000);
+        int[] tiers = {1, 3, 5};
+        for (int id : tiers) {
+            before.unlockTier(id);
+        }
 
         // Prestige-up, as UnlockSystem.syncUnlocks applies it to this data.
         before.resetHighestDmzLevel(0);
@@ -1792,6 +1796,15 @@ public final class UltraScreenSelfTest {
         if (after.getTitles().size() != owned.length) {
             broken.add("title count changed: " + after.getTitles());
         }
+        java.util.Set<Integer> wantTiers = new java.util.LinkedHashSet<>();
+        for (int id : tiers) {
+            wantTiers.add(id);
+        }
+        if (!before.getUnlockedTiers().equals(wantTiers)) {
+            broken.add("unlocked tiers not set up: " + before.getUnlockedTiers());
+        } else if (!after.getUnlockedTiers().equals(wantTiers)) {
+            broken.add("unlocked tiers lost on save/load: " + after.getUnlockedTiers() + " want " + wantTiers);
+        }
         if (!"boss_slayer".equals(after.getActiveTitle())) {
             broken.add("equipped title lost: '" + after.getActiveTitle() + "'");
         }
@@ -1810,7 +1823,7 @@ public final class UltraScreenSelfTest {
         }
         if (broken.isEmpty()) {
             AdaptiveDifficultyMod.LOGGER.info(
-                    "[{}] Title persistence self-test OK (titles, equipped, mastery, milestones, counters survive prestige)",
+                    "[{}] Title persistence self-test OK (titles, equipped, mastery, milestones, counters, unlocked tiers survive save/load)",
                     AdaptiveDifficultyMod.MOD_ID);
             return;
         }

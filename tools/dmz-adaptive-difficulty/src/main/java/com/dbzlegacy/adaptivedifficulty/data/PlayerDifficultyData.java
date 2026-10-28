@@ -345,7 +345,10 @@ public final class PlayerDifficultyData {
             lastSeenPrestige = -1;
         }
         unlockedTiers.clear();
-        if (tag.m_128425_("unlockedTiers", 10)) { // TAG_COMPOUND=10
+        // "unlockedTiers" is a list of {id} compounds: contains() needs TAG_LIST (9), the element
+        // type (10) stays in getList. Checking 10 never matched, so saved tiers were dropped on
+        // every load and rebuilt from live state (4.6.254 fix, same shape as the titles fix).
+        if (tag.m_128425_("unlockedTiers", 9)) {
             ListTag tiers = tag.m_128437_("unlockedTiers", 10);
             for (int i = 0; i < tiers.size(); i++) {
                 CompoundTag t = tiers.m_128728_(i); // getCompound
