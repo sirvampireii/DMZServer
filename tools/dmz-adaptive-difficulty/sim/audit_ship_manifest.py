@@ -1256,7 +1256,8 @@ def main() -> int:
     for _name, _src, _cmd in (("TP", be_tp, "boost"), ("mastery", be_gm, "masteryboost")):
         _start = _src.split("public static String startBoost(ServerPlayer actor, int encoded, String purchaser) {", 1)[-1]
         _start = _start.split("\n    }\n", 1)[0]
-        _reply = _src.split("public static String undecodedReply(int encoded) {", 1)[-1].split("\n    }\n", 1)[0]
+        # 4.6.261: the int form delegates to the String form, which builds the reply.
+        _reply = _src.split("public static String undecodedReply(String encoded) {", 1)[-1].split("\n    }\n", 1)[0]
         check(_name + " boost: undecodable value gets undecodedReply with the value and both forms",
               "if (decoded == null) {\n            return undecodedReply(encoded);" in _start
               and '" was not understood. Use one of these:' in _reply and "+ encoded +" in _reply
@@ -1281,6 +1282,28 @@ def main() -> int:
 
     check("sim: 2 -> rejected, 2000030 -> 2x 30 min, 1250015 -> 1.25x 15 min",
           _decode(2) is None and _decode(2000030) == (2.0, 30) and _decode(1250015) == (1.25, 15))
+
+    print("\n--- § boost start dispatch ---")
+    sd_cmd = read(SRC / "command/ProgressionCommands.java")
+    sd_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    check("manifest boost-start-dispatch row", "boost-start-dispatch" in manifest)
+    for _tree, _only in (("boost", "boostMultiplierOnly"), ("masteryboost", "masteryBoostMultiplierOnly")):
+        _t = sd_cmd.split('Commands.m_82127_("' + _tree + '")', 1)[-1].split('Commands.m_82127_("end")', 1)[0]
+        check(_tree + ": multiplier branch registers before encoded, capped, runs on its own",
+              0 <= _t.find('m_82129_("multiplier"') < _t.find('m_82129_("encoded"')
+              and 'DoubleArgumentType.doubleArg(1.25, MAX_START_MULTIPLIER)' in _t
+              and ("executes(ctx -> " + _only + "(") in _t
+              and _t.count('m_82129_("purchaser"') == 2)
+    _mo = sd_cmd.split("private static int boostMultiplierOnly(", 1)[-1].split("\n    }\n", 1)[0]
+    check("cap 100 is below every encoded value; whole numbers go to the encoded reply",
+          "static final double MAX_START_MULTIPLIER = 100.0;" in sd_cmd and 100.0 < 1250000
+          and "return boostEncoded(source, (int) value, null);" in _mo
+          and "GlobalTpBoost.undecodedReply(String.valueOf(value))" in _mo)
+    check("dispatch self-test parses the real tree: 2 30 Steve, 2.5 30, 2000030, 2000030 123, 2",
+          "dispatcher.register(build(\"progression\"));" in sd_cmd
+          and '"start 2 30 Steve"' in sd_cmd and '"start 2.5 30"' in sd_cmd and '"start 2000030"' in sd_cmd
+          and '"start 2000030 123"' in sd_cmd and 'expect(broken, dispatcher, src, tree, "start 2", ' in sd_cmd
+          and "ProgressionCommands.selfTestBoostDispatch()" in sd_test)
 
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")

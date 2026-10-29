@@ -166,6 +166,11 @@ public final class GlobalMasteryBoost {
      * a 0.0 multiplier): names the value and both valid start forms.
      */
     public static String undecodedReply(int encoded) {
+        return undecodedReply(String.valueOf(encoded));
+    }
+
+    /** Same reply for a typed value that is not a whole number (for example {@code start 2.5}). */
+    public static String undecodedReply(String encoded) {
         return UltraStyle.DANGER + "Boost value " + UltraStyle.WHITE + encoded + UltraStyle.DANGER
                 + " was not understood. Use one of these:\n"
                 + UltraStyle.YELLOW + "progression masteryboost start <encoded>" + UltraStyle.GRAY

@@ -9,19 +9,27 @@ import com.dbzlegacy.adaptivedifficulty.gui.SkillsMenu;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionSystem;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.SkillCheckService;
+import com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost;
+import com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
+import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.phys.Vec2;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -502,17 +510,12 @@ public final class ProgressionCommands {
                         .then(Commands.m_82127_("status").executes(ctx -> boostStatus(ctx.getSource())))
                         .then(Commands.m_82127_("start")
                                 .requires(ProgressionCommands::staff)
-                                .then(Commands.m_82129_("encoded", IntegerArgumentType.integer(1))
-                                        .executes(ctx -> boostEncoded(
+                                // Multiplier before encoded: "start 2 30 Steve" reads fully down both branches and
+                                // Brigadier keeps the first. The cap keeps every encoded value (>= 1,250,000) off this branch.
+                                .then(Commands.m_82129_("multiplier", DoubleArgumentType.doubleArg(1.25, MAX_START_MULTIPLIER))
+                                        .executes(ctx -> boostMultiplierOnly(
                                                 ctx.getSource(),
-                                                IntegerArgumentType.getInteger(ctx, "encoded"),
-                                                null))
-                                        .then(Commands.m_82129_("purchaser", StringArgumentType.greedyString())
-                                                .executes(ctx -> boostEncoded(
-                                                        ctx.getSource(),
-                                                        IntegerArgumentType.getInteger(ctx, "encoded"),
-                                                        StringArgumentType.getString(ctx, "purchaser")))))
-                                .then(Commands.m_82129_("multiplier", DoubleArgumentType.doubleArg(1.25))
+                                                DoubleArgumentType.getDouble(ctx, "multiplier")))
                                         .then(Commands.m_82129_("minutes", IntegerArgumentType.integer(1))
                                                 .executes(ctx -> boostMinutes(
                                                         ctx.getSource(),
@@ -524,7 +527,17 @@ public final class ProgressionCommands {
                                                                 ctx.getSource(),
                                                                 DoubleArgumentType.getDouble(ctx, "multiplier"),
                                                                 IntegerArgumentType.getInteger(ctx, "minutes"),
-                                                                StringArgumentType.getString(ctx, "purchaser")))))))
+                                                                StringArgumentType.getString(ctx, "purchaser"))))))
+                                .then(Commands.m_82129_("encoded", IntegerArgumentType.integer(1))
+                                        .executes(ctx -> boostEncoded(
+                                                ctx.getSource(),
+                                                IntegerArgumentType.getInteger(ctx, "encoded"),
+                                                null))
+                                        .then(Commands.m_82129_("purchaser", StringArgumentType.greedyString())
+                                                .executes(ctx -> boostEncoded(
+                                                        ctx.getSource(),
+                                                        IntegerArgumentType.getInteger(ctx, "encoded"),
+                                                        StringArgumentType.getString(ctx, "purchaser"))))))
                         .then(Commands.m_82127_("end")
                                 .requires(ProgressionCommands::staff)
                                 .executes(ctx -> boostEnd(ctx.getSource()))))
@@ -534,17 +547,12 @@ public final class ProgressionCommands {
                         .then(Commands.m_82127_("status").executes(ctx -> masteryBoostStatus(ctx.getSource())))
                         .then(Commands.m_82127_("start")
                                 .requires(ProgressionCommands::staff)
-                                .then(Commands.m_82129_("encoded", IntegerArgumentType.integer(1))
-                                        .executes(ctx -> masteryBoostEncoded(
+                                // Multiplier before encoded: "start 2 30 Steve" reads fully down both branches and
+                                // Brigadier keeps the first. The cap keeps every encoded value (>= 1,250,000) off this branch.
+                                .then(Commands.m_82129_("multiplier", DoubleArgumentType.doubleArg(1.25, MAX_START_MULTIPLIER))
+                                        .executes(ctx -> masteryBoostMultiplierOnly(
                                                 ctx.getSource(),
-                                                IntegerArgumentType.getInteger(ctx, "encoded"),
-                                                null))
-                                        .then(Commands.m_82129_("purchaser", StringArgumentType.greedyString())
-                                                .executes(ctx -> masteryBoostEncoded(
-                                                        ctx.getSource(),
-                                                        IntegerArgumentType.getInteger(ctx, "encoded"),
-                                                        StringArgumentType.getString(ctx, "purchaser")))))
-                                .then(Commands.m_82129_("multiplier", DoubleArgumentType.doubleArg(1.25))
+                                                DoubleArgumentType.getDouble(ctx, "multiplier")))
                                         .then(Commands.m_82129_("minutes", IntegerArgumentType.integer(1))
                                                 .executes(ctx -> masteryBoostMinutes(
                                                         ctx.getSource(),
@@ -556,7 +564,17 @@ public final class ProgressionCommands {
                                                                 ctx.getSource(),
                                                                 DoubleArgumentType.getDouble(ctx, "multiplier"),
                                                                 IntegerArgumentType.getInteger(ctx, "minutes"),
-                                                                StringArgumentType.getString(ctx, "purchaser")))))))
+                                                                StringArgumentType.getString(ctx, "purchaser"))))))
+                                .then(Commands.m_82129_("encoded", IntegerArgumentType.integer(1))
+                                        .executes(ctx -> masteryBoostEncoded(
+                                                ctx.getSource(),
+                                                IntegerArgumentType.getInteger(ctx, "encoded"),
+                                                null))
+                                        .then(Commands.m_82129_("purchaser", StringArgumentType.greedyString())
+                                                .executes(ctx -> masteryBoostEncoded(
+                                                        ctx.getSource(),
+                                                        IntegerArgumentType.getInteger(ctx, "encoded"),
+                                                        StringArgumentType.getString(ctx, "purchaser"))))))
                         .then(Commands.m_82127_("end")
                                 .requires(ProgressionCommands::staff)
                                 .executes(ctx -> masteryBoostEnd(ctx.getSource()))))
@@ -659,6 +677,70 @@ public final class ProgressionCommands {
         String summary = ProgressionSystem.statusSummary();
         source.m_288197_(() -> Component.m_237113_("§7" + summary.replace("\n", "\n§7")), true);
         return 1;
+    }
+
+    /**
+     * {@code start <n>} with no minutes now lands on the multiplier node (it is registered first).
+     * A whole number is the encoded value it was typed as, so it gets exactly the encoded reply
+     * (4.6.260); anything else gets the same "valid forms" reply.
+     */
+    private static int boostMultiplierOnly(CommandSourceStack source, double value) {
+        if (value == Math.rint(value)) {
+            return boostEncoded(source, (int) value, null);
+        }
+        reply(source, playerOrNull(source), GlobalTpBoost.undecodedReply(String.valueOf(value)));
+        return 1;
+    }
+
+    private static int masteryBoostMultiplierOnly(CommandSourceStack source, double value) {
+        if (value == Math.rint(value)) {
+            return masteryBoostEncoded(source, (int) value, null);
+        }
+        reply(source, playerOrNull(source), GlobalMasteryBoost.undecodedReply(String.valueOf(value)));
+        return 1;
+    }
+
+    /** Below the smallest encoded value (1.25x = 1,250,000 + minutes) and above any real multiplier. */
+    static final double MAX_START_MULTIPLIER = 100.0;
+
+    /**
+     * Parses the boost start forms through a dispatcher holding the real {@code /progression}
+     * tree (parse only, nothing runs) and checks which handler each binds. Empty when all pass.
+     */
+    public static List<String> selfTestBoostDispatch() {
+        List<String> broken = new ArrayList<>();
+        CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
+        dispatcher.register(build("progression"));
+        CommandSourceStack src = new CommandSourceStack(CommandSource.f_80164_, new Vec3(0, 0, 0), new Vec2(0f, 0f),
+                null, 4, "lm-selftest", Component.m_237113_("lm-selftest"), null, null);
+        for (String tree : new String[] {"boost", "masteryboost"}) {
+            expect(broken, dispatcher, src, tree, "start 2 30 Steve",
+                    Map.of("multiplier", 2.0, "minutes", 30, "purchaser", "Steve"));
+            expect(broken, dispatcher, src, tree, "start 2 30", Map.of("multiplier", 2.0, "minutes", 30));
+            expect(broken, dispatcher, src, tree, "start 2.5 30", Map.of("multiplier", 2.5, "minutes", 30));
+            expect(broken, dispatcher, src, tree, "start 2000030", Map.of("encoded", 2000030));
+            expect(broken, dispatcher, src, tree, "start 2000030 Steve",
+                    Map.of("encoded", 2000030, "purchaser", "Steve"));
+            // A purchaser named only by digits must not turn the code into a multiplier.
+            expect(broken, dispatcher, src, tree, "start 2000030 123",
+                    Map.of("encoded", 2000030, "purchaser", "123"));
+            // Bare small number: the multiplier node runs, and hands whole numbers to the encoded reply.
+            expect(broken, dispatcher, src, tree, "start 2", Map.of("multiplier", 2.0));
+        }
+        return broken;
+    }
+
+    private static void expect(List<String> broken, CommandDispatcher<CommandSourceStack> dispatcher,
+            CommandSourceStack src, String tree, String input, Map<String, Object> want) {
+        String line = "progression " + tree + " " + input;
+        ParseResults<CommandSourceStack> parse = dispatcher.parse(line, src);
+        Map<String, Object> got = new LinkedHashMap<>();
+        parse.getContext().getArguments().forEach((k, v) -> got.put(k, v.getResult()));
+        if (parse.getReader().canRead() || !parse.getExceptions().isEmpty()
+                || parse.getContext().getCommand() == null || !got.equals(want)) {
+            broken.add("'" + line + "' bound " + got + (parse.getContext().getCommand() == null ? " (no command)" : "")
+                    + ", want " + want);
+        }
     }
 
     private static int boostEncoded(CommandSourceStack source, int encoded, String purchaser) {

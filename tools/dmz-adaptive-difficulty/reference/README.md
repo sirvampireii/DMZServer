@@ -255,6 +255,11 @@ pass lives outside this set; the other 24 are unchanged.
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The boost
 reply change lives outside this set; the other 24 are unchanged.
 
+## Re-baseline (2026-10-28, 4.6.261 boost start dispatch)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The command
+tree change lives outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash
