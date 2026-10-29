@@ -50,6 +50,11 @@ public final class UltraPrestigeScreens {
             openMasteryForm(player, raw.substring("mw_form:".length()));
             return;
         }
+        // "mastery_lines:2" reopens the third page of the form lines.
+        if ("mastery_lines".equals(UltraPickHelper.pageBase(p))) {
+            openMasteryLines(player, UltraPickHelper.pageIndex(p));
+            return;
+        }
         switch (p) {
             case "turnin", "points", "prestige" -> openTurnIn(player);
             case "confirm", "prestige_confirm" -> openConfirm(player);
@@ -60,7 +65,6 @@ public final class UltraPrestigeScreens {
             case "effects", "effect", "forms", "form" -> openEffects(player);
             case "custom", "perks" -> openCustom(player);
             case "mastery_wallet", "mastery" -> openMasteryWallet(player);
-            case "mastery_lines" -> openMasteryLines(player);
             case "staff_edit" -> {
                 if (StaffAccess.isStaff(player)) {
                     UltraGui.open(player, "config", "edit:prestige-shop:0:");
@@ -267,35 +271,60 @@ public final class UltraPrestigeScreens {
 
     // ── Mastery wallet (Shop > Mastery wallet) ───────────────────────
 
+    /** Single-column picker page size (rivals, discovery, android picks). */
+    static final int MASTERY_PICKS_PER_PAGE = 8;
+
     private static void openMasteryWallet(ServerPlayer player) {
         walletSpec(MasteryWallet.balance(player), PrestigePointsSystem.getPoints(player), MasteryWallet.open())
                 .send(player);
     }
 
-    private static void openMasteryLines(ServerPlayer player) {
-        linesSpec(MasteryWallet.lines(player), MasteryWallet.balance(player)).send(player);
+    private static void openMasteryLines(ServerPlayer player, int page) {
+        linesSpec(MasteryWallet.lines(player), MasteryWallet.balance(player), page).send(player);
     }
 
-    /** {@code mw_line:<s|n>:<group>}; a line that is no longer unlocked falls back to the line list. */
-    private static void openMasteryLine(ServerPlayer player, String token) {
-        MasteryWallet.Line line = MasteryWallet.line(player, token);
+    /**
+     * {@code mw_line:<s|n>:<group>[:N]}. The token holds a colon, so the trailing page index is
+     * stripped first; a line that is no longer unlocked falls back to the line list.
+     */
+    private static void openMasteryLine(ServerPlayer player, String rest) {
+        MasteryWallet.Line line = MasteryWallet.line(player, UltraPickHelper.pageBase(rest));
+        int page = UltraPickHelper.pageIndex(rest);
         if (line == null) {
-            openMasteryLines(player);
+            // A group named only by digits would look like a page index; try it whole.
+            line = MasteryWallet.line(player, rest);
+            page = 0;
+        }
+        if (line == null) {
+            openMasteryLines(player, 0);
             return;
         }
-        lineSpec(line, MasteryWallet.balance(player)).send(player);
+        lineSpec(line, MasteryWallet.balance(player), page).send(player);
     }
 
-    /** {@code mw_form:<s|n>:<group>:<form>}, read live so the numbers match what Apply will do. */
+    /**
+     * {@code mw_form:<s|n>:<group>:<form>[:N]}, N = the line page the player came from. Read live
+     * so the numbers match what Apply will do.
+     */
     private static void openMasteryForm(ServerPlayer player, String rest) {
-        int cut = rest == null ? -1 : rest.lastIndexOf(':');
-        MasteryWallet.Line line = cut <= 0 ? null : MasteryWallet.line(player, rest.substring(0, cut));
-        MasteryWallet.Form form = line == null ? null : line.form(rest.substring(cut + 1));
+        MasteryWallet.Form form = null;
+        MasteryWallet.Line line = null;
+        int linePage = UltraPickHelper.pageIndex(rest);
+        for (String key : new String[] {UltraPickHelper.pageBase(rest), rest}) {
+            int cut = key == null ? -1 : key.lastIndexOf(':');
+            line = cut <= 0 ? null : MasteryWallet.line(player, key.substring(0, cut));
+            form = line == null ? null : line.form(key.substring(cut + 1));
+            if (form != null) {
+                break;
+            }
+            // Second pass: a form named only by digits, no page index.
+            linePage = 0;
+        }
         if (form == null) {
-            openMasteryLines(player);
+            openMasteryLines(player, 0);
             return;
         }
-        formSpec(line, form, MasteryWallet.balance(player)).send(player);
+        formSpec(line, form, MasteryWallet.balance(player), linePage).send(player);
     }
 
     /** Wallet page: balance, favor, the four point packs, and the way into the picker. */
@@ -336,9 +365,11 @@ public final class UltraPrestigeScreens {
         return spec;
     }
 
-    /** Form lines with at least one unlocked form, in radial order; says what to do when empty. */
-    static UltraScreenSpec linesSpec(List<MasteryWallet.Line> lines, int balance) {
-        UltraScreenSpec spec = sub("mastery_lines")
+    /** Form lines with at least one unlocked form, in radial order, 8 per page; says what to do when empty. */
+    static UltraScreenSpec linesSpec(List<MasteryWallet.Line> lines, int balance, int page) {
+        int pages = UltraPickHelper.pageCount(lines == null ? 0 : lines.size(), MASTERY_PICKS_PER_PAGE);
+        int pg = UltraPickHelper.clampPage(page, pages);
+        UltraScreenSpec spec = sub(UltraPickHelper.pageArg("mastery_lines", pg))
                 .lineGap(2)
                 .bodyPad(4);
         spec.labelValue("Mastery points", String.valueOf(balance));
@@ -348,8 +379,9 @@ public final class UltraPrestigeScreens {
             spec.buttonsAfterLines();
         } else {
             spec.line(UltraStyle.LABEL + "Pick a form line. Only lines with a form you have unlocked are listed.");
+            UltraPickHelper.pageLabel(spec, pg, pages);
             spec.buttonsAfterLines();
-            for (MasteryWallet.Line line : lines) {
+            for (MasteryWallet.Line line : UltraPickHelper.pageSlice(lines, MASTERY_PICKS_PER_PAGE, pg)) {
                 int n = line.forms.size();
                 String raw = line.label + " (" + n + (n == 1 ? " form)" : " forms)");
                 if (!UltraStyle.fitsButton(raw)) {
@@ -358,22 +390,27 @@ public final class UltraPrestigeScreens {
                 spec.button("page:mw_line:" + line.token(), UltraStyle.confirm(raw), UltraStyle.STYLE_CONFIRM)
                         .rowGap();
             }
+            UltraPickHelper.placePrevNext(spec, "mastery_lines", pg, pages);
         }
         spec.footerBack("page:mastery_wallet", "Mastery wallet");
         return spec;
     }
 
-    /** The unlocked forms in one line with their mastery; capped forms show dim. */
-    static UltraScreenSpec lineSpec(MasteryWallet.Line line, int balance) {
-        UltraScreenSpec spec = sub("mw_line:" + line.token())
+    /** The unlocked forms in one line with their mastery, 8 per page; capped forms show dim. */
+    static UltraScreenSpec lineSpec(MasteryWallet.Line line, int balance, int page) {
+        String base = "mw_line:" + line.token();
+        int pages = UltraPickHelper.pageCount(line.forms.size(), MASTERY_PICKS_PER_PAGE);
+        int pg = UltraPickHelper.clampPage(page, pages);
+        UltraScreenSpec spec = sub(UltraPickHelper.pageArg(base, pg))
                 .lineGap(2)
                 .bodyPad(4);
         spec.labelValue("Mastery points", String.valueOf(balance));
         spec.labelValue("Form line", line.label);
         spec.line(UltraStyle.LABEL + "Pick a form. Each point adds " + MasteryWallet.MASTERY_PER_POINT
                 + " mastery, up to the form's cap.");
+        UltraPickHelper.pageLabel(spec, pg, pages);
         spec.buttonsAfterLines();
-        for (MasteryWallet.Form form : line.forms) {
+        for (MasteryWallet.Form form : UltraPickHelper.pageSlice(line.forms, MASTERY_PICKS_PER_PAGE, pg)) {
             boolean full = form.maxPoints() <= 0;
             String raw = form.label + " " + MasteryWallet.whole(form.current) + "/" + MasteryWallet.whole(form.cap);
             if (full) {
@@ -382,20 +419,25 @@ public final class UltraPrestigeScreens {
             if (!UltraStyle.fitsButton(raw)) {
                 raw = form.label;
             }
+            // The form page carries this page index so its Back returns here.
             spec.button(
-                            "page:mw_form:" + line.token() + ":" + form.name,
+                            "page:" + UltraPickHelper.pageArg("mw_form:" + line.token() + ":" + form.name, pg),
                             full ? UltraStyle.dim(raw) : UltraStyle.confirm(raw),
                             full ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
+        UltraPickHelper.placePrevNext(spec, base, pg, pages);
         spec.footerBack("page:mastery_lines", "Form lines");
         return spec;
     }
 
-    /** One form: current mastery, room to the cap, and whole-point amounts that fit. */
-    static UltraScreenSpec formSpec(MasteryWallet.Line line, MasteryWallet.Form form, int balance) {
+    /**
+     * One form: current mastery, room to the cap, and whole-point amounts that fit. {@code linePage}
+     * is the line page the player came from; Back returns there.
+     */
+    static UltraScreenSpec formSpec(MasteryWallet.Line line, MasteryWallet.Form form, int balance, int linePage) {
         String token = line.token() + ":" + form.name;
-        UltraScreenSpec spec = sub("mw_form:" + token)
+        UltraScreenSpec spec = sub(UltraPickHelper.pageArg("mw_form:" + token, Math.max(0, linePage)))
                 .lineGap(2)
                 .bodyPad(4);
         spec.labelValue("Form", MasteryWallet.formName(line.label, form));
@@ -440,7 +482,7 @@ public final class UltraPrestigeScreens {
         if (amounts.size() % 2 == 1) {
             spec.rowGap();
         }
-        spec.footerBack("page:mw_line:" + line.token(), line.label);
+        spec.footerBack("page:" + UltraPickHelper.pageArg("mw_line:" + line.token(), Math.max(0, linePage)), line.label);
         return spec;
     }
 

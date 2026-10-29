@@ -238,6 +238,13 @@ sanitize. Its eight existing inner classes (`CustomEntry`, `CustomShop`, `Exchan
 lines. `UltraPrestigeScreens`: the Mastery wallet pages, routes, and Shop button. javap-verified:
 additions only, nothing removed; the other 13 are unchanged.
 
+## Re-baseline (2026-10-28, 4.6.258 mastery wallet paging)
+
+Two classes re-extracted: `AdaptiveDifficultyMod` (version constant only) and
+`UltraPrestigeScreens` (the wallet line and form pickers take a page index and page through
+`UltraPickHelper`; the form view carries the line page for Back - the only new calls).
+javap-verified; the other 23 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

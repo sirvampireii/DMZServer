@@ -1093,7 +1093,7 @@ public final class UltraScreenSelfTest {
         if (!order.equals(List.of("n:ssgrades", "n:supersaiyan", "n:oozaru", "s:kaioken"))) {
             broken.add("mastery wallet: picker lines " + order + ", want superforms, more forms, then stacks; Mutant hidden");
         }
-        GuiOpenPacket picker = UltraPrestigeScreens.linesSpec(lines, 5).toPacket();
+        GuiOpenPacket picker = UltraPrestigeScreens.linesSpec(lines, 5, 0).toPacket();
         Map<String, String> pickIds = buttonIds(picker);
         for (String t : order) {
             if (!pickIds.containsKey("page:mw_line:" + t)) {
@@ -1103,13 +1103,13 @@ public final class UltraScreenSelfTest {
         if (pickIds.containsKey("page:mw_line:n:legendaryforms")) {
             broken.add("mastery wallet: picker shows a line with nothing unlocked");
         }
-        GuiOpenPacket empty = UltraPrestigeScreens.linesSpec(List.of(), 5).toPacket();
+        GuiOpenPacket empty = UltraPrestigeScreens.linesSpec(List.of(), 5, 0).toPacket();
         // Body lines wrap, so match phrases short enough to stay on one line.
         if (!empty.linesJson().contains("no unlocked forms") || !empty.linesJson().contains("Unlock your first form")) {
             broken.add("mastery wallet: empty picker should say there are no unlocked forms and what to do");
         }
         MasteryWallet.Line ss = lines.get(0);
-        GuiOpenPacket formPkt = UltraPrestigeScreens.formSpec(ss, ss.forms.get(0), 5).toPacket();
+        GuiOpenPacket formPkt = UltraPrestigeScreens.formSpec(ss, ss.forms.get(0), 5, 0).toPacket();
         Map<String, String> formIds = buttonIds(formPkt);
         if (!formIds.containsKey("do:mastery_apply:n:ssgrades:supersaiyan:1")
                 || formIds.containsKey("do:mastery_apply:n:ssgrades:supersaiyan:5")) {
@@ -1119,15 +1119,101 @@ public final class UltraScreenSelfTest {
             broken.add("mastery wallet: form page should show current mastery and room to cap");
         }
         MasteryWallet.Line capped = lines.get(1);
-        for (String id : buttonIds(UltraPrestigeScreens.formSpec(capped, capped.forms.get(0), 5).toPacket()).keySet()) {
+        for (String id : buttonIds(UltraPrestigeScreens.formSpec(capped, capped.forms.get(0), 5, 0).toPacket()).keySet()) {
             if (id.startsWith("do:mastery_apply:")) {
                 broken.add("mastery wallet: a capped form offers " + id);
             }
         }
+        if (pickIds.containsKey("page:mastery_lines:1") || picker.linesJson().contains("Page ")) {
+            broken.add("mastery wallet: a one-page line list should have no Prev / Next and no page label");
+        }
+        checkMasteryWalletPaging(broken);
         String applyAsk = MasteryWallet.applyPrompt(1, ss.label, ss.forms.get(0));
         if (!applyAsk.contains("SSJ (SS Grades)") || !applyAsk.contains("420 to 470")
                 || !applyAsk.contains("not refunded")) {
             broken.add("mastery wallet: apply prompt missing form, result, or no-refund: " + applyAsk);
+        }
+    }
+
+    /**
+     * Wallet pickers page at 8: 11 lines and an 11-form line split 8 + 3 with nothing repeated or
+     * dropped, Prev / Next only past one page, a page past the end clamps to the last page, and
+     * the form view's Back returns to the line page it was opened from.
+     */
+    private static void checkMasteryWalletPaging(List<String> broken) {
+        int per = UltraPrestigeScreens.MASTERY_PICKS_PER_PAGE;
+        if (per != 8) {
+            broken.add("mastery wallet paging: page size " + per + ", want 8");
+        }
+        List<MasteryWallet.Line> many = new ArrayList<>();
+        List<MasteryWallet.Form> bigForms = new ArrayList<>();
+        for (int i = 0; i < 11; i++) {
+            String id = String.format(Locale.ROOT, "g%02d", i);
+            many.add(new MasteryWallet.Line(id, "Line " + id, false, "superforms",
+                    List.of(new MasteryWallet.Form("f", "Form", 0, 500))));
+            bigForms.add(new MasteryWallet.Form(String.format(Locale.ROOT, "f%02d", i), "Form " + i, 0, 500));
+        }
+        MasteryWallet.Line big = new MasteryWallet.Line("big", "Big", false, "superforms", bigForms);
+        List<String> wantLines = new ArrayList<>();
+        for (MasteryWallet.Line l : MasteryWallet.ordered(many)) {
+            wantLines.add("page:mw_line:" + l.token());
+        }
+        List<String> wantForms = new ArrayList<>();
+        for (MasteryWallet.Form f : bigForms) {
+            wantForms.add("n:big:" + f.name);
+        }
+        List<String> seenLines = new ArrayList<>();
+        List<String> seenForms = new ArrayList<>();
+        for (int pg = 0; pg < 2; pg++) {
+            Map<String, String> li = buttonIds(UltraPrestigeScreens.linesSpec(MasteryWallet.ordered(many), 5, pg).toPacket());
+            Map<String, String> fi = buttonIds(UltraPrestigeScreens.lineSpec(big, 5, pg).toPacket());
+            List<String> lp = new ArrayList<>();
+            for (String id : li.keySet()) {
+                if (id.startsWith("page:mw_line:")) {
+                    lp.add(id);
+                }
+            }
+            List<String> fp = new ArrayList<>();
+            for (String id : fi.keySet()) {
+                if (id.startsWith("page:mw_form:")) {
+                    String rest = id.substring("page:mw_form:".length());
+                    fp.add(UltraPickHelper.pageBase(rest));
+                    if (UltraPickHelper.pageIndex(rest) != pg) {
+                        broken.add("mastery wallet paging: form button " + id + " should carry line page " + pg);
+                    }
+                }
+            }
+            int want = pg == 0 ? 8 : 3;
+            if (lp.size() != want || fp.size() != want) {
+                broken.add("mastery wallet paging: page " + pg + " shows " + lp.size() + " lines / " + fp.size()
+                        + " forms, want " + want);
+            }
+            seenLines.addAll(lp);
+            seenForms.addAll(fp);
+            boolean prev = li.containsKey("page:mastery_lines") && "Prev".equals(li.get("page:mastery_lines"));
+            boolean next = li.containsKey("page:mastery_lines:1");
+            boolean fPrev = "Prev".equals(fi.get("page:mw_line:n:big"));
+            boolean fNext = fi.containsKey("page:mw_line:n:big:1");
+            if (prev != (pg == 1) || next != (pg == 0) || fPrev != (pg == 1) || fNext != (pg == 0)) {
+                broken.add("mastery wallet paging: page " + pg + " Prev/Next wrong (lines " + prev + "/" + next
+                        + ", forms " + fPrev + "/" + fNext + ")");
+            }
+        }
+        if (!seenLines.equals(wantLines) || !seenForms.equals(wantForms)) {
+            broken.add("mastery wallet paging: pages repeat or drop items: lines " + seenLines + ", forms " + seenForms);
+        }
+        GuiOpenPacket past = UltraPrestigeScreens.linesSpec(MasteryWallet.ordered(many), 5, 99).toPacket();
+        GuiOpenPacket last = UltraPrestigeScreens.linesSpec(MasteryWallet.ordered(many), 5, 1).toPacket();
+        if (!buttonIds(past).equals(buttonIds(last)) || !past.linesJson().contains("Page 2 of 2")) {
+            broken.add("mastery wallet paging: page 99 should clamp to the last page (Page 2 of 2)");
+        }
+        GuiOpenPacket formPastEnd = UltraPrestigeScreens.lineSpec(big, 5, 99).toPacket();
+        if (!buttonIds(formPastEnd).equals(buttonIds(UltraPrestigeScreens.lineSpec(big, 5, 1).toPacket()))) {
+            broken.add("mastery wallet paging: a form page past the end should clamp to the last page");
+        }
+        Map<String, String> fv = buttonIds(UltraPrestigeScreens.formSpec(big, bigForms.get(9), 5, 1).toPacket());
+        if (!"Back to Big".equals(fv.get("page:mw_line:n:big:1"))) {
+            broken.add("mastery wallet paging: form view Back should return to page:mw_line:n:big:1, got " + fv);
         }
     }
 

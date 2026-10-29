@@ -1119,7 +1119,7 @@ def main() -> int:
                         "Applied mastery is not refunded.")))
     check("routes and dispatch: mastery_wallet / mastery_lines / mw_line: / mw_form:, mastery_buy / mastery_apply",
           'case "mastery_wallet", "mastery" -> openMasteryWallet(player);' in mw_scr
-          and 'case "mastery_lines" -> openMasteryLines(player);' in mw_scr
+          and '"mastery_lines".equals(UltraPickHelper.pageBase(p))' in mw_scr
           and 'p.startsWith("mw_line:")' in mw_scr and 'p.startsWith("mw_form:")' in mw_scr
           and 'case "mastery_buy" -> MasteryWallet.buy(serverPlayer, string2);' in mw_hooks
           and 'case "mastery_apply" -> MasteryWallet.apply(serverPlayer, string2);' in mw_hooks)
@@ -1140,6 +1140,54 @@ def main() -> int:
 
     check("sim: 0/500 -> 10, 450/500 -> 1, 451/500 -> 0, 500/500 -> 0, 101/500 -> 7",
           [_fit(*c) for c in ((0, 500), (450, 500), (451, 500), (500, 500), (101, 500))] == [10, 1, 0, 0, 7])
+
+    print("\n--- § mastery wallet paging ---")
+    pg_scr = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
+    pg_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    pg_lines = pg_scr.split("static UltraScreenSpec linesSpec(", 1)[-1].split("\n    }\n", 1)[0]
+    pg_line = pg_scr.split("static UltraScreenSpec lineSpec(", 1)[-1].split("\n    }\n", 1)[0]
+    pg_form = pg_scr.split("static UltraScreenSpec formSpec(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest mastery-wallet-paging row", "mastery-wallet-paging" in manifest)
+    check("page size 8 for both pickers",
+          "static final int MASTERY_PICKS_PER_PAGE = 8;" in pg_scr
+          and "MASTERY_PICKS_PER_PAGE" in pg_lines and "MASTERY_PICKS_PER_PAGE" in pg_line)
+    check("both pickers: pageCount, clampPage, pageSlice, pageLabel, placePrevNext",
+          all(s in pg_lines and s in pg_line for s in (
+              "UltraPickHelper.pageCount(", "UltraPickHelper.clampPage(page, pages)",
+              "UltraPickHelper.pageSlice(", "UltraPickHelper.pageLabel(spec, pg, pages);",
+              "UltraPickHelper.placePrevNext(spec, "))
+          and 'UltraPickHelper.placePrevNext(spec, "mastery_lines", pg, pages);' in pg_lines
+          and "UltraPickHelper.placePrevNext(spec, base, pg, pages);" in pg_line
+          and "for (MasteryWallet.Form form : line.forms)" not in pg_line
+          and "for (MasteryWallet.Line line : lines)" not in pg_lines)
+    check("routes: mastery_lines[:N], mw_line:<token>[:N] via pageBase / pageIndex",
+          '"mastery_lines".equals(UltraPickHelper.pageBase(p))' in pg_scr
+          and "openMasteryLines(player, UltraPickHelper.pageIndex(p));" in pg_scr
+          and "MasteryWallet.line(player, UltraPickHelper.pageBase(rest))" in pg_scr
+          and 'sub(UltraPickHelper.pageArg("mastery_lines", pg))' in pg_lines
+          and "sub(UltraPickHelper.pageArg(base, pg))" in pg_line)
+    check("form view id and Back carry the line page",
+          'UltraPickHelper.pageArg("mw_form:" + line.token() + ":" + form.name, pg)' in pg_line
+          and 'sub(UltraPickHelper.pageArg("mw_form:" + token, Math.max(0, linePage)))' in pg_form
+          and 'footerBack("page:" + UltraPickHelper.pageArg("mw_line:" + line.token(), Math.max(0, linePage)), line.label);' in pg_form)
+    check("empty state unchanged; hidden empty lines unchanged",
+          "You have no unlocked forms yet, so there is nothing to apply points to." in pg_lines
+          and "!l.forms.isEmpty()" in read(SRC / "progression/shop/MasteryWallet.java"))
+    check("self-test: 11 lines and 11 forms split 8 + 3, Prev / Next, clamp, Back carries page",
+          "checkMasteryWalletPaging(broken);" in pg_test and "i < 11" in pg_test
+          and "int want = pg == 0 ? 8 : 3;" in pg_test and "linesSpec(MasteryWallet.ordered(many), 5, 99)" in pg_test
+          and '"page:mw_line:n:big:1"' in pg_test)
+
+    def _pages(n, per=8):
+        out = []
+        for pg in range(max(1, -(-n // per))):
+            out.append(list(range(n))[pg * per:(pg + 1) * per])
+        return out
+
+    check("sim: 0 -> 1 empty page, 8 -> 1 page, 9 -> 8 + 1, 17 -> 8 + 8 + 1, no repeats",
+          [len(p) for p in _pages(0)] == [0] and [len(p) for p in _pages(8)] == [8]
+          and [len(p) for p in _pages(9)] == [8, 1] and [len(p) for p in _pages(17)] == [8, 8, 1]
+          and sum(_pages(17), []) == list(range(17)))
 
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
