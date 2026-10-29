@@ -55,7 +55,12 @@ public final class LmPlayerStore {
     }
 
     public static Path path(UUID id) {
-        return dir().resolve(id.toString().toLowerCase(Locale.ROOT) + ".json");
+        return dir().resolve(fileName(id));
+    }
+
+    /** {@code <uuid>.json}, lower case. */
+    public static String fileName(UUID id) {
+        return id.toString().toLowerCase(Locale.ROOT) + ".json";
     }
 
     /** The player's live record root. Always writable; changes reach disk on the next flush. */

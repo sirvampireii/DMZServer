@@ -245,6 +245,11 @@ Two classes re-extracted: `AdaptiveDifficultyMod` (version constant only) and
 `UltraPickHelper`; the form view carries the line page for Back - the only new calls).
 javap-verified; the other 23 are unchanged.
 
+## Re-baseline (2026-10-28, 4.6.259 .dat strip)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The strip
+pass lives outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

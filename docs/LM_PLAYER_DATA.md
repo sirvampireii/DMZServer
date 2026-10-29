@@ -10,6 +10,8 @@ player file cannot remove them.
 |---|---|
 | `config/legacymechanics/players/<uuid>.json` | One file per player (new in 4.6.253) |
 | `config/legacymechanics/player-data-migration.json` | Completion marker for the one-time move |
+| `config/legacymechanics/player-data-nbt-strip.json` | Completion marker for the one-time `.dat` strip (4.6.259) |
+| `config/legacymechanics/player-data-nbt-strip-backup/<uuid>.dat` | The keys the strip removed, per player (the rollback since 4.6.259) |
 | `config/legacymechanics/rivalry-v4.json`, sparring, rival progression | Already LM-owned before 4.6.253, unchanged |
 | `config/legacymechanics/character-services-players.json` | Already LM-owned before 4.6.253, unchanged |
 
@@ -79,17 +81,69 @@ The move runs on server start (`ServerStartingEvent`), before anyone can join, a
    - **LM file already exists:** the file is never overwritten; the player is logged.
 3. It writes the marker with counts (scanned, migrated, no data, existing, skipped). Later boots
    log `player data migration already done` and skip the pass entirely.
-4. The old keys stay in each `.dat` as a rollback fallback. Nothing in the pass deletes or
-   rewrites a `.dat`.
+4. The old keys stayed in each `.dat` as a rollback fallback until 4.6.259, which strips them
+   (see below). Nothing in this pass deletes or rewrites a `.dat`.
 
 There is no per-player migration on login.
 
-**Rollback.** An older jar reads the old `.dat` keys. Those keys are frozen at their 4.6.253 boot
-values, so progress made on 4.6.253 or later is not in them. On respawn LM keeps copying them to
-the new entity, because Forge itself only carries `PlayerPersisted` across death.
+**Rollback (4.6.253 to 4.6.258).** An older jar read the old `.dat` keys, frozen at their 4.6.253
+boot values. On respawn LM copied them to the new entity, because Forge itself only carries
+`PlayerPersisted` across death. 4.6.259 removes both: the keys are stripped from the `.dat` files
+and the death copy no longer writes them.
 
 **Staff clear.** `/lm admin clear <player>` clears the LM file. For offline players it still
 clears the old `.dat` keys as well, so a rollback cannot bring wiped data back.
+
+## One-time `.dat` strip (4.6.259)
+
+Code: `data/LmPlayerDatStrip.java`. Runs on server start right after the migration pass, before
+anyone can join, and only while `player-data-nbt-strip.json` does not exist.
+
+**What it removes**, at the `ForgeData` root only (nested compounds such as `PlayerPersisted`,
+`dmzTransformMobEffects`, and Noea / DMZ keys are never touched):
+
+- the 11 durable keys: `dmz_adaptive_difficulty`, `lm_progression`, `prestige_total_completed`,
+  `prestige_total_staff_override`, `prestige_need_floor`, `lm_prestige_held`, `lm_prestige_points`,
+  `pp_level_breakthroughs`, `lm_personal_level_cap`, `lm_personal_breakthroughs`,
+  `lmNemesisSpawnMode`;
+- the 3 extra keys the old death copy carried: `lm_prestige_confirm_until`,
+  `lm_cnpc_player_migrated`, `lm_shadow_dummy_cd_until`.
+
+`lm.death_tp_penalty_until` and `lm.death_tp_penalty_frac` stay: they are live timers that must
+survive relog and respawn, and they are the only keys the death copy still carries.
+
+**Per player:**
+
+1. The `.dat` is read with the server's own gzip NBT IO, one file at a time.
+2. **No listed keys:** nothing happens (counted as no data).
+3. **Listed keys but no `players/<uuid>.json`:** the player is skipped untouched and logged. The
+   `.dat` is their only copy, so it is never stripped without a store file.
+4. **Unreadable `.dat`:** counted as skipped, logged, left untouched.
+5. Otherwise the listed keys are first written to `player-data-nbt-strip-backup/<uuid>.dat`
+   (gzip NBT, written to a temp file and moved into place), then removed, and the `.dat` is
+   written to a temp file and moved over the original. Every other tag survives unchanged.
+
+The pass logs each player's removed keys and a totals line (scanned, stripped, skipped, no data),
+and writes the marker with the same counts. Store files are never modified.
+
+**Idempotent.** A rerun after a crash strips only what is still there. An existing backup is never
+overwritten (it was moved into place whole, so it is complete).
+
+**Self-test.** Before touching any file the pass runs `LmPlayerDatStrip.selfTest()`: a fake
+`ForgeData` with every listed key plus unrelated keys goes in, the listed keys come out, the
+unrelated keys survive byte for byte, a player with no store file is left untouched, and the same
+checks run once more on real gzip files in a temp folder. If any check fails, the pass does not run
+and no marker is written.
+
+**After it runs there is no `.dat` fallback.** The LM store files are the only live copy, and the
+backup folder is the rollback. Vanilla's `<uuid>.dat_old` may still hold the old keys until the
+player's next save; LM never reads it.
+
+**Shadow Dummy cooldown.** `ShadowDummyLimiter` still writes its cooldown to Forge data under two
+keys with the same value, `lm_shadow_dummy_cd_until` and `dmz_minigame_shadow_dummy_cooldown_until`,
+and reads the higher. Stripping the first leaves the second, so a running cooldown is kept. Neither
+is carried across a death any more; the limiter's in-memory copy still holds the cooldown until the
+next restart.
 
 ## DMZ 2.1.3 reset paths
 

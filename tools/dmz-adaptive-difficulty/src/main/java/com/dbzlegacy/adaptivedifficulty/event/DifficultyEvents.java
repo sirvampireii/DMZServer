@@ -108,6 +108,14 @@ public final class DifficultyEvents {
             AdaptiveDifficultyMod.LOGGER.error(
                     "[{}] player data migration failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
         }
+        // Then the one-time strip of those frozen keys from the .dat files (4.6.259, marker-guarded,
+        // backed up first, only for players whose LM file exists).
+        try {
+            com.dbzlegacy.adaptivedifficulty.data.LmPlayerDatStrip.runIfNeeded(event.getServer());
+        } catch (Throwable t) {
+            AdaptiveDifficultyMod.LOGGER.error(
+                    "[{}] player .dat strip failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
+        }
         try {
             com.dbzlegacy.adaptivedifficulty.progression.race.RaceLockConfig.load();
             com.dbzlegacy.adaptivedifficulty.character.CharacterServicesConfig.load();
@@ -446,7 +454,8 @@ public final class DifficultyEvents {
         if (PersistentDataAccess.isWritable(neuTag) && PersistentDataAccess.isWritable(oldTag)) {
             // Durable records live in LM files keyed by UUID, so respawn cannot lose them.
             // Death respawn builds a new entity and Forge does not copy persistent data on
-            // death: carry the transient timers and the frozen pre-4.6.253 keys (rollback).
+            // death: carry only the death-penalty timers. The frozen pre-4.6.253 keys are not
+            // written back (4.6.259 strips them from the .dat files).
             copyLmPersistentData(oldTag, neuTag);
         }
         // Original and clone share the same UUID — never remove() after putData(),
@@ -514,29 +523,14 @@ public final class DifficultyEvents {
     }
 
     /**
-     * Copy LegacyMechanics persistent bags/keys from the dying (or dimension-travel)
-     * player onto the clone. Safe to call even when Forge already merged some keys —
-     * we overwrite with the old player's authoritative values.
+     * Copy the LM timers that must survive respawn from the dying (or dimension-travel) player
+     * onto the clone. Only the death TP penalty lives in Forge persistent data now; everything
+     * durable is in the LM player files.
      */
     private static void copyLmPersistentData(CompoundTag from, CompoundTag to) {
         if (from == null || to == null) {
             return;
         }
-        // Prestige wallet + every prestige-shop purchase:
-        // prestige_points, pp_skill_*, pp_tier_*, pp_perm_majin/mutant, pp_level_breakthroughs,
-        // plus meditation / flight / potential progress, CNPC migrate marks, etc.
-        if (from.m_128441_("lm_progression")) {
-            to.m_128365_("lm_progression", from.m_128469_("lm_progression").m_6426_());
-        }
-        // Prestige lifetime / held tokens stored at the persistent-data root.
-        copyTagIfPresent(from, to, "prestige_total_completed");
-        copyTagIfPresent(from, to, "prestige_total_staff_override");
-        copyTagIfPresent(from, to, "prestige_need_floor");
-        copyTagIfPresent(from, to, "lm_prestige_held");
-        copyTagIfPresent(from, to, "lm_prestige_points");
-        copyTagIfPresent(from, to, "lm_prestige_confirm_until");
-        copyTagIfPresent(from, to, "lm_cnpc_player_migrated");
-        copyTagIfPresent(from, to, "lm_shadow_dummy_cd_until");
         // Death TP penalty is stamped on the dying entity. Respawn is a new entity.
         copyTagIfPresent(from, to, com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.KEY);
         copyTagIfPresent(from, to, com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.FRAC_KEY);

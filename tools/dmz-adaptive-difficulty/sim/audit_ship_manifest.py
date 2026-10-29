@@ -1189,6 +1189,65 @@ def main() -> int:
           and [len(p) for p in _pages(9)] == [8, 1] and [len(p) for p in _pages(17)] == [8, 8, 1]
           and sum(_pages(17), []) == list(range(17)))
 
+    print("\n--- § dat nbt strip ---")
+    ds = read(SRC / "data/LmPlayerDatStrip.java")
+    ds_events = read(SRC / "event/DifficultyEvents.java")
+    ds_doc = (ROOT / "docs" / "LM_PLAYER_DATA.md").read_text(encoding="utf-8")
+    ds_copy = ds_events.split("private static void copyLmPersistentData(", 1)[-1].split("\n    }\n", 1)[0]
+    ds_start = ds_events.split("public void onServerStarting(", 1)[-1].split("\n    }\n", 1)[0]
+    ds_file = ds.split("static void stripFile(", 1)[-1].split("\n    }\n", 1)[0]
+    _frozen = ["dmz_adaptive_difficulty", "lm_progression", "prestige_total_completed",
+               "prestige_total_staff_override", "prestige_need_floor", "lm_prestige_held", "lm_prestige_points",
+               "pp_level_breakthroughs", "lm_personal_level_cap", "lm_personal_breakthroughs", "lmNemesisSpawnMode",
+               "lm_prestige_confirm_until", "lm_cnpc_player_migrated", "lm_shadow_dummy_cd_until"]
+    _keys_block = ds.split("FROZEN_KEYS = ", 1)[-1].split(")));", 1)[0]
+    check("manifest dat-nbt-strip row", "dat-nbt-strip" in manifest)
+    check("exactly the 14 frozen keys; death-penalty keys never in the list",
+          all(('"' + k + '"') in _keys_block for k in _frozen[1:]) and "PlayerDifficultyData.NBT_ROOT" in _keys_block
+          and _keys_block.count('"') == 2 * 13 and "death_tp_penalty" not in _keys_block
+          and "FROZEN_KEYS.size() != 14" in ds)
+    check("runs at server start after the migration, marker-guarded",
+          ds_start.index("LmPlayerDataMigration.runIfNeeded") < ds_start.index("LmPlayerDatStrip.runIfNeeded")
+          and 'resolve("player-data-nbt-strip.json")' in ds and "if (Files.exists(marker))" in ds)
+    check("strip only with a store file; skip untouched otherwise; unreadable skipped",
+          "Files.isRegularFile(store)" in ds_file and "if (!storeExists) {" in ds_file
+          and ds_file.index("if (!storeExists) {") < ds_file.index("strip(root, true);")
+          and "left untouched" in ds_file)
+    check("backup first, never overwritten; .dat via temp + atomic move; gzip NBT IO",
+          "if (!Files.exists(backup)) {" in ds_file
+          and ds_file.index("NbtIo.m_128944_(backupOf(root)") < ds_file.index("strip(root, true);")
+          and "NbtIo.m_128937_(file.toFile())" in ds_file and "NbtIo.m_128944_(root, tmp.toFile());" in ds_file
+          and "StandardCopyOption.ATOMIC_MOVE" in ds_file and "LmPlayerStore.root(" not in ds)
+    check("ForgeData root only; nested compounds untouched",
+          'root.m_128425_("ForgeData", 10)' in ds and "forge.m_128473_(key);" in ds
+          and "PlayerPersisted" not in ds.split("// ── Self-test", 1)[0])
+    check("death copy carries only the two penalty keys",
+          ds_copy.count("copyTagIfPresent(") == 2 and "DeathTpPenalty.KEY" in ds_copy
+          and "DeathTpPenalty.FRAC_KEY" in ds_copy and "lm_progression" not in ds_copy)
+    check("self-test gates the pass: strip, unrelated bytes, no-store skip, file round-trip",
+          ds.index("List<String> broken = selfTest();") < ds.index("Files.newDirectoryStream(dir")
+          and "unrelated tags changed in the strip" in ds and "a skipped player must be left untouched" in ds
+          and "player with no store file was modified" in ds and "fileRoundTrip(broken);" in ds)
+    check("totals logged and in the marker (scanned, stripped, skipped, noData)",
+          all(("m." + f + " = result." + f) in ds for f in ("scanned", "stripped", "skipped", "noData")))
+    check("docs: what it removes, marker, backup location, no .dat fallback after it runs",
+          "player-data-nbt-strip.json" in ds_doc and "player-data-nbt-strip-backup/<uuid>.dat" in ds_doc
+          and "After it runs there is no `.dat` fallback." in ds_doc and "lm_shadow_dummy_cd_until" in ds_doc)
+
+    def _strip(forge, store):
+        keys = [k for k in _frozen if k in forge]
+        if not keys:
+            return "no_data", forge
+        if not store:
+            return "skipped", forge
+        return "stripped", {k: v for k, v in forge.items() if k not in _frozen}
+
+    _f = {k: 1 for k in _frozen}
+    _f.update({"PlayerPersisted": {"a": 1}, "lm.death_tp_penalty_until": 9})
+    check("sim: stripped keeps unrelated + penalty, no store -> untouched, none -> no-op",
+          _strip(_f, True) == ("stripped", {"PlayerPersisted": {"a": 1}, "lm.death_tp_penalty_until": 9})
+          and _strip(_f, False) == ("skipped", _f) and _strip({"x": 1}, True)[0] == "no_data")
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")
