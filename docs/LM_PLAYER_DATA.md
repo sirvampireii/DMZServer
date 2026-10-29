@@ -27,11 +27,12 @@ NBT value it used to have in `ForgeData`, so types (int, long, string, lists) ar
 | `lm_prestige_points` | Prestige points (root mirror) |
 | `pp_level_breakthroughs`, `lm_personal_breakthroughs`, `lm_personal_level_cap` | Breakthroughs and personal level cap mirrors |
 | `lmNemesisSpawnMode` | Nemesis spawn preference |
+| `lm_mastery_points` | Mastery points wallet balance (4.6.257; written only by `MasteryWallet`, flushed on every change) |
 | `lm_prestige_confirm_until` | Prestige confirm window (short timer, kept with the rest of the prestige records) |
 
 Code: `data/LmPlayerStore.java` (store), `data/LmPlayerDataMigration.java` (one-time move).
 `DifficultyCache`, `ProgressionData.stored*`, `PrestigeSystem`, `PrestigePointsSystem`,
-`PersonalLevelCapMirror`, and `NemesisSpawnMode` read and write only through the store.
+`PersonalLevelCapMirror`, `NemesisSpawnMode`, and `MasteryWallet` read and write only through the store.
 
 Files are written when the content changed: on every difficulty save, on the player save event, on
 logout, every 30 seconds, and on server stop. Writes go to a temp file and are swapped in.

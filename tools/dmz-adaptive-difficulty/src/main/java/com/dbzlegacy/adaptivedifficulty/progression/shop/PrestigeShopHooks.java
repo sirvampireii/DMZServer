@@ -75,6 +75,8 @@ public final class PrestigeShopHooks {
         return switch (string.toLowerCase(Locale.ROOT).trim()) {
             case "custom_buy", "buy_custom", "perk_buy" -> PrestigeCustomShop.buy(serverPlayer, string2);
             case "custom_remove", "remove_custom", "perk_remove" -> PrestigeCustomShop.remove(serverPlayer, string2);
+            case "mastery_buy" -> MasteryWallet.buy(serverPlayer, string2);
+            case "mastery_apply" -> MasteryWallet.apply(serverPlayer, string2);
             default -> null;
         };
     }
@@ -250,6 +252,8 @@ public final class PrestigeShopHooks {
         PrestigeShopHooks.help("godKi.costPerPoint", "Favor per God Ki investment.");
         PrestigeShopHooks.help("godKi.masteryPerPoint", "God Ki mastery each investment guarantees.");
         PrestigeShopHooks.help("godKi.maxPoints", "Most God Ki investments a player can make (staff /padmin godki still caps at 5).");
+        PrestigeShopHooks.help("masteryWallet", "Mastery points wallet (Shop > Mastery wallet): 1 favor buys 10 points, 1 point adds 50 mastery to an unlocked form.");
+        PrestigeShopHooks.help("masteryWallet.enabled", "Sells mastery points for favor. Points players already have can still be applied when this is off.");
         PrestigeShopHooks.help("customShop", "The Special perks page with your own entries.");
         PrestigeShopHooks.help("customShop.enabled", "Shows the custom entries page. Owners keep their rewards when this is off.");
         PrestigeShopHooks.help("customShop.menuLabel", "Button and page title for the custom entries.");

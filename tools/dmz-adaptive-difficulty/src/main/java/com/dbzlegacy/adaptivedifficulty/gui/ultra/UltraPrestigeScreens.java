@@ -1,6 +1,7 @@
 package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
 import com.dbzlegacy.adaptivedifficulty.gui.ProgressionGuiApi;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.MasteryWallet;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCustomShop;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeShopConfig;
@@ -41,6 +42,14 @@ public final class UltraPrestigeScreens {
             openPerk(player, p.substring("perk:".length()));
             return;
         }
+        if (p.startsWith("mw_line:")) {
+            openMasteryLine(player, raw.substring("mw_line:".length()));
+            return;
+        }
+        if (p.startsWith("mw_form:")) {
+            openMasteryForm(player, raw.substring("mw_form:".length()));
+            return;
+        }
         switch (p) {
             case "turnin", "points", "prestige" -> openTurnIn(player);
             case "confirm", "prestige_confirm" -> openConfirm(player);
@@ -50,6 +59,8 @@ public final class UltraPrestigeScreens {
             case "tiers", "tier", "difficulty" -> openTiers(player);
             case "effects", "effect", "forms", "form" -> openEffects(player);
             case "custom", "perks" -> openCustom(player);
+            case "mastery_wallet", "mastery" -> openMasteryWallet(player);
+            case "mastery_lines" -> openMasteryLines(player);
             case "staff_edit" -> {
                 if (StaffAccess.isStaff(player)) {
                     UltraGui.open(player, "config", "edit:prestige-shop:0:");
@@ -234,6 +245,11 @@ public final class UltraPrestigeScreens {
         }
         spec.button("page:effects", UltraStyle.confirm("Effects"), UltraStyle.STYLE_CONFIRM)
                 .rowGap();
+        // Shown while selling, or while the player still has points to apply.
+        if (cfg.masteryWallet.enabled || MasteryWallet.balance(player) > 0) {
+            spec.button("page:mastery_wallet", UltraStyle.confirm("Mastery wallet"), UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
+        }
         if (cfg.customShop.enabled && !customRows(player).isEmpty()) {
             spec.button(
                             "page:custom",
@@ -247,6 +263,185 @@ public final class UltraPrestigeScreens {
         }
         spec.footerBackToMain();
         spec.send(player);
+    }
+
+    // ── Mastery wallet (Shop > Mastery wallet) ───────────────────────
+
+    private static void openMasteryWallet(ServerPlayer player) {
+        walletSpec(MasteryWallet.balance(player), PrestigePointsSystem.getPoints(player), MasteryWallet.open())
+                .send(player);
+    }
+
+    private static void openMasteryLines(ServerPlayer player) {
+        linesSpec(MasteryWallet.lines(player), MasteryWallet.balance(player)).send(player);
+    }
+
+    /** {@code mw_line:<s|n>:<group>}; a line that is no longer unlocked falls back to the line list. */
+    private static void openMasteryLine(ServerPlayer player, String token) {
+        MasteryWallet.Line line = MasteryWallet.line(player, token);
+        if (line == null) {
+            openMasteryLines(player);
+            return;
+        }
+        lineSpec(line, MasteryWallet.balance(player)).send(player);
+    }
+
+    /** {@code mw_form:<s|n>:<group>:<form>}, read live so the numbers match what Apply will do. */
+    private static void openMasteryForm(ServerPlayer player, String rest) {
+        int cut = rest == null ? -1 : rest.lastIndexOf(':');
+        MasteryWallet.Line line = cut <= 0 ? null : MasteryWallet.line(player, rest.substring(0, cut));
+        MasteryWallet.Form form = line == null ? null : line.form(rest.substring(cut + 1));
+        if (form == null) {
+            openMasteryLines(player);
+            return;
+        }
+        formSpec(line, form, MasteryWallet.balance(player)).send(player);
+    }
+
+    /** Wallet page: balance, favor, the four point packs, and the way into the picker. */
+    static UltraScreenSpec walletSpec(int balance, int favor, boolean selling) {
+        UltraScreenSpec spec = sub("mastery_wallet")
+                .lineGap(2)
+                .bodyPad(4);
+        spec.labelValue("Mastery points", String.valueOf(balance));
+        spec.labelValue("Prestige favor", String.valueOf(favor));
+        spec.line(UltraStyle.LABEL + "1 favor buys " + MasteryWallet.POINTS_PER_FAVOR + " points. 1 point adds "
+                + MasteryWallet.MASTERY_PER_POINT + " mastery to a form you have unlocked.");
+        spec.line(UltraStyle.dim("Favor spent on points is not refunded, and neither is applied mastery."));
+        spec.buttonsAfterLines();
+        if (!selling) {
+            spec.line(UltraStyle.dim("Points are not on sale right now. Points you have can still be applied."));
+        } else {
+            int[] packs = MasteryWallet.FAVOR_PACKS;
+            for (int i = 0; i < packs.length; i++) {
+                int cost = packs[i];
+                String raw = MasteryWallet.pointsForFavor(cost) + " points - " + cost + " favor";
+                boolean afford = favor >= cost;
+                String label = afford ? UltraStyle.confirm(raw) : UltraStyle.dim(raw);
+                String style = afford ? "confirm" : "dim";
+                if (i % 2 == 0) {
+                    spec.buttonLeft("do:mastery_buy:" + cost, label, style);
+                } else {
+                    spec.buttonRight("do:mastery_buy:" + cost, label, style);
+                    spec.rowGap();
+                }
+            }
+            if (packs.length % 2 == 1) {
+                spec.rowGap();
+            }
+        }
+        spec.button("page:mastery_lines", UltraStyle.confirm("Apply points to a form"), UltraStyle.STYLE_CONFIRM)
+                .rowGap();
+        spec.footerBack("page:shop", "Shop");
+        return spec;
+    }
+
+    /** Form lines with at least one unlocked form, in radial order; says what to do when empty. */
+    static UltraScreenSpec linesSpec(List<MasteryWallet.Line> lines, int balance) {
+        UltraScreenSpec spec = sub("mastery_lines")
+                .lineGap(2)
+                .bodyPad(4);
+        spec.labelValue("Mastery points", String.valueOf(balance));
+        if (lines == null || lines.isEmpty()) {
+            spec.line(UltraStyle.LABEL + "You have no unlocked forms yet, so there is nothing to apply points to.");
+            spec.line(UltraStyle.LABEL + "Unlock your first form through its form skill, then come back here.");
+            spec.buttonsAfterLines();
+        } else {
+            spec.line(UltraStyle.LABEL + "Pick a form line. Only lines with a form you have unlocked are listed.");
+            spec.buttonsAfterLines();
+            for (MasteryWallet.Line line : lines) {
+                int n = line.forms.size();
+                String raw = line.label + " (" + n + (n == 1 ? " form)" : " forms)");
+                if (!UltraStyle.fitsButton(raw)) {
+                    raw = line.label;
+                }
+                spec.button("page:mw_line:" + line.token(), UltraStyle.confirm(raw), UltraStyle.STYLE_CONFIRM)
+                        .rowGap();
+            }
+        }
+        spec.footerBack("page:mastery_wallet", "Mastery wallet");
+        return spec;
+    }
+
+    /** The unlocked forms in one line with their mastery; capped forms show dim. */
+    static UltraScreenSpec lineSpec(MasteryWallet.Line line, int balance) {
+        UltraScreenSpec spec = sub("mw_line:" + line.token())
+                .lineGap(2)
+                .bodyPad(4);
+        spec.labelValue("Mastery points", String.valueOf(balance));
+        spec.labelValue("Form line", line.label);
+        spec.line(UltraStyle.LABEL + "Pick a form. Each point adds " + MasteryWallet.MASTERY_PER_POINT
+                + " mastery, up to the form's cap.");
+        spec.buttonsAfterLines();
+        for (MasteryWallet.Form form : line.forms) {
+            boolean full = form.maxPoints() <= 0;
+            String raw = form.label + " " + MasteryWallet.whole(form.current) + "/" + MasteryWallet.whole(form.cap);
+            if (full) {
+                raw = form.label + (form.current >= form.cap ? " - at cap" : " - nearly capped");
+            }
+            if (!UltraStyle.fitsButton(raw)) {
+                raw = form.label;
+            }
+            spec.button(
+                            "page:mw_form:" + line.token() + ":" + form.name,
+                            full ? UltraStyle.dim(raw) : UltraStyle.confirm(raw),
+                            full ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
+        }
+        spec.footerBack("page:mastery_lines", "Form lines");
+        return spec;
+    }
+
+    /** One form: current mastery, room to the cap, and whole-point amounts that fit. */
+    static UltraScreenSpec formSpec(MasteryWallet.Line line, MasteryWallet.Form form, int balance) {
+        String token = line.token() + ":" + form.name;
+        UltraScreenSpec spec = sub("mw_form:" + token)
+                .lineGap(2)
+                .bodyPad(4);
+        spec.labelValue("Form", MasteryWallet.formName(line.label, form));
+        spec.labelValue("Current mastery", MasteryWallet.whole(form.current) + " / " + MasteryWallet.whole(form.cap));
+        spec.labelValue("Room to cap", MasteryWallet.whole(form.headroom()));
+        spec.labelValue("Mastery points", String.valueOf(balance));
+        int fit = form.maxPoints();
+        int can = MasteryWallet.applicable(form.current, form.cap, balance);
+        if (fit <= 0) {
+            spec.line(UltraStyle.dim(form.current >= form.cap
+                    ? "This form is at its mastery cap, so it can't take points."
+                    : "Less than " + MasteryWallet.MASTERY_PER_POINT + " mastery is left to the cap. Finish it by training."));
+        } else if (balance <= 0) {
+            spec.line(UltraStyle.dim("You have no mastery points yet. Buy some on the Mastery wallet page."));
+        } else {
+            spec.line(UltraStyle.LABEL + "Up to " + fit + " points fit. Each button shows the mastery you end with.");
+        }
+        spec.buttonsAfterLines();
+        List<Integer> amounts = new ArrayList<>();
+        for (int a : MasteryWallet.APPLY_AMOUNTS) {
+            if (a <= can) {
+                amounts.add(a);
+            }
+        }
+        if (can > 0 && !amounts.contains(can)) {
+            amounts.add(can);
+        }
+        for (int i = 0; i < amounts.size(); i++) {
+            int a = amounts.get(i);
+            String raw = "Apply " + a + " (to " + MasteryWallet.whole(MasteryWallet.resulting(form.current, a, form.cap)) + ")";
+            if (!UltraStyle.fitsButton(raw)) {
+                raw = "Apply " + a;
+            }
+            String action = "do:mastery_apply:" + token + ":" + a;
+            if (i % 2 == 0) {
+                spec.buttonLeft(action, UltraStyle.confirm(raw), "confirm");
+            } else {
+                spec.buttonRight(action, UltraStyle.confirm(raw), "confirm");
+                spec.rowGap();
+            }
+        }
+        if (amounts.size() % 2 == 1) {
+            spec.rowGap();
+        }
+        spec.footerBack("page:mw_line:" + line.token(), line.label);
+        return spec;
     }
 
     /** Exchange current prestige for favor (was on Prestige tab). */

@@ -71,6 +71,8 @@ KNOWN_DO: dict[str, set[str]] = {
         "ultimate",
         "unultimate",
         "godki",
+        "mastery_buy",
+        "mastery_apply",
         # Custom-shop perk pages (live 228.1 UltraPrestigeScreens.openPerk/openCustom):
         # routed UltraGuiActions "prestige" -> ProgressionGuiApi.handlePrestigeDo ->
         # PrestigeShopHooks.handleDo -> PrestigeCustomShop.buy / .remove.

@@ -28,6 +28,7 @@ public final class PrestigeShopConfig {
     public TierShop tierShop = new TierShop();
     public Forms forms = new Forms();
     public GodKi godKi = new GodKi();
+    public MasteryWalletShop masteryWallet = new MasteryWalletShop();
     public CustomShop customShop = new CustomShop();
     public Map<String, CustomEntry> customEntries = PrestigeShopConfig.defaultEntries();
 
@@ -121,6 +122,9 @@ public final class PrestigeShopConfig {
         }
         if (prestigeShopConfig.godKi == null) {
             prestigeShopConfig.godKi = new GodKi();
+        }
+        if (prestigeShopConfig.masteryWallet == null) {
+            prestigeShopConfig.masteryWallet = new MasteryWalletShop();
         }
         if (prestigeShopConfig.customShop == null) {
             prestigeShopConfig.customShop = new CustomShop();
@@ -349,6 +353,11 @@ public final class PrestigeShopConfig {
         public int costPerPoint = 1;
         public int masteryPerPoint = 1000;
         public int maxPoints = 5;
+    }
+
+    /** Mastery points wallet (Shop > Mastery wallet). Rates are fixed in {@link MasteryWallet}. */
+    public static final class MasteryWalletShop {
+        public boolean enabled = true;
     }
 
     public static final class CustomShop {

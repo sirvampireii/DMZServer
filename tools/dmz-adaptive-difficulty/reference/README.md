@@ -228,6 +228,16 @@ Two classes re-extracted: `AdaptiveDifficultyMod` (version constant only) and `P
 routing in `handleDo` - the only new strings and calls; the existing call set is unchanged, only
 offsets moved). javap-verified; the other 23 are unchanged.
 
+## Re-baseline (2026-10-28, 4.6.257 mastery points wallet)
+
+Twelve classes re-extracted. `AdaptiveDifficultyMod`: version constant only. `PrestigeShopConfig`:
+one new `masteryWallet` section field (class `MasteryWalletShop`, `enabled`) and its null guard in
+sanitize. Its eight existing inner classes (`CustomEntry`, `CustomShop`, `Exchange`, `FormOffer`,
+`Forms`, `GodKi`, `SkillShop`, `TierShop`) changed only in line numbers and the nest list.
+`PrestigeShopHooks`: `mastery_buy` / `mastery_apply` dispatch to `MasteryWallet` and two help
+lines. `UltraPrestigeScreens`: the Mastery wallet pages, routes, and Shop button. javap-verified:
+additions only, nothing removed; the other 13 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

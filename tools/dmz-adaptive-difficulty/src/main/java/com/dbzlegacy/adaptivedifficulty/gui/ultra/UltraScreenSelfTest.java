@@ -5,6 +5,7 @@ import com.dbzlegacy.adaptivedifficulty.config.editor.ConfigEditor;
 import com.dbzlegacy.adaptivedifficulty.net.gui.GuiOpenPacket;
 import com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork;
 import com.dbzlegacy.adaptivedifficulty.progression.form.FirstSuperformChoice;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.MasteryWallet;
 import com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings;
 import com.dbzlegacy.adaptivedifficulty.sparring.SparStore;
 import com.google.gson.JsonArray;
@@ -943,6 +944,7 @@ public final class UltraScreenSelfTest {
         checkBodyWrap(broken);
         checkConfigFullscreen(broken);
         checkBoostsScreens(broken);
+        checkMasteryWallet(broken);
 
         if (broken.isEmpty()) {
             AdaptiveDifficultyMod.LOGGER.info(
@@ -1019,6 +1021,113 @@ public final class UltraScreenSelfTest {
             if (!"Back to Boosts".equals(ids.get("page:boosts"))) {
                 broken.add(tag + ": expected a Back to Boosts button, got " + ids.get("page:boosts"));
             }
+        }
+    }
+
+    /**
+     * Mastery wallet: balance display, the buy confirm (first click asks, second confirms), cap
+     * math and the whole-point limit, and the picker for a known unlock state (a line with nothing
+     * unlocked is hidden; lines follow the radial order; an empty state points at the next step).
+     */
+    private static void checkMasteryWallet(List<String> broken) {
+        GuiOpenPacket wallet = UltraPrestigeScreens.walletSpec(37, 4, true).toPacket();
+        String err = validatePacket(wallet, "prestige");
+        if (err != null) {
+            broken.add("mastery wallet: " + err);
+        } else {
+            if (!wallet.linesJson().contains("37")) {
+                broken.add("mastery wallet: balance 37 not shown");
+            }
+            Map<String, String> ids = buttonIds(wallet);
+            for (int favor : MasteryWallet.FAVOR_PACKS) {
+                String label = ids.get("do:mastery_buy:" + favor);
+                String want = (favor * 10) + " points - " + favor + " favor";
+                if (!want.equals(label)) {
+                    broken.add("mastery wallet: pack " + favor + " reads '" + label + "', want '" + want + "'");
+                }
+            }
+            if (!ids.containsKey("page:mastery_lines") || !"Back to Shop".equals(ids.get("page:shop"))) {
+                broken.add("mastery wallet: expected Apply points and Back to Shop");
+            }
+        }
+        String prompt = MasteryWallet.buyPrompt(2);
+        if (!prompt.contains("20 mastery points") || !prompt.contains("2 favor") || !prompt.contains("not refunded")) {
+            broken.add("mastery wallet: buy prompt missing cost, points, or no-refund: " + prompt);
+        }
+        UUID probe = UUID.randomUUID();
+        String key = "mwallet-buy:2:37";
+        if (com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm.confirmed(probe, key)
+                || !com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm.confirmed(probe, key)) {
+            broken.add("mastery wallet: buy confirm should ask once, then confirm on the second click");
+        }
+        int[][] cap = {{0, 500, 10}, {450, 500, 1}, {451, 500, 0}, {480, 500, 0}, {500, 500, 0},
+                {520, 500, 0}, {101, 500, 7}, {0, 100, 2}};
+        for (int[] c : cap) {
+            int got = MasteryWallet.maxPointsFor(c[0], c[1]);
+            if (got != c[2]) {
+                broken.add("mastery wallet: maxPointsFor(" + c[0] + ", " + c[1] + ") = " + got + ", want " + c[2]);
+            }
+        }
+        if (MasteryWallet.applicable(0, 500, 3) != 3 || MasteryWallet.applicable(450, 500, 9) != 1
+                || MasteryWallet.applicable(0, 500, 0) != 0 || MasteryWallet.resulting(450, 1, 500) != 500.0
+                || MasteryWallet.resulting(120, 3, 500) != 270.0) {
+            broken.add("mastery wallet: applicable / resulting math is off");
+        }
+
+        // Known unlock state: SSJ and SSJ 2 unlocked, Mutant line has nothing, Oozaru and Kaioken x2 unlocked.
+        List<MasteryWallet.Line> raw = List.of(
+                new MasteryWallet.Line("kaioken", "Kaioken", true, "",
+                        List.of(new MasteryWallet.Form("x2", "x2", 0, 100))),
+                new MasteryWallet.Line("legendaryforms", "Mutant", false, "legendaryforms", List.of()),
+                new MasteryWallet.Line("supersaiyan", "Super Saiyan", false, "superforms",
+                        List.of(new MasteryWallet.Form("supersaiyan2", "SSJ 2", 500, 500))),
+                new MasteryWallet.Line("oozaru", "Oozaru", false, "oozaru",
+                        List.of(new MasteryWallet.Form("oozaru", "Oozaru", 10, 100))),
+                new MasteryWallet.Line("ssgrades", "SS Grades", false, "superforms",
+                        List.of(new MasteryWallet.Form("supersaiyan", "SSJ", 420, 500))));
+        List<MasteryWallet.Line> lines = MasteryWallet.ordered(raw);
+        List<String> order = new ArrayList<>();
+        for (MasteryWallet.Line l : lines) {
+            order.add(l.token());
+        }
+        if (!order.equals(List.of("n:ssgrades", "n:supersaiyan", "n:oozaru", "s:kaioken"))) {
+            broken.add("mastery wallet: picker lines " + order + ", want superforms, more forms, then stacks; Mutant hidden");
+        }
+        GuiOpenPacket picker = UltraPrestigeScreens.linesSpec(lines, 5).toPacket();
+        Map<String, String> pickIds = buttonIds(picker);
+        for (String t : order) {
+            if (!pickIds.containsKey("page:mw_line:" + t)) {
+                broken.add("mastery wallet: picker missing line " + t);
+            }
+        }
+        if (pickIds.containsKey("page:mw_line:n:legendaryforms")) {
+            broken.add("mastery wallet: picker shows a line with nothing unlocked");
+        }
+        GuiOpenPacket empty = UltraPrestigeScreens.linesSpec(List.of(), 5).toPacket();
+        // Body lines wrap, so match phrases short enough to stay on one line.
+        if (!empty.linesJson().contains("no unlocked forms") || !empty.linesJson().contains("Unlock your first form")) {
+            broken.add("mastery wallet: empty picker should say there are no unlocked forms and what to do");
+        }
+        MasteryWallet.Line ss = lines.get(0);
+        GuiOpenPacket formPkt = UltraPrestigeScreens.formSpec(ss, ss.forms.get(0), 5).toPacket();
+        Map<String, String> formIds = buttonIds(formPkt);
+        if (!formIds.containsKey("do:mastery_apply:n:ssgrades:supersaiyan:1")
+                || formIds.containsKey("do:mastery_apply:n:ssgrades:supersaiyan:5")) {
+            broken.add("mastery wallet: 420/500 should offer exactly 1 point, got " + formIds.keySet());
+        }
+        if (!formPkt.linesJson().contains("420 / 500") || !formPkt.linesJson().contains("80")) {
+            broken.add("mastery wallet: form page should show current mastery and room to cap");
+        }
+        MasteryWallet.Line capped = lines.get(1);
+        for (String id : buttonIds(UltraPrestigeScreens.formSpec(capped, capped.forms.get(0), 5).toPacket()).keySet()) {
+            if (id.startsWith("do:mastery_apply:")) {
+                broken.add("mastery wallet: a capped form offers " + id);
+            }
+        }
+        String applyAsk = MasteryWallet.applyPrompt(1, ss.label, ss.forms.get(0));
+        if (!applyAsk.contains("SSJ (SS Grades)") || !applyAsk.contains("420 to 470")
+                || !applyAsk.contains("not refunded")) {
+            broken.add("mastery wallet: apply prompt missing form, result, or no-refund: " + applyAsk);
         }
     }
 

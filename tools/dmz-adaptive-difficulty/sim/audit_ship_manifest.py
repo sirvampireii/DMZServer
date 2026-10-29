@@ -1064,6 +1064,83 @@ def main() -> int:
           and '"Back to main menu"' in bs_test
           and 'List.of("1.25:30", "1.5:30", "2:30", "2:60", "3:30", "end")' in bs_test)
 
+    print("\n--- § mastery points wallet ---")
+    mw = read(SRC / "progression/shop/MasteryWallet.java")
+    mw_cfg = read(SRC / "progression/shop/PrestigeShopConfig.java")
+    mw_hooks = read(SRC / "progression/shop/PrestigeShopHooks.java")
+    mw_scr = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
+    mw_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    mw_lines = mw.split("public static List<Line> lines(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    mw_buy = mw.split("public static String buy(ServerPlayer player, String arg) {", 1)[-1].split("\n    }\n", 1)[0]
+    mw_apply = mw.split("public static String apply(ServerPlayer player, String arg) {", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest mastery-points-wallet row", "mastery-points-wallet" in manifest)
+    check("fixed economy: 1 favor = 10 points, 1 point = 50 mastery, packs 1/2/5/10",
+          "POINTS_PER_FAVOR = 10;" in mw and "MASTERY_PER_POINT = 50;" in mw
+          and "FAVOR_PACKS = {1, 2, 5, 10};" in mw)
+    check("balance lives only in the LM player file (lm_mastery_points via LmPlayerStore)",
+          'KEY = "lm_mastery_points";' in mw and "LmPlayerStore.putLong(player, KEY," in mw
+          and "LmPlayerStore.getLong(player, KEY," in mw and "LmPlayerStore.flush(" in mw
+          and "getPersistentData" not in mw and "m_128469_" not in mw and "BonusStats" not in mw.split("*/", 1)[-1]
+          and "StatsData" not in mw.split("public static int balance(", 1)[-1].split("public static boolean open()", 1)[0])
+    check("config section masteryWallet.enabled gates selling; Shop button kept while points remain",
+          "public MasteryWalletShop masteryWallet = new MasteryWalletShop();" in mw_cfg
+          and "prestigeShopConfig.masteryWallet = new MasteryWalletShop();" in mw_cfg
+          and "PrestigeShopConfig.get().masteryWallet.enabled" in mw and "if (!open())" in mw_buy
+          and "cfg.masteryWallet.enabled || MasteryWallet.balance(player) > 0" in mw_scr
+          and '"masteryWallet.enabled"' in mw_hooks)
+    check("buy: standard favor wording, shop confirm, favor taken then points added",
+          '"Need " + favor + " favor (have " + have + ")."' in mw_buy
+          and 'GuiClickConfirm.confirmed(player.m_20148_(), "mwallet-buy:"' in mw_buy
+          and mw_buy.index("GuiClickConfirm.confirmed") < mw_buy.index("PrestigePointsSystem.setPoints(player, have - favor);")
+          and "not refunded" in mw.split("public static String buyPrompt(", 1)[-1].split("}", 1)[0])
+    check("picker is live: radial group walk + getUnlockedForms / getUnlockedStackForms, no selectability filter",
+          "TransformationsHelper.getUnlockedForms(data, race, group)" in mw_lines
+          and "TransformationsHelper.getUnlockedStackForms(data, group)" in mw_lines
+          and "isSkillAllowedForRace(TransformationsHelper.getSkillNameForType(type), race)" in mw_lines
+          and "isSkillAllowedForRace(group, race)" in mw_lines
+          and "getSelectable" not in mw.split("*/", 2)[-1] and "return ordered(raw);" in mw_lines)
+    check("radial order and hidden empty lines; names from DMZ lang",
+          "!l.forms.isEmpty()" in mw and "comparingInt(l -> l.kind)" in mw
+          and "String.CASE_INSENSITIVE_ORDER" in mw
+          and 't.contains("super") || t.contains("legendary") || t.contains("android")' in mw
+          and 'DmzLang.text("race.dragonminez." + raceKey + ".form."' in mw_lines
+          and 'DmzLang.text("race.dragonminez.stack.group."' in mw_lines)
+    check("apply: whole points, headroom / 50 floor, balance bound, confirm, addMastery with cap, sync",
+          "Math.floor(room / MASTERY_PER_POINT + 1.0E-9)" in mw
+          and "points > fit" in mw_apply and "points > balance" in mw_apply
+          and 'GuiClickConfirm.confirmed(player.m_20148_(), key)' in mw_apply
+          and "line.stack ? ch.getStackFormMasteries() : ch.getFormMasteries()" in mw_apply
+          and "masteries.addMastery(line.group, form.name, (double) points * MASTERY_PER_POINT, form.cap);" in mw_apply
+          and "DmzSkillUtil.sync(player);" in mw_apply
+          and mw_apply.index("GuiClickConfirm.confirmed") < mw_apply.index("masteries.addMastery("))
+    check("apply confirm states points, form, resulting mastery, and no refund",
+          all(s in mw.split("public static String applyPrompt(", 1)[-1].split("\n    }\n", 1)[0]
+              for s in ('" mastery point"', "formName(lineLabel, form)", "resulting(form.current, points, form.cap)",
+                        "Applied mastery is not refunded.")))
+    check("routes and dispatch: mastery_wallet / mastery_lines / mw_line: / mw_form:, mastery_buy / mastery_apply",
+          'case "mastery_wallet", "mastery" -> openMasteryWallet(player);' in mw_scr
+          and 'case "mastery_lines" -> openMasteryLines(player);' in mw_scr
+          and 'p.startsWith("mw_line:")' in mw_scr and 'p.startsWith("mw_form:")' in mw_scr
+          and 'case "mastery_buy" -> MasteryWallet.buy(serverPlayer, string2);' in mw_hooks
+          and 'case "mastery_apply" -> MasteryWallet.apply(serverPlayer, string2);' in mw_hooks)
+    check("empty picker says there are no unlocked forms and points at the next step",
+          "You have no unlocked forms yet" in mw_scr and "Unlock your first form through its form skill" in mw_scr)
+    check("wallet copy: no raw section signs, no Invalid",
+          "§" not in mw and "Invalid" not in mw
+          and "§" not in mw_scr.split("// ── Mastery wallet", 1)[-1].split("/** Exchange current prestige", 1)[0])
+    check("self-test: balance, buy confirm, cap math, whole-point limit, picker for a known unlock state",
+          "checkMasteryWallet(broken);" in mw_test and "walletSpec(37, 4, true)" in mw_test
+          and "mwallet-buy:2:37" in mw_test and "maxPointsFor(c[0], c[1])" in mw_test
+          and '"do:mastery_apply:n:ssgrades:supersaiyan:1"' in mw_test
+          and 'List.of("n:ssgrades", "n:supersaiyan", "n:oozaru", "s:kaioken")' in mw_test)
+
+    def _fit(cur, cap):
+        room = cap - cur
+        return 0 if room <= 0 else int(room // 50)
+
+    check("sim: 0/500 -> 10, 450/500 -> 1, 451/500 -> 0, 500/500 -> 0, 101/500 -> 7",
+          [_fit(*c) for c in ((0, 500), (450, 500), (451, 500), (500, 500), (101, 500))] == [10, 1, 0, 0, 7])
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")
