@@ -853,7 +853,9 @@ public final class UltraGuiActions {
                 default -> homePage(screen);
             };
             case "progression" -> switch (parts.action == null ? "" : parts.action) {
-                case "boost" -> "boosts";
+                // Each boost lands back on its own control view so the confirm click is right there.
+                case "boost" -> UltraProgressionScreens.PAGE_TP_BOOST;
+                case "masteryboost", "globalmasteryboost" -> UltraProgressionScreens.PAGE_MASTERY_BOOST;
                 case "toggle_staff_free_coins", "staff_free_coins" -> "coins";
                 default -> homePage(screen);
             };

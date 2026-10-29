@@ -1003,6 +1003,67 @@ def main() -> int:
     check("sim: stacking a lower pack adds time and keeps the higher multiplier",
           _stack(2.0, 20, 1.5, 30) == (2.0, 50) and _stack(1.5, 20, 2.0, 30) == (2.0, 50))
 
+    print("\n--- § boosts selector ---")
+    bs_scr = read(SRC / "gui/ultra/UltraProgressionScreens.java")
+    bs_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    bs_api = read(SRC / "gui/ProgressionGuiApi.java")
+    bs_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    bs_sel = bs_scr.split("static UltraScreenSpec boostsSelectorSpec(", 1)[-1].split("\n    }\n", 1)[0]
+    bs_view = bs_scr.split("static UltraScreenSpec boostControlSpec(", 1)[-1].split("\n    }\n", 1)[0]
+    bs_mb = bs_api.split("public static String masteryBoost(ServerPlayer actor, String argsJoined) {", 1)[-1]
+    bs_mb = bs_mb.split("\n    }\n", 1)[0]
+    bs_tp = bs_api.split("public static String boost(ServerPlayer actor, String argsJoined) {", 1)[-1]
+    bs_tp = bs_tp.split("\n    }\n", 1)[0]
+    check("manifest boosts-selector row", "boosts-selector" in manifest)
+    check("selector: both status lines, TP Boost + Mastery Boost buttons, Back to main menu; tabs unchanged",
+          "tpBoostLine(ph)" in bs_sel and "masteryBoostLine(ph)" in bs_sel
+          and '"page:" + PAGE_TP_BOOST, "TP Boost"' in bs_sel
+          and '"page:" + PAGE_MASTERY_BOOST, "Mastery Boost"' in bs_sel
+          and "spec.footerBackToMain();" in bs_sel
+          and '.tabs("home|Home", "boosts|Boosts", "coins|Coins")' in bs_scr)
+    _presets = ['act + "1.25:30"', 'act + "1.5:30"', 'act + "2:30"', 'act + "2:60"', 'act + "3:30"']
+    check("control view: own status line, five confirm presets, danger End, Back to Boosts",
+          all(p in bs_view for p in _presets) and bs_view.count('"confirm")') == 5
+          and 'act + "end", UltraStyle.danger("End boost"), "danger"' in bs_view
+          and 'String act = mastery ? "do:masteryboost:" : "do:boost:";' in bs_view
+          and "mastery ? masteryBoostLine(ph) : tpBoostLine(ph)" in bs_view
+          and 'spec.footerBack("page:boosts", "Boosts");' in bs_view)
+    check("pages boosts_tp / boosts_mastery open the views; actions land back on their own view",
+          'case PAGE_TP_BOOST -> openBoostControls(player, false);' in bs_scr
+          and 'case PAGE_MASTERY_BOOST -> openBoostControls(player, true);' in bs_scr
+          and 'case "boost" -> UltraProgressionScreens.PAGE_TP_BOOST;' in bs_act
+          and 'case "masteryboost", "globalmasteryboost" -> UltraProgressionScreens.PAGE_MASTERY_BOOST;' in bs_act)
+    def _hb(s):
+        x = 0
+        for c in s:
+            x = (31 * x + ord(c)) & 0xFFFFFFFF
+        return x.to_bytes(4, "big")
+    check("new switch strings carry no C2 A7 bytes in their hash",
+          all(b"\xc2\xa7" not in _hb(s) for s in ("boosts_tp", "boosts_mastery", "masteryboost", "globalmasteryboost")))
+    check("handleDo routes masteryboost to masteryBoost(); staff maintenance list includes it",
+          'if ("masteryboost".equals(act) || "globalmasteryboost".equals(act)) {\n            return masteryBoost(player, a);' in bs_api.replace("\r\n", "\n")
+          and '|| "masteryboost".equals(act) || "globalmasteryboost".equals(act)' in bs_api)
+    check("masteryBoost mirrors boost(): gates, status/help, end, encoded:, mult:minutes, space forms",
+          "!StaffAccess.isStaff(actor)" in bs_mb and "enableProgression" in bs_mb
+          and '"help".equalsIgnoreCase(raw)' in bs_mb and 'startsWith("encoded:")' in bs_mb
+          and 'raw.contains(":")' in bs_mb and '"start".equals(head)' in bs_mb
+          and bs_mb.count("ProgressionSystem.masteryBoostEnd()") == 2
+          and bs_mb.count("ProgressionSystem.masteryBoostStartEncoded(") == 2
+          and bs_mb.count("ProgressionSystem.masteryBoostStart(") == 2
+          and "ProgressionSystem.boost" not in bs_mb)
+    check("mastery confirm keys are their own (masteryboost:), TP keys unchanged",
+          bs_mb.count('"masteryboost:end"') == 2 and bs_mb.count('"masteryboost:encoded:"') == 2
+          and bs_mb.count('"masteryboost:" + mult') == 2 and '"boost:' not in bs_mb
+          and bs_tp.count('"boost:end"') == 2 and "masteryboost" not in bs_tp)
+    check("mastery copy: no raw section signs, no Invalid, errors say what to do",
+          "\u00a7" not in bs_mb and "Invalid" not in bs_mb and "Ask a staff member" in bs_mb
+          and "Turn it on in the progression settings first." in bs_mb)
+    check("self-test covers selector, both views, presets + End, and back navigation",
+          "checkBoostsScreens(broken);" in bs_test and "boostsSelectorSpec(ph)" in bs_test
+          and "boostControlSpec(ph, mastery)" in bs_test and '"Back to Boosts"' in bs_test
+          and '"Back to main menu"' in bs_test
+          and 'List.of("1.25:30", "1.5:30", "2:30", "2:60", "3:30", "end")' in bs_test)
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")

@@ -942,6 +942,7 @@ public final class UltraScreenSelfTest {
         }
         checkBodyWrap(broken);
         checkConfigFullscreen(broken);
+        checkBoostsScreens(broken);
 
         if (broken.isEmpty()) {
             AdaptiveDifficultyMod.LOGGER.info(
@@ -961,6 +962,83 @@ public final class UltraScreenSelfTest {
      * box equal to the panel request would render the 426-grid widgets tiny in the
      * top-left. A stack of rows must not grow the request toward the compact menu cap.
      */
+    /**
+     * Boosts tab: the selector shows both status lines and opens each control view; each view
+     * has its own status line, the five presets, End, and a way back to the selector. The TP
+     * view drives do:boost, the mastery view do:masteryboost, never the other one.
+     */
+    private static void checkBoostsScreens(List<String> broken) {
+        Map<String, String> ph = new LinkedHashMap<>();
+        ph.put("boost", "Global TP boost: probe-tp");
+        ph.put("mastery_boost", "Global mastery boost: probe-mastery");
+        GuiOpenPacket sel = UltraProgressionScreens.boostsSelectorSpec(ph).toPacket();
+        String selErr = validatePacket(sel, "progression");
+        if (selErr != null) {
+            broken.add("boosts selector: " + selErr);
+        } else {
+            if (!sel.linesJson().contains("probe-tp") || !sel.linesJson().contains("probe-mastery")) {
+                broken.add("boosts selector: both status lines expected");
+            }
+            Map<String, String> ids = buttonIds(sel);
+            for (String want : List.of("page:" + UltraProgressionScreens.PAGE_TP_BOOST,
+                    "page:" + UltraProgressionScreens.PAGE_MASTERY_BOOST, "nav:hub")) {
+                if (!ids.containsKey(want)) {
+                    broken.add("boosts selector: missing button " + want);
+                }
+            }
+            if (!"Back to main menu".equals(ids.get("nav:hub"))) {
+                broken.add("boosts selector: footer should read Back to main menu, got " + ids.get("nav:hub"));
+            }
+        }
+        for (boolean mastery : new boolean[] {false, true}) {
+            String tag = mastery ? "mastery boost view" : "TP boost view";
+            String own = mastery ? "do:masteryboost:" : "do:boost:";
+            String other = mastery ? "do:boost:" : "do:masteryboost:";
+            GuiOpenPacket view = UltraProgressionScreens.boostControlSpec(ph, mastery).toPacket();
+            String err = validatePacket(view, "progression");
+            if (err != null) {
+                broken.add(tag + ": " + err);
+                continue;
+            }
+            String lines = view.linesJson();
+            if (!lines.contains(mastery ? "probe-mastery" : "probe-tp")
+                    || lines.contains(mastery ? "probe-tp" : "probe-mastery")) {
+                broken.add(tag + ": expected only its own status line");
+            }
+            Map<String, String> ids = buttonIds(view);
+            for (String arg : List.of("1.25:30", "1.5:30", "2:30", "2:60", "3:30", "end")) {
+                if (!ids.containsKey(own + arg)) {
+                    broken.add(tag + ": missing button " + own + arg);
+                }
+            }
+            for (String id : ids.keySet()) {
+                if (id.startsWith(other)) {
+                    broken.add(tag + ": drives the other boost via " + id);
+                }
+            }
+            if (!"Back to Boosts".equals(ids.get("page:boosts"))) {
+                broken.add(tag + ": expected a Back to Boosts button, got " + ids.get("page:boosts"));
+            }
+        }
+    }
+
+    /** Button action id (screen qualifier {@code @screen:} dropped) -> plain label. */
+    private static Map<String, String> buttonIds(GuiOpenPacket pkt) {
+        Map<String, String> out = new LinkedHashMap<>();
+        for (JsonElement el : JsonParser.parseString(pkt.buttonsJson()).getAsJsonArray()) {
+            if (el != null && el.isJsonObject() && el.getAsJsonObject().has("id")) {
+                JsonObject o = el.getAsJsonObject();
+                String id = o.get("id").getAsString();
+                if (id.startsWith("@") && id.indexOf(':') > 0) {
+                    id = id.substring(id.indexOf(':') + 1);
+                }
+                out.put(id,
+                        UltraStyle.plain(o.has("label") ? o.get("label").getAsString() : ""));
+            }
+        }
+        return out;
+    }
+
     private static void checkConfigFullscreen(List<String> broken) {
         UltraScreenSpec grown =
                 UltraScreenSpec.of("config").panel(1920, 1080).lockPanel().fillScreen(426, 240).setRow(50);

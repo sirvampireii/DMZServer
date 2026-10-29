@@ -350,6 +350,149 @@ public final class ProgressionGuiApi {
         return "§cThat boost amount did not work. Try again, or ask staff if it keeps happening.";
     }
 
+    /**
+     * Global mastery boost controls - mirrors {@link #boost(ServerPlayer, String)} on
+     * GlobalMasteryBoost with the same arg forms. Confirm keys use a {@code masteryboost:} prefix,
+     * so a pending TP confirm never starts or ends a mastery boost, and the reverse.
+     * {@code actor} may be {@code null} when run from console.
+     */
+    public static String masteryBoost(ServerPlayer actor, String argsJoined) {
+        if (actor != null && !StaffAccess.isStaff(actor)) {
+            return UltraStyle.DANGER + "Staff only. Ask a staff member to start or end a mastery boost.";
+        }
+        if (!DifficultyConfig.get().enableProgression) {
+            return UltraStyle.DANGER
+                    + "The progression system is off. Turn it on in the progression settings first.";
+        }
+        String raw = argsJoined == null ? "" : argsJoined.trim();
+        if (raw.isBlank() || "status".equalsIgnoreCase(raw) || "help".equalsIgnoreCase(raw)
+                || "?".equals(raw)) {
+            return com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.statusLine() + "\n" + masteryBoostUsage();
+        }
+        String defaultPurchaser = actor == null ? "Server" : actor.m_7755_().getString();
+        // GUI compact forms: end | 2.0:30 | encoded:1250030
+        if ("end".equalsIgnoreCase(raw) || "stop".equalsIgnoreCase(raw)) {
+            String ask = confirmBoost(actor, "masteryboost:end", MASTERY_END_PROMPT);
+            if (ask != null) {
+                return ask;
+            }
+            return ProgressionSystem.masteryBoostEnd();
+        }
+        if (raw.toLowerCase(Locale.ROOT).startsWith("encoded:")) {
+            String num = raw.substring("encoded:".length()).trim();
+            try {
+                int encoded = Integer.parseInt(num);
+                String ask = confirmBoost(actor, "masteryboost:encoded:" + encoded, MASTERY_CODE_PROMPT);
+                if (ask != null) {
+                    return ask;
+                }
+                return ProgressionSystem.masteryBoostStartEncoded(actor, encoded, defaultPurchaser);
+            } catch (NumberFormatException e) {
+                return masteryCodeNotNumber(num);
+            }
+        }
+        if (raw.contains(":")) {
+            String[] parts = raw.split(":", 2);
+            try {
+                double mult = Double.parseDouble(parts[0].trim());
+                int minutes = Integer.parseInt(parts[1].trim());
+                String ask = confirmBoost(actor, "masteryboost:" + mult + ":" + minutes,
+                        masteryBoostStartPrompt(mult, minutes));
+                if (ask != null) {
+                    return ask;
+                }
+                return ProgressionSystem.masteryBoostStart(actor, mult, minutes, defaultPurchaser);
+            } catch (NumberFormatException e) {
+                return UltraStyle.DANGER + "That boost needs a multiplier and minutes, like "
+                        + UltraStyle.WHITE + "2:30" + UltraStyle.DANGER + ". You typed: "
+                        + UltraStyle.WHITE + raw + "\n" + masteryBoostUsage();
+            }
+        }
+
+        String[] parts = raw.split("\\s+");
+        String head = parts[0].toLowerCase(Locale.ROOT);
+        if ("end".equals(head) || "stop".equals(head)) {
+            String ask = confirmBoost(actor, "masteryboost:end", MASTERY_END_PROMPT);
+            if (ask != null) {
+                return ask;
+            }
+            return ProgressionSystem.masteryBoostEnd();
+        }
+        int i = 0;
+        if ("start".equals(head)) {
+            i = 1;
+        }
+        if (i >= parts.length) {
+            return UltraStyle.DANGER + "Add a multiplier and minutes, or a store code, after start.\n"
+                    + masteryBoostUsage();
+        }
+        // Prefer: <mult> <minutes> when two numeric tokens (mult small, minutes < 10000)
+        if (i + 1 < parts.length && looksLikeDouble(parts[i]) && looksLikeInt(parts[i + 1])) {
+            double mult = Double.parseDouble(parts[i]);
+            int minutes = Integer.parseInt(parts[i + 1]);
+            // Heuristic: encoded values are huge (e.g. 1250030); mult+minutes are small.
+            if (mult < 100.0 && minutes < 10_000) {
+                String purchaser = joinFrom(parts, i + 2);
+                if (purchaser.isBlank()) {
+                    purchaser = defaultPurchaser;
+                }
+                String ask = confirmBoost(actor, "masteryboost:" + mult + ":" + minutes,
+                        masteryBoostStartPrompt(mult, minutes));
+                if (ask != null) {
+                    return ask;
+                }
+                return ProgressionSystem.masteryBoostStart(actor, mult, minutes, purchaser);
+            }
+        }
+        // encoded [purchaser...]
+        if (looksLikeInt(parts[i])) {
+            try {
+                int encoded = Integer.parseInt(parts[i]);
+                String purchaser = joinFrom(parts, i + 1);
+                if (purchaser.isBlank()) {
+                    purchaser = defaultPurchaser;
+                }
+                String ask = confirmBoost(actor, "masteryboost:encoded:" + encoded, MASTERY_CODE_PROMPT);
+                if (ask != null) {
+                    return ask;
+                }
+                return ProgressionSystem.masteryBoostStartEncoded(actor, encoded, purchaser);
+            } catch (NumberFormatException e) {
+                return masteryCodeNotNumber(parts[i]);
+            }
+        }
+        return UltraStyle.DANGER + "That boost amount did not work. Try again, or ask staff if it keeps happening.";
+    }
+
+    private static final String MASTERY_END_PROMPT =
+            UltraStyle.YELLOW + "End the active global mastery boost for everyone?";
+
+    private static final String MASTERY_CODE_PROMPT =
+            UltraStyle.YELLOW + "Start this global mastery boost? This broadcasts server-wide.";
+
+    private static String masteryCodeNotNumber(String typed) {
+        return UltraStyle.DANGER + "That boost code is not a number: " + UltraStyle.WHITE + typed
+                + UltraStyle.DANGER + ". Use one of the forms below.\n" + masteryBoostUsage();
+    }
+
+    private static String masteryBoostStartPrompt(double mult, int minutes) {
+        String shown = mult == Math.rint(mult) ? ((int) mult) + "x" : mult + "x";
+        return UltraStyle.YELLOW + "Start a " + shown + " mastery boost for " + minutes
+                + " minutes? This broadcasts server-wide.";
+    }
+
+    private static String masteryBoostUsage() {
+        return UltraStyle.YELLOW + "/progression masteryboost " + UltraStyle.GRAY + "- status\n"
+                + UltraStyle.YELLOW + "/progression masteryboost end " + UltraStyle.GRAY + "- stop the active boost\n"
+                + UltraStyle.YELLOW + "/progression masteryboost start <multiplier> <minutes> [name] "
+                + UltraStyle.GRAY + "- for example " + UltraStyle.WHITE + "2 30 PlayerName\n"
+                + UltraStyle.YELLOW + "/progression masteryboost start <code> [name] "
+                + UltraStyle.GRAY + "- store code, same format as the TP boost\n"
+                + UltraStyle.DARK_GRAY + "Console works too (store): "
+                + UltraStyle.WHITE + "progression masteryboost start 2 30 {username}\n"
+                + UltraStyle.DARK_GRAY + "[Staff] Progression panel -> Boosts tab -> Mastery Boost";
+    }
+
     private static String boostUsage() {
         return "§e/progression boost §7- status\n"
                 + "§e/progression boost end §7- stop active boost\n"
@@ -781,6 +924,7 @@ public final class ProgressionGuiApi {
         boolean staffMaintenance = staff && ("flag".equals(act) || "toggle".equals(act)
                 || "module_doc".equals(act) || "moduledoc".equals(act) || "module".equals(act)
                 || "boost".equals(act) || "tpboost".equals(act) || "globaltpboost".equals(act)
+                || "masteryboost".equals(act) || "globalmasteryboost".equals(act)
                 || "toggle_staff_free_coins".equals(act) || "staff_free_coins".equals(act)
                 || "stafffree".equals(act) || "staff_free".equals(act));
         if (!DifficultyConfig.get().enableProgression && !staffMaintenance) {
@@ -843,6 +987,9 @@ public final class ProgressionGuiApi {
         }
         if ("boost".equals(act) || "tpboost".equals(act) || "globaltpboost".equals(act)) {
             return boost(player, a);
+        }
+        if ("masteryboost".equals(act) || "globalmasteryboost".equals(act)) {
+            return masteryBoost(player, a);
         }
         if ("toggle_staff_free_coins".equals(act) || "staff_free_coins".equals(act)
                 || "stafffree".equals(act) || "staff_free".equals(act)) {

@@ -221,6 +221,13 @@ is the rebuilt switch table), `ConfigFieldHelp` (one new help line), and `Progre
 (new `mastery_boost` placeholder and its default lore line - the only new strings and calls;
 other changes are bytecode offsets). javap-verified; the other 21 are unchanged.
 
+## Re-baseline (2026-10-28, 4.6.256 boosts selector)
+
+Two classes re-extracted: `AdaptiveDifficultyMod` (version constant only) and `ProgressionGuiApi`
+(new `masteryBoost` handler with its prompt, usage, and code-error helpers, and the `masteryboost`
+routing in `handleDo` - the only new strings and calls; the existing call set is unchanged, only
+offsets moved). javap-verified; the other 23 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

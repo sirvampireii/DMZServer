@@ -77,7 +77,7 @@ KNOWN_DO: dict[str, set[str]] = {
         "custom_buy",
         "custom_remove",
     },
-    "progression": {"boost", "toggle_staff_free_coins"},
+    "progression": {"boost", "masteryboost", "toggle_staff_free_coins"},
     "rival": {
         "tpmsg",
         "instinct",
@@ -937,7 +937,16 @@ def main() -> int:
             body = src[m.start() : end]
             if "send(player)" not in body:
                 continue
-            if not footer_call.search(body):
+            # An open* may delegate to a same-file *Spec builder (shared with the self-test)
+            # that pins the footer itself.
+            delegated = False
+            for b in re.findall(r"\b(\w+Spec)\s*\(", body):
+                bm = re.search(r"static\s+UltraScreenSpec\s+" + b
+                               + r"\s*\([^)]*\)\s*\{(.*?)\n    \}", src, re.S)
+                if bm and footer_call.search(bm.group(1)):
+                    delegated = True
+                    break
+            if not delegated and not footer_call.search(body):
                 errors.append(
                     f"{path.name}.{name}: must call footerBackToMain / footerBackHome(dest) / "
                     "footerBack(action, dest) so every page has a pinned way back"
