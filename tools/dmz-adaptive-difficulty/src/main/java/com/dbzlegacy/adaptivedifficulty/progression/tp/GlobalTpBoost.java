@@ -2,6 +2,7 @@ package com.dbzlegacy.adaptivedifficulty.progression.tp;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.config.ConfigPaths;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionConfig;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
@@ -165,7 +166,7 @@ public final class GlobalTpBoost {
         }
         Decoded decoded = decode(encoded);
         if (decoded == null) {
-            return "§cInvalid encoded boost value: " + encoded;
+            return undecodedReply(encoded);
         }
         long now = System.currentTimeMillis();
         String sig = (actor == null ? "console" : actor.m_7755_().getString().toLowerCase())
@@ -183,6 +184,19 @@ public final class GlobalTpBoost {
         SystemTelemetry.log("progression", "tp_boost_start", actor, null,
                 Map.of("mult", decoded.multiplier, "minutes", decoded.durationMinutes, "purchaser", who));
         return result;
+    }
+
+    /**
+     * Reply for a {@code start <encoded>} value that does not decode (for example 2, which reads as
+     * a 0.0 multiplier): names the value and both valid start forms.
+     */
+    public static String undecodedReply(int encoded) {
+        return UltraStyle.DANGER + "Boost value " + UltraStyle.WHITE + encoded + UltraStyle.DANGER
+                + " was not understood. Use one of these:\n"
+                + UltraStyle.YELLOW + "progression boost start <encoded>" + UltraStyle.GRAY
+                + " - for example " + UltraStyle.WHITE + "2000030" + UltraStyle.GRAY + " for 2x, 30 minutes\n"
+                + UltraStyle.YELLOW + "progression boost start <multiplier> <minutes>" + UltraStyle.GRAY
+                + " - for example " + UltraStyle.WHITE + "progression boost start 2 30";
     }
 
     public static String startBoostMinutes(ServerPlayer actor, double multiplier, int minutes, String purchaser) {
@@ -372,6 +386,17 @@ public final class GlobalTpBoost {
             Files.deleteIfExists(ConfigPaths.globalTpBoostPath());
         } catch (Throwable ignored) {
         }
+    }
+
+    /** True when {@code start <encoded>} would pass decode and the activate checks (self-test, no side effects). */
+    public static boolean encodedWouldStart(int encoded) {
+        Decoded d = decode(encoded);
+        return d != null && minutesWouldStart(d.multiplier, d.durationMinutes);
+    }
+
+    /** True when {@code start <multiplier> <minutes>} would pass the activate checks (self-test, no side effects). */
+    public static boolean minutesWouldStart(double multiplier, int minutes) {
+        return multiplierToAmplifier(multiplier) >= 0 && minutes > 0;
     }
 
     private static Decoded decode(int encoded) {

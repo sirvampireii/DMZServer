@@ -945,6 +945,7 @@ public final class UltraScreenSelfTest {
         checkConfigFullscreen(broken);
         checkBoostsScreens(broken);
         checkMasteryWallet(broken);
+        checkBoostStartReplies(broken);
 
         if (broken.isEmpty()) {
             AdaptiveDifficultyMod.LOGGER.info(
@@ -1214,6 +1215,38 @@ public final class UltraScreenSelfTest {
         Map<String, String> fv = buttonIds(UltraPrestigeScreens.formSpec(big, bigForms.get(9), 5, 1).toPacket());
         if (!"Back to Big".equals(fv.get("page:mw_line:n:big:1"))) {
             broken.add("mastery wallet paging: form view Back should return to page:mw_line:n:big:1, got " + fv);
+        }
+    }
+
+    /**
+     * Boost start replies: an encoded value that does not decode (2) gets a reply naming the value
+     * and both valid start forms for its own command; valid encoded and multiplier / minutes starts
+     * still pass. Checked without starting a boost (this runs on every boot).
+     */
+    private static void checkBoostStartReplies(List<String> broken) {
+        String[][] cases = {
+                {"boost", UltraStyle.plain(com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.undecodedReply(2))},
+                {"masteryboost", UltraStyle.plain(com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.undecodedReply(2))}};
+        for (String[] c : cases) {
+            String cmd = c[0];
+            String reply = c[1];
+            if (!reply.contains("Boost value 2 was not understood")
+                    || !reply.contains("progression " + cmd + " start <encoded>")
+                    || !reply.contains("2000030")
+                    || !reply.contains("progression " + cmd + " start <multiplier> <minutes>")
+                    || !reply.contains("progression " + cmd + " start 2 30")) {
+                broken.add("boost start reply (" + cmd + ") missing the value or a valid form: " + reply);
+            }
+        }
+        if (com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.encodedWouldStart(2)
+                || com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.encodedWouldStart(2)) {
+            broken.add("boost start: encoded 2 must not decode");
+        }
+        if (!com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.encodedWouldStart(2000030)
+                || !com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.encodedWouldStart(2000030)
+                || !com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.minutesWouldStart(2.0, 30)
+                || !com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.minutesWouldStart(2.0, 30)) {
+            broken.add("boost start: 2000030 and 2 x 30 minutes must still start both boosts");
         }
     }
 

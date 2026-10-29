@@ -250,6 +250,11 @@ javap-verified; the other 23 are unchanged.
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The strip
 pass lives outside this set; the other 24 are unchanged.
 
+## Re-baseline (2026-10-28, 4.6.260 boost encoded reject)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The boost
+reply change lives outside this set; the other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

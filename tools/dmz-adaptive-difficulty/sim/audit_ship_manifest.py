@@ -1248,6 +1248,40 @@ def main() -> int:
           _strip(_f, True) == ("stripped", {"PlayerPersisted": {"a": 1}, "lm.death_tp_penalty_until": 9})
           and _strip(_f, False) == ("skipped", _f) and _strip({"x": 1}, True)[0] == "no_data")
 
+    print("\n--- § boost encoded reject ---")
+    be_tp = read(SRC / "progression/tp/GlobalTpBoost.java")
+    be_gm = read(SRC / "progression/tp/GlobalMasteryBoost.java")
+    be_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    check("manifest boost-encoded-reject row", "boost-encoded-reject" in manifest)
+    for _name, _src, _cmd in (("TP", be_tp, "boost"), ("mastery", be_gm, "masteryboost")):
+        _start = _src.split("public static String startBoost(ServerPlayer actor, int encoded, String purchaser) {", 1)[-1]
+        _start = _start.split("\n    }\n", 1)[0]
+        _reply = _src.split("public static String undecodedReply(int encoded) {", 1)[-1].split("\n    }\n", 1)[0]
+        check(_name + " boost: undecodable value gets undecodedReply with the value and both forms",
+              "if (decoded == null) {\n            return undecodedReply(encoded);" in _start
+              and '" was not understood. Use one of these:' in _reply and "+ encoded +" in _reply
+              and ('"progression ' + _cmd + ' start <encoded>"') in _reply and '"2000030"' in _reply
+              and ('"progression ' + _cmd + ' start <multiplier> <minutes>"') in _reply
+              and ('"progression ' + _cmd + ' start 2 30"') in _reply
+              and "§" not in _reply and "Invalid" not in _src)
+        check(_name + " boost: decode and activate checks unchanged",
+              "if (multiplier <= 1.0 || durationMinutes <= 0) {" in _src
+              and "int amplifier = (int) Math.round(((multiplier - 1.0) / 0.25) - 1.0);" in _src
+              and "return multiplierToAmplifier(multiplier) >= 0 && minutes > 0;" in _src)
+    check("self-test: both replies for 2, and 2000030 / 2 x 30 still start (no boost started on boot)",
+          "checkBoostStartReplies(broken);" in be_test and "GlobalTpBoost.undecodedReply(2)" in be_test
+          and "GlobalMasteryBoost.undecodedReply(2)" in be_test and "encodedWouldStart(2000030)" in be_test
+          and "minutesWouldStart(2.0, 30)" in be_test and "startBoost(" not in be_test)
+
+    def _decode(enc):
+        if enc <= 0:
+            return None
+        m, mins = (enc // 10000) / 100.0, enc % 10000
+        return None if m <= 1.0 or mins <= 0 else (m, mins)
+
+    check("sim: 2 -> rejected, 2000030 -> 2x 30 min, 1250015 -> 1.25x 15 min",
+          _decode(2) is None and _decode(2000030) == (2.0, 30) and _decode(1250015) == (1.25, 15))
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")

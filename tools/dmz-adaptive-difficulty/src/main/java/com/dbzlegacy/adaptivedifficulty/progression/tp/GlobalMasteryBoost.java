@@ -161,6 +161,19 @@ public final class GlobalMasteryBoost {
         applyEffect(player, amp, ticks);
     }
 
+    /**
+     * Reply for a {@code start <encoded>} value that does not decode (for example 2, which reads as
+     * a 0.0 multiplier): names the value and both valid start forms.
+     */
+    public static String undecodedReply(int encoded) {
+        return UltraStyle.DANGER + "Boost value " + UltraStyle.WHITE + encoded + UltraStyle.DANGER
+                + " was not understood. Use one of these:\n"
+                + UltraStyle.YELLOW + "progression masteryboost start <encoded>" + UltraStyle.GRAY
+                + " - for example " + UltraStyle.WHITE + "2000030" + UltraStyle.GRAY + " for 2x, 30 minutes\n"
+                + UltraStyle.YELLOW + "progression masteryboost start <multiplier> <minutes>" + UltraStyle.GRAY
+                + " - for example " + UltraStyle.WHITE + "progression masteryboost start 2 30";
+    }
+
     /** {@code /progression masteryboost start <encoded>}. */
     public static String startBoost(ServerPlayer actor, int encoded, String purchaser) {
         if (!ProgressionConfig.globalMasteryBoost()) {
@@ -168,8 +181,7 @@ public final class GlobalMasteryBoost {
         }
         Decoded decoded = decode(encoded);
         if (decoded == null) {
-            return UltraStyle.DANGER + "That boost code does not decode to a multiplier and minutes. "
-                    + "Use start <multiplier> <minutes> instead, for example 2 30.";
+            return undecodedReply(encoded);
         }
         long now = System.currentTimeMillis();
         String sig = (actor == null ? "console" : actor.m_7755_().getString().toLowerCase())
@@ -385,6 +397,17 @@ public final class GlobalMasteryBoost {
             Files.deleteIfExists(ConfigPaths.globalMasteryBoostPath());
         } catch (Throwable ignored) {
         }
+    }
+
+    /** True when {@code start <encoded>} would pass decode and the activate checks (self-test, no side effects). */
+    public static boolean encodedWouldStart(int encoded) {
+        Decoded d = decode(encoded);
+        return d != null && minutesWouldStart(d.multiplier, d.durationMinutes);
+    }
+
+    /** True when {@code start <multiplier> <minutes>} would pass the activate checks (self-test, no side effects). */
+    public static boolean minutesWouldStart(double multiplier, int minutes) {
+        return multiplierToAmplifier(multiplier) >= 0 && minutes > 0;
     }
 
     private static Decoded decode(int encoded) {
