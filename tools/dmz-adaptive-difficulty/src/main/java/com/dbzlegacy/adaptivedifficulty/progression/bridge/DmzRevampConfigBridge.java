@@ -9,7 +9,7 @@ import net.minecraftforge.fml.ModList;
 /**
  * Reloads Overhaul leveling config on boot so live {@code LevelingRevamp.json} edits apply
  * without hunting down cached defaults. Also pins {@code initialLevelCap} / {@code maxLevel}
- * so prestige 0 is 100k (not stock 50k). {@code maxPrestigeCount} is left as configured: it is
+ * to 50k / 150k, the ends of Overhaul's native cap ladder. {@code maxPrestigeCount} is left as configured: it is
  * the most prestiges a player can hold.
  */
 public final class DmzRevampConfigBridge {

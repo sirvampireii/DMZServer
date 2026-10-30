@@ -292,6 +292,11 @@ cap rule), `PrestigeAdminCommandTree` (`breakthroughs` subcommand removed), `Ult
 (cap-rule copy), `ConfigFieldHelp` (one help line no longer mentions breakthroughs). The other 18 are
 unchanged.
 
+## Re-baseline (2026-10-30, 4.7.2 native cap ladder)
+
+Only `ProgressionGuiApi` re-extracted: one prestige lore line now says each prestige you hold raises
+your cap (javap: that string only). The other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

@@ -12,7 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
  * the player's LM-owned file and pushes a DMZ stats sync when it changes, for the DMZ client UI
  * (LegacyMechanics is server-only — clients read Overhaul/DMZ configured max, not our mixins).
  * <p>
- * Since 4.7.2 nothing per player raises the cap. The old breakthrough keys
+ * Since 4.7.2 the cap is Overhaul's native ladder (it rises with held prestige). The old breakthrough keys
  * ({@code lm_personal_breakthroughs}, {@code pp_level_breakthroughs}) stay in player files and are
  * not read.
  */

@@ -99,10 +99,9 @@ public final class DmzRevampPrestigeBridge {
     }
 
     /**
-     * The player's level cap as Overhaul has it ({@code PrestigeSystem.levelCap}). LM's
-     * {@code DmzRevampPrestigeCapMixin} answers that call, so this is the cap Overhaul, its
-     * Statistics screen, and the prestige gate all show. Without dmzrevamp (or without stats) it
-     * is the base cap LM pins as Overhaul's {@code initialLevelCap}.
+     * The player's level cap: Overhaul's native {@code PrestigeSystem.levelCap}, which rises with the
+     * prestige count. This is the cap Overhaul, its Statistics screen, and the prestige gate all
+     * show. With no stats it is Overhaul's {@code initialLevelCap}; without dmzrevamp, 100k.
      */
     public static int levelCap(StatsData data) {
         if (data != null && revampPresent()) {
@@ -111,7 +110,7 @@ public final class DmzRevampPrestigeBridge {
             } catch (Throwable ignored) {
             }
         }
-        return LmOverhaulCapMath.OVERHAUL_LEVEL_CAP;
+        return LmOverhaulCapMath.overhaulLevelCap();
     }
 
     public static int overhaulCount(StatsData data) {

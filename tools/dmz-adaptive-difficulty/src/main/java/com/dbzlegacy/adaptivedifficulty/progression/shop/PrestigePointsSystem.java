@@ -50,7 +50,7 @@ import net.minecraft.server.level.ServerPlayer;
  * stay in player files and are read by nothing.
  */
 public final class PrestigePointsSystem {
-    /** Overhaul {@code initialLevelCap} LM pins: the level cap every player has. */
+    /** The level cap without dmzrevamp (with it, the cap is Overhaul's native ladder). */
     public static final int BASE_LEVEL_CAP = 100_000;
     /** Overhaul {@code maxLevel} LM pins (the DMZ stat ceiling). */
     public static final int ABSOLUTE_LEVEL_CAP = 150_000;

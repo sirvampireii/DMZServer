@@ -1184,7 +1184,7 @@ public final class ProgressionGuiApi {
                 lore.add("§7Lifetime prestiges: §f" + ph.getOrDefault("completed", "0"));
                 lore.add("§7Need: §e" + ph.getOrDefault("required_fmt", "0") + " §7power (your level cap)");
                 lore.add("§7Reaching your current cap earns your next prestige.");
-                lore.add("§7How many you hold does not change it.");
+                lore.add("§7Each prestige you hold raises your cap.");
                 if ("true".equalsIgnoreCase(ph.get("ready"))) {
                     lore.add("§eYou can prestige now.");
                 } else {

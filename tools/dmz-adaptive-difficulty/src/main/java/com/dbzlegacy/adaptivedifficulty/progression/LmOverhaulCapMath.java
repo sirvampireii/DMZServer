@@ -10,20 +10,20 @@ import net.minecraftforge.fml.ModList;
 /**
  * Level cap and stat-total math shared with dmzrevamp's Overhaul.
  * <p>
- * The cap is Overhaul's: {@link #levelCap(StatsData)} reads {@code PrestigeSystem.levelCap}, and
- * {@code DmzRevampPrestigeCapMixin} answers that call with {@link #overhaulLevelCap(StatsData)}, the
- * base cap LM pins as Overhaul's {@code initialLevelCap}. Held prestige does not move it, and LM no
- * longer raises it per player (4.7.2 removed breakthroughs; stored counts are left in place and read
- * by nothing).
+ * The cap is Overhaul's native {@code PrestigeSystem.levelCap}: it rises with the Overhaul prestige
+ * count (LM sets that from held prestige), {@code floor(initialLevelCap + count × maxLevel /
+ * maxPrestigeCount)} capped at {@code maxLevel}. LM pins 50k / 150k, so with 10 max that is 50k, 65k,
+ * 80k … 140k, then 150k from 7 held. {@link #levelCap(StatsData)} reads it; LM does not override or
+ * recompute it. Without dmzrevamp the cap is {@link #OVERHAUL_LEVEL_CAP} (100k). Breakthroughs were
+ * removed in 4.7.2; stored counts are left in place and read by nothing.
  */
 public final class LmOverhaulCapMath {
     /** Stock Overhaul {@code levelUpPerPoints} when {@code LevelingRevamp.json} is default. */
     public static final int LEVEL_UP_PER_POINTS = 6;
-    /**
-     * Overhaul Statistics / {@code PrestigeSystem.levelCap} / hex reference. Stock Overhaul
-     * {@code initialLevelCap} is 50000 and is <b>not</b> synced to clients, so LM pins it to 100k.
-     */
+    /** The level cap without dmzrevamp installed (no Overhaul to ask). */
     public static final int OVERHAUL_LEVEL_CAP = PrestigePointsSystem.BASE_LEVEL_CAP;
+    /** Overhaul {@code initialLevelCap} LM pins: the cap at 0 held prestige. */
+    public static final int OVERHAUL_INITIAL_LEVEL_CAP = 50_000;
     /** Overhaul {@code maxLevel} LM pins (the DMZ stat ceiling). */
     public static final int OVERHAUL_ABSOLUTE_LEVEL_CAP = PrestigePointsSystem.ABSOLUTE_LEVEL_CAP;
 
@@ -32,14 +32,14 @@ public final class LmOverhaulCapMath {
 
     private LmOverhaulCapMath() {}
 
-    /** The player's level cap, read from Overhaul (base cap without dmzrevamp). */
+    /** The player's level cap: Overhaul's native {@code levelCap} (100k without dmzrevamp). */
     public static int levelCap(StatsData data) {
         return com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge.levelCap(data);
     }
 
     public static int levelCap(ServerPlayer player) {
         if (player == null) {
-            return OVERHAUL_LEVEL_CAP;
+            return overhaulLevelCap();
         }
         return levelCap(com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player));
     }
@@ -58,26 +58,38 @@ public final class LmOverhaulCapMath {
         return maxAssignableTotal(data, levelCap(player));
     }
 
-    /** Called from Overhaul's {@code maxAssignableTotal}; uses the cap that mixin hands Overhaul. */
+    /** Called from Overhaul's {@code maxAssignableTotal}; uses Overhaul's native cap for the player. */
     public static int maxAssignableTotal(StatsData data) {
         return maxAssignableTotal(data, overhaulLevelCap(data));
     }
 
     /**
-     * The base cap (100k). Native {@code levelCap} at count 0 is {@code initialLevelCap}
-     * (stock 50k); we never return that.
+     * The cap for a player with no data: Overhaul's configured {@code initialLevelCap} (the cap at 0
+     * held, pinned to {@link #OVERHAUL_INITIAL_LEVEL_CAP}), or {@link #OVERHAUL_LEVEL_CAP} without
+     * dmzrevamp.
      */
     public static int overhaulLevelCap() {
+        if (ModList.get().isLoaded("dmzrevamp")) {
+            try {
+                Class<?> cfg = Class.forName("com.dmzrevamp.config.LevelingRevampConfig");
+                Object revampCfg = cfg.getMethod("get").invoke(null);
+                Object prestige = revampCfg.getClass().getField("Prestige").get(revampCfg);
+                return Math.max(1, prestige.getClass().getField("initialLevelCap").getInt(prestige));
+            } catch (Throwable ignored) {
+            }
+            return OVERHAUL_INITIAL_LEVEL_CAP;
+        }
         return OVERHAUL_LEVEL_CAP;
     }
 
     /**
-     * The value {@code DmzRevampPrestigeCapMixin} returns for Overhaul's {@code levelCap}: the base
-     * cap for every player. Held prestige does not change it, and nothing per player raises it.
-     * Must not call {@link #levelCap(StatsData)} (that reads Overhaul and would recurse).
+     * Overhaul's native {@code levelCap} for this player (rises with the prestige count). Used by
+     * {@code DmzRevampPrestigeCapMixin}'s {@code maxAssignableTotal}, {@code hexStatReference} and
+     * {@code canPrestige}. Nothing may call this from a hook on {@code levelCap} itself (it reads
+     * {@code levelCap} and would recurse).
      */
     public static int overhaulLevelCap(StatsData data) {
-        return OVERHAUL_LEVEL_CAP;
+        return levelCap(data);
     }
 
     /**
@@ -98,8 +110,8 @@ public final class LmOverhaulCapMath {
     }
 
     /**
-     * Force live Overhaul {@code initialLevelCap} to 100k and {@code maxLevel} to 150k
-     * so prestige 0 is not stock 50k.
+     * Force live Overhaul {@code initialLevelCap} to 50k and {@code maxLevel} to 150k, the ends of
+     * the native cap ladder.
      */
     public static void pinOverhaulLevelCaps() {
         if (!ModList.get().isLoaded("dmzrevamp")) {
@@ -118,8 +130,8 @@ public final class LmOverhaulCapMath {
             if (maxLevel.getInt(levels) != OVERHAUL_ABSOLUTE_LEVEL_CAP) {
                 maxLevel.setInt(levels, OVERHAUL_ABSOLUTE_LEVEL_CAP);
             }
-            if (initial.getInt(prestige) != OVERHAUL_LEVEL_CAP) {
-                initial.setInt(prestige, OVERHAUL_LEVEL_CAP);
+            if (initial.getInt(prestige) != OVERHAUL_INITIAL_LEVEL_CAP) {
+                initial.setInt(prestige, OVERHAUL_INITIAL_LEVEL_CAP);
             }
             AdaptiveDifficultyMod.LOGGER.info(
                     "[{}] Overhaul level caps pinned: initialLevelCap={} maxLevel={}",

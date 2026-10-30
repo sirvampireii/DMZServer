@@ -1221,56 +1221,90 @@ public final class UltraScreenSelfTest {
     }
 
     /**
-     * Boost start replies: an encoded value that does not decode (2) gets a reply naming the value
-     * and both valid start forms for its own command; valid encoded and multiplier / minutes starts
-     * still pass. Checked without starting a boost (this runs on every boot).
-     */
-    /**
-     * 4.7.2: the prestige requirement is the Overhaul level cap (no ladder, no held table, no
-     * breakthroughs), and the most prestiges a player can hold is revamp's maxPrestigeCount.
+     * 4.7.2: the prestige requirement is Overhaul's native level cap, read through the bridge. It rises
+     * with the Overhaul prestige count (LM sets it from held): with LM's pins (initial 50k, max 150k)
+     * and max count 10 that is 50k, 65k, 80k, 95k, 110k, 125k, 140k, then 150k from 7 held. Without
+     * dmzrevamp the cap is 100k. The most prestiges held is revamp's maxPrestigeCount (10 without it).
      */
     private static void checkPrestigeFollowsOverhaul(List<String> broken) {
-        int base = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.OVERHAUL_LEVEL_CAP;
-        // No stats: the bridge falls back to the base cap, the same value Overhaul's levelCap returns.
-        int need = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.requiredLevel(null);
-        if (need != base) {
-            broken.add("prestige need without stats should be the base cap " + base + ", got " + need);
-        }
-        if (com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.overhaulLevelCap(null) != base) {
-            broken.add("the cap LM hands Overhaul's levelCap should be the base cap " + base);
-        }
-        if (!com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(base, base)
-                || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(base - 1, base)) {
-            broken.add("prestige gate should be level at or above the cap");
-        }
-        int max = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.maxHeld();
-        int revampMax = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.configuredMaxPrestigeCount();
-        if (max != revampMax) {
-            broken.add("most prestiges held should be revamp's maxPrestigeCount " + revampMax + ", got " + max);
-        }
         boolean revamp = false;
         try {
             revamp = net.minecraftforge.fml.ModList.get().isLoaded("dmzrevamp");
         } catch (Throwable ignored) {
         }
-        if (!revamp && max != com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE) {
-            broken.add("without dmzrevamp the most prestiges held should fall back to 10, got " + max);
+        int noData = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.overhaulLevelCap();
+        if (!revamp && noData != com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.OVERHAUL_LEVEL_CAP) {
+            broken.add("without dmzrevamp the cap should fall back to 100k, got " + noData);
         }
-        var ps = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.class;
-        try {
-            if (com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.clampHeld(15, 10) != 10
-                    || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.clampHeld(15, 20) != 15
-                    || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.clampHeld(-2, 10) != 0) {
-                broken.add("held clamp should follow the given maximum (15 held: 10 under max 10, 15 under max 20)");
+        int need = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.requiredLevel(null);
+        if (need != noData) {
+            broken.add("prestige need without stats should be Overhaul's initial cap " + noData + ", got " + need);
+        }
+        if (!com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(noData, noData)
+                || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(noData - 1, noData)) {
+            broken.add("prestige gate should be level at or above the cap");
+        }
+        // Overhaul's formula with LM's pins, as the acceptance ladder states it.
+        int[] want = {50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000, 150_000, 150_000, 150_000, 150_000};
+        for (int count = 0; count < want.length; count++) {
+            int got = overhaulLadder(50_000, 150_000, 10, count);
+            if (got != want[count]) {
+                broken.add("Overhaul ladder at " + count + " held should be " + want[count] + ", got " + got);
             }
-        } catch (Throwable t) {
-            broken.add("held clamp threw " + t);
+        }
+        if (revamp) {
+            // The real thing: Overhaul's own levelCap on a detached StatsData, through the bridge.
+            try {
+                Class<?> cfgCls = Class.forName("com.dmzrevamp.config.LevelingRevampConfig");
+                Object cfg = cfgCls.getMethod("get").invoke(null);
+                Object prestige = cfg.getClass().getField("Prestige").get(cfg);
+                Object levels = cfg.getClass().getField("levelsAndAttributes").get(cfg);
+                boolean ladderOn = prestige.getClass().getField("enabled").getBoolean(prestige)
+                        && levels.getClass().getField("enabled").getBoolean(levels);
+                int initial = prestige.getClass().getField("initialLevelCap").getInt(prestige);
+                int max = levels.getClass().getField("maxLevel").getInt(levels);
+                int maxCount = Math.max(1, prestige.getClass().getField("maxPrestigeCount").getInt(prestige));
+                if (ladderOn) {
+                    Class<?> ps = Class.forName("com.dmzrevamp.revamp.prestige.PrestigeSystem");
+                    java.lang.reflect.Method setCount = ps.getMethod(
+                            "setCount", com.dragonminez.common.stats.StatsData.class, int.class);
+                    com.dragonminez.common.stats.StatsData sd = new com.dragonminez.common.stats.StatsData(null);
+                    for (int count = 0; count <= maxCount + 1; count++) {
+                        setCount.invoke(null, sd, count);
+                        int got = com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge.levelCap(sd);
+                        int expected = overhaulLadder(initial, max, maxCount, count);
+                        if (got != expected) {
+                            broken.add("Overhaul cap at " + count + " held should be " + expected + ", got " + got);
+                        }
+                        if (initial == 50_000 && max == 150_000 && maxCount == 10 && count < want.length
+                                && got != want[count]) {
+                            broken.add("Overhaul cap at " + count + " held should be " + want[count] + ", got " + got);
+                        }
+                    }
+                }
+            } catch (Throwable t) {
+                broken.add("Overhaul cap ladder check failed: " + t);
+            }
+        }
+        int maxHeld = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.maxHeld();
+        int revampMax = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.configuredMaxPrestigeCount();
+        if (maxHeld != revampMax) {
+            broken.add("most prestiges held should be revamp's maxPrestigeCount " + revampMax + ", got " + maxHeld);
+        }
+        if (!revamp && maxHeld != com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE) {
+            broken.add("without dmzrevamp the most prestiges held should fall back to 10, got " + maxHeld);
+        }
+        if (com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.clampHeld(15, 10) != 10
+                || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.clampHeld(15, 20) != 15
+                || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.clampHeld(-2, 10) != 0) {
+            broken.add("held clamp should follow the given maximum (15 held: 10 under max 10, 15 under max 20)");
         }
         for (String gone : new String[] {"followingRequirement", "requiredLevelForHeld", "earlyCompletedNeed",
                 "reconcileNeedFloor"}) {
-            for (java.lang.reflect.Method m : ps.getDeclaredMethods()) {
+            for (java.lang.reflect.Method m
+                    : com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.class.getDeclaredMethods()) {
                 if (m.getName().equals(gone)) {
-                    broken.add("PrestigeSystem." + gone + " should be gone (the need is the cap)");
+                    broken.add("PrestigeSystem." + gone + " should be gone (the need is the Overhaul cap)");
                 }
             }
         }
@@ -1282,6 +1316,21 @@ public final class UltraScreenSelfTest {
         }
     }
 
+    /** Test oracle only: Overhaul's native {@code levelCap} formula. LM's requirement never uses it. */
+    private static int overhaulLadder(int initial, int max, int maxCount, int count) {
+        int c = Math.min(Math.max(0, count), maxCount);
+        if (c >= maxCount) {
+            return max;
+        }
+        double step = (double) initial / (double) maxCount + (double) (max - initial) / (double) maxCount;
+        return (int) Math.min((double) max, Math.floor((double) initial + (double) c * step));
+    }
+
+    /**
+     * Boost start replies: an encoded value that does not decode (2) gets a reply naming the value
+     * and both valid start forms for its own command; valid encoded and multiplier / minutes starts
+     * still pass. Checked without starting a boost (this runs on every boot).
+     */
     private static void checkBoostStartReplies(List<String> broken) {
         String[][] cases = {
                 {"boost", UltraStyle.plain(com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.undecodedReply(2))},

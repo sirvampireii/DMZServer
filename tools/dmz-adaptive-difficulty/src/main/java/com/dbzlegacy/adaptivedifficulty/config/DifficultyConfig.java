@@ -134,7 +134,7 @@ public final class DifficultyConfig {
      * Reference caps used to document the top tier (Zenith).
      * Theoretical max ≈ referenceMaxLevel × referenceMaxPrestige × prestigeMultiplier
      * = 150000 × 10 × 10 with defaults. Server DMZ maxValue is 150k; the playable
-     * level cap is Overhaul's (100k, pinned by LM).
+     * level cap is Overhaul's native ladder (50k at 0 held up to 150k).
      */
     public long referenceMaxLevel = 150_000L;
     public int referenceMaxPrestige = 10;
@@ -308,8 +308,8 @@ public final class DifficultyConfig {
     /**
      * Use dmzrevamp Statistics prestige UI + native scaling/rebirth. LM still owns
      * playable max stat total via mixins ({@code enableOverhaulPrestigeIntegration}).
-     * Overhaul {@code levelCap} is the 100k base cap LM pins, so prestige 0 is not stock 50k;
-     * the prestige requirement reads it back from Overhaul.
+     * Overhaul {@code levelCap} runs natively (50k at 0 held up to 150k, LM pins the ends); the
+     * prestige requirement reads it back from Overhaul.
      * Requires {@code LevelingRevamp.json → Prestige.enabled: true} on the server.
      */
     public boolean enableOverhaulPrestigeIntegration = true;

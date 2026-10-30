@@ -1790,10 +1790,10 @@ def main() -> int:
           'remap = false' in mixin and "StatsData.class, remap = false" in mixin)
     check("StatsDataMixin applies personal cap", "lm$personalMaxValue" in mixin)
     revamp_cap = read(SRC / "com/dbzlegacy/adaptivedifficulty/mixin/DmzRevampPrestigeCapMixin.java")
-    check("Overhaul levelCap is LM's 100k base cap (not stock 50k at P0)",
-          '@Inject(method = "levelCap"' in revamp_cap
-          and "overhaulLevelCap(data)" in revamp_cap
-          and "lm$personalOverhaulLevelCap" in revamp_cap)
+    check("Overhaul levelCap runs natively (no LM override); LM hooks use the native value",
+          '@Inject(method = "levelCap"' not in revamp_cap
+          and "lm$personalOverhaulLevelCap" not in revamp_cap
+          and "overhaulLevelCap(data)" in revamp_cap)
     check("Overhaul maxAssignableTotal uses LM's cap math",
           "maxAssignableTotal" in revamp_cap
           and "LmOverhaulCapMath.maxAssignableTotal" in revamp_cap)
@@ -1850,16 +1850,20 @@ def main() -> int:
     check("Fabled bridge flags removed from config",
           "enableFabledBridge" not in read(CFG) and "enableAttrMultiBonus" not in read(CFG))
     dmz_lvl = read(ROOT / "config" / "dmzrevamp" / "LevelingRevamp.json")
-    check("Overhaul initialLevelCap 100k", '"initialLevelCap": 100000' in dmz_lvl)
+    # The live LevelingRevamp.json is the owner's to set (initialLevelCap 50000); LM pins it on boot.
+    check("Overhaul initialLevelCap pinned to 50k on boot",
+          "OVERHAUL_INITIAL_LEVEL_CAP = 50_000" in read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/LmOverhaulCapMath.java")
+          and '"initialLevelCap"' in dmz_lvl)
     cap_math = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/LmOverhaulCapMath.java")
-    check("Overhaul level cap helper is the 100k base cap; journeyPrestigeNeed gone",
+    check("Overhaul level cap helper reads the native cap (100k only without dmzrevamp); journeyPrestigeNeed gone",
           "OVERHAUL_LEVEL_CAP = PrestigePointsSystem.BASE_LEVEL_CAP" in cap_math
-          and "overhaulLevelCap(StatsData data)" in cap_math
+          and "public static int overhaulLevelCap(StatsData data) {\n        return levelCap(data);" in cap_math
+          and "initial.setInt(prestige, OVERHAUL_INITIAL_LEVEL_CAP);" in cap_math
           and "pinOverhaulLevelCaps" in cap_math
           and "journeyPrestigeNeed" not in cap_math
           and "personalLevelCap" not in cap_math
           and "public static int configuredMaxPrestigeCount()" in cap_math)
-    check("Overhaul boot pins 100k/150k caps",
+    check("Overhaul boot pins 50k/150k caps",
           "pinOverhaulLevelCaps" in
           read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/bridge/DmzRevampConfigBridge.java"))
     mixin_sd = read(SRC / "com/dbzlegacy/adaptivedifficulty/mixin/StatsDataMixin.java")

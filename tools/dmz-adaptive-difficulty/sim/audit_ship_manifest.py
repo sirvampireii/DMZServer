@@ -1404,9 +1404,13 @@ def main() -> int:
           and "PrestigeSystem.levelCap(data)" in pf_bridge
           and "getCompleted" not in _req and "heldCount" not in _req and "effectiveMaxLevel" not in pf_ps)
     _over = pf_cap.split("public static int overhaulLevelCap(StatsData data) {", 1)[-1].split("\n    }\n", 1)[0]
-    check("the cap LM hands Overhaul is the base cap (no breakthroughs)",
-          _over.strip() == "return OVERHAUL_LEVEL_CAP;"
-          and "overhaulLevelCap(data)" in pf_mixin and "journeyPrestigeNeed" not in pf_cap)
+    check("cap is Overhaul's native ladder: no levelCap override, initialLevelCap pinned 50k, 100k without revamp",
+          _over.strip() == "return levelCap(data);"
+          and '@Inject(method = "levelCap"' not in pf_mixin
+          and "overhaulLevelCap(data)" in pf_mixin and "journeyPrestigeNeed" not in pf_cap
+          and "OVERHAUL_INITIAL_LEVEL_CAP = 50_000" in pf_cap
+          and "initial.setInt(prestige, OVERHAUL_INITIAL_LEVEL_CAP);" in pf_cap
+          and "return OVERHAUL_LEVEL_CAP;" in pf_cap.split("public static int overhaulLevelCap() {", 1)[-1].split("\n    }\n", 1)[0])
     check("breakthroughs gone from code paths; stored keys untouched",
           not any(k in pf_pp for k in ("getBreakthroughs", "setBreakthroughs", "breakthroughCost",
                                         "buyBreakthrough", "effectiveMaxLevel"))
@@ -1422,9 +1426,11 @@ def main() -> int:
     check("menus state the rule; next requirement shows the cap",
           "Reaching your current cap earns your next prestige." in pf_ultra
           and 'out.put("next_required", String.valueOf(required))' in pf_gui)
-    check("self-test covers the requirement and the held cap",
+    check("self-test covers the requirement, the ladder values, and the held cap",
           "checkPrestigeFollowsOverhaul(broken);" in pf_test
           and "PrestigeSystem.requiredLevel(null)" in pf_test
+          and "{50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000, 150_000" in pf_test
+          and "DmzRevampPrestigeBridge.levelCap(sd)" in pf_test
           and "configuredMaxPrestigeCount()" in pf_test)
 
     print("\n--- § gui follow-ups 4.6.249 ---")

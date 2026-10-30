@@ -26,8 +26,9 @@ import net.minecraft.server.level.ServerPlayer;
  * <p>
  * The requirement is the player's level cap as dmzrevamp's Overhaul has it
  * ({@link #requiredLevel(ServerPlayer)}): reaching your current cap earns your next prestige.
- * How many you hold, and how many you have completed, do not change it. The most you can hold is
- * Overhaul's {@code maxPrestigeCount} ({@link #maxHeld()}).
+ * Overhaul's native cap rises with the prestige count LM sets from held prestige (50k, 65k, 80k …
+ * 150k with the pinned 50k / 150k / 10). The most you can hold is Overhaul's {@code maxPrestigeCount}
+ * ({@link #maxHeld()}).
  *
  * <p><b>Lifetime completed</b> never drops when held prestige is turned in.
  */
@@ -328,8 +329,8 @@ public final class PrestigeSystem {
 
     /**
      * The next prestige's DMZ level gate: the player's level cap as Overhaul has it
-     * ({@code PrestigeSystem.levelCap} through {@code DmzRevampPrestigeBridge}). Held and completed
-     * counts do not change it, and no stored need floor is read.
+     * ({@code PrestigeSystem.levelCap} through {@code DmzRevampPrestigeBridge}), which rises with held
+     * prestige. LM adds no ladder of its own, and no stored need floor is read.
      */
     public static int requiredLevel(ServerPlayer player) {
         StatsData data = player == null ? null : DmzProgression.stats(player);

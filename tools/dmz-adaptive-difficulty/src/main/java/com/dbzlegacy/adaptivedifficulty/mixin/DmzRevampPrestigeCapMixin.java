@@ -12,21 +12,17 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Overhaul {@code levelCap} returns the base cap LM pins ({@code LmOverhaulCapMath.overhaulLevelCap}):
- * 100k at prestige 0 (not stock 50k), and held prestige does not move it. LM reads the cap back
- * through Overhaul ({@code DmzRevampPrestigeBridge.levelCap}) for the prestige requirement, the
- * soft-locks, and the menus. {@code hexStatReference} follows the same cap. Playable totals stay
+ * Overhaul's {@code levelCap} runs natively (no LM override since 4.7.2): it rises with the prestige
+ * count, from the {@code initialLevelCap} LM pins (50k) to {@code maxLevel} (150k). LM reads it
+ * through {@code DmzRevampPrestigeBridge.levelCap} for the prestige requirement, the soft-locks, and
+ * the menus, and {@code hexStatReference}, {@code maxAssignableTotal} and {@code canPrestige} here
+ * use the same native value ({@code LmOverhaulCapMath.overhaulLevelCap(data)}). Playable totals stay
  * {@link com.dbzlegacy.adaptivedifficulty.mixin.StatsDataMixin} + this
  * {@code maxAssignableTotal} + TP/stat soft-locks. The most prestiges a player can hold is
  * Overhaul's own {@code maxPrestigeCount}.
  */
 @Mixin(targets = "com.dmzrevamp.revamp.prestige.PrestigeSystem", remap = false, priority = 5000)
 public abstract class DmzRevampPrestigeCapMixin {
-
-    @Inject(method = "levelCap", at = @At("HEAD"), cancellable = true, remap = false)
-    private static void lm$personalOverhaulLevelCap(StatsData data, CallbackInfoReturnable<Integer> cir) {
-        cir.setReturnValue(LmOverhaulCapMath.overhaulLevelCap(data));
-    }
 
     @Inject(method = "maxAssignableTotal", at = @At("HEAD"), cancellable = true, remap = false)
     private static void lm$maxAssignableTotal(StatsData data, CallbackInfoReturnable<Integer> cir) {
@@ -61,7 +57,7 @@ public abstract class DmzRevampPrestigeCapMixin {
             cir.setReturnValue(false);
             return;
         }
-        // Native Overhaul gates on stock 50k / pinned 150k. Use the level cap LM gives Overhaul.
+        // Gate on Overhaul's native cap for this player (the prestige requirement).
         if (data == null) {
             return;
         }
