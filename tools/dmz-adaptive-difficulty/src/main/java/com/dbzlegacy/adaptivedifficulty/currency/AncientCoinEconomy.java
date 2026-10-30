@@ -6,6 +6,7 @@ import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.data.PlayerDifficultyData;
 import com.dbzlegacy.adaptivedifficulty.tier.UnlockTier;
 import com.dbzlegacy.adaptivedifficulty.title.TitleEffects;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import io.github.lightman314.lightmanscurrency.api.money.coins.CoinAPI;
 import io.github.lightman314.lightmanscurrency.common.core.ModItems;
 import io.github.lightman314.lightmanscurrency.common.items.AncientCoinItem;
@@ -693,7 +694,7 @@ public final class AncientCoinEconomy {
             data.setAncientCopper(data.getAncientCopper() + unplaced);
             DifficultyCache.save(player);
         }
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] migrated wallet {} → {} copper-value Ancient coins for {} (leftover NBT={})",
                 AdaptiveDifficultyMod.MOD_ID,
                 wallet,

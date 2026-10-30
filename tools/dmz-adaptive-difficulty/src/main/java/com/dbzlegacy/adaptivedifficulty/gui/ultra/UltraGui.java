@@ -4,6 +4,7 @@ import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.gui.AdminInspectSessions;
 import com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import java.util.Locale;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -34,7 +35,7 @@ public final class UltraGui {
 
         // KaiPath must be on the viewer (staff), not the inspect subject.
         if (!preferUltra(player)) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Ultra refused (KaiPath missing) player={} system={} page={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     safeName(player),

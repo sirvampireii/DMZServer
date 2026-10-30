@@ -17,11 +17,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * post-reset character screen. The wipe runs before
  * {@code initializeWithRaceAndClass}. An already-created character returns
  * immediately and keeps its absorption. {@code require = 0} skips a lambda rename.
+ * <p>
+ * DragonMineZ 2.2: the body is {@code lambda$handle$1(packet, player, data)};
+ * {@code lambda$handle$0} is now the unknown-race rejection. HEAD runs before the
+ * {@code isHasCreatedCharacter} check and before {@code initializeWithRaceAndClass}.
  */
 @Mixin(value = CreateCharacterC2S.class, remap = false)
 public abstract class CreateCharacterAbsorptionWipeMixin {
 
-    @Inject(method = "lambda$handle$0", at = @At("HEAD"), remap = false, require = 0)
+    @Inject(
+            method = "lambda$handle$1(Lcom/dragonminez/common/network/C2S/CreateCharacterC2S;Lnet/minecraft/server/level/ServerPlayer;Lcom/dragonminez/common/stats/StatsData;)V",
+            at = @At("HEAD"),
+            remap = false,
+            require = 0
+    )
     private static void lm$wipeBeforeNewCharacter(
             CreateCharacterC2S packet,
             ServerPlayer player,

@@ -4,6 +4,7 @@ import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraScreenIds;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraScreenSelfTest;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.lang.reflect.Field;
@@ -98,7 +99,7 @@ public final class LmGuiNetwork {
         }
         String playerName = earlySender == null ? "<null>" : safeName(earlySender);
         if (msg == null) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] GuiActionPacket ← player={} screenId=<null-packet> actionId=<null-packet>",
                     AdaptiveDifficultyMod.MOD_ID,
                     playerName);
@@ -107,7 +108,7 @@ public final class LmGuiNetwork {
             }
             return;
         }
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] GuiActionPacket ← player={} screenId={} actionId={}",
                 AdaptiveDifficultyMod.MOD_ID,
                 playerName,
@@ -176,7 +177,7 @@ public final class LmGuiNetwork {
             return;
         }
         String featureSummary = UltraClientFeatures.summarizeForStaff(player);
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] guitest → player={} {} — sending GuiOpenPacket with style=confirm + activeTab=home",
                 AdaptiveDifficultyMod.MOD_ID,
                 safeName(player),
@@ -216,7 +217,7 @@ public final class LmGuiNetwork {
             return;
         }
         boolean kaipath = clientHasKaiPath(player);
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] login GUI probe player={} kaipath={} channel={}:{} protocol={} guiBackend={}",
                 AdaptiveDifficultyMod.MOD_ID,
                 safeName(player),
@@ -334,7 +335,7 @@ public final class LmGuiNetwork {
     private static GuiActionPacket decodeActionLogged(net.minecraft.network.FriendlyByteBuf buf) {
         try {
             GuiActionPacket pkt = GuiActionPacket.decode(buf);
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] GuiActionPacket decoded protocol={} screenId={} actionId={} argsJson={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     PROTOCOL_VERSION,
@@ -461,7 +462,7 @@ public final class LmGuiNetwork {
                             + "): "
                             + failures);
         }
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] packet round-trip self-test OK screensTested={} protocol={} "
                         + "(BUILDER_IDS 10-field + style/activeTab + GuiActionPacket + "
                         + "GuiFeaturesPacket + GuiModelSyncPacket)",
@@ -646,7 +647,7 @@ public final class LmGuiNetwork {
             return;
         }
         GuiOpenPacket wire = applyHubShim(packet);
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] GuiOpenPacket → player={} screenId={} (logical={}) buttons={} panel={}x{} "
                         + "activeTab={} {}",
                 AdaptiveDifficultyMod.MOD_ID,
@@ -702,7 +703,7 @@ public final class LmGuiNetwork {
         }
         try {
             GuiModelSyncPacket packet = modelSyncPacket(player, reason);
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] GuiModelSyncPacket → broadcast to trackers of {} reason={} partsJson={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     safeName(player),
@@ -735,7 +736,7 @@ public final class LmGuiNetwork {
         }
         try {
             GuiModelSyncPacket packet = modelSyncPacket(subject, reason);
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] GuiModelSyncPacket → subject={} viewer={} reason={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     safeName(subject),

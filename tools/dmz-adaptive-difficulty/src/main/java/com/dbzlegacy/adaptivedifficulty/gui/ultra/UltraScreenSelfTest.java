@@ -8,6 +8,7 @@ import com.dbzlegacy.adaptivedifficulty.progression.form.FirstSuperformChoice;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.MasteryWallet;
 import com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings;
 import com.dbzlegacy.adaptivedifficulty.sparring.SparStore;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -359,7 +360,7 @@ public final class UltraScreenSelfTest {
             }
         }
         if (issues.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Ultra tab: self-check OK (logical screen + hub wire shim, no CNPC)",
                     AdaptiveDifficultyMod.MOD_ID);
         } else {
@@ -454,7 +455,7 @@ public final class UltraScreenSelfTest {
             broken.add("player android tab must not be treated as the staff picker");
         }
         if (broken.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Ultra staff gate self-check OK", AdaptiveDifficultyMod.MOD_ID);
         } else {
             AdaptiveDifficultyMod.LOGGER.error(
@@ -764,7 +765,7 @@ public final class UltraScreenSelfTest {
             }
         }
         if (broken.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Ultra menu link audit OK ({} open: targets + hub/character layout checks)",
                     AdaptiveDifficultyMod.MOD_ID,
                     expected.size());
@@ -807,7 +808,7 @@ public final class UltraScreenSelfTest {
                 }
             }
             if (issues.isEmpty()) {
-                AdaptiveDifficultyMod.LOGGER.info(
+                LmLog.event(
                         "[{}] Ultra hub shim self-check OK (KaiPath dynamic-any - no tunneling)",
                         AdaptiveDifficultyMod.MOD_ID);
             } else {
@@ -851,7 +852,7 @@ public final class UltraScreenSelfTest {
             issues.add("hub: unexpected wire id");
         }
         if (issues.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Ultra hub shim self-check OK (tunneling {})",
                     AdaptiveDifficultyMod.MOD_ID,
                     tunneled);
@@ -948,7 +949,7 @@ public final class UltraScreenSelfTest {
         checkBoostStartReplies(broken);
 
         if (broken.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Ultra body cap self-check OK", AdaptiveDifficultyMod.MOD_ID);
         } else {
             AdaptiveDifficultyMod.LOGGER.error(
@@ -1435,13 +1436,13 @@ public final class UltraScreenSelfTest {
         if (tested == 0) {
             // Config modules are not registered in this environment; the source-contract audit
             // covers the strings. Do not fail the startup self-test over a missing registry.
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Config field hint self-test skipped (no config modules registered)",
                     AdaptiveDifficultyMod.MOD_ID);
             return;
         }
         if (broken.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Config field hint self-test OK ({} fields)",
                     AdaptiveDifficultyMod.MOD_ID,
                     tested);
@@ -1534,13 +1535,13 @@ public final class UltraScreenSelfTest {
             ConfigEditor.discardAll(uuid);
         }
         if (tested == 0) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Config number-range self-test skipped (no config modules registered)",
                     AdaptiveDifficultyMod.MOD_ID);
             return;
         }
         if (broken.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Config number-range self-test OK ({} fields)",
                     AdaptiveDifficultyMod.MOD_ID,
                     tested);
@@ -1585,13 +1586,13 @@ public final class UltraScreenSelfTest {
         }
         if (checked == 0) {
             // No config modules are registered in this environment; do not fail startup over it.
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Config field budget self-test skipped (no config modules registered)",
                     AdaptiveDifficultyMod.MOD_ID);
             return;
         }
         if (broken.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Config field budget self-test OK ({} fields, budget {}px)",
                     AdaptiveDifficultyMod.MOD_ID,
                     checked,
@@ -1696,7 +1697,7 @@ public final class UltraScreenSelfTest {
             }
         }
         if (broken.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Config editor paging row self-test OK (4 shapes, no overlap)",
                     AdaptiveDifficultyMod.MOD_ID);
             return;
@@ -1917,7 +1918,7 @@ public final class UltraScreenSelfTest {
             broken.add("unrelated dojo pair matched a challenge");
         }
         if (broken.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Dojo war challenge expiry self-test OK (3 records)", AdaptiveDifficultyMod.MOD_ID);
             return;
         }
@@ -1987,7 +1988,7 @@ public final class UltraScreenSelfTest {
                     + "included), got " + (chosen == null ? "no form" : chosen.label()));
         }
         if (broken.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] First superform choice self-test OK (level-0 forms skipped)",
                     AdaptiveDifficultyMod.MOD_ID);
             return;
@@ -2043,7 +2044,7 @@ public final class UltraScreenSelfTest {
             broken.add("page arg does not round-trip");
         }
         if (broken.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Picker paging self-test OK ({} cases: page sizes 4/6/8/10, lists 0-30)",
                     AdaptiveDifficultyMod.MOD_ID,
                     cases);
@@ -2132,7 +2133,7 @@ public final class UltraScreenSelfTest {
             broken.add("prestige-up itself changed (level ladder must still reset)");
         }
         if (broken.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Title persistence self-test OK (titles, equipped, mastery, milestones, counters, unlocked tiers survive save/load)",
                     AdaptiveDifficultyMod.MOD_ID);
             return;

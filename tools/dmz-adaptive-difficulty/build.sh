@@ -138,6 +138,10 @@ else
   printf '%s\n' "${SOURCES[@]}" > "$SOURCES_LIST"
 fi
 javac --release 17 -encoding UTF-8 -proc:none -cp "$CP" -d "$OUT" "@$SOURCES_LIST"
+# Every mixin target, overload, callback type, handler signature, and @At must match the
+# DragonMineZ jar on CP (javac never reads mixin target strings). The two optional-mod mixins
+# are plugin-gated on their mod being present, so their target class may be absent here.
+python3 "$ROOT/scripts/audit_mixin_targets.py" --src "$SRC" --cp "$CP"   --optional-mixins VipersCallUnendingVenomMixin,KaiPathLmConsumerBootstrapMixin   "$RES/legacymechanics.mixins.json"
 
 # Break ldc #0xC2 / operand-C2 + goto(A7) false positives in ultra callers so a
 # raw C2 A7 (§) scan only hits UltraStyle (which owns the mark in its CP).

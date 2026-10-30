@@ -2,6 +2,7 @@ package com.dbzlegacy.adaptivedifficulty.data;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.config.ConfigPaths;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.io.Writer;
@@ -19,6 +20,12 @@ import net.minecraft.world.level.storage.LevelResource;
  * saved player file) into {@link LmPlayerStore} files. Runs on server start, before anyone can
  * join, and only while the completion marker is absent. The old keys stay in the player files
  * as a rollback fallback; there is no per-player migration on login.
+ * <p>
+ * The marker is written only when no player file was skipped (unreadable, or its LM file could
+ * not be written). Otherwise the pass runs again next boot, so a file that was briefly unreadable
+ * is not left behind with empty LM records. A re-run is safe: {@code writeIfAbsent} never
+ * overwrites an LM file, so players already moved keep theirs. A {@code .dat} that is not named
+ * by a UUID is not a player file; it is counted apart and does not hold the marker back.
  */
 public final class LmPlayerDataMigration {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -60,12 +67,21 @@ public final class LmPlayerDataMigration {
                 return;
             }
         }
+        if (result.skipped > 0) {
+            AdaptiveDifficultyMod.LOGGER.warn(
+                    "[{}] player data migration: {} player file(s) skipped (unreadable or not written); "
+                            + "no marker written, the pass runs again next boot ({} scanned, {} migrated, "
+                            + "{} with no LM data, {} already had an LM file, {} not player files)",
+                    AdaptiveDifficultyMod.MOD_ID, result.skipped, result.scanned, result.migrated,
+                    result.noData, result.existing, result.notPlayer);
+            return;
+        }
         writeMarker(marker, dir, result);
         AdaptiveDifficultyMod.LOGGER.info(
                 "[{}] player data migration done: {} player file(s) scanned, {} migrated, {} with no LM data, "
-                        + "{} already had an LM file, {} skipped (unreadable or not a player file)",
+                        + "{} already had an LM file, {} not player files",
                 AdaptiveDifficultyMod.MOD_ID, result.scanned, result.migrated, result.noData,
-                result.existing, result.skipped);
+                result.existing, result.notPlayer);
     }
 
     private static void migrateFile(Path file, Result result) {
@@ -74,7 +90,7 @@ public final class LmPlayerDataMigration {
         try {
             id = UUID.fromString(name.substring(0, name.length() - ".dat".length()));
         } catch (Throwable notUuid) {
-            result.skipped++;
+            result.notPlayer++;
             AdaptiveDifficultyMod.LOGGER.warn(
                     "[{}] player data migration: {} is not a player file; skipped",
                     AdaptiveDifficultyMod.MOD_ID, name);
@@ -106,12 +122,13 @@ public final class LmPlayerDataMigration {
         }
         if (LmPlayerStore.writeIfAbsent(id, records)) {
             result.migrated++;
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] player data migration: {} -> {} record(s) {}",
                     AdaptiveDifficultyMod.MOD_ID, id, records.m_128440_(), records.m_128431_());
         } else if (Files.exists(LmPlayerStore.path(id))) {
+            // Expected on a re-run after a skipped file: this player was moved last time.
             result.existing++;
-            AdaptiveDifficultyMod.LOGGER.warn(
+            LmLog.event(
                     "[{}] player data migration: {} already has an LM file; left as is",
                     AdaptiveDifficultyMod.MOD_ID, id);
         } else {
@@ -135,6 +152,7 @@ public final class LmPlayerDataMigration {
             m.noData = result.noData;
             m.existing = result.existing;
             m.skipped = result.skipped;
+            m.notPlayer = result.notPlayer;
             try (Writer writer = Files.newBufferedWriter(marker)) {
                 GSON.toJson(m, writer);
             }
@@ -152,6 +170,7 @@ public final class LmPlayerDataMigration {
         int noData;
         int existing;
         int skipped;
+        int notPlayer;
     }
 
     private static final class Marker {
@@ -164,5 +183,6 @@ public final class LmPlayerDataMigration {
         int noData;
         int existing;
         int skipped;
+        int notPlayer;
     }
 }

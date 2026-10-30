@@ -1305,6 +1305,66 @@ def main() -> int:
           and '"start 2000030 123"' in sd_cmd and 'expect(broken, dispatcher, src, tree, "start 2", ' in sd_cmd
           and "ProgressionCommands.selfTestBoostDispatch()" in sd_test)
 
+    print("\n--- § dmz 2.2 port ---")
+    p22_mig = read(SRC / "data/LmPlayerDataMigration.java")
+    p22_strip = read(SRC / "data/LmPlayerDatStrip.java")
+    p22_cfg = read(SRC / "config/DifficultyConfig.java")
+    p22_log = read(SRC / "util/LmLog.java")
+    p22_wish = read(SRC / "character/DmzRecustomizeEditor.java")
+    p22_services = read(SRC / "character/CharacterServicesSystem.java")
+    p22_pick = read(SRC / "character/RaceChangeClassPickFlow.java")
+    p22_racial = read(SRC / "character/RacialBonusWipeHelper.java")
+    p22_energy = read(SRC / "mixin/ResourcesEnergyDrainGuardMixin.java")
+    p22_tp = read(SRC / "mixin/ResourcesDeathTpPenaltyMixin.java")
+    p22_nemesis = read(SRC / "mixin/dmzultra/DmzultraNemesisSpawnGateMixin.java")
+    p22_end = read(SRC / "progression/end/EndDimensionStrength.java")
+    p22_create = read(SRC / "mixin/CreateCharacterC2SMixin.java")
+    p22_build = read(MOD / "build.sh")
+    p22_toml = read(MOD / "src/main/resources/META-INF/mods.toml")
+    check("manifest dmz22-port row", "dmz22-port" in manifest)
+    _run = p22_mig.split("public static void runIfNeeded(", 1)[-1].split("\n    }\n", 1)[0]
+    check("migration marker only when nothing was skipped; non-player .dat counted apart",
+          "if (result.skipped > 0) {" in _run
+          and _run.index("if (result.skipped > 0) {") < _run.index("writeMarker(marker, dir, result);")
+          and "result.notPlayer++;" in p22_mig and "m.notPlayer = result.notPlayer;" in p22_mig)
+    _srun = p22_strip.split("public static void runIfNeeded(", 1)[-1].split("\n    }\n", 1)[0]
+    check(".dat strip marker waits for the migration marker",
+          "if (!Files.exists(LmPlayerDataMigration.markerPath())) {" in _srun
+          and _srun.index("LmPlayerDataMigration.markerPath()") < _srun.index("writeMarker(marker, dir, result);"))
+
+    def _marker(skipped):
+        return skipped == 0
+
+    check("sim: a skipped player file keeps the marker off; a clean pass writes it",
+          _marker(0) and not _marker(1) and not _marker(3))
+    check("debugLogging flag off by default; LmLog logs DEBUG unless it is on; no System.out in LM",
+          "public boolean debugLogging = false;" in p22_cfg
+          and "AdaptiveDifficultyMod.LOGGER.debug(message, args);" in p22_log
+          and "cfg != null && cfg.debugLogging" in p22_log
+          and not any("System.out.print" in p.read_text(encoding="utf-8") for p in SRC.rglob("*.java")))
+    check("reskin and class pick open the editor through ReCustomizeWish.grant",
+          "WISH.grant(player);" in p22_wish
+          and "OpenRecustomizeS2C" not in p22_services and "OpenRecustomizeS2C" not in p22_pick
+          and "DmzRecustomizeEditor.open(player);" in p22_services
+          and "DmzRecustomizeEditor.open(player);" in p22_pick)
+    check("leaving a race clears that race's RacialData",
+          "clearRacialData(data, from, to);" in p22_racial
+          and "racial.setZenkaiPermanentUses(0);" in p22_racial
+          and "racial.getAssimilations().clear();" in p22_racial
+          and "racial.getAbsorptions().clear();" in p22_racial)
+    check("full-overload pins: removeEnergy(FZ)V, addTrainingPoints(DZZ)V, champion(ServerPlayer, int)",
+          'method = "removeEnergy(FZ)V"' in p22_energy and "float amount, boolean drainsSurge, CallbackInfo ci" in p22_energy
+          and 'method = "addTrainingPoints(DZZ)V"' in p22_tp and "double lm$leaveTrainingPoints(double amount)" in p22_tp
+          and 'method = "champion(Lnet/minecraft/server/level/ServerPlayer;I)Lnet/minecraft/network/chat/Component;"' in p22_nemesis
+          and 'method = "lambda$handle$1(Lcom/dragonminez/common/network/C2S/CreateCharacterC2S;' in p22_create)
+    check("ki beam passes the 2.2 size argument; End TP fallback uses exact accessors",
+          "DRAGON_DMZ_KI_COLOR_OUTLINE,\n                            DRAGON_DMZ_KI_BEAM_SIZE);" in p22_end
+          and "private static final float DRAGON_DMZ_KI_BEAM_SIZE = 1.0f;" in p22_end
+          and "resources.setTrainingPointsExact(Math.max(0.0d, cur + delta));" in p22_end)
+    check("build checks mixin targets against the DMZ jar; mods.toml asks for DMZ 2.2",
+          'python3 "$ROOT/scripts/audit_mixin_targets.py" --src "$SRC" --cp "$CP"' in p22_build
+          and 'versionRange = "[2.2,)"' in p22_toml)
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")
@@ -1627,7 +1687,8 @@ def main() -> int:
           and "applyToGain" not in death_mixin
           and "applyToAmount" not in death_tp
           and "halveGranted" not in events
-          and "addTrainingPoints(FZ)V" in resources_mixin
+          # DMZ 2.2: every TP add ends in addTrainingPoints(double, boolean, boolean).
+          and "addTrainingPoints(DZZ)V" in resources_mixin
           and "return amount" in resources_mixin)
     check("death penalty timer is copied onto the respawned player",
           "DeathTpPenalty.KEY" in read(SRC / "event/DifficultyEvents.java")
@@ -1892,7 +1953,7 @@ def main() -> int:
           and '"do:nemesis_spawn_toggle"' not in ultra_rival)
     check("nemesis OFF keeps manual menu spawn",
           '"appear".equalsIgnoreCase(trigger)' in nemesis_mix
-          and 'method = "champion"' in nemesis_mix
+          and 'method = "champion(Lnet/minecraft/server/level/ServerPlayer;I)' in nemesis_mix
           and "lm$FLOW_APPEAR" in nemesis_mix)
     check("nemesis mode descriptions match behavior",
           "you can still summon yours from the nemesis menu" in nemesis_mode

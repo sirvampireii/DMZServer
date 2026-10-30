@@ -11,6 +11,7 @@ import com.dbzlegacy.adaptivedifficulty.gui.SparGuiApi;
 import com.dbzlegacy.adaptivedifficulty.progression.race.AndroidConversion;
 import com.dbzlegacy.adaptivedifficulty.quest.SagaResetService;
 import com.dbzlegacy.adaptivedifficulty.service.DifficultyActions;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -275,7 +276,7 @@ public final class UltraGuiActions {
 
         // Diagnostic button from /lm admin guitest
         if ("do:guitest_ack".equals(action) || "guitest_ack".equals(action)) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] guitest_ack received viewer={} rawActionId={} screen={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     safeName(viewer),
@@ -672,7 +673,7 @@ public final class UltraGuiActions {
             if (id.isBlank()) {
                 return UltraStyle.dangerLine("Choose a saga first.");
             }
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Ultra saga_reset viewer={} subject={} sagaId={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     safeName(viewer),

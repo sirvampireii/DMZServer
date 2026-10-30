@@ -196,7 +196,7 @@ public final class ConfigRegistry {
                     "selfRevivePermission", "terminalPermission", "reviveOthersPermission",
                     "skillCheckNpcNameContains", "enablePlayerStatChecker", "enableLmTips",
                     "lmTipIntervalSeconds", "lmTipNewPlayerIntervalSeconds", "lmTipLoginDelaySeconds",
-                    "lmTipFrequentGroups", "lmTipNewPlayerMaxLevel" -> true;
+                    "lmTipFrequentGroups", "lmTipNewPlayerMaxLevel", "debugLogging" -> true;
             default -> false;
         };
     }

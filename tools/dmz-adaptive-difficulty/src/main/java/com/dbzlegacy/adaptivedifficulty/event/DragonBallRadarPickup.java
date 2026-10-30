@@ -7,7 +7,6 @@ import com.dragonminez.common.init.item.DragonRadarItem;
 import com.dragonminez.server.events.DragonBallsHandler;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Proxy;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
@@ -218,8 +217,11 @@ public final class DragonBallRadarPickup {
         }
         markTaken(level, pos);
         level.m_46597_(pos, Blocks.f_50016_.m_49966_());
+        // DMZ 2.2: DragonBallBlock.onRemove already unregisters the ball when it is set to air.
+        // Repeat it here so a skipped onRemove cannot leave a tracked ball that maintainLevel
+        // would call stale and respawn elsewhere (a duplicate). A second call is a no-op.
         try {
-            DragonBallsHandler.unregisterConsumedDragonBalls(level, List.of(pos), ball.getBallSetId());
+            DragonBallsHandler.onDragonBallRemoved(level, ball, pos.m_7949_());
         } catch (Throwable ignored) {
         }
         if (!player.m_150109_().m_36054_(stack)) {

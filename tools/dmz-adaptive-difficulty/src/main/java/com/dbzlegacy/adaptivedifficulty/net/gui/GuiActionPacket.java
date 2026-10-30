@@ -4,6 +4,7 @@ import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGuiActions;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import java.util.function.Supplier;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -87,7 +88,7 @@ public final class GuiActionPacket {
             return;
         }
         try {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] GuiActionPacket main-thread (enqueueWork) player={} screenId={} rawActionId={} argsJson={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     player.m_7755_().getString(),

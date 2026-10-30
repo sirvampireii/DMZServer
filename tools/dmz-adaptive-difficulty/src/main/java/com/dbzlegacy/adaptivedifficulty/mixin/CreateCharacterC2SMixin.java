@@ -42,10 +42,17 @@ public abstract class CreateCharacterC2SMixin {
 
     /**
      * After DMZ applies {@code CreateCharacterC2S} (enqueueWork), not at {@code handle} return.
-     * Dragon Mine Z 2.1.3 has no named apply method — the body is only {@code lambda$handle$0}.
-     * {@code require = 0} so a lambda renumber skips this hook instead of refusing to boot.
+     * DragonMineZ has no named apply method; the body is a lambda. In 2.2 it is
+     * {@code lambda$handle$1(packet, player, data)}: {@code lambda$handle$0} is now the
+     * unknown-race rejection, which only re-syncs stats. Pinned by descriptor; the build's mixin
+     * target audit fails if a renumber moves it. {@code require = 0} keeps a boot from refusing.
      */
-    @Inject(method = "lambda$handle$0", at = @At("RETURN"), remap = false, require = 0)
+    @Inject(
+            method = "lambda$handle$1(Lcom/dragonminez/common/network/C2S/CreateCharacterC2S;Lnet/minecraft/server/level/ServerPlayer;Lcom/dragonminez/common/stats/StatsData;)V",
+            at = @At("RETURN"),
+            remap = false,
+            require = 0
+    )
     private static void lm$afterRaceChangeCreationApplied(
             CreateCharacterC2S packet,
             ServerPlayer player,

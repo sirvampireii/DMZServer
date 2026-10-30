@@ -8,6 +8,7 @@ import com.dbzlegacy.adaptivedifficulty.rival.RivalChallengeManager;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.LmChat;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import com.dragonminez.common.combat.logic.weapon.WeaponRegistry;
 import com.dragonminez.common.stats.StatsData;
@@ -1470,7 +1471,7 @@ public final class SparringSystem {
         boolean expired = invite != null && now > invite.expiresAt;
         boolean match =
                 fromArg == null || fromArg.isBlank() || matchesInviteFrom(invite, fromArg);
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] mentorAccept player={} fromArg={} inviteFound={} expired={} match={} "
                         + "inviteFromUuid={} inviteFromName={} inviteKind={} expiresInMs={}",
                 AdaptiveDifficultyMod.MOD_ID,
@@ -1501,7 +1502,7 @@ public final class SparringSystem {
         MinecraftServer server = player.m_20194_();
         ServerPlayer other = resolveInviter(server, invite);
         if (other == null) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] mentorAccept inviter offline player={} fromUuid={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     player.m_7755_().getString(),

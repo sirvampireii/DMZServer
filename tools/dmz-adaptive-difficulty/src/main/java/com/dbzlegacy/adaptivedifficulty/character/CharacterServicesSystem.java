@@ -12,8 +12,8 @@ import com.dbzlegacy.adaptivedifficulty.progression.ProgressionConfig;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.progression.classdef.FightingClassCatalog;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.dragonminez.common.network.NetworkHandler;
-import com.dragonminez.common.network.S2C.OpenRecustomizeS2C;
 import com.dragonminez.common.network.S2C.StatsSyncS2C;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.character.Character;
@@ -549,7 +549,7 @@ public final class CharacterServicesSystem {
                             && !mappedClass.isBlank()
                             && !priorClassBeforeRaceChange.isBlank()
                             && !mappedClass.equalsIgnoreCase(priorClassBeforeRaceChange)) {
-                        AdaptiveDifficultyMod.LOGGER.info(
+                        LmLog.event(
                                 "[{}] race change remapped fighting class {} -> {} for race {}",
                                 AdaptiveDifficultyMod.MOD_ID,
                                 priorClassBeforeRaceChange,
@@ -800,7 +800,7 @@ public final class CharacterServicesSystem {
             String uuid = player.m_20148_().toString();
             Runnable openEditor = () -> {
                 try {
-                    NetworkHandler.sendToPlayer(new OpenRecustomizeS2C(), player);
+                    DmzRecustomizeEditor.open(player);
                     if (!staffGrant) {
                         CharacterServicesStore.get().record(uuid).lastReskinAt = System.currentTimeMillis();
                     }
@@ -995,7 +995,7 @@ public final class CharacterServicesSystem {
             long cost,
             boolean success
     ) {
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[CharacterServices] player={} action={} from={} to={} preservation={} cost={} success={}",
                 player == null ? "?" : player.m_7755_().getString(),
                 action,

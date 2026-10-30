@@ -33,7 +33,7 @@ public final class AdaptiveDifficultyMod {
     /** Forge modId — lowercase; not used for NBT / GUI class lookup. */
     public static final String MOD_ID = "legacymechanics";
     /** Product line version (was DMZ Adaptive Difficulty 3.3.x). */
-    public static final String VERSION = "4.6.261";
+    public static final String VERSION = "4.6.262";
 
     private static boolean dedicatedServer() {
         try {
@@ -86,7 +86,7 @@ public final class AdaptiveDifficultyMod {
         ProgressionCommands.register();
         TerminalCommands.register();
         LOGGER.info(
-                "[{}] v{} server-only: Lightman's={}, FTB Teams={}, guiBackend={}, CNPC={}, Progression={}",
+                "[{}] v{} for DragonMineZ 2.2, server-only: Lightman's={}, FTB Teams={}, guiBackend={}, CNPC={}, Progression={}",
                 MOD_ID,
                 VERSION,
                 AncientCoinEconomy.realCoinsAvailable(),

@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 
 /**
  * Dojo-vs-dojo rankings keyed by mentor UUID (the dojo master).
@@ -1082,7 +1083,7 @@ public final class DojoRankings {
             return UltraStyle.DANGER + "Players only.";
         }
         if (!isDojoMaster(master)) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] dojoAcceptWar rejected: not dojo master player={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     master.m_7755_().getString());
@@ -1091,7 +1092,7 @@ public final class DojoRankings {
         String key = master.m_20148_().toString().toLowerCase(Locale.ROOT);
         SparStore.DojoChallenge c = SparStore.get().dojoChallenges.get(key);
         long now = System.currentTimeMillis();
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] dojoAcceptWar player={} key={} pendingFound={} expiresAt={} now={} active={} from={}",
                 AdaptiveDifficultyMod.MOD_ID,
                 master.m_7755_().getString(),

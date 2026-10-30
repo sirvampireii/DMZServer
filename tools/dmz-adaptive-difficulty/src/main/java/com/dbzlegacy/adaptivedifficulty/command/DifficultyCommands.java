@@ -12,6 +12,7 @@ import com.dbzlegacy.adaptivedifficulty.scaling.AreaDifficulty;
 import com.dbzlegacy.adaptivedifficulty.tick.NearbyMobScaler;
 import com.dbzlegacy.adaptivedifficulty.tick.ScaledMobTracker;
 import com.dbzlegacy.adaptivedifficulty.tier.UnlockSystem;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.dbzlegacy.adaptivedifficulty.world.VanillaDifficultyGuard;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -303,7 +304,7 @@ public final class DifficultyCommands {
         }
         ServerPlayer actor = source.m_230896_();
         String who = actor != null ? actor.m_6302_() : "console";
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] system {} by {}",
                 AdaptiveDifficultyMod.MOD_ID,
                 on ? "ENABLED" : "DISABLED",

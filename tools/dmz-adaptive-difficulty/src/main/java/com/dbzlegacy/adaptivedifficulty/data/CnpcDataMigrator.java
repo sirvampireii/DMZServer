@@ -10,6 +10,7 @@ import com.dbzlegacy.adaptivedifficulty.rival.RivalPlayerRecord;
 import com.dbzlegacy.adaptivedifficulty.rival.RivalProgression;
 import com.dbzlegacy.adaptivedifficulty.rival.RivalStore;
 import com.dbzlegacy.adaptivedifficulty.sparring.SparStore;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -935,7 +936,7 @@ public final class CnpcDataMigrator {
 
             ProgressionData.storedPut(player, PLAYER_MARK, "1");
             SparStore.get().markDirty();
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] CNPC→LM player migration for {}",
                     AdaptiveDifficultyMod.MOD_ID, player.m_6302_());
         } catch (Throwable t) {

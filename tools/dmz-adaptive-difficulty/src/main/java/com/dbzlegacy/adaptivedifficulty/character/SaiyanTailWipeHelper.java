@@ -4,6 +4,7 @@ import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dbzlegacy.adaptivedifficulty.net.gui.GuiModelSyncPacket;
 import com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.character.Character;
 import com.dragonminez.common.stats.character.Status;
@@ -65,7 +66,7 @@ public final class SaiyanTailWipeHelper {
                 status.setTailVisible(false);
             }
             String where = via == null || via.isBlank() ? "" : " via " + via;
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] SaiyanTailWipe cleared stuck tail flag for {} (race {}){}",
                     AdaptiveDifficultyMod.MOD_ID,
                     playerName(player),

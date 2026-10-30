@@ -1,6 +1,7 @@
 package com.dbzlegacy.adaptivedifficulty.character;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
+import com.dragonminez.common.racial.RacialData;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.character.BonusStats;
 import com.dragonminez.common.stats.character.Character;
@@ -49,6 +50,8 @@ public final class RacialBonusWipeHelper {
         // Same call as the bonus-split strip. Strike removal is not gated on
         // removed > 0: a human leaving for Namekian clears no Zenkai splits.
         RacialStrikeWipe.wipe(data, from, to);
+        // DMZ 2.2 also records racial uses in RacialData (it never clears them on a race change).
+        clearRacialData(data, from, to);
 
         int removed = 0;
         if ("saiyan".equals(from) && !"saiyan".equals(to)) {
@@ -145,6 +148,41 @@ public final class RacialBonusWipeHelper {
             return n;
         } catch (Throwable ignored) {
             return 0;
+        }
+    }
+
+    /**
+     * DragonMineZ 2.2 keeps the racial skill record in {@link RacialData}: Zenkai uses, Assimilation
+     * and Absorption slots, and the owned bonus names. Clear the part that belongs to the race being
+     * left, the same way 2.1.3 cleared {@code racialSkillCount}.
+     */
+    private static void clearRacialData(StatsData data, String from, String to) {
+        RacialData racial;
+        try {
+            racial = data.getRacialData();
+        } catch (Throwable t) {
+            return;
+        }
+        if (racial == null) {
+            return;
+        }
+        try {
+            if ("saiyan".equals(from) && !"saiyan".equals(to)) {
+                racial.setZenkaiPermanentUses(0);
+                racial.setZenkaiReleaseBonus(0.0d);
+                racial.setTempZenkaiBuffName("");
+                racial.getOwnedBonusNames().removeIf(name -> name != null && name.startsWith(ZENKAI_PREFIX));
+            }
+            if ("namekian".equals(from) && !"namekian".equals(to)) {
+                racial.getAssimilations().clear();
+                racial.getOwnedBonusNames().removeIf(name -> name != null && name.startsWith(ASSIMILATION_PREFIX));
+            }
+            if ("majin".equals(from) && !"majin".equals(to)) {
+                racial.getAbsorptions().clear();
+                racial.setAbsorptionSlotCounter(0);
+                racial.getOwnedBonusNames().removeIf(name -> name != null && name.startsWith(ABSORPTION_PREFIX));
+            }
+        } catch (Throwable ignored) {
         }
     }
 

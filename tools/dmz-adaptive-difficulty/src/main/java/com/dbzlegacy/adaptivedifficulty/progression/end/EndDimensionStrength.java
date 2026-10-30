@@ -8,6 +8,7 @@ import com.dbzlegacy.adaptivedifficulty.calc.LmOverhaulScaledCombat;
 import com.dbzlegacy.adaptivedifficulty.calc.PlayerCombatProfile;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.dbzlegacy.adaptivedifficulty.util.PaidFeatureAccess;
 import com.dbzlegacy.adaptivedifficulty.data.PlayerDifficultyData;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
@@ -140,6 +141,7 @@ public final class EndDimensionStrength {
     private static final double DRAGON_DMZ_KI_MELEE_FRAC = 0.10;
     private static final double DRAGON_DMZ_KI_DAMAGE_CAP = 8000.0;
     private static final float DRAGON_DMZ_KI_SPEED_BEAM = 1.75f;
+    private static final float DRAGON_DMZ_KI_BEAM_SIZE = 1.0f;
     private static final float DRAGON_DMZ_KI_SPEED_BLAST = 2.35f;
     private static final float DRAGON_DMZ_KI_SIZE_BLAST = 1.35f;
     private static final int DRAGON_DMZ_KI_LIFE_BEAM = 28;
@@ -569,7 +571,7 @@ public final class EndDimensionStrength {
                     int spawned = rollEnderDragonLootTable(end, lootEntity, killer, dmg, origin);
                     markDragonLootRolled(lootEntity);
                     if (spawned > 0) {
-                        AdaptiveDifficultyMod.LOGGER.info(
+                        LmLog.event(
                                 "[{}] End dragon loot table rolled {} stack(s) at death pos"
                                         + " (Iron's / Simply / other entities/ender_dragon mods)",
                                 AdaptiveDifficultyMod.MOD_ID, spawned);
@@ -583,7 +585,7 @@ public final class EndDimensionStrength {
                     int xp = awardVanillaDragonExperience(end, origin);
                     markDragonXpAwarded(lootEntity);
                     if (xp > 0) {
-                        AdaptiveDifficultyMod.LOGGER.info(
+                        LmLog.event(
                                 "[{}] End dragon XP awarded at death pos: {}",
                                 AdaptiveDifficultyMod.MOD_ID, xp);
                     }
@@ -702,7 +704,7 @@ public final class EndDimensionStrength {
             java.util.List<ItemStack> bonus = com.dbzlegacy.adaptivedifficulty.progression.boss.SummonLootBonus
                     .rollCopies(stacks, pct, end.f_46441_);
             if (!bonus.isEmpty()) {
-                AdaptiveDifficultyMod.LOGGER.info("[{}] End dragon summon loot bonus: +{} stack(s) (T{})",
+                LmLog.event("[{}] End dragon summon loot bonus: +{} stack(s) (T{})",
                         AdaptiveDifficultyMod.MOD_ID, bonus.size(), lootTier);
                 stacks.addAll(bonus);
             }
@@ -1295,7 +1297,7 @@ public final class EndDimensionStrength {
             }
         }
         if (removed > 0) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] End dragon hygiene: removed {} (multi-player safe)",
                     AdaptiveDifficultyMod.MOD_ID, removed);
         }
@@ -1358,7 +1360,7 @@ public final class EndDimensionStrength {
         // Flooded End: discard collected entities in one pass (no console kill spam).
         if (n > cap * 2) {
             purgeEndKiCommands(end);
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Ki flood ({} > {}); purged all End ki projectiles",
                     AdaptiveDifficultyMod.MOD_ID, n, cap * 2);
             return;
@@ -1372,7 +1374,7 @@ public final class EndDimensionStrength {
         }
         if (killed < over) {
             purgeEndKiCommands(end);
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Ki cap exceeded ({}); purged all End ki projectiles",
                     AdaptiveDifficultyMod.MOD_ID, n);
         } else if (killed > 0) {
@@ -1650,12 +1652,14 @@ public final class EndDimensionStrength {
                         DRAGON_DMZ_KI_COLOR_MAIN, DRAGON_DMZ_KI_COLOR_BORDER,
                         DRAGON_DMZ_KI_COLOR_OUTLINE, 0);
             } catch (Throwable t1) {
+                // DMZ 2.2 added the beam size as the last argument (2.1.3 always used 1.0).
                 try {
                     beam.setupKiBeamPlayer(dragon, dmg, DRAGON_DMZ_KI_SPEED_BEAM,
-                            DRAGON_DMZ_KI_COLOR_MAIN, DRAGON_DMZ_KI_COLOR_BORDER, DRAGON_DMZ_KI_COLOR_OUTLINE);
+                            DRAGON_DMZ_KI_COLOR_MAIN, DRAGON_DMZ_KI_COLOR_BORDER, DRAGON_DMZ_KI_COLOR_OUTLINE,
+                            DRAGON_DMZ_KI_BEAM_SIZE);
                 } catch (Throwable t2) {
                     beam.setupKiBeamPlayer(dragon, dmg, DRAGON_DMZ_KI_SPEED_BEAM,
-                            DRAGON_DMZ_KI_COLOR_MAIN, DRAGON_DMZ_KI_COLOR_BORDER);
+                            DRAGON_DMZ_KI_COLOR_MAIN, DRAGON_DMZ_KI_COLOR_BORDER, DRAGON_DMZ_KI_BEAM_SIZE);
                 }
             }
             try {
@@ -1964,7 +1968,7 @@ public final class EndDimensionStrength {
             }
             lastPodiumRepairAt = now;
             if (clearedGhosts > 0) {
-                AdaptiveDifficultyMod.LOGGER.info(
+                LmLog.event(
                         "[{}] End exit podium repaired at {} (removed {} ghost podium blocks)",
                         AdaptiveDifficultyMod.MOD_ID, portalLoc, clearedGhosts);
             }
@@ -2693,8 +2697,9 @@ public final class EndDimensionStrength {
             try {
                 resources.removeTrainingPoints((float) Math.floor(-delta));
             } catch (Throwable t) {
-                float cur = resources.getTrainingPoints();
-                resources.setTrainingPoints(Math.max(0.0f, cur + (float) delta));
+                // DMZ 2.2 keeps TP as a double; the float accessors would round a large balance.
+                double cur = resources.getTrainingPointsExact();
+                resources.setTrainingPointsExact(Math.max(0.0d, cur + delta));
             }
             try {
                 com.dragonminez.common.network.NetworkHandler.sendToTrackingEntityAndSelf(

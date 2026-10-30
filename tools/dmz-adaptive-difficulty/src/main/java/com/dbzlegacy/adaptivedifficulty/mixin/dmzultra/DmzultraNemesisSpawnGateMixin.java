@@ -79,7 +79,9 @@ public abstract class DmzultraNemesisSpawnGateMixin {
     }
 
     /** Writ proving summons are player-started — record the origin for {@code spawn}. */
-    @Inject(method = "champion", at = @At("HEAD"), require = 0, remap = false)
+    // Rival has champion(int) and champion(ServerPlayer, int); this handler is for the second.
+    @Inject(method = "champion(Lnet/minecraft/server/level/ServerPlayer;I)Lnet/minecraft/network/chat/Component;",
+            at = @At("HEAD"), require = 0, remap = false)
     private static void lm$markNemesisChampion(
             ServerPlayer player, int faction, CallbackInfoReturnable<Component> cir) {
         try {

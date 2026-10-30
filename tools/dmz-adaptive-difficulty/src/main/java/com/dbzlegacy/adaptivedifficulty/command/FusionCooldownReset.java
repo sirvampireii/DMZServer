@@ -4,6 +4,7 @@ import com.butterjaffa.noeabosses.FusionLifecycleService;
 import com.butterjaffa.noeabosses.V090Data;
 import com.butterjaffa.noeabosses.V090Network;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess;
 import java.util.ArrayList;
 import net.minecraft.nbt.CompoundTag;
@@ -47,7 +48,7 @@ public final class FusionCooldownReset {
             if (PersistentDataAccess.isWritable(persistent)) {
                 copies = clearPersistentCopies(persistent);
             }
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] fusion reset player={} previousEnd={} hadError={} persistentKeys={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     name,

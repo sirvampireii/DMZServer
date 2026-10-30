@@ -2420,7 +2420,9 @@ def main() -> int:
           and "return StaffAccess.isStaff(player);" not in race_access
           and "data.resetPlayerProgress(player, 0, false, false)" in prestige
           and '"dmzstats reset "' not in prestige
-          and 'method = "handleDende"' in dende
+          # DMZ 2.2: handleDende returns boolean -> pinned descriptor + CallbackInfoReturnable.
+          and 'method = "handleDende(Lnet/minecraft/server/level/ServerPlayer;Lcom/dragonminez/common/stats/StatsData;I)Z"' in dende
+          and "CallbackInfoReturnable<Boolean> cir" in dende
           and "actionId != 2" in dende
           and "DmzStatsResetPlayerBlockMixin" in mixins_json
           and "MeleeStatsResetPlayerBlockMixin" in mixins_json
@@ -2444,7 +2446,9 @@ def main() -> int:
           and "DragonRadarItem" in dball
           and "supportsBallSet" in dball
           and "m_150109_().m_36054_(stack)" in dball
-          and "unregisterConsumedDragonBalls" in dball
+          # DMZ 2.2 deleted unregisterConsumedDragonBalls; the per-ball removal is idempotent.
+          and "DragonBallsHandler.onDragonBallRemoved(level, ball, pos.m_7949_())" in dball
+          and "unregisterConsumedDragonBalls" not in dball
           and "DragonBallRadarPickup.onLeftClickBlock" in dball_events
           and "receiveCanceled = true" in dball_events
           and "BreakEvent" in dball
@@ -2494,10 +2498,12 @@ def main() -> int:
           and 'method = "resetSelf"' in absorb_melee
           and "require = 0" in absorb_melee
           and "AbsorptionWipeHelper.wipe(player, \"StatsResetCommands.resetSelf\")" in absorb_melee
-          and 'method = "handleDende"' in absorb_dende
+          and 'method = "handleDende(' in absorb_dende
+          and "CallbackInfoReturnable<Boolean> cir" in absorb_dende
           and "actionId != 2" in absorb_dende
           and "AbsorptionWipeHelper.wipe(player, \"NPCActionC2S.handleDende\")" in absorb_dende
-          and 'method = "lambda$handle$0"' in absorb_create
+          # DMZ 2.2: the CreateCharacterC2S body is lambda$handle$1; $0 is the unknown-race rejection.
+          and 'method = "lambda$handle$1(Lcom/dragonminez/common/network/C2S/CreateCharacterC2S;' in absorb_create
           and "isHasCreatedCharacter" in absorb_create
           and "AbsorptionWipeHelper.wipe(player, \"CreateCharacterC2S\")" in absorb_create
           and "\"CharacterServicesSystem.executeRaceChange\"" in absorb_services

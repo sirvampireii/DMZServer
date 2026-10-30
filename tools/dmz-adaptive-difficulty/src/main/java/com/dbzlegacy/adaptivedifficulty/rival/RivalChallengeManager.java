@@ -7,6 +7,7 @@ import com.dbzlegacy.adaptivedifficulty.rival.ProvingGrounds.Grounds;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.LmChat;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -238,7 +239,7 @@ public final class RivalChallengeManager {
 
     public String acceptChallenge(ServerPlayer player, String counterpartyPicker) {
         ChallengeRequest req = resolveIncomingRequest(player, counterpartyPicker);
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] rivalAcceptChallenge player={} picker={} requestFound={} from={} to={} expiresAt={} reqId={}",
                 AdaptiveDifficultyMod.MOD_ID,
                 player == null ? "?" : player.m_7755_().getString(),
@@ -256,7 +257,7 @@ public final class RivalChallengeManager {
         MinecraftServer server = player.m_20194_();
         ServerPlayer challenger = server == null ? null : server.m_6846_().m_11259_(req.from);
         if (challenger == null) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] rivalAcceptChallenge challenger offline player={} fromUuid={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     player.m_7755_().getString(),

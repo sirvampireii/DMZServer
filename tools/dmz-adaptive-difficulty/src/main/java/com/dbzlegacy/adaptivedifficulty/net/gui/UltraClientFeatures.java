@@ -1,6 +1,7 @@
 package com.dbzlegacy.adaptivedifficulty.net.gui;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -219,7 +220,7 @@ public final class UltraClientFeatures {
         }
         State state = new State(true, normalized, rawJson == null ? "[]" : rawJson);
         BY_PLAYER.put(player.m_20148_(), state);
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] Ultra client features ← player={} advertised=true features={} raw={}",
                 AdaptiveDifficultyMod.MOD_ID,
                 safeName(player),
@@ -477,7 +478,7 @@ public final class UltraClientFeatures {
                     impactLines(shippedGaps));
         }
         if (!pending.isEmpty()) {
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Ultra pending after KaiPath 1.3.29 player={} kaipathVersion={} "
                             + "context={} pending={}",
                     AdaptiveDifficultyMod.MOD_ID,

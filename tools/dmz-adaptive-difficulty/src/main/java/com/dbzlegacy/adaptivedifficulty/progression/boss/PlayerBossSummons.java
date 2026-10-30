@@ -8,6 +8,7 @@ import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.scaling.MobScaling;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.dbzlegacy.adaptivedifficulty.util.PaidFeatureAccess;
 import com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess;
 import com.dbzlegacy.adaptivedifficulty.util.SystemGate;
@@ -290,7 +291,7 @@ public final class PlayerBossSummons {
         }
         int added = SummonLootBonus.applyToDrops(dead, event.getDrops(), boss.minTier);
         if (added > 0) {
-            AdaptiveDifficultyMod.LOGGER.info("[{}] {} summon loot bonus: +{} stack(s) (T{})",
+            LmLog.event("[{}] {} summon loot bonus: +{} stack(s) (T{})",
                     AdaptiveDifficultyMod.MOD_ID, boss.display, added, SummonLootBonus.stampedTier(dead));
         }
     }

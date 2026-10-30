@@ -4,6 +4,7 @@ import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dbzlegacy.adaptivedifficulty.net.gui.GuiModelSyncPacket;
 import com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.character.Character;
@@ -74,7 +75,7 @@ public final class EvilEyeWipeHelper {
             }
             noea.m_128405_(KEY_FORM, 0); // putInt - clear-only, never set a stage
             noea.m_128405_(KEY_POWER, 0);
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] EvilEyeWipe cleared stranded evil eye state for {} (race {})",
                     AdaptiveDifficultyMod.MOD_ID,
                     playerName(player),

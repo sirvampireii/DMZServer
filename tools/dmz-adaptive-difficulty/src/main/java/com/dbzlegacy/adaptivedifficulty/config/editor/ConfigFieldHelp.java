@@ -73,6 +73,7 @@ lmTipNewPlayerIntervalSeconds=Seconds between tips for LuckPerms primary groups 
 lmTipLoginDelaySeconds=Seconds after login before the first tip.
 lmTipFrequentGroups=LuckPerms primary groups that get the frequent tip cadence.
 lmTipNewPlayerMaxLevel=Fallback when LuckPerms is unavailable: DMZ level below this uses frequent cadence.
+debugLogging=Show a console line for each player action, packet, and fight. Off keeps them in logs/debug.log.
 bossHealthThreshold=Natural (pre-scale) max-health at/above this marks a boss.
 maxHealthMultiplier=Optional ceiling on the health multiplier from the health curve.
 maxArmorBonus=Optional armor-point ceiling from defense scaling.

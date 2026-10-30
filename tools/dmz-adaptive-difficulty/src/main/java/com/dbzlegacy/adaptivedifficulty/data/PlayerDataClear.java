@@ -13,6 +13,7 @@ import com.dbzlegacy.adaptivedifficulty.sparring.SparStore;
 import com.dbzlegacy.adaptivedifficulty.tick.NearbyMobScaler;
 import com.dbzlegacy.adaptivedifficulty.tick.ScaledMobTracker;
 import com.dbzlegacy.adaptivedifficulty.title.TitleSystem;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -55,7 +56,7 @@ public final class PlayerDataClear {
         String detail = CharacterServicesStore.get().clearCooldowns(target.resolved.uuid, kind);
         String who = target.resolved.name == null || target.resolved.name.isBlank()
                 ? target.resolved.uuid : target.resolved.name;
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] Staff cleared character cooldowns uuid={} name={} kind={}",
                 AdaptiveDifficultyMod.MOD_ID,
                 target.resolved.uuid,
@@ -118,7 +119,7 @@ public final class PlayerDataClear {
                     sb.append('\n').append(line);
                 }
             }
-            AdaptiveDifficultyMod.LOGGER.info(
+            LmLog.event(
                     "[{}] Staff cleared player data uuid={} name={} scope={}",
                     AdaptiveDifficultyMod.MOD_ID, target.uuid, target.name, sc);
             return sb.toString();

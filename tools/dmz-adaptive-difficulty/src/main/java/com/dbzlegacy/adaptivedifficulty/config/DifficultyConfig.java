@@ -361,6 +361,11 @@ public final class DifficultyConfig {
      * Fallback when LuckPerms is unavailable: DMZ level below this uses frequent cadence.
      */
     public int lmTipNewPlayerMaxLevel = 2500;
+    /**
+     * Console log lines for single events (a player action, packet, fight, or staff command).
+     * Off keeps them in logs/debug.log only; startup lines, warnings, and errors always show.
+     */
+    public boolean debugLogging = false;
 
     public double bossStatMultiplier = 1.5;
     /** Natural (pre-scale) max-health at/above this marks a boss. Default keeps wardens/etc. */

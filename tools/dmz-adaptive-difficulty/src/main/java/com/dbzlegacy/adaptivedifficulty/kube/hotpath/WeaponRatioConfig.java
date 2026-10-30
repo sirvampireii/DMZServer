@@ -408,21 +408,11 @@ public final class WeaponRatioConfig {
     }
 
     static void info(String string) {
-        try {
-            AdaptiveDifficultyMod.LOGGER.info(string);
-        }
-        catch (Throwable throwable) {
-            System.out.println(string);
-        }
+        AdaptiveDifficultyMod.LOGGER.info(string);
     }
 
     static void warn(String string) {
-        try {
-            AdaptiveDifficultyMod.LOGGER.warn(string);
-        }
-        catch (Throwable throwable) {
-            System.out.println(string);
-        }
+        AdaptiveDifficultyMod.LOGGER.warn(string);
     }
 
     static double[] arr(double d, double d2, double d3, double d4, double d5, double d6) {

@@ -1,6 +1,7 @@
 package com.dbzlegacy.adaptivedifficulty.claim;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import dev.architectury.event.CompoundEventResult;
 import dev.ftb.mods.ftbchunks.api.ClaimResult;
 import dev.ftb.mods.ftbchunks.api.ClaimedChunk;
@@ -53,7 +54,7 @@ public final class ClaimOverlapGuard {
         if (!GriefPreventionProbe.overlapsGriefPrevention(pos)) {
             return CompoundEventResult.pass();
         }
-        AdaptiveDifficultyMod.LOGGER.info(
+        LmLog.event(
                 "[{}] Blocked FTB Chunks claim at {} — overlaps GriefPrevention",
                 AdaptiveDifficultyMod.MOD_ID,
                 pos

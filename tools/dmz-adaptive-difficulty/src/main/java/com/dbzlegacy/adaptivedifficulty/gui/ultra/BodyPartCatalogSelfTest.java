@@ -1,6 +1,7 @@
 package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
 import java.util.List;
+import org.apache.logging.log4j.LogManager;
 
 /**
  * Offline check for {@link BodyPartCatalog}. No Minecraft types.
@@ -88,11 +89,10 @@ public final class BodyPartCatalogSelfTest {
         if (!shop.contains("wings_feather") || !shop.contains("tail_fur")) {
             fail("shop pieces should include the client meshes, got " + shop);
         }
-        System.out.println(
-                "BodyPartCatalogSelfTest OK forms="
-                        + BodyPartCatalog.formCount()
-                        + " shopPieces="
-                        + shop.size());
+        LogManager.getLogger(BodyPartCatalogSelfTest.class).info(
+                "BodyPartCatalogSelfTest OK forms={} shopPieces={}",
+                BodyPartCatalog.formCount(),
+                shop.size());
     }
 
     private static void fail(String message) {

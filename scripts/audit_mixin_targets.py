@@ -316,19 +316,27 @@ def check_mixin(path: Path, jp: Javap, optional: bool, errors: list[str], notes:
                     om = re.search(r"ordinal\s*=\s*(\d+)", at)
                     ordinal = int(om.group(1)) if om else None
                     im = None
+                    # javap leaves the owner out when a call or field read targets the method's own class.
+                    own = {ci.name.replace(".", "/") for ci in infos}
+                    needles = []
                     if value == "NEW":
-                        needle = "class " + tgt.strip("L;").replace(".", "/")
+                        needles.append("class " + tgt.strip("L;").replace(".", "/"))
                     elif value == "FIELD":
                         fm = re.match(r"L([^;]+);([\w$]+):(.+)", tgt)
-                        needle = f"Field {fm.group(1)}.{fm.group(2)}:{fm.group(3)}" if fm else tgt
+                        needles.append(f"Field {fm.group(1)}.{fm.group(2)}:{fm.group(3)}" if fm else tgt)
+                        if fm and fm.group(1) in own:
+                            needles.append(f"// Field {fm.group(2)}:{fm.group(3)}")
                     else:
                         im = re.match(r"L([^;]+);([\w$<>]+)(\(.*)", tgt)
                         if not im:
                             im = re.match(r"([\w/$]+)\.([\w$<>]+):?(\(.*)", tgt)
-                        needle = f"{im.group(1)}.{im.group(2)}:{im.group(3)}" if im else tgt
+                        needles.append(f"{im.group(1)}.{im.group(2)}:{im.group(3)}" if im else tgt)
                         if im and im.group(2) == "<init>":
-                            needle = f"{im.group(1)}.\"<init>\":{im.group(3)}"
-                    hits = [c for c in f["code"] if needle in c]
+                            needles = [f"{im.group(1)}.\"<init>\":{im.group(3)}"]
+                        elif im and im.group(1) in own:
+                            needles += [f"// Method {im.group(2)}:{im.group(3)}",
+                                        f"// InterfaceMethod {im.group(2)}:{im.group(3)}"]
+                    hits = [c for c in f["code"] if any(n in c for n in needles)]
                     if not hits:
                         errors.append(f"{where}: @At({value}) {tgt} not in {mname}{f['desc']}")
                     elif ordinal is not None and ordinal >= len(hits):
@@ -348,6 +356,8 @@ def main() -> int:
     ap.add_argument("--src", required=True)
     ap.add_argument("--cp", required=True)
     ap.add_argument("--optional-missing-ok", action="store_true")
+    ap.add_argument("--optional-mixins", default="",
+                    help="comma list of mixins (plugin-gated on an optional mod) whose target class may be absent")
     ap.add_argument("--extra-mixins", default="",
                     help="comma list of mixin classes kept in source but not registered; checked too")
     ap.add_argument("configs", nargs="+")
@@ -368,7 +378,7 @@ def main() -> int:
             if not p.is_file():
                 errors.append(f"{Path(cfg_path).name}: {n} has no source at {p}")
                 continue
-            check_mixin(p, jp, optional, errors, notes)
+            check_mixin(p, jp, optional or n.split(".")[-1] in a.optional_mixins.split(","), errors, notes)
             checked += 1
     for n in notes:
         print("note: " + n)

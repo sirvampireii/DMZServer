@@ -18,8 +18,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(value = Resources.class, remap = false)
 public abstract class ResourcesEnergyDrainGuardMixin {
 
-    @Inject(method = "removeEnergy", at = @At("HEAD"), cancellable = true, remap = false)
-    private void lm$ignoreNonPositiveEnergyDrain(float amount, CallbackInfo ci) {
+    /**
+     * DragonMineZ 2.2: {@code removeEnergy(float)} is a stub that calls
+     * {@code removeEnergy(float, boolean drainsSurge)}. Pinned to the full overload so the guard
+     * runs once per drain; a name-only target would hook both.
+     */
+    @Inject(method = "removeEnergy(FZ)V", at = @At("HEAD"), cancellable = true, remap = false)
+    private void lm$ignoreNonPositiveEnergyDrain(float amount, boolean drainsSurge, CallbackInfo ci) {
         if (amount <= 0f) {
             ci.cancel();
         }

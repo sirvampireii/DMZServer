@@ -1,7 +1,5 @@
 package com.dbzlegacy.adaptivedifficulty.character;
 
-import com.dragonminez.common.network.NetworkHandler;
-import com.dragonminez.common.network.S2C.OpenRecustomizeS2C;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -80,7 +78,7 @@ public final class RaceChangeClassPickFlow {
         var server = player.m_20194_();
         Runnable open = () -> {
             try {
-                NetworkHandler.sendToPlayer(new OpenRecustomizeS2C(), player);
+                DmzRecustomizeEditor.open(player);
             } catch (Throwable ignored) {
             }
         };

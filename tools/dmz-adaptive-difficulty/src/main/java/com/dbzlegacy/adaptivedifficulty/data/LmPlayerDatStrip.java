@@ -3,6 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.data;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.config.ConfigPaths;
 import com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.io.ByteArrayOutputStream;
@@ -155,6 +156,16 @@ public final class LmPlayerDatStrip {
                 return;
             }
         }
+        if (!Files.exists(LmPlayerDataMigration.markerPath())) {
+            // The bulk move skipped a file and runs again next boot. That player has no LM file yet,
+            // so this pass skipped them too; no marker, so it strips them once they are moved.
+            AdaptiveDifficultyMod.LOGGER.warn(
+                    "[{}] player .dat strip: {} scanned, {} stripped ({} keys), {} skipped; the player data "
+                            + "migration is not finished, so the strip runs again next boot",
+                    AdaptiveDifficultyMod.MOD_ID, result.scanned, result.stripped, result.keysRemoved,
+                    result.skipped);
+            return;
+        }
         writeMarker(marker, dir, result);
         AdaptiveDifficultyMod.LOGGER.info(
                 "[{}] player .dat strip done: {} scanned, {} stripped ({} keys), {} skipped, {} with no LM keys; "
@@ -224,7 +235,7 @@ public final class LmPlayerDatStrip {
         }
         result.stripped++;
         result.keysRemoved += keys.size();
-        AdaptiveDifficultyMod.LOGGER.info("[{}] player .dat strip: {} -> {} key(s) removed {}",
+        LmLog.event("[{}] player .dat strip: {} -> {} key(s) removed {}",
                 AdaptiveDifficultyMod.MOD_ID, id, keys.size(), keys);
     }
 
