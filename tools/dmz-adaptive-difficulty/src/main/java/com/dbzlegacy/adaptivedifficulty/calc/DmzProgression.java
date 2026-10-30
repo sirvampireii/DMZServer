@@ -129,7 +129,6 @@ public final class DmzProgression {
      * character counter. Clamp to the configured DMZ/AD max so costs / GUI never
      * show values above the server level ceiling (e.g. 100k players reading as
      * ~987k when maxValue / max-stats mode disagrees).
-     * Respects prestige-point level-cap breakthroughs per player.
      * <p>
      * When DMZ {@code getLevel()} returns placeholder 1 (config race / maxValue not
      * ready) but base stats or battle power clearly show progression, recompute
@@ -227,14 +226,13 @@ public final class DmzProgression {
 
     /**
      * Hard ceiling for AD level reads: min(DMZ gameplay maxValue, AD referenceMaxLevel).
-     * Always ≥ 1. Prefer {@link #configuredMaxDmzLevel(Player)} when a player is known
-     * so prestige breakthroughs apply.
+     * Always ≥ 1.
      */
     public static int configuredMaxDmzLevel(StatsData data) {
         return configuredMaxDmzLevel(data, null);
     }
 
-    /** Player-aware ceiling including prestige level-cap breakthroughs. */
+    /** Ceiling for a player (the same for every player since 4.7.2). */
     public static int configuredMaxDmzLevel(Player player) {
         return configuredMaxDmzLevel(stats(player), player);
     }
@@ -269,17 +267,11 @@ public final class DmzProgression {
         } else {
             ceiling = (int) Math.min(Integer.MAX_VALUE, Math.max(1L, adMax));
         }
-        // Prestige breakthroughs raise personal cap from 100k toward 150k (mixin + AD).
+        // The level cap is Overhaul's. Never clamp below it, and never above ABSOLUTE_LEVEL_CAP
+        // just because live referenceMaxLevel is stale (production JSON was still 100000 after
+        // Overhaul/DMZ moved to 150k).
         try {
-            int personal = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem
-                    .BASE_LEVEL_CAP;
-            if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
-                personal = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem
-                        .effectiveMaxLevel(sp);
-            }
-            // Breakthroughs raise the personal cap toward 150k. Never clamp that
-            // below ABSOLUTE_LEVEL_CAP just because live referenceMaxLevel is stale
-            // (production JSON was still 100000 after Overhaul/DMZ moved to 150k).
+            int personal = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.levelCap(data);
             int absolute = (int) Math.min(Integer.MAX_VALUE, Math.max(
                     Math.max(1L, adMax),
                     com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem

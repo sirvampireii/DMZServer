@@ -9,7 +9,8 @@ import net.minecraftforge.fml.ModList;
 /**
  * Reloads Overhaul leveling config on boot so live {@code LevelingRevamp.json} edits apply
  * without hunting down cached defaults. Also pins {@code initialLevelCap} / {@code maxLevel}
- * so prestige 0 is 100k (not stock 50k) and breakthroughs can raise to 150k.
+ * so prestige 0 is 100k (not stock 50k). {@code maxPrestigeCount} is left as configured: it is
+ * the most prestiges a player can hold.
  */
 public final class DmzRevampConfigBridge {
     private DmzRevampConfigBridge() {}
@@ -21,13 +22,6 @@ public final class DmzRevampConfigBridge {
         try {
             Class<?> cfg = Class.forName("com.dmzrevamp.config.LevelingRevampConfig");
             cfg.getMethod("reload").invoke(null);
-            try {
-                Object revampCfg = cfg.getMethod("get").invoke(null);
-                Object prestige = revampCfg.getClass().getField("Prestige").get(revampCfg);
-                prestige.getClass().getField("maxPrestigeCount")
-                        .setInt(prestige, LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE);
-            } catch (Throwable ignored) {
-            }
             LmOverhaulCapMath.pinOverhaulLevelCaps();
             LmOverhaulPrestigeIntegration.logOverhaulPrestigeState();
         } catch (Throwable t) {

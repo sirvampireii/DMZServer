@@ -282,6 +282,16 @@ The 2.2 port ships as 4.7.0 instead of 4.6.262 (that number never shipped). Only
 
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified).
 
+## Re-baseline (2026-10-30, 4.7.2 prestige follows Overhaul)
+
+Seven classes re-extracted from `mods/LegacyMechanics-4.7.2.jar`; javap member and string diffs
+checked: `AdaptiveDifficultyMod` (version), `PrestigePointsSystem` (breakthrough members, constants,
+and their strings removed), `PrestigePointsSystem$SkillOffer` (constant-pool order only),
+`ProgressionGuiApi` (breakthrough placeholders, lore and admin paths removed; Need copy states the
+cap rule), `PrestigeAdminCommandTree` (`breakthroughs` subcommand removed), `UltraPrestigeScreens`
+(cap-rule copy), `ConfigFieldHelp` (one help line no longer mentions breakthroughs). The other 18 are
+unchanged.
+
 ## Refresh the reference set
 
 ```bash

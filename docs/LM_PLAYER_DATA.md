@@ -24,10 +24,10 @@ NBT value it used to have in `ForgeData`, so types (int, long, string, lists) ar
 | `lm_progression` | Prestige shop wallet and purchases (`pp_*`), God Ki enhancement, meditation, potential, CNPC migrate mark |
 | `prestige_total_completed` | Lifetime prestiges |
 | `prestige_total_staff_override` | Staff-set lifetime prestige lock |
-| `prestige_need_floor` | Prestige need floor |
+| `prestige_need_floor` | Old prestige need floor; not read since 4.7.2 (the need is the Overhaul cap), kept in the file |
 | `lm_prestige_held` | Prestige favor |
 | `lm_prestige_points` | Prestige points (root mirror) |
-| `pp_level_breakthroughs`, `lm_personal_breakthroughs`, `lm_personal_level_cap` | Breakthroughs and personal level cap mirrors |
+| `pp_level_breakthroughs`, `lm_personal_breakthroughs`, `lm_personal_level_cap` | Old breakthrough counts (not read since 4.7.2, kept in the file) and the level cap mirror for the client |
 | `lmNemesisSpawnMode` | Nemesis spawn preference |
 | `lm_mastery_points` | Mastery points wallet balance (4.6.257; written only by `MasteryWallet`, flushed on every change) |
 | `lm_prestige_confirm_until` | Prestige confirm window (short timer, kept with the rest of the prestige records) |

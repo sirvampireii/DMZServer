@@ -23,22 +23,15 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Port of {@code Prestige NPC.js} purchase logic as {@code /prestige} chat GUI.
- * Level gate: the first four completed prestiges need 20k, 40k, 60k, then 80k.
- * How many you hold does not change those four. From the fifth on, 50k with none
- * held and 100k with one or more held.
- * Capped by the personal level cap.
+ * <p>
+ * The requirement is the player's level cap as dmzrevamp's Overhaul has it
+ * ({@link #requiredLevel(ServerPlayer)}): reaching your current cap earns your next prestige.
+ * How many you hold, and how many you have completed, do not change it. The most you can hold is
+ * Overhaul's {@code maxPrestigeCount} ({@link #maxHeld()}).
  *
- * <p><b>Lifetime completed</b> never drops when held prestige is turned in —
- * otherwise Need would snap back to 20k after a completed prestige.
+ * <p><b>Lifetime completed</b> never drops when held prestige is turned in.
  */
 public final class PrestigeSystem {
-    private static final int LEVELS_PER_PRESTIGE = 20_000;
-    private static final int MAX_REQUIRED_LEVEL = 100_000;
-    /** Lifetime completed count where the next prestige starts using the held gate. */
-    public static final int HELD_GATE_MIN_COMPLETED = 4;
-    private static final int HELD0_NEED = 50_000;
-    private static final int HELD1_PLUS_NEED = 100_000;
-    private static final int MAX_HELD = 10;
     private static final long CONFIRM_MS = 10_000L;
     /** Live Prestige NPC.js — held tokens live on CNPC faction 4. */
     private static final int FACTION_HELD_ID = 4;
@@ -49,8 +42,6 @@ public final class PrestigeSystem {
      * {@code /padmin completed set 0} is not bumped by DMZ skill or shop inference.
      */
     private static final String KEY_TOTAL_STAFF_OVERRIDE = "prestige_total_staff_override";
-    /** Highest Need already earned — never let Need fall below this (capped at personal cap). */
-    private static final String KEY_NEED_FLOOR = "prestige_need_floor";
     private static final String KEY_HELD = "lm_prestige_held";
     private static final String KEY_CONFIRM_UNTIL = "lm_prestige_confirm_until";
 
@@ -85,10 +76,10 @@ public final class PrestigeSystem {
         int required = requiredLevel(player);
         int next = completed + 1;
 
-        if (held >= MAX_HELD) {
+        if (held >= maxHeld()) {
             return replyCap(player, held);
         }
-        if (level < required) {
+        if (!meetsRequirement(level, required)) {
             return replyRequirement(player, completed, next, required, level);
         }
 
@@ -132,10 +123,10 @@ public final class PrestigeSystem {
         int completed = getCompleted(player);
         int held = getHeld(player);
         int required = requiredLevel(player);
-        if (held >= MAX_HELD) {
+        if (held >= maxHeld()) {
             return replyCap(player, held);
         }
-        if (level < required) {
+        if (!meetsRequirement(level, required)) {
             return replyRequirement(player, completed, completed + 1, required, level);
         }
         return purchase(player, data, completed, required, level);
@@ -151,10 +142,10 @@ public final class PrestigeSystem {
         }
 
         int held = getHeld(player);
-        if (held >= MAX_HELD) {
+        if (held >= maxHeld()) {
             return replyCap(player, held);
         }
-        if (level < required) {
+        if (!meetsRequirement(level, required)) {
             return replyRequirement(player, completed, completed + 1, required, level);
         }
 
@@ -162,8 +153,6 @@ public final class PrestigeSystem {
         int newCompleted = completed + 1;
         setHeld(player, newHeld);
         setCompleted(player, newCompleted);
-        // Record the gate just met. The first four follow completed count and do not read this floor.
-        raiseNeedFloor(player, required);
         resetPrestigeProgress(player);
 
         // Players cannot run /dmzstats reset. Prestige wipes the same way that command does.
@@ -190,14 +179,14 @@ public final class PrestigeSystem {
 
         int nextRequired = requiredLevel(player);
         String summary = "§aLifetime prestiges §f" + newCompleted + "§a.\n"
-                + "§7Current prestige amount §6" + newHeld + "§7/§f" + MAX_HELD + ".\n"
-                + "§7The next one needs level §e" + DmzRewards.formatWhole(nextRequired) + "§7.";
+                + "§7Current prestige amount §6" + newHeld + "§7/§f" + maxHeld() + ".\n"
+                + "§7Reach your cap of §e" + DmzRewards.formatWhole(nextRequired) + " §7again for the next one.";
         if (!preferGuiFeedback()) {
             send(player, "");
             send(player, LmChat.DIVIDER);
             send(player, "§aLifetime prestiges §f" + newCompleted + "§a.");
-            send(player, "§7Current prestige amount §6" + newHeld + "§7/§f" + MAX_HELD + ".");
-            send(player, "§7The next one needs level §e" + DmzRewards.formatWhole(nextRequired) + "§7.");
+            send(player, "§7Current prestige amount §6" + newHeld + "§7/§f" + maxHeld() + ".");
+            send(player, "§7Reach your cap of §e" + DmzRewards.formatWhole(nextRequired) + " §7again for the next one.");
             send(player, LmChat.DIVIDER);
         }
         SystemTelemetry.log("prestige", "purchase", player, null, Map.of(
@@ -223,9 +212,10 @@ public final class PrestigeSystem {
         send(player, "");
         send(player, "§8── §6Prestige §8──");
         send(player, "§7Lifetime prestiges: §f" + completed);
-        send(player, "§7Current prestige amount §6" + held + "§7/§f" + MAX_HELD
+        send(player, "§7Current prestige amount §6" + held + "§7/§f" + maxHeld()
                 + " §7· level §f" + DmzRewards.formatWhole(level));
-        send(player, "§7Next prestige requires: §e" + DmzRewards.formatWhole(required) + " §7power");
+        send(player, "§7Your cap: §e" + DmzRewards.formatWhole(required)
+                + " §7power. Reaching your current cap earns your next prestige.");
         MutableComponent row = Component.m_237113_("§7")
                 .m_7220_(btn("§a[Prestige]", "/prestige do confirm", "Confirm prestige purchase"))
                 .m_7220_(Component.m_237113_("  "))
@@ -244,7 +234,7 @@ public final class PrestigeSystem {
                 .append("§7Current prestige amount will be §6")
                 .append(held + 1)
                 .append("§7/§f")
-                .append(MAX_HELD)
+                .append(maxHeld())
                 .append(".");
         if (goD) {
             summary.append('\n').append(UltraStyle.DANGER).append(PrestigeUniverseRoleWarn.GOD_OF_DESTRUCTION);
@@ -259,7 +249,7 @@ public final class PrestigeSystem {
             send(player, "§7This resets your stats and adds one to your current prestige amount.");
             send(player, "§7Your level §f" + DmzRewards.formatWhole(level)
                     + " §7is enough (needs §e" + DmzRewards.formatWhole(required) + "§7).");
-            send(player, "§7Current prestige amount will be §6" + (held + 1) + "§7/§f" + MAX_HELD + ".");
+            send(player, "§7Current prestige amount will be §6" + (held + 1) + "§7/§f" + maxHeld() + ".");
             if (goD) {
                 send(player, UltraStyle.DANGER + PrestigeUniverseRoleWarn.GOD_OF_DESTRUCTION);
             }
@@ -280,14 +270,14 @@ public final class PrestigeSystem {
     private static String replyCap(ServerPlayer player, int held) {
         String summary = UltraStyle.DANGER + "You're holding as many as you can.\n"
                 + UltraStyle.LABEL + "That's " + UltraStyle.GOLD + held + UltraStyle.LABEL + "/"
-                + UltraStyle.VALUE + MAX_HELD + ".\n"
+                + UltraStyle.VALUE + maxHeld() + ".\n"
                 + UltraStyle.LABEL + "Spend one, then you can prestige again.";
         if (!preferGuiFeedback()) {
             send(player, "");
             send(player, LmChat.DIVIDER);
             send(player, UltraStyle.DANGER + "You're holding as many as you can.");
             send(player, UltraStyle.LABEL + "That's " + UltraStyle.GOLD + held + UltraStyle.LABEL + "/"
-                    + UltraStyle.VALUE + MAX_HELD + ".");
+                    + UltraStyle.VALUE + maxHeld() + ".");
             send(player, UltraStyle.LABEL + "Spend one, then you can prestige again.");
             send(player, LmChat.DIVIDER);
         }
@@ -297,21 +287,17 @@ public final class PrestigeSystem {
     private static String replyRequirement(
             ServerPlayer player, int completed, int next, int required, int level
     ) {
-        int held = heldCountForNeed(player);
-        int nextRequired = followingRequirement(completed, held);
         String summary = UltraStyle.DANGER + "Not high enough yet.\n"
-                + UltraStyle.LABEL + "Requires " + UltraStyle.YELLOW + DmzRewards.formatWhole(required)
-                + UltraStyle.LABEL + " power to prestige (next: " + UltraStyle.YELLOW
-                + DmzRewards.formatWhole(nextRequired) + UltraStyle.LABEL + ").\n"
+                + UltraStyle.LABEL + "Reaching your current cap of " + UltraStyle.YELLOW
+                + DmzRewards.formatWhole(required) + UltraStyle.LABEL + " power earns your next prestige.\n"
                 + UltraStyle.LABEL + "You're at " + UltraStyle.VALUE + DmzRewards.formatWhole(level)
                 + UltraStyle.LABEL + ".";
         if (!preferGuiFeedback()) {
             send(player, "");
             send(player, LmChat.DIVIDER);
             send(player, UltraStyle.DANGER + "Not high enough yet.");
-            send(player, UltraStyle.LABEL + "Requires " + UltraStyle.YELLOW
-                    + DmzRewards.formatWhole(required) + UltraStyle.LABEL + " power to prestige (next: "
-                    + UltraStyle.YELLOW + DmzRewards.formatWhole(nextRequired) + UltraStyle.LABEL + ").");
+            send(player, UltraStyle.LABEL + "Reaching your current cap of " + UltraStyle.YELLOW
+                    + DmzRewards.formatWhole(required) + UltraStyle.LABEL + " power earns your next prestige.");
             send(player, UltraStyle.LABEL + "You're at " + UltraStyle.VALUE
                     + DmzRewards.formatWhole(level) + UltraStyle.LABEL + ".");
             send(player, UltraStyle.LABEL + "Prestige: " + UltraStyle.VALUE + completed);
@@ -341,83 +327,28 @@ public final class PrestigeSystem {
     }
 
     /**
-     * Next prestige DMZ level gate — see class javadoc for the completed / held ladders.
+     * The next prestige's DMZ level gate: the player's level cap as Overhaul has it
+     * ({@code PrestigeSystem.levelCap} through {@code DmzRevampPrestigeBridge}). Held and completed
+     * counts do not change it, and no stored need floor is read.
      */
     public static int requiredLevel(ServerPlayer player) {
-        if (player == null) {
-            return LEVELS_PER_PRESTIGE;
-        }
-        int personalCap = PrestigePointsSystem.effectiveMaxLevel(player);
-        int completed = getCompleted(player);
-        int heldForNeed = heldCountForNeed(player);
-        int need;
-        if (completed >= HELD_GATE_MIN_COMPLETED) {
-            // Veteran band — held table only; legacy (completed+1)×20k floors must not apply.
-            need = requiredLevelForHeld(heldForNeed);
-            clampVeteranNeedFloor(player, need);
-        } else {
-            need = needForProgress(player, completed, heldForNeed);
-        }
-        return Math.min(personalCap, need);
+        StatsData data = player == null ? null : DmzProgression.stats(player);
+        return com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge.levelCap(data);
     }
 
-    /** Pure ladder (no personal cap) — for admin previews and tests. */
-    public static int needForProgress(int completed, int heldWallet) {
-        int c = Math.max(0, completed);
-        int h = Math.max(0, Math.min(MAX_HELD, heldWallet));
-        if (c < HELD_GATE_MIN_COMPLETED) {
-            return earlyCompletedNeed(c);
-        }
-        return requiredLevelForHeld(h);
+    /** The gate: DMZ level at or above the cap. */
+    public static boolean meetsRequirement(int level, int cap) {
+        return level >= cap;
     }
 
-    /** First four completed prestiges: 20k, 40k, 60k, 80k. Held does not change this. */
-    public static int earlyCompletedNeed(int completed) {
-        int c = Math.max(0, Math.min(HELD_GATE_MIN_COMPLETED - 1, completed));
-        long raw = (long) LEVELS_PER_PRESTIGE * (c + 1L);
-        return (int) Math.min(MAX_REQUIRED_LEVEL, raw);
-    }
-
-    /** Requirement after one more prestige, for the "(next: …)" line. */
-    public static int followingRequirement(int completed, int held) {
-        int nextHeld = Math.min(MAX_HELD, Math.max(0, held) + 1);
-        int nextCompleted = Math.max(0, completed) + 1;
-        if (nextCompleted >= HELD_GATE_MIN_COMPLETED) {
-            return requiredLevelForHeld(nextHeld);
-        }
-        return earlyCompletedNeed(nextCompleted);
-    }
-
-    private static int needForProgress(ServerPlayer player, int completed, int heldWallet) {
-        int need = needForProgress(completed, heldWallet);
-        if (completed < HELD_GATE_MIN_COMPLETED) {
-            // A stored floor must not replace 20k × (completed + 1). Drop only a higher leftover.
-            shrinkNeedFloor(player, need);
-        }
-        return need;
-    }
-
-    /** Need from the fifth prestige on — 50k with none held, 100k with one or more. */
-    public static int requiredLevelForHeld(int held) {
-        int h = Math.max(0, Math.min(MAX_HELD, held));
-        return h <= 0 ? HELD0_NEED : HELD1_PLUS_NEED;
-    }
-
-    /** @deprecated prefer {@link #requiredLevel(ServerPlayer)} — uses absolute 150k ceiling. */
-    public static int requiredLevel(int currentCompleted) {
-        return requiredLevel(currentCompleted, PrestigePointsSystem.ABSOLUTE_LEVEL_CAP);
-    }
-
-    public static int requiredLevel(int currentCompleted, int personalCap) {
-        int cap = personalCap > 0 ? personalCap : MAX_REQUIRED_LEVEL;
-        int required = currentCompleted < HELD_GATE_MIN_COMPLETED
-                ? earlyCompletedNeed(currentCompleted)
-                : HELD0_NEED;
-        return Math.min(cap, required);
-    }
-
+    /** Most prestiges a player can hold: dmzrevamp's {@code maxPrestigeCount} (10 without it). */
     public static int maxHeld() {
-        return MAX_HELD;
+        return com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.configuredMaxPrestigeCount();
+    }
+
+    /** Held count clamped to 0..max. */
+    public static int clampHeld(int held, int max) {
+        return Math.max(0, Math.min(Math.max(0, max), held));
     }
 
     /** NBT held wallet only (not CNPC faction inflate). */
@@ -432,7 +363,7 @@ public final class PrestigeSystem {
         }
         CompoundTag tag = LmPlayerStore.root(player);
         if (PersistentDataAccess.isWritable(tag) && tag.m_128441_(KEY_HELD)) {
-            return Math.max(0, Math.min(MAX_HELD, readStoredInt(tag, KEY_HELD)));
+            return clampHeld(readStoredInt(tag, KEY_HELD), maxHeld());
         }
         return 0;
     }
@@ -456,53 +387,9 @@ public final class PrestigeSystem {
         }
         int skill = Math.max(0, DmzProgression.prestige(player));
         int seed = Math.max(0, Math.max(overhaulCount, Math.max(faction, skill)));
-        seed = Math.min(MAX_HELD, seed);
+        seed = clampHeld(seed, maxHeld());
         tag.m_128405_(KEY_HELD, seed);
         mirrorFactionHeld(player, seed);
-    }
-
-    /** Drop legacy need floors above the veteran held-table gate (e.g. old 140k/150k ladders). */
-    public static void reconcileNeedFloor(ServerPlayer player) {
-        if (player == null) {
-            return;
-        }
-        int completed = getCompleted(player);
-        if (completed < HELD_GATE_MIN_COMPLETED) {
-            shrinkNeedFloor(player, earlyCompletedNeed(completed));
-            return;
-        }
-        int need = requiredLevelForHeld(heldCountForNeed(player));
-        clampVeteranNeedFloor(player, need);
-    }
-
-    /** Lower corrupt {@link #KEY_NEED_FLOOR} values (never raise). */
-    private static void shrinkNeedFloor(ServerPlayer player, int maxAllowed) {
-        if (player == null || maxAllowed < 0) {
-            return;
-        }
-        CompoundTag tag = LmPlayerStore.root(player);
-        if (!PersistentDataAccess.isWritable(tag) || !tag.m_128441_(KEY_NEED_FLOOR)) {
-            return;
-        }
-        int floor = Math.max(0, readStoredInt(tag, KEY_NEED_FLOOR));
-        if (floor > maxAllowed) {
-            tag.m_128405_(KEY_NEED_FLOOR, maxAllowed);
-        }
-    }
-
-    private static void clampVeteranNeedFloor(ServerPlayer player, int veteranNeed) {
-        CompoundTag tag = LmPlayerStore.root(player);
-        if (!PersistentDataAccess.isWritable(tag) || !tag.m_128441_(KEY_NEED_FLOOR)) {
-            return;
-        }
-        int floor = Math.max(0, readStoredInt(tag, KEY_NEED_FLOOR));
-        if (floor > veteranNeed) {
-            tag.m_128405_(KEY_NEED_FLOOR, veteranNeed);
-        }
-    }
-
-    public static int levelsPerPrestige() {
-        return LEVELS_PER_PRESTIGE;
     }
 
     /**
@@ -525,13 +412,11 @@ public final class PrestigeSystem {
             int legacy = Math.max(0, DmzProgression.prestige(player));
             if (legacy > 0) {
                 setCompletedPublic(player, legacy);
-                raiseNeedFloor(player, needForProgress(player, legacy, getHeldWallet(player)));
                 return legacy;
             }
             // Shop evidence of a past prestige when total was zeroed by turn-in.
             if (inferCompletedFromShop(player)) {
                 setCompletedPublic(player, 1);
-                raiseNeedFloor(player, needForProgress(player, 1, getHeldWallet(player)));
                 return 1;
             }
             return 0;
@@ -540,19 +425,15 @@ public final class PrestigeSystem {
         // DMZ prestige skill tracks the held wallet, not lifetime completed — never bump total from it.
         if (stored <= 0 && inferCompletedFromShop(player)) {
             setCompletedPublic(player, 1);
-            raiseNeedFloor(player, needForProgress(player, 1, getHeldWallet(player)));
             return 1;
         }
         return Math.max(0, stored);
     }
 
-    /** Points / breakthroughs / permanent forms imply at least one completed prestige. */
+    /** Points or permanent forms imply at least one completed prestige. */
     private static boolean inferCompletedFromShop(ServerPlayer player) {
         try {
             if (PrestigePointsSystem.getPoints(player) > 0) {
-                return true;
-            }
-            if (PrestigePointsSystem.getBreakthroughs(player) > 0) {
                 return true;
             }
             if (PrestigePointsSystem.hasMajin(player)
@@ -564,26 +445,6 @@ public final class PrestigeSystem {
         }
         return false;
     }
-
-    private static int getNeedFloor(ServerPlayer player) {
-        CompoundTag tag = LmPlayerStore.root(player);
-        return Math.max(0, readStoredInt(tag, KEY_NEED_FLOOR));
-    }
-
-    private static void raiseNeedFloor(ServerPlayer player, int requiredMet) {
-        if (player == null || requiredMet <= 0) {
-            return;
-        }
-        CompoundTag tag = LmPlayerStore.root(player);
-        if (!PersistentDataAccess.isWritable(tag)) {
-            return;
-        }
-        int cur = Math.max(0, readStoredInt(tag, KEY_NEED_FLOOR));
-        if (requiredMet > cur) {
-            tag.m_128405_(KEY_NEED_FLOOR, requiredMet);
-        }
-    }
-
     private static int readStoredInt(CompoundTag tag, String key) {
         if (!PersistentDataAccess.isWritable(tag) || !tag.m_128441_(key)) {
             return 0;
@@ -609,19 +470,6 @@ public final class PrestigeSystem {
             tag.m_128473_(KEY_TOTAL_STAFF_OVERRIDE);
         }
     }
-
-    private static void alignNeedFloorForStaff(ServerPlayer player, int completed) {
-        CompoundTag tag = LmPlayerStore.root(player);
-        if (!PersistentDataAccess.isWritable(tag)) {
-            return;
-        }
-        if (completed <= 0) {
-            tag.m_128473_(KEY_NEED_FLOOR);
-            return;
-        }
-        tag.m_128405_(KEY_NEED_FLOOR, requiredLevel(player));
-    }
-
     public static int getHeld(ServerPlayer player) {
         CompoundTag tag = LmPlayerStore.root(player);
         if (PersistentDataAccess.isWritable(tag) && tag.m_128441_(KEY_HELD)) {
@@ -630,7 +478,7 @@ public final class PrestigeSystem {
         // Wallet not written yet — old Prestige NPC stored held on CNPC faction 4.
         Integer faction = readFactionPoints(player, FACTION_HELD_ID);
         if (faction != null) {
-            return Math.max(0, Math.min(MAX_HELD, faction));
+            return clampHeld(faction, maxHeld());
         }
         return 0;
     }
@@ -650,7 +498,6 @@ public final class PrestigeSystem {
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128359_(KEY_TOTAL, Integer.toString(clamped));
             tag.m_128379_(KEY_TOTAL_STAFF_OVERRIDE, true);
-            alignNeedFloorForStaff(player, clamped);
         }
         try {
             com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
@@ -665,10 +512,6 @@ public final class PrestigeSystem {
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128359_(KEY_TOTAL, Integer.toString(Math.max(0, value)));
         }
-        // Keep Need floor aligned when staff raise completed (never lower floor here).
-        if (value > 0) {
-            raiseNeedFloor(player, requiredLevel(player));
-        }
         try {
             com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
                     .syncFromLegacy(player);
@@ -682,7 +525,7 @@ public final class PrestigeSystem {
 
     /** Public for prestige-points turn-in and padmin. Wallet NBT is source of truth. */
     public static void setHeldPublic(ServerPlayer player, int value) {
-        int clamped = Math.max(0, Math.min(MAX_HELD, value));
+        int clamped = clampHeld(value, maxHeld());
         CompoundTag tag = LmPlayerStore.root(player);
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128405_(KEY_HELD, clamped);
@@ -756,7 +599,7 @@ public final class PrestigeSystem {
 
     /** Keep CNPC faction 4 equal to the wallet so a stale faction cannot disagree with Overhaul. */
     private static void mirrorFactionHeld(ServerPlayer player, int held) {
-        int target = Math.max(0, Math.min(MAX_HELD, held));
+        int target = clampHeld(held, maxHeld());
         Integer current = readFactionPoints(player, FACTION_HELD_ID);
         if (current == null || current == target) {
             return;

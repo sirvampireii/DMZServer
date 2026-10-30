@@ -7,17 +7,24 @@ import java.lang.reflect.Method;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.fml.ModList;
 
-/** LM personal level cap → Overhaul-compatible max stat totals (matches dmzrevamp formula). */
+/**
+ * Level cap and stat-total math shared with dmzrevamp's Overhaul.
+ * <p>
+ * The cap is Overhaul's: {@link #levelCap(StatsData)} reads {@code PrestigeSystem.levelCap}, and
+ * {@code DmzRevampPrestigeCapMixin} answers that call with {@link #overhaulLevelCap(StatsData)}, the
+ * base cap LM pins as Overhaul's {@code initialLevelCap}. Held prestige does not move it, and LM no
+ * longer raises it per player (4.7.2 removed breakthroughs; stored counts are left in place and read
+ * by nothing).
+ */
 public final class LmOverhaulCapMath {
     /** Stock Overhaul {@code levelUpPerPoints} when {@code LevelingRevamp.json} is default. */
     public static final int LEVEL_UP_PER_POINTS = 6;
     /**
-     * Overhaul Statistics / {@code PrestigeSystem.levelCap} / hex reference at 0 breakthroughs.
-     * Stock Overhaul {@code initialLevelCap} is 50000 and is <b>not</b> synced to clients;
-     * prestige 0 would show 50k and block Need 60k+. Pin the Overhaul floor to 100k.
-     * Breakthroughs raise the live cap toward {@link PrestigePointsSystem#ABSOLUTE_LEVEL_CAP}.
+     * Overhaul Statistics / {@code PrestigeSystem.levelCap} / hex reference. Stock Overhaul
+     * {@code initialLevelCap} is 50000 and is <b>not</b> synced to clients, so LM pins it to 100k.
      */
     public static final int OVERHAUL_LEVEL_CAP = PrestigePointsSystem.BASE_LEVEL_CAP;
+    /** Overhaul {@code maxLevel} LM pins (the DMZ stat ceiling). */
     public static final int OVERHAUL_ABSOLUTE_LEVEL_CAP = PrestigePointsSystem.ABSOLUTE_LEVEL_CAP;
 
     private static volatile Method revampInitialStatTotal;
@@ -25,39 +32,16 @@ public final class LmOverhaulCapMath {
 
     private LmOverhaulCapMath() {}
 
-    public static int personalLevelCap(ServerPlayer player) {
-        if (player == null) {
-            return PrestigePointsSystem.BASE_LEVEL_CAP;
-        }
-        int cached = PersonalLevelCapMirror.cachedCap(player);
-        if (cached > 0) {
-            return cached;
-        }
-        int cap = PrestigePointsSystem.effectiveMaxLevel(player);
-        PersonalLevelCapMirror.remember(player, cap);
-        return cap;
+    /** The player's level cap, read from Overhaul (base cap without dmzrevamp). */
+    public static int levelCap(StatsData data) {
+        return com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge.levelCap(data);
     }
 
-    /**
-     * Server-authoritative cap from {@link StatsData} (Mohist-safe player lookup).
-     * Getters hit the UUID cache. NBT reads and client sync stay on login,
-     * logout, and breakthrough changes.
-     */
-    public static int personalLevelCap(com.dragonminez.common.stats.StatsData data) {
-        if (data == null) {
-            return PrestigePointsSystem.BASE_LEVEL_CAP;
+    public static int levelCap(ServerPlayer player) {
+        if (player == null) {
+            return OVERHAUL_LEVEL_CAP;
         }
-        int cached = PersonalLevelCapMirror.cachedCap(data);
-        if (cached > 0) {
-            return cached;
-        }
-        net.minecraft.server.level.ServerPlayer sp = LmStatsDataAccess.serverPlayer(data);
-        if (sp != null) {
-            int cap = personalLevelCap(sp);
-            PersonalLevelCapMirror.attach(data, sp, cap);
-            return cap;
-        }
-        return PersonalLevelCapMirror.resolveCap(data);
+        return levelCap(com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player));
     }
 
     public static int maxAssignableTotal(StatsData data, int levelCap) {
@@ -71,87 +55,36 @@ public final class LmOverhaulCapMath {
     }
 
     public static int maxAssignableTotal(StatsData data, ServerPlayer player) {
-        return maxAssignableTotal(data, personalLevelCap(player));
+        return maxAssignableTotal(data, levelCap(player));
     }
 
+    /** Called from Overhaul's {@code maxAssignableTotal}; uses the cap that mixin hands Overhaul. */
     public static int maxAssignableTotal(StatsData data) {
-        return maxAssignableTotal(data, personalLevelCap(data));
+        return maxAssignableTotal(data, overhaulLevelCap(data));
     }
 
     /**
-     * Prestige-0 / 0-breakthrough Overhaul max (100k). Native {@code levelCap}
-     * at count 0 is {@code initialLevelCap} (stock 50k); we never return that.
+     * The base cap (100k). Native {@code levelCap} at count 0 is {@code initialLevelCap}
+     * (stock 50k); we never return that.
      */
     public static int overhaulLevelCap() {
         return OVERHAUL_LEVEL_CAP;
     }
 
     /**
-     * Live Overhaul {@code levelCap}: personal 100k + 10k×breakthroughs (max 150k).
-     * Held prestige does not change this — 0 breakthroughs stays 100k at held 0 and 1.
+     * The value {@code DmzRevampPrestigeCapMixin} returns for Overhaul's {@code levelCap}: the base
+     * cap for every player. Held prestige does not change it, and nothing per player raises it.
+     * Must not call {@link #levelCap(StatsData)} (that reads Overhaul and would recurse).
      */
     public static int overhaulLevelCap(StatsData data) {
-        int personal = personalLevelCap(data);
-        if (personal < OVERHAUL_LEVEL_CAP) {
-            return OVERHAUL_LEVEL_CAP;
-        }
-        return Math.min(OVERHAUL_ABSOLUTE_LEVEL_CAP, personal);
-    }
-
-    /**
-     * Overhaul Statistics ladder: {@code initialLevelCap} → {@code maxLevel} across
-     * {@code maxPrestigeCount} steps. {@code prestigeCount} matches LM held wallet /
-     * Overhaul count (0 before the next rebirth).
-     */
-    public static int levelCapForOverhaulPrestigeCount(int prestigeCount) {
-        int initial = configuredInitialLevelCap();
-        int maxLevel = configuredMaxLevel();
-        int maxPrestige = Math.max(1, configuredMaxPrestigeCount());
-        int count = Math.max(0, Math.min(maxPrestige, prestigeCount));
-        if (count >= maxPrestige) {
-            return maxLevel;
-        }
-        double span = (maxLevel - initial) * (count / (double) maxPrestige);
-        long cap = (long) initial + Math.round(span);
-        return (int) Math.min(maxLevel, Math.max(initial, cap));
-    }
-
-    /** Journey gate for the next LM prestige — capped by personal breakthrough ceiling. */
-    public static int journeyPrestigeNeed(ServerPlayer player, int heldWallet) {
-        int personal = player == null
-                ? PrestigePointsSystem.BASE_LEVEL_CAP
-                : PrestigePointsSystem.effectiveMaxLevel(player);
-        int ladder = levelCapForOverhaulPrestigeCount(heldWallet);
-        return Math.min(personal, ladder);
-    }
-
-    private static int configuredInitialLevelCap() {
-        if (ModList.get().isLoaded("dmzrevamp")) {
-            try {
-                Class<?> cfg = Class.forName("com.dmzrevamp.config.LevelingRevampConfig");
-                Object revampCfg = cfg.getMethod("get").invoke(null);
-                Object prestige = revampCfg.getClass().getField("Prestige").get(revampCfg);
-                return Math.max(1, prestige.getClass().getField("initialLevelCap").getInt(prestige));
-            } catch (Throwable ignored) {
-            }
-        }
         return OVERHAUL_LEVEL_CAP;
     }
 
-    private static int configuredMaxLevel() {
-        if (ModList.get().isLoaded("dmzrevamp")) {
-            try {
-                Class<?> cfg = Class.forName("com.dmzrevamp.config.LevelingRevampConfig");
-                Object revampCfg = cfg.getMethod("get").invoke(null);
-                Object levels = revampCfg.getClass().getField("levelsAndAttributes").get(revampCfg);
-                return Math.max(1, levels.getClass().getField("maxLevel").getInt(levels));
-            } catch (Throwable ignored) {
-            }
-        }
-        return OVERHAUL_ABSOLUTE_LEVEL_CAP;
-    }
-
-    private static int configuredMaxPrestigeCount() {
+    /**
+     * Most prestiges a player can hold: Overhaul {@code LevelingRevampConfig.Prestige.maxPrestigeCount},
+     * or {@link LmOverhaulPrestigeIntegration#OVERHAUL_MAX_PRESTIGE} when dmzrevamp is absent.
+     */
+    public static int configuredMaxPrestigeCount() {
         if (ModList.get().isLoaded("dmzrevamp")) {
             try {
                 Class<?> cfg = Class.forName("com.dmzrevamp.config.LevelingRevampConfig");
@@ -166,7 +99,7 @@ public final class LmOverhaulCapMath {
 
     /**
      * Force live Overhaul {@code initialLevelCap} to 100k and {@code maxLevel} to 150k
-     * so prestige 0 is not stock 50k and 0-breakthrough players can reach Need 60k+.
+     * so prestige 0 is not stock 50k.
      */
     public static void pinOverhaulLevelCaps() {
         if (!ModList.get().isLoaded("dmzrevamp")) {

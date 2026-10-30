@@ -56,7 +56,6 @@ public final class PrestigeAdminCommandTree {
                 .then(adjustField("held"))
                 .then(adjustField("completed"))
                 .then(adjustField("points"))
-                .then(adjustField("breakthroughs"))
                 .then(adjustFieldAmount(
                         "godki",
                         IntegerArgumentType.integer(0, GodKiEnhancementShop.MAX_INVESTMENTS)));

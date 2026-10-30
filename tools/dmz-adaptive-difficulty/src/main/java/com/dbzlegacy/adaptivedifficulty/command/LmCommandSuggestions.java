@@ -149,7 +149,7 @@ public final class LmCommandSuggestions {
 
     private static final Set<String> PADMIN_SUBCOMMANDS = Set.of(
             "help", "info", "sync", "skills", "skill", "held", "completed", "points",
-            "breakthroughs", "tier");
+            "tier");
 
     private static final Set<String> PRESTIGE_MODE_TOKENS = Set.of(
             "set", "add", "remove", "give", "clear", "take");
@@ -353,7 +353,7 @@ public final class LmCommandSuggestions {
     private static boolean isPrestigeAdminPlayerSub(String sub) {
         return switch (sub) {
             case "info", "sync", "skills", "skill", "held", "completed", "points",
-                    "breakthroughs", "tier" -> true;
+                    "tier" -> true;
             default -> false;
         };
     }

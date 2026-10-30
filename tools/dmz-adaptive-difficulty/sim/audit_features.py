@@ -1584,28 +1584,35 @@ def main() -> int:
     prestige_admin = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeAdmin.java")
     prestige_sys = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeSystem.java")
     check("PrestigeAdmin present", "class PrestigeAdmin" in prestige_admin)
-    check("requiredLevel uses personal cap",
-          "effectiveMaxLevel(player)" in prestige_sys
-          and "requiredLevel(ServerPlayer" in prestige_sys)
-    check("prestige need floor",
-          "prestige_need_floor" in prestige_sys and "raiseNeedFloor" in prestige_sys)
+    # 4.7.2: the requirement is the Overhaul level cap, read through the bridge.
+    _req = prestige_sys.split("public static int requiredLevel(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    check("requiredLevel reads the Overhaul cap through the bridge",
+          "DmzRevampPrestigeBridge.levelCap(data)" in _req
+          and "effectiveMaxLevel" not in prestige_sys
+          and "getCompleted" not in _req and "heldCountForNeed" not in _req)
+    check("no need floor reads or writes (stored values left in place)",
+          "prestige_need_floor" not in prestige_sys and "NeedFloor" not in prestige_sys)
     check("completed never from Fabled-only",
-          "inferCompletedFromShop" in prestige_sys and "KEY_NEED_FLOOR" in prestige_sys)
+          "inferCompletedFromShop" in prestige_sys
+          and "getBreakthroughs" not in prestige_sys)
     check("completed not inflated from held skill",
           "never bump total from it" in prestige_sys
           and "High-watermark" not in prestige_sys)
-    check("prestige Need ladder first 4 scale 20k by completed then 50k/100k by held",
-          "HELD_GATE_MIN_COMPLETED = 4" in prestige_sys
-          and "requiredLevelForHeld" in prestige_sys
-          and "HELD0_NEED = 50_000" in prestige_sys
-          and "HELD1_PLUS_NEED = 100_000" in prestige_sys
-          and "HELD2_NEED" not in prestige_sys
-          and "earlyCompletedNeed" in prestige_sys
-          and "earlyHeldNeed" not in prestige_sys
-          and "LEVELS_PER_PRESTIGE * (c + 1L)" in prestige_sys
-          and "needForProgress" in prestige_sys
-          and "heldCountForNeed" in prestige_sys
-          and "reconcileNeedFloor" in prestige_sys)
+    check("old Need ladder gone: no 20k/40k/60k/80k by completed, no 50k/100k held table",
+          "HELD_GATE_MIN_COMPLETED" not in prestige_sys
+          and "requiredLevelForHeld" not in prestige_sys
+          and "HELD0_NEED" not in prestige_sys
+          and "HELD1_PLUS_NEED" not in prestige_sys
+          and "earlyCompletedNeed" not in prestige_sys
+          and "LEVELS_PER_PRESTIGE" not in prestige_sys
+          and "needForProgress" not in prestige_sys
+          and "followingRequirement" not in prestige_sys
+          and "reconcileNeedFloor" not in prestige_sys
+          and "public static boolean meetsRequirement(int level, int cap) {\n        return level >= cap;" in prestige_sys)
+    check("most prestiges held is revamp's maxPrestigeCount (MAX_HELD gone)",
+          "MAX_HELD" not in prestige_sys
+          and "LmOverhaulCapMath.configuredMaxPrestigeCount()" in prestige_sys
+          and "clampHeld(" in prestige_sys)
     prog_gui_api = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ProgressionGuiApi.java")
     prestige_lines_block = (prog_gui_api.split("prestigeLines(", 1)[1] if "prestigeLines(" in prog_gui_api else "").split("handlePrestigeDo", 1)[0]
     check("prestige main wallet lore omits cap",
@@ -1616,8 +1623,9 @@ def main() -> int:
           '"admin"' in read(SRC / "com/dbzlegacy/adaptivedifficulty/command/ProgressionCommands.java")
           and "prestigeAdminAdjust" in
           read(SRC / "com/dbzlegacy/adaptivedifficulty/command/ProgressionCommands.java"))
-    check("breakthrough mentions prestige Need scale",
-          "Future prestige requirements now scale" in pp)
+    check("no breakthrough purchase (4.7.2)",
+          "buyBreakthrough" not in pp and "getBreakthroughs" not in pp
+          and "breakthroughCost" not in pp and "effectiveMaxLevel" not in pp)
     check("handlePrestigeAdmin API", "handlePrestigeAdmin" in gui_api_pp)
     check("Bukkit prestige admin via ForgeBridge",
           "prestigeAdmin" in forge_bridge
@@ -1641,7 +1649,7 @@ def main() -> int:
     unbuy_form = _pp_method("private static String unbuyForm(ServerPlayer player, boolean majin) {",
                             "private static void clearForm(ServerPlayer player, boolean majin)")
     reapply_forms = _pp_method("private static void reapplyForms(ServerPlayer player) {",
-                               "public static int getBreakthroughs(ServerPlayer player)")
+                               "// ── Login / post-prestige")
     ultra_prestige = read(
             SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraPrestigeScreens.java")
     ultra_gui_actions = read(
@@ -1773,19 +1781,20 @@ def main() -> int:
           and "LmTips.pulse" in
           read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/ProgressionSystem.java"))
     check("LM tips config flag", "enableLmTips" in read(CFG) and "lmTipFrequentGroups" in read(CFG))
-    check("breakthrough costs 15..35", "breakthroughCost" in pp and "15" in pp and "35" in pp)
-    check("MAX_BREAKTHROUGHS 5", "MAX_BREAKTHROUGHS = 5" in pp)
-    check("StatsDataMixin personal cap",
-          "getConfiguredMaxValue" in mixin and "LmOverhaulCapMath.personalLevelCap" in mixin)
+    check("breakthroughs removed (4.7.2): no costs, no max, no per-player cap",
+          "breakthroughCost" not in pp and "MAX_BREAKTHROUGHS" not in pp and "BREAKTHROUGH_STEP" not in pp)
+    check("StatsDataMixin cap is the Overhaul cap",
+          "getConfiguredMaxValue" in mixin and "LmOverhaulCapMath.levelCap(self)" in mixin
+          and "personalLevelCap" not in mixin)
     check("StatsDataMixin remap false",
           'remap = false' in mixin and "StatsData.class, remap = false" in mixin)
     check("StatsDataMixin applies personal cap", "lm$personalMaxValue" in mixin)
     revamp_cap = read(SRC / "com/dbzlegacy/adaptivedifficulty/mixin/DmzRevampPrestigeCapMixin.java")
-    check("Overhaul levelCap follows personal 100k+BT (not stock 50k at P0)",
+    check("Overhaul levelCap is LM's 100k base cap (not stock 50k at P0)",
           '@Inject(method = "levelCap"' in revamp_cap
           and "overhaulLevelCap(data)" in revamp_cap
           and "lm$personalOverhaulLevelCap" in revamp_cap)
-    check("Overhaul maxAssignableTotal uses LM breakthrough",
+    check("Overhaul maxAssignableTotal uses LM's cap math",
           "maxAssignableTotal" in revamp_cap
           and "LmOverhaulCapMath.maxAssignableTotal" in revamp_cap)
     check("LM combat mixin does not multiply totalMult",
@@ -1817,8 +1826,9 @@ def main() -> int:
           and "LmOverhaulScaledCombat.putPlaceholders" in
           read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ProgressionGuiApi.java"))
     dmz_prog = read(SRC / "com/dbzlegacy/adaptivedifficulty/calc/DmzProgression.java")
-    check("AD ceiling honors 150k breakthroughs",
-          "ABSOLUTE_LEVEL_CAP" in dmz_prog and "configuredMaxDmzLevel" in dmz_prog)
+    check("AD ceiling reads the Overhaul cap, capped at 150k",
+          "ABSOLUTE_LEVEL_CAP" in dmz_prog and "configuredMaxDmzLevel" in dmz_prog
+          and "LmOverhaulCapMath.levelCap(data)" in dmz_prog and "effectiveMaxLevel" not in dmz_prog)
     check("Overhaul rebirth blocked", "canPrestige" in revamp_cap)
     check("StatsDataMixin gated on dmzrevamp", "isLoaded(\"dmzrevamp\")" in mixin)
     check("StatsDataMixin beats dmzrevamp cap mixin", "priority = 5000" in mixin)
@@ -1832,9 +1842,9 @@ def main() -> int:
           and "fabledPrestigeLevel" not in bridge
           and "PrestigeSkillSync" not in bridge)
     integration = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/LmOverhaulPrestigeIntegration.java")
-    check("Overhaul prestige is 1:1 with held",
+    check("Overhaul prestige is 1:1 with held (clamped to revamp's maxPrestigeCount)",
           "toOverhaulCount" in integration
-          and "Math.min(OVERHAUL_MAX_PRESTIGE, held)" in integration
+          and "Math.min(LmOverhaulCapMath.configuredMaxPrestigeCount(), held)" in integration
           and "overhaulCountFromHeld" in integration
           and "oneBasedLevel - 1" not in integration)
     check("Fabled bridge flags removed from config",
@@ -1842,10 +1852,13 @@ def main() -> int:
     dmz_lvl = read(ROOT / "config" / "dmzrevamp" / "LevelingRevamp.json")
     check("Overhaul initialLevelCap 100k", '"initialLevelCap": 100000' in dmz_lvl)
     cap_math = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/LmOverhaulCapMath.java")
-    check("Overhaul level cap helper is 100k + breakthroughs",
+    check("Overhaul level cap helper is the 100k base cap; journeyPrestigeNeed gone",
           "OVERHAUL_LEVEL_CAP = PrestigePointsSystem.BASE_LEVEL_CAP" in cap_math
           and "overhaulLevelCap(StatsData data)" in cap_math
-          and "pinOverhaulLevelCaps" in cap_math)
+          and "pinOverhaulLevelCaps" in cap_math
+          and "journeyPrestigeNeed" not in cap_math
+          and "personalLevelCap" not in cap_math
+          and "public static int configuredMaxPrestigeCount()" in cap_math)
     check("Overhaul boot pins 100k/150k caps",
           "pinOverhaulLevelCaps" in
           read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/bridge/DmzRevampConfigBridge.java"))
@@ -1863,10 +1876,9 @@ def main() -> int:
     check("ki pool clamp uses actual max not a Fabled mirror",
           "actualMaxEnergy" in pool_clamp
           and not (SRC / "com/dbzlegacy/adaptivedifficulty/progression/bridge/EnergyManaSync.java").is_file())
-    check("0 breakthroughs are explicit NBT not inferred from 150k cap",
-          "Inferring from lm_personal_level_cap" in pp
-          and "return 0;" in
-          "".join(pp.split("public static int getBreakthroughs")[1].split("public static int breakthroughCost")[0]))
+    check("stored breakthrough counts are read by nothing (data left in place)",
+          "getBreakthroughs" not in pp
+          and "KEY_BREAKTHROUGHS" not in mirror and "ROOT_BREAKTHROUGHS" not in mirror)
     check("actualMaxEnergy prefers getMaxEnergy",
           "getMaxEnergy()" in pool_clamp
           and "looksLikeIronMana" in pool_clamp
@@ -1907,7 +1919,9 @@ def main() -> int:
     dmz_general = read(ROOT / "config" / "dragonminez" / "general-server.json")
     check("DMZ maxValue 150000 for client UI", '"maxValue": 150000' in dmz_general)
     events_pp = read(SRC / "com/dbzlegacy/adaptivedifficulty/event/DifficultyEvents.java")
-    check("TP soft-lock at personal cap", "onTpGain" in events_pp and "effectiveMaxLevel" in events_pp)
+    check("TP soft-lock at the Overhaul cap",
+          "onTpGain" in events_pp and "LmOverhaulCapMath.levelCap(data)" in events_pp
+          and "effectiveMaxLevel" not in events_pp)
     check("TP soft-lock silent (no chat spam)",
           "event.setTpGain(0)" in events_pp
           and "pp_cap_msg_next" not in events_pp)

@@ -947,6 +947,7 @@ public final class UltraScreenSelfTest {
         checkBoostsScreens(broken);
         checkMasteryWallet(broken);
         checkBoostStartReplies(broken);
+        checkPrestigeFollowsOverhaul(broken);
 
         if (broken.isEmpty()) {
             LmLog.event(
@@ -1224,6 +1225,63 @@ public final class UltraScreenSelfTest {
      * and both valid start forms for its own command; valid encoded and multiplier / minutes starts
      * still pass. Checked without starting a boost (this runs on every boot).
      */
+    /**
+     * 4.7.2: the prestige requirement is the Overhaul level cap (no ladder, no held table, no
+     * breakthroughs), and the most prestiges a player can hold is revamp's maxPrestigeCount.
+     */
+    private static void checkPrestigeFollowsOverhaul(List<String> broken) {
+        int base = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.OVERHAUL_LEVEL_CAP;
+        // No stats: the bridge falls back to the base cap, the same value Overhaul's levelCap returns.
+        int need = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.requiredLevel(null);
+        if (need != base) {
+            broken.add("prestige need without stats should be the base cap " + base + ", got " + need);
+        }
+        if (com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.overhaulLevelCap(null) != base) {
+            broken.add("the cap LM hands Overhaul's levelCap should be the base cap " + base);
+        }
+        if (!com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(base, base)
+                || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(base - 1, base)) {
+            broken.add("prestige gate should be level at or above the cap");
+        }
+        int max = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.maxHeld();
+        int revampMax = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.configuredMaxPrestigeCount();
+        if (max != revampMax) {
+            broken.add("most prestiges held should be revamp's maxPrestigeCount " + revampMax + ", got " + max);
+        }
+        boolean revamp = false;
+        try {
+            revamp = net.minecraftforge.fml.ModList.get().isLoaded("dmzrevamp");
+        } catch (Throwable ignored) {
+        }
+        if (!revamp && max != com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE) {
+            broken.add("without dmzrevamp the most prestiges held should fall back to 10, got " + max);
+        }
+        var ps = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.class;
+        try {
+            if (com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.clampHeld(15, 10) != 10
+                    || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.clampHeld(15, 20) != 15
+                    || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.clampHeld(-2, 10) != 0) {
+                broken.add("held clamp should follow the given maximum (15 held: 10 under max 10, 15 under max 20)");
+            }
+        } catch (Throwable t) {
+            broken.add("held clamp threw " + t);
+        }
+        for (String gone : new String[] {"followingRequirement", "requiredLevelForHeld", "earlyCompletedNeed",
+                "reconcileNeedFloor"}) {
+            for (java.lang.reflect.Method m : ps.getDeclaredMethods()) {
+                if (m.getName().equals(gone)) {
+                    broken.add("PrestigeSystem." + gone + " should be gone (the need is the cap)");
+                }
+            }
+        }
+        for (java.lang.reflect.Method m
+                : com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem.class.getDeclaredMethods()) {
+            if (m.getName().toLowerCase(Locale.ROOT).contains("breakthrough") || m.getName().equals("effectiveMaxLevel")) {
+                broken.add("PrestigePointsSystem." + m.getName() + " should be gone (no breakthroughs)");
+            }
+        }
+    }
+
     private static void checkBoostStartReplies(List<String> broken) {
         String[][] cases = {
                 {"boost", UltraStyle.plain(com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.undecodedReply(2))},

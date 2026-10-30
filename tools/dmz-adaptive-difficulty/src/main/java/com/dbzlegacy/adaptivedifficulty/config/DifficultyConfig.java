@@ -133,8 +133,8 @@ public final class DifficultyConfig {
     /**
      * Reference caps used to document the top tier (Zenith).
      * Theoretical max ≈ referenceMaxLevel × referenceMaxPrestige × prestigeMultiplier
-     * = 150000 × 10 × 10 with defaults. Server DMZ maxValue is 150k; prestige
-     * breakthroughs raise a player's personal playable cap from 100k toward 150k.
+     * = 150000 × 10 × 10 with defaults. Server DMZ maxValue is 150k; the playable
+     * level cap is Overhaul's (100k, pinned by LM).
      */
     public long referenceMaxLevel = 150_000L;
     public int referenceMaxPrestige = 10;
@@ -308,8 +308,8 @@ public final class DifficultyConfig {
     /**
      * Use dmzrevamp Statistics prestige UI + native scaling/rebirth. LM still owns
      * playable max stat total via mixins ({@code enableOverhaulPrestigeIntegration}).
-     * Overhaul {@code levelCap} is the personal 100k + 10k×breakthroughs cap
-     * so prestige 0 is not stock 50k and 0 breakthroughs still work at held 1.
+     * Overhaul {@code levelCap} is the 100k base cap LM pins, so prestige 0 is not stock 50k;
+     * the prestige requirement reads it back from Overhaul.
      * Requires {@code LevelingRevamp.json → Prestige.enabled: true} on the server.
      */
     public boolean enableOverhaulPrestigeIntegration = true;
@@ -572,8 +572,8 @@ public final class DifficultyConfig {
      */
     public Boolean legacyMaxHealthCapMigratedV1 = Boolean.FALSE;
     /**
-     * One-time: raise stale live {@code referenceMaxLevel} 100000 → 150000 so
-     * breakthroughs to 150k are not clamped by the old AD ceiling.
+     * One-time: raise stale live {@code referenceMaxLevel} 100000 → 150000 to match the
+     * DMZ / Overhaul 150k ceiling.
      */
     public Boolean referenceMaxLevel150kMigratedV1 = Boolean.FALSE;
     /**

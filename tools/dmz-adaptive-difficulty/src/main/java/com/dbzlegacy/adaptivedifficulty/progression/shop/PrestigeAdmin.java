@@ -10,7 +10,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Staff tools for adjusting prestige state and prestige-shop investments
- * (skill floors, difficulty tiers, breakthroughs, wallet points).
+ * (skill floors, difficulty tiers, wallet points).
  */
 public final class PrestigeAdmin {
     private PrestigeAdmin() {}
@@ -26,8 +26,6 @@ public final class PrestigeAdmin {
         int held = PrestigeSystem.getHeld(target);
         int completed = PrestigeSystem.getCompleted(target);
         int points = PrestigePointsSystem.getPoints(target);
-        int bt = PrestigePointsSystem.getBreakthroughs(target);
-        int cap = PrestigePointsSystem.effectiveMaxLevel(target);
         int need = PrestigeSystem.requiredLevel(target);
         int highestTier = PrestigePointsSystem.highestPurchasedTier(target);
         StringBuilder sb = new StringBuilder();
@@ -35,11 +33,8 @@ public final class PrestigeAdmin {
         sb.append("§7Lifetime prestiges: §f").append(completed)
                 .append(" §8| §7Current prestige amount: §6").append(held).append("§7/§f")
                 .append(PrestigeSystem.maxHeld()).append('\n');
-        sb.append("§7Prestige favor: §e").append(points)
-                .append(" §8| §7Breakthroughs: §b").append(bt).append("§7/§f")
-                .append(PrestigePointsSystem.MAX_BREAKTHROUGHS).append('\n');
-        sb.append("§7Personal cap: §f").append(DmzRewards.formatWhole(cap))
-                .append(" §8| §7Next prestige need: §e")
+        sb.append("§7Prestige favor: §e").append(points).append('\n');
+        sb.append("§7Level cap (Overhaul), the next prestige need: §e")
                 .append(DmzRewards.formatWhole(need)).append('\n');
         sb.append("§7Permanent tiers: §fT").append(highestTier).append('\n');
         List<String> invested = PrestigePointsSystem.investedSkillSummary(target);
@@ -119,7 +114,7 @@ public final class PrestigeAdmin {
         log(target, "admin_points", mode, before, next);
         return "§aPrestige favor §e" + before + " §7→ §e" + PrestigePointsSystem.getPoints(target)
                 + " §8(" + target.m_6302_() + ")"
-                + "\n§8Wallet for Skills · Effects · Breakthroughs · Difficulty Tiers.";
+                + "\n§8Wallet for Skills · Effects · Difficulty Tiers.";
     }
 
     public static String adjustSkill(
@@ -129,24 +124,6 @@ public final class PrestigeAdmin {
             return "§cPlayer not online.";
         }
         return PrestigePointsSystem.adminAdjustSkill(target, skillId, mode, amount);
-    }
-
-    public static String adjustBreakthroughs(ServerPlayer target, String mode, int amount) {
-        if (target == null) {
-            return "§cPlayer not online.";
-        }
-        int before = PrestigePointsSystem.getBreakthroughs(target);
-        Integer next = applyMode(before, mode, amount, 0, PrestigePointsSystem.MAX_BREAKTHROUGHS);
-        if (next == null) {
-            return "§cUsage: breakthroughs <player> <set|add|remove> <0-5>";
-        }
-        PrestigePointsSystem.setBreakthroughs(target, next);
-        int cap = PrestigePointsSystem.effectiveMaxLevel(target);
-        log(target, "admin_breakthroughs", mode, before, next);
-        return "§aBreakthroughs §b" + before + " §7→ §b" + PrestigePointsSystem.getBreakthroughs(target)
-                + " §8| cap §f" + DmzRewards.formatWhole(cap)
-                + " §8| next prestige need §e" + DmzRewards.formatWhole(PrestigeSystem.requiredLevel(target))
-                + " §8(" + target.m_6302_() + ")";
     }
 
     public static String adjustTier(ServerPlayer target, String mode, int tierId) {

@@ -108,9 +108,10 @@ def main() -> int:
     print("\n--- § prestige (source markers) ---")
     prestige = read(SRC / "progression/shop/PrestigeSystem.java")
     gui_api = read(SRC / "gui/ProgressionGuiApi.java")
-    check("PrestigeSystem HELD_GATE_MIN_COMPLETED = 4", "HELD_GATE_MIN_COMPLETED = 4" in prestige)
+    check("PrestigeSystem need is the Overhaul cap (old ladder gone)",
+          "DmzRevampPrestigeBridge.levelCap(data)" in prestige and "HELD_GATE_MIN_COMPLETED" not in prestige)
     check("PrestigeSystem heldCountForNeed", "heldCountForNeed" in prestige)
-    check("PrestigeSystem veteran needForProgress", "needForProgress" in prestige and "completed >= HELD_GATE_MIN_COMPLETED" in prestige)
+    check("PrestigeSystem has no needForProgress / veteran branch", "needForProgress" not in prestige)
     check("ProgressionGuiApi prestige uses heldCountForNeed", "heldCountForNeed(player)" in gui_api)
     chest = read(BUKKIT / "PrestigeChestGui.java")
     cmi = read(BUKKIT / "CmiPrestigeGui.java")
@@ -1384,6 +1385,48 @@ def main() -> int:
           and 'python3 "$ROOT/scripts/audit_jar_manifest.py" "$JAR" "$VERSION"' in og_build
           and "Implementation-Version: 2.4.13" not in og_mf)
 
+    print("\n--- § prestige follows overhaul ---")
+    pf_ps = read(SRC / "progression/shop/PrestigeSystem.java")
+    pf_pp = read(SRC / "progression/shop/PrestigePointsSystem.java")
+    pf_cap = read(SRC / "progression/LmOverhaulCapMath.java")
+    pf_bridge = read(SRC / "progression/bridge/DmzRevampPrestigeBridge.java")
+    pf_cfg_bridge = read(SRC / "progression/bridge/DmzRevampConfigBridge.java")
+    pf_mixin = read(SRC / "mixin/DmzRevampPrestigeCapMixin.java")
+    pf_mirror = read(SRC / "progression/PersonalLevelCapMirror.java")
+    pf_gui = read(SRC / "gui/ProgressionGuiApi.java")
+    pf_admin = read(SRC / "progression/shop/PrestigeAdmin.java")
+    pf_ultra = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
+    pf_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    check("manifest prestige-follows-overhaul row", "prestige-follows-overhaul" in manifest)
+    _req = pf_ps.split("public static int requiredLevel(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    check("requirement = Overhaul levelCap through the bridge; nothing else read",
+          "DmzRevampPrestigeBridge.levelCap(data)" in _req
+          and "PrestigeSystem.levelCap(data)" in pf_bridge
+          and "getCompleted" not in _req and "heldCount" not in _req and "effectiveMaxLevel" not in pf_ps)
+    _over = pf_cap.split("public static int overhaulLevelCap(StatsData data) {", 1)[-1].split("\n    }\n", 1)[0]
+    check("the cap LM hands Overhaul is the base cap (no breakthroughs)",
+          _over.strip() == "return OVERHAUL_LEVEL_CAP;"
+          and "overhaulLevelCap(data)" in pf_mixin and "journeyPrestigeNeed" not in pf_cap)
+    check("breakthroughs gone from code paths; stored keys untouched",
+          not any(k in pf_pp for k in ("getBreakthroughs", "setBreakthroughs", "breakthroughCost",
+                                        "buyBreakthrough", "effectiveMaxLevel"))
+          and "adjustBreakthroughs" not in pf_admin and "breakthroughs_max" not in pf_gui
+          and "KEY_BREAKTHROUGHS" not in pf_mirror
+          and '"pp_level_breakthroughs"' in read(SRC / "data/LmPlayerStore.java"))
+    check("held max = revamp maxPrestigeCount everywhere; LM does not overwrite it",
+          "MAX_HELD" not in pf_ps
+          and "LmOverhaulCapMath.configuredMaxPrestigeCount()" in pf_ps
+          and pf_mixin.count("LmOverhaulCapMath.configuredMaxPrestigeCount()") == 2
+          and "maxPrestigeCount" not in pf_cfg_bridge.split("public static void onServerStarting()", 1)[-1]
+          and "return LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE;" in pf_cap)
+    check("menus state the rule; next requirement shows the cap",
+          "Reaching your current cap earns your next prestige." in pf_ultra
+          and 'out.put("next_required", String.valueOf(required))' in pf_gui)
+    check("self-test covers the requirement and the held cap",
+          "checkPrestigeFollowsOverhaul(broken);" in pf_test
+          and "PrestigeSystem.requiredLevel(null)" in pf_test
+          and "configuredMaxPrestigeCount()" in pf_test)
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")
@@ -2108,7 +2151,7 @@ def main() -> int:
     check("Android GUI copy lists Saiyan eligible", "Saiyan excluded" not in chest_prog and "Saiyan excluded" not in tooltips)
     preview_tex = read(SRC / "gui/cnpc/DmzPreviewTexture.java")
     check("CNPC preview race textures (namekian/bio)", "namekian" in preview_tex and "bioandroid" in preview_tex)
-    check("PrestigeSystem shrinkNeedFloor early band", "shrinkNeedFloor" in prestige)
+    check("PrestigeSystem has no need-floor handling", "shrinkNeedFloor" not in prestige and "NeedFloor" not in prestige)
 
     print("\n--- § ui scale ---")
     ui_fit = read(SRC / "gui/cnpc/CnpcUiFit.java")

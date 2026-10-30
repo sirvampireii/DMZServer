@@ -149,10 +149,11 @@ public final class UltraPrestigeScreens {
             spec.line(UltraStyle.danger("Prestige system is disabled. Ask staff to turn it on."));
         } else {
             spec.labelValue("Need", ph.getOrDefault("required_fmt", "0"));
+            spec.line(UltraStyle.dim("Reaching your current cap earns your next prestige."));
             if ("true".equalsIgnoreCase(ph.get("ready"))) {
                 spec.line(UltraStyle.confirm("Ready to prestige."));
             } else {
-                spec.line(UltraStyle.dim("Need a higher level first."));
+                spec.line(UltraStyle.dim("Reach your cap first."));
             }
         }
         spec.buttonsAfterLines();
@@ -208,7 +209,7 @@ public final class UltraPrestigeScreens {
         }
         boolean ready = "true".equalsIgnoreCase(ph.get("ready"));
         if (!ready) {
-            spec.line(UltraStyle.danger("You need a higher level before you can prestige."));
+            spec.line(UltraStyle.danger("Reach your level cap before you can prestige."));
         }
         spec.buttonsAfterLines();
         if (ready) {

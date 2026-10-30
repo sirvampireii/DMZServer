@@ -5,6 +5,7 @@ import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.progression.DmzResourcePoolClamp;
 import com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil;
+import com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath;
 import com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration;
 import com.dmzrevamp.revamp.prestige.PrestigeSystem;
 import com.dragonminez.common.network.NetworkHandler;
@@ -95,6 +96,22 @@ public final class DmzRevampPrestigeBridge {
         DmzSkillUtil.sync(player);
         DmzResourcePoolClamp.syncToClient(player);
         NetworkHandler.sendToPlayer(new ProgressionSyncS2C(player), player);
+    }
+
+    /**
+     * The player's level cap as Overhaul has it ({@code PrestigeSystem.levelCap}). LM's
+     * {@code DmzRevampPrestigeCapMixin} answers that call, so this is the cap Overhaul, its
+     * Statistics screen, and the prestige gate all show. Without dmzrevamp (or without stats) it
+     * is the base cap LM pins as Overhaul's {@code initialLevelCap}.
+     */
+    public static int levelCap(StatsData data) {
+        if (data != null && revampPresent()) {
+            try {
+                return Math.max(1, PrestigeSystem.levelCap(data));
+            } catch (Throwable ignored) {
+            }
+        }
+        return LmOverhaulCapMath.OVERHAUL_LEVEL_CAP;
     }
 
     public static int overhaulCount(StatsData data) {

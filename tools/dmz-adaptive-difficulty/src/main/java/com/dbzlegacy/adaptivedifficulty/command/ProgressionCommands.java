@@ -328,8 +328,6 @@ public final class ProgressionCommands {
                     .adjustCompleted(target, mode, amount);
             case "points" -> com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeAdmin
                     .adjustPoints(target, mode, amount);
-            case "breakthroughs" -> com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeAdmin
-                    .adjustBreakthroughs(target, mode, amount);
             case "godki" -> com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeAdmin
                     .adjustGodKi(target, mode, amount);
             default -> "§cUnknown field: " + field;

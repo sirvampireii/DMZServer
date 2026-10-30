@@ -18,7 +18,10 @@ import net.minecraft.server.level.ServerPlayer;
  * ladder ({@link LmOverhaulCapMath}, {@code DmzRevampPrestigeCapMixin}).
  */
 public final class LmOverhaulPrestigeIntegration {
-    /** Overhaul Statistics prestige count hard cap. */
+    /**
+     * Fallback for the most prestiges a player can hold when dmzrevamp is absent. With dmzrevamp
+     * the limit is its own {@code maxPrestigeCount} ({@code LmOverhaulCapMath.configuredMaxPrestigeCount}).
+     */
     public static final int OVERHAUL_MAX_PRESTIGE = 10;
 
     private static volatile Boolean overhaulPrestigeEnabled;
@@ -99,9 +102,9 @@ public final class LmOverhaulPrestigeIntegration {
         clearConfigCache();
     }
 
-    /** Held and Overhaul prestige are the same number (0…10). */
+    /** Held and Overhaul prestige are the same number (0…maxPrestigeCount). */
     public static int toOverhaulCount(int held) {
-        return Math.max(0, Math.min(OVERHAUL_MAX_PRESTIGE, held));
+        return Math.max(0, Math.min(LmOverhaulCapMath.configuredMaxPrestigeCount(), held));
     }
 
     /** Invert {@link #toOverhaulCount} for Overhaul UI → LM held. */

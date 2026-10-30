@@ -1059,22 +1059,15 @@ public final class ProgressionGuiApi {
         out.put("held_max", String.valueOf(PrestigeSystem.maxHeld()));
         out.put("required", String.valueOf(required));
         out.put("required_fmt", DmzRewards.formatWhole(required));
-        int nextRequired = PrestigeSystem.followingRequirement(completed, held);
-        out.put("next_required", String.valueOf(nextRequired));
-        out.put("next_required_fmt", DmzRewards.formatWhole(nextRequired));
-        out.put("ready", level >= required && held < PrestigeSystem.maxHeld() ? "true" : "false");
+        // The requirement is the Overhaul level cap; it is the same after the next prestige.
+        out.put("next_required", String.valueOf(required));
+        out.put("next_required_fmt", DmzRewards.formatWhole(required));
+        out.put("ready", PrestigeSystem.meetsRequirement(level, required) && held < PrestigeSystem.maxHeld()
+                ? "true" : "false");
         int points = PrestigePointsSystem.getPoints(player);
-        int breakthroughs = PrestigePointsSystem.getBreakthroughs(player);
-        int levelCap = PrestigePointsSystem.effectiveMaxLevel(player);
-        int nextBt = breakthroughs + 1;
-        int nextBtCost = breakthroughs >= PrestigePointsSystem.MAX_BREAKTHROUGHS
-                ? 0 : PrestigePointsSystem.breakthroughCost(nextBt);
         out.put("points", String.valueOf(points));
-        out.put("breakthroughs", String.valueOf(breakthroughs));
-        out.put("breakthroughs_max", String.valueOf(PrestigePointsSystem.MAX_BREAKTHROUGHS));
-        out.put("level_cap", String.valueOf(levelCap));
-        out.put("level_cap_fmt", DmzRewards.formatWhole(levelCap));
-        out.put("next_breakthrough_cost", String.valueOf(nextBtCost));
+        out.put("level_cap", String.valueOf(required));
+        out.put("level_cap_fmt", DmzRewards.formatWhole(required));
         out.put("majin", PrestigePointsSystem.hasMajin(player) ? "true" : "false");
         out.put("mutant", PrestigePointsSystem.hasMutant(player) ? "true" : "false");
         out.put("majin_can_buy", PrestigePointsSystem.canBuyMajin(player) ? "true" : "false");
@@ -1175,25 +1168,9 @@ public final class ProgressionGuiApi {
                     lore.add("§8Remove Majin to unlock Mutant purchase");
                 }
             }
-            case "cap", "breakthrough", "breakthroughs" -> {
-                lore.add("§7Prestige favor: §e" + ph.getOrDefault("points", "0"));
-                lore.add("§7Breakthroughs: §f" + ph.getOrDefault("breakthroughs", "0")
-                        + "§7/§f" + ph.getOrDefault("breakthroughs_max", "5"));
-                lore.add("§7Your personal level cap: §f"
-                        + ph.getOrDefault("level_cap_fmt", "100000"));
-                lore.add("§8Server cap is §f150,000 §8- soft-lock holds others at their cap");
-                int btCount = 0;
-                try {
-                    btCount = Integer.parseInt(ph.getOrDefault("breakthroughs", "0"));
-                } catch (Exception ignored) {
-                }
-                if (btCount < PrestigePointsSystem.MAX_BREAKTHROUGHS) {
-                    lore.add("§7Next cost: §e" + ph.getOrDefault("next_breakthrough_cost", "15")
-                            + " §7favor (+10k cap)");
-                    lore.add("§8Raising cap also raises future prestige Need");
-                } else {
-                    lore.add("§aMax personal cap reached");
-                }
+            case "cap" -> {
+                lore.add("§7Your level cap: §f" + ph.getOrDefault("level_cap_fmt", "100,000"));
+                lore.add("§7Reaching your current cap earns your next prestige.");
             }
             case "tiers", "tier", "difficulty" -> {
                 lore.add("§7Prestige favor: §e" + ph.getOrDefault("points", "0"));
@@ -1205,13 +1182,9 @@ public final class ProgressionGuiApi {
             default -> {
                 lore.add("§7Prestige favor: §e" + ph.getOrDefault("points", "0"));
                 lore.add("§7Lifetime prestiges: §f" + ph.getOrDefault("completed", "0"));
-                lore.add("§7Requires §e" + ph.getOrDefault("required_fmt", "0")
-                        + " §7power to prestige (next: §e"
-                        + ph.getOrDefault("next_required_fmt", "0") + "§7)");
-                lore.add("§7Each prestige costs more than the last:");
-                lore.add("§71st §f20,000 §8- §72nd §f40,000 §8- §73rd §f60,000 §8- §74th §f80,000");
-                lore.add("§7Your current prestige amount does not change the first four.");
-                lore.add("§7From the 5th on: §f50,000 §7(§f100,000 §7if your current prestige amount is above zero)");
+                lore.add("§7Need: §e" + ph.getOrDefault("required_fmt", "0") + " §7power (your level cap)");
+                lore.add("§7Reaching your current cap earns your next prestige.");
+                lore.add("§7How many you hold does not change it.");
                 if ("true".equalsIgnoreCase(ph.get("ready"))) {
                     lore.add("§eYou can prestige now.");
                 } else {
@@ -1282,7 +1255,7 @@ public final class ProgressionGuiApi {
             return GodKiEnhancementShop.buy(player);
         }
         if ("breakthrough".equals(act) || "cap".equals(act) || "buy_cap".equals(act)) {
-            return "§7Level cap breakthroughs are no longer bought here - your cap follows progression automatically.";
+            return "§7There is nothing to buy for your level cap. Reaching your current cap earns your next prestige.";
         }
         if ("tier".equals(act) || "buy_tier".equals(act) || "unlock_tier".equals(act)) {
             int tierId;
@@ -1331,8 +1304,7 @@ public final class ProgressionGuiApi {
             return PrestigeAdmin.info(player);
         }
         if ("admin_held".equals(act) || "admin_completed".equals(act)
-                || "admin_points".equals(act) || "admin_breakthroughs".equals(act)
-                || "admin_godki".equals(act)) {
+                || "admin_points".equals(act) || "admin_godki".equals(act)) {
             if (!StaffAccess.isStaff(player)) {
                 return "§cStaff only.";
             }
@@ -1364,7 +1336,6 @@ public final class ProgressionGuiApi {
                 case "admin_held" -> PrestigeAdmin.adjustHeld(player, mode, amount);
                 case "admin_completed" -> PrestigeAdmin.adjustCompleted(player, mode, amount);
                 case "admin_points" -> PrestigeAdmin.adjustPoints(player, mode, amount);
-                case "admin_breakthroughs" -> PrestigeAdmin.adjustBreakthroughs(player, mode, amount);
                 case "admin_godki" -> PrestigeAdmin.adjustGodKi(player, mode, amount);
                 default -> "§cSomething went wrong. Try again, or ask staff if it keeps happening.";
             };
@@ -1372,8 +1343,7 @@ public final class ProgressionGuiApi {
         if ("balance".equals(act) || "points".equals(act)) {
             return "§7Prestige favor: §e" + PrestigePointsSystem.getPoints(player)
                     + " §8| §7Current prestige amount: §6" + PrestigeSystem.getHeld(player)
-                    + " §8| §7Cap: §f" + PrestigePointsSystem.effectiveMaxLevel(player)
-                    + " §8| §7Need: §e" + PrestigeSystem.requiredLevel(player);
+                    + " §8| §7Need (your level cap): §e" + PrestigeSystem.requiredLevel(player);
         }
         return "§cSomething went wrong. Try again, or ask staff if it keeps happening.";
     }
@@ -1494,12 +1464,8 @@ public final class ProgressionGuiApi {
             return PrestigeAdmin.adjustSkill(target, skillId, mode, amount);
         }
         if ("held".equals(sub) || "completed".equals(sub) || "points".equals(sub)
-                || "breakthroughs".equals(sub) || "godki".equals(sub)
-                || "cap".equals(sub) || "breakthrough".equals(sub)) {
-            String field = switch (sub) {
-                case "cap", "breakthrough" -> "breakthroughs";
-                default -> sub;
-            };
+                || "godki".equals(sub)) {
+            String field = sub;
             FieldAdjust adj = parseFieldAdjust(actor, field, parts);
             if (adj.error != null) {
                 return adj.error;
@@ -1508,7 +1474,6 @@ public final class ProgressionGuiApi {
                 case "held" -> PrestigeAdmin.adjustHeld(adj.target, adj.mode, adj.amount);
                 case "completed" -> PrestigeAdmin.adjustCompleted(adj.target, adj.mode, adj.amount);
                 case "points" -> PrestigeAdmin.adjustPoints(adj.target, adj.mode, adj.amount);
-                case "breakthroughs" -> PrestigeAdmin.adjustBreakthroughs(adj.target, adj.mode, adj.amount);
                 case "godki" -> PrestigeAdmin.adjustGodKi(adj.target, adj.mode, adj.amount);
                 default -> "§cSomething went wrong. Try again, or ask staff if it keeps happening.";
             };

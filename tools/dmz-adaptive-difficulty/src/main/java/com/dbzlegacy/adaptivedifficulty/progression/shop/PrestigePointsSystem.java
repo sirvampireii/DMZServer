@@ -4,7 +4,6 @@ import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil;
 import com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
-import com.dbzlegacy.adaptivedifficulty.progression.PersonalLevelCapMirror;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionData;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
@@ -23,7 +22,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Prestige Points shop: turn in held prestiges for points, spend on DMZ skill levels,
- * Permanent Majin / Mutant / Ultimate, and personal level-cap breakthroughs.
+ * and Permanent Majin / Mutant / Ultimate.
  *
  * <p>Turn-in amounts: {@code 1, 2, 3, 6, 9} only.
  * Points: {@code N + T(N/3)} where {@code T(k)=k(k+1)/2}
@@ -37,9 +36,6 @@ import net.minecraft.server.level.ServerPlayer;
  * Ultimate: 3 points and independent — it stacks with Majin or Mutant, so neither
  * the Ultimate buy checks those forms nor a Majin/Mutant buy checks Ultimate.
  * Removing Ultimate refunds all 3 points and never touches Majin/Mutant.
- * Breakthroughs: raise <b>your</b> DMZ level cap by +10k (max 5 → 150k) so you can
- * level normally into the new cap. Server {@code maxValue} is 150k (client UI/level
- * math); personal soft-locks keep everyone else at 100k. Costs 15, 20, 25, 30, 35.
  * Difficulty tiers: permanent unlock with prestige points —
  * T1–2 = 1pt, T3–4 = 2pt, T5–6 = 3pt, T7 = 4pt ({@code (tier+1)/2}).
  *
@@ -47,14 +43,17 @@ import net.minecraft.server.level.ServerPlayer;
  * God Ki prices come from {@link PrestigeShopConfig} ({@code prestige-shop.json}); the
  * numbers above and the constants below are its defaults. Majin / Mutant removal refunds
  * {@code refundPercent} of the price (default 0), Ultimate defaults to a full refund.
- * Breakthroughs are not configurable. {@link PrestigeCustomShop} ("Special perks") is
- * reapplied alongside every other purchase here.
+ * {@link PrestigeCustomShop} ("Special perks") is reapplied alongside every other purchase here.
+ *
+ * <p>Level-cap breakthroughs were removed in 4.7.2: the level cap is Overhaul's
+ * ({@code DmzRevampPrestigeBridge.levelCap}). Counts stored under {@code pp_level_breakthroughs}
+ * stay in player files and are read by nothing.
  */
 public final class PrestigePointsSystem {
+    /** Overhaul {@code initialLevelCap} LM pins: the level cap every player has. */
     public static final int BASE_LEVEL_CAP = 100_000;
-    public static final int BREAKTHROUGH_STEP = 10_000;
-    public static final int MAX_BREAKTHROUGHS = 5;
-    public static final int ABSOLUTE_LEVEL_CAP = BASE_LEVEL_CAP + MAX_BREAKTHROUGHS * BREAKTHROUGH_STEP;
+    /** Overhaul {@code maxLevel} LM pins (the DMZ stat ceiling). */
+    public static final int ABSOLUTE_LEVEL_CAP = 150_000;
     /** Default Majin / Mutant price ({@code forms.majin.cost} / {@code forms.mutant.cost}). */
     public static final int FORM_COST = 5;
     /**
@@ -70,9 +69,8 @@ public final class PrestigePointsSystem {
     public static final int SKILL_SHOP_PAGE_SIZE = 21;
 
     private static final String KEY_POINTS = "prestige_points";
-    /** Root LongTag backup — same Mohist pattern as breakthroughs ({@code lm_personal_*}). */
+    /** Root LongTag backup (Mohist-safe copy of the points). */
     public static final String ROOT_POINTS = "lm_prestige_points";
-    private static final String KEY_BREAKTHROUGHS = "pp_level_breakthroughs";
     private static final String KEY_MAJIN = "pp_perm_majin";
     private static final String KEY_MUTANT = "pp_perm_mutant";
     /** Permanent Ultimate — own flag, never part of the Majin/Mutant exclusivity. */
@@ -1273,133 +1271,6 @@ public final class PrestigePointsSystem {
         }
     }
 
-    // ── Personal level-cap breakthroughs (maxValue 150k + personal soft-lock) ─
-
-    public static int getBreakthroughs(ServerPlayer player) {
-        if (player == null) {
-            return 0;
-        }
-        boolean bagHas = ProgressionData.storedHas(player, KEY_BREAKTHROUGHS);
-        int fromBag = bagHas ? (int) ProgressionData.storedGetLong(player, KEY_BREAKTHROUGHS, 0L) : -1;
-        int fromRoot = com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.getInt(player, PersonalLevelCapMirror.ROOT_BREAKTHROUGHS, -1);
-        int fromMirror = com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.getInt(player, PersonalLevelCapMirror.KEY_BREAKTHROUGHS, -1);
-        // Explicit NBT only. Inferring from lm_personal_level_cap (Overhaul 50k/150k)
-        // made 0 breakthroughs snap to 5 and padmin set 0 fail at held 1.
-        if (fromBag < 0 && fromRoot < 0 && fromMirror < 0) {
-            return 0;
-        }
-        int n = 0;
-        if (fromBag >= 0) {
-            n = Math.max(n, fromBag);
-        }
-        if (fromRoot >= 0) {
-            n = Math.max(n, fromRoot);
-        }
-        if (fromMirror >= 0) {
-            n = Math.max(n, fromMirror);
-        }
-        return Math.max(0, Math.min(MAX_BREAKTHROUGHS, n));
-    }
-
-    public static int breakthroughCost(int nextIndex) {
-        // nextIndex 1..5 → 15, 20, 25, 30, 35
-        if (nextIndex < 1 || nextIndex > MAX_BREAKTHROUGHS) {
-            return Integer.MAX_VALUE;
-        }
-        return 15 + (nextIndex - 1) * 5;
-    }
-
-    public static void setBreakthroughs(ServerPlayer player, int breakthroughs) {
-        if (player == null) {
-            return;
-        }
-        int n = Math.max(0, Math.min(MAX_BREAKTHROUGHS, breakthroughs));
-        ProgressionData.storedPut(player, KEY_BREAKTHROUGHS, n);
-        com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.putInt(player, PersonalLevelCapMirror.ROOT_BREAKTHROUGHS, n);
-        com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.putInt(player, PersonalLevelCapMirror.KEY_BREAKTHROUGHS, n);
-        try {
-            PersonalLevelCapMirror.overwrite(player, n, effectiveMaxLevel(n));
-        } catch (Throwable ignored) {
-        }
-        try {
-            DmzSkillUtil.sync(player);
-        } catch (Throwable ignored) {
-        }
-        PersonalLevelCapMirror.markSynced(player, effectiveMaxLevel(n));
-    }
-
-    /** Personal DMZ level cap: 100k + breakthroughs×10k (mixin + soft-locks). */
-    public static int effectiveMaxLevel(ServerPlayer player) {
-        return Math.min(ABSOLUTE_LEVEL_CAP,
-                BASE_LEVEL_CAP + getBreakthroughs(player) * BREAKTHROUGH_STEP);
-    }
-
-    public static int effectiveMaxLevel(int breakthroughs) {
-        int n = Math.max(0, Math.min(MAX_BREAKTHROUGHS, breakthroughs));
-        return Math.min(ABSOLUTE_LEVEL_CAP, BASE_LEVEL_CAP + n * BREAKTHROUGH_STEP);
-    }
-
-    public static String buyBreakthrough(ServerPlayer player) {
-        if (player == null) {
-            return "§cPlayers only.";
-        }
-        int current = getBreakthroughs(player);
-        if (current >= MAX_BREAKTHROUGHS) {
-            return "§cPersonal level cap fully raised (§f"
-                    + DmzRewards.formatWhole(ABSOLUTE_LEVEL_CAP) + "§c).";
-        }
-        int next = current + 1;
-        int cost = breakthroughCost(next);
-        int points = getPoints(player);
-        if (points < cost) {
-            return "§cNeed §e" + cost + " §cfavor for breakthrough §f#" + next
-                    + " §c(have §e" + points + "§c).";
-        }
-        setPoints(player, points - cost);
-        setBreakthroughs(player, next);
-        int newCap = effectiveMaxLevel(player);
-        // Force a live DMZ read so the client/stat screen picks up the raised max.
-        int liveCap = newCap;
-        int liveMaxStats = 0;
-        try {
-            var data = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player);
-            if (data != null) {
-                liveCap = Math.max(newCap, data.getConfiguredMaxValue());
-                liveMaxStats = Math.max(0, data.getConfiguredMaxTotalStats());
-                com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil.sync(player);
-            }
-        } catch (Throwable ignored) {
-        }
-        try {
-            com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
-                    .syncFromLegacy(player);
-        } catch (Throwable ignored) {
-        }
-        SystemTelemetry.log("prestige_points", "breakthrough", player, null, Map.of(
-                "breakthrough", next,
-                "cap", newCap,
-                "live_cap", liveCap,
-                "live_max_stats", liveMaxStats,
-                "cost", cost,
-                "points", getPoints(player)
-        ));
-        String note = liveCap >= newCap
-                ? ""
-                : "\n§cWarning: live DMZ max still §f" + DmzRewards.formatWhole(liveCap)
-                        + " §c(expected §f" + DmzRewards.formatWhole(newCap)
-                        + "§c) — remount / report if this persists.";
-        return "§aPersonal level cap raised to §f" + DmzRewards.formatWhole(newCap)
-                + " §7(§e-" + cost + " §7favor)"
-                + "\n§7Keep leveling with TP / buy stats into the new cap."
-                + "\n§7Future prestige requirements now scale up to §f"
-                + DmzRewards.formatWhole(newCap) + "§7."
-                + "\n§8Others stay soft-locked at their personal cap until they breakthrough too."
-                + "\n§7Breakthrough §f" + next + "§7/§f" + MAX_BREAKTHROUGHS
-                + " · Favor left: §e" + getPoints(player)
-                + "\n§7Live DMZ max now: §f" + DmzRewards.formatWhole(liveCap)
-                + note;
-    }
-
     // ── Login / post-prestige ──────────────────────────────────────────
 
     private static final String KEY_REAPPLY_AT = "pp_reapply_at_ms";
@@ -1429,10 +1300,6 @@ public final class PrestigePointsSystem {
                     .syncLmWalletFromOverhaulCount(player);
         } catch (Throwable ignored) {
         }
-        try {
-            PrestigeSystem.reconcileNeedFloor(player);
-        } catch (Throwable ignored) {
-        }
         // Stagger reapply so DMZ / Fabled finish loading (Character attach can lag).
         ProgressionData.tempPut(player, KEY_REAPPLY_AT, System.currentTimeMillis() + 12_000L);
         reapplyAllShopPurchases(player);
@@ -1446,7 +1313,7 @@ public final class PrestigePointsSystem {
 
     /**
      * After death respawn (or prestige reset), re-apply every prestige-shop purchase:
-     * skill floors, permanent difficulty tiers, Majin/Mutant/Ultimate, and breakthrough soft-lock.
+     * skill floors, permanent difficulty tiers, and Majin/Mutant/Ultimate.
      * Immediate + next-tick + delayed ticks + pulse window cover DMZ skill rebuild races.
      */
     public static void scheduleReapplyAfterDeath(ServerPlayer player) {
@@ -1499,8 +1366,7 @@ public final class PrestigePointsSystem {
             GodKiEnhancementShop.reapply(player);
         } catch (Throwable ignored) {
         }
-        // Breakthroughs are read live from NBT (effectiveMaxLevel); force a sync so
-        // clients / soft-locks see the personal cap immediately after respawn.
+        // Force a sync so clients see the level cap immediately after respawn.
         try {
             DmzSkillUtil.sync(player);
         } catch (Throwable ignored) {

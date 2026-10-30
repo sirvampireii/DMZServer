@@ -36,9 +36,11 @@ CHECKS: list[Check] = [
     Check("prestige-held-need", "prestige",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeSystem.java",),
           "heldCountForNeed"),
+    # 4.7.2: the 20k/held ladder was removed (the need is the Overhaul cap; manifest
+    # §prestige follows overhaul checks that). Kept in the report, never scored.
     Check("prestige-veteran-gate", "prestige",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeSystem.java",),
-          "HELD_GATE_MIN_COMPLETED = 4"),
+          "HELD_GATE_MIN_COMPLETED = 4", retired=True),
     Check("prestige-gui-need", "prestige",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/ProgressionGuiApi.java",),
           "heldCountForNeed(player)"),

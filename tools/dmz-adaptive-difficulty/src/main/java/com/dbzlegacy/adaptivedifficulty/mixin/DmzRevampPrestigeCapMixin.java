@@ -12,12 +12,13 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * LM owns personal playable max stat total (100k + 10k×breakthroughs, max 150k).
- * Overhaul {@code levelCap} follows that personal cap so prestige 0 is 100k
- * (not stock 50k) and held 1 + 0 breakthroughs stays 100k (not 150k).
- * {@code hexStatReference} follows the same cap. Playable totals stay
+ * Overhaul {@code levelCap} returns the base cap LM pins ({@code LmOverhaulCapMath.overhaulLevelCap}):
+ * 100k at prestige 0 (not stock 50k), and held prestige does not move it. LM reads the cap back
+ * through Overhaul ({@code DmzRevampPrestigeBridge.levelCap}) for the prestige requirement, the
+ * soft-locks, and the menus. {@code hexStatReference} follows the same cap. Playable totals stay
  * {@link com.dbzlegacy.adaptivedifficulty.mixin.StatsDataMixin} + this
- * {@code maxAssignableTotal} + TP/stat soft-locks.
+ * {@code maxAssignableTotal} + TP/stat soft-locks. The most prestiges a player can hold is
+ * Overhaul's own {@code maxPrestigeCount}.
  */
 @Mixin(targets = "com.dmzrevamp.revamp.prestige.PrestigeSystem", remap = false, priority = 5000)
 public abstract class DmzRevampPrestigeCapMixin {
@@ -52,7 +53,7 @@ public abstract class DmzRevampPrestigeCapMixin {
                     .overhaulCount(data);
         } catch (Throwable ignored) {
         }
-        if (count >= LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE) {
+        if (count >= LmOverhaulCapMath.configuredMaxPrestigeCount()) {
             cir.setReturnValue(false);
             return;
         }
@@ -60,8 +61,7 @@ public abstract class DmzRevampPrestigeCapMixin {
             cir.setReturnValue(false);
             return;
         }
-        // Native Overhaul gates on stock 50k / pinned 150k. 0-breakthrough players
-        // max at 100k and could never prestige. Use the personal cap instead.
+        // Native Overhaul gates on stock 50k / pinned 150k. Use the level cap LM gives Overhaul.
         if (data == null) {
             return;
         }
@@ -74,7 +74,7 @@ public abstract class DmzRevampPrestigeCapMixin {
 
     @ModifyVariable(method = "setCount", at = @At("HEAD"), argsOnly = true, remap = false)
     private static int lm$capOverhaulPrestigeCount(int count) {
-        return Math.max(0, Math.min(LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE, count));
+        return Math.max(0, Math.min(LmOverhaulCapMath.configuredMaxPrestigeCount(), count));
     }
 
     private static boolean lmOwnsPrestige() {

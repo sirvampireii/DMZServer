@@ -3,8 +3,6 @@ package com.dbzlegacy.adaptivedifficulty.mixin;
 import com.dbzlegacy.adaptivedifficulty.character.RacialStrikeWipe;
 import com.dbzlegacy.adaptivedifficulty.progression.FusionBonusOwner;
 import com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath;
-import com.dbzlegacy.adaptivedifficulty.progression.PersonalLevelCapMirror;
-import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.character.BonusStats;
 import com.dragonminez.common.stats.techniques.Techniques;
@@ -20,8 +18,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * Overrides dmzrevamp {@code StatsDataLevelingRevampMixin} (default priority 1000).
  * Priority 2000 merges after Overhaul so our HEAD/RETURN injects run last and
- * {@code setReturnValue} wins: personal 100k + 10k×breakthroughs only — never
- * stock 50k at prestige 0 or +5k/held from Overhaul's native ladder.
+ * {@code setReturnValue} wins: the level cap Overhaul reports ({@code LmOverhaulCapMath.levelCap}),
+ * never stock 50k at prestige 0 or +5k/held from Overhaul's native ladder.
  */
 @Mixin(value = StatsData.class, remap = false, priority = 5000)
 public abstract class StatsDataMixin {
@@ -99,10 +97,7 @@ public abstract class StatsDataMixin {
             return;
         }
         StatsData self = (StatsData) (Object) this;
-        int personal = Math.max(
-                PrestigePointsSystem.BASE_LEVEL_CAP, LmOverhaulCapMath.personalLevelCap(self));
-        PersonalLevelCapMirror.bind(self, personal);
-        cir.setReturnValue(personal);
+        cir.setReturnValue(LmOverhaulCapMath.levelCap(self));
     }
 
     private void applyPersonalMaxTotal(CallbackInfoReturnable<Integer> cir) {
@@ -118,8 +113,7 @@ public abstract class StatsDataMixin {
             return;
         }
         StatsData self = (StatsData) (Object) this;
-        int personal = LmOverhaulCapMath.personalLevelCap(self);
-        int maxTotal = LmOverhaulCapMath.maxAssignableTotal(self, personal);
+        int maxTotal = LmOverhaulCapMath.maxAssignableTotal(self, LmOverhaulCapMath.levelCap(self));
         int total = 0;
         try {
             if (self.getStats() != null) {

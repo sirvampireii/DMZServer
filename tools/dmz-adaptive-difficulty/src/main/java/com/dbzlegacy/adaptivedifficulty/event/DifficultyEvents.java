@@ -285,10 +285,8 @@ public final class DifficultyEvents {
     }
 
     /**
-     * Soft-lock TP at the player's personal breakthrough level cap so further
-     * progress requires the next breakthrough. Server DMZ {@code maxValue} is 150k
-     * (so clients can display/buy into raised caps); personal soft-locks keep
-     * non-breakthrough players at 100k / breakthrough buyers at 110k…150k.
+     * Soft-lock TP at the player's level cap (Overhaul's, {@code LmOverhaulCapMath.levelCap}).
+     * Reaching the cap is what earns the next prestige. Server DMZ {@code maxValue} is 150k.
      * <p>Silent while at cap — chat spam during combat/mining was unusable.
      * Over-cap buy attempts still tip via {@link #onStatChange}.
      */
@@ -305,8 +303,7 @@ public final class DifficultyEvents {
                 var data = DmzProgression.stats(player);
                 if (data != null) {
                     int raw = Math.max(0, data.getLevel());
-                    int cap = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem
-                            .effectiveMaxLevel(player);
+                    int cap = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.levelCap(data);
                     if (raw >= cap) {
                         event.setTpGain(0);
                         return;
@@ -318,7 +315,7 @@ public final class DifficultyEvents {
     }
 
     /**
-     * Soft-lock primary-stat purchases past the personal breakthrough ceiling.
+     * Soft-lock primary-stat purchases past the level cap (Overhaul's).
      * DMZ {@code maxValue} is 150k for client UI/level math; this reverts over-cap
      * buys and refunds the spent points as pending attribute points.
      */
@@ -334,12 +331,11 @@ public final class DifficultyEvents {
             return;
         }
         try {
-            int personal = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem
-                    .effectiveMaxLevel(player);
             var data = DmzProgression.stats(player);
             if (data == null || data.getStats() == null) {
                 return;
             }
+            int personal = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.levelCap(data);
             int total = data.getStats().getTotalStats();
             int maxTotal = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath
                     .maxAssignableTotal(data, personal);
@@ -360,10 +356,10 @@ public final class DifficultyEvents {
             // Title tip only — no chat. Long cooldown so hold-to-buy cannot spam.
             com.dbzlegacy.adaptivedifficulty.util.ScreenNotify.hint(
                     player,
-                    "Personal Cap",
-                    "Breakthrough in /lm → Prestige ("
+                    "Level Cap",
+                    "At your cap ("
                             + com.dbzlegacy.adaptivedifficulty.util.DmzRewards.formatWhole(personal)
-                            + ")",
+                            + "). Prestige in /lm → Prestige",
                     "pp_stat_cap_title",
                     120_000L
             );
