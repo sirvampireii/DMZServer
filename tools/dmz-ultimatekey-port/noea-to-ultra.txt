@@ -1,0 +1,29 @@
+# Noea class -> the class DUK uses now. Ultra classes were matched by name and every member DUK
+# calls is checked against the Ultra 0.4.0 jar by audit_api_refs.py. The empires/ultra classes are
+# DUK facades over Ultra's public API, for Noea types Ultra has no copy of.
+com/butterjaffa/noeabosses/CanonicalSolarSystem            com/dmzultra/space/catalogue/CanonicalSolarSystem
+com/butterjaffa/noeabosses/CanonicalSolarSystem$Body       com/dmzultra/space/catalogue/CanonicalSolarSystem$Body
+com/butterjaffa/noeabosses/DeepSpaceEncounterService       com/dmzultra/space/mission/DeepSpaceEncounterService
+com/butterjaffa/noeabosses/DeepSpaceEntities               com/dmzultra/space/entity/DeepSpaceEntities
+com/butterjaffa/noeabosses/DeepSpaceEvents                 com/dmzultra/space/catalogue/DeepSpaceEvents
+com/butterjaffa/noeabosses/DeepSpaceNetwork                com/dmzultra/space/net/DeepSpaceNetwork
+com/butterjaffa/noeabosses/DeepSpacePlanetBuilder          com/dmzultra/space/surface/DeepSpacePlanetBuilder
+com/butterjaffa/noeabosses/DeepSpaceSavedData              com/dmzultra/space/catalogue/SpaceSavedData
+com/butterjaffa/noeabosses/DeepSpaceSavedData$BodyLayout   com/dmzultra/space/catalogue/SpaceSavedData$BodyLayout
+com/butterjaffa/noeabosses/DeepSpaceTravel                 com/dmzultra/space/cross/DeepSpaceTravel
+com/butterjaffa/noeabosses/entity/DeepSpacePlanetEntity    com/dmzultra/space/entity/DeepSpacePlanetEntity
+com/butterjaffa/noeabosses/DivineTechniques                com/dmzultra/space/shim/DivineTechniques
+com/butterjaffa/noeabosses/HakaiGrabService                com/dmzultra/space/shim/HakaiGrabService
+com/butterjaffa/noeabosses/SparringMatchService            com/dmzultra/space/shim/SparringMatchService
+com/butterjaffa/noeabosses/DestroyerRank                   com/dmzlegacy/ultimatekey/empires/ultra/DestroyerRank
+com/butterjaffa/noeabosses/DestroyerRoleSavedData          com/dmzlegacy/ultimatekey/empires/ultra/DestroyerRoles
+com/butterjaffa/noeabosses/DestroyerRoleSavedData$Assignment com/dmzlegacy/ultimatekey/empires/ultra/DestroyerRoles$Assignment
+com/butterjaffa/noeabosses/DestroyerRoleSavedData$Result   com/dmzlegacy/ultimatekey/empires/ultra/DestroyerRoles$Result
+com/butterjaffa/noeabosses/DestroyerRoleService            com/dmzlegacy/ultimatekey/empires/ultra/DestroyerOffice
+com/butterjaffa/noeabosses/V095CustomDefinitionRegistry    com/dmzlegacy/ultimatekey/empires/ultra/CustomPlanets
+com/butterjaffa/noeabosses/V095CustomDefinitionRegistry$Snapshot com/dmzlegacy/ultimatekey/empires/ultra/CustomPlanets$Snapshot
+com/butterjaffa/noeabosses/V095CustomDefinitionRegistry$PlanetDefinition com/dmzlegacy/ultimatekey/empires/ultra/CustomPlanets$PlanetDefinition
+com/butterjaffa/noeabosses/V095ServerPolicySnapshot        com/dmzlegacy/ultimatekey/empires/ultra/SpaceRules
+com/butterjaffa/noeabosses/AtmosphereTravelService         com/dmzlegacy/ultimatekey/empires/ultra/UltraTravel
+com/butterjaffa/noeabosses/SonicFlightService              com/dmzlegacy/ultimatekey/empires/ultra/UltraTravel
+com/butterjaffa/noeabosses/TournamentOfPowerMatchService   com/dmzlegacy/ultimatekey/empires/ultra/UltraTravel

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Decompile fidelity check: recompiled classes vs the original jar, method by method.
 
-usage: compare_bytecode.py <original.jar> <classes dir> [--expect <file>]
+usage: compare_bytecode.py <original.jar> <classes dir> [--expect <file>] [--new-prefix <pkg/>]
 
 Each class in <classes dir> is disassembled with javap next to its counterpart in the original jar.
 Each method becomes a multiset of what it does: calls (by name and descriptor; the static receiver
@@ -70,6 +70,7 @@ def main() -> None:
     ap.add_argument("jar")
     ap.add_argument("classes")
     ap.add_argument("--expect")
+    ap.add_argument("--new-prefix", default=None, help="classes under this path are new in the port")
     a = ap.parse_args()
     expect = set()
     if a.expect:
@@ -85,6 +86,8 @@ def main() -> None:
         for cls in sorted(root.rglob("*.class")):
             rel = cls.relative_to(root).as_posix()
             short = rel[:-6].rsplit("/", 1)[-1]
+            if rel not in names and a.new_prefix and rel.startswith(a.new_prefix):
+                continue
             if rel not in names:
                 print(f"EXTRA class {rel}")
                 bad += 1
@@ -112,7 +115,8 @@ def main() -> None:
                     for ins, n in sorted((got[sig] - want[sig]).items()):
                         print(f"    only in rebuilt  x{n}: {ins}")
         # every sibling of a recompiled outer class must have been rebuilt too
-        outers = {p.relative_to(root).as_posix()[:-6].split("$")[0] for p in root.rglob("*.class")}
+        outers = {p.relative_to(root).as_posix()[:-6].split("$")[0] for p in root.rglob("*.class")
+                  if p.relative_to(root).as_posix() in names}
         for n in sorted(names):
             if n.endswith(".class") and n[:-6].split("$")[0] in outers and not (root / n).is_file():
                 print(f"NOT REBUILT {n} (its outer class was recompiled)")

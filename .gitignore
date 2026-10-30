@@ -67,3 +67,4 @@ mimo-tasks/.logs/
 
 # DUK port build output (the jar ships from mods/)
 tools/dmz-ultimatekey-port/build/
+tools/dmz-ultimatekey-port/__pycache__/
