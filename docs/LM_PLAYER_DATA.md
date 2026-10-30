@@ -81,7 +81,7 @@ The move runs on server start (`ServerStartingEvent`), before anyone can join, a
    - **LM file already exists:** the file is never overwritten; the player is logged.
    - **Not named by a UUID:** not a player file; counted as `notPlayer` and logged.
 3. It writes the marker with counts (scanned, migrated, no data, existing, skipped, not player
-   files) only when **no player file was skipped** (4.6.262). If any file was unreadable or its LM
+   files) only when **no player file was skipped** (4.7.0). If any file was unreadable or its LM
    file could not be written, there is no marker and the pass runs again next boot; players moved
    last time already have their LM file, which `writeIfAbsent` never overwrites, so a re-run only
    picks up the ones left behind. Once a pass skips nothing, later boots log
@@ -129,7 +129,7 @@ survive relog and respawn, and they are the only keys the death copy still carri
    written to a temp file and moved over the original. Every other tag survives unchanged.
 
 The pass logs each player's removed keys and a totals line (scanned, stripped, skipped, no data),
-and writes the marker with the same counts. Store files are never modified. Since 4.6.262 the
+and writes the marker with the same counts. Store files are never modified. Since 4.7.0 the
 strip writes its marker only once the migration marker exists: while the migration is still
 retrying a skipped player, that player has no store file, so the strip skips them too and runs
 again next boot until they are moved and stripped.
@@ -155,7 +155,7 @@ next restart.
 
 ## DMZ 2.1.3 reset paths
 
-**DragonMineZ 2.2 (4.6.262).** Re-checked against the 2.2 jar: the same entry points, and
+**DragonMineZ 2.2 (4.7.0).** Re-checked against the 2.2 jar: the same entry points, and
 `resetPlayerProgress` additionally scales or clears dynamic growth stats and clears story resets.
 It still touches only DMZ's own `dmzTransformMobEffects` key in persistent data, and nothing in
 the 2.2 jar names `config/legacymechanics/`. `UpdateCharacterC2S` now applies only while the player

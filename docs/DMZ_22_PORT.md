@@ -1,4 +1,4 @@
-# DragonMineZ 2.2 port (LM 4.6.262, melee fix 2.12.27)
+# DragonMineZ 2.2 port (LM 4.7.0, melee fix 3.0.0)
 
 Both jars are built against `mods/dragonminez-2.2.jar` (CurseForge file 9282248, sha256
 `b69d922f…414e7d`). Minecraft 1.20.1, Forge 47. Each `mods.toml` asks for DragonMineZ `[2.2,)`, so
@@ -14,7 +14,7 @@ against 2.2 it passes (30 melee mixins, 29 LM mixins). A boot can still fail on 
 Mixin run sees (for example a mod that is not on the compile classpath), so the test boot is still
 required.
 
-## Melee fix 2.12.27
+## Melee fix 3.0.0
 
 - Party guard on the 2.2 party API. 2.2 has no party quest merge; quests complete per player.
   `joinParty`, `joinPartyForFusion`, `reconcile` (login), `syncPartyDifficulty`, `kickMember`, and
@@ -27,7 +27,7 @@ required.
   does not ship this jar.
 - Console: `config/dmz_mohist_melee_fix-debug.properties`, `debugLogging=true` to see per-event lines.
 
-## LM 4.6.262
+## LM 4.7.0
 
 - Retargets: Dende wipe (`handleDende` returns boolean), new-character wipe and post-creation hook
   (`CreateCharacterC2S` body is `lambda$handle$1`), radar pickup (`onDragonBallRemoved`), ki beam
@@ -43,7 +43,7 @@ required.
 ## Before the first test boot
 
 1. Back up `config/dragonminez/` and the world's `playerdata/`.
-2. Install `dragonminez-2.2.jar`, `LegacyMechanics-4.6.262.jar`, and `dmz_mohist_melee_fix-2.12.27.jar`;
+2. Install `dragonminez-2.2.jar`, `LegacyMechanics-4.7.0.jar`, and `dmz_mohist_melee_fix-3.0.0.jar`;
    remove the 2.1.3, 4.6.261, and 2.12.25 jars.
 3. The add-ons on the server were built for 2.1.3: Noea (`Noea-1.2.0-DMZ-2.1.3`), dmzrevamp, SDU,
    Shurui's mods, dmzultra, and KaiPath. Check each loads on 2.2; a failure there is not from these jars.

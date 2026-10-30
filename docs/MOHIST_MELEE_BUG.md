@@ -1,8 +1,8 @@
 # Mohist M1: animation but no damage
 
-## Fix v2.12.27 — DragonMineZ 2.2 port (Oct 2026)
+## Fix v3.0.0 — DragonMineZ 2.2 port (Oct 2026)
 
-`mods/dmz_mohist_melee_fix-2.12.27.jar` — built against `mods/dragonminez-2.2.jar` (CurseForge file 9282248). It needs DragonMineZ 2.2 (`mods.toml` asks for `[2.2,)`) and will not load on 2.1.3.
+`mods/dmz_mohist_melee_fix-3.0.0.jar` — built against `mods/dragonminez-2.2.jar` (CurseForge file 9282248). It needs DragonMineZ 2.2 (`mods.toml` asks for `[2.2,)`) and will not load on 2.1.3.
 
 - **Party quest guard.** 2.2 removed the party quest merge (`PartyManager.syncQuestProgress`, `onPlayerLogin`, `PlayerQuestData.mergeQuestStateFrom`, `QuestProgress.mergeForwardFrom`). Quests now complete per player through `completeQuest`, and party members join a quest only when it is available to them. `joinParty`, `joinPartyForFusion`, `reconcile` (the 2.2 login path), `syncPartyDifficulty`, `kickMember`, and `leaveParty(ServerPlayer, boolean)` each run inside a guard. During that call a quest can reach `SUCCESS` (`QuestProgress.setStatus`) only for a player who had it `ACCEPTED`. Afterwards, any completion that appeared and was not earned or accepted is stripped. Unearned reward claims are still cancelled. Nothing wipes saga progress on leave, login, or death. Completion credit now goes to the completing player only; 2.2 posts the completion event once per player.
 - **Ghost party heal** runs after the login `reconcile` and after the full `leaveParty` overload. The 1-arg `leaveParty` is a stub that delegates, so every party hook is pinned by descriptor and runs once.

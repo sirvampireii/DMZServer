@@ -260,9 +260,9 @@ reply change lives outside this set; the other 24 are unchanged.
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified). The command
 tree change lives outside this set; the other 24 are unchanged.
 
-## Re-baseline (2026-10-30, 4.6.262 DragonMineZ 2.2 port)
+## Re-baseline (2026-10-30, 4.7.0 DragonMineZ 2.2 port)
 
-Three classes re-extracted from `mods/LegacyMechanics-4.6.262.jar`, javap-verified:
+Three classes re-extracted from `mods/LegacyMechanics-4.7.0.jar`, javap-verified:
 `AdaptiveDifficultyMod` (version constant and the boot banner now names DragonMineZ 2.2),
 `ConfigRegistry` (the general group lists the new `debugLogging` field: one more string-switch
 case, hash `0x4a3b998c`, no C2 A7 bytes), and `ConfigFieldHelp` (the `debugLogging` help line).
@@ -272,6 +272,11 @@ The weapon hot-path baseline (`weapon-hotpath-4.6.229/`) was re-seeded in the sa
 `WeaponRatioConfig.info`/`warn` lost their `System.out` fallback (javap: only the two
 try/catch println blocks are gone). `WeaponRatioConfig$Json` and `$Snapshot` differ only in their
 line-number tables (the source file is 10 lines shorter). The other 6 weapon classes are unchanged.
+
+## Re-baseline (2026-10-30, renamed 4.7.0)
+
+The 2.2 port ships as 4.7.0 instead of 4.6.262 (that number never shipped). Only
+`AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified).
 
 ## Refresh the reference set
 
