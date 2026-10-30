@@ -16,6 +16,8 @@ required.
 
 ## Melee fix 3.0.0
 
+- Carries live 2.12.26 (never committed): no Shurui raid or SDU mixins.
+
 - Party guard on the 2.2 party API. 2.2 has no party quest merge; quests complete per player.
   `joinParty`, `joinPartyForFusion`, `reconcile` (login), `syncPartyDifficulty`, `kickMember`, and
   `leaveParty(ServerPlayer, boolean)` run inside a guard that refuses a borrowed `SUCCESS` and
@@ -45,8 +47,8 @@ required.
 1. Back up `config/dragonminez/` and the world's `playerdata/`.
 2. Install `dragonminez-2.2.jar`, `LegacyMechanics-4.7.0.jar`, and `dmz_mohist_melee_fix-3.0.0.jar`;
    remove the 2.1.3, 4.6.261, and 2.12.25 jars.
-3. The add-ons on the server were built for 2.1.3: Noea (`Noea-1.2.0-DMZ-2.1.3`), dmzrevamp, SDU,
-   Shurui's mods, dmzultra, and KaiPath. Check each loads on 2.2; a failure there is not from these jars.
+3. The add-ons on the server were built for 2.1.3: Noea (`Noea-1.2.0-DMZ-2.1.3`), dmzrevamp,
+   dmzultra, and KaiPath (Shurui's mods and SDU are no longer on live). Check each loads on 2.2; a failure there is not from these jars.
 4. Search the log for `Mixin apply failed`, `InvalidInjectionException`, and `[dmz_mohist_melee_fix]` /
    `[LegacyMechanics]` warnings.
 

@@ -9,7 +9,7 @@ displayName = "DMZ Mohist Melee Fix"
 authors = "DBZ Legacy Reborn"
 description = '''
 Fixes M1 animation-with-no-hit after world changes (empty/stale entity ID rescue),
-clamps >64 ID packets, Shurui raid unlock, respawn-like attribute recovery.
+clamps >64 ID packets, respawn-like attribute recovery.
 Intentional DMZ stat resets update/clear the primary snapshot so restore cannot
 resurrect old STR/etc. Does not override hasCreatedCharacter — vanilla DMZ
 clears it so reset reopens race select. Soft keepPercentage/keepSkills still
@@ -31,12 +31,6 @@ config/dmz_mohist_melee_fix-debug.properties.
 
 [[mixins]]
 config = "dmz_mohist_melee_fix.mixins.json"
-
-[[mixins]]
-config = "dmz_mohist_melee_fix.raid.mixins.json"
-
-[[mixins]]
-config = "dmz_mohist_melee_fix.sdu.mixins.json"
 
 [[mixins]]
 config = "dmz_mohist_melee_fix.noea.mixins.json"
