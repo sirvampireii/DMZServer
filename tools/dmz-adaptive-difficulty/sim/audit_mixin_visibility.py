@@ -146,7 +146,9 @@ def violations_in(path: Path) -> list[str]:
 
 
 def main() -> int:
-    files = sorted(SRC.rglob("*.java"))
+    # Optional source root so other mods (the melee fix) can run the same check.
+    src = Path(sys.argv[1]) if len(sys.argv) > 1 else SRC
+    files = sorted(src.rglob("*.java"))
     problems: list[str] = []
     mixin_files = 0
     for path in files:

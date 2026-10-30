@@ -88,7 +88,7 @@ public final class ReachAttributeFix {
         stripNaNModifiers(inst, player, label, oldBase, reason);
         int n = LOGS.incrementAndGet();
         if (n <= 40) {
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] repaired {} player={} base={}->{} value={} reason={}",
                     DmzMohistMeleeFix.MOD_ID,
                     label,
@@ -123,7 +123,7 @@ public final class ReachAttributeFix {
         if (changed) {
             int n = LOGS.incrementAndGet();
             if (n <= 40) {
-                LOGGER.info(
+                MeleeDebug.log(
                         "[{}] stripped NaN modifiers {} player={} base={} value={} reason={}",
                         DmzMohistMeleeFix.MOD_ID,
                         label,
@@ -216,7 +216,7 @@ public final class ReachAttributeFix {
         if (changed) {
             int n = LOGS.incrementAndGet();
             if (n <= 40) {
-                LOGGER.info(
+                MeleeDebug.log(
                         "[{}] repaired {} player={} base={}->{} value={} reason={}",
                         DmzMohistMeleeFix.MOD_ID,
                         label,
@@ -275,7 +275,7 @@ public final class ReachAttributeFix {
         double fallback = minUsable;
         int n = LOGS.incrementAndGet();
         if (n <= 30) {
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] sanitized range player={} weapon={} computed={} -> {}",
                     DmzMohistMeleeFix.MOD_ID,
                     playerName(player),

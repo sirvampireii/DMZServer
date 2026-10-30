@@ -1,7 +1,6 @@
 package com.dbzlegacy.mohistmelee;
 
 import com.dragonminez.common.events.DMZEvent;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -29,18 +28,18 @@ public final class PersonalSagaEvents {
         MinecraftForge.EVENT_BUS.register(new PersonalSagaEvents());
     }
 
+    /**
+     * DragonMineZ 2.2 posts this once per completing player (each turn-in participant gets its own
+     * {@code finishTurnIn}). Credit that player only: the admin finish lists the whole party, and
+     * party members who were not on the quest did not earn it. {@code completeQuest} credits too.
+     */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onQuestCompleted(DMZEvent.QuestCompletedEvent event) {
         String questKey = event.getQuestKey();
-        if (questKey == null || questKey.isBlank()) {
+        if (questKey == null || questKey.isBlank() || event.getPlayer() == null) {
             return;
         }
-        List<ServerPlayer> members = event.getPartyMembers();
-        if (members != null && !members.isEmpty()) {
-            PersonalSagaGuard.markEarnedAll(members, questKey);
-        } else if (event.getPlayer() != null) {
-            PersonalSagaGuard.markEarned(event.getPlayer(), questKey);
-        }
+        PersonalSagaGuard.markEarned(event.getPlayer(), questKey);
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -58,7 +57,7 @@ public final class PersonalSagaEvents {
         player.m_5661_(Component.m_237113_(CLAIM_MSG), true);
         int n = CLAIM_LOGS.incrementAndGet();
         if (n <= 40) {
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] blocked unearned quest reward claim: player={} quest={} rewardIndex={}",
                     DmzMohistMeleeFix.MOD_ID,
                     player.m_36316_().getName(),

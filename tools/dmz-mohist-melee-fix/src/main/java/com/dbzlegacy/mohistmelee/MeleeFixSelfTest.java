@@ -168,7 +168,7 @@ public final class MeleeFixSelfTest {
             boolean pass = reachOk && kiPreserved && secondaryOk && strOk && strReadOk
                     && respawnLikeOk && fistRangeOk
                     && (!lockedBefore || !lockedAfter);
-            LOGGER.info(
+            MeleeDebug.result(pass, 
                     "[{}] SELFTEST {} reachBefore={} reachAfter={} sanitizedRange={} fistSanitized={} kiPreserved={} kiAfterRepair={} strRead={} strAfter={} respawnLikeStr={} secondaryRead={} lockedBefore={} lockedAfter={}",
                     DmzMohistMeleeFix.MOD_ID,
                     pass ? "PASS" : "FAIL",
@@ -205,7 +205,7 @@ public final class MeleeFixSelfTest {
                 strInst = PrimaryStatRepair.injectAttribute(fake, strAttr, 250.0D);
             }
             if (strInst == null) {
-                LOGGER.info("[{}] RESET SELFTEST SKIP (no STR attr)", DmzMohistMeleeFix.MOD_ID);
+                MeleeDebug.log("[{}] RESET SELFTEST SKIP (no STR attr)", DmzMohistMeleeFix.MOD_ID);
                 return;
             }
             strInst.m_22100_(250.0D);
@@ -231,7 +231,7 @@ public final class MeleeFixSelfTest {
 
             boolean pass = !restoredWhileSuppressed && !restoredAfter
                     && saved <= 0 && live <= 0.0D && read <= 0;
-            LOGGER.info(
+            MeleeDebug.result(pass, 
                     "[{}] RESET SELFTEST {} restoredWhile={} restoredAfter={} saved={} live={} read={}",
                     DmzMohistMeleeFix.MOD_ID,
                     pass ? "PASS" : "FAIL",
@@ -307,7 +307,7 @@ public final class MeleeFixSelfTest {
             var relation = com.dragonminez.common.combat.logic.player.TargetHelper.getRelation(
                     (Player) fake, (Entity) zombie
             );
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] FALLBACK SELFTEST setup addedNear={} id={} inScan={} scanSize={} canAttack={} relation={} pos={}/{}/{}",
                     DmzMohistMeleeFix.MOD_ID,
                     addedNear,
@@ -370,7 +370,7 @@ public final class MeleeFixSelfTest {
             boolean staleOk = health2After < health2Before || zombie.f_20916_ > 0;
 
             boolean pass = emptyOk && staleOk;
-            LOGGER.info(
+            MeleeDebug.result(pass, 
                     "[{}] FALLBACK SELFTEST {} emptyOk={} staleOk={} emptyHealth={}->{} staleHealth={}->{} addedFar={} farResolved={}",
                     DmzMohistMeleeFix.MOD_ID,
                     pass ? "PASS" : "FAIL",
@@ -438,7 +438,7 @@ public final class MeleeFixSelfTest {
                     .map(d -> d.getStatus().isStrikeLocked())
                     .orElse(true);
             boolean pass = lockedBefore && !lockedAfter;
-            LOGGER.info(
+            MeleeDebug.result(pass, 
                     "[{}] RAIDHEAL SELFTEST {} lockedBefore={} lockedAfter={}",
                     DmzMohistMeleeFix.MOD_ID,
                     pass ? "PASS" : "FAIL",
@@ -446,7 +446,7 @@ public final class MeleeFixSelfTest {
                     lockedAfter
             );
         } catch (ClassNotFoundException e) {
-            LOGGER.info("[{}] RAIDHEAL SELFTEST SKIP (shuruis_raid_bosses not present)", DmzMohistMeleeFix.MOD_ID);
+            MeleeDebug.log("[{}] RAIDHEAL SELFTEST SKIP (shuruis_raid_bosses not present)", DmzMohistMeleeFix.MOD_ID);
         } catch (Throwable t) {
             LOGGER.error("[{}] RAIDHEAL SELFTEST FAIL {}", DmzMohistMeleeFix.MOD_ID, t.toString(), t);
         }

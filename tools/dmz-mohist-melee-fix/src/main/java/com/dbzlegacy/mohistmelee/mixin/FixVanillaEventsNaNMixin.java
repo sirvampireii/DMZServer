@@ -1,6 +1,7 @@
 package com.dbzlegacy.mohistmelee.mixin;
 
 import com.dbzlegacy.mohistmelee.DmzMohistMeleeFix;
+import com.dbzlegacy.mohistmelee.MeleeDebug;
 import com.dragonminez.server.events.FixVanillaEvents;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.world.entity.LivingEntity;
@@ -60,7 +61,7 @@ public abstract class FixVanillaEventsNaNMixin {
     private static void log(String where, LivingEntity entity) {
         int n = LOGS.incrementAndGet();
         if (n <= 40) {
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] prevented NaN cancel where={}",
                     DmzMohistMeleeFix.MOD_ID,
                     where

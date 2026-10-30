@@ -6,8 +6,11 @@ import com.dragonminez.common.stats.StatsCapability;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.StatsProvider;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,13 +34,24 @@ import org.apache.logging.log4j.Logger;
  *   <li>Reward claims are cancelled unless the quest is personally earned.</li>
  * </ul>
  * Never wipe existing saga progress on party leave, login, or death. Only strip completions
- * that appeared <em>during</em> a party merge and were not earned / not previously accepted.
+ * that appeared <em>during</em> a party operation and were not earned / not previously accepted.
+ * <p>
+ * DragonMineZ 2.2 removed the party quest merge ({@code PartyManager.syncQuestProgress},
+ * {@code PlayerQuestData.mergeQuestStateFrom}, {@code QuestProgress.mergeForwardFrom}). Quests now
+ * complete per player through {@code PlayerQuestData.completeQuest}, and party members join a
+ * quest only when it is available to them ({@code QuestService.startQuest}). The party
+ * operations that remain ({@code joinParty}, {@code joinPartyForFusion}, {@code reconcile},
+ * {@code syncPartyDifficulty}, {@code kickMember}, {@code leaveParty}) run inside
+ * {@link #beginPartyOp} / {@link #endPartyOp}, so any completion one of them hands out is still
+ * refused or stripped.
  */
 public final class PersonalSagaGuard {
     private static final Logger LOGGER = LogManager.getLogger(DmzMohistMeleeFix.MOD_ID);
 
-    /** Set while {@link com.dragonminez.common.quest.PartyManager} is syncing quest state. */
-    public static final ThreadLocal<ServerPlayer> MERGE_TARGET = new ThreadLocal<>();
+    /** A party operation running on this thread, with each touched player's quest snapshot. */
+    private static final ThreadLocal<PartyOp> PARTY_OP = new ThreadLocal<>();
+    /** Party operations finish in one call; an older frame means a RETURN hook never ran. */
+    private static final long PARTY_OP_STALE_NANOS = 5_000_000_000L;
 
     private static final String ROOT_KEY = DmzMohistMeleeFix.MOD_ID;
     private static final String EARNED_KEY = "personalEarnedQuests";
@@ -58,19 +72,83 @@ public final class PersonalSagaGuard {
         return earned != null && earned.contains(questKey);
     }
 
-    public static boolean canInheritCompletion(ServerPlayer target, String questKey, QuestStatus ownStatus) {
-        if (target == null || questKey == null || questKey.isBlank()) {
-            return false;
-        }
-        if (hasEarned(target, questKey)) {
-            return true;
-        }
-        // True co-op only: member must already be on the quest.
-        return ownStatus == QuestStatus.ACCEPTED;
+    /**
+     * Inside a party operation a quest may only become {@code SUCCESS} for a player who was
+     * already on it (true co-op) or already had it. Anything else is a borrowed completion.
+     */
+    public static boolean mayTakeSuccessDuringPartyOp(QuestStatus ownStatus) {
+        return ownStatus == QuestStatus.ACCEPTED || ownStatus == QuestStatus.SUCCESS;
+    }
+
+    public static boolean inPartyOp() {
+        PartyOp op = PARTY_OP.get();
+        return op != null && !op.isStale();
     }
 
     /**
-     * After a party quest merge: remove only completions that were newly applied by this merge
+     * Start (or nest into) a party operation. The outermost call snapshots every listed player's
+     * completed and accepted quests; nested calls add players it has not seen yet.
+     */
+    public static void beginPartyOp(Collection<ServerPlayer> players) {
+        PartyOp op = PARTY_OP.get();
+        if (op != null && op.isStale()) {
+            LOGGER.warn("[{}] dropped a party quest guard frame that never finished", DmzMohistMeleeFix.MOD_ID);
+            op = null;
+        }
+        if (op == null) {
+            op = new PartyOp();
+            PARTY_OP.set(op);
+        }
+        op.depth++;
+        if (players == null) {
+            return;
+        }
+        for (ServerPlayer player : players) {
+            if (player == null || op.snapshots.containsKey(player.m_20148_())) {
+                continue;
+            }
+            PlayerQuestData data = questData(player);
+            if (data == null) {
+                continue;
+            }
+            ensureBootstrapped(player);
+            op.snapshots.put(player.m_20148_(),
+                    new Snapshot(player, snapshotCompleted(data), snapshotAccepted(data)));
+        }
+    }
+
+    /** End a party operation. The outermost end strips completions it handed out unearned. */
+    public static void endPartyOp() {
+        PartyOp op = PARTY_OP.get();
+        if (op == null) {
+            return;
+        }
+        if (--op.depth > 0 && !op.isStale()) {
+            return;
+        }
+        PARTY_OP.remove();
+        for (Snapshot snap : op.snapshots.values()) {
+            PlayerQuestData data = questData(snap.player);
+            if (data != null) {
+                stripNewlyBorrowedCompletions(snap.player, data, snap.completed, snap.accepted);
+            }
+        }
+    }
+
+    private static final class PartyOp {
+        private final long startedNanos = System.nanoTime();
+        private final Map<UUID, Snapshot> snapshots = new LinkedHashMap<>();
+        private int depth;
+
+        private boolean isStale() {
+            return System.nanoTime() - startedNanos > PARTY_OP_STALE_NANOS;
+        }
+    }
+
+    private record Snapshot(ServerPlayer player, Set<String> completed, Set<String> accepted) {}
+
+    /**
+     * After a party operation: remove only completions that were newly applied by it
      * and were not personally earned / previously accepted. Never touches older progress.
      *
      * @return true if any quest was stripped
@@ -104,7 +182,7 @@ public final class PersonalSagaGuard {
             changed = true;
             int n = STRIP_LOGS.incrementAndGet();
             if (n <= 60) {
-                LOGGER.info(
+                MeleeDebug.log(
                         "[{}] stripped newly borrowed SUCCESS: player={} quest={}",
                         DmzMohistMeleeFix.MOD_ID,
                         player.m_36316_().getName(),
@@ -139,15 +217,6 @@ public final class PersonalSagaGuard {
         if (earned.add(questKey)) {
             BOOTSTRAPPED.put(id, Boolean.TRUE);
             save(player);
-        }
-    }
-
-    public static void markEarnedAll(Iterable<ServerPlayer> players, String questKey) {
-        if (players == null || questKey == null || questKey.isBlank()) {
-            return;
-        }
-        for (ServerPlayer player : players) {
-            markEarned(player, questKey);
         }
     }
 
@@ -266,7 +335,7 @@ public final class PersonalSagaGuard {
         }
         BOOTSTRAPPED.put(id, Boolean.TRUE);
         save(player);
-        LOGGER.info(
+        MeleeDebug.log(
                 "[{}] repaired empty earn marks from {} live completion(s) for {}",
                 DmzMohistMeleeFix.MOD_ID,
                 earned.size(),
@@ -286,7 +355,7 @@ public final class PersonalSagaGuard {
         BOOTSTRAPPED.put(id, Boolean.TRUE);
         save(player);
         if (!seeded.isEmpty()) {
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] personal saga earn bootstrap: {} seeded {} completed quest(s)",
                     DmzMohistMeleeFix.MOD_ID,
                     player.m_36316_().getName(),
@@ -301,13 +370,6 @@ public final class PersonalSagaGuard {
     public static ServerPlayer findOwner(PlayerQuestData questData) {
         if (questData == null) {
             return null;
-        }
-        ServerPlayer mergeTarget = MERGE_TARGET.get();
-        if (mergeTarget != null) {
-            PlayerQuestData tagged = questData(mergeTarget);
-            if (tagged == questData) {
-                return mergeTarget;
-            }
         }
         MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) {

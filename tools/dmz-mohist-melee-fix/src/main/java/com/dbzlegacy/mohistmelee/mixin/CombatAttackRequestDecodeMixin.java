@@ -1,6 +1,7 @@
 package com.dbzlegacy.mohistmelee.mixin;
 
 import com.dbzlegacy.mohistmelee.DmzMohistMeleeFix;
+import com.dbzlegacy.mohistmelee.MeleeDebug;
 import com.dragonminez.common.network.C2S.CombatAttackRequestC2S;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,7 +55,7 @@ public abstract class CombatAttackRequestDecodeMixin {
         this.entityIds = Arrays.copyOf(this.entityIds, DMZ_MAX);
         int n = LOGS.incrementAndGet();
         if (n <= 40) {
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] clamped CombatAttackRequest entity ids {} -> {} (packet would have been dropped)",
                     DmzMohistMeleeFix.MOD_ID,
                     before,

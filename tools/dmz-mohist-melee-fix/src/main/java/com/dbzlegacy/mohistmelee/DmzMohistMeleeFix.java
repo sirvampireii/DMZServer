@@ -19,9 +19,11 @@ public final class DmzMohistMeleeFix {
 
     public DmzMohistMeleeFix() {
         LOGGER.info(
-                "[{}] v2.12.25: priceless skill mixins off, grab waits for GrabService, flow shockwaves do not break blocks",
+                "[{}] v2.12.27 for DragonMineZ 2.2: party guard on the 2.2 party API, melee keeps DMZ windup;"
+                        + " per-event logs need debugLogging=true in config/dmz_mohist_melee_fix-debug.properties",
                 MOD_ID
         );
+        MeleeDebug.register();
         ReachRepairEvents.register();
         PersonalSagaEvents.register();
         StatsResetCommands.register();

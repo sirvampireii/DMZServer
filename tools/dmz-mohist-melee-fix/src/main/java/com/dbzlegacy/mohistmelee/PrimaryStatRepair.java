@@ -135,7 +135,7 @@ public final class PrimaryStatRepair {
                 String name = player instanceof ServerPlayer sp
                         ? sp.m_36316_().getName()
                         : String.valueOf(player.m_20148_());
-                LOGGER.info(
+                MeleeDebug.log(
                         "[{}] adopted primary snapshot player={} STR={} SKP={} RES={} VIT={} PWR={} ENE={}",
                         DmzMohistMeleeFix.MOD_ID,
                         name,
@@ -381,7 +381,7 @@ public final class PrimaryStatRepair {
             String name = player instanceof ServerPlayer sp
                     ? sp.m_36316_().getName()
                     : String.valueOf(player.m_20148_());
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] restored primary {} player={} base={}->{} reason={}",
                     DmzMohistMeleeFix.MOD_ID,
                     key,

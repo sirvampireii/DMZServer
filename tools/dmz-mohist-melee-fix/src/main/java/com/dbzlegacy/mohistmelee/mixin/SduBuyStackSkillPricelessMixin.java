@@ -1,6 +1,7 @@
 package com.dbzlegacy.mohistmelee.mixin;
 
 import com.dbzlegacy.mohistmelee.DmzMohistMeleeFix;
+import com.dbzlegacy.mohistmelee.MeleeDebug;
 import com.dbzlegacy.mohistmelee.SkillTpCostHelper;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.skills.Skills;
@@ -48,7 +49,7 @@ public abstract class SduBuyStackSkillPricelessMixin {
             Skills skills = data.getSkills();
             int levelIndex = skills.getSkillLevel(skillName);
             int raw = SkillTpCostHelper.rawConfiguredCost(data, skillName, levelIndex);
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] sdu buyStackSkill '{}' levelIndex={} rawCost={}",
                     DmzMohistMeleeFix.MOD_ID,
                     skillName,
@@ -56,7 +57,7 @@ public abstract class SduBuyStackSkillPricelessMixin {
                     raw
             );
             if (raw < 0) {
-                LOGGER.info(
+                MeleeDebug.log(
                         "[{}] blocked priceless sdu buyStackSkill '{}' (levelIndex={}, rawCost={})",
                         DmzMohistMeleeFix.MOD_ID,
                         skillName,

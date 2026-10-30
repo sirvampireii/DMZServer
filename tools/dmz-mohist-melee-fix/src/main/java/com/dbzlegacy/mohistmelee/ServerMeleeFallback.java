@@ -8,12 +8,14 @@ import com.dragonminez.common.network.C2S.CombatAttackRequestC2S;
 import com.dragonminez.server.events.players.combat.CombatEvent;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -33,6 +35,11 @@ import org.apache.logging.log4j.Logger;
  * If the packet produced no LivingHurt (no {@code dmz_last_hit_target_time} bump),
  * scan server-side for a valid target in front of the player and attack it.
  * Still uses vanilla {@code attack()} — no damage redirects.
+ * <p>
+ * DragonMineZ 2.2 runs hits through {@code MeleeWindupTracker}: {@code processAttackRequest} is
+ * called only once the windup has passed (from the packet, or later from the player tick). The
+ * rescue hangs off {@code processAttackRequest} ({@code CombatAttackRequestHandleMixin}): the hit
+ * time is read at its HEAD and the rescue is queued at its RETURN, behind DMZ's own runnable.
  */
 public final class ServerMeleeFallback {
     private static final Logger LOGGER = LogManager.getLogger(DmzMohistMeleeFix.MOD_ID);
@@ -41,7 +48,44 @@ public final class ServerMeleeFallback {
     /** Hemisphere in front of the player (dot product of look vs to-target). */
     private static final double MIN_ALIGN = 0.0D;
 
+    /** Last-hit time read at {@code processAttackRequest} HEAD, consumed at its RETURN. */
+    private static final ThreadLocal<ArrayDeque<Long>> HIT_TIME_BEFORE = ThreadLocal.withInitial(ArrayDeque::new);
+
     private ServerMeleeFallback() {}
+
+    /** Mohist repairs before a melee packet is handled: stale strike lock, reach, primaries. */
+    public static void preHitRepairs(ServerPlayer player, String reason) {
+        CombatUnlock.clearStaleStrikeLock(player, reason);
+        ReachAttributeFix.repair(player, reason);
+        PrimaryStatRepair.ensure(player, reason);
+        if (player.m_21205_().m_41619_() && isPrimaryWiped(player)) {
+            RespawnLikeRecovery.apply(player, reason + "-empty-hand");
+        }
+    }
+
+    /** {@code processAttackRequest} HEAD: DMZ's hit runnable has not run yet. */
+    public static void beginAttackRequest(ServerPlayer player) {
+        HIT_TIME_BEFORE.get().push(player == null ? 0L
+                : PersistentDataAccess.get(player).m_128454_(CombatEvent.DMZ_LAST_HIT_TARGET_TIME_TAG));
+    }
+
+    /**
+     * {@code processAttackRequest} RETURN: DMZ has queued (or, from the windup tick, already run)
+     * its hit. Queue the rescue after it.
+     */
+    public static void queueRescue(ServerPlayer player, CombatAttackRequestC2S request) {
+        Long hitTimeBefore = HIT_TIME_BEFORE.get().poll();
+        if (player == null || request == null || hitTimeBefore == null) {
+            return;
+        }
+        int packetIds = request.getEntityIds() == null ? 0 : request.getEntityIds().length;
+        MinecraftServer server = player.m_20194_();
+        if (server != null) {
+            server.execute(() -> maybeRescue(player, request, hitTimeBefore, packetIds));
+        } else {
+            maybeRescue(player, request, hitTimeBefore, packetIds);
+        }
+    }
 
     /**
      * Must be queued on the server <em>after</em> {@code processAttackRequest}'s runnable
@@ -56,24 +100,24 @@ public final class ServerMeleeFallback {
         if (player == null || player.m_9236_().f_46443_ || player.m_213877_()) {
             return;
         }
+        // DMZ 2.2 refuses these before striking; the rescue must not strike for them either.
+        if (player.m_21224_() || player.m_5833_()
+                || request.getSelectedSlot() != player.m_150109_().f_35977_) {
+            return;
+        }
         long hitTimeAfter = PersistentDataAccess.get(player).m_128454_(CombatEvent.DMZ_LAST_HIT_TARGET_TIME_TAG);
         if (hitTimeAfter > hitTimeBefore) {
             return; // packet path already applied LivingHurt
         }
 
         // Same pre-hit repairs as the packet path — empty-hand STR / reach can still be wiped.
-        CombatUnlock.clearStaleStrikeLock(player, "melee-fallback");
-        ReachAttributeFix.repair(player, "melee-fallback");
-        PrimaryStatRepair.ensure(player, "melee-fallback");
-        if (player.m_21205_().m_41619_() && isPrimaryWiped(player)) {
-            RespawnLikeRecovery.apply(player, "melee-fallback-empty-hand");
-        }
+        preHitRepairs(player, "melee-fallback");
 
         AttackHand hand = PlayerAttackHelper.getCurrentAttack((Player) player, request.getComboCount());
         if (hand == null || hand.attributes() == null) {
             int n = LOGS.incrementAndGet();
             if (n <= 40) {
-                LOGGER.info(
+                MeleeDebug.log(
                         "[{}] melee fallback: no AttackHand player={} combo={} packetIds={}",
                         DmzMohistMeleeFix.MOD_ID,
                         player.m_36316_().getName(),
@@ -129,7 +173,7 @@ public final class ServerMeleeFallback {
         if (hits > 0) {
             int n = LOGS.incrementAndGet();
             if (n <= 60) {
-                LOGGER.info(
+                MeleeDebug.log(
                         "[{}] melee fallback HIT player={} hits={} packetIds={} nullIds={} nearby={} range={}",
                         DmzMohistMeleeFix.MOD_ID,
                         player.m_36316_().getName(),
@@ -143,7 +187,7 @@ public final class ServerMeleeFallback {
         } else {
             int n = LOGS.incrementAndGet();
             if (n <= 40) {
-                LOGGER.info(
+                MeleeDebug.log(
                         "[{}] melee fallback: no valid target player={} packetCand={} nearby={} packetIds={} nullIds={} range={}",
                         DmzMohistMeleeFix.MOD_ID,
                         player.m_36316_().getName(),

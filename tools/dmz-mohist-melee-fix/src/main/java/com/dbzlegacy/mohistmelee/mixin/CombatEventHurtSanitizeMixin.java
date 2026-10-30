@@ -1,6 +1,7 @@
 package com.dbzlegacy.mohistmelee.mixin;
 
 import com.dbzlegacy.mohistmelee.DmzMohistMeleeFix;
+import com.dbzlegacy.mohistmelee.MeleeDebug;
 import com.dragonminez.server.events.players.combat.CombatEvent;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -32,7 +33,7 @@ public abstract class CombatEventHurtSanitizeMixin {
         event.setAmount(1.0f);
         int n = LOGS.incrementAndGet();
         if (n <= 40) {
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] sanitized non-finite CombatEvent hurt amount -> 1.0",
                     DmzMohistMeleeFix.MOD_ID
             );

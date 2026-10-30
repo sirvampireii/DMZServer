@@ -1,5 +1,21 @@
 # Mohist M1: animation but no damage
 
+## Fix v2.12.27 — DragonMineZ 2.2 port (Oct 2026)
+
+`mods/dmz_mohist_melee_fix-2.12.27.jar` — built against `mods/dragonminez-2.2.jar` (CurseForge file 9282248). It needs DragonMineZ 2.2 (`mods.toml` asks for `[2.2,)`) and will not load on 2.1.3.
+
+- **Party quest guard.** 2.2 removed the party quest merge (`PartyManager.syncQuestProgress`, `onPlayerLogin`, `PlayerQuestData.mergeQuestStateFrom`, `QuestProgress.mergeForwardFrom`). Quests now complete per player through `completeQuest`, and party members join a quest only when it is available to them. `joinParty`, `joinPartyForFusion`, `reconcile` (the 2.2 login path), `syncPartyDifficulty`, `kickMember`, and `leaveParty(ServerPlayer, boolean)` each run inside a guard. During that call a quest can reach `SUCCESS` (`QuestProgress.setStatus`) only for a player who had it `ACCEPTED`. Afterwards, any completion that appeared and was not earned or accepted is stripped. Unearned reward claims are still cancelled. Nothing wipes saga progress on leave, login, or death. Completion credit now goes to the completing player only; 2.2 posts the completion event once per player.
+- **Ghost party heal** runs after the login `reconcile` and after the full `leaveParty` overload. The 1-arg `leaveParty` is a stub that delegates, so every party hook is pinned by descriptor and runs once.
+- **Master NPC disables.** `handlePopo(ServerPlayer, int)`, `handleGuru(StatsData, int)`, and `handleGero(ServerPlayer, StatsData, int)` return `boolean` now; the hooks set `false`. The packet gate (`lambda$handle$0`) still cancels before DMZ's range checks, `perform()`, and `reply()`. It now sends the failed dialogue result itself. The player sees the reason ("… is disabled on this server.") as the NPC's line, and the option stays usable. Without that result the 2.2 dialogue screen keeps the action pending.
+- **Melee packet.** 2.2's `CombatAttackRequestC2S.handle` records minigame actions, stores the arrival aim, and hands the hit to `MeleeWindupTracker`. The fix no longer cancels `handle`. It queues its Mohist repairs ahead of DMZ's work, and the stale-ID rescue now hangs off `processAttackRequest`, so it runs only when DMZ actually strikes after the windup.
+- **Stat reset.** `resetPlayerProgress` now also scales or clears growth stats and clears story resets. The HEAD/RETURN anchors still match, and this fix has no wipe of its own for those, so nothing is cleared twice.
+- **Priceless costs.** 2.2's `computeTpCost` returns `-1` for any negative or missing price, and both purchase and upgrade stop on a cost below zero. The 2.1.3 `Math.max` redirects are gone from the (still unregistered) `UpdateSkillPricelessMixin`. The registered `setSkillLevel` max-level refresh stays.
+- **Old Kai Precision skip is off.** 2.2 moved the stage list to `MinigameLogics.CHALLENGE_STAGES`, which the server checks stage by stage. A skip on only one side fails the challenge at stage 4, and the client modpack does not ship this jar. The mixin is retargeted but not registered.
+- **Console.** Per-event lines (repairs, blocks, self-test passes) log at DEBUG. Set `debugLogging=true` in `config/dmz_mohist_melee_fix-debug.properties` (re-read every 30 seconds) or start with `-Ddmz_mohist_melee_fix.debug=true` to see them in the console. Self-test failures are warnings.
+- **Build audits.** `build.sh` now scans the jar for missing classes and inner classes, checks every mixin config class is packaged, checks mixin helpers are private, and checks every mixin target, descriptor, callback type, handler signature, and `@At` against the DragonMineZ jar (`scripts/audit_mixin_targets.py`).
+
+Requires a full server restart, on DragonMineZ 2.2.
+
 ## Fix v2.12.25 — flow shockwaves leave terrain alone (Oct 2026)
 
 `mods/dmz_mohist_melee_fix-2.12.25.jar`

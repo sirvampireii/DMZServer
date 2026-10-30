@@ -126,7 +126,7 @@ public final class RespawnLikeRecovery {
 
             int n = LOGS.incrementAndGet();
             if (n <= 40) {
-                LOGGER.info(
+                MeleeDebug.log(
                         "[{}] respawn-like recovery player={} reason={}",
                         DmzMohistMeleeFix.MOD_ID,
                         player.m_36316_().getName(),

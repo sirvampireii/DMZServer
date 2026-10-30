@@ -203,7 +203,7 @@ public final class CombatUnlock {
     private static void logClear(ServerPlayer player, String reason) {
         int n = LOGS.incrementAndGet();
         if (n <= 80) {
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] cleared stale strike lock player={} reason={}",
                     DmzMohistMeleeFix.MOD_ID,
                     player.m_36316_().getName(),

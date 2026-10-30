@@ -35,14 +35,19 @@ fi
 SRC="$(cd "$(dirname "$0")" && pwd)/src/main/java"
 RES="$(cd "$(dirname "$0")" && pwd)/src/main/resources"
 OUT="$(cd "$(dirname "$0")" && pwd)/build/classes"
-JAR="$ROOT/mods/dmz_mohist_melee_fix-2.12.25.jar"
+VERSION="$(grep -oP '^version = "\K[0-9.]+(?=")' "$RES/META-INF/mods.toml")"
+if [[ -z "$VERSION" ]] || ! grep -q "\"\[{}\] v${VERSION} " "$SRC/com/dbzlegacy/mohistmelee/DmzMohistMeleeFix.java"; then
+  echo "mods.toml version '$VERSION' must match the DmzMohistMeleeFix startup banner" >&2
+  exit 1
+fi
+JAR="$ROOT/mods/dmz_mohist_melee_fix-${VERSION}.jar"
 
 rm -f "$ROOT"/mods/dmz_mohist_melee_fix-*.jar
 rm -f "$ROOT"/dmz_mohist_melee_fix-*.jar
 
 DMZREVAMP="${DMZREVAMP_JAR:-$ROOT/libraries/dmzrevamp-2.0.9.jar}"
 if [[ ! -f "$DMZREVAMP" ]]; then
-  for candidate in "$ROOT/mods"/dmzrevamp-*.jar /tmp/dmzrevamp/dmzrevamp-2.0.9.jar; do
+  for candidate in "$ROOT/mods"/dmzrevamp-*.jar "$ROOT/libraries"/dmzrevamp-*.jar /tmp/dmzrevamp/dmzrevamp-2.0.9.jar; do
     if [[ -f "$candidate" ]]; then
       DMZREVAMP="$candidate"
       break
@@ -90,7 +95,7 @@ fi
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
-javac --release 17 -proc:none -cp "$CP" -d "$OUT" \
+javac --release 17 -encoding UTF-8 -proc:none -cp "$CP" -d "$OUT" \
   "$SRC"/com/dbzlegacy/mohistmelee/*.java \
   "$SRC"/com/dbzlegacy/mohistmelee/mixin/*.java
 
@@ -106,6 +111,37 @@ echo '{}' > /tmp/dmz_mohist_melee_fix.refmap.json
     -C "$RES" pack.mcmeta
 )
 jar uf "$JAR" -C /tmp dmz_mohist_melee_fix.refmap.json
-cp -f "$JAR" "$ROOT/dmz_mohist_melee_fix-2.12.25.jar"
+cp -f "$JAR" "$ROOT/dmz_mohist_melee_fix-${VERSION}.jar"
 echo "Built $JAR"
 jar tf "$JAR"
+
+# Packaging audits (fail closed): every referenced class and inner class is in the jar, every
+# class a mixin config names is in the jar, mixin helpers are private, and every mixin target
+# matches the DragonMineZ jar it will be applied to.
+LM_SIM="$ROOT/tools/dmz-adaptive-difficulty/sim"
+python3 "$LM_SIM/audit_jar_inner_classes.py" "$JAR" com/dbzlegacy/mohistmelee/
+python3 - "$JAR" "$RES" << 'PY'
+import json, sys, zipfile
+from pathlib import Path
+jar, res = sys.argv[1], Path(sys.argv[2])
+names = set(zipfile.ZipFile(jar).namelist())
+missing = []
+for cfg in sorted(res.glob("dmz_mohist_melee_fix*.mixins.json")):
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    pkg = data["package"].replace(".", "/")
+    for key in ("mixins", "client", "server"):
+        for name in data.get(key, []):
+            if f"{pkg}/{name}.class" not in names:
+                missing.append(f"{cfg.name}: {name}")
+    plugin = data.get("plugin")
+    if plugin and plugin.replace(".", "/") + ".class" not in names:
+        missing.append(f"{cfg.name}: plugin {plugin}")
+if missing:
+    print("ERROR: mixin configs name classes that are not in the jar:", file=sys.stderr)
+    for m in missing:
+        print("  " + m, file=sys.stderr)
+    sys.exit(1)
+print("PASS — every mixin config class is in the jar")
+PY
+python3 "$LM_SIM/audit_mixin_visibility.py" "$SRC"
+python3 "$ROOT/scripts/audit_mixin_targets.py" --src "$SRC" --cp "$CP" --optional-missing-ok   --extra-mixins UpdateSkillPricelessMixin,SkillBlockPricelessAddLevelMixin,SkillsBlockPricelessLevelMixin,UltimateChallengeNoPrecisionMixin   "$RES"/dmz_mohist_melee_fix.mixins.json "$RES"/dmz_mohist_melee_fix.raid.mixins.json   "$RES"/dmz_mohist_melee_fix.sdu.mixins.json "$RES"/dmz_mohist_melee_fix.noea.mixins.json

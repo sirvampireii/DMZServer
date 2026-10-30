@@ -1,6 +1,7 @@
 package com.dbzlegacy.mohistmelee.mixin;
 
 import com.dbzlegacy.mohistmelee.DmzMohistMeleeFix;
+import com.dbzlegacy.mohistmelee.MeleeDebug;
 import com.dbzlegacy.mohistmelee.PricelessPurchaseGuard;
 import com.dbzlegacy.mohistmelee.SkillTpCostHelper;
 import com.dragonminez.common.network.C2S.UpdateSkillC2S;
@@ -14,7 +15,6 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -22,12 +22,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * Block menu/packet purchase of priceless ({@code -1}) skills and stack forms.
  * <p>
  * SDU double-click / spam-click sends {@code PURCHASE} with {@code Math.max(0, cost)},
- * so {@code -1} arrives as free {@code 0}. Vanilla DMZ {@code computeTpCost} also clamps
- * with {@code Math.max(0, …)}, which would make the server accept that free buy.
+ * so {@code -1} arrives as free {@code 0}. DMZ 2.1.3 {@code computeTpCost} also clamped
+ * with {@code Math.max(0, …)}; DragonMineZ 2.2 rewrote it to return {@code -1} for any negative
+ * or missing price and to skip the buy when the cost is below zero, so the 2.1.3
+ * {@code Math.max} redirects are gone.
  * <p>
- * Primary hook: cancel {@code lambda$handle$0} (same pattern as NPCAction disables) before
- * any TP spend / level grant. Also force {@code computeTpCost} to keep negatives so DMZ's
- * own {@code if (cost < 0) skip} checks fire.
+ * Not registered since 2.12.24. Primary hook: cancel {@code lambda$handle$0} (same pattern as
+ * NPCAction disables) before any TP spend / level grant. Also force {@code computeTpCost} to
+ * keep negatives so DMZ's own {@code if (cost < 0) skip} checks fire.
  */
 @Mixin(value = UpdateSkillC2S.class, priority = 2000, remap = false)
 public abstract class UpdateSkillPricelessMixin {
@@ -44,7 +46,7 @@ public abstract class UpdateSkillPricelessMixin {
 
     /**
      * Hard cancel on the actual apply lambda (runs on server thread after enqueueWork).
-     * Covers stack-form spam buys even if Math.max redirects miss.
+     * Covers stack-form spam buys whatever {@code computeTpCost} returns.
      */
     @Inject(method = "lambda$handle$0", at = @At("HEAD"), cancellable = true, remap = false)
     private void dbzlegacy$blockPricelessApply(ServerPlayer player, StatsData data, CallbackInfo ci) {
@@ -85,7 +87,7 @@ public abstract class UpdateSkillPricelessMixin {
                 levelIndex = skill != null ? skill.getLevel() : 0;
             }
             int raw = SkillTpCostHelper.rawConfiguredCost(data, this.skillName, levelIndex);
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] skill packet {} '{}' levelIndex={} rawCost={}",
                     DmzMohistMeleeFix.MOD_ID,
                     this.action.name().toLowerCase(),
@@ -94,7 +96,7 @@ public abstract class UpdateSkillPricelessMixin {
                     raw
             );
             if (raw < 0) {
-                LOGGER.info(
+                MeleeDebug.log(
                         "[{}] blocked priceless {} of skill '{}' (levelIndex={}, rawCost={})",
                         DmzMohistMeleeFix.MOD_ID,
                         this.action.name().toLowerCase(),
@@ -115,31 +117,6 @@ public abstract class UpdateSkillPricelessMixin {
             // Fail closed for menu buys: never let a broken cost lookup become a free unlock.
             return true;
         }
-    }
-
-    @Redirect(
-            method = "computeTpCost(Lcom/dragonminez/common/stats/StatsData;Ljava/lang/String;I)I",
-            at = @At(value = "INVOKE", target = "Ljava/lang/Math;max(II)I", ordinal = 0),
-            remap = false
-    )
-    private static int dbzlegacy$preservePricelessMathMax0(int a, int b) {
-        return dbzlegacy$preservePricelessMathMax(a, b);
-    }
-
-    @Redirect(
-            method = "computeTpCost(Lcom/dragonminez/common/stats/StatsData;Ljava/lang/String;I)I",
-            at = @At(value = "INVOKE", target = "Ljava/lang/Math;max(II)I", ordinal = 1),
-            remap = false
-    )
-    private static int dbzlegacy$preservePricelessMathMax1(int a, int b) {
-        return dbzlegacy$preservePricelessMathMax(a, b);
-    }
-
-    private static int dbzlegacy$preservePricelessMathMax(int a, int b) {
-        if (b < 0) {
-            return b;
-        }
-        return Math.max(a, b);
     }
 
     @Inject(

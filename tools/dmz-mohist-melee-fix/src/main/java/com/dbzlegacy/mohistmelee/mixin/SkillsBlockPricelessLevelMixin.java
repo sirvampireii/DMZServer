@@ -1,6 +1,7 @@
 package com.dbzlegacy.mohistmelee.mixin;
 
 import com.dbzlegacy.mohistmelee.DmzMohistMeleeFix;
+import com.dbzlegacy.mohistmelee.MeleeDebug;
 import com.dbzlegacy.mohistmelee.PricelessPurchaseGuard;
 import com.dbzlegacy.mohistmelee.SkillTpCostHelper;
 import com.dragonminez.common.config.ConfigManager;
@@ -54,7 +55,7 @@ public abstract class SkillsBlockPricelessLevelMixin {
                 int raw = SkillTpCostHelper.rawConfiguredCost(
                         PricelessPurchaseGuard.currentData(), skillName, index);
                 if (raw < 0) {
-                    LOGGER.info(
+                    MeleeDebug.log(
                             "[{}] blocked priceless setSkillLevel '{}' {} -> {} (index={}, rawCost={})",
                             DmzMohistMeleeFix.MOD_ID,
                             skillName,
@@ -89,7 +90,7 @@ public abstract class SkillsBlockPricelessLevelMixin {
                 int raw = SkillTpCostHelper.rawConfiguredCost(
                         PricelessPurchaseGuard.currentData(), skillName, index);
                 if (raw < 0) {
-                    LOGGER.info(
+                    MeleeDebug.log(
                             "[{}] blocked priceless addSkillLevel '{}' +{} at index={} (rawCost={})",
                             DmzMohistMeleeFix.MOD_ID,
                             skillName,

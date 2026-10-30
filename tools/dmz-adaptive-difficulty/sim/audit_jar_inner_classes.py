@@ -24,10 +24,17 @@ TOP = re.compile(
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
-        print("usage: audit_jar_inner_classes.py <jar>", file=sys.stderr)
+    if len(sys.argv) not in (2, 3):
+        print("usage: audit_jar_inner_classes.py <jar> [package/prefix/]", file=sys.stderr)
         return 2
     jar = Path(sys.argv[1])
+    # Optional package prefix so other mods (the melee fix) can run the same check.
+    prefix, inner, top = PREFIX, INNER, TOP
+    if len(sys.argv) == 3:
+        prefix = sys.argv[2].encode("ascii")
+        body = re.escape(prefix) + rb"(?:[A-Za-z0-9_]+/)*[A-Za-z0-9_]+"
+        inner = re.compile(body + rb"(?:\$[A-Za-z0-9_]+)+")
+        top = re.compile(body)
     if not jar.is_file():
         print(f"ERROR: missing jar {jar}", file=sys.stderr)
         return 1
@@ -38,14 +45,14 @@ def main() -> int:
             if not info.filename.endswith(".class"):
                 continue
             data = zf.read(info.filename)
-            if PREFIX not in data:
+            if prefix not in data:
                 continue
-            for match in INNER.finditer(data):
+            for match in inner.finditer(data):
                 ref = match.group(0).decode("ascii")
                 path = ref + ".class"
                 if path not in names:
                     missing.setdefault(path, set()).add(info.filename)
-            for match in TOP.finditer(data):
+            for match in top.finditer(data):
                 end = match.end()
                 if end < len(data) and data[end:end + 1] not in (b";", b"<", b"\x00", b"\x01"):
                     # Descriptors end at ';'. A following identifier or '$' is a longer name.
@@ -57,12 +64,12 @@ def main() -> int:
                 if path not in names:
                     missing.setdefault(path, set()).add(info.filename)
     if missing:
-        print("ERROR: jar references LM classes that were not packaged:", file=sys.stderr)
+        print("ERROR: jar references classes that were not packaged:", file=sys.stderr)
         for path in sorted(missing):
             users = ", ".join(sorted(missing[path])[:8])
             print(f"  missing {path} (referenced by {users})", file=sys.stderr)
         return 1
-    print(f"PASS — LM classes referenced in {jar.name} are packaged")
+    print(f"PASS — {prefix.decode()} classes referenced in {jar.name} are packaged")
     return 0
 
 

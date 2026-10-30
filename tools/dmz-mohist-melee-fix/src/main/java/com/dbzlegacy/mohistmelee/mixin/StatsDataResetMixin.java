@@ -1,6 +1,7 @@
 package com.dbzlegacy.mohistmelee.mixin;
 
 import com.dbzlegacy.mohistmelee.DmzMohistMeleeFix;
+import com.dbzlegacy.mohistmelee.MeleeDebug;
 import com.dbzlegacy.mohistmelee.PrimaryStatRepair;
 import com.dragonminez.common.stats.StatsData;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -20,6 +21,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * so the client reopens race selection ({@code forceCharacterCreation}). Soft resets still work:
  * {@code initializeWithRaceAndClass} only writes base stats when all primaries are 0, and does
  * not wipe kept skills.
+ * <p>
+ * DragonMineZ 2.2: the body also scales or clears dynamic growth stats and clears story resets
+ * itself. HEAD and RETURN stay valid (same descriptor, one return), and this fix has no wipe of
+ * its own for those, so nothing is cleared twice: HEAD only opens the suppress window, RETURN
+ * only adopts the post-reset primaries.
  */
 @Mixin(value = StatsData.class, remap = false)
 public abstract class StatsDataResetMixin {
@@ -41,7 +47,7 @@ public abstract class StatsDataResetMixin {
         int n = LOGS.incrementAndGet();
         if (n <= 40) {
             String name = player != null ? player.m_36316_().getName() : "?";
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] stat reset: player={} keepPercent={} keepSkills={} (DMZ clears hasCreatedCharacter → race select)",
                     DmzMohistMeleeFix.MOD_ID,
                     name,

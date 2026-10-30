@@ -42,7 +42,7 @@ public final class GhostPartyHeal {
             NetworkHandler.sendToPlayer(new ProgressionSyncS2C(player), player);
             int n = HEAL_LOGS.incrementAndGet();
             if (n <= 80) {
-                LOGGER.info(
+                MeleeDebug.log(
                         "[{}] cleared ghost party state for {}",
                         DmzMohistMeleeFix.MOD_ID,
                         player.m_36316_().getName()

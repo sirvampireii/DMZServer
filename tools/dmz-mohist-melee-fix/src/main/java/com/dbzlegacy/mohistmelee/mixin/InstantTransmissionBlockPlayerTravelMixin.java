@@ -1,6 +1,7 @@
 package com.dbzlegacy.mohistmelee.mixin;
 
 import com.dbzlegacy.mohistmelee.DmzMohistMeleeFix;
+import com.dbzlegacy.mohistmelee.MeleeDebug;
 import com.dragonminez.common.network.C2S.InstantTransmissionTravelToPlayerC2S;
 import com.dragonminez.common.stats.StatsData;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,7 +36,7 @@ public abstract class InstantTransmissionBlockPlayerTravelMixin {
         }
         int n = LOGS.incrementAndGet();
         if (n <= 20) {
-            LOGGER.info(
+            MeleeDebug.log(
                     "[{}] blocked IT-to-player for {}",
                     DmzMohistMeleeFix.MOD_ID,
                     player != null ? player.m_36316_().getName() : "?"
