@@ -2,7 +2,7 @@
 
 Both jars are built against `mods/dragonminez-2.2.jar` (CurseForge file 9282248, sha256
 `b69d922f…414e7d`). Minecraft 1.20.1, Forge 47. Each `mods.toml` asks for DragonMineZ `[2.2,)`, so
-neither jar loads next to 2.1.3. Live still runs 2.1.3 with LM 4.6.261 and melee 2.12.25.
+neither jar loads next to 2.1.3. Uploaded to live 2026-10-30 together with dragonminez-2.2.jar (the 2.1.3, 4.6.261, and 2.12.26 jars are in recycle_bin/); active after the next full restart.
 
 ## What the build now proves
 
