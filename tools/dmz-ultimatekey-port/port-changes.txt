@@ -1,0 +1,11 @@
+# Methods the DMZ 2.2 port changes on purpose (compare_bytecode.py --expect).
+# Everything else in the rebuilt classes must match DUK 0.2.20.
+AgentDmz.techniquePress          # Taiyoken/evasions cast through EvasionCastC2S
+DmzActions.useTechnique          # evasion techniques cast through EvasionAttackHandler
+FormMechanics.revert             # revertToBaseForm(player, data, false), like DMZ's own revert
+VillainSchemes.wish              # GrantWishC2S(dragonId, wishScreen, picks, targets)
+VillainSchemes.lambda$wish$N     # the wish lambda captures the dragon and screen
+FactionBodies.applyHair          # HairCodec + per-slot hair styles
+FactionBodies.lambda$hairCodeOf$N # copies the full hair set
+PreviewModel.apply               # applySpecificSyncedConfig now returns boolean (bytecode patch)
+PreviewModel.lambda$restore$N

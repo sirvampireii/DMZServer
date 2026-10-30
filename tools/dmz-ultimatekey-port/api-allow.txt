@@ -1,0 +1,3 @@
+# References the API audit cannot see resolve, though they do at runtime.
+# Forge patches IForgeEntity.getPersistentData onto Entity; the audit reads the unpatched jar.
+com/dragonminez/common/init/entities/ki/AbstractKiProjectile.getPersistentData ()Lnet/minecraft/nbt/CompoundTag;

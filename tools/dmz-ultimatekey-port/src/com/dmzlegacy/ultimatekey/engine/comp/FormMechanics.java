@@ -134,7 +134,7 @@ public final class FormMechanics {
                 c.setActiveForm(g, f);
             } else {
                 c.clearPreviousFormRecord();
-                TransformationsHelper.revertToBaseForm((ServerPlayer)p, (StatsData)d);
+                TransformationsHelper.revertToBaseForm((ServerPlayer)p, (StatsData)d, false);
                 p.m_21195_((MobEffect)MainEffects.TRANSFORMED.get());
             }
         }

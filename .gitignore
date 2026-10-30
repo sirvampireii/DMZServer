@@ -64,3 +64,6 @@ libraries/live-pull/
 # Mimo task watcher local state
 mimo-tasks/.seen.txt
 mimo-tasks/.logs/
+
+# DUK port build output (the jar ships from mods/)
+tools/dmz-ultimatekey-port/build/

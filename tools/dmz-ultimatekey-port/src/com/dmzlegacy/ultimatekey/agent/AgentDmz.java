@@ -19,12 +19,13 @@ import com.dragonminez.common.network.C2S.SelectFormC2S;
 import com.dragonminez.common.network.C2S.SelectTechniqueSlotC2S;
 import com.dragonminez.common.network.C2S.StrikeAttackC2S;
 import com.dragonminez.common.network.C2S.SwitchActionC2S;
-import com.dragonminez.common.network.C2S.TaiyokenCastC2S;
+import com.dragonminez.common.network.C2S.EvasionCastC2S;
 import com.dragonminez.common.network.C2S.TechniqueChargeC2S;
 import com.dragonminez.common.network.C2S.UpdateSkillC2S;
 import com.dragonminez.common.network.C2S.UpdateStatC2S;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.extras.ActionMode;
+import com.dragonminez.common.stats.techniques.EvasionAttackData;
 import com.dragonminez.common.stats.techniques.KiAttackData;
 import com.dragonminez.common.stats.techniques.StrikeAttackData;
 import com.dragonminez.common.stats.techniques.TechniqueData;
@@ -244,12 +245,13 @@ final class AgentDmz {
             AgentDmz.strike(p, slot, targetId);
             return false;
         }
-        if (!(td instanceof KiAttackData)) {
+        if (td instanceof EvasionAttackData) {
+            // DMZ 2.2: Taiyoken and the other evasions are cast through EvasionCastC2S.
+            new SelectTechniqueSlotC2S(slot).handle(AgentDmz.context(p));
+            new EvasionCastC2S(slots[slot], targetId).handle(AgentDmz.context(p));
             return false;
         }
-        if ("taiyoken".equals(slots[slot])) {
-            new SelectTechniqueSlotC2S(slot).handle(AgentDmz.context(p));
-            new TaiyokenCastC2S().handle(AgentDmz.context(p));
+        if (!(td instanceof KiAttackData)) {
             return false;
         }
         AgentDmz.techniqueStart(p, slot, targetId);

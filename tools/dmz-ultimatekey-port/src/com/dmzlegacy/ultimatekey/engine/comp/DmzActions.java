@@ -21,12 +21,13 @@ import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.character.Character;
 import com.dragonminez.common.stats.character.Resources;
 import com.dragonminez.common.stats.extras.FormMasteries;
+import com.dragonminez.common.stats.techniques.EvasionAttackData;
 import com.dragonminez.common.stats.techniques.KiAttackData;
 import com.dragonminez.common.stats.techniques.StrikeAttackData;
 import com.dragonminez.common.stats.techniques.TechniqueData;
 import com.dragonminez.common.stats.techniques.Techniques;
 import com.dragonminez.server.events.players.combat.StrikeAttackHandler;
-import com.dragonminez.server.events.players.combat.TaiyokenHandler;
+import com.dragonminez.server.events.players.combat.EvasionAttackHandler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -82,8 +83,23 @@ public final class DmzActions {
         if (ignoreCooldown) {
             d.getCooldowns().removeCooldown("TechniqueCooldown_" + id);
         }
-        if (id.equals("taiyoken")) {
-            TaiyokenHandler.cast((ServerPlayer)p);
+        if (tech instanceof EvasionAttackData) {
+            // DMZ 2.2: Taiyoken became an evasion technique; evasions only cast from an equipped slot.
+            EvasionAttackData evasion = (EvasionAttackData)tech;
+            if (free) {
+                d.getResources().addEnergy((float)evasion.getCalculatedCost(d));
+            }
+            String[] before = (String[])t.getEquippedSlots().clone();
+            int slot = Arrays.asList(before).indexOf(id);
+            if (slot < 0) {
+                slot = Math.max(0, t.getSelectedSlot());
+                t.equipOrSwapTechnique(slot, id);
+            }
+            EvasionAttackHandler.cast(p, id, target);
+            if (!Arrays.equals(before, t.getEquippedSlots()) && before[slot] != null) {
+                t.equipOrSwapTechnique(slot, before[slot]);
+            }
+            NetworkHandler.sendToTrackingEntityAndSelf((Object)new ProgressionSyncS2C(p), (Entity)p);
             return true;
         }
         if (tech instanceof StrikeAttackData) {

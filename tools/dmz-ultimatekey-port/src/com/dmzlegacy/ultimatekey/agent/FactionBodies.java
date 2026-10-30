@@ -13,7 +13,8 @@ import com.dmzlegacy.ultimatekey.engine.DynamicSkill;
 import com.dmzlegacy.ultimatekey.engine.DynamicSkills;
 import com.dmzlegacy.ultimatekey.engine.Scheduler;
 import com.dragonminez.common.hair.CustomHair;
-import com.dragonminez.common.hair.HairManager;
+import com.dragonminez.common.hair.HairCodec;
+import com.dragonminez.common.hair.HairStyleSlot;
 import com.dragonminez.common.network.NetworkHandler;
 import com.dragonminez.common.network.S2C.StatsSyncS2C;
 import com.dragonminez.common.stats.character.Character;
@@ -26,6 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -127,28 +129,23 @@ public final class FactionBodies {
     }
 
     static void applyHair(Character ch, String code) {
+        // DMZ 2.2 keeps one style per HairStyleSlot; HairCodec still reads the 2.1 (DMZ1/DMZF1) codes.
         try {
-            if (HairManager.isFullSetCode((String)code)) {
-                CustomHair[] set = HairManager.fromFullSetCode((String)code);
-                if (set == null || set.length == 0 || set[0] == null) {
+            if (HairCodec.isFullSetCode((String)code)) {
+                EnumMap<HairStyleSlot, CustomHair> set = HairCodec.fromFullSetCode((String)code);
+                if (set == null || set.get(HairStyleSlot.BASE) == null) {
                     return;
                 }
-                ch.setHairBase(set[0]);
-                if (set.length > 1 && set[1] != null) {
-                    ch.setHairSSJ(set[1]);
-                }
-                if (set.length > 2 && set[2] != null) {
-                    ch.setHairSSJ2(set[2]);
-                }
-                if (set.length > 3 && set[3] != null) {
-                    ch.setHairSSJ3(set[3]);
+                for (Map.Entry<HairStyleSlot, CustomHair> e : set.entrySet()) {
+                    if (e.getValue() == null) continue;
+                    ch.setHairStyle(e.getKey(), e.getValue());
                 }
             } else {
-                CustomHair h = HairManager.fromCode((String)code);
+                CustomHair h = HairCodec.fromCode((String)code);
                 if (h == null) {
                     return;
                 }
-                ch.setHairBase(h);
+                ch.setHairStyle(HairStyleSlot.BASE, h);
             }
             ch.setHairId(0);
         }
@@ -158,10 +155,11 @@ public final class FactionBodies {
     }
 
     public static String hairCodeOf(ServerPlayer p) {
+        // The whole set, so a copy keeps the player's transformation hair too.
         return Dmz.stats((Entity)p).map(d -> {
             try {
-                CustomHair h = d.getCharacter().getHairBase();
-                return h == null ? "" : HairManager.toCode((CustomHair)h);
+                EnumMap<HairStyleSlot, CustomHair> styles = d.getCharacter().getHairStyles();
+                return styles == null || styles.get(HairStyleSlot.BASE) == null ? "" : HairCodec.toFullSetCode(styles);
             }
             catch (RuntimeException e) {
                 return "";

@@ -21,6 +21,7 @@ import com.dmzlegacy.ultimatekey.agent.VillainMinions;
 import com.dmzlegacy.ultimatekey.agent.VillainPowers;
 import com.dmzlegacy.ultimatekey.agent.VillainRecruit;
 import com.dmzlegacy.ultimatekey.dmz.Dmz;
+import com.dragonminez.common.dragonball.DragonDefinition;
 import com.dragonminez.common.init.MainItems;
 import com.dragonminez.common.init.entities.dragon.DragonWishEntity;
 import com.dragonminez.common.network.C2S.GrantWishC2S;
@@ -1003,7 +1004,11 @@ final class VillainSchemes {
             picks.add(0);
         }
         AgentSocial.say(p, act.has("wish_line") ? AgentBrain.str(act, "wish_line", "") : AgentPhrases.line(p, "v_wish", new String[0]));
-        AgentDmz.safe(p, "wish", () -> new GrantWishC2S("", picks).handle(AgentDmz.context(p)));
+        // DMZ 2.2: the wish names the dragon it is made on and the wish screen that dragon shows.
+        DragonWishEntity dragon = (DragonWishEntity)dragons.get(0);
+        DragonDefinition definition = dragon.getDragonDefinition();
+        String screen = definition == null ? "" : definition.getWishScreenId();
+        AgentDmz.safe(p, "wish", () -> new GrantWishC2S(dragon.m_19879_(), screen, picks, List.of()).handle(AgentDmz.context(p)));
         st.remove("summoned_at");
         AgentVillain.add(p, "wishes", 1);
         AgentVillain.broadcast(p, "%npc% has made a wish on the dragon balls!");
