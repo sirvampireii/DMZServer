@@ -2668,14 +2668,15 @@ def main() -> int:
           and "cir.setReturnValue(false)" in hakai_gate
           and "require = 0" in hakai_gate
           and "remap = false" in hakai_gate)
-    check("hakai mixin is not skipped at mixin config time",
-          "DivineImmortalityEvents" not in mixin_plugin
-          and "HakaiDestroyerGateMixin" not in mixin_plugin
-          and '@Mixin(targets = "com.butterjaffa.noeabosses.DivineImmortalityEvents", remap = false)' in hakai_gate
+    # 4.7.1: Noea is off live and this mixin had no presence check, so its target class was missing
+    # from a required mixin config. It is unregistered; the source stays for when Noea returns
+    # (register it again only behind a plugin presence gate).
+    check("hakai mixin unregistered while Noea is not installed",
+          '@Mixin(targets = "com.butterjaffa.noeabosses.DivineImmortalityEvents", remap = false)' in hakai_gate
           and "require = 0" in hakai_gate
           and "DestroyerRoleService\"" in hakai_gate
           and "import com.butterjaffa.noeabosses.DestroyerRoleService" not in hakai_gate
-          and '"noea.HakaiDestroyerGateMixin"' in hakai_mixins)
+          and "HakaiDestroyerGateMixin" not in hakai_mixins)
 
     print("\n=== Destroyer story auto-assign handed to KaiPath (4.6.219) ===")
     # LM's story-progress block was removed: KaiPath's guard is the defense now.
@@ -2689,9 +2690,8 @@ def main() -> int:
           and "destroyerRoleServicePresent" not in mixin_plugin
           and "initiateFromStoryProgress" not in mixin_plugin
           and "import com.butterjaffa.noeabosses.DestroyerRoleService" not in mixin_plugin)
-    check("hakai gate and prestige role warn survive the story-assign removal",
-          '"noea.HakaiDestroyerGateMixin"' in hakai_mixins
-          and "HakaiDestroyerGateMixin" not in mixin_plugin
+    check("hakai gate source and prestige role warn survive the story-assign removal",
+          (ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/noea/HakaiDestroyerGateMixin.java").is_file()
           and "DivineImmortalityEvents" not in mixin_plugin
           and (ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeUniverseRoleWarn.java").is_file())
 

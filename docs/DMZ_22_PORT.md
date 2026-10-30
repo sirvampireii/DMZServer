@@ -1,4 +1,4 @@
-# DragonMineZ 2.2 port (LM 4.7.0, melee fix 3.0.0)
+# DragonMineZ 2.2 port (LM 4.7.1, melee fix 3.0.1)
 
 Both jars are built against `mods/dragonminez-2.2.jar` (CurseForge file 9282248, sha256
 `b69d922f…414e7d`). Minecraft 1.20.1, Forge 47. Each `mods.toml` asks for DragonMineZ `[2.2,)`, so
@@ -40,12 +40,16 @@ required.
 - Player data migration marker is written only when no player file was skipped; the `.dat` strip
   marker waits for it (`docs/LM_PLAYER_DATA.md`).
 - Console: `debugLogging` in the LM config (`/lm admin config`), off by default.
+- 4.7.1: the Noea Hakai mixin is unregistered (Noea is off live; it had no presence check), and the
+  two dmzrevamp mixins are plugin-gated. Melee 3.0.1: the jar manifest no longer names the removed
+  raid/SDU mixin configs. Both builds now fail on an ungated optional-mod mixin or a manifest that
+  does not match the jar.
 - Not changed: config file formats. DMZ upgrades its own config to 2.2.0 on first load.
 
 ## Before the first test boot
 
 1. Back up `config/dragonminez/` and the world's `playerdata/`.
-2. Install `dragonminez-2.2.jar`, `LegacyMechanics-4.7.0.jar`, and `dmz_mohist_melee_fix-3.0.0.jar`;
+2. Install `dragonminez-2.2.jar`, `LegacyMechanics-4.7.1.jar`, and `dmz_mohist_melee_fix-3.0.1.jar`;
    remove the 2.1.3, 4.6.261, and 2.12.25 jars.
 3. The add-ons on the server were built for 2.1.3: Noea (`Noea-1.2.0-DMZ-2.1.3`), dmzrevamp,
    dmzultra, and KaiPath (Shurui's mods and SDU are no longer on live). Check each loads on 2.2; a failure there is not from these jars.

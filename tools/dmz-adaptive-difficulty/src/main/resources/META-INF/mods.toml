@@ -4,12 +4,12 @@ license = "MIT"
 
 [[mods]]
 modId = "legacymechanics"
-version = "4.7.0"
+version = "4.7.1"
 displayName = "LegacyMechanics"
 authors = "DBZ Legacy Reborn"
 displayTest = "IGNORE_SERVER_VERSION"
 description = '''
-Server-side LegacyMechanics for DragonMineZ (2.3.131) — difficulty, rival, sparring, progression.
+Server-side LegacyMechanics for DragonMineZ 2.2 — difficulty, rival, sparring, progression.
 Unlock tiers bought with Lightman's Ancient Coins, nearby mobs scale to
 player fight stats × tier %, titles, gated elites/mutations/AI/boss.
 Includes Rival System 4.7.10 + Sparring TP 3.2.11 ports (/rival, /spar).

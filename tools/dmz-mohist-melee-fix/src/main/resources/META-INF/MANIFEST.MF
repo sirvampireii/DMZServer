@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
 Implementation-Title: DMZ Mohist Melee Fix
-Implementation-Version: 2.12.22
-MixinConfigs: dmz_mohist_melee_fix.mixins.json,dmz_mohist_melee_fix.raid.mixins.json,dmz_mohist_melee_fix.sdu.mixins.json,dmz_mohist_melee_fix.noea.mixins.json
+Implementation-Version: 3.0.1
+MixinConfigs: dmz_mohist_melee_fix.mixins.json,dmz_mohist_melee_fix.noea.mixins.json

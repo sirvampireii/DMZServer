@@ -79,6 +79,7 @@ jar tf "$JAR"
 # matches the DragonMineZ jar it will be applied to.
 LM_SIM="$ROOT/tools/dmz-adaptive-difficulty/sim"
 python3 "$LM_SIM/audit_jar_inner_classes.py" "$JAR" com/dbzlegacy/mohistmelee/
+python3 "$ROOT/scripts/audit_jar_manifest.py" "$JAR" "$VERSION"
 python3 - "$JAR" "$RES" << 'PY'
 import json, sys, zipfile
 from pathlib import Path

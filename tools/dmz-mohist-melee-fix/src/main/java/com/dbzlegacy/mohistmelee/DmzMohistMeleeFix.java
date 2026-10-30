@@ -19,7 +19,7 @@ public final class DmzMohistMeleeFix {
 
     public DmzMohistMeleeFix() {
         LOGGER.info(
-                "[{}] v3.0.0 for DragonMineZ 2.2: party guard on the 2.2 party API, melee keeps DMZ windup, no Shurui/SDU mixins;"
+                "[{}] v3.0.1 for DragonMineZ 2.2: party guard on the 2.2 party API, melee keeps DMZ windup, no Shurui/SDU mixins;"
                         + " per-event logs need debugLogging=true in config/dmz_mohist_melee_fix-debug.properties",
                 MOD_ID
         );

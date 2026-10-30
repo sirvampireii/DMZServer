@@ -53,6 +53,12 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName != null && mixinClassName.endsWith("VipersCallUnendingVenomMixin")) {
             return vipersCallPresent();
         }
+        if (mixinClassName != null && mixinClassName.endsWith("PrestigeServiceIntegrationMixin")) {
+            return dmzRevampClassPresent("com/dmzrevamp/revamp/prestige/PrestigeService.class");
+        }
+        if (mixinClassName != null && mixinClassName.endsWith("DmzRevampPrestigeCapMixin")) {
+            return dmzRevampClassPresent("com/dmzrevamp/revamp/prestige/PrestigeSystem.class");
+        }
         if (mixinClassName != null && mixinClassName.endsWith("DmzultraNemesisSpawnGateMixin")) {
             return dedicatedServer() && dmzultraRivalPresent();
         }
@@ -91,6 +97,16 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
      * Simply More's Viper's Call. Look the class file up (it is the mixin target, so it must not
      * be loaded here). Absent on a server without Simply More.
      */
+    /** dmzrevamp is not a declared dependency; without it the target class is missing. */
+    private static boolean dmzRevampClassPresent(String classFile) {
+        try {
+            ClassLoader loader = LegacyMechanicsMixinPlugin.class.getClassLoader();
+            return loader != null && loader.getResource(classFile) != null;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
     private static boolean vipersCallPresent() {
         try {
             ClassLoader loader = LegacyMechanicsMixinPlugin.class.getClassLoader();

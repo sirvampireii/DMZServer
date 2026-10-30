@@ -30,6 +30,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+GATE: str | None = None
+GATE_EXEMPT = ("com.dragonminez.", "net.minecraft.", "net.minecraftforge.", "com.mojang.", "java.")
 INJECTORS = ("Inject", "Redirect", "ModifyConstant", "ModifyArg", "ModifyArgs",
              "ModifyVariable", "WrapOperation", "WrapWithCondition", "ModifyExpressionValue",
              "ModifyReturnValue")
@@ -222,6 +224,14 @@ def check_mixin(path: Path, jp: Javap, optional: bool, errors: list[str], notes:
     targets = strings_of(ann, "targets")
     for tok in re.findall(r"([\w.]+)\.class", ann):
         targets.append(resolve_class(src, tok))
+    # A target in an optional mod is missing at runtime when that mod is not installed, even if its
+    # jar is on the compile classpath here. Only the mixin plugin's presence check keeps that from
+    # failing a required config, so the plugin must name the mixin.
+    if GATE is not None:
+        for t in targets:
+            if not t.startswith(GATE_EXEMPT) and path.stem not in GATE:
+                errors.append(f"{path.stem}: targets {t} (not DragonMineZ/Minecraft/Forge) but the mixin "
+                              f"plugin has no presence check for it")
     infos = []
     for t in targets:
         ci = jp.get(t)
@@ -356,12 +366,18 @@ def main() -> int:
     ap.add_argument("--src", required=True)
     ap.add_argument("--cp", required=True)
     ap.add_argument("--optional-missing-ok", action="store_true")
+    ap.add_argument("--gate-plugin", default=None,
+                    help="mixin plugin source; every mixin targeting a class outside DMZ/Minecraft/Forge "
+                         "must be named there (its presence check)")
     ap.add_argument("--optional-mixins", default="",
                     help="comma list of mixins (plugin-gated on an optional mod) whose target class may be absent")
     ap.add_argument("--extra-mixins", default="",
                     help="comma list of mixin classes kept in source but not registered; checked too")
     ap.add_argument("configs", nargs="+")
     a = ap.parse_args()
+    global GATE
+    if a.gate_plugin:
+        GATE = Path(a.gate_plugin).read_text(encoding="utf-8")
     jp = Javap(a.cp)
     errors: list[str] = []
     notes: list[str] = []

@@ -1,5 +1,17 @@
 # Mohist M1: animation but no damage
 
+## Fix v3.0.1 — manifest names only shipped mixin configs (Oct 2026)
+
+`mods/dmz_mohist_melee_fix-3.0.1.jar`
+
+3.0.0 dropped the raid and SDU mixin configs but `META-INF/MANIFEST.MF` still listed them in
+`MixinConfigs` (and said `Implementation-Version: 2.12.22`). The manifest now lists only
+`dmz_mohist_melee_fix.mixins.json` and `dmz_mohist_melee_fix.noea.mixins.json`, at version 3.0.1.
+The build runs `scripts/audit_jar_manifest.py`, which fails when a named mixin config is not in the
+jar or the manifest version does not match. No code change.
+
+Requires a full server restart.
+
 ## Fix v3.0.0 — DragonMineZ 2.2 port (Oct 2026)
 
 `mods/dmz_mohist_melee_fix-3.0.0.jar` — built against `mods/dragonminez-2.2.jar` (CurseForge file 9282248). It needs DragonMineZ 2.2 (`mods.toml` asks for `[2.2,)`) and will not load on 2.1.3.

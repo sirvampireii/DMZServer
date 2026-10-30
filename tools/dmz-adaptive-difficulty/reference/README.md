@@ -278,6 +278,10 @@ line-number tables (the source file is 10 lines shorter). The other 6 weapon cla
 The 2.2 port ships as 4.7.0 instead of 4.6.262 (that number never shipped). Only
 `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified).
 
+## Re-baseline (2026-10-30, 4.7.1 Hakai mixin unregistered)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified).
+
 ## Refresh the reference set
 
 ```bash

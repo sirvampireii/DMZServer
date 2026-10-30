@@ -141,7 +141,7 @@ javac --release 17 -encoding UTF-8 -proc:none -cp "$CP" -d "$OUT" "@$SOURCES_LIS
 # Every mixin target, overload, callback type, handler signature, and @At must match the
 # DragonMineZ jar on CP (javac never reads mixin target strings). The two optional-mod mixins
 # are plugin-gated on their mod being present, so their target class may be absent here.
-python3 "$ROOT/scripts/audit_mixin_targets.py" --src "$SRC" --cp "$CP"   --optional-mixins VipersCallUnendingVenomMixin,KaiPathLmConsumerBootstrapMixin   "$RES/legacymechanics.mixins.json"
+python3 "$ROOT/scripts/audit_mixin_targets.py" --src "$SRC" --cp "$CP" --gate-plugin "$SRC/com/dbzlegacy/adaptivedifficulty/mixin/LegacyMechanicsMixinPlugin.java"   --optional-mixins VipersCallUnendingVenomMixin,KaiPathLmConsumerBootstrapMixin   "$RES/legacymechanics.mixins.json"
 
 # Break ldc #0xC2 / operand-C2 + goto(A7) false positives in ultra callers so a
 # raw C2 A7 (§) scan only hits UltraStyle (which owns the mark in its CP).
@@ -731,6 +731,7 @@ else
   echo ">> Prestige-shop 228.1 source not yet integrated (no PrestigeShopConfig.java in src/) — 25-class byte-verify dormant (harness armed)"
 fi
 python3 "$HERE/sim/audit_jar_inner_classes.py" "$JAR"
+python3 "$ROOT/scripts/audit_jar_manifest.py" "$JAR" "$VERSION"
 python3 - "$JAR" << 'PY'
 import sys, zipfile
 jar = sys.argv[1]

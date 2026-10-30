@@ -1365,6 +1365,25 @@ def main() -> int:
           'python3 "$ROOT/scripts/audit_mixin_targets.py" --src "$SRC" --cp "$CP"' in p22_build
           and 'versionRange = "[2.2,)"' in p22_toml)
 
+    print("\n--- § optional-mod mixin gate ---")
+    og_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
+    og_plugin = read(SRC / "mixin/LegacyMechanicsMixinPlugin.java")
+    og_build = read(MOD / "build.sh")
+    og_mf = read(MOD / "src/main/resources/META-INF/MANIFEST.MF")
+    check("manifest optional-mod-mixin-gate row", "optional-mod-mixin-gate" in manifest)
+    check("Hakai gate unregistered (Noea off live); source kept",
+          "HakaiDestroyerGateMixin" not in og_json
+          and (SRC / "mixin/noea/HakaiDestroyerGateMixin.java").is_file())
+    check("dmzrevamp mixins gated on their target class file",
+          'endsWith("PrestigeServiceIntegrationMixin")' in og_plugin
+          and 'endsWith("DmzRevampPrestigeCapMixin")' in og_plugin
+          and '"com/dmzrevamp/revamp/prestige/PrestigeService.class"' in og_plugin
+          and '"com/dmzrevamp/revamp/prestige/PrestigeSystem.class"' in og_plugin)
+    check("build: plugin gate for optional-mod mixins; jar manifest matches version and configs",
+          '--gate-plugin "$SRC/com/dbzlegacy/adaptivedifficulty/mixin/LegacyMechanicsMixinPlugin.java"' in og_build
+          and 'python3 "$ROOT/scripts/audit_jar_manifest.py" "$JAR" "$VERSION"' in og_build
+          and "Implementation-Version: 2.4.13" not in og_mf)
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")
