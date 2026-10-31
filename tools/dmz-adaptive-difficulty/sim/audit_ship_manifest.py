@@ -1820,6 +1820,41 @@ def main() -> int:
           "blocksOverhaulPrestige(held, want - 1)" in nl_test
           and 'completeQuest("prestige_saga:3")' in nl_test)
 
+    print("\n--- § sparring stun clash 4.7.17 ---")
+    sp_sys = read(SRC / "sparring/SparringSystem.java")
+    sp_cmb = read(SRC / "sparring/SparCombat.java")
+    sp_rt = read(SRC / "sparring/SparPlayerRuntime.java")
+    sp_dr = read(SRC / "util/DmzRewards.java")
+    sp_cfg = read(SRC / "config/DifficultyConfig.java")
+    sp_help = read(SRC / "config/editor/ConfigFieldHelp.java")
+    sp_act = sp_sys.split("private static void tickActivity(", 1)[-1].split("\n    }\n", 1)[0]
+    sp_frz = sp_sys.split("private static void updateFreezes(", 1)[-1].split("private static boolean isAnyClashing(", 1)[0]
+    sp_res = sp_sys.split("private static void tickStrikeClashResult(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest sparring-stun-clash row", "sparring-stun-clash" in manifest)
+    check("timers: melee 8000, grace 6000, distance grace 4000, post-clash hold 6000; 30s / 5-min gates unchanged",
+          "MELEE_HIT_ACTIVITY_WINDOW_MS = 8000L;" in sp_sys and "SESSION_GRACE_PERIOD_MS = 6000L;" in sp_sys
+          and "DISTANCE_GRACE_PERIOD_MS = 4000L;" in sp_sys and "POST_CLASH_HOLD_MS = 6000L;" in sp_sys
+          and "MIN_COUNTED_SESSION_MS = 30_000L;" in sp_sys and "STREAK_MIN_SESSION_MS = 300_000L;" in sp_sys)
+    check("timers are DifficultyConfig spar*Ms fields with help lines (config GUI Sparring section)",
+          all(f"public long {f}" in sp_cfg and f"{f}=" in sp_help for f in (
+              "sparMeleeHitWindowMs", "sparKiHitWindowMs", "sparMovementWindowMs", "sparSessionGraceMs",
+              "sparClashHoldMs", "sparPostClashHoldMs", "sparComboTimeoutMs", "sparMomentumDurationMs"))
+          and "public long sparMeleeHitWindowMs = 8000L;" in sp_cfg and "public long sparSessionGraceMs = 6000L;" in sp_cfg)
+    check("stun / clash pause: Status.isStunned or any clash freezes the pair; expiry skipped; no faked stamps",
+          "status.isStunned()" in sp_sys and "isStunned(player) || isAnyClashing(player.m_20148_())" in sp_frz
+          and "rt.pairFrozenAt > 0L || pRt.pairFrozenAt > 0L" in sp_act
+          and "lastOutAt =" not in sp_frz and "lastCombatOutAt" not in sp_frz
+          and "now - rt.lastOutAt - paused <= hitWindowMs(rt.lastOutKind)" in sp_sys)
+    check("combo and momentum freeze while the fighter is stunned or clashing",
+          "setSelfFrozen(rt, selfHeld, now);" in sp_frz and "rt.comboUntil +=" in sp_frz and "rt.momentumUntil +=" in sp_frz
+          and "rt.selfFrozenAt <= 0L && rt.momentumUntil > 0L" in sp_cmb)
+    check("strike clash: DMZ StrikeClash.isClashing, 35 TP / 500 ms, 500 / 100 / 150 result by the loser's stun",
+          "return StrikeClash.isClashing(uuid);" in sp_dr
+          and "STRIKE_CLASH_TP_PER_TICK = 35.0f;" in sp_cmb and "STRIKE_CLASH_WIN_TP = 500.0f;" in sp_cmb
+          and "STRIKE_CLASH_LOSS_TP = 100.0f;" in sp_cmb and "STRIKE_CLASH_TIE_TP = 150.0f;" in sp_cmb
+          and "if (partnerStunned) {" in sp_res and "rt.clashTies++;" in sp_res
+          and "public int clashWins;" in sp_rt and "Strike clashes: " in sp_sys)
+
     print("\n--- § prestige level cap ladder 4.7.16 ---")
     lc_bridge = read(SRC / "progression/bridge/DmzRevampPrestigeBridge.java")
     lc_stats = read(SRC / "mixin/StatsDataMixin.java")

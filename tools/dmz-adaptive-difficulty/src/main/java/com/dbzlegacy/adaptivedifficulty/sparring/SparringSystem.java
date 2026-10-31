@@ -30,11 +30,12 @@ public final class SparringSystem {
     private static final Map<UUID, SparPlayerRuntime> RUNTIME = new ConcurrentHashMap<>();
 
     public static final double MAX_SPAR_DISTANCE = 30.0;
-    public static final long MELEE_HIT_ACTIVITY_WINDOW_MS = 4500L;
+    // Timer defaults; live values are DifficultyConfig spar*Ms (4.7.17), read through the accessors below.
+    public static final long MELEE_HIT_ACTIVITY_WINDOW_MS = 8000L;
     public static final long KI_HIT_ACTIVITY_WINDOW_MS = 10_000L;
     public static final long SESSION_START_WINDOW_MS = 15_000L;
     public static final long PAIR_RESTART_COOLDOWN_MS = 3000L;
-    public static final long SESSION_GRACE_PERIOD_MS = 4000L;
+    public static final long SESSION_GRACE_PERIOD_MS = 6000L;
     public static final long DISTANCE_GRACE_PERIOD_MS = 4000L;
     public static final long MOVEMENT_ACTIVITY_WINDOW_MS = 10_000L;
     public static final double MIN_MOVEMENT_DISTANCE = 0.35;
@@ -54,10 +55,46 @@ public final class SparringSystem {
     public static final long KI_CHARGE_HOLD_MS = 2800L;
     /** Soft activity hold while clash is reported (does not count as combat for drip TP). */
     public static final long CLASH_HOLD_MS = 2500L;
+    /** Hold after a clash ends: the strike-clash loser's 3.5s stun plus time to re-engage (4.7.17). */
+    public static final long POST_CLASH_HOLD_MS = 6000L;
+    /** After a strike clash ends, how long to wait for the loser's stun (DMZ applies it ~8 ticks later). */
+    public static final long STRIKE_CLASH_RESULT_WINDOW_MS = 2000L;
     /** Real combat window for release-control drip (tighter than AFK hit windows). */
     public static final long RELEASE_COMBAT_WINDOW_MS = 3500L;
 
     private static long lastPulseAt;
+
+    private static long cfgMs(long value, long fallback) {
+        return value > 0L ? value : fallback;
+    }
+
+    static long meleeHitWindowMs() {
+        return cfgMs(DifficultyConfig.get().sparMeleeHitWindowMs, MELEE_HIT_ACTIVITY_WINDOW_MS);
+    }
+
+    static long kiHitWindowMs() {
+        return cfgMs(DifficultyConfig.get().sparKiHitWindowMs, KI_HIT_ACTIVITY_WINDOW_MS);
+    }
+
+    static long movementWindowMs() {
+        return cfgMs(DifficultyConfig.get().sparMovementWindowMs, MOVEMENT_ACTIVITY_WINDOW_MS);
+    }
+
+    static long sessionGraceMs() {
+        return cfgMs(DifficultyConfig.get().sparSessionGraceMs, SESSION_GRACE_PERIOD_MS);
+    }
+
+    static long clashHoldMs() {
+        return cfgMs(DifficultyConfig.get().sparClashHoldMs, CLASH_HOLD_MS);
+    }
+
+    static long postClashHoldMs() {
+        return cfgMs(DifficultyConfig.get().sparPostClashHoldMs, POST_CLASH_HOLD_MS);
+    }
+
+    static long comboTimeoutMs() {
+        return cfgMs(DifficultyConfig.get().sparComboTimeoutMs, COMBO_TIMEOUT_MS);
+    }
 
     private SparringSystem() {}
 
@@ -122,6 +159,7 @@ public final class SparringSystem {
                 endSession(player, null, "partner-offline");
                 continue;
             }
+            updateFreezes(player, partner, rt, now);
             tickMovement(player, rt, now);
             tickClash(player, partner, rt, now);
             tickReleaseControl(player, partner, rt, now);
@@ -490,6 +528,12 @@ public final class SparringSystem {
                 + " " + UltraStyle.DIM + "| melee " + UltraStyle.VALUE + (int) rt.sessionMelee
                 + " " + UltraStyle.DIM + "| ki " + UltraStyle.VALUE + (int) rt.sessionKi
                 + " " + UltraStyle.DIM + "| combo " + UltraStyle.VALUE + rt.sessionMaxCombo));
+        if (rt.clashWins + rt.clashLosses + rt.clashTies > 0) {
+            DmzRewards.msg(player, LmChat.note("Spar", UltraStyle.LABEL + "Strike clashes: "
+                    + UltraStyle.GREEN + "won " + rt.clashWins
+                    + " " + UltraStyle.DIM + "| " + UltraStyle.VALUE + "lost " + rt.clashLosses
+                    + " " + UltraStyle.DIM + "| " + UltraStyle.VALUE + "tied " + rt.clashTies));
+        }
     }
 
     private static void updateLeaderboard(ServerPlayer player, SparPlayerRuntime rt, long durationMs) {
@@ -562,7 +606,8 @@ public final class SparringSystem {
         rt.moveX = player.m_20185_();
         rt.moveY = player.m_20186_();
         rt.moveZ = player.m_20189_();
-        rt.moveValidUntil = now + MOVEMENT_ACTIVITY_WINDOW_MS;
+        rt.moveStampAt = now;
+        rt.moveValidUntil = now + movementWindowMs();
     }
 
     /**
@@ -582,7 +627,8 @@ public final class SparringSystem {
         rt.moveY = y;
         rt.moveZ = z;
         if (dist >= MIN_MOVEMENT_DISTANCE || speed >= MIN_MOTION_SPEED) {
-            rt.moveValidUntil = now + MOVEMENT_ACTIVITY_WINDOW_MS;
+            rt.moveStampAt = now;
+            rt.moveValidUntil = now + movementWindowMs();
             rt.styleMove += 1.0;
         }
         if (speed >= HEAVY_MOTION_SPEED) {
@@ -610,23 +656,162 @@ public final class SparringSystem {
     }
 
     private static void tickClash(ServerPlayer player, ServerPlayer partner, SparPlayerRuntime rt, long now) {
-        boolean selfClash = DmzRewards.isClashing(player.m_20148_());
-        boolean partnerClash = DmzRewards.isClashing(partner.m_20148_());
-        boolean bothClashing = selfClash && partnerClash;
-        if (selfClash || partnerClash) {
+        boolean selfBeam = DmzRewards.isClashing(player.m_20148_());
+        boolean partnerBeam = DmzRewards.isClashing(partner.m_20148_());
+        boolean selfStrike = DmzRewards.isStrikeClashing(player.m_20148_());
+        boolean partnerStrike = DmzRewards.isStrikeClashing(partner.m_20148_());
+        if (selfBeam || partnerBeam || selfStrike || partnerStrike) {
             // Soft linger keeps the match held even if only one side reports clash.
             // Does NOT fake combat clocks — idle drip TP must stop when fighting stops.
             rt.clashUntil = now + 4000L;
+            rt.wasClashing = true;
+        } else if (rt.wasClashing) {
+            // Post-clash hold (4.7.17): covers the loser's stun and re-engaging. No combat stamp.
+            rt.wasClashing = false;
+            long until = now + postClashHoldMs();
+            markHold(rt, until);
+            markHold(runtime(partner.m_20148_()), until);
         }
-        // Script: TP drip only while BOTH fighters are actively clashing.
-        if (bothClashing && now >= rt.clashNext) {
+        boolean bothBeam = selfBeam && partnerBeam;
+        boolean bothStrike = selfStrike && partnerStrike;
+        // Script: TP drip only while BOTH fighters are actively clashing (beam, or strike since 4.7.17).
+        if ((bothBeam || bothStrike) && now >= rt.clashNext) {
             rt.clashNext = now + 500L;
             rt.sessionClashMs += 500L;
-            rt.styleBeam += 1.0;
-            SparCombat.awardCombatTp(player, partner, rt, SparCombat.BEAM_CLASH_TP_PER_TICK, "clash");
+            if (bothBeam) {
+                rt.styleBeam += 1.0;
+            } else {
+                rt.styleMelee += 1.0;
+            }
+            SparCombat.awardCombatTp(player, partner, rt,
+                    bothBeam ? SparCombat.BEAM_CLASH_TP_PER_TICK : SparCombat.STRIKE_CLASH_TP_PER_TICK, "clash");
         }
+        tickStrikeClashResult(player, partner, rt, bothStrike, now);
         // Charging / clash holds keep the match alive without fake hit stamps for drip TP.
         holdSparForKiOrClash(player, partner, rt, now);
+    }
+
+    /**
+     * Strike clash result (4.7.17). DMZ stuns only the loser (70 ticks, ~8 ticks after the clash
+     * releases), so after both fighters stop clashing, the first fighter seen stunned lost. Neither
+     * (or both) stunned within {@link #STRIKE_CLASH_RESULT_WINDOW_MS}: a tie or a dissolve. Each
+     * fighter's own pulse pays only that fighter: 500 win, 100 loss, 150 tie.
+     */
+    private static void tickStrikeClashResult(
+            ServerPlayer player, ServerPlayer partner, SparPlayerRuntime rt, boolean bothStrike, long now
+    ) {
+        if (bothStrike) {
+            rt.inStrikeClash = true;
+            rt.strikeResultUntil = 0L;
+            return;
+        }
+        if (rt.inStrikeClash) {
+            rt.inStrikeClash = false;
+            rt.strikeResultUntil = now + STRIKE_CLASH_RESULT_WINDOW_MS;
+        }
+        if (rt.strikeResultUntil <= 0L) {
+            return;
+        }
+        boolean selfStunned = isStunned(player);
+        boolean partnerStunned = isStunned(partner);
+        float tp;
+        if (selfStunned != partnerStunned) {
+            if (partnerStunned) {
+                rt.clashWins++;
+                tp = SparCombat.STRIKE_CLASH_WIN_TP;
+            } else {
+                rt.clashLosses++;
+                tp = SparCombat.STRIKE_CLASH_LOSS_TP;
+            }
+        } else if (now >= rt.strikeResultUntil) {
+            rt.clashTies++;
+            tp = SparCombat.STRIKE_CLASH_TIE_TP;
+        } else {
+            return;
+        }
+        rt.strikeResultUntil = 0L;
+        SparCombat.awardCombatTp(player, partner, rt, tp, "clash");
+    }
+
+    /**
+     * 4.7.17: DMZ 2.2.1 stuns (guard break, strike-clash loss, knockdown, strike lock, match freeze:
+     * {@code Status.isStunned()}) and clashes (beam or strike) pause the pair's activity clocks. While
+     * either fighter is stunned or clashing, the hit, movement and grace windows do not run; they
+     * resume where they stopped. No hit or combat stamp is faked. A fighter's own combo and momentum
+     * timers freeze the same way while that fighter is stunned or clashing.
+     */
+    private static void updateFreezes(ServerPlayer player, ServerPlayer partner, SparPlayerRuntime rt, long now) {
+        SparPlayerRuntime pRt = runtime(partner.m_20148_());
+        boolean selfHeld = isStunned(player) || isAnyClashing(player.m_20148_());
+        boolean partnerHeld = isStunned(partner) || isAnyClashing(partner.m_20148_());
+        boolean pair = selfHeld || partnerHeld;
+        setPairFrozen(rt, pair, now);
+        setPairFrozen(pRt, pair, now);
+        setSelfFrozen(rt, selfHeld, now);
+    }
+
+    private static void setPairFrozen(SparPlayerRuntime rt, boolean frozen, long now) {
+        if (frozen) {
+            if (rt.pairFrozenAt <= 0L) {
+                rt.pairFrozenAt = now;
+            }
+            return;
+        }
+        if (rt.pairFrozenAt <= 0L) {
+            return;
+        }
+        long from = rt.pairFrozenAt;
+        rt.pairFrozenAt = 0L;
+        if (rt.lastOutAt > 0L) {
+            if (rt.hitPauseAnchor != rt.lastOutAt) {
+                rt.hitPauseAnchor = rt.lastOutAt;
+                rt.hitPauseMs = 0L;
+            }
+            // Only a hit window still open when the freeze began is paused (an expired one stays expired).
+            if (from - rt.lastOutAt - rt.hitPauseMs <= hitWindowMs(rt.lastOutKind)) {
+                rt.hitPauseMs += Math.max(0L, now - Math.max(from, rt.lastOutAt));
+            }
+        }
+        if (rt.moveValidUntil > from) {
+            rt.moveValidUntil += Math.max(0L, now - Math.max(from, rt.moveStampAt));
+        }
+        if (rt.graceUntil > 0L) {
+            rt.graceUntil += now - from;
+        }
+    }
+
+    private static void setSelfFrozen(SparPlayerRuntime rt, boolean frozen, long now) {
+        if (frozen) {
+            if (rt.selfFrozenAt <= 0L) {
+                rt.selfFrozenAt = now;
+            }
+            return;
+        }
+        if (rt.selfFrozenAt <= 0L) {
+            return;
+        }
+        long from = rt.selfFrozenAt;
+        rt.selfFrozenAt = 0L;
+        if (rt.comboUntil > from) {
+            rt.comboUntil += Math.max(0L, now - Math.max(from, rt.comboStampAt));
+        }
+        if (rt.momentumUntil > from) {
+            rt.momentumUntil += Math.max(0L, now - Math.max(from, rt.momentumStampAt));
+        }
+    }
+
+    private static boolean isStunned(ServerPlayer player) {
+        try {
+            StatsData data = DmzProgression.stats(player);
+            Status status = data == null ? null : data.getStatus();
+            return status != null && status.isStunned();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isAnyClashing(UUID id) {
+        return DmzRewards.isClashing(id) || DmzRewards.isStrikeClashing(id);
     }
 
     /**
@@ -642,8 +827,8 @@ public final class SparringSystem {
         }
         SparPlayerRuntime pRt = runtime(partner.m_20148_());
         boolean clashing = now <= rt.clashUntil
-                || DmzRewards.isClashing(player.m_20148_())
-                || DmzRewards.isClashing(partner.m_20148_());
+                || isAnyClashing(player.m_20148_())
+                || isAnyClashing(partner.m_20148_());
         boolean selfCharging = isChargingKi(player);
         boolean partnerCharging = isChargingKi(partner);
         boolean charging = selfCharging || partnerCharging || now < rt.chargingUntil || now < pRt.chargingUntil;
@@ -651,8 +836,8 @@ public final class SparringSystem {
             return isActivityHeld(rt, now) || isActivityHeld(pRt, now);
         }
         if (clashing) {
-            markHold(rt, now + CLASH_HOLD_MS);
-            markHold(pRt, now + CLASH_HOLD_MS);
+            markHold(rt, now + clashHoldMs());
+            markHold(pRt, now + clashHoldMs());
         }
         if (selfCharging || partnerCharging) {
             long until = now + KI_CHARGE_HOLD_MS;
@@ -817,6 +1002,10 @@ public final class SparringSystem {
      */
     private static void tickActivity(ServerPlayer player, ServerPlayer partner, SparPlayerRuntime rt, long now) {
         SparPlayerRuntime pRt = runtime(partner.m_20148_());
+        if (rt.pairFrozenAt > 0L || pRt.pairFrozenAt > 0L) {
+            // Stun / clash pause (4.7.17): no expiry checks, grace and combo clocks stand still.
+            return;
+        }
         boolean held = holdSparForKiOrClash(player, partner, rt, now)
                 || isActivityHeld(rt, now)
                 || isActivityHeld(pRt, now);
@@ -864,7 +1053,7 @@ public final class SparringSystem {
     ) {
         long graceMs = reason != null && reason.contains("far")
                 ? DISTANCE_GRACE_PERIOD_MS
-                : SESSION_GRACE_PERIOD_MS;
+                : sessionGraceMs();
         if (rt.graceUntil <= 0L || !reason.equals(rt.graceReason)) {
             rt.graceUntil = now + graceMs;
             rt.graceReason = reason;
@@ -899,10 +1088,15 @@ public final class SparringSystem {
         if (!rt.lastOutPartner.equalsIgnoreCase(partnerName)) {
             return false;
         }
-        long window = "ki".equalsIgnoreCase(rt.lastOutKind) || "beam".equalsIgnoreCase(rt.lastOutKind)
-                ? KI_HIT_ACTIVITY_WINDOW_MS
-                : MELEE_HIT_ACTIVITY_WINDOW_MS;
-        return now - rt.lastOutAt <= window;
+        // Time paused by a stun / clash since this hit does not count (4.7.17).
+        long paused = rt.hitPauseAnchor == rt.lastOutAt ? rt.hitPauseMs : 0L;
+        return now - rt.lastOutAt - paused <= hitWindowMs(rt.lastOutKind);
+    }
+
+    private static long hitWindowMs(String kind) {
+        return "ki".equalsIgnoreCase(kind) || "beam".equalsIgnoreCase(kind)
+                ? kiHitWindowMs()
+                : meleeHitWindowMs();
     }
 
     public static void registerCombatHit(ServerPlayer player, SparPlayerRuntime rt) {
@@ -912,7 +1106,8 @@ public final class SparringSystem {
         } else {
             rt.combo = 1;
         }
-        rt.comboUntil = now + COMBO_TIMEOUT_MS;
+        rt.comboStampAt = now;
+        rt.comboUntil = now + comboTimeoutMs();
         rt.sessionMaxCombo = Math.max(rt.sessionMaxCombo, rt.combo);
         SparCombat.updateMomentum(player, rt);
     }

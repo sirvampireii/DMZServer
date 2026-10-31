@@ -384,6 +384,12 @@ Three classes re-extracted from `mods/LegacyMechanics-4.7.15.jar`; javap diffs c
 `AdaptiveDifficultyMod` re-extracted from `mods/LegacyMechanics-4.7.16.jar` (javap: version string
 only). The other 24 are unchanged.
 
+## Re-baseline (2026-10-31, 4.7.17 sparring stun / clash)
+
+Two classes re-extracted from `mods/LegacyMechanics-4.7.17.jar`; javap diffs checked:
+`AdaptiveDifficultyMod` (version string) and `ConfigFieldHelp` (help lines for the new sparring
+timer fields). The other 23 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

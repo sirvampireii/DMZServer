@@ -3,6 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.util;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dragonminez.common.combat.clash.BeamClashManager;
+import com.dragonminez.common.combat.clash.StrikeClash;
 import com.dragonminez.common.init.MainDamageTypes;
 import com.dragonminez.common.network.NetworkHandler;
 import com.dragonminez.common.network.S2C.StatsSyncS2C;
@@ -149,12 +150,25 @@ public final class DmzRewards {
         }
     }
 
+    /** Beam clash only (DMZ's {@code BeamClashManager}); strike clashes are {@link #isStrikeClashing}. */
     public static boolean isClashing(UUID uuid) {
         if (uuid == null) {
             return false;
         }
         try {
             return BeamClashManager.isClashing(uuid);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /** DMZ 2.2.1 strike (melee) clash: up to 12s, both fighters locked, no damage. */
+    public static boolean isStrikeClashing(UUID uuid) {
+        if (uuid == null) {
+            return false;
+        }
+        try {
+            return StrikeClash.isClashing(uuid);
         } catch (Throwable ignored) {
             return false;
         }
