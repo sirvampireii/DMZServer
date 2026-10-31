@@ -1399,17 +1399,18 @@ def main() -> int:
     pf_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
     check("manifest prestige-follows-overhaul row", "prestige-follows-overhaul" in manifest)
     _req = pf_ps.split("public static int requiredLevel(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    check("requirement = Overhaul levelCap through the bridge; nothing else read",
+    check("requirement = Overhaul's level cap through the bridge; nothing else read",
           "DmzRevampPrestigeBridge.levelCap(data)" in _req
-          and "PrestigeSystem.levelCap(data)" in pf_bridge
+          and "return LmOverhaulCapMath.overhaulLevelCap();" in pf_bridge
+          and "PrestigeSystem.levelCap(" not in pf_bridge
           and "getCompleted" not in _req and "heldCount" not in _req and "effectiveMaxLevel" not in pf_ps)
     _over = pf_cap.split("public static int overhaulLevelCap(StatsData data) {", 1)[-1].split("\n    }\n", 1)[0]
-    check("cap is Overhaul's native ladder: no levelCap override, initialLevelCap pinned 50k, 100k without revamp",
+    check("cap is Overhaul's flat configuredLevelMaximum (4.7.14): no ladder, no levelCap hook, 100k without revamp",
           _over.strip() == "return levelCap(data);"
           and '@Inject(method = "levelCap"' not in pf_mixin
-          and "overhaulLevelCap(data)" in pf_mixin and "journeyPrestigeNeed" not in pf_cap
-          and "OVERHAUL_INITIAL_LEVEL_CAP = 50_000" in pf_cap
-          and "initial.setInt(prestige, OVERHAUL_INITIAL_LEVEL_CAP);" in pf_cap
+          and "journeyPrestigeNeed" not in pf_cap
+          and "OVERHAUL_INITIAL_LEVEL_CAP" not in pf_cap and "ladderCap" not in pf_cap and "LADDER_STEPS" not in pf_cap
+          and '.getMethod("configuredLevelMaximum")' in pf_cap
           and "return OVERHAUL_LEVEL_CAP;" in pf_cap.split("public static int overhaulLevelCap() {", 1)[-1].split("\n    }\n", 1)[0])
     check("breakthroughs gone from code paths; stored keys untouched",
           not any(k in pf_pp for k in ("getBreakthroughs", "setBreakthroughs", "breakthroughCost",
@@ -1417,21 +1418,20 @@ def main() -> int:
           and "adjustBreakthroughs" not in pf_admin and "breakthroughs_max" not in pf_gui
           and "KEY_BREAKTHROUGHS" not in pf_mirror
           and '"pp_level_breakthroughs"' in read(SRC / "data/LmPlayerStore.java"))
-    check("held max = revamp maxPrestigeCount everywhere; LM raises it only through pinPrestigeCap (4.7.12)",
+    check("held max = LM's 20 everywhere; clamp and gate on Overhaul through the cap mixin (4.7.14)",
           "MAX_HELD" not in pf_ps
           and "LmOverhaulCapMath.configuredMaxPrestigeCount()" in pf_ps
           and pf_mixin.count("LmOverhaulCapMath.configuredMaxPrestigeCount()") == 2
           and "maxPrestigeCount" not in pf_cfg_bridge.split("public static void onServerStarting()", 1)[-1]
-          and "LmOverhaulCapMath.pinPrestigeCap();" in pf_cfg_bridge
+          and "pinPrestigeCap" not in pf_cfg_bridge
           and "return LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE;" in pf_cap)
     check("menus state the rule; next requirement shows the cap",
           "Reaching your current cap earns your next prestige." in pf_ultra
           and 'out.put("next_required", String.valueOf(required))' in pf_gui)
-    check("self-test covers the requirement, the ladder values, and the held cap",
+    check("self-test covers the requirement and the held cap; no ladder values (4.7.14)",
           "checkPrestigeFollowsOverhaul(broken);" in pf_test
           and "PrestigeSystem.requiredLevel(null)" in pf_test
-          and "{50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000, 150_000" in pf_test
-          and "DmzRevampPrestigeBridge.levelCap(sd)" in pf_test
+          and "65_000, 80_000" not in pf_test
           and "configuredMaxPrestigeCount()" in pf_test)
 
     print("\n--- § prestige per character ---")
@@ -1711,34 +1711,23 @@ def main() -> int:
     print("\n--- § prestige cap 20 4.7.12 ---")
     pc20_int = read(SRC / "progression/LmOverhaulPrestigeIntegration.java")
     pc20_math = read(SRC / "progression/LmOverhaulCapMath.java")
-    pc20_mix = read(SRC / "mixin/DmzRevampPrestigeLadderMixin.java")
     pc20_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
     pc20_plugin = read(SRC / "mixin/LegacyMechanicsMixinPlugin.java")
     pc20_spar = read(SRC / "sparring/SparCombat.java")
     pc20_cfg = read(SRC / "config/DifficultyConfig.java")
     pc20_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
-    pc20_pin = pc20_math.split("public static void pinPrestigeCap()", 1)[-1].split("\n    }\n", 1)[0]
     check("manifest prestige-cap-20 row", "prestige-cap-20" in manifest)
-    check("cap 20: constant, Overhaul maxPrestigeCount pinned at boot, Spar and reference follow",
+    check("cap 20: constant, Spar and reference follow (Overhaul side: see dmzrevamp 2.2.4 section)",
           "public static final int OVERHAUL_MAX_PRESTIGE = 20;" in pc20_int
-          and "maxCount.setInt(prestige, target);" in pc20_pin
           and "public static final int MAX_PRESTIGE_LEVEL = 20;" in pc20_spar
           and "public int referenceMaxPrestige = 20;" in pc20_cfg
           and "cfg.referenceMaxPrestige20MigratedV1 = Boolean.TRUE;" in pc20_cfg)
-    check("ladder keeps 10 steps: only the two divisor reads of levelCap are redirected",
-          "public static final int LADDER_STEPS = 10;" in pc20_math
-          and pc20_mix.count("ordinal = 2") == 1 and pc20_mix.count("ordinal = 3") == 1
-          and "ordinal = 0" not in pc20_mix and "ordinal = 1" not in pc20_mix
-          and pc20_mix.count("return LmOverhaulCapMath.LADDER_STEPS;") == 2
-          and '"DmzRevampPrestigeLadderMixin"' in pc20_json
-          and 'mixinClassName.endsWith("DmzRevampPrestigeLadderMixin")' in pc20_plugin)
-    check("fail-safe: the cap is raised only if Overhaul's own levelCap keeps the 10-step ladder",
-          "ps.getMethod(\"levelCap\", StatsData.class)" in pc20_pin
-          and "ladderCap(initial, max, LADDER_STEPS, target, 1)" in pc20_pin
-          and "maxCount.setInt(prestige, before);" in pc20_pin)
-    check("self-test: ladder 0-20 (150k from 7) and no stretch at a cap above 10",
-          "150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000};" in pc20_test
-          and "Overhaul ladder stretched at cap" in pc20_test)
+    check("ladder gone with dmzrevamp 2.2.4: no ladder mixin, constants or pin (4.7.14)",
+          not (SRC / "mixin/DmzRevampPrestigeLadderMixin.java").exists()
+          and "DmzRevampPrestigeLadderMixin" not in pc20_json
+          and "DmzRevampPrestigeLadderMixin" not in pc20_plugin
+          and "LADDER_STEPS" not in pc20_math and "pinPrestigeCap" not in pc20_math
+          and "Overhaul ladder" not in pc20_test)
 
     print("\n--- § prestige exchange packs 4.7.13 ---")
     xp_pts = read(SRC / "progression/shop/PrestigePointsSystem.java")
@@ -1772,6 +1761,38 @@ def main() -> int:
           and "String label = exchangeLabel(packs[i], got);" in xp_scr)
     check("self-test covers exchange payouts, Bulk line, button fit and migration",
           "UltraPrestigeScreens.exchangeSelfTest(broken);" in xp_test)
+
+    print("\n--- § dmzrevamp 2.2.4 4.7.14 ---")
+    r24_mix = read(SRC / "mixin/DmzRevampPrestigeCapMixin.java")
+    r24_math = read(SRC / "progression/LmOverhaulCapMath.java")
+    r24_bridge = read(SRC / "progression/bridge/DmzRevampPrestigeBridge.java")
+    r24_cfg = read(SRC / "progression/bridge/DmzRevampConfigBridge.java")
+    r24_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    r24_build = read(MOD / "build.sh")
+    r24_probe = r24_test.split("public static void checkOverhaulFlatCapAndCount()", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest dmzrevamp-224-prestige row", "dmzrevamp-224-prestige" in manifest)
+    check("no hook or read of 2.2.3-only API (hexStatReference, levelCap, initialLevelCap, maxPrestigeCount)",
+          "hexStatReference" not in r24_mix.split("@Mixin", 1)[1]
+          and '"levelCap"' not in r24_mix and "PrestigeSystem.levelCap(" not in r24_bridge
+          and '"initialLevelCap"' not in r24_math and '"maxPrestigeCount"' not in r24_math
+          and '"initialLevelCap"' not in r24_test and '"maxPrestigeCount"' not in r24_test)
+    check("level cap = configuredLevelMaximum, flat; fallback 150k with dmzrevamp",
+          '.getMethod("configuredLevelMaximum")' in r24_math
+          and "return OVERHAUL_ABSOLUTE_LEVEL_CAP;" in r24_math.split("public static int overhaulLevelCap() {", 1)[-1].split("\n    }\n", 1)[0]
+          and "return LmOverhaulCapMath.overhaulLevelCap();" in r24_bridge)
+    check("cap 20 on Overhaul: setCount clamp + canPrestige and canPrestigeAuthoritative veto, all require = 0",
+          '@Inject(method = "canPrestigeAuthoritative"' in r24_mix
+          and '@Inject(method = "canPrestige"' in r24_mix
+          and '@ModifyVariable(method = "setCount"' in r24_mix
+          and r24_mix.count("require = 0, remap = false)") == 4
+          and "cir.setReturnValue(true)" not in r24_mix
+          and "private static boolean lm$blocked(StatsData data)" in r24_mix)
+    check("server-start probe warns, never fails the boot",
+          "UltraScreenSelfTest.checkOverhaulFlatCapAndCount();" in r24_cfg
+          and "broken.add" not in r24_probe and "throw " not in r24_probe
+          and '"canPrestigeAuthoritative"' in r24_probe and "LOGGER.warn" in r24_probe)
+    check("LM compiles against dmzrevamp 2.2.4",
+          'REVAMP="${DMZREVAMP_JAR:-$ROOT/libraries/dmzrevamp-2.2.4.jar}"' in r24_build)
 
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")

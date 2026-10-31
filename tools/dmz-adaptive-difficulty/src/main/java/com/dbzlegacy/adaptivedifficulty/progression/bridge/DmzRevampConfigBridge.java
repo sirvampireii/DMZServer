@@ -8,10 +8,9 @@ import net.minecraftforge.fml.ModList;
 
 /**
  * Reloads Overhaul leveling config on boot so live {@code LevelingRevamp.json} edits apply
- * without hunting down cached defaults. Also pins {@code initialLevelCap} / {@code maxLevel}
- * to 50k / 150k, the ends of Overhaul's native cap ladder, and raises {@code maxPrestigeCount} to 20 once the ladder
- * is shown to keep 10 steps (4.7.12, {@code LmOverhaulCapMath.pinPrestigeCap}); before 4.7.12 it was left as configured: it is
- * the most prestiges a player can hold.
+ * without hunting down cached defaults, and pins {@code levelsAndAttributes.maxLevel} to 150k, the
+ * level cap. dmzrevamp 2.2.4 has no {@code initialLevelCap} or {@code maxPrestigeCount}; the cap of
+ * 20 prestiges is LM's own ({@code DmzRevampPrestigeCapMixin}, 4.7.14).
  */
 public final class DmzRevampConfigBridge {
     private DmzRevampConfigBridge() {}
@@ -24,7 +23,7 @@ public final class DmzRevampConfigBridge {
             Class<?> cfg = Class.forName("com.dmzrevamp.config.LevelingRevampConfig");
             cfg.getMethod("reload").invoke(null);
             LmOverhaulCapMath.pinOverhaulLevelCaps();
-            LmOverhaulCapMath.pinPrestigeCap();
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraScreenSelfTest.checkOverhaulFlatCapAndCount();
             LmOverhaulPrestigeIntegration.logOverhaulPrestigeState();
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.warn(

@@ -99,17 +99,11 @@ public final class DmzRevampPrestigeBridge {
     }
 
     /**
-     * The player's level cap: Overhaul's native {@code PrestigeSystem.levelCap}, which rises with the
-     * prestige count. This is the cap Overhaul, its Statistics screen, and the prestige gate all
-     * show. With no stats it is Overhaul's {@code initialLevelCap}; without dmzrevamp, 100k.
+     * The player's level cap: dmzrevamp 2.2.4's {@code PrestigeSystem.configuredLevelMaximum()}, one
+     * value for everyone (150k as LM pins it). This is the cap the prestige gate and menus show;
+     * without dmzrevamp, 100k.
      */
     public static int levelCap(StatsData data) {
-        if (data != null && revampPresent()) {
-            try {
-                return Math.max(1, PrestigeSystem.levelCap(data));
-            } catch (Throwable ignored) {
-            }
-        }
         return LmOverhaulCapMath.overhaulLevelCap();
     }
 

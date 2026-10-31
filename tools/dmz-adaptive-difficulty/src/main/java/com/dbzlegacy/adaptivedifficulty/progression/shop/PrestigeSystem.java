@@ -24,10 +24,9 @@ import net.minecraft.server.level.ServerPlayer;
  * Port of {@code Prestige NPC.js} purchase logic as {@code /prestige} chat GUI.
  * <p>
  * The requirement is the player's level cap as dmzrevamp's Overhaul has it
- * ({@link #requiredLevel(ServerPlayer)}): reaching your current cap earns your next prestige.
- * Overhaul's native cap rises with the prestige count LM sets from held prestige (50k, 65k, 80k …
- * 150k with the pinned 50k / 150k / 10). The most you can hold is Overhaul's {@code maxPrestigeCount}
- * ({@link #maxHeld()}).
+ * ({@link #requiredLevel(ServerPlayer)}): reaching your cap earns your next prestige. Since dmzrevamp
+ * 2.2.4 that is one cap for every prestige ({@code configuredLevelMaximum()}, 150k as LM pins it).
+ * The most you can hold is 20 ({@link #maxHeld()}, LM's own limit).
  *
  * <p><b>Lifetime completed</b> never drops when held prestige is turned in.
  */
@@ -327,9 +326,9 @@ public final class PrestigeSystem {
     }
 
     /**
-     * The next prestige's DMZ level gate: the player's level cap as Overhaul has it
-     * ({@code PrestigeSystem.levelCap} through {@code DmzRevampPrestigeBridge}), which rises with held
-     * prestige. LM adds no ladder of its own, and no stored need floor is read.
+     * The next prestige's DMZ level gate: the level cap as Overhaul has it
+     * ({@code configuredLevelMaximum()} through {@code DmzRevampPrestigeBridge}), the same for every
+     * prestige since dmzrevamp 2.2.4. LM adds no ladder of its own, and no stored need floor is read.
      */
     public static int requiredLevel(ServerPlayer player) {
         StatsData data = player == null ? null : DmzProgression.stats(player);
@@ -341,7 +340,7 @@ public final class PrestigeSystem {
         return level >= cap;
     }
 
-    /** Most prestiges a player can hold: dmzrevamp's {@code maxPrestigeCount} (10 without it). */
+    /** Most prestiges a player can hold: 20, LM's own limit (dmzrevamp 2.2.4 has none). */
     public static int maxHeld() {
         return com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.configuredMaxPrestigeCount();
     }

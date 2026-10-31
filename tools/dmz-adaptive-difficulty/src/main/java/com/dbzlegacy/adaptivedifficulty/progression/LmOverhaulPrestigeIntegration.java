@@ -19,10 +19,9 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public final class LmOverhaulPrestigeIntegration {
     /**
-     * The most prestiges a player can hold (4.7.12: 20, was 10). Without dmzrevamp this is the limit;
-     * with it, LM raises Overhaul's own {@code maxPrestigeCount} to this at boot
-     * ({@code LmOverhaulCapMath.pinPrestigeCap}) and every clamp reads that
-     * ({@code LmOverhaulCapMath.configuredMaxPrestigeCount}).
+     * The most prestiges a player can hold (4.7.12: 20, was 10). dmzrevamp 2.2.4 has no count cap, so
+     * this is LM's own limit everywhere ({@code LmOverhaulCapMath.configuredMaxPrestigeCount}), and
+     * {@code DmzRevampPrestigeCapMixin} applies it to Overhaul's prestige gate and {@code setCount}.
      */
     public static final int OVERHAUL_MAX_PRESTIGE = 20;
 
@@ -104,7 +103,7 @@ public final class LmOverhaulPrestigeIntegration {
         clearConfigCache();
     }
 
-    /** Held and Overhaul prestige are the same number (0…maxPrestigeCount). */
+    /** Held and Overhaul prestige are the same number (0…20). */
     public static int toOverhaulCount(int held) {
         return Math.max(0, Math.min(LmOverhaulCapMath.configuredMaxPrestigeCount(), held));
     }
