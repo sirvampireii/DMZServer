@@ -25,7 +25,48 @@ public final class GuiModelSyncPacketTest {
         applySyncEndToEnd();
         mergeLookColorsFromMessage3();
         shopTailSuppression();
+        multiChannelSync();
         System.out.println("GuiModelSyncPacketTest OK (message 3 + world sync)");
+    }
+
+    /**
+     * Generic bridge: two mods sync pieces for one player over their own {@code <modid>:gui}
+     * channels. Each replaces only its own snapshot, the world render shows both, and the
+     * single-tail rule holds across channels (the first channel's tail wins).
+     */
+    private static void multiChannelSync() {
+        BodyPartPreview.clearSync();
+        Minecraft.m_91087_().f_91074_ = new LocalPlayer();
+        LocalPlayer other = new LocalPlayer();
+        UUID id = other.m_20148_();
+        String lm = "{\"schema\":1,\"subject\":\"uuid:" + id + "\",\"bodyParts\":["
+                + "{\"id\":\"wings_bat\",\"source\":\"dmzultra\",\"slot\":\"wings\"},"
+                + "{\"id\":\"tail_lion\",\"source\":\"dmzultra\",\"slot\":\"tail\"}]}";
+        String other1 = "{\"schema\":1,\"subject\":\"uuid:" + id + "\",\"bodyParts\":["
+                + "{\"id\":\"horns_great\",\"source\":\"dmzultra\",\"slot\":\"horns\"},"
+                + "{\"id\":\"tail_spade\",\"source\":\"dmzultra\",\"slot\":\"tail\"}]}";
+        BodyPartPreview.applySync("legacymechanics:gui", lm, GuiModelSyncPacket.REASON_LOGIN);
+        BodyPartPreview.applySync("othermod:gui", other1, GuiModelSyncPacket.REASON_EQUIP);
+        Set<String> both = BodyPartPreview.meshesFor(other);
+        assertTrue(both.contains("wings_bat") && both.contains("horns_great"),
+                "two channels' pieces must both render, got " + both);
+        assertTrue(both.contains("tail_lion") && !both.contains("tail_spade"),
+                "single-tail rule across channels: the first channel's tail wins, got " + both);
+
+        // One mod clearing its own pieces leaves the other mod's pieces alone.
+        BodyPartPreview.applySync("othermod:gui",
+                "{\"schema\":1,\"subject\":\"uuid:" + id + "\",\"bodyParts\":[]}", GuiModelSyncPacket.REASON_CLEAR);
+        Set<String> lmOnly = BodyPartPreview.meshesFor(other);
+        assertTrue(lmOnly.contains("wings_bat") && !lmOnly.contains("horns_great"),
+                "a channel's empty snapshot must clear only that channel's pieces, got " + lmOnly);
+
+        // The single-argument form still behaves as one channel (back-compat).
+        BodyPartPreview.clearSync();
+        BodyPartPreview.applySync(lm, GuiModelSyncPacket.REASON_LOGIN);
+        assertTrue(BodyPartPreview.meshesFor(other).contains("wings_bat"),
+                "applySync(partsJson, reason) must keep working");
+        BodyPartPreview.clearSync();
+        assertTrue(BodyPartPreview.meshesFor(other).isEmpty(), "clearSync must drop every channel");
     }
 
     /**

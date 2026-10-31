@@ -55,9 +55,10 @@ public final class LmGuiNetwork {
 
     /**
      * Current recommended/released KaiPath for Ultra (live). 1.3.17 chrome, 1.3.22
-     * {@code icon}, and 1.3.29 {@code bodyParts} (custom pieces on the model preview).
+     * {@code icon}, 1.3.29 {@code bodyParts} (custom pieces on the model preview), 1.3.31+
+     * {@code bodyPartsSync} (message 3 world sync).
      */
-    public static final String KAIPATH_RECOMMENDED_VERSION = "1.3.29";
+    public static final String KAIPATH_RECOMMENDED_VERSION = "1.5.1";
 
     /**
      * Optional channel: clients without KaiPath omit it. Accept missing so those players
@@ -236,8 +237,8 @@ public final class LmGuiNetwork {
                     safeName(player),
                     KAIPATH_MIN_VERSION);
         } else if (kaipath) {
-            // Baseline until GuiFeaturesPacket arrives — surface style/activeTab gaps early.
-            UltraClientFeatures.warnMissingOptionalFeatures(player, "login");
+            // The client advertises just after this login event; check once it has had time to.
+            UltraClientFeatures.scheduleLoginCheck(player);
         }
     }
 
@@ -281,8 +282,8 @@ public final class LmGuiNetwork {
                 .consumerNetworkThread(GuiFeaturesPacket::handle)
                 .add();
         // Message 3 is registered but NEVER sent to clients that did not advertise
-        // bodyPartsSync — KaiPath ≤1.3.29 has no handler for it (unregistered id = dropped
-        // connection). sendModelSync enforces the gate.
+        // bodyPartsSync — KaiPath before 1.3.31 has no handler for it (unregistered id =
+        // dropped connection). sendModelSync enforces the gate.
         CHANNEL.messageBuilder(
                         GuiModelSyncPacket.class, UltraGuiProtocol.MSG_MODEL_SYNC, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(GuiModelSyncPacket::encode)
@@ -309,7 +310,7 @@ public final class LmGuiNetwork {
                 "[{}] Ultra GUI bridge ready channel={} protocol={} — KaiPath {}+ dynamic UI "
                         + "(any screenId; no hub shim). Recommended KaiPath {}; "
                         + "optional features via GuiFeaturesPacket "
-                        + "(style/activeTab/titleAlign/playerModel/textInput; bodyParts on 1.3.29).",
+                        + "(style/activeTab/titleAlign/playerModel/textInput; bodyParts, bodyPartsSync).",
                 AdaptiveDifficultyMod.MOD_ID,
                 UltraGuiProtocol.channelId(CHANNEL_NAMESPACE),
                 PROTOCOL_VERSION,

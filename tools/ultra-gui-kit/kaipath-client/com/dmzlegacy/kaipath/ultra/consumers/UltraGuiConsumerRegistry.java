@@ -97,7 +97,11 @@ public final class UltraGuiConsumerRegistry {
                 .encoder(GuiOpenPacket::encode)
                 .decoder(GuiOpenPacket::decode)
                 .consumerMainThread((packet, ctx) -> {
-                    ctx.get().enqueueWork(() -> LmScreens.open(packet, channelId));
+                    ctx.get().enqueueWork(() -> {
+                        LmScreens.open(packet, channelId);
+                        // Re-advertise: cheap, and covers a login advertise the server missed.
+                        advertiseFeatures(channelId, ADVERTISED_FEATURES_JSON);
+                    });
                     ctx.get().setPacketHandled(true);
                 })
                 .add();
@@ -116,38 +120,58 @@ public final class UltraGuiConsumerRegistry {
         channel.messageBuilder(GuiModelSyncPacket.class, 3, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(GuiModelSyncPacket::encode)
                 .decoder(GuiModelSyncPacket::decode)
-                .consumerMainThread(GuiModelSyncPacket::handle)
+                .consumerMainThread((packet, ctx) -> GuiModelSyncPacket.handle(packet, ctx, channelId))
                 .add();
         CHANNELS.put(channelId, bound);
-        ensureLogoutHook();
+        ensureSessionHooks();
         UltraUiBridge.LOGGER.info(
                 "[kaipath] Ultra GUI consumer registered channel={} protocol={} featuresJson={}",
                 channelId,
                 proto,
                 ADVERTISED_FEATURES_JSON);
-        // Best-effort advertise now; also call advertiseFeatures after the server channel is present.
+        // No server connection yet at mod setup, so this usually does nothing; onLoggingIn
+        // advertises once the server's channels are known.
         advertiseFeatures(channelId, ADVERTISED_FEATURES_JSON);
     }
 
-    private static boolean LOGOUT_HOOK_REGISTERED;
+    private static boolean SESSION_HOOKS_REGISTERED;
 
     /**
-     * Drop the server-synced world state when the player leaves a world (contract: state is
-     * per-session; the next login re-syncs). Registered once per JVM.
+     * Per-session hooks, registered once per JVM. Login: drop any stale world state and advertise
+     * on every registered channel (the server checks a few seconds after login). Logout: drop the
+     * server-synced world state (contract: state is per-session; the next login re-syncs).
      */
-    private static void ensureLogoutHook() {
+    private static void ensureSessionHooks() {
         synchronized (UltraGuiConsumerRegistry.class) {
-            if (LOGOUT_HOOK_REGISTERED) {
+            if (SESSION_HOOKS_REGISTERED) {
                 return;
             }
-            LOGOUT_HOOK_REGISTERED = true;
+            SESSION_HOOKS_REGISTERED = true;
             try {
+                MinecraftForge.EVENT_BUS.addListener(UltraGuiConsumerRegistry::onLoggingIn);
                 MinecraftForge.EVENT_BUS.addListener(UltraGuiConsumerRegistry::onLoggingOut);
             } catch (Throwable t) {
                 UltraUiBridge.LOGGER.warn(
-                        "[kaipath] logout hook not registered ({}); call BodyPartPreview.clearSync() on disconnect",
+                        "[kaipath] session hooks not registered ({}); call advertiseFeatures after login "
+                                + "and BodyPartPreview.clearSync() on disconnect",
                         t.toString());
             }
+        }
+    }
+
+    private static void onLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
+        try {
+            BodyPartPreview.clearSync();
+        } catch (Throwable ignored) {
+            // cache is best-effort
+        }
+        advertiseAll();
+    }
+
+    /** Advertise {@link #ADVERTISED_FEATURES_JSON} on every registered channel the server has. */
+    public static void advertiseAll() {
+        for (String channelId : CHANNELS.keySet()) {
+            advertiseFeatures(channelId, ADVERTISED_FEATURES_JSON);
         }
     }
 

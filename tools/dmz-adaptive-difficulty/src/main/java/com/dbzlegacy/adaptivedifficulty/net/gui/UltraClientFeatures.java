@@ -41,10 +41,15 @@ import net.minecraft.server.level.ServerPlayer;
  * <p>Clients that never send {@link GuiFeaturesPacket} are treated as the KaiPath <b>1.3.1
  * baseline</b>: dynamic layout/buttons only. KaiPath <b>1.3.17</b> advertises the fifteen
  * chrome ids. KaiPath <b>1.3.22</b> also advertises {@link #FEATURE_ICON}. KaiPath
- * <b>1.3.29</b> (recommended) also advertises {@link #FEATURE_BODY_PARTS}.
- * {@link #PENDING_NEXT} currently holds {@link #FEATURE_BODY_PARTS_SYNC} (LM message 3
- * world sync — pending on JLDK). A client that lacks {@code bodyParts} still draws the
- * base entity and ignores the array. LM {@code footer:true} emission matches 1.3.17.
+ * <b>1.3.29</b> also advertises {@link #FEATURE_BODY_PARTS}, and KaiPath <b>1.3.31+</b>
+ * (recommended: 1.5.1, live) also advertises {@link #FEATURE_BODY_PARTS_SYNC} (LM message 3
+ * world sync). {@link #PENDING_NEXT} is empty until a client ships the next optional id. A
+ * client that lacks {@code bodyParts} still draws the base entity and ignores the array. LM
+ * {@code footer:true} emission matches 1.3.17.
+ * <p>
+ * The client advertises right after it logs in, a moment after the server's own login event,
+ * so the login check waits ({@link #scheduleLoginCheck}) instead of warning before the
+ * advertisement can arrive (4.7.8: every login used to log a false "client gap").
  */
 public final class UltraClientFeatures {
     public static final String FEATURE_STYLE = "style";
@@ -97,8 +102,9 @@ public final class UltraClientFeatures {
     public static final String FEATURE_BODY_PARTS = "bodyparts";
     /**
      * Normalized id for GuiModelSyncPacket (message 3) — authoritative equipped body-parts
-     * state for world rendering. Not shipped on any KaiPath yet (pending on JLDK); LM only
-     * sends message 3 to clients that advertise it, so current clients are unaffected.
+     * state for world rendering. Shipped on KaiPath 1.3.31+ (live: 1.5.1). LM only sends
+     * message 3 to clients that advertise it: an older client has no handler for the id, and
+     * an unregistered message id drops its connection.
      */
     public static final String FEATURE_BODY_PARTS_SYNC = "bodypartssync";
 
@@ -167,14 +173,21 @@ public final class UltraClientFeatures {
                     FEATURE_PORTRAIT_FRAME,
                     FEATURE_COMBINED_FORMS,
                     FEATURE_ICON,
-                    FEATURE_BODY_PARTS);
+                    FEATURE_BODY_PARTS,
+                    FEATURE_BODY_PARTS_SYNC);
 
     /**
-     * Optional ids the next KaiPath release might add. {@code bodyPartsSync} (message 3
-     * world equipped-parts sync) pending on JLDK since LM 4.6.209. Guitest reports these
-     * as {@code pendingNext=} (info), not a shipped-client warning.
+     * Optional ids the next KaiPath release might add. Empty: {@code bodyPartsSync} (message 3
+     * world equipped-parts sync) shipped on KaiPath 1.3.31+. Guitest reports these as
+     * {@code pendingNext=} (info), not a shipped-client warning.
      */
-    public static final Set<String> PENDING_NEXT = Set.of(FEATURE_BODY_PARTS_SYNC);
+    public static final Set<String> PENDING_NEXT = Set.of();
+
+    /** Seconds after login before a client that never advertised is reported. */
+    static final long LOGIN_CHECK_MILLIS = 10_000L;
+
+    /** Players whose login advertisement check is due, to the time it is due. */
+    private static final Map<UUID, Long> LOGIN_CHECK_DUE = new ConcurrentHashMap<>();
 
     private static final Map<UUID, State> BY_PLAYER = new ConcurrentHashMap<>();
 
@@ -242,12 +255,72 @@ public final class UltraClientFeatures {
     public static void clear(ServerPlayer player) {
         if (player != null) {
             BY_PLAYER.remove(player.m_20148_());
+            LOGIN_CHECK_DUE.remove(player.m_20148_());
         }
     }
 
     public static void clear(UUID id) {
         if (id != null) {
             BY_PLAYER.remove(id);
+            LOGIN_CHECK_DUE.remove(id);
+        }
+    }
+
+    /**
+     * Login: check the client's advertisement {@link #LOGIN_CHECK_MILLIS} later, once it has had
+     * time to arrive. An advertisement that does arrive is checked by {@link GuiFeaturesPacket}.
+     */
+    public static void scheduleLoginCheck(ServerPlayer player) {
+        if (player != null) {
+            LOGIN_CHECK_DUE.put(player.m_20148_(), System.currentTimeMillis() + LOGIN_CHECK_MILLIS);
+        }
+    }
+
+    /** Server pulse: report players whose client still has not advertised when the check is due. */
+    public static void pulseLoginChecks(net.minecraft.server.MinecraftServer server) {
+        if (server == null || LOGIN_CHECK_DUE.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (Map.Entry<UUID, Long> entry : LOGIN_CHECK_DUE.entrySet()) {
+            if (entry.getValue() > now || !LOGIN_CHECK_DUE.remove(entry.getKey(), entry.getValue())) {
+                continue;
+            }
+            ServerPlayer player = server.m_6846_().m_11259_(entry.getKey());
+            if (loginCheckWarns(player != null, get(player).advertised())) {
+                warnMissingOptionalFeatures(player, "login+10s");
+            }
+        }
+    }
+
+    /** The login check warns only for a player still online whose client never advertised. */
+    static boolean loginCheckWarns(boolean online, boolean advertised) {
+        return online && !advertised;
+    }
+
+    /**
+     * Startup self-test: KaiPath 1.5.1's own advertisement (18 ids) leaves no shipped gap, a
+     * client without {@code bodyPartsSync} is a gap, and the login check waits for the client.
+     */
+    public static void selfTest(List<String> broken) {
+        Set<String> kaipath151 = new LinkedHashSet<>();
+        for (String id : List.of("style", "activeTab", "titleAlign", "playerModel", "textInput", "headerBottom",
+                "accent", "palette", "sound", "buttonSkin", "frame", "pagedBook", "portraitFrame", "fixedFooter",
+                "combined.forms.v1", "icon", "bodyParts", "bodyPartsSync")) {
+            kaipath151.add(normalize(id));
+        }
+        if (!missingShipped(new State(true, kaipath151, "")).isEmpty()) {
+            broken.add("client features: KaiPath 1.5.1's advertisement should leave no gap, got "
+                    + missingShipped(new State(true, kaipath151, "")));
+        }
+        Set<String> noSync = new LinkedHashSet<>(kaipath151);
+        noSync.remove(FEATURE_BODY_PARTS_SYNC);
+        if (!missingShipped(new State(true, noSync, "")).equals(List.of(FEATURE_BODY_PARTS_SYNC_DOC))
+                || !PENDING_NEXT.isEmpty()) {
+            broken.add("client features: bodyPartsSync is shipped on KaiPath 1.3.31+, so a client without it is a gap");
+        }
+        if (!loginCheckWarns(true, false) || loginCheckWarns(true, true) || loginCheckWarns(false, false)) {
+            broken.add("client features: the login check should warn only for an online player who never advertised");
         }
     }
 
@@ -312,6 +385,9 @@ public final class UltraClientFeatures {
         }
         if (state == null || !state.has(FEATURE_BODY_PARTS)) {
             missing.add(FEATURE_BODY_PARTS_DOC);
+        }
+        if (state == null || !state.has(FEATURE_BODY_PARTS_SYNC)) {
+            missing.add(FEATURE_BODY_PARTS_SYNC_DOC);
         }
         return missing;
     }
@@ -444,13 +520,17 @@ public final class UltraClientFeatures {
                 lines.add(
                         "custom body parts not attached on the preview "
                                 + "(playerModel.parts.bodyParts ignored; base entity still draws)");
+            } else if (FEATURE_BODY_PARTS_SYNC.equals(key)) {
+                lines.add(
+                        "equipped body parts not drawn in the world for this player "
+                                + "(GuiModelSyncPacket not sent: the client cannot receive message 3)");
             }
         }
         return lines;
     }
 
     /**
-     * Log when 1.3.29-shipped features are missing (real gap). {@link #PENDING_NEXT} gaps
+     * Log when features shipped through KaiPath 1.5.1 are missing (real gap). {@link #PENDING_NEXT} gaps
      * log at info. {@code icon} and {@code bodyParts} are shipped, so a client that omits
      * them warns with the rest. {@code bodyPartsSync} stays pending until a client ships it.
      */
@@ -466,7 +546,7 @@ public final class UltraClientFeatures {
         String ctx = context == null ? "?" : context;
         if (!shippedGaps.isEmpty()) {
             AdaptiveDifficultyMod.LOGGER.warn(
-                    "[{}] Ultra client gap (shipped features through 1.3.29) player={} kaipathVersion={} "
+                    "[{}] Ultra client gap (shipped features through 1.5.1) player={} kaipathVersion={} "
                             + "context={} advertised={} features={} missingShipped={} — {}",
                     AdaptiveDifficultyMod.MOD_ID,
                     safeName(player),
@@ -479,7 +559,7 @@ public final class UltraClientFeatures {
         }
         if (!pending.isEmpty()) {
             LmLog.event(
-                    "[{}] Ultra pending after KaiPath 1.3.29 player={} kaipathVersion={} "
+                    "[{}] Ultra pending after KaiPath 1.5.1 player={} kaipathVersion={} "
                             + "context={} pending={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     safeName(player),

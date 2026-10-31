@@ -1591,6 +1591,44 @@ def main() -> int:
           '"bankai_coat"' in bp_test and '"demon", "abyssforms", "demongod"' in bp_test
           and "shop.size() < 109" in bp_test)
 
+    print("\n--- § gui bridge 4.7.8 ---")
+    gb_feat = read(SRC / "net/gui/UltraClientFeatures.java")
+    gb_net = read(SRC / "net/gui/LmGuiNetwork.java")
+    gb_kit = ROOT / "tools" / "ultra-gui-kit"
+    gb_reg = read(gb_kit / "kaipath-client/com/dmzlegacy/kaipath/ultra/consumers/UltraGuiConsumerRegistry.java")
+    gb_prev = read(gb_kit / "kaipath-client/com/dmzlegacy/kaipath/ultra/consumers/legacymechanics/BodyPartPreview.java")
+    gb_test = read(gb_kit / "test/com/dmzlegacy/kaipath/ultra/consumers/legacymechanics/GuiModelSyncPacketTest.java")
+    gb_proto = read(ROOT / "docs" / "KAIPATH_GUI_PROTOCOL.md")
+    gb_gaps = read(ROOT / "docs" / "KAIPATH_BRIDGE_GAPS.md")
+    gb_login = gb_net.split("public static void logClientGuiCapability(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest gui-bridge-478 row", "gui-bridge-478" in manifest)
+    check("login gap check waits for the advertisement (no warning at the login event)",
+          "UltraClientFeatures.scheduleLoginCheck(player);" in gb_login
+          and "warnMissingOptionalFeatures" not in gb_login
+          and 'warnMissingOptionalFeatures(player, "login+10s");' in gb_feat
+          and "return online && !advertised;" in gb_feat
+          and "UltraClientFeatures.pulseLoginChecks(server)" in pc_ev)
+    check("bodyPartsSync shipped (KaiPath 1.5.1 recommended); message-3 gate kept",
+          "FEATURE_BODY_PARTS_SYNC);" in gb_feat and "PENDING_NEXT = Set.of();" in gb_feat
+          and 'KAIPATH_RECOMMENDED_VERSION = "1.5.1"' in gb_net
+          and "UltraClientFeatures.get(player).has(UltraClientFeatures.FEATURE_BODY_PARTS_SYNC)" in gb_net)
+    check("self-test covers the login check and a full 1.5.1 advertisement",
+          "UltraClientFeatures.selfTest(broken);" in pc_test)
+    check("kit advertises after login and on each open, on every channel",
+          "MinecraftForge.EVENT_BUS.addListener(UltraGuiConsumerRegistry::onLoggingIn);" in gb_reg
+          and "public static void advertiseAll()" in gb_reg
+          and gb_reg.count("advertiseFeatures(channelId, ADVERTISED_FEATURES_JSON);") >= 2)
+    check("kit world state per <modid>:gui channel, combined for render, tested",
+          "public static void applySync(String channelId, String partsJson, String reason)" in gb_prev
+          and "static WorldState combine(" in gb_prev
+          and "GuiModelSyncPacket.handle(packet, ctx, channelId)" in gb_reg
+          and "multiChannelSync();" in gb_test)
+    check("protocol + gaps docs: bodyPartsSync shipped, login timing, per-channel state",
+          "**Advertised by KaiPath 1.3.31+**" in gb_proto and "context=login+10s" in gb_proto
+          and "| Several mods |" in gb_proto
+          and "## Closed on KaiPath 1.5.1 / LM 4.7.8" in gb_gaps
+          and "Not shipped on any KaiPath yet" not in gb_proto)
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")

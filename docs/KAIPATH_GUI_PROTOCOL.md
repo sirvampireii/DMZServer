@@ -192,20 +192,29 @@ Known optional feature ids:
 | `combined.forms.v1` | One preview combines the base entity with optional `playerModel.parts.headBones` and `playerModel.parts.form` string ids. The strings are generic (race, group, form, stack). Any mod may send its own ids. A client that lacks the feature still draws the entity and ignores `parts.form`. |
 | `icon` | Optional button/tab `icon` (item id or texture path). **Advertised by KaiPath 1.3.22.** A client that omits it is `missingShipped=icon`, not `pendingNext`. |
 | `bodyParts` | `playerModel.parts.bodyParts` — explicit pieces (`id`, `source`, `slot`) attached to that same preview. Any mod may send its own ids. A client that lacks the feature still draws the entity and ignores the array. Unknown ids are skipped. **Advertised by KaiPath 1.3.29.** A client that omits it is `missingShipped=bodyParts`, not `pendingNext`. LM sends worn form pieces plus the player's Body Parts Shop pieces. |
-| `bodyPartsSync` | **Message 3** `GuiModelSyncPacket` — authoritative equipped body-parts state for *world* rendering (outside menus). **Not shipped on any KaiPath yet** (pending on JLDK — `pendingNext=bodyPartsSync`). LM only sends message 3 to clients that advertise this id; a client that never registered message 3 must never advertise it (unregistered message id drops the connection). See [`#GuiModelSyncPacket`](#guimodelsyncpacket-s-client--message-3). |
+| `bodyPartsSync` | **Message 3** `GuiModelSyncPacket` — authoritative equipped body-parts state for *world* rendering (outside menus). **Advertised by KaiPath 1.3.31+** (live: 1.5.1). A client that omits it is `missingShipped=bodyPartsSync`. LM only sends message 3 to clients that advertise this id; a client that never registered message 3 must never advertise it (unregistered message id drops the connection). See [`#GuiModelSyncPacket`](#guimodelsyncpacket-s-client--message-3). |
 
-Advertise (KaiPath **1.3.29** — seventeen ids; the first fifteen shipped on 1.3.17, `icon` on 1.3.22, `bodyParts` on 1.3.29; see [`KAIPATH_BRIDGE_GAPS.md`](KAIPATH_BRIDGE_GAPS.md)):
+Advertise (KaiPath **1.5.1**, live — eighteen ids; the first fifteen shipped on 1.3.17, `icon` on 1.3.22, `bodyParts` on 1.3.29, `bodyPartsSync` on 1.3.31; see [`KAIPATH_BRIDGE_GAPS.md`](KAIPATH_BRIDGE_GAPS.md)):
 
 ```json
-["style","activeTab","titleAlign","playerModel","textInput","headerBottom","accent","palette","sound","buttonSkin","frame","pagedBook","portraitFrame","fixedFooter","combined.forms.v1","icon","bodyParts"]
+["style","activeTab","titleAlign","playerModel","textInput","headerBottom","accent","palette","sound","buttonSkin","frame","pagedBook","portraitFrame","fixedFooter","combined.forms.v1","icon","bodyParts","bodyPartsSync"]
 ```
 
 `icon` is no longer pending. Stock 1.3.17 stops before it and is reported as a shipped-client gap. The reference kit (`tools/ultra-gui-kit/`) also advertises `"bodyParts"` after `icon`, and official KaiPath 1.3.29 does too. A missing `bodyParts` advertisement (pre-1.3.29 clients) is now a shipped-client warning (`missingShipped=bodyParts`). Clients that never advertise `bodyParts` still draw the base entity.
 
 **Spelling split:** GuiFeatures advertise uses camelCase **`pagedBook`**; the widget `type` string is snake_case **`paged_book`**.
 
-Send once after channel registration (client setup / first join). Extra ids are ignored.
-Extra wire fields after #1 are ignored.
+**When to send:** after login (`ClientPlayerNetworkEvent.LoggingIn`) on every registered
+`<modid>:gui` channel, and again on each `GuiOpenPacket` (cheap; covers a login send the server
+missed). A send at client setup does nothing: there is no server connection yet, and
+`isRemotePresent` is false. Extra ids are ignored. Extra wire fields after #1 are ignored.
+
+The client's advertisement reaches the server a moment **after** the server's own login event.
+LM ≥ **4.7.8** therefore checks about **10 seconds after login**: a player whose client still has
+not advertised is reported then (`context=login+10s`); an advertisement that arrives is checked
+when it arrives (`context=GuiFeaturesPacket`). Before 4.7.8 LM checked at the login event itself
+and reported every KaiPath player as a gap, even ones whose full advertisement arrived a moment
+later.
 
 LM logs a **warning** when a player’s feature set lacks expected optionals, naming:
 
@@ -220,7 +229,8 @@ LM logs a **warning** when a player’s feature set lacks expected optionals, na
 
 Authoritative sync of a player's equipped body parts for **world rendering** (the model the
 player walks around with), as opposed to the menu preview in `layoutJson.playerModel.parts`.
-LM ≥ **4.6.209** sends it; the client side is **pending on JLDK** (advertise `bodyPartsSync`).
+LM ≥ **4.6.209** sends it; KaiPath **1.3.31+** receives it (live: 1.5.1). Any mod can send it on
+its own `<modid>:gui` channel with the same schema.
 
 | | |
 |--|--|
@@ -232,7 +242,8 @@ LM ≥ **4.6.209** sends it; the client side is **pending on JLDK** (advertise `
 | Trigger: track start | When a player starts seeing another (`PlayerEvent.StartTracking`): login into range, respawn, dimension change, walking back into range. `reason: track`, sent **to that tracker only** — re-broadcasting would spam every other viewer. |
 | Trigger: logout | Client drops its cached state for the player on disconnect (state is per-session; the next login re-syncs). |
 | Delivery | Equip/login sends **broadcast** to the owner and every tracker (`TRACKING_ENTITY_AND_SELF`), because each snapshot carries `subject uuid:<owner-uuid>` — every receiver binds it to the owner's entity. Only the track-start trigger and the login backfill are single-viewer sends. |
-| Server-authoritative | The client **replaces** (never merges) its cached parts for the named `subject` with each received snapshot. An empty `bodyParts` array clears all extra pieces. No client-side guessing. A uuid subject that resolves to the receiver itself feeds its local state. |
+| Server-authoritative | The client **replaces** (never merges) its cached parts for the named `subject` **on that channel** with each received snapshot. An empty `bodyParts` array clears all of that channel's extra pieces. No client-side guessing. A uuid subject that resolves to the receiver itself feeds its local state. |
+| Several mods | Each `<modid>:gui` channel owns its own snapshot per subject, so two mods syncing pieces for one player never wipe each other. The world render shows the union in the order channels first synced: the single-tail rule holds across channels (the first channel's tail wins), `suppressNaturalTail` holds if any channel sets it, and `colors` come from the first channel that sends them. With one channel this is exactly that channel's snapshot. |
 
 Wire format (append-compatible — unknown trailing fields ignored):
 
@@ -281,8 +292,10 @@ Client contract (JLDK):
 1. Advertise `bodyPartsSync` in `GuiFeaturesPacket` **only** if message 3 is registered.
 2. On receive: parse `partsJson` with the existing parts pipeline (`BodyPartWire` /
    `BodyPartPreview`) and **replace** the cached world-render parts **for the player named
-   by `subject`** — `uuid:<id>` keys the cache by that player; when the id is the receiver's
-   own UUID, feed the local state too (the server broadcasts one payload to owner + trackers).
+   by `subject`, on the channel it arrived on** (`BodyPartPreview.applySync(channelId, …)`) —
+   `uuid:<id>` keys the cache by that player; when the id is the receiver's own UUID, feed the
+   local state too (the server broadcasts one payload to owner + trackers). Render the
+   combination of every channel's snapshot for that player (see "Several mods" above).
 3. Apply to the world model via the same merge used by `FormPartsPreviewMixin`
    (`FormParts.of` + cached meshes) — the menu preview path is unchanged. When `colors` is
    present, **prefer its values over the reflective `FormParts$Look` read**: for a remote

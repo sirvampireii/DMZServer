@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -42,8 +43,22 @@ public final class BodyPartPreview {
     private static final ThreadLocal<Active> ACTIVE = new ThreadLocal<>();
     private static final ConcurrentHashMap<String, Set<String>> LOADED = new ConcurrentHashMap<>();
 
-    /** Server-synced world state (message 3), keyed by player UUID. */
+    /**
+     * Server-synced world state (message 3) per player UUID: every channel's snapshot for that
+     * player combined ({@link #combine}). Renderers read this.
+     */
     private static final ConcurrentHashMap<UUID, WorldState> WORLD = new ConcurrentHashMap<>();
+
+    /**
+     * The snapshots behind {@link #WORLD}: player UUID → {@code <modid>:gui} channel → that
+     * channel's last snapshot. Each mod replaces only its own pieces, so two mods syncing parts
+     * for one player never wipe each other. Insertion order is the order channels first synced.
+     */
+    private static final ConcurrentHashMap<UUID, LinkedHashMap<String, WorldState>> BY_CHANNEL =
+            new ConcurrentHashMap<>();
+
+    /** Snapshots addressed {@code subject:"local"}, per channel. */
+    private static final LinkedHashMap<String, WorldState> LOCAL_BY_CHANNEL = new LinkedHashMap<>();
 
     private static volatile WorldState localState = WorldState.EMPTY;
     private static volatile UUID localId;
@@ -83,29 +98,134 @@ public final class BodyPartPreview {
      * too, or the owner's own parts would vanish from their world render.
      */
     public static void applySync(String partsJson, String reason) {
+        applySync("", partsJson, reason);
+    }
+
+    /**
+     * Message 3 from one {@code <modid>:gui} channel: replace that channel's snapshot for the
+     * payload's subject, then recombine every channel's snapshot for that player. A snapshot
+     * from another channel is left alone, so any mod can sync its own pieces through its own
+     * channel. With a single channel the result is exactly that channel's snapshot.
+     */
+    public static void applySync(String channelId, String partsJson, String reason) {
+        String channel = channelId == null ? "" : channelId;
         try {
             WorldState state = stateFromParts(partsJson, BodyPartPreview::piecesFor);
             String subject = subjectOf(partsJson);
-            if (subject.startsWith("uuid:")) {
-                try {
-                    UUID id = UUID.fromString(subject.substring("uuid:".length()));
-                    WORLD.put(id, state);
+            synchronized (BY_CHANNEL) {
+                if (subject.startsWith("uuid:")) {
+                    UUID id;
+                    try {
+                        id = UUID.fromString(subject.substring("uuid:".length()));
+                    } catch (Throwable ignored) {
+                        return; // unusable subject id — keep the previous state
+                    }
+                    LinkedHashMap<String, WorldState> channels = BY_CHANNEL.computeIfAbsent(id, k -> new LinkedHashMap<>());
+                    channels.put(channel, state);
+                    WORLD.put(id, combine(new ArrayList<>(channels.values()), BodyPartPreview::piecesFor));
                     UUID local = localId != null ? localId : resolveLocalId();
                     if (local != null) {
                         localId = local;
                         if (local.equals(id)) {
-                            localState = state;
+                            localState = combinedLocal();
                         }
                     }
-                } catch (Throwable ignored) {
-                    // unusable subject id — keep the previous state
+                    return;
                 }
-                return;
+                LOCAL_BY_CHANNEL.put(channel, state);
+                localId = resolveLocalId();
+                localState = combinedLocal();
             }
-            localState = state;
-            localId = resolveLocalId();
         } catch (Throwable ignored) {
             // a bad payload must not crash the network handler
+        }
+    }
+
+    /** The local player's snapshots: {@code subject:"local"} ones first, then its own uuid's. */
+    private static WorldState combinedLocal() {
+        List<WorldState> states = new ArrayList<>(LOCAL_BY_CHANNEL.values());
+        UUID local = localId;
+        LinkedHashMap<String, WorldState> own = local == null ? null : BY_CHANNEL.get(local);
+        if (own != null) {
+            states.addAll(own.values());
+        }
+        return combine(states, BodyPartPreview::piecesFor);
+    }
+
+    /**
+     * Several channels' snapshots for one player as one state. Meshes are unioned in channel
+     * order. Single-tail rule across channels: once a channel has supplied a tail-slot piece,
+     * later channels' tail meshes are dropped. {@code suppressNaturalTail} holds if any channel
+     * asks for it; colors and the raw payload come from the first channel that has them. One
+     * snapshot is returned as it is.
+     */
+    static WorldState combine(List<WorldState> states, Function<String, Set<String>> catalog) {
+        List<WorldState> live = new ArrayList<>();
+        for (WorldState s : states) {
+            if (s != null && s != WorldState.EMPTY) {
+                live.add(s);
+            }
+        }
+        if (live.isEmpty()) {
+            return WorldState.EMPTY;
+        }
+        if (live.size() == 1) {
+            return live.get(0);
+        }
+        LinkedHashSet<String> meshes = new LinkedHashSet<>();
+        LinkedHashSet<String> noTail = new LinkedHashSet<>();
+        boolean tailTaken = false;
+        boolean aliasTailOnly = false;
+        boolean suppress = false;
+        JsonObject colors = null;
+        String partsJson = "";
+        for (WorldState s : live) {
+            Set<String> tails = tailMeshes(s.partsJson(), catalog);
+            boolean hasTail = !tails.isEmpty();
+            for (String mesh : s.meshes()) {
+                if (tailTaken && tails.contains(mesh)) {
+                    continue;
+                }
+                meshes.add(mesh);
+                if (s.noTail().contains(mesh)) {
+                    noTail.add(mesh);
+                }
+            }
+            if (hasTail && !tailTaken) {
+                tailTaken = true;
+                aliasTailOnly = s.aliasTailOnly();
+            }
+            suppress |= s.suppressNaturalTail();
+            if (colors == null) {
+                colors = s.colors();
+            }
+            if (partsJson.isEmpty() && s.partsJson() != null) {
+                partsJson = s.partsJson();
+            }
+        }
+        return new WorldState(partsJson, Set.copyOf(meshes), Set.copyOf(noTail), aliasTailOnly, suppress, colors);
+    }
+
+    /** Meshes of a payload's {@code slot:"tail"} entries. Empty when unreadable. */
+    private static Set<String> tailMeshes(String partsJson, Function<String, Set<String>> catalog) {
+        try {
+            if (partsJson == null || partsJson.isBlank()) {
+                return Set.of();
+            }
+            JsonObject parts = JsonParser.parseString(partsJson).getAsJsonObject();
+            if (!parts.has("bodyParts") || !parts.get("bodyParts").isJsonArray()) {
+                return Set.of();
+            }
+            LinkedHashSet<String> out = new LinkedHashSet<>();
+            for (BodyPartWire.Model model :
+                    BodyPartWire.resolve(BodyPartWire.parse(parts.getAsJsonArray("bodyParts")), catalog)) {
+                if (model != null && "tail".equals(model.slot()) && model.mesh() != null) {
+                    out.add(model.mesh());
+                }
+            }
+            return out;
+        } catch (Throwable ignored) {
+            return Set.of();
         }
     }
 
@@ -176,9 +296,13 @@ public final class BodyPartPreview {
 
     /** Drop all server-synced world state (call on disconnect / session reset). */
     public static void clearSync() {
-        WORLD.clear();
-        localState = WorldState.EMPTY;
-        localId = null;
+        synchronized (BY_CHANNEL) {
+            WORLD.clear();
+            BY_CHANNEL.clear();
+            LOCAL_BY_CHANNEL.clear();
+            localState = WorldState.EMPTY;
+            localId = null;
+        }
     }
 
     /** The local player's cached parts JSON (empty string when none). */

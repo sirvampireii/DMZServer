@@ -3302,11 +3302,11 @@ def main() -> int:
         '"pieces"' in json_bp,
     )
     check(
-        "KaiPath 1.3.29 bodyParts shipped; bodyPartsSync pending next",
+        "KaiPath bodyParts (1.3.29) and bodyPartsSync (1.3.31+) shipped; recommended 1.5.1",
         "FEATURE_BODY_PARTS" in feat_bp
-        and "PENDING_NEXT = Set.of(FEATURE_BODY_PARTS_SYNC)" in feat_bp
-        and "FEATURE_BODY_PARTS_SYNC" in feat_bp
-        and 'KAIPATH_RECOMMENDED_VERSION = "1.3.29"' in net_bp,
+        and "PENDING_NEXT = Set.of();" in feat_bp
+        and "FEATURE_BODY_PARTS,\n                    FEATURE_BODY_PARTS_SYNC);" in feat_bp.replace("\r\n", "\n")
+        and 'KAIPATH_RECOMMENDED_VERSION = "1.5.1"' in net_bp,
     )
     sync_pkt_bp = read(
         SRC / "com/dbzlegacy/adaptivedifficulty/net/gui/GuiModelSyncPacket.java"
