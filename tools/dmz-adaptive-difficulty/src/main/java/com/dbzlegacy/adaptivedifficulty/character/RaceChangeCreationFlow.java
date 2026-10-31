@@ -155,6 +155,8 @@ public final class RaceChangeCreationFlow {
         if (session.keepHeadBone != null && !session.keepHeadBone.isBlank()) {
             CosmeticHeadBoneService.reapplyHeadBoneAfterRaceChange(player, session.keepHeadBone);
         }
+        // Creation completes after executeRaceChange returned; restore the tail on the final race.
+        SaiyanTailWipeHelper.restoreIfTailRace(player, "RaceChangeCreationFlow.onCharacterCreated");
         try {
             DmzResourcePoolClamp.syncToClient(player);
         } catch (Throwable ignored) {
