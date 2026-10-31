@@ -3355,11 +3355,12 @@ def main() -> int:
         SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/BodyPartCatalog.java"
     )
     check(
-        "Model sync broadcasts uuid-subject snapshots (owner + every tracker)",
+        "Model sync sends uuid-subject snapshots to the owner + every advertising player (gated per recipient)",
         "build(player, true)" in parts_bp
         and '"uuid:" + target.m_20148_()' in parts_bp
         and 'addProperty("subject", "local")' not in parts_bp
-        and "TRACKING_ENTITY_AND_SELF" in net_bp,
+        and "modelSyncRecipients(player)" in net_bp
+        and "TRACKING_ENTITY_AND_SELF" not in net_bp,
     )
     check(
         "StartTracking sends the target's parts to the new tracker only",

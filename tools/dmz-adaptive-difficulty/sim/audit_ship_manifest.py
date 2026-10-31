@@ -1653,6 +1653,31 @@ def main() -> int:
           and "public static void clearIfRaceChanges(StatsData stats, String nextRace)" in st_store)
     check("self-test covers the tail restore rule", "SaiyanTailWipeHelper.selfTest(broken);" in pc_test)
 
+    print("\n--- § model sync 4.7.10 ---")
+    ms_pkt = read(SRC / "net/gui/GuiModelSyncPacket.java")
+    ms_net = read(SRC / "net/gui/LmGuiNetwork.java")
+    ms_adv = ms_net.split("public static void onClientAdvertisement(", 1)[-1].split("\n    }\n", 1)[0]
+    ms_send = ms_net.split("public static boolean sendModelSync(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest model-sync-478-hardening row", "model-sync-478-hardening" in manifest)
+    check("degrade keeps equipped pieces: optional fields first, never an empty bodyParts for a player with pieces",
+          '{"headBones", "form", "extras", "colors"}' in ms_pkt
+          and "sending empty parts" not in ms_pkt
+          and "pieces.remove(0);" in ms_pkt and "pieces.size() > 1" in ms_pkt
+          and "PARTS_JSON_MAX = 8192;" in ms_pkt)
+    check("login sync marked done only after it was sent; skipped attempts retry",
+          "MODEL_SYNC_PENDING.add(id)" in ms_adv
+          and ms_adv.rindex("MODEL_SYNCED.add(id);") > ms_adv.index("sendModelSync(viewer, GuiModelSyncPacket.REASON_LOGIN)")
+          and "MODEL_SYNC_PENDING.remove(player.m_20148_());" in ms_net)
+    check("message 3 gated per recipient (owner + advertising players), no blanket broadcast",
+          "for (ServerPlayer viewer : modelSyncRecipients(player))" in ms_send
+          and "TRACKING_ENTITY_AND_SELF" not in ms_net
+          and "&& supportsModelSync(other)) {" in ms_net)
+    check("boot self-test: a full set of pieces is sent whole; failure is loud, never fatal",
+          "static String fullSetModelSync()" in ms_net
+          and "String fullSet = fullSetModelSync();" in ms_net
+          and "GuiModelSync full-set self-test FAILED" in ms_net
+          and "failures.add(fullSet)" not in ms_net)
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")
