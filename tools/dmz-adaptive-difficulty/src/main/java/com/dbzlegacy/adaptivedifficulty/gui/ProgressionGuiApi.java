@@ -1144,8 +1144,8 @@ public final class ProgressionGuiApi {
         switch (p) {
             case "turnin", "points" -> {
                 lore.add("§7Prestige favor: §e" + ph.getOrDefault("points", "0"));
-                lore.add("§7Exchange current prestige for favor: §f1§7, §f2§7, §f3§7, §f6§7, or §f9 §7at a time.");
-                lore.add("§7Bigger turn-ins give bonus favor: §f3->4 §8- §f6->9 §8- §f9->15");
+                lore.add("§7Exchange current prestige for favor: §f1§7, §f2§7, §f3§7, §f6§7, §f9§7, §f12§7, §f15§7, or §f18 §7at a time.");
+                lore.add("§7Bigger turn-ins give bonus favor: §f3->4 §8- §f6->8 §8- §f9->13 §8- §f12->18 §8- §f15->23 §8- §f18->28");
                 lore.add("§81-2 give 1 favor each (no pack bonus)");
             }
             case "shop", "skills" -> {

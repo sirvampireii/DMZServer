@@ -357,6 +357,17 @@ Four classes re-extracted from `mods/LegacyMechanics-4.7.12.jar`; javap diffs ch
 fallback `"10"` is now the cap constant, 20; branch offsets shift with it). The other 21 are
 unchanged.
 
+## Re-baseline (2026-10-31, 4.7.13 prestige exchange packs)
+
+Fourteen classes re-extracted from `mods/LegacyMechanics-4.7.13.jar`; javap diffs checked:
+`AdaptiveDifficultyMod` (version string), `PrestigeShopConfig` (8 default packs, one-time
+`migratePacks18` on load and save-back), `PrestigeShopConfig$Exchange` (`PACK_BONUS` table, new
+`packs18MigratedV1` field, `payout` reads the table), `PrestigeShopHooks` (two help lines),
+`PrestigePointsSystem` (`TURN_IN_AMOUNTS` 8 packs, `pointsForTurnIn` delegates to `payout`),
+`UltraPrestigeScreens` (Bulk line helper, `exchangeLabel` "Exchange 18: +28 favor", exchange self-test), `ProgressionGuiApi` (lore). The
+seven other `PrestigeShopConfig` inner classes differ only in line numbers. The other 11 are
+unchanged.
+
 ## Refresh the reference set
 
 ```bash

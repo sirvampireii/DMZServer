@@ -1568,8 +1568,11 @@ def main() -> int:
           "tierPointCost" in pp and "buyDifficultyTier" in pp)
     check("prestige wallet GUI",
           "putWallet" in prestige_chest_pp and "Difficulty Tiers" in prestige_chest_pp)
-    check("turnIn triangular pack bonus", "packs * (packs + 1) / 2" in pp and "pointsForTurnIn" in pp)
-    check("turnIn amounts 1/2/3/6/9", "TURN_IN_AMOUNTS = {1, 2, 3, 6, 9}" in pp)
+    pp_cfg = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeShopConfig.java")
+    check("turnIn pack bonus table (4.7.13)",
+          "1, 0, 2, 0, 3, 1, 6, 2, 9, 4, 12, 6, 15, 8, 18, 10" in pp_cfg
+          and "return PrestigeShopConfig.get().exchange.payout(amount);" in pp)
+    check("turnIn amounts 1/2/3/6/9/12/15/18", "TURN_IN_AMOUNTS = {1, 2, 3, 6, 9, 12, 15, 18}" in pp)
     check("turnIn spends held wallet only",
           "setHeldPublic" in pp
           and "reducePrestigeClass" not in pp
