@@ -23,10 +23,9 @@ import net.minecraft.server.level.ServerPlayer;
 /**
  * Port of {@code Prestige NPC.js} purchase logic as {@code /prestige} chat GUI.
  * <p>
- * The requirement is the player's level cap as dmzrevamp's Overhaul has it
- * ({@link #requiredLevel(ServerPlayer)}): reaching your cap earns your next prestige. Since dmzrevamp
- * 2.2.4 that is one cap for every prestige ({@code configuredLevelMaximum()}, 150k as LM pins it).
- * The most you can hold is 20 ({@link #maxHeld()}, LM's own limit).
+ * The requirement ({@link #requiredLevel(ServerPlayer)}) follows held prestige (4.7.15): 50k at 0
+ * held, +15k per held, 150k from 7 held ({@code LmOverhaulCapMath.prestigeRequirement}). The level
+ * cap stays flat 150k (dmzrevamp 2.2.4). The most you can hold is 20 ({@link #maxHeld()}).
  *
  * <p><b>Lifetime completed</b> never drops when held prestige is turned in.
  */
@@ -179,13 +178,15 @@ public final class PrestigeSystem {
         int nextRequired = requiredLevel(player);
         String summary = "§aLifetime prestiges §f" + newCompleted + "§a.\n"
                 + "§7Current prestige amount §6" + newHeld + "§7/§f" + maxHeld() + ".\n"
-                + "§7Reach your cap of §e" + DmzRewards.formatWhole(nextRequired) + " §7again for the next one.";
+                + UltraStyle.LABEL + "Reach " + UltraStyle.YELLOW + DmzRewards.formatWhole(nextRequired)
+                + UltraStyle.LABEL + " power for the next one.";
         if (!preferGuiFeedback()) {
             send(player, "");
             send(player, LmChat.DIVIDER);
             send(player, "§aLifetime prestiges §f" + newCompleted + "§a.");
             send(player, "§7Current prestige amount §6" + newHeld + "§7/§f" + maxHeld() + ".");
-            send(player, "§7Reach your cap of §e" + DmzRewards.formatWhole(nextRequired) + " §7again for the next one.");
+            send(player, UltraStyle.LABEL + "Reach " + UltraStyle.YELLOW + DmzRewards.formatWhole(nextRequired)
+                    + UltraStyle.LABEL + " power for the next one.");
             send(player, LmChat.DIVIDER);
         }
         SystemTelemetry.log("prestige", "purchase", player, null, Map.of(
@@ -213,8 +214,8 @@ public final class PrestigeSystem {
         send(player, "§7Lifetime prestiges: §f" + completed);
         send(player, "§7Current prestige amount §6" + held + "§7/§f" + maxHeld()
                 + " §7· level §f" + DmzRewards.formatWhole(level));
-        send(player, "§7Your cap: §e" + DmzRewards.formatWhole(required)
-                + " §7power. Reaching your current cap earns your next prestige.");
+        send(player, UltraStyle.LABEL + "Need: " + UltraStyle.YELLOW + DmzRewards.formatWhole(required)
+                + UltraStyle.LABEL + " power. Reaching it earns your next prestige; each prestige you hold raises it.");
         MutableComponent row = Component.m_237113_("§7")
                 .m_7220_(btn("§a[Prestige]", "/prestige do confirm", "Confirm prestige purchase"))
                 .m_7220_(Component.m_237113_("  "))
@@ -287,7 +288,7 @@ public final class PrestigeSystem {
             ServerPlayer player, int completed, int next, int required, int level
     ) {
         String summary = UltraStyle.DANGER + "Not high enough yet.\n"
-                + UltraStyle.LABEL + "Reaching your current cap of " + UltraStyle.YELLOW
+                + UltraStyle.LABEL + "Reaching " + UltraStyle.YELLOW
                 + DmzRewards.formatWhole(required) + UltraStyle.LABEL + " power earns your next prestige.\n"
                 + UltraStyle.LABEL + "You're at " + UltraStyle.VALUE + DmzRewards.formatWhole(level)
                 + UltraStyle.LABEL + ".";
@@ -295,7 +296,7 @@ public final class PrestigeSystem {
             send(player, "");
             send(player, LmChat.DIVIDER);
             send(player, UltraStyle.DANGER + "Not high enough yet.");
-            send(player, UltraStyle.LABEL + "Reaching your current cap of " + UltraStyle.YELLOW
+            send(player, UltraStyle.LABEL + "Reaching " + UltraStyle.YELLOW
                     + DmzRewards.formatWhole(required) + UltraStyle.LABEL + " power earns your next prestige.");
             send(player, UltraStyle.LABEL + "You're at " + UltraStyle.VALUE
                     + DmzRewards.formatWhole(level) + UltraStyle.LABEL + ".");
@@ -326,13 +327,14 @@ public final class PrestigeSystem {
     }
 
     /**
-     * The next prestige's DMZ level gate: the level cap as Overhaul has it
-     * ({@code configuredLevelMaximum()} through {@code DmzRevampPrestigeBridge}), the same for every
-     * prestige since dmzrevamp 2.2.4. LM adds no ladder of its own, and no stored need floor is read.
+     * The next prestige's DMZ level gate for the player's held count
+     * ({@code LmOverhaulCapMath.prestigeRequirement}, 4.7.15): 50k at 0 held up to 150k from 7 held,
+     * never above the level cap. Overhaul's own prestige button uses the same value. No stored need
+     * floor is read.
      */
     public static int requiredLevel(ServerPlayer player) {
-        StatsData data = player == null ? null : DmzProgression.stats(player);
-        return com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge.levelCap(data);
+        return com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.prestigeRequirement(
+                player == null ? 0 : getHeldWallet(player));
     }
 
     /** The gate: DMZ level at or above the cap. */

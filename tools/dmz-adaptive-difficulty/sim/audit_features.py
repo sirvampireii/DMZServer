@@ -1587,10 +1587,10 @@ def main() -> int:
     prestige_admin = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeAdmin.java")
     prestige_sys = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeSystem.java")
     check("PrestigeAdmin present", "class PrestigeAdmin" in prestige_admin)
-    # 4.7.2: the requirement is the Overhaul level cap, read through the bridge.
+    # 4.7.15: the requirement follows the held count (prestigeRequirement), not the flat cap.
     _req = prestige_sys.split("public static int requiredLevel(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    check("requiredLevel reads the Overhaul cap through the bridge",
-          "DmzRevampPrestigeBridge.levelCap(data)" in _req
+    check("requiredLevel is the held-count ladder (prestigeRequirement of the held wallet)",
+          "LmOverhaulCapMath.prestigeRequirement(" in _req and "getHeldWallet(player)" in _req
           and "effectiveMaxLevel" not in prestige_sys
           and "getCompleted" not in _req and "heldCountForNeed" not in _req)
     check("no need floor reads or writes (stored values left in place)",

@@ -1242,13 +1242,33 @@ public final class UltraScreenSelfTest {
         if (!revamp && noData != com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.OVERHAUL_LEVEL_CAP) {
             broken.add("without dmzrevamp the cap should fall back to 100k, got " + noData);
         }
-        int need = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.requiredLevel(null);
-        if (need != noData) {
-            broken.add("prestige need should be the level cap " + noData + ", got " + need);
+        // 4.7.15: the requirement follows held prestige (the cap stays flat): 50k at 0 held, +15k per
+        // held, 150k from 7 held, never above the cap. LM's menu and Overhaul's button share it.
+        int[] ladder = {50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000, 150_000, 150_000, 150_000, 150_000,
+                150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000};
+        for (int held = 0; held < ladder.length; held++) {
+            int want = Math.min(ladder[held], noData);
+            int got = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.prestigeRequirement(held);
+            if (got != want) {
+                broken.add("prestige need at " + held + " held should be " + want + ", got " + got);
+            }
+            boolean below = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.blocksOverhaulPrestige(held, want - 1);
+            boolean at = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.blocksOverhaulPrestige(held, want);
+            if (!below || at) {
+                broken.add("Overhaul's prestige at " + held + " held should need level " + want
+                        + " (below blocked: " + below + ", at it blocked: " + at + ")");
+            }
         }
-        if (!com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(noData, noData)
-                || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(noData - 1, noData)) {
-            broken.add("prestige gate should be level at or above the cap");
+        if (!com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.blocksOverhaulPrestige(20, 150_000)) {
+            broken.add("Overhaul's prestige should be blocked at 20 held");
+        }
+        int need = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.requiredLevel(null);
+        if (need != Math.min(50_000, noData)) {
+            broken.add("prestige need with nothing held should be 50,000, got " + need);
+        }
+        if (!com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(need, need)
+                || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(need - 1, need)) {
+            broken.add("prestige gate should be level at or above the need");
         }
         int maxHeld = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.maxHeld();
         int revampMax = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.configuredMaxPrestigeCount();
@@ -1308,8 +1328,24 @@ public final class UltraScreenSelfTest {
                         AdaptiveDifficultyMod.MOD_ID, max, max + 5, count, allowed);
                 return;
             }
-            AdaptiveDifficultyMod.LOGGER.info("[{}] Overhaul prestige: level cap {} (flat), prestige cap {} enforced",
-                    AdaptiveDifficultyMod.MOD_ID, overhaulCap, max);
+            // Overhaul's button with its own quest done but below the need for 0 held: LM must say no.
+            com.dragonminez.common.stats.StatsData low = new com.dragonminez.common.stats.StatsData(null);
+            ps.getMethod("setCount", com.dragonminez.common.stats.StatsData.class, int.class).invoke(null, low, 0);
+            low.getPlayerQuestData().completeQuest("prestige_saga:3");
+            int level = low.getLevel();
+            boolean lowAllowed = (Boolean) ps.getMethod("canPrestigeAuthoritative", com.dragonminez.common.stats.StatsData.class)
+                    .invoke(null, low);
+            int needAt0 = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.prestigeRequirement(0);
+            if (level < needAt0 && lowAllowed) {
+                AdaptiveDifficultyMod.LOGGER.warn("[{}] Overhaul's prestige button ignores LM's need: level {} below {} "
+                                + "was allowed (DmzRevampPrestigeCapMixin did not apply?)",
+                        AdaptiveDifficultyMod.MOD_ID, level, needAt0);
+                return;
+            }
+            AdaptiveDifficultyMod.LOGGER.info("[{}] Overhaul prestige: level cap {} (flat), prestige cap {} enforced, "
+                            + "button needs {} at 0 held (level {} with its quest done: allowed={}, quest done={})",
+                    AdaptiveDifficultyMod.MOD_ID, overhaulCap, max, needAt0, level, lowAllowed,
+                    low.getPlayerQuestData().isQuestCompleted("prestige_saga:3"));
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.warn("[{}] Overhaul prestige check skipped: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
         }

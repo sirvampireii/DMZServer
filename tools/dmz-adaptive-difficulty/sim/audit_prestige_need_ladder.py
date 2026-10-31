@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Prestige Need is Overhaul's flat level cap (dmzrevamp 2.2.4, LM 4.7.14), mirroring the server rules.
+"""Prestige Need follows the held count; the level cap stays flat (LM 4.7.15), mirroring the server rules.
 
-* The requirement is the level cap as Overhaul has it: PrestigeSystem.requiredLevel reads
-  PrestigeSystem.configuredLevelMaximum() through DmzRevampPrestigeBridge.levelCap. LM does not
-  override or recompute it.
-* dmzrevamp 2.2.4 has one cap for everyone (levelsAndAttributes.maxLevel, LM pins 150k). There is no
-  per-prestige ladder: 2.2.4 removed levelCap, initialLevelCap and maxPrestigeCount, and LM must not
-  rebuild one.
+* The level cap is Overhaul's flat PrestigeSystem.configuredLevelMaximum() (dmzrevamp 2.2.4,
+  levelsAndAttributes.maxLevel, LM pins 150k). It does not change with prestige.
+* The requirement to prestige (PrestigeSystem.requiredLevel) is LmOverhaulCapMath.prestigeRequirement
+  of the held count: 50k, 65k, 80k, 95k, 110k, 125k, 140k for 0-6 held, then 150k, never above the cap.
+  Overhaul's own prestige button uses the same value (blocksOverhaulPrestige in the cap mixin).
 * The gate is level >= cap. Without dmzrevamp the cap is 100k.
 * The most prestiges a player can hold is LM's own 20 (2.2.4 has no count cap).
 """
@@ -32,8 +31,19 @@ def clamp_held(held: int, max_held: int) -> int:
     return max(0, min(max(0, max_held), held))
 
 
+def need(held: int, cap: int = PIN_MAX) -> int:
+    ladder = [50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000]
+    h = max(0, held)
+    return min(ladder[h] if h < len(ladder) else 150_000, cap)
+
+
 def main() -> None:
     errors = []
+    want = [50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000] + [150_000] * 13
+    if [need(h) for h in range(20)] != want:
+        errors.append("need ladder must be 50k..140k for 0-6 held, then 150k")
+    if need(5, NO_REVAMP_CAP) != NO_REVAMP_CAP:
+        errors.append("need must never be above the cap")
     if not meets(PIN_MAX, PIN_MAX) or meets(PIN_MAX - 1, PIN_MAX):
         errors.append("gate must be level at or above the cap")
     if clamp_held(MAX_HELD + 5, MAX_HELD) != MAX_HELD or clamp_held(-1, MAX_HELD) != 0:
@@ -48,8 +58,11 @@ def main() -> None:
     # The Java has to match the model.
     ps = (SRC / "progression/shop/PrestigeSystem.java").read_text(encoding="utf-8")
     req = ps.split("public static int requiredLevel(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    if "DmzRevampPrestigeBridge.levelCap(data)" not in req or re.search(r"getCompleted|heldCount|NeedFloor", req):
-        errors.append("PrestigeSystem.requiredLevel must read the Overhaul cap and nothing else")
+    if "LmOverhaulCapMath.prestigeRequirement(" not in req or "getHeldWallet(player)" not in req \
+            or re.search(r"getCompleted|NeedFloor", req):
+        errors.append("PrestigeSystem.requiredLevel must be prestigeRequirement of the held wallet")
+    if "{50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000}" not in (SRC / "progression/LmOverhaulCapMath.java").read_text(encoding="utf-8"):
+        errors.append("LmOverhaulCapMath must carry the need ladder 50k..140k")
     if "LmOverhaulCapMath.configuredMaxPrestigeCount()" not in ps or "MAX_HELD" in ps:
         errors.append("PrestigeSystem.maxHeld must read configuredMaxPrestigeCount")
     cap_math = (SRC / "progression/LmOverhaulCapMath.java").read_text(encoding="utf-8")
@@ -62,7 +75,9 @@ def main() -> None:
     for gone in ("ladderCap", "LADDER_STEPS", "OVERHAUL_INITIAL_LEVEL_CAP", "pinPrestigeCap",
                  '"initialLevelCap"', '"maxPrestigeCount"'):
         if gone in cap_math:
-            errors.append(f"LmOverhaulCapMath must not keep the ladder ({gone})")
+            errors.append(f"LmOverhaulCapMath must not keep the old cap ladder ({gone})")
+    if "LmOverhaulCapMath.blocksOverhaulPrestige(count, data.getLevel())" not in (SRC / "mixin/DmzRevampPrestigeCapMixin.java").read_text(encoding="utf-8"):
+        errors.append("Overhaul's prestige gate must use the same need ladder")
     if f"OVERHAUL_ABSOLUTE_LEVEL_CAP = PrestigePointsSystem.ABSOLUTE_LEVEL_CAP" not in cap_math:
         errors.append("maxLevel pin must be the absolute cap")
     if "return LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE;" not in cap_math:
@@ -81,8 +96,8 @@ def main() -> None:
         for e in errors:
             print(" ", e)
         raise SystemExit(1)
-    print(f"OK prestige need is Overhaul's flat level cap ({PIN_MAX:,}, configuredLevelMaximum); no ladder; "
-          f"most held = {MAX_HELD}; 100k without dmzrevamp")
+    print(f"OK prestige need 50k, 65k ... 140k, then 150k by held count (both routes); level cap flat "
+          f"{PIN_MAX:,}; most held = {MAX_HELD}; 100k without dmzrevamp")
 
 
 if __name__ == "__main__":

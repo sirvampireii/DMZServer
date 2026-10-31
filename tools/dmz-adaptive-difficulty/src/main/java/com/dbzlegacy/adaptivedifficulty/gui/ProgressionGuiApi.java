@@ -1170,7 +1170,8 @@ public final class ProgressionGuiApi {
             }
             case "cap" -> {
                 lore.add("§7Your level cap: §f" + ph.getOrDefault("level_cap_fmt", "100,000"));
-                lore.add("§7Reaching your current cap earns your next prestige.");
+                lore.add(UltraStyle.LABEL + "Your next prestige needs " + UltraStyle.YELLOW
+                        + ph.getOrDefault("required_fmt", "0") + UltraStyle.LABEL + " power.");
             }
             case "tiers", "tier", "difficulty" -> {
                 lore.add("§7Prestige favor: §e" + ph.getOrDefault("points", "0"));
@@ -1182,9 +1183,10 @@ public final class ProgressionGuiApi {
             default -> {
                 lore.add("§7Prestige favor: §e" + ph.getOrDefault("points", "0"));
                 lore.add("§7Lifetime prestiges: §f" + ph.getOrDefault("completed", "0"));
-                lore.add("§7Need: §e" + ph.getOrDefault("required_fmt", "0") + " §7power (your level cap)");
-                lore.add("§7Reaching your current cap earns your next prestige.");
-                lore.add("§7Each prestige you hold raises your cap.");
+                lore.add(UltraStyle.LABEL + "Need: " + UltraStyle.YELLOW + ph.getOrDefault("required_fmt", "0")
+                        + UltraStyle.LABEL + " power");
+                lore.add(UltraStyle.LABEL + "Reaching the Need power earns your next prestige.");
+                lore.add(UltraStyle.LABEL + "Each prestige you hold raises the Need, up to 150,000.");
                 if ("true".equalsIgnoreCase(ph.get("ready"))) {
                     lore.add("§eYou can prestige now.");
                 } else {
@@ -1255,7 +1257,7 @@ public final class ProgressionGuiApi {
             return GodKiEnhancementShop.buy(player);
         }
         if ("breakthrough".equals(act) || "cap".equals(act) || "buy_cap".equals(act)) {
-            return "§7There is nothing to buy for your level cap. Reaching your current cap earns your next prestige.";
+            return UltraStyle.LABEL + "There is nothing to buy for your level cap. Reaching the Need power earns your next prestige.";
         }
         if ("tier".equals(act) || "buy_tier".equals(act) || "unlock_tier".equals(act)) {
             int tierId;
@@ -1343,7 +1345,7 @@ public final class ProgressionGuiApi {
         if ("balance".equals(act) || "points".equals(act)) {
             return "§7Prestige favor: §e" + PrestigePointsSystem.getPoints(player)
                     + " §8| §7Current prestige amount: §6" + PrestigeSystem.getHeld(player)
-                    + " §8| §7Need (your level cap): §e" + PrestigeSystem.requiredLevel(player);
+                    + " §8| §7Need: §e" + PrestigeSystem.requiredLevel(player);
         }
         return "§cSomething went wrong. Try again, or ask staff if it keeps happening.";
     }

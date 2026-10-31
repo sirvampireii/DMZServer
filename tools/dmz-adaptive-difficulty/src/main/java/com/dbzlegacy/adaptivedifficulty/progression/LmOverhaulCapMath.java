@@ -12,9 +12,11 @@ import net.minecraftforge.fml.ModList;
  * <p>
  * dmzrevamp 2.2.4 has one level cap for everyone, {@code PrestigeSystem.configuredLevelMaximum()}
  * ({@code levelsAndAttributes.maxLevel}, which LM pins to 150k; DMZ's own max when Overhaul levels are
- * off). There is no per-prestige ladder any more (2.2.4 removed {@code levelCap},
- * {@code initialLevelCap} and {@code maxPrestigeCount}), so LM does not build one (4.7.14).
- * {@link #levelCap(StatsData)} reads that cap. Without dmzrevamp the cap is
+ * off). 2.2.4 removed the per-prestige cap ladder ({@code levelCap}, {@code initialLevelCap},
+ * {@code maxPrestigeCount}); the cap stays flat (4.7.14). {@link #levelCap(StatsData)} reads that cap.
+ * The level needed to prestige is LM's own ladder by held count ({@link #prestigeRequirement}, 4.7.15):
+ * 50k at 0 held, +15k per held, 150k from 7 held, never above the cap. Both prestige routes use it
+ * (LM's menu and, through {@link #blocksOverhaulPrestige}, Overhaul's button). Without dmzrevamp the cap is
  * {@link #OVERHAUL_LEVEL_CAP} (100k). The most prestiges a player can hold is LM's own
  * {@link LmOverhaulPrestigeIntegration#OVERHAUL_MAX_PRESTIGE} (20); 2.2.4 has no count cap, so
  * {@code DmzRevampPrestigeCapMixin} enforces it on Overhaul's side. Breakthroughs were removed in
@@ -27,6 +29,11 @@ public final class LmOverhaulCapMath {
     public static final int OVERHAUL_LEVEL_CAP = PrestigePointsSystem.BASE_LEVEL_CAP;
     /** Overhaul {@code maxLevel} LM pins (the DMZ stat ceiling). */
     public static final int OVERHAUL_ABSOLUTE_LEVEL_CAP = PrestigePointsSystem.ABSOLUTE_LEVEL_CAP;
+
+    /** Level needed to prestige at 0-6 held (4.7.15); 7 held and up need {@link #PRESTIGE_NEED_TOP}. */
+    private static final int[] PRESTIGE_NEED = {50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000};
+    /** Level needed to prestige from 7 held up. */
+    public static final int PRESTIGE_NEED_TOP = 150_000;
 
     private static volatile Method revampLevelMaximum;
     private static volatile Method revampInitialStatTotal;
@@ -97,6 +104,25 @@ public final class LmOverhaulCapMath {
      */
     public static int overhaulLevelCap(StatsData data) {
         return levelCap(data);
+    }
+
+    /**
+     * Level needed for the next prestige with {@code held} prestiges held: 50k, 65k, 80k, 95k, 110k,
+     * 125k, 140k for 0-6 held, then 150k. Never above the level cap ({@link #overhaulLevelCap()}), so it
+     * stays reachable. The cap itself does not change with held prestige.
+     */
+    public static int prestigeRequirement(int held) {
+        int h = Math.max(0, held);
+        int need = h < PRESTIGE_NEED.length ? PRESTIGE_NEED[h] : PRESTIGE_NEED_TOP;
+        return Math.min(need, overhaulLevelCap());
+    }
+
+    /**
+     * LM's veto on Overhaul's own prestige (its Statistics button, {@code canPrestigeAuthoritative}):
+     * at the cap of 20, or below {@link #prestigeRequirement} for the Overhaul count (= held).
+     */
+    public static boolean blocksOverhaulPrestige(int count, int level) {
+        return count >= configuredMaxPrestigeCount() || level < prestigeRequirement(count);
     }
 
     /**

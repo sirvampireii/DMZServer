@@ -108,8 +108,8 @@ def main() -> int:
     print("\n--- § prestige (source markers) ---")
     prestige = read(SRC / "progression/shop/PrestigeSystem.java")
     gui_api = read(SRC / "gui/ProgressionGuiApi.java")
-    check("PrestigeSystem need is the Overhaul cap (old ladder gone)",
-          "DmzRevampPrestigeBridge.levelCap(data)" in prestige and "HELD_GATE_MIN_COMPLETED" not in prestige)
+    check("PrestigeSystem need follows the held count (4.7.15; old veteran gate gone)",
+          "LmOverhaulCapMath.prestigeRequirement(" in prestige and "HELD_GATE_MIN_COMPLETED" not in prestige)
     check("PrestigeSystem heldCountForNeed", "heldCountForNeed" in prestige)
     check("PrestigeSystem has no needForProgress / veteran branch", "needForProgress" not in prestige)
     check("ProgressionGuiApi prestige uses heldCountForNeed", "heldCountForNeed(player)" in gui_api)
@@ -1399,11 +1399,11 @@ def main() -> int:
     pf_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
     check("manifest prestige-follows-overhaul row", "prestige-follows-overhaul" in manifest)
     _req = pf_ps.split("public static int requiredLevel(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    check("requirement = Overhaul's level cap through the bridge; nothing else read",
-          "DmzRevampPrestigeBridge.levelCap(data)" in _req
+    check("requirement = need ladder of the held wallet (4.7.15); the bridge cap stays flat",
+          "LmOverhaulCapMath.prestigeRequirement(" in _req and "getHeldWallet(player)" in _req
           and "return LmOverhaulCapMath.overhaulLevelCap();" in pf_bridge
           and "PrestigeSystem.levelCap(" not in pf_bridge
-          and "getCompleted" not in _req and "heldCount" not in _req and "effectiveMaxLevel" not in pf_ps)
+          and "getCompleted" not in _req and "effectiveMaxLevel" not in pf_ps)
     _over = pf_cap.split("public static int overhaulLevelCap(StatsData data) {", 1)[-1].split("\n    }\n", 1)[0]
     check("cap is Overhaul's flat configuredLevelMaximum (4.7.14): no ladder, no levelCap hook, 100k without revamp",
           _over.strip() == "return levelCap(data);"
@@ -1425,13 +1425,16 @@ def main() -> int:
           and "maxPrestigeCount" not in pf_cfg_bridge.split("public static void onServerStarting()", 1)[-1]
           and "pinPrestigeCap" not in pf_cfg_bridge
           and "return LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE;" in pf_cap)
-    check("menus state the rule; next requirement shows the cap",
-          "Reaching your current cap earns your next prestige." in pf_ultra
+    check("menus state the rule; next requirement shows the Need",
+          "Reaching the Need power earns your next prestige." in pf_ultra
+          and "Reaching your current cap" not in pf_ultra and "Reaching your current cap" not in pf_gui
+          and "Reaching your current cap" not in pf_ps
           and 'out.put("next_required", String.valueOf(required))' in pf_gui)
-    check("self-test covers the requirement and the held cap; no ladder values (4.7.14)",
+    check("self-test covers the need ladder, both routes, and the held cap (4.7.15)",
           "checkPrestigeFollowsOverhaul(broken);" in pf_test
           and "PrestigeSystem.requiredLevel(null)" in pf_test
-          and "65_000, 80_000" not in pf_test
+          and "{50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000, 150_000" in pf_test
+          and "blocksOverhaulPrestige(held, want - 1)" in pf_test
           and "configuredMaxPrestigeCount()" in pf_test)
 
     print("\n--- § prestige per character ---")
@@ -1793,6 +1796,29 @@ def main() -> int:
           and '"canPrestigeAuthoritative"' in r24_probe and "LOGGER.warn" in r24_probe)
     check("LM compiles against dmzrevamp 2.2.4",
           'REVAMP="${DMZREVAMP_JAR:-$ROOT/libraries/dmzrevamp-2.2.4.jar}"' in r24_build)
+
+    print("\n--- § prestige need ladder 4.7.15 ---")
+    nl_math = read(SRC / "progression/LmOverhaulCapMath.java")
+    nl_mix = read(SRC / "mixin/DmzRevampPrestigeCapMixin.java")
+    nl_ps = read(SRC / "progression/shop/PrestigeSystem.java")
+    nl_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    nl_req = nl_math.split("public static int prestigeRequirement(int held) {", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest prestige-need-ladder row", "prestige-need-ladder" in manifest)
+    check("need ladder 50k..140k for 0-6 held, then 150k, never above the cap",
+          "PRESTIGE_NEED = {50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000};" in nl_math
+          and "PRESTIGE_NEED_TOP = 150_000;" in nl_math
+          and "return Math.min(need, overhaulLevelCap());" in nl_req)
+    check("level cap untouched: flat configuredLevelMaximum",
+          '.getMethod("configuredLevelMaximum")' in nl_math
+          and "prestigeRequirement" not in nl_math.split("public static int overhaulLevelCap() {", 1)[-1].split("\n    }\n", 1)[0])
+    check("both routes share the ladder: LM menu requiredLevel and Overhaul's gate",
+          "LmOverhaulCapMath.prestigeRequirement(" in nl_ps
+          and "LmOverhaulCapMath.blocksOverhaulPrestige(count, data.getLevel())" in nl_mix
+          and "|| level < prestigeRequirement(count);" in nl_math
+          and '@Inject(method = "canPrestigeAuthoritative"' in nl_mix)
+    check("self-test and server-start probe cover the ladder on both routes",
+          "blocksOverhaulPrestige(held, want - 1)" in nl_test
+          and 'completeQuest("prestige_saga:3")' in nl_test)
 
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
