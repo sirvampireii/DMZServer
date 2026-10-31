@@ -130,7 +130,7 @@ public final class UltraPrestigeScreens {
         spec.labelValue("Lifetime prestiges", ph.getOrDefault("completed", "0"));
         spec.labelValue(
                 "Current prestige amount",
-                ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", "10"));
+                ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", String.valueOf(com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE)));
         spec.labelValue("Prestige favor", ph.getOrDefault("points", "0"));
     }
 
@@ -198,7 +198,7 @@ public final class UltraPrestigeScreens {
                 .bodyPad(4)
                 .line(UltraStyle.LABEL + "Confirm prestige")
                 .labelValue("Current prestige amount",
-                        ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", "10"))
+                        ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", String.valueOf(com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE)))
                 .labelValue("Need", ph.getOrDefault("required_fmt", "0"))
                 .notice("This resets your stats and adds one to your current prestige amount.");
         if (PrestigeUniverseRoleWarn.isGodOfDestruction(player)) {
@@ -497,7 +497,7 @@ public final class UltraPrestigeScreens {
         paintFavorBalance(spec, ph);
         spec.labelValue(
                 "Current prestige amount",
-                ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", "10"));
+                ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", String.valueOf(com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE)));
         spec.line(UltraStyle.danger(
                 "Exchanging prestige for Prestige favor removes the stat bonus."));
         // Bulk line lists only the amounts that pay a bonus, from the configured payouts.

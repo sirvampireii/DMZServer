@@ -1417,11 +1417,12 @@ def main() -> int:
           and "adjustBreakthroughs" not in pf_admin and "breakthroughs_max" not in pf_gui
           and "KEY_BREAKTHROUGHS" not in pf_mirror
           and '"pp_level_breakthroughs"' in read(SRC / "data/LmPlayerStore.java"))
-    check("held max = revamp maxPrestigeCount everywhere; LM does not overwrite it",
+    check("held max = revamp maxPrestigeCount everywhere; LM raises it only through pinPrestigeCap (4.7.12)",
           "MAX_HELD" not in pf_ps
           and "LmOverhaulCapMath.configuredMaxPrestigeCount()" in pf_ps
           and pf_mixin.count("LmOverhaulCapMath.configuredMaxPrestigeCount()") == 2
           and "maxPrestigeCount" not in pf_cfg_bridge.split("public static void onServerStarting()", 1)[-1]
+          and "LmOverhaulCapMath.pinPrestigeCap();" in pf_cfg_bridge
           and "return LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE;" in pf_cap)
     check("menus state the rule; next requirement shows the cap",
           "Reaching your current cap earns your next prestige." in pf_ultra
@@ -1706,6 +1707,38 @@ def main() -> int:
           and ch_parts.count('footerBackHome("Character Home")') >= 1
           and "spec.footerBackToMain();" in ch_home)
     check("self-test covers the Home index rules", "UltraCharacterScreens.selfTest(broken);" in pc_test)
+
+    print("\n--- § prestige cap 20 4.7.12 ---")
+    pc20_int = read(SRC / "progression/LmOverhaulPrestigeIntegration.java")
+    pc20_math = read(SRC / "progression/LmOverhaulCapMath.java")
+    pc20_mix = read(SRC / "mixin/DmzRevampPrestigeLadderMixin.java")
+    pc20_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
+    pc20_plugin = read(SRC / "mixin/LegacyMechanicsMixinPlugin.java")
+    pc20_spar = read(SRC / "sparring/SparCombat.java")
+    pc20_cfg = read(SRC / "config/DifficultyConfig.java")
+    pc20_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    pc20_pin = pc20_math.split("public static void pinPrestigeCap()", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest prestige-cap-20 row", "prestige-cap-20" in manifest)
+    check("cap 20: constant, Overhaul maxPrestigeCount pinned at boot, Spar and reference follow",
+          "public static final int OVERHAUL_MAX_PRESTIGE = 20;" in pc20_int
+          and "maxCount.setInt(prestige, target);" in pc20_pin
+          and "public static final int MAX_PRESTIGE_LEVEL = 20;" in pc20_spar
+          and "public int referenceMaxPrestige = 20;" in pc20_cfg
+          and "cfg.referenceMaxPrestige20MigratedV1 = Boolean.TRUE;" in pc20_cfg)
+    check("ladder keeps 10 steps: only the two divisor reads of levelCap are redirected",
+          "public static final int LADDER_STEPS = 10;" in pc20_math
+          and pc20_mix.count("ordinal = 2") == 1 and pc20_mix.count("ordinal = 3") == 1
+          and "ordinal = 0" not in pc20_mix and "ordinal = 1" not in pc20_mix
+          and pc20_mix.count("return LmOverhaulCapMath.LADDER_STEPS;") == 2
+          and '"DmzRevampPrestigeLadderMixin"' in pc20_json
+          and 'mixinClassName.endsWith("DmzRevampPrestigeLadderMixin")' in pc20_plugin)
+    check("fail-safe: the cap is raised only if Overhaul's own levelCap keeps the 10-step ladder",
+          "ps.getMethod(\"levelCap\", StatsData.class)" in pc20_pin
+          and "ladderCap(initial, max, LADDER_STEPS, target, 1)" in pc20_pin
+          and "maxCount.setInt(prestige, before);" in pc20_pin)
+    check("self-test: ladder 0-20 (150k from 7) and no stretch at a cap above 10",
+          "150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000};" in pc20_test
+          and "Overhaul ladder stretched at cap" in pc20_test)
 
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")

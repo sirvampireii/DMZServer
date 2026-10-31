@@ -349,6 +349,14 @@ only). The other 24 are unchanged.
 `AdaptiveDifficultyMod` re-extracted from `mods/LegacyMechanics-4.7.11.jar` (javap: version string
 only). The other 24 are unchanged.
 
+## Re-baseline (2026-10-31, 4.7.12 prestige cap 20)
+
+Four classes re-extracted from `mods/LegacyMechanics-4.7.12.jar`; javap diffs checked:
+`AdaptiveDifficultyMod` (version string), `ConfigFieldHelp` (one new help line,
+`referenceMaxPrestige20MigratedV1`), `ProgressionGuiApi` and `UltraPrestigeScreens` (the `held_max`
+fallback `"10"` is now the cap constant, 20; branch offsets shift with it). The other 21 are
+unchanged.
+
 ## Refresh the reference set
 
 ```bash

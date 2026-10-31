@@ -1248,10 +1248,12 @@ public final class UltraScreenSelfTest {
                 || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(noData - 1, noData)) {
             broken.add("prestige gate should be level at or above the cap");
         }
-        // Overhaul's formula with LM's pins, as the acceptance ladder states it.
-        int[] want = {50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000, 150_000, 150_000, 150_000, 150_000};
+        // Overhaul's formula with LM's pins, as the acceptance ladder states it: 10 steps, cap 20
+        // (4.7.12), so 0-6 held rise by 15k and 7-20 held are all 150k.
+        int[] want = {50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000, 150_000, 150_000, 150_000, 150_000,
+                150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000};
         for (int count = 0; count < want.length; count++) {
-            int got = overhaulLadder(50_000, 150_000, 10, count);
+            int got = overhaulLadder(50_000, 150_000, 20, count);
             if (got != want[count]) {
                 broken.add("Overhaul ladder at " + count + " held should be " + want[count] + ", got " + got);
             }
@@ -1277,10 +1279,15 @@ public final class UltraScreenSelfTest {
                         setCount.invoke(null, sd, count);
                         int got = com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge.levelCap(sd);
                         int expected = overhaulLadder(initial, max, maxCount, count);
+                        if (count == 1 && maxCount > com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.LADDER_STEPS
+                                && got != expected) {
+                            broken.add("Overhaul ladder stretched at cap " + maxCount + ": 1 held gives " + got
+                                    + ", should stay " + expected + " (10 steps)");
+                        }
                         if (got != expected) {
                             broken.add("Overhaul cap at " + count + " held should be " + expected + ", got " + got);
                         }
-                        if (initial == 50_000 && max == 150_000 && maxCount == 10 && count < want.length
+                        if (initial == 50_000 && max == 150_000 && maxCount == 20 && count < want.length
                                 && got != want[count]) {
                             broken.add("Overhaul cap at " + count + " held should be " + want[count] + ", got " + got);
                         }
@@ -1296,7 +1303,9 @@ public final class UltraScreenSelfTest {
             broken.add("most prestiges held should be revamp's maxPrestigeCount " + revampMax + ", got " + maxHeld);
         }
         if (!revamp && maxHeld != com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE) {
-            broken.add("without dmzrevamp the most prestiges held should fall back to 10, got " + maxHeld);
+            broken.add("without dmzrevamp the most prestiges held should fall back to "
+                    + com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE
+                    + ", got " + maxHeld);
         }
         if (com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.clampHeld(15, 10) != 10
                 || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.clampHeld(15, 20) != 15
@@ -1322,12 +1331,8 @@ public final class UltraScreenSelfTest {
 
     /** Test oracle only: Overhaul's native {@code levelCap} formula. LM's requirement never uses it. */
     private static int overhaulLadder(int initial, int max, int maxCount, int count) {
-        int c = Math.min(Math.max(0, count), maxCount);
-        if (c >= maxCount) {
-            return max;
-        }
-        double step = (double) initial / (double) maxCount + (double) (max - initial) / (double) maxCount;
-        return (int) Math.min((double) max, Math.floor((double) initial + (double) c * step));
+        return com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.ladderCap(
+                initial, max, com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.LADDER_STEPS, maxCount, count);
     }
 
     /**
