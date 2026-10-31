@@ -164,6 +164,12 @@ public final class DifficultyEvents {
             AdaptiveDifficultyMod.LOGGER.warn(
                     "[{}] CNPC world migration hook failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
         }
+        try {
+            com.dbzlegacy.adaptivedifficulty.progression.bridge.UltraFormScale.onServerStarted();
+        } catch (Throwable t) {
+            AdaptiveDifficultyMod.LOGGER.warn(
+                    "[{}] DMZ Ultra form scaling hook failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
+        }
     }
 
     @SubscribeEvent
@@ -717,6 +723,8 @@ public final class DifficultyEvents {
         safePulse("sparring", () -> SparringSystem.pulse(server, tick));
         safePulse("progression", () -> ProgressionSystem.pulse(server, tick));
         safePulse("level-pull", () -> DifficultyActions.pulseLevelPulls(server));
+        safePulse("ultra-form-scale",
+                () -> com.dbzlegacy.adaptivedifficulty.progression.bridge.UltraFormScale.pulse(tick));
         if (tick % 600 == 0) {
             safePulse("player-store", com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore::flushAll);
         }

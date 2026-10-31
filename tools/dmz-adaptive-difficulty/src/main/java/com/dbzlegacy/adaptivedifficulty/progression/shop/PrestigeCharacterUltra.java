@@ -33,8 +33,13 @@ final class PrestigeCharacterUltra {
     }
 
     private static void onSwitchIn(CharacterEvent.SwitchIn event) {
+        ServerPlayer player = event.player();
         SlotKey from = event.from();
-        PrestigeCharacter.switchedIn(event.player(), from == null ? null : Slots.characterId(from));
+        SlotKey to = event.to();
+        boolean blank = player != null && to != null && Slots.enabled()
+                && blankRecord(player.m_20194_(), to);
+        PrestigeCharacter.switchedIn(player, from == null ? null : Slots.characterId(from),
+                to == null ? null : Slots.characterId(to), to == null ? -1 : to.slot(), blank);
     }
 
     private static void onBorn(CharacterEvent.Born event) {
@@ -58,7 +63,8 @@ final class PrestigeCharacterUltra {
     /**
      * The slot's stored record is still the blank one {@code Lifecycle.create} wrote: flagged blank,
      * with no DragonMineZ part. A switch leaves the incoming slot's record on disk until it is parked
-     * again, so this is what the character was born from. Unreadable counts as not blank.
+     * again, so this is what the character was born from, or switched back into without ever being
+     * parked with stats. Unreadable counts as not blank.
      */
     private static boolean blankRecord(MinecraftServer server, SlotKey key) {
         try {

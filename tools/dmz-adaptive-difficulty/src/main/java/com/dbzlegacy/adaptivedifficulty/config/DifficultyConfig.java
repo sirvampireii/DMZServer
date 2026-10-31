@@ -314,6 +314,12 @@ public final class DifficultyConfig {
      */
     public boolean enableOverhaulPrestigeIntegration = true;
     /**
+     * Turn off DMZ Ultra's Overhaul form scaling (4.7.4): with dmzrevamp loaded, Ultra multiplies its
+     * own forms' multipliers by a per-race factor (SSJ5 30x shows as about 112x mastered). True keeps
+     * forms at their configured multipliers; false hands the scaling back to Ultra.
+     */
+    public boolean disableUltraFormScaling = true;
+    /**
      * Donator Skill Check UI ({@code /skillcheck}, CNPC interact / trigger 21).
      * Needs {@link #donatorPermission}; staff are not auto-granted.
      */
