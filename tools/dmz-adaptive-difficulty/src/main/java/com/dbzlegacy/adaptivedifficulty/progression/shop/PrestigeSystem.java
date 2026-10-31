@@ -7,7 +7,6 @@ import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.LmChat;
-import com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore;
 import com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess;
 import com.dragonminez.common.stats.StatsData;
 import java.util.Map;
@@ -37,14 +36,14 @@ public final class PrestigeSystem {
     /** Live Prestige NPC.js — held tokens live on CNPC faction 4. */
     private static final int FACTION_HELD_ID = 4;
 
-    private static final String KEY_TOTAL = "prestige_total_completed";
+    static final String KEY_TOTAL = "prestige_total_completed";
     /**
      * When set, {@link #getCompleted} returns stored {@link #KEY_TOTAL} only — staff
      * {@code /padmin completed set 0} is not bumped by DMZ skill or shop inference.
      */
-    private static final String KEY_TOTAL_STAFF_OVERRIDE = "prestige_total_staff_override";
-    private static final String KEY_HELD = "lm_prestige_held";
-    private static final String KEY_CONFIRM_UNTIL = "lm_prestige_confirm_until";
+    static final String KEY_TOTAL_STAFF_OVERRIDE = "prestige_total_staff_override";
+    static final String KEY_HELD = "lm_prestige_held";
+    static final String KEY_CONFIRM_UNTIL = "lm_prestige_confirm_until";
 
     private static final Map<UUID, Long> CONFIRM_UNTIL = new ConcurrentHashMap<>();
 
@@ -85,8 +84,8 @@ public final class PrestigeSystem {
         }
 
         long now = System.currentTimeMillis();
-        Long until = CONFIRM_UNTIL.get(player.m_20148_());
-        CompoundTag tag = LmPlayerStore.root(player);
+        Long until = CONFIRM_UNTIL.get(PrestigeCharacter.id(player));
+        CompoundTag tag = PrestigeCharacter.root(player);
         if (until == null && PersistentDataAccess.isWritable(tag) && tag.m_128441_(KEY_CONFIRM_UNTIL)) {
             until = tag.m_128454_(KEY_CONFIRM_UNTIL);
         }
@@ -96,7 +95,7 @@ public final class PrestigeSystem {
         }
 
         long confirmUntil = now + CONFIRM_MS;
-        CONFIRM_UNTIL.put(player.m_20148_(), confirmUntil);
+        CONFIRM_UNTIL.put(PrestigeCharacter.id(player), confirmUntil);
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128356_(KEY_CONFIRM_UNTIL, confirmUntil);
         }
@@ -136,8 +135,8 @@ public final class PrestigeSystem {
     private static String purchase(
             ServerPlayer player, StatsData data, int completed, int required, int level
     ) {
-        CONFIRM_UNTIL.remove(player.m_20148_());
-        CompoundTag tag = LmPlayerStore.root(player);
+        CONFIRM_UNTIL.remove(PrestigeCharacter.id(player));
+        CompoundTag tag = PrestigeCharacter.root(player);
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128473_(KEY_CONFIRM_UNTIL);
         }
@@ -362,7 +361,7 @@ public final class PrestigeSystem {
         if (player == null) {
             return 0;
         }
-        CompoundTag tag = LmPlayerStore.root(player);
+        CompoundTag tag = PrestigeCharacter.root(player);
         if (PersistentDataAccess.isWritable(tag) && tag.m_128441_(KEY_HELD)) {
             return clampHeld(readStoredInt(tag, KEY_HELD), maxHeld());
         }
@@ -377,12 +376,13 @@ public final class PrestigeSystem {
         if (player == null) {
             return;
         }
-        CompoundTag tag = LmPlayerStore.root(player);
+        CompoundTag tag = PrestigeCharacter.root(player);
         if (!PersistentDataAccess.isWritable(tag) || tag.m_128441_(KEY_HELD)) {
             return;
         }
         int faction = 0;
-        Integer factionPoints = readFactionPoints(player, FACTION_HELD_ID);
+        // Faction 4 is per account: it only seeds the account's own record.
+        Integer factionPoints = PrestigeCharacter.isAccount(player) ? readFactionPoints(player, FACTION_HELD_ID) : null;
         if (factionPoints != null) {
             faction = Math.max(0, factionPoints);
         }
@@ -390,7 +390,10 @@ public final class PrestigeSystem {
         int seed = Math.max(0, Math.max(overhaulCount, Math.max(faction, skill)));
         seed = clampHeld(seed, maxHeld());
         tag.m_128405_(KEY_HELD, seed);
-        mirrorFactionHeld(player, seed);
+        // Faction 4 is per account: only the account character mirrors its held count there.
+        if (PrestigeCharacter.isAccount(player)) {
+            mirrorFactionHeld(player, seed);
+        }
     }
 
     /**
@@ -401,7 +404,7 @@ public final class PrestigeSystem {
         if (player == null) {
             return 0;
         }
-        CompoundTag tag = LmPlayerStore.root(player);
+        CompoundTag tag = PrestigeCharacter.root(player);
         if (staffOverrideActive(tag)) {
             return Math.max(0, readStoredInt(tag, KEY_TOTAL));
         }
@@ -431,8 +434,14 @@ public final class PrestigeSystem {
         return Math.max(0, stored);
     }
 
-    /** Points or permanent forms imply at least one completed prestige. */
+    /**
+     * Points or permanent forms imply at least one completed prestige. Shop purchases are per
+     * account, so this only applies to the account's own record, not to another character's.
+     */
     private static boolean inferCompletedFromShop(ServerPlayer player) {
+        if (!PrestigeCharacter.isAccount(player)) {
+            return false;
+        }
         try {
             if (PrestigePointsSystem.getPoints(player) > 0) {
                 return true;
@@ -466,18 +475,18 @@ public final class PrestigeSystem {
         if (player == null) {
             return;
         }
-        CompoundTag tag = LmPlayerStore.root(player);
+        CompoundTag tag = PrestigeCharacter.root(player);
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128473_(KEY_TOTAL_STAFF_OVERRIDE);
         }
     }
     public static int getHeld(ServerPlayer player) {
-        CompoundTag tag = LmPlayerStore.root(player);
+        CompoundTag tag = PrestigeCharacter.root(player);
         if (PersistentDataAccess.isWritable(tag) && tag.m_128441_(KEY_HELD)) {
             return heldCountForNeed(player);
         }
-        // Wallet not written yet — old Prestige NPC stored held on CNPC faction 4.
-        Integer faction = readFactionPoints(player, FACTION_HELD_ID);
+        // Wallet not written yet — old Prestige NPC stored held on CNPC faction 4 (per account).
+        Integer faction = PrestigeCharacter.isAccount(player) ? readFactionPoints(player, FACTION_HELD_ID) : null;
         if (faction != null) {
             return clampHeld(faction, maxHeld());
         }
@@ -495,7 +504,7 @@ public final class PrestigeSystem {
             return;
         }
         int clamped = Math.max(0, value);
-        CompoundTag tag = LmPlayerStore.root(player);
+        CompoundTag tag = PrestigeCharacter.root(player);
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128359_(KEY_TOTAL, Integer.toString(clamped));
             tag.m_128379_(KEY_TOTAL_STAFF_OVERRIDE, true);
@@ -509,7 +518,7 @@ public final class PrestigeSystem {
 
     /** Public for staff admin tools. */
     public static void setCompletedPublic(ServerPlayer player, int value) {
-        CompoundTag tag = LmPlayerStore.root(player);
+        CompoundTag tag = PrestigeCharacter.root(player);
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128359_(KEY_TOTAL, Integer.toString(Math.max(0, value)));
         }
@@ -527,11 +536,14 @@ public final class PrestigeSystem {
     /** Public for prestige-points turn-in and padmin. Wallet NBT is source of truth. */
     public static void setHeldPublic(ServerPlayer player, int value) {
         int clamped = clampHeld(value, maxHeld());
-        CompoundTag tag = LmPlayerStore.root(player);
+        CompoundTag tag = PrestigeCharacter.root(player);
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128405_(KEY_HELD, clamped);
         }
-        mirrorFactionHeld(player, clamped);
+        // Faction 4 is per account: only the account character mirrors its held count there.
+        if (PrestigeCharacter.isAccount(player)) {
+            mirrorFactionHeld(player, clamped);
+        }
         try {
             com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
                     .scheduleSyncAfterStatsReset(player);

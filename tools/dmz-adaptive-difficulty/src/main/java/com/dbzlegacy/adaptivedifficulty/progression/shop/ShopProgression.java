@@ -15,6 +15,7 @@ public final class ShopProgression {
     public static void onLogout(ServerPlayer player) {
         if (player != null) {
             PrestigeSystem.clearPlayer(player.m_20148_());
+            PrestigeSystem.clearPlayer(PrestigeCharacter.id(player));
         }
     }
 

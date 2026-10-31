@@ -297,6 +297,18 @@ unchanged.
 Only `ProgressionGuiApi` re-extracted: one prestige lore line now says each prestige you hold raises
 your cap (javap: that string only). The other 24 are unchanged.
 
+## Re-baseline (2026-10-30, 4.7.3 prestige per character)
+
+Two classes re-extracted from `mods/LegacyMechanics-4.7.3.jar`; javap member and string diffs
+checked: `AdaptiveDifficultyMod` (version string, and the boot call to `PrestigeCharacter.register`),
+`PrestigePointsSystem` (`getPoints` / `setPoints` read and write another character's favor through
+`PrestigeCharacter`; the account path is unchanged). The other 23 are unchanged.
+
+Audit fixes, same day: `PrestigePointsSystem` re-extracted again. javap: the two skill-floor scans
+read `ProgressionData.shop` (the active character's purchases) instead of `ProgressionData.stored`;
+nothing else changed. `GodKiEnhancementShop` and `PrestigeCustomShop` are unchanged: their `pp_*`
+keys reach the character's bag through `ProgressionData`.
+
 ## Refresh the reference set
 
 ```bash
