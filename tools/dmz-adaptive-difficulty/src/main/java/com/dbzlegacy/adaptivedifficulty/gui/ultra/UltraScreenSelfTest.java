@@ -952,6 +952,7 @@ public final class UltraScreenSelfTest {
         com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.selfTest(broken);
         com.dbzlegacy.adaptivedifficulty.character.SaiyanTailWipeHelper.selfTest(broken);
         UltraCharacterScreens.selfTest(broken);
+        UltraPrestigeScreens.exchangeSelfTest(broken);
 
         if (broken.isEmpty()) {
             LmLog.event(

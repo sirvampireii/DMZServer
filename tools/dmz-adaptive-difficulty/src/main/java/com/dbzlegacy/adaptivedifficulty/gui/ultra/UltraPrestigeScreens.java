@@ -502,16 +502,9 @@ public final class UltraPrestigeScreens {
                 "Exchanging prestige for Prestige favor removes the stat bonus."));
         // Bulk line lists only the amounts that pay a bonus, from the configured payouts.
         int[] amounts = PrestigePointsSystem.turnInAmounts();
-        StringBuilder bulk = new StringBuilder();
-        for (int a : amounts) {
-            int gain = PrestigePointsSystem.pointsForTurnIn(a);
-            if (gain > a) {
-                bulk.append(bulk.length() == 0 ? "Bulk: " : ", ")
-                        .append(a).append(" for ").append(gain).append(" favor");
-            }
-        }
-        if (bulk.length() > 0) {
-            spec.line(UltraStyle.LABEL + bulk + ".");
+        String bulk = bulkLine(amounts, PrestigePointsSystem::pointsForTurnIn);
+        if (!bulk.isEmpty()) {
+            spec.line(UltraStyle.LABEL + bulk);
         }
         spec.buttonsAfterLines();
         if (!PrestigeShopConfig.get().exchange.enabled) {
@@ -529,11 +522,69 @@ public final class UltraPrestigeScreens {
         spec.send(player);
     }
 
+    /** "Bulk: 3 for 4 favor, 6 for 8, or 9 for 13." from the packs that pay a bonus; empty if none. */
+    static String bulkLine(int[] amounts, java.util.function.IntUnaryOperator payout) {
+        List<String> parts = new ArrayList<>();
+        for (int a : amounts) {
+            int gain = payout.applyAsInt(a);
+            if (gain > a) {
+                parts.add(a + " for " + gain + (parts.isEmpty() ? " favor" : ""));
+            }
+        }
+        if (parts.isEmpty()) {
+            return "";
+        }
+        if (parts.size() > 1) {
+            parts.set(parts.size() - 1, "or " + parts.get(parts.size() - 1));
+        }
+        return "Bulk: " + String.join(", ", parts) + ".";
+    }
+
+    /** Startup self-test: exchange pack payouts, Bulk line, and button labels that fit. */
+    public static void exchangeSelfTest(List<String> broken) {
+        PrestigeShopConfig.Exchange fresh = new PrestigeShopConfig.Exchange();
+        int[] want = {1, 2, 4, 8, 13, 18, 23, 28};
+        // Code defaults only (no PrestigePointsSystem / live config load during mod loading).
+        int[] packs = PrestigeShopConfig.Exchange.DEFAULT_AMOUNTS.stream().mapToInt(Integer::intValue).toArray();
+        for (int i = 0; i < packs.length; i++) {
+            int got = fresh.payout(packs[i]);
+            if (i >= want.length || got != want[i]) {
+                broken.add("Prestige exchange: " + packs[i] + " should pay "
+                        + (i < want.length ? want[i] : "?") + " favor, got " + got);
+            }
+            String label = exchangeLabel(packs[i], got);
+            if (!UltraStyle.fitsButton(label)) {
+                broken.add("Prestige exchange: button '" + label + "' does not fit");
+            }
+        }
+        if (!fresh.amounts.equals(PrestigeShopConfig.Exchange.DEFAULT_AMOUNTS)) {
+            broken.add("Prestige exchange: default packs should be 1, 2, 3, 6, 9, 12, 15, 18");
+        }
+        PrestigeShopConfig.Exchange old = new PrestigeShopConfig.Exchange();
+        old.amounts = new ArrayList<>(PrestigeShopConfig.Exchange.OLD_DEFAULT_AMOUNTS);
+        PrestigeShopConfig.Exchange custom = new PrestigeShopConfig.Exchange();
+        custom.amounts = new ArrayList<>(List.of(1, 3, 9));
+        if (!PrestigeShopConfig.Exchange.migratePacks18(old) || !old.amounts.equals(PrestigeShopConfig.Exchange.DEFAULT_AMOUNTS)
+                || PrestigeShopConfig.Exchange.migratePacks18(custom) || !custom.amounts.equals(List.of(1, 3, 9))
+                || PrestigeShopConfig.Exchange.migratePacks18(old)) {
+            broken.add("Prestige exchange: only an untouched 1, 2, 3, 6, 9 list should gain 12, 15, 18, once");
+        }
+        String bulk = bulkLine(packs, fresh::payout);
+        if (!bulk.equals("Bulk: 3 for 4 favor, 6 for 8, 9 for 13, 12 for 18, 15 for 23, or 18 for 28.")) {
+            broken.add("Prestige exchange: Bulk line reads '" + bulk + "'");
+        }
+    }
+
+    /** "Exchange 18: +28 favor" - fits a standard button for two-digit packs too. */
+    static String exchangeLabel(int amount, int gain) {
+        return "Exchange " + amount + ": +" + gain + " favor";
+    }
+
     /** One exchange button (left or right half of a row); dim when not enough held. */
     private static void exchangeButton(UltraScreenSpec spec, int amount, int held, boolean left) {
-        String gain = String.valueOf(PrestigePointsSystem.pointsForTurnIn(amount));
+        int gain = PrestigePointsSystem.pointsForTurnIn(amount);
         String raw = held >= amount
-                ? "Exchange " + amount + " (+" + gain + " favor)"
+                ? exchangeLabel(amount, gain)
                 : "Exchange " + amount + " - need " + amount;
         if (!UltraStyle.fitsButton(raw)) {
             raw = held >= amount ? "Exchange " + amount : "Need " + amount;

@@ -66,7 +66,12 @@ public final class PrestigeShopConfig {
                 try (BufferedReader bufferedReader = Files.newBufferedReader(path);){
                     prestigeShopConfig = (PrestigeShopConfig)GSON.fromJson((Reader)bufferedReader, PrestigeShopConfig.class);
                 }
+                boolean packsMigrated = prestigeShopConfig != null && prestigeShopConfig.exchange != null && prestigeShopConfig.exchange.packs18MigratedV1;
                 INSTANCE = PrestigeShopConfig.sanitize(prestigeShopConfig == null ? new PrestigeShopConfig() : prestigeShopConfig);
+                if (!packsMigrated) {
+                    // 4.7.13: write the migrated pack list and its flag back once.
+                    PrestigeShopConfig.save();
+                }
             }
             catch (Throwable throwable) {
                 AdaptiveDifficultyMod.LOGGER.warn("[{}] prestige-shop config load failed: {}", (Object)"legacymechanics", (Object)throwable.toString());
@@ -130,7 +135,10 @@ public final class PrestigeShopConfig {
             prestigeShopConfig.customShop = new CustomShop();
         }
         Exchange exchange = prestigeShopConfig.exchange;
-        exchange.amounts = PrestigeShopConfig.positiveSortedUnique(exchange.amounts, List.of(Integer.valueOf(1), Integer.valueOf(2), Integer.valueOf(3), Integer.valueOf(6), Integer.valueOf(9)));
+        exchange.amounts = PrestigeShopConfig.positiveSortedUnique(exchange.amounts, Exchange.DEFAULT_AMOUNTS);
+        if (Exchange.migratePacks18(exchange)) {
+            AdaptiveDifficultyMod.LOGGER.info("[{}] prestige-shop: exchange packs 12, 15 and 18 added to the old 1, 2, 3, 6, 9 list", (Object)"legacymechanics");
+        }
         exchange.bonusGroupSize = Math.max(0, exchange.bonusGroupSize);
         exchange.payoutOverrides = PrestigeShopConfig.cleanIntMap(exchange.payoutOverrides, 0);
         SkillShop skillShop = prestigeShopConfig.skillShop;
@@ -287,20 +295,51 @@ public final class PrestigeShopConfig {
     }
 
     public static final class Exchange {
+        /** Default pack sizes (4.7.13 added 12, 15, 18). */
+        public static final List<Integer> DEFAULT_AMOUNTS = List.of(1, 2, 3, 6, 9, 12, 15, 18);
+        /** The pre-4.7.13 default; a saved list equal to it is upgraded once by {@link #migratePacks18}. */
+        public static final List<Integer> OLD_DEFAULT_AMOUNTS = List.of(1, 2, 3, 6, 9);
+        /**
+         * Bonus favor per pack size: 1→1, 2→2, 3→4, 6→8, 9→13, 12→18, 15→23, 18→28 total.
+         * Sizes not in the table (staff-added) fall back to {@link #bonusGroupSize}.
+         */
+        public static final Map<Integer, Integer> PACK_BONUS = Map.of(
+                1, 0, 2, 0, 3, 1, 6, 2, 9, 4, 12, 6, 15, 8, 18, 10);
         public boolean enabled = true;
-        public List<Integer> amounts = new ArrayList<Integer>(List.of(Integer.valueOf(1), Integer.valueOf(2), Integer.valueOf(3), Integer.valueOf(6), Integer.valueOf(9)));
+        public List<Integer> amounts = new ArrayList<Integer>(DEFAULT_AMOUNTS);
         public int bonusGroupSize = 3;
         public Map<String, Integer> payoutOverrides = new LinkedHashMap<String, Integer>();
+        public boolean packs18MigratedV1 = false;
 
+        /** Favor for one turn-in: a payout override, else the pack table, else the group bonus. */
         public int payout(int n) {
-            Integer n2;
-            Integer n3 = n2 = this.payoutOverrides == null ? null : this.payoutOverrides.get(String.valueOf(n));
-            if (n2 != null) {
-                return Math.max(0, n2);
+            Integer override = this.payoutOverrides == null ? null : this.payoutOverrides.get(String.valueOf(n));
+            if (override != null) {
+                return Math.max(0, override);
             }
-            int n4 = Math.max(0, n);
-            int n5 = this.bonusGroupSize > 0 ? n4 / this.bonusGroupSize : 0;
-            return n4 + n5 * (n5 + 1) / 2;
+            int amount = Math.max(0, n);
+            Integer bonus = PACK_BONUS.get(amount);
+            if (bonus != null) {
+                return amount + bonus;
+            }
+            int packs = this.bonusGroupSize > 0 ? amount / this.bonusGroupSize : 0;
+            return amount + packs * (packs + 1) / 2;
+        }
+
+        /**
+         * One-time 4.7.13 upgrade: a saved pack list still equal to the old default gains 12, 15
+         * and 18. A list staff changed is kept. Returns true when the list changed.
+         */
+        public static boolean migratePacks18(Exchange exchange) {
+            if (exchange.packs18MigratedV1) {
+                return false;
+            }
+            exchange.packs18MigratedV1 = true;
+            if (!OLD_DEFAULT_AMOUNTS.equals(exchange.amounts)) {
+                return false;
+            }
+            exchange.amounts = new ArrayList<Integer>(DEFAULT_AMOUNTS);
+            return true;
         }
     }
 

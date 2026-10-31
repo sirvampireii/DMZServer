@@ -214,7 +214,8 @@ public final class PrestigeShopHooks {
         PrestigeShopHooks.help("exchange.enabled", "Shows the Exchange page and allows turn-ins.");
         PrestigeShopHooks.help("exchange.amounts", "How many prestiges can be turned in at once. One button per amount.");
         PrestigeShopHooks.help("exchange.amounts[]", "An allowed turn-in amount.");
-        PrestigeShopHooks.help("exchange.bonusGroupSize", "Every this-many prestiges in one turn-in adds a growing bonus (3 gives 3->4, 6->9, 9->15). 0 = no bonus.");
+        PrestigeShopHooks.help("exchange.bonusGroupSize", "Bonus for turn-in sizes outside the built-in table (1, 2, 3, 6, 9, 12, 15, 18 pay 1, 2, 4, 8, 13, 18, 23, 28 favor). Every this-many prestiges adds a growing bonus. 0 = no bonus.");
+        PrestigeShopHooks.help("exchange.packs18MigratedV1", "Set by LM once it added the 12, 15 and 18 packs to the old list. Leave it on.");
         PrestigeShopHooks.help("exchange.payoutOverrides", "Exact favor for a turn-in amount, replacing the formula. Key = amount, value = favor.");
         PrestigeShopHooks.help("exchange.payoutOverrides[]", "Favor paid for turning in this many prestiges.");
         PrestigeShopHooks.help("skillShop", "Buying permanent DMZ skill levels with favor (Shop > Skill shop).");

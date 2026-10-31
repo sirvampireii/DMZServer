@@ -424,7 +424,7 @@ public final class LmCommandSuggestions {
     );
 
     public static final SuggestionProvider<CommandSourceStack> PRESTIGE_TURNIN_AMOUNTS = literals(
-            "1", "2", "3", "6", "9"
+            "1", "2", "3", "6", "9", "12", "15", "18"
     );
 
     public static final SuggestionProvider<CommandSourceStack> PRESTIGE_TIERS = literals(

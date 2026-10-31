@@ -1740,6 +1740,39 @@ def main() -> int:
           "150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000};" in pc20_test
           and "Overhaul ladder stretched at cap" in pc20_test)
 
+    print("\n--- § prestige exchange packs 4.7.13 ---")
+    xp_pts = read(SRC / "progression/shop/PrestigePointsSystem.java")
+    xp_cfg = read(SRC / "progression/shop/PrestigeShopConfig.java")
+    xp_scr = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
+    xp_api = read(SRC / "gui/ProgressionGuiApi.java")
+    xp_help = read(SRC / "command/LmCommandHelp.java")
+    xp_sug = read(SRC / "command/LmCommandSuggestions.java")
+    xp_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    check("manifest prestige-exchange-packs-18 row", "prestige-exchange-packs-18" in manifest)
+    check("packs 1, 2, 3, 6, 9, 12, 15, 18 in code, config default and tab completion",
+          "TURN_IN_AMOUNTS = {1, 2, 3, 6, 9, 12, 15, 18};" in xp_pts
+          and "DEFAULT_AMOUNTS = List.of(1, 2, 3, 6, 9, 12, 15, 18);" in xp_cfg
+          and '"1", "2", "3", "6", "9", "12", "15", "18"' in xp_sug
+          and "/prestige turnin <1|2|3|6|9|12|15|18>" in xp_help)
+    check("bonus table 3->4, 6->8, 9->13, 12->18, 15->23, 18->28",
+          "1, 0, 2, 0, 3, 1, 6, 2, 9, 4, 12, 6, 15, 8, 18, 10);" in xp_cfg)
+    check("old saved default list gains the new packs once; a staff list is kept",
+          "OLD_DEFAULT_AMOUNTS = List.of(1, 2, 3, 6, 9);" in xp_cfg
+          and "public boolean packs18MigratedV1 = false;" in xp_cfg
+          and "Exchange.migratePacks18(exchange)" in xp_cfg
+          and "if (!packsMigrated) {" in xp_cfg)
+    check("Bulk line and lore list every bonus pack; reply bonus is gained minus amount",
+          "bulkLine(amounts, PrestigePointsSystem::pointsForTurnIn)" in xp_scr
+          and "Bulk: 3 for 4 favor, 6 for 8, 9 for 13, 12 for 18, 15 for 23, or 18 for 28." in xp_scr
+          and "§f15§7, or §f18 §7at a time." in xp_api
+          and "(gained - want)" in xp_pts)
+    check("every exchange button shows its favor gain in a label that fits",
+          'return "Exchange " + amount + ": +" + gain + " favor";' in xp_scr
+          and "? exchangeLabel(amount, gain)" in xp_scr
+          and "String label = exchangeLabel(packs[i], got);" in xp_scr)
+    check("self-test covers exchange payouts, Bulk line, button fit and migration",
+          "UltraPrestigeScreens.exchangeSelfTest(broken);" in xp_test)
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")
@@ -2030,10 +2063,14 @@ def main() -> int:
     points = read(SRC / "progression/shop/PrestigePointsSystem.java")
     turn_in = points.split("public static int pointsForTurnIn(", 1)[1].split("\n    }\n", 1)[0] \
         if "public static int pointsForTurnIn(" in points else ""
-    check("turn-in payout checks payoutOverrides before the group bonus (4.6.229-2)",
-          "exchange.payoutOverrides" in turn_in and "exchange.bonusGroupSize" in turn_in
-          and turn_in.index("payoutOverrides") < turn_in.index("bonusGroupSize"),
-          "pointsForTurnIn must read prestige-shop.json exchange overrides, then the group bonus")
+    shop_cfg_src = read(SRC / "progression/shop/PrestigeShopConfig.java")
+    payout = shop_cfg_src.split("public int payout(int n) {", 1)[-1].split("\n        }\n\n", 1)[0]
+    check("turn-in payout: payoutOverrides, then the pack table, then the group bonus (4.6.229-2, 4.7.13)",
+          "return PrestigeShopConfig.get().exchange.payout(amount);" in turn_in
+          and "this.payoutOverrides" in payout and "PACK_BONUS.get(amount)" in payout
+          and "this.bonusGroupSize" in payout
+          and payout.index("payoutOverrides") < payout.index("PACK_BONUS") < payout.index("bonusGroupSize"),
+          "pointsForTurnIn must use Exchange.payout: overrides, then the pack table, then the group bonus")
 
     print("\n--- § death tp ---")
     death_tp = read(SRC / "progression/tp/DeathTpPenalty.java")

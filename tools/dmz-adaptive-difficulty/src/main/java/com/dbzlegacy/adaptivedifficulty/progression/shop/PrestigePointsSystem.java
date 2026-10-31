@@ -24,9 +24,9 @@ import net.minecraft.server.level.ServerPlayer;
  * Prestige Points shop: turn in held prestiges for points, spend on DMZ skill levels,
  * and Permanent Majin / Mutant / Ultimate.
  *
- * <p>Turn-in amounts: {@code 1, 2, 3, 6, 9} only.
- * Points: {@code N + T(N/3)} where {@code T(k)=k(k+1)/2}
- * (3→4, 6→9, 9→15).
+ * <p>Turn-in amounts: {@code 1, 2, 3, 6, 9, 12, 15, 18} only.
+ * Points: {@code N} plus a bonus from a fixed table
+ * (3→4, 6→8, 9→13, 12→18, 15→23, 18→28).
  * Skills: 1 point = +1 permanent skill level for Skill Check skills only
  * (Natural + Saga — not ultimates / ki attacks). Survives prestige reset.
  * {@code potentialunlock} is the exception: 1 point = +2 levels.
@@ -308,7 +308,7 @@ public final class PrestigePointsSystem {
     }
 
     /** Default single turn-in pack sizes ({@code exchange.amounts}); live list is {@link #turnInAmounts()}. */
-    public static final int[] TURN_IN_AMOUNTS = {1, 2, 3, 6, 9};
+    public static final int[] TURN_IN_AMOUNTS = {1, 2, 3, 6, 9, 12, 15, 18};
 
     public static boolean isAllowedTurnInAmount(int amount) {
         return PrestigeShopConfig.get().exchange.amounts.contains(amount);
@@ -326,20 +326,11 @@ public final class PrestigePointsSystem {
 
     /**
      * Points for turning in {@code amount} prestiges in one action: a configured payout
-     * override, else {@code N + triangular(N/bonusGroupSize)} → with the default group of 3:
-     * 1→1, 2→2, 3→4, 6→9, 9→15.
+     * override, else the bonus table ({@link PrestigeShopConfig.Exchange#PACK_BONUS}):
+     * 1→1, 2→2, 3→4, 6→8, 9→13, 12→18, 15→23, 18→28.
      */
     public static int pointsForTurnIn(int amount) {
-        PrestigeShopConfig.Exchange exchange = PrestigeShopConfig.get().exchange;
-        Integer override = exchange.payoutOverrides == null
-                ? null : exchange.payoutOverrides.get(String.valueOf(amount));
-        if (override != null) {
-            return Math.max(0, override);
-        }
-        int n = Math.max(0, amount);
-        int packs = exchange.bonusGroupSize > 0 ? n / exchange.bonusGroupSize : 0;
-        int bonus = packs * (packs + 1) / 2;
-        return n + bonus;
+        return PrestigeShopConfig.get().exchange.payout(amount);
     }
 
     /** "§f1§7, §f2§7, ... or §f9" for the turn-in usage message. */

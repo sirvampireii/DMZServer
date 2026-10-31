@@ -376,7 +376,7 @@ public final class LmCommandHelp {
                 "§7Everything the Prestige → Shop screens sell — exchange, skills, tiers, and effects. Use §f/prestige help §7anytime.",
                 new LmStaffHelp.Section("Exchange",
                         LmStaffHelp.cmd("/prestige balance", "favor, held shards, completed runs"),
-                        LmStaffHelp.cmd("/prestige turnin <1|2|3|6|9>", "bank a prestige run")),
+                        LmStaffHelp.cmd("/prestige turnin <1|2|3|6|9|12|15|18>", "bank a prestige run")),
                 new LmStaffHelp.Section("Skills and tiers",
                         LmStaffHelp.cmd("/prestige buy skill <skill>", "buy a passive skill level"),
                         LmStaffHelp.cmd("/prestige buy tier <1-7>", "buy a difficulty tier unlock")),
