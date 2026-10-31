@@ -2,6 +2,8 @@ package com.dbzlegacy.adaptivedifficulty.net.gui;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.PlayerModelParts;
+import com.dbzlegacy.adaptivedifficulty.util.LmLog;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.util.function.Supplier;
@@ -39,7 +41,12 @@ import net.minecraftforge.network.NetworkEvent;
  * tail as a piece — the client's race layer draws it. Unknown trailing fields are ignored.
  */
 public final class GuiModelSyncPacket {
-    /** Max {@code partsJson} chars on the wire. Oversized payloads degrade, never truncate. */
+    /**
+     * Max {@code partsJson} chars on the wire. KaiPath 1.5.1 rejects a longer snapshot with a
+     * {@code DecoderException} (which drops the connection), so this cannot be raised without a
+     * KaiPath release. Oversized payloads degrade, never truncate. Every piece equipped (109 shop
+     * pieces) plus the largest form is about 7,000 chars, so pieces fit.
+     */
     public static final int PARTS_JSON_MAX = 8192;
 
     /** {@code reason} tokens (diagnostics only — not part of the render contract). */
@@ -92,12 +99,16 @@ public final class GuiModelSyncPacket {
     }
 
     /**
-     * Guarantees valid JSON within {@link #PARTS_JSON_MAX}. Oversized payloads drop
-     * {@code headBones}, then {@code form}, then fall back to a minimal valid object
-     * (clears client state) — a hard cut mid-JSON would break the whole message. The
-     * fallback <b>preserves {@code subject}</b>: the sync is broadcast to trackers, and a
-     * {@code local} subject on a degraded payload would clear each observer's own parts
-     * instead of the owner's.
+     * Guarantees valid JSON within {@link #PARTS_JSON_MAX} that <b>keeps the equipped pieces</b>
+     * (4.7.10; before, a payload still too big after two drops was sent with an empty
+     * {@code bodyParts}, which wiped the player's pieces on every client). An oversized payload
+     * drops, in order: {@code headBones}, {@code form}, {@code extras}, {@code colors}, then any
+     * other field but {@code schema}/{@code subject}/{@code bodyParts}/{@code suppressNaturalTail}.
+     * Only if the pieces alone still do not fit (never with the 0.4.0 catalog) are entries
+     * dropped from the front — form pieces, which Ultra draws natively — keeping the player's
+     * shop pieces at the end. A hard cut mid-JSON would break the whole message. {@code subject}
+     * is always preserved: the sync is broadcast, and a {@code local} subject would clear each
+     * observer's own parts instead of the owner's.
      */
     static String sanitizePartsJson(String json) {
         if (json == null || json.isBlank()) {
@@ -112,28 +123,41 @@ public final class GuiModelSyncPacket {
             if (out.length() <= PARTS_JSON_MAX) {
                 return out;
             }
-            o.remove("headBones");
-            out = o.toString();
-            if (out.length() <= PARTS_JSON_MAX) {
-                AdaptiveDifficultyMod.LOGGER.warn(
-                        "[{}] GuiModelSync partsJson oversized — dropped headBones len={}",
-                        AdaptiveDifficultyMod.MOD_ID,
-                        out.length());
-                return out;
+            int before = out.length();
+            for (String optional : new String[] {"headBones", "form", "extras", "colors"}) {
+                o.remove(optional);
+                out = o.toString();
+                if (out.length() <= PARTS_JSON_MAX) {
+                    LmLog.event(
+                            "[{}] GuiModelSync partsJson {} chars over the cap; dropped optional fields up to {} "
+                                    + "(pieces kept) len={}",
+                            AdaptiveDifficultyMod.MOD_ID, before, optional, out.length());
+                    return out;
+                }
             }
-            o.remove("form");
-            out = o.toString();
-            if (out.length() <= PARTS_JSON_MAX) {
-                AdaptiveDifficultyMod.LOGGER.warn(
-                        "[{}] GuiModelSync partsJson oversized — dropped headBones+form len={}",
-                        AdaptiveDifficultyMod.MOD_ID,
-                        out.length());
-                return out;
+            JsonObject core = new JsonObject();
+            core.addProperty("schema", PlayerModelParts.SCHEMA);
+            core.addProperty("subject", subject == null || subject.isBlank() ? "local" : subject);
+            JsonArray pieces = o.has("bodyParts") && o.get("bodyParts").isJsonArray()
+                    ? o.getAsJsonArray("bodyParts")
+                    : new JsonArray();
+            core.add("bodyParts", pieces);
+            if (o.has("suppressNaturalTail")) {
+                core.add("suppressNaturalTail", o.get("suppressNaturalTail"));
             }
-            AdaptiveDifficultyMod.LOGGER.warn(
-                    "[{}] GuiModelSync partsJson oversized after drops — sending empty parts",
-                    AdaptiveDifficultyMod.MOD_ID);
-            return fallback(subject);
+            core.add("extras", new JsonArray());
+            out = core.toString();
+            int total = pieces.size();
+            while (out.length() > PARTS_JSON_MAX && pieces.size() > 1) {
+                pieces.remove(0);
+                out = core.toString();
+            }
+            if (pieces.size() < total) {
+                AdaptiveDifficultyMod.LOGGER.warn(
+                        "[{}] GuiModelSync partsJson for {} too big even with pieces only: sent the last {} of {} pieces",
+                        AdaptiveDifficultyMod.MOD_ID, subject, pieces.size(), total);
+            }
+            return out.length() <= PARTS_JSON_MAX ? out : fallback(subject);
         } catch (Throwable ignored) {
             return fallback(subjectOf(json));
         }

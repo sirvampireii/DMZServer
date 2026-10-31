@@ -81,6 +81,9 @@ public final class LmGuiNetwork {
      */
     private static final java.util.Set<java.util.UUID> MODEL_SYNCED =
             java.util.concurrent.ConcurrentHashMap.newKeySet();
+    /** Login syncs scheduled but not yet sent (so repeat advertisements do not stack them). */
+    private static final java.util.Set<java.util.UUID> MODEL_SYNC_PENDING =
+            java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private LmGuiNetwork() {}
 
@@ -439,6 +442,12 @@ public final class LmGuiNetwork {
             if (syncFail != null) {
                 failures.add(syncFail);
             }
+            // Loud but never fatal: a catalog problem here must not stop the server booting.
+            String fullSet = fullSetModelSync();
+            if (fullSet != null) {
+                AdaptiveDifficultyMod.LOGGER.error(
+                        "[{}] GuiModelSync full-set self-test FAILED: {}", AdaptiveDifficultyMod.MOD_ID, fullSet);
+            }
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.error(
                     "[{}] packet round-trip self-test threw",
@@ -542,6 +551,55 @@ public final class LmGuiNetwork {
             }
         } catch (Throwable t) {
             return "GuiModelSyncPacket oversized payload not valid JSON after sanitize: " + t;
+        }
+        return null;
+    }
+
+    /**
+     * A player wearing every shop piece plus the largest form's pieces, with oversized
+     * {@code headBones}/{@code form} fields, must still get every piece, within the wire cap
+     * (4.7.10: the degrade used to send an empty {@code bodyParts}).
+     *
+     * @return null on success, failure message otherwise
+     */
+    static String fullSetModelSync() {
+        java.util.List<String> shop =
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.BodyPartCatalog.shopPieceIds();
+        if (shop.size() < 109) {
+            return "GuiModelSync full-set test: shop catalog has " + shop.size() + " pieces, expected 109";
+        }
+        com.google.gson.JsonArray pieces = new com.google.gson.JsonArray();
+        java.util.List<com.dbzlegacy.adaptivedifficulty.gui.ultra.BodyPartCatalog.Part> form =
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.BodyPartCatalog.resolve(
+                        "soulreaper", "innerhollow", "complete", "", "");
+        java.util.Set<String> ids = new java.util.LinkedHashSet<>();
+        for (var part : form) {
+            ids.add(part.id());
+        }
+        ids.addAll(shop);
+        for (String id : ids) {
+            com.google.gson.JsonObject entry = new com.google.gson.JsonObject();
+            entry.addProperty("id", id);
+            entry.addProperty("source", "dmzultra");
+            entry.addProperty("slot", com.dbzlegacy.adaptivedifficulty.gui.ultra.BodyPartCatalog.slot(id));
+            pieces.add(entry);
+        }
+        com.google.gson.JsonObject full = new com.google.gson.JsonObject();
+        full.addProperty("schema", 1);
+        full.addProperty("subject", "uuid:00000000-0000-0000-0000-0000000000bb");
+        full.add("bodyParts", pieces);
+        full.addProperty("suppressNaturalTail", true);
+        full.addProperty("form", "x".repeat(3000));
+        full.addProperty("headBones", "y".repeat(3000));
+        String sent = new GuiModelSyncPacket(full.toString(), GuiModelSyncPacket.REASON_LOGIN).partsJson();
+        if (sent.length() > GuiModelSyncPacket.PARTS_JSON_MAX) {
+            return "GuiModelSync full-set payload is " + sent.length() + " chars, over the wire cap";
+        }
+        com.google.gson.JsonArray got = com.google.gson.JsonParser.parseString(sent)
+                .getAsJsonObject().getAsJsonArray("bodyParts");
+        if (got == null || got.size() != ids.size()) {
+            return "GuiModelSync full-set payload sent " + (got == null ? 0 : got.size()) + " of "
+                    + ids.size() + " equipped pieces (it must never be sent empty)";
         }
         return null;
     }
@@ -675,6 +733,7 @@ public final class LmGuiNetwork {
         UltraClientFeatures.clear(player);
         FEATURE_GAP_WARNED.remove(player.m_20148_());
         MODEL_SYNCED.remove(player.m_20148_());
+        MODEL_SYNC_PENDING.remove(player.m_20148_());
     }
 
     /**
@@ -698,9 +757,9 @@ public final class LmGuiNetwork {
      * {@code subject uuid:<owner>} so each observer binds them to the owner's entity.
      * Per-observer sends still use {@link #sendModelSyncTo} (the track-start trigger).
      */
-    public static void sendModelSync(ServerPlayer player, String reason) {
+    public static boolean sendModelSync(ServerPlayer player, String reason) {
         if (player == null || !supportsModelSync(player)) {
-            return;
+            return false;
         }
         try {
             GuiModelSyncPacket packet = modelSyncPacket(player, reason);
@@ -710,8 +769,16 @@ public final class LmGuiNetwork {
                     safeName(player),
                     reason,
                     packet.partsJson());
-            CHANNEL.send(
-                    PacketDistributor.TRACKING_ENTITY_AND_SELF.with(() -> player), packet);
+            // Gate per recipient (4.7.10): every player in the same world who advertised
+            // bodyPartsSync, the owner included. A blanket tracker broadcast also reached
+            // clients that never registered message 3, which drops their connection. A player
+            // out of range only caches the snapshot; track start resends when they meet.
+            int sent = 0;
+            for (ServerPlayer viewer : modelSyncRecipients(player)) {
+                CHANNEL.send(PacketDistributor.PLAYER.with(() -> viewer), packet);
+                sent++;
+            }
+            return sent > 0;
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.warn(
                     "[{}] GuiModelSyncPacket send failed player={} reason={}: {}",
@@ -719,7 +786,25 @@ public final class LmGuiNetwork {
                     safeName(player),
                     reason,
                     t.toString());
+            return false;
         }
+    }
+
+    /** The owner and every player in the owner's world whose client advertised bodyPartsSync. */
+    private static java.util.List<ServerPlayer> modelSyncRecipients(ServerPlayer owner) {
+        java.util.List<ServerPlayer> out = new java.util.ArrayList<>();
+        out.add(owner);
+        var server = owner.m_20194_();
+        if (server == null) {
+            return out;
+        }
+        for (ServerPlayer other : server.m_6846_().m_11314_()) {
+            if (other != null && !other.equals(owner) && other.m_9236_() == owner.m_9236_()
+                    && supportsModelSync(other)) {
+                out.add(other);
+            }
+        }
+        return out;
     }
 
     /**
@@ -786,21 +871,27 @@ public final class LmGuiNetwork {
         if (player == null || !supportsModelSync(player)) {
             return;
         }
-        if (!MODEL_SYNCED.add(player.m_20148_())) {
+        java.util.UUID id = player.m_20148_();
+        // Done once per session, but only marked done after it was sent: a skipped attempt
+        // (player not resolvable yet) is retried on the client's next advertisement (4.7.10).
+        if (MODEL_SYNCED.contains(id) || !MODEL_SYNC_PENDING.add(id)) {
             return;
         }
         var server = player.m_20194_();
         if (server == null) {
-            sendModelSync(player, GuiModelSyncPacket.REASON_LOGIN);
+            MODEL_SYNC_PENDING.remove(id);
+            if (sendModelSync(player, GuiModelSyncPacket.REASON_LOGIN)) {
+                MODEL_SYNCED.add(id);
+            }
             return;
         }
-        java.util.UUID id = player.m_20148_();
         server.m_6937_(new net.minecraft.server.TickTask(server.m_129921_() + 40, () -> {
+            MODEL_SYNC_PENDING.remove(id);
             ServerPlayer viewer = server.m_6846_().m_11259_(id);
-            if (viewer == null) {
+            if (viewer == null || !sendModelSync(viewer, GuiModelSyncPacket.REASON_LOGIN)) {
                 return;
             }
-            sendModelSync(viewer, GuiModelSyncPacket.REASON_LOGIN);
+            MODEL_SYNCED.add(id);
             for (ServerPlayer other : server.m_6846_().m_11314_()) {
                 if (other != null && !other.equals(viewer)) {
                     sendModelSyncTo(other, viewer, GuiModelSyncPacket.REASON_LOGIN);
