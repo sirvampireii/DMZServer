@@ -41,7 +41,7 @@ public final class SparCombat {
     public static final float MIN_RELEASE_PERCENT = 100.0f;
     public static final float MAX_RELEASE_PERCENT = 200.0f;
     public static final float MAX_RELEASE_MULTIPLIER = 2.0f;
-    public static final int MAX_PRESTIGE_LEVEL = 10;
+    public static final int MAX_PRESTIGE_LEVEL = 20;
     public static final float PRESTIGE_MULTIPLIER_PER_LEVEL = 0.10f;
     public static final float SESSION_BONUS_PER_MINUTE = 0.05f;
     public static final float MAX_SESSION_BONUS = 0.50f;

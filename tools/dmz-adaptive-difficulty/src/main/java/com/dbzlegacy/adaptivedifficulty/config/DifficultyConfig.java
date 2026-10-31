@@ -133,11 +133,11 @@ public final class DifficultyConfig {
     /**
      * Reference caps used to document the top tier (Zenith).
      * Theoretical max ≈ referenceMaxLevel × referenceMaxPrestige × prestigeMultiplier
-     * = 150000 × 10 × 10 with defaults. Server DMZ maxValue is 150k; the playable
+     * = 150000 × 20 × 10 with defaults. Server DMZ maxValue is 150k; the playable
      * level cap is Overhaul's native ladder (50k at 0 held up to 150k).
      */
     public long referenceMaxLevel = 150_000L;
-    public int referenceMaxPrestige = 10;
+    public int referenceMaxPrestige = 20;
 
     // Ability unlock tier thresholds (admin-editable)
     public long tierAwakened = 10L;
@@ -576,6 +576,8 @@ public final class DifficultyConfig {
      * DMZ / Overhaul 150k ceiling.
      */
     public Boolean referenceMaxLevel150kMigratedV1 = Boolean.FALSE;
+    /** One-time: raise the live {@code referenceMaxPrestige} 10 → 20 with the prestige cap (4.7.12). */
+    public Boolean referenceMaxPrestige20MigratedV1 = Boolean.FALSE;
     /**
      * One-time: drop race / weak-stat / specialization stack and soften class + top-1
      * counter stock values so existing configs match the lighter 3.3.35 model.
@@ -1420,6 +1422,12 @@ public final class DifficultyConfig {
                 cfg.referenceMaxLevel = 150_000L;
             }
             cfg.referenceMaxLevel150kMigratedV1 = Boolean.TRUE;
+        }
+        if (!Boolean.TRUE.equals(cfg.referenceMaxPrestige20MigratedV1)) {
+            if (cfg.referenceMaxPrestige == 10) {
+                cfg.referenceMaxPrestige = 20;
+            }
+            cfg.referenceMaxPrestige20MigratedV1 = Boolean.TRUE;
         }
         if (cfg.maxDamageMultiplier < 0.0) {
             cfg.maxDamageMultiplier = 0.0;

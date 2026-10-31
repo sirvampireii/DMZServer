@@ -14,6 +14,7 @@
     "DendeResetAbsorptionWipeMixin",
     "CreateCharacterAbsorptionWipeMixin",
     "DmzRevampPrestigeCapMixin",
+    "DmzRevampPrestigeLadderMixin",
     "PrestigeServiceIntegrationMixin",
     "UpdateCharacterC2SMixin",
     "StatsSyncC2SGenderMixin",

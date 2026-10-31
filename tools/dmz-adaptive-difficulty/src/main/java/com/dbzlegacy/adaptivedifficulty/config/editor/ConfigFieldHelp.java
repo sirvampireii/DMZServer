@@ -104,6 +104,7 @@ tierPercentLadderMigratedV4=One-time (1.0.1): soft stock 10/20/30/40/50/65/90 (+
 crEnemyMultPercentMigratedV1=One-time: remap legacy CR enemy-mult ladder (1.0/1.15/.../3.0) to percent ladder.
 legacyMaxHealthCapMigratedV1=One-time: drop legacy absolute HP caps (400 / 1024) to uncapped (0).
 referenceMaxLevel150kMigratedV1=One-time: raise the stale live reference level from 100000 to 150000 to match the 150k server ceiling.
+referenceMaxPrestige20MigratedV1=One-time: raise the reference prestige from 10 to 20 with the prestige cap.
 counterSimplifyMigratedV1=One-time: drop the race, weak-stat, and specialization stack and soften class and top-1 counter stock values.
 lowTierCounterSoftMigratedV1=One-time: soften stock pierce and counter overlays so early 10-20% tiers are not secretly full defense pierce.
 balanceFeelMigratedV1=One-time: balance pass - raise mob HP sponge, soften elite spike, nudge tank HP floor.

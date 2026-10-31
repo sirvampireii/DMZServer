@@ -12,9 +12,10 @@ import net.minecraftforge.fml.ModList;
  * <p>
  * The cap is Overhaul's native {@code PrestigeSystem.levelCap}: it rises with the Overhaul prestige
  * count (LM sets that from held prestige), {@code floor(initialLevelCap + count × maxLevel /
- * maxPrestigeCount)} capped at {@code maxLevel}. LM pins 50k / 150k, so with 10 max that is 50k, 65k,
- * 80k … 140k, then 150k from 7 held. {@link #levelCap(StatsData)} reads it; LM does not override or
- * recompute it. Without dmzrevamp the cap is {@link #OVERHAUL_LEVEL_CAP} (100k). Breakthroughs were
+ * steps)} capped at {@code maxLevel}. LM pins 50k / 150k, and the step divisor stays
+ * {@link #LADDER_STEPS} (10) even though the prestige cap is 20 (4.7.12,
+ * {@code DmzRevampPrestigeLadderMixin}), so the ladder is 50k, 65k, 80k … 140k, then 150k from 7 held
+ * up to 20. {@link #levelCap(StatsData)} reads it; LM does not recompute it. Without dmzrevamp the cap is {@link #OVERHAUL_LEVEL_CAP} (100k). Breakthroughs were
  * removed in 4.7.2; stored counts are left in place and read by nothing.
  */
 public final class LmOverhaulCapMath {
@@ -26,6 +27,11 @@ public final class LmOverhaulCapMath {
     public static final int OVERHAUL_INITIAL_LEVEL_CAP = 50_000;
     /** Overhaul {@code maxLevel} LM pins (the DMZ stat ceiling). */
     public static final int OVERHAUL_ABSOLUTE_LEVEL_CAP = PrestigePointsSystem.ABSOLUTE_LEVEL_CAP;
+    /**
+     * Steps of the level-cap ladder: the divisor in Overhaul's {@code levelCap}, fixed at 10 so the
+     * early requirements stay where they were when the prestige cap went from 10 to 20 (4.7.12).
+     */
+    public static final int LADDER_STEPS = 10;
 
     private static volatile Method revampInitialStatTotal;
     private static volatile Method revampPointsPerLevel;
@@ -107,6 +113,68 @@ public final class LmOverhaulCapMath {
             }
         }
         return LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE;
+    }
+
+    /**
+     * The level cap Overhaul's ladder gives at {@code count} held: {@code initial} at 0, rising by
+     * {@code (initial + (max - initial)) / steps} per prestige, capped at {@code max}, and {@code max}
+     * from {@code maxCount} on.
+     */
+    public static int ladderCap(int initial, int max, int steps, int maxCount, int count) {
+        int c = Math.min(Math.max(0, count), Math.max(1, maxCount));
+        if (c >= maxCount) {
+            return max;
+        }
+        double step = (double) initial / steps + (double) (max - initial) / steps;
+        return (int) Math.min((double) max, Math.floor((double) initial + (double) c * step));
+    }
+
+    /**
+     * Raise Overhaul's {@code maxPrestigeCount} to {@link LmOverhaulPrestigeIntegration#OVERHAUL_MAX_PRESTIGE}
+     * (20) in memory, every boot, but only once Overhaul's own {@code levelCap} proves the ladder keeps
+     * {@link #LADDER_STEPS} steps at the new cap (the {@code DmzRevampPrestigeLadderMixin} redirects
+     * applied). If it does not, the previous cap is put back and a warning names it, so the early
+     * requirements can never drop.
+     */
+    public static void pinPrestigeCap() {
+        if (!ModList.get().isLoaded("dmzrevamp")) {
+            return;
+        }
+        try {
+            Class<?> cfgCls = Class.forName("com.dmzrevamp.config.LevelingRevampConfig");
+            Object cfg = cfgCls.getMethod("get").invoke(null);
+            Object levels = cfg.getClass().getField("levelsAndAttributes").get(cfg);
+            Object prestige = cfg.getClass().getField("Prestige").get(cfg);
+            java.lang.reflect.Field maxCount = prestige.getClass().getField("maxPrestigeCount");
+            int before = maxCount.getInt(prestige);
+            int target = LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE;
+            maxCount.setInt(prestige, target);
+            boolean ladderOn = prestige.getClass().getField("enabled").getBoolean(prestige)
+                    && levels.getClass().getField("enabled").getBoolean(levels);
+            if (ladderOn) {
+                int initial = prestige.getClass().getField("initialLevelCap").getInt(prestige);
+                int max = levels.getClass().getField("maxLevel").getInt(levels);
+                Class<?> ps = Class.forName("com.dmzrevamp.revamp.prestige.PrestigeSystem");
+                StatsData probe = new StatsData(null);
+                ps.getMethod("setCount", StatsData.class, int.class).invoke(null, probe, 1);
+                int got = ((Number) ps.getMethod("levelCap", StatsData.class).invoke(null, probe)).intValue();
+                int want = ladderCap(initial, max, LADDER_STEPS, target, 1);
+                if (got != want) {
+                    maxCount.setInt(prestige, before);
+                    AdaptiveDifficultyMod.LOGGER.warn(
+                            "[{}] prestige cap left at {}: Overhaul's level cap ladder would change at {} "
+                                    + "(1 held gives {}, expected {}); dmzrevamp's levelCap no longer matches LM",
+                            AdaptiveDifficultyMod.MOD_ID, before, target, got, want);
+                    return;
+                }
+            }
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Overhaul prestige cap pinned: maxPrestigeCount={} (was {}); level cap ladder keeps {} steps",
+                    AdaptiveDifficultyMod.MOD_ID, target, before, LADDER_STEPS);
+        } catch (Throwable t) {
+            AdaptiveDifficultyMod.LOGGER.warn(
+                    "[{}] Overhaul prestige cap pin failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
+        }
     }
 
     /**

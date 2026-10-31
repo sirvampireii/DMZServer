@@ -1140,7 +1140,7 @@ public final class ProgressionGuiApi {
         List<String> lore = new ArrayList<>();
         lore.add("§7Lifetime prestiges §f" + ph.getOrDefault("completed", "0")
                 + " §7- Current prestige amount §f" + ph.getOrDefault("held", "0")
-                + "§7/§f" + ph.getOrDefault("held_max", "10"));
+                + "§7/§f" + ph.getOrDefault("held_max", String.valueOf(com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE)));
         switch (p) {
             case "turnin", "points" -> {
                 lore.add("§7Prestige favor: §e" + ph.getOrDefault("points", "0"));
