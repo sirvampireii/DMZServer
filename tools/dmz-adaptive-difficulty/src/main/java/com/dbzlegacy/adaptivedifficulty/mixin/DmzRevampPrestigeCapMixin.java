@@ -12,19 +12,21 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Overhaul's {@code levelCap} runs natively (no LM override since 4.7.2): it rises with the prestige
- * count, from the {@code initialLevelCap} LM pins (50k) to {@code maxLevel} (150k). LM reads it
- * through {@code DmzRevampPrestigeBridge.levelCap} for the prestige requirement, the soft-locks, and
- * the menus, and {@code hexStatReference}, {@code maxAssignableTotal} and {@code canPrestige} here
- * use the same native value ({@code LmOverhaulCapMath.overhaulLevelCap(data)}). Playable totals stay
- * {@link com.dbzlegacy.adaptivedifficulty.mixin.StatsDataMixin} + this
- * {@code maxAssignableTotal} + TP/stat soft-locks. The most prestiges a player can hold is
- * Overhaul's own {@code maxPrestigeCount}.
+ * LM's limits on Overhaul's {@code PrestigeSystem} (dmzrevamp 2.2.4, 4.7.14).
+ * <p>
+ * 2.2.4 has one level cap ({@code configuredLevelMaximum()}) and no prestige-count cap: its
+ * {@code canPrestigeAuthoritative} only checks the {@code prestige_saga:3} quest. LM keeps the cap of
+ * 20 ({@link LmOverhaulCapMath#configuredMaxPrestigeCount()}) here: {@code setCount} clamps to it, and
+ * {@code canPrestige} / {@code canPrestigeAuthoritative} (the one {@code tryPrestige} asks) say no at 20
+ * held or while LM's prestige integration is off. They never say yes, so 2.2.4's own quest check
+ * still decides the rest (the flat level cap does not gate it). {@code maxAssignableTotal} uses the same level cap as the menus. The
+ * {@code hexStatReference} hook is gone with the method. Every hook is {@code require = 0}: if a
+ * dmzrevamp update moves one, boot continues and the startup self-test warns.
  */
 @Mixin(targets = "com.dmzrevamp.revamp.prestige.PrestigeSystem", remap = false, priority = 5000)
 public abstract class DmzRevampPrestigeCapMixin {
 
-    @Inject(method = "maxAssignableTotal", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = "maxAssignableTotal", at = @At("HEAD"), cancellable = true, require = 0, remap = false)
     private static void lm$maxAssignableTotal(StatsData data, CallbackInfoReturnable<Integer> cir) {
         if (data == null || !lmCapsEnforced()) {
             return;
@@ -32,17 +34,27 @@ public abstract class DmzRevampPrestigeCapMixin {
         cir.setReturnValue(LmOverhaulCapMath.maxAssignableTotal(data));
     }
 
-    @Inject(method = "hexStatReference", at = @At("HEAD"), cancellable = true, remap = false)
-    private static void lm$hexReferenceUsesPersonalCap(StatsData data, CallbackInfoReturnable<Double> cir) {
-        if (data == null || !lmCapsEnforced()) {
-            return;
+    @Inject(method = "canPrestige", at = @At("HEAD"), cancellable = true, require = 0, remap = false)
+    private static void lm$blockOverhaulRebirth(StatsData data, CallbackInfoReturnable<Boolean> cir) {
+        if (lm$blocked(data)) {
+            cir.setReturnValue(false);
         }
-        int cap = LmOverhaulCapMath.overhaulLevelCap(data);
-        cir.setReturnValue((double) Math.max(1, cap));
     }
 
-    @Inject(method = "canPrestige", at = @At("HEAD"), cancellable = true, remap = false)
-    private static void lm$blockOverhaulRebirth(StatsData data, CallbackInfoReturnable<Boolean> cir) {
+    @Inject(method = "canPrestigeAuthoritative", at = @At("HEAD"), cancellable = true, require = 0, remap = false)
+    private static void lm$blockOverhaulRebirthAuthoritative(StatsData data, CallbackInfoReturnable<Boolean> cir) {
+        if (lm$blocked(data)) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    @ModifyVariable(method = "setCount", at = @At("HEAD"), argsOnly = true, require = 0, remap = false)
+    private static int lm$capOverhaulPrestigeCount(int count) {
+        return Math.max(0, Math.min(LmOverhaulCapMath.configuredMaxPrestigeCount(), count));
+    }
+
+    /** At the cap of 20, or LM prestige on without the Overhaul integration: no prestige. */
+    private static boolean lm$blocked(StatsData data) {
         int count = 0;
         try {
             count = com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
@@ -50,27 +62,9 @@ public abstract class DmzRevampPrestigeCapMixin {
         } catch (Throwable ignored) {
         }
         if (count >= LmOverhaulCapMath.configuredMaxPrestigeCount()) {
-            cir.setReturnValue(false);
-            return;
+            return true;
         }
-        if (lmOwnsPrestige() && !LmOverhaulPrestigeIntegration.integrationActive()) {
-            cir.setReturnValue(false);
-            return;
-        }
-        // Gate on Overhaul's native cap for this player (the prestige requirement).
-        if (data == null) {
-            return;
-        }
-        try {
-            int cap = LmOverhaulCapMath.overhaulLevelCap(data);
-            cir.setReturnValue(data.getLevel() >= cap);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    @ModifyVariable(method = "setCount", at = @At("HEAD"), argsOnly = true, remap = false)
-    private static int lm$capOverhaulPrestigeCount(int count) {
-        return Math.max(0, Math.min(LmOverhaulCapMath.configuredMaxPrestigeCount(), count));
+        return lmOwnsPrestige() && !LmOverhaulPrestigeIntegration.integrationActive();
     }
 
     private static boolean lmOwnsPrestige() {

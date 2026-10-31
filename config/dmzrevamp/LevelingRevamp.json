@@ -8,20 +8,15 @@
   },
   "Prestige": {
     "enabled": true,
-    "initialLevelCap": 100000,
-    "maxPrestigeCount": 10,
-    "prestigeHexStatChange": true,
-    "usePrestigeMaxAttribute": true,
     "scaleBonusPerPrestige": 0.5,
-    "TPBonusPerPrestige": 1.0,
+    "TPBonusPerPrestige": 0.5,
     "masteryBonusPerPrestige": 1.0,
     "storyRewardBonusPerPrestige": 0.5,
     "storyDifficultyIncreasePerPrestige": 0.75,
     "keepSkillsOnPrestige": false,
     "keepFormsOnPrestige": false,
     "bonusesLostOnPrestige": true,
-    "statRevertToInitialOnPrestige": true,
-    "statPercentageLossOnPrestige": 0.95,
+    "statPercentageConvertOnPrestige": 0.95,
     "resetQuestsOnPrestige": true
   }
 }

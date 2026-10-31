@@ -232,7 +232,7 @@ public final class DmzProgression {
         return configuredMaxDmzLevel(data, null);
     }
 
-    /** Ceiling for a player: Overhaul's native cap for them, within 150k. */
+    /** Ceiling for a player: Overhaul's level cap (flat since dmzrevamp 2.2.4), within 150k. */
     public static int configuredMaxDmzLevel(Player player) {
         return configuredMaxDmzLevel(stats(player), player);
     }

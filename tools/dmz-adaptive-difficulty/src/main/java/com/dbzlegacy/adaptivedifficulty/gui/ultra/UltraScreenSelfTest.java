@@ -1226,10 +1226,11 @@ public final class UltraScreenSelfTest {
     }
 
     /**
-     * 4.7.2: the prestige requirement is Overhaul's native level cap, read through the bridge. It rises
-     * with the Overhaul prestige count (LM sets it from held): with LM's pins (initial 50k, max 150k)
-     * and max count 10 that is 50k, 65k, 80k, 95k, 110k, 125k, 140k, then 150k from 7 held. Without
-     * dmzrevamp the cap is 100k. The most prestiges held is revamp's maxPrestigeCount (10 without it).
+     * The prestige requirement is Overhaul's level cap, read through the bridge (4.7.2). Since
+     * dmzrevamp 2.2.4 (4.7.14) that is one flat cap, {@code PrestigeSystem.configuredLevelMaximum()}
+     * (150k as LM pins it); there is no per-prestige ladder. Without dmzrevamp the cap is 100k. The
+     * most prestiges held is LM's 20. The dmzrevamp side is checked at server start
+     * ({@link #checkOverhaulFlatCapAndCount}), with warnings only.
      */
     private static void checkPrestigeFollowsOverhaul(List<String> broken) {
         boolean revamp = false;
@@ -1243,68 +1244,19 @@ public final class UltraScreenSelfTest {
         }
         int need = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.requiredLevel(null);
         if (need != noData) {
-            broken.add("prestige need without stats should be Overhaul's initial cap " + noData + ", got " + need);
+            broken.add("prestige need should be the level cap " + noData + ", got " + need);
         }
         if (!com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(noData, noData)
                 || com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.meetsRequirement(noData - 1, noData)) {
             broken.add("prestige gate should be level at or above the cap");
         }
-        // Overhaul's formula with LM's pins, as the acceptance ladder states it: 10 steps, cap 20
-        // (4.7.12), so 0-6 held rise by 15k and 7-20 held are all 150k.
-        int[] want = {50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000, 150_000, 150_000, 150_000, 150_000,
-                150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000, 150_000};
-        for (int count = 0; count < want.length; count++) {
-            int got = overhaulLadder(50_000, 150_000, 20, count);
-            if (got != want[count]) {
-                broken.add("Overhaul ladder at " + count + " held should be " + want[count] + ", got " + got);
-            }
-        }
-        if (revamp) {
-            // The real thing: Overhaul's own levelCap on a detached StatsData, through the bridge.
-            try {
-                Class<?> cfgCls = Class.forName("com.dmzrevamp.config.LevelingRevampConfig");
-                Object cfg = cfgCls.getMethod("get").invoke(null);
-                Object prestige = cfg.getClass().getField("Prestige").get(cfg);
-                Object levels = cfg.getClass().getField("levelsAndAttributes").get(cfg);
-                boolean ladderOn = prestige.getClass().getField("enabled").getBoolean(prestige)
-                        && levels.getClass().getField("enabled").getBoolean(levels);
-                int initial = prestige.getClass().getField("initialLevelCap").getInt(prestige);
-                int max = levels.getClass().getField("maxLevel").getInt(levels);
-                int maxCount = Math.max(1, prestige.getClass().getField("maxPrestigeCount").getInt(prestige));
-                if (ladderOn) {
-                    Class<?> ps = Class.forName("com.dmzrevamp.revamp.prestige.PrestigeSystem");
-                    java.lang.reflect.Method setCount = ps.getMethod(
-                            "setCount", com.dragonminez.common.stats.StatsData.class, int.class);
-                    com.dragonminez.common.stats.StatsData sd = new com.dragonminez.common.stats.StatsData(null);
-                    for (int count = 0; count <= maxCount + 1; count++) {
-                        setCount.invoke(null, sd, count);
-                        int got = com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge.levelCap(sd);
-                        int expected = overhaulLadder(initial, max, maxCount, count);
-                        if (count == 1 && maxCount > com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.LADDER_STEPS
-                                && got != expected) {
-                            broken.add("Overhaul ladder stretched at cap " + maxCount + ": 1 held gives " + got
-                                    + ", should stay " + expected + " (10 steps)");
-                        }
-                        if (got != expected) {
-                            broken.add("Overhaul cap at " + count + " held should be " + expected + ", got " + got);
-                        }
-                        if (initial == 50_000 && max == 150_000 && maxCount == 20 && count < want.length
-                                && got != want[count]) {
-                            broken.add("Overhaul cap at " + count + " held should be " + want[count] + ", got " + got);
-                        }
-                    }
-                }
-            } catch (Throwable t) {
-                broken.add("Overhaul cap ladder check failed: " + t);
-            }
-        }
         int maxHeld = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.maxHeld();
         int revampMax = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.configuredMaxPrestigeCount();
         if (maxHeld != revampMax) {
-            broken.add("most prestiges held should be revamp's maxPrestigeCount " + revampMax + ", got " + maxHeld);
+            broken.add("most prestiges held should be LM's cap " + revampMax + ", got " + maxHeld);
         }
-        if (!revamp && maxHeld != com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE) {
-            broken.add("without dmzrevamp the most prestiges held should fall back to "
+        if (maxHeld != com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE) {
+            broken.add("the most prestiges held should be "
                     + com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE
                     + ", got " + maxHeld);
         }
@@ -1330,10 +1282,37 @@ public final class UltraScreenSelfTest {
         }
     }
 
-    /** Test oracle only: Overhaul's native {@code levelCap} formula. LM's requirement never uses it. */
-    private static int overhaulLadder(int initial, int max, int maxCount, int count) {
-        return com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.ladderCap(
-                initial, max, com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.LADDER_STEPS, maxCount, count);
+    /**
+     * dmzrevamp present: Overhaul's flat cap matches LM's, and LM's hooks hold Overhaul's prestige count
+     * at 20 (setCount clamp, canPrestigeAuthoritative says no at 20). Run at server start, once
+     * dmzrevamp's config is loaded ({@code DmzRevampConfigBridge}). Warnings only, never a failed boot.
+     */
+    public static void checkOverhaulFlatCapAndCount() {
+        int lmCap = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.overhaulLevelCap();
+        int max = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE;
+        try {
+            Class<?> ps = Class.forName("com.dmzrevamp.revamp.prestige.PrestigeSystem");
+            int overhaulCap = ((Number) ps.getMethod("configuredLevelMaximum").invoke(null)).intValue();
+            if (overhaulCap != lmCap) {
+                AdaptiveDifficultyMod.LOGGER.warn("[{}] level cap: LM reads {}, Overhaul's configuredLevelMaximum is {}",
+                        AdaptiveDifficultyMod.MOD_ID, lmCap, overhaulCap);
+            }
+            com.dragonminez.common.stats.StatsData sd = new com.dragonminez.common.stats.StatsData(null);
+            ps.getMethod("setCount", com.dragonminez.common.stats.StatsData.class, int.class).invoke(null, sd, max + 5);
+            int count = ((Number) ps.getMethod("count", com.dragonminez.common.stats.StatsData.class).invoke(null, sd)).intValue();
+            boolean allowed = (Boolean) ps.getMethod("canPrestigeAuthoritative", com.dragonminez.common.stats.StatsData.class)
+                    .invoke(null, sd);
+            if (count != max || allowed) {
+                AdaptiveDifficultyMod.LOGGER.warn("[{}] prestige cap {} not enforced on Overhaul: setCount({}) gave {}, "
+                                + "canPrestigeAuthoritative at the cap gave {} (DmzRevampPrestigeCapMixin did not apply?)",
+                        AdaptiveDifficultyMod.MOD_ID, max, max + 5, count, allowed);
+                return;
+            }
+            AdaptiveDifficultyMod.LOGGER.info("[{}] Overhaul prestige: level cap {} (flat), prestige cap {} enforced",
+                    AdaptiveDifficultyMod.MOD_ID, overhaulCap, max);
+        } catch (Throwable t) {
+            AdaptiveDifficultyMod.LOGGER.warn("[{}] Overhaul prestige check skipped: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
+        }
     }
 
     /**

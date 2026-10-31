@@ -56,8 +56,7 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
         if (mixinClassName != null && mixinClassName.endsWith("PrestigeServiceIntegrationMixin")) {
             return dmzRevampClassPresent("com/dmzrevamp/revamp/prestige/PrestigeService.class");
         }
-        if (mixinClassName != null && (mixinClassName.endsWith("DmzRevampPrestigeCapMixin")
-                || mixinClassName.endsWith("DmzRevampPrestigeLadderMixin"))) {
+        if (mixinClassName != null && mixinClassName.endsWith("DmzRevampPrestigeCapMixin")) {
             return dmzRevampClassPresent("com/dmzrevamp/revamp/prestige/PrestigeSystem.class");
         }
         if (mixinClassName != null && mixinClassName.endsWith("DmzultraNemesisSpawnGateMixin")) {

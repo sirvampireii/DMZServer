@@ -368,6 +368,11 @@ Fourteen classes re-extracted from `mods/LegacyMechanics-4.7.13.jar`; javap diff
 seven other `PrestigeShopConfig` inner classes differ only in line numbers. The other 11 are
 unchanged.
 
+## Re-baseline (2026-10-31, 4.7.14 dmzrevamp 2.2.4)
+
+`AdaptiveDifficultyMod` re-extracted from `mods/LegacyMechanics-4.7.14.jar` (javap: version string
+only). The other 24 are unchanged, also when compiled against dmzrevamp 2.2.4 and DragonMineZ 2.2.1.
+
 ## Refresh the reference set
 
 ```bash

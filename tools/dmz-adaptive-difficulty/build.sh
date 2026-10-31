@@ -14,7 +14,7 @@ FTB="$ROOT/libraries/ftb-teams-forge-2001.3.1.jar"
 FTB_CHUNKS="$ROOT/libraries/ftb-chunks-forge-2001.3.8.jar"
 FTB_LIBRARY="$ROOT/libraries/ftb-library-forge-2001.2.13.jar"
 ARCHITECTURY="$ROOT/libraries/architectury-9.2.14-forge.jar"
-REVAMP="$ROOT/libraries/dmzrevamp-2.1.1.jar"
+REVAMP="${DMZREVAMP_JAR:-$ROOT/libraries/dmzrevamp-2.2.4.jar}"
 CNPC="$ROOT/mods/CustomNPCs-1.20.1-GBPort-Unofficial-1.20.1.20260227.jar"
 if [[ ! -f "$FTB" ]]; then
   echo "Downloading FTB Teams for compile..."
