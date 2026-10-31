@@ -950,6 +950,7 @@ public final class UltraScreenSelfTest {
         checkPrestigeFollowsOverhaul(broken);
         com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter.selfTest(broken);
         com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.selfTest(broken);
+        com.dbzlegacy.adaptivedifficulty.character.SaiyanTailWipeHelper.selfTest(broken);
 
         if (broken.isEmpty()) {
             LmLog.event(

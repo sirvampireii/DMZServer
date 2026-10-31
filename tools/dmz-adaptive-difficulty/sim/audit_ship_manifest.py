@@ -1629,6 +1629,30 @@ def main() -> int:
           and "## Closed on KaiPath 1.5.1 / LM 4.7.8" in gb_gaps
           and "Not shipped on any KaiPath yet" not in gb_proto)
 
+    print("\n--- § saiyan tail restore 4.7.9 ---")
+    st_help = read(SRC / "character/SaiyanTailWipeHelper.java")
+    st_cs = read(SRC / "character/CharacterServicesSystem.java")
+    st_flow = read(SRC / "character/RaceChangeCreationFlow.java")
+    st_store = read(SRC / "noea/MajinAbsorptionStore.java")
+    st_created = st_flow.split("public static void onCharacterCreated(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest saiyan-tail-restore row", "saiyan-tail-restore" in manifest)
+    check("restore mirrors the clear: tail family only, flag off only, both flags set, viewers resynced",
+          "public static void restoreIfTailRace(ServerPlayer player, String via)" in st_help
+          and "return !hasTail && TAIL_RACES.contains(normalizeRace(race));" in st_help
+          and "ch.setHasSaiyanTail(true);" in st_help and "status.setTailVisible(true);" in st_help
+          and "NetworkHandler.sendToTrackingEntityAndSelf(new StatsSyncS2C(player), player);" in st_help
+          and 'Set.of("saiyan", "ancient_saiyan", "sento_saiyan", "monkey")' in st_help)
+    check("restore runs after the clear on every race change path and on creation completion, never on login",
+          st_cs.index("SaiyanTailWipeHelper.restoreIfTailRace(")
+              > st_cs.index("SaiyanTailWipeHelper.clearIfRaceCannotHaveTail(")
+          and "SaiyanTailWipeHelper.restoreIfTailRace(" in st_created
+          and "restoreIfTailRace" not in pc_ev)
+    check("Noea absorption reference removed; wipe entry points kept",
+          "com.butterjaffa" not in st_store
+          and "public static void clear(Player player)" in st_store
+          and "public static void clearIfRaceChanges(StatsData stats, String nextRace)" in st_store)
+    check("self-test covers the tail restore rule", "SaiyanTailWipeHelper.selfTest(broken);" in pc_test)
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")

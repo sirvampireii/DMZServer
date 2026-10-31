@@ -2492,12 +2492,11 @@ def main() -> int:
           and "priority = 1001" in absorb_gate
           and "current - absorbed + scaledBonus" in absorb_gate
           and "package com.dbzlegacy.adaptivedifficulty.noea;" in absorb_store
-          and "data.absorptionMelee = 0" in absorb_store
+          and "com.butterjaffa" not in absorb_store
+          and "public static void clear(Player player)" in absorb_store
           and "AdaptiveDifficultyMod.LOGGER" in absorb_store
           and "System.out.println" not in absorb_store
           and "printStackTrace" not in absorb_store
-          and "data.absorptionKi = 0" in absorb_store
-          and "data.absorptionPower = 0" in absorb_store
           and "MajinAbsorptionStore.clear(player)" in absorb_helper
           and "wipeAbsorption firing" in absorb_helper
           and "AdaptiveDifficultyMod.LOGGER" in absorb_helper
@@ -2529,7 +2528,6 @@ def main() -> int:
           and "System.out.println" not in absorb_log
           and "printStackTrace" not in absorb_log
           and "AbsorptionClearLog.failure" in absorb_helper
-          and "AbsorptionClearLog.failure" in absorb_store
           and "StatsDataGuardsMixin" in mixins_json
           and "StatsDataResetPrestigeSyncMixin" not in mixins_json
           and "ResourcesPoolClampMixin" not in mixins_json
@@ -3401,13 +3399,14 @@ def main() -> int:
         SRC / "com/dbzlegacy/adaptivedifficulty/character/CharacterServicesSystem.java"
     )
     check(
-        "SaiyanTailWipeHelper clears the stuck flags outside the tail family (clear-only)",
+        "SaiyanTailWipeHelper clears the stuck flags outside the tail family; only the race-change restore sets them",
         'Set.of("saiyan", "ancient_saiyan", "sento_saiyan", "monkey")' in tail_wipe_bp
         and "ch.isHasSaiyanTail()" in tail_wipe_bp
         and "ch.setHasSaiyanTail(false)" in tail_wipe_bp
         and "status.setTailVisible(false)" in tail_wipe_bp
-        and "setHasSaiyanTail(true" not in tail_wipe_bp
-        and "setTailVisible(true" not in tail_wipe_bp,
+        and tail_wipe_bp.count("setHasSaiyanTail(true") == 1
+        and tail_wipe_bp.count("setTailVisible(true") == 1
+        and "setHasSaiyanTail(true" in tail_wipe_bp.split("public static void restoreIfTailRace(", 1)[-1],
     )
     check(
         "Tail cleanup runs on race change (new race committed) and login self-heal",
