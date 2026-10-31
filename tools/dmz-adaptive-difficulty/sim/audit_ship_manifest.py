@@ -1678,6 +1678,35 @@ def main() -> int:
           and "GuiModelSync full-set self-test FAILED" in ms_net
           and "failures.add(fullSet)" not in ms_net)
 
+    print("\n--- § character home index 4.7.11 ---")
+    ch_scr = read(SRC / "gui/ultra/UltraCharacterScreens.java")
+    ch_home = ch_scr.split("private static void openHome(", 1)[-1].split("\n    }\n", 1)[0]
+    ch_bones = ch_scr.split("private static void openBones(", 1)[-1].split("\n    private static void ", 1)[0]
+    ch_parts = ch_scr.split("private static void openBodyParts(", 1)[-1].split("\n    private static void ", 1)[0]
+    check("manifest character-home-index row", "character-home-index" in manifest)
+    check("tabs stay Home, Saga, Android",
+          '.tabs("home|Home", "saga|Saga", "android|Android")' in ch_scr)
+    check("Home lists the five non-tab destinations once each, in order, and not the tabs",
+          [a for a in ["page:race:0", "page:class:0", "page:bones:0", "page:bodyparts:0", "page:reskin"]
+           if ch_home.count('"' + a + '"') == 1] == ["page:race:0", "page:class:0", "page:bones:0",
+                                                      "page:bodyparts:0", "page:reskin"]
+          and "tab:saga" not in ch_home and "tab:android" not in ch_home and "saga_reset" not in ch_home
+          and ch_home.index('"page:race:0"') < ch_home.index('"page:class:0"') < ch_home.index('"page:bones:0"')
+              < ch_home.index('"page:bodyparts:0"') < ch_home.index('"page:reskin"'))
+    check("each Home entry has a plain line with its state; blocked entries stay listed, dimmed, with a reason",
+          ch_home.count(".line(indexLine(") == 5
+          and "CosmeticBodyPartService.equippedParts(player).size()" in ch_home
+          and 'return "Turned off on this server right now.";' in ch_scr
+          and 'return "Not available for your rank.";' in ch_scr
+          and 'return "Available again in " + cooldownWait + ".";' in ch_scr
+          and "UltraStyle.STYLE_DIM" in ch_scr.split("private static void indexButton(", 1)[-1][:600])
+    check("Body parts reached only from Home; its Back returns to Character Home; Home footer Back to main menu",
+          "page:bodyparts:0" not in ch_bones
+          and 'footerBack("page:bones:0", "Model")' not in ch_scr
+          and ch_parts.count('footerBackHome("Character Home")') >= 1
+          and "spec.footerBackToMain();" in ch_home)
+    check("self-test covers the Home index rules", "UltraCharacterScreens.selfTest(broken);" in pc_test)
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")

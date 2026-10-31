@@ -131,53 +131,129 @@ public final class UltraCharacterScreens {
     }
 
 
-    /** Overview + look tools - Change Race / Class / Model / Reskin on Home. */
+    /**
+     * Home is the index (4.7.11): one plain line per destination that is not a tab - what it
+     * does and where the player stands - and one button per destination below, in the same
+     * order. Saga reset and Android are tabs, so they are not repeated here. A destination the
+     * player cannot use right now stays listed, dimmed, with the reason.
+     */
     private static void openHome(ServerPlayer player) {
         Map<String, String> ph = CharacterServicesGuiApi.placeholders(player);
-        boolean canRace = "true".equals(ph.get("can_race_change"));
-        boolean canClass = "true".equals(ph.get("can_class_change"));
-        boolean canReskin = "true".equals(ph.get("can_reskin"));
-        boolean canBones = "true".equals(ph.get("can_head_bones"));
+        CharacterServicesConfig cfg = CharacterServicesConfig.get();
         boolean monkeyFormModel = "true".equals(ph.get("head_bones_form_model_blocked"));
+        String race = ph.getOrDefault("current_race", "");
+        String cls = ph.getOrDefault("current_class", "");
+
+        String raceBlock = blockReason(cfg.enabled && cfg.raceChange.enabled,
+                "true".equals(ph.get("can_race_change")),
+                CharacterServicesSystem.cooldownWait(player, "race"));
+        String classBlock = blockReason(cfg.enabled && cfg.classChange.enabled,
+                "true".equals(ph.get("can_class_change")),
+                CharacterServicesSystem.cooldownWait(player, "class"));
+        String bonesBlock = monkeyFormModel
+                ? "Not available for Monkey - this race uses a form model."
+                : blockReason(cfg.enabled && cfg.headBoneShop.enabled,
+                        "true".equals(ph.get("can_head_bones")), "");
+        String partsBlock = blockReason(cfg.enabled && cfg.bodyPartShop.enabled,
+                CharacterServicesAccess.canBodyPartShop(player), "");
+        String reskinBlock = blockReason(cfg.enabled && cfg.reskin.enabled,
+                "true".equals(ph.get("can_reskin")),
+                CharacterServicesSystem.cooldownWait(player, "reskin"));
+
+        String bone = ph.getOrDefault("active_head_bone", "");
+        int worn = CosmeticBodyPartService.equippedParts(player).size();
         UltraScreenSpec spec = base(player, "main", "home", true)
-                .labelValue("Race", ph.getOrDefault("current_race", "-"))
-                .labelValue("Class", ph.getOrDefault("current_class", "-"));
-        if (monkeyFormModel) {
-            spec.line(UltraStyle.LABEL
-                    + "Not available for Monkey - this race uses a form model.");
-        }
+                .line(indexLine("Change race",
+                        (race.isBlank() ? "Pick a new race." : "You are " + article(race) + " " + race + ".")
+                                + " You choose how much of your stats to keep.",
+                        raceBlock))
+                .line(indexLine("Change class",
+                        (cls.isBlank() ? "Pick a fighting class." : "Your class is " + cls + ".")
+                                + " Race and stats stay.",
+                        classBlock))
+                .line(indexLine("Customize model",
+                        (bone.isBlank() || "-".equals(bone) || "None".equalsIgnoreCase(bone)
+                                ? "No head parts equipped."
+                                : "Wearing " + bone + ".")
+                                + " Swap the parts on your head.",
+                        bonesBlock))
+                .line(indexLine("Body parts",
+                        (worn == 0 ? "Nothing equipped." : worn + (worn == 1 ? " piece" : " pieces") + " equipped.")
+                                + " Unlock and wear tails, wings, horns and more.",
+                        partsBlock))
+                .line(indexLine("Reskin",
+                        "Change your hair, eyes and colors. Race, class and stats stay.",
+                        reskinBlock));
         spec.buttonsAfterLines();
 
-        if (canRace) {
-            spec.buttonLeft("page:race:0", UltraStyle.confirm("Change race"), UltraStyle.STYLE_CONFIRM);
-        } else {
-            spec.buttonLeft("page:race:0", UltraStyle.dim("Change race"), UltraStyle.STYLE_DIM);
-        }
-        if (canClass) {
-            spec.buttonRight("page:class:0", UltraStyle.confirm("Change class"), UltraStyle.STYLE_CONFIRM);
-        } else {
-            spec.buttonRight("page:class:0", UltraStyle.dim("Change class"), UltraStyle.STYLE_DIM);
-        }
+        indexButton(spec, true, "page:race:0", "Change race", raceBlock);
+        indexButton(spec, false, "page:class:0", "Change class", classBlock);
         spec.rowGap();
-
-        if (canBones) {
-            spec.buttonLeft(
-                    "page:bones:0",
-                    UltraStyle.confirm("Customize model"),
-                    UltraStyle.STYLE_CONFIRM);
-        } else {
-            spec.buttonLeft(
-                    "page:bones:0", UltraStyle.dim("Customize model"), UltraStyle.STYLE_DIM);
-        }
-        if (canReskin) {
-            spec.buttonRight("page:reskin", UltraStyle.confirm("Reskin"), UltraStyle.STYLE_CONFIRM);
-        } else {
-            spec.buttonRight("page:reskin", UltraStyle.dim("Reskin"), UltraStyle.STYLE_DIM);
-        }
+        indexButton(spec, true, "page:bones:0", "Customize model", bonesBlock);
+        indexButton(spec, false, "page:bodyparts:0", "Body parts", partsBlock);
+        spec.rowGap();
+        indexButton(spec, true, "page:reskin", "Reskin", reskinBlock);
         spec.rowGap();
 
         spec.footerBackToMain();
         spec.send(player);
+    }
+
+    /** Why a Home destination cannot be used right now, or {@code ""} when it can. */
+    static String blockReason(boolean turnedOn, boolean permitted, String cooldownWait) {
+        if (!turnedOn) {
+            return "Turned off on this server right now.";
+        }
+        if (!permitted) {
+            return "Not available for your rank.";
+        }
+        if (cooldownWait != null && !cooldownWait.isBlank()) {
+            return "Available again in " + cooldownWait + ".";
+        }
+        return "";
+    }
+
+    /** One index line: the destination's name, then what it does or why it is unavailable. */
+    static String indexLine(String name, String about, String block) {
+        if (block != null && !block.isBlank()) {
+            return UltraStyle.GRAY + name + ": " + block; // muted but readable; the button is dimmed
+        }
+        return UltraStyle.LABEL + name + ": " + UltraStyle.VALUE + about;
+    }
+
+    private static void indexButton(UltraScreenSpec spec, boolean left, String action, String label, String block) {
+        boolean open = block == null || block.isBlank();
+        String text = open ? UltraStyle.confirm(label) : UltraStyle.dim(label);
+        String style = open ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM;
+        if (left) {
+            spec.buttonLeft(action, text, style);
+        } else {
+            spec.buttonRight(action, text, style);
+        }
+    }
+
+    /** Startup self-test: Home index reasons, dimmed lines and wording. */
+    public static void selfTest(List<String> broken) {
+        if (!blockReason(true, true, "").isEmpty()
+                || !blockReason(false, true, "").startsWith("Turned off")
+                || !blockReason(true, false, "1h").startsWith("Not available for your rank")
+                || !blockReason(true, true, "3h 12m").equals("Available again in 3h 12m.")) {
+            broken.add("Character Home: a destination's reason should be off, then rank, then cooldown");
+        }
+        String open = UltraStyle.plain(indexLine("Body parts", "2 pieces equipped.", ""));
+        String shut = UltraStyle.plain(indexLine("Reskin", "Change your look.", "Available again in 5m."));
+        if (!open.equals("Body parts: 2 pieces equipped.") || !shut.equals("Reskin: Available again in 5m.")) {
+            broken.add("Character Home: an entry should read 'Name: what it does' or 'Name: why not', got "
+                    + open + " / " + shut);
+        }
+        if (!"an".equals(article("Android")) || !"a".equals(article("Saiyan"))) {
+            broken.add("Character Home: race article should read 'an Android' / 'a Saiyan'");
+        }
+    }
+
+    /** "a" or "an" for a race name ("an Android", "a Saiyan"). */
+    static String article(String word) {
+        return word != null && !word.isEmpty() && "aeiouAEIOU".indexOf(word.charAt(0)) >= 0 ? "an" : "a";
     }
 
     /** Races per Ultra page (two columns). Hard-capping without paging hid later races. */
@@ -559,14 +635,7 @@ public final class UltraCharacterScreens {
                         UltraStyle.danger("Clear parts"),
                         UltraStyle.STYLE_DANGER)
                 .rowGap();
-        if (CharacterServicesConfig.get().bodyPartShop.enabled
-                && CharacterServicesAccess.canBodyPartShop(player)) {
-            spec.buttonLeft(
-                            "page:bodyparts:0",
-                            UltraStyle.LABEL + "Body parts",
-                            UltraStyle.STYLE_NORMAL)
-                    .rowGap();
-        }
+        // Body parts is its own entry on Character Home (4.7.11); no second link here.
         if (pg > 0) {
             spec.buttonLeft(
                     "page:bones:" + (pg - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
@@ -627,7 +696,7 @@ public final class UltraCharacterScreens {
                     .line(UltraStyle.LABEL
                             + "Not available for Monkey - this race uses a form model.")
                     .buttonsAfterLines();
-            spec.footerBack("page:bones:0", "Model");
+            spec.footerBackHome("Character Home");
             spec.send(player);
             return;
         }
@@ -701,7 +770,7 @@ public final class UltraCharacterScreens {
         } else if (pg > 0) {
             spec.rowGap();
         }
-        spec.footerBack("page:bones:0", "Model");
+        spec.footerBackHome("Character Home");
         spec.send(player);
     }
 
