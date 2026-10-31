@@ -192,7 +192,7 @@ public final class ConfigRegistry {
                     "enableEndMobScaling", "endEnforceSingleDragon",
                     "endKiCleanupEnabled", "endKiPurgeWhenNoDragon", "endKiMaxAliveWhileDragon",
                     "enableShadowDummyLimiter", "enableSkillUnlockService", "enablePrestigeSystem",
-                    "enableOverhaulPrestigeIntegration", "disableUltraFormScaling", "enableSkillCheck", "donatorPermission",
+                    "enableOverhaulPrestigeIntegration", "enableSkillCheck", "donatorPermission",
                     "selfRevivePermission", "terminalPermission", "reviveOthersPermission",
                     "skillCheckNpcNameContains", "enablePlayerStatChecker", "enableLmTips",
                     "lmTipIntervalSeconds", "lmTipNewPlayerIntervalSeconds", "lmTipLoginDelaySeconds",
