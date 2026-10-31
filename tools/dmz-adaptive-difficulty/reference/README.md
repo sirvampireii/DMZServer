@@ -396,6 +396,11 @@ Two classes re-extracted from `mods/LegacyMechanics-4.7.18.jar`; javap diffs che
 `AdaptiveDifficultyMod` (version string) and `PrestigePointsSystem` (`turnIn` now calls
 `PrestigeSystem.pushHeldToCap` after lowering held; nothing else). The other 23 are unchanged.
 
+## Re-baseline (2026-10-31, 4.7.19 quest technique unlock)
+
+`AdaptiveDifficultyMod` re-extracted from `mods/LegacyMechanics-4.7.19.jar` (javap: version string
+only). The other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

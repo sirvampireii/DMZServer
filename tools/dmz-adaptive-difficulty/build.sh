@@ -484,6 +484,7 @@ merge_onto_base_jar() {
         "$merge/com/dbzlegacy/adaptivedifficulty/progression/bridge/"
     fi
     for mixin_cls in ResourcesEnergyDrainGuardMixin StatsDataGuardsMixin StatsDataMixin \
+        StatsDataQuestTechniqueMixin \
         StatsSyncC2SGenderMixin \
         DmzStatsResetPlayerBlockMixin \
         MeleeStatsResetAbsorptionWipeMixin \

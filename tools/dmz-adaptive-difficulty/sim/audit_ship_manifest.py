@@ -1820,6 +1820,24 @@ def main() -> int:
           "blocksOverhaulPrestige(held, want - 1)" in nl_test
           and 'completeQuest("prestige_saga:3")' in nl_test)
 
+    print("\n--- § quest technique unlock 4.7.19 ---")
+    qt_mix = read(SRC / "mixin/StatsDataQuestTechniqueMixin.java")
+    qt_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
+    qt_build = read(MOD / "build.sh")
+    qt_ret = qt_mix.split("private void lm$unlockGrantedTechnique(", 1)[-1]
+    check("manifest quest-technique-unlock row", "quest-technique-unlock" in manifest)
+    check("mixin registered and shipped: grantSkillLevel HEAD + RETURN, require = 0",
+          '"StatsDataQuestTechniqueMixin"' in qt_json and "StatsDataQuestTechniqueMixin \\" in qt_build
+          and qt_mix.count('@Inject(method = "grantSkillLevel"') == 2 and qt_mix.count("require = 0") == 2)
+    check("only 0 -> 1+; ki, strike, evasion registries in DMZ's order; template copied via save/load",
+          "before != 0 || level < 1" in qt_ret
+          and qt_ret.index("PredefinedTechniques.REGISTRY") < qt_ret.index("PredefinedTechniques.STRIKE_REGISTRY")
+          < qt_ret.index("PredefinedTechniques.EVASION_REGISTRY")
+          and qt_ret.count(".save());") == 3 and "toLowerCase(Locale.ROOT)" in qt_ret)
+    check("base techniques only; already unlocked skipped; failures caught",
+          "getBaseTechniques()" in qt_ret and "getUnlockedTechniques().containsKey(copy.getId())" in qt_ret
+          and "catch (Throwable t)" in qt_ret and "getTechniques()" not in qt_ret.replace("getBaseTechniques()", ""))
+
     print("\n--- § prestige cap held sync 4.7.18 ---")
     hs_ps = read(SRC / "progression/shop/PrestigeSystem.java")
     hs_pps = read(SRC / "progression/shop/PrestigePointsSystem.java")
