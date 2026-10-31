@@ -208,6 +208,22 @@ public final class DifficultyConfig {
     public boolean enableRivalSystem = true;
     /** Sparring Tp System 3.2.11 port (auto sessions / mentor / TP formula). */
     public boolean enableSparringSystem = true;
+    /** Sparring: ms a landed melee hit keeps a fighter counted as fighting (4.7.17: 8000, was 4500). */
+    public long sparMeleeHitWindowMs = 8000L;
+    /** Sparring: ms a landed ki / beam hit keeps a fighter counted as fighting. */
+    public long sparKiHitWindowMs = 10_000L;
+    /** Sparring: ms a fighter counts as moving after real movement. */
+    public long sparMovementWindowMs = 10_000L;
+    /** Sparring: ms the pair gets to resume fighting before the session ends (4.7.17: 6000, was 4000). */
+    public long sparSessionGraceMs = 6000L;
+    /** Sparring: ms a reported beam or strike clash holds the session open. */
+    public long sparClashHoldMs = 2500L;
+    /** Sparring: ms the session stays open after a clash ends (4.7.17; covers the loser's stun). */
+    public long sparPostClashHoldMs = 6000L;
+    /** Sparring: ms between hits before a combo resets. */
+    public long sparComboTimeoutMs = 2500L;
+    /** Sparring: ms momentum lasts after the last scored hit. */
+    public long sparMomentumDurationMs = 10_000L;
     /**
      * One-time CustomNPCs storeddata → LM JSON/NBT import on first boot / first login,
      * then clears those CNPC keys so scripts no longer own the data.

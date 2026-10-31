@@ -27,6 +27,12 @@ public final class SparCombat {
     public static final float GLOBAL_TP_GAIN_MULT = 1.50f;
     public static final float BLOCK_TP_BASE = 40.0f;
     public static final float BEAM_CLASH_TP_PER_TICK = 35.0f;
+    /** Base TP per 500 ms to each fighter while both are in a strike clash (4.7.17). */
+    public static final float STRIKE_CLASH_TP_PER_TICK = 35.0f;
+    /** Strike clash result (4.7.17): winner, loser, and each fighter on a tie or a dissolve. */
+    public static final float STRIKE_CLASH_WIN_TP = 500.0f;
+    public static final float STRIKE_CLASH_LOSS_TP = 100.0f;
+    public static final float STRIKE_CLASH_TIE_TP = 150.0f;
     public static final float KNOCKBACK_RECOVERY_TP = 45.0f;
     public static final float MENTOR_SHARE_PCT = 0.15f;
     public static final float MENTOR_SPAR_BONUS_PCT = 0.18f;
@@ -56,6 +62,7 @@ public final class SparCombat {
     public static final float STREAK_BONUS_PER_DAY = 0.02f;
     public static final int MAX_STREAK_DAYS_FOR_BONUS = 14;
     public static final float MAX_STREAK_MULTIPLIER = 1.25f;
+    /** Default for {@code DifficultyConfig.sparMomentumDurationMs}. */
     public static final long MOMENTUM_DURATION_MS = 10_000L;
     public static final boolean SHOW_MOMENTUM_MESSAGES = true;
     /** Extra anti-spam on top of the 2s TP burst batch window. */
@@ -230,8 +237,8 @@ public final class SparCombat {
             return 1.0f;
         }
         long now = System.currentTimeMillis();
-        // Script getMomentumMultiplier clears expired tier on read.
-        if (rt.momentumUntil > 0L && now > rt.momentumUntil) {
+        // Script getMomentumMultiplier clears expired tier on read (not while frozen by a stun / clash).
+        if (rt.selfFrozenAt <= 0L && rt.momentumUntil > 0L && now > rt.momentumUntil) {
             rt.momentumTier = 0;
             rt.momentumUntil = 0L;
         }
@@ -865,7 +872,8 @@ public final class SparCombat {
         }
         int oldTier = rt.momentumTier;
         // Script refreshes momentum window on every scored hit, not only tier-ups.
-        rt.momentumUntil = System.currentTimeMillis() + MOMENTUM_DURATION_MS;
+        rt.momentumStampAt = System.currentTimeMillis();
+        rt.momentumUntil = rt.momentumStampAt + momentumDurationMs();
         int tier = 0;
         for (int i = 0; i < MOMENTUM_THRESHOLDS.length; i++) {
             if (rt.combo >= MOMENTUM_THRESHOLDS[i]) {
@@ -887,6 +895,12 @@ public final class SparCombat {
                     "lm.spar.momentum.subtitle",
                     1_000L);
         }
+    }
+
+    /** Momentum window: {@code DifficultyConfig.sparMomentumDurationMs}, or the default when unset. */
+    public static long momentumDurationMs() {
+        long v = com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig.get().sparMomentumDurationMs;
+        return v > 0L ? v : MOMENTUM_DURATION_MS;
     }
 
     /** @deprecated use {@link #updateMomentum(ServerPlayer, SparPlayerRuntime)} */

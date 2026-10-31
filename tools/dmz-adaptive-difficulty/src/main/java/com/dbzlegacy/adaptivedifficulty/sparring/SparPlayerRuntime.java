@@ -42,14 +42,38 @@ public final class SparPlayerRuntime {
     public double moveY;
     public double moveZ;
     public long moveValidUntil;
+    /** When {@link #moveValidUntil} was last refreshed. */
+    public long moveStampAt;
     public long heavyMotionUntil;
     /** Friendly Fist knockdown heal latch (script spar.ff.kdHealed). */
     public boolean ffKdHealed;
 
     public int combo;
     public long comboUntil;
+    public long comboStampAt;
     public int momentumTier;
     public long momentumUntil;
+    public long momentumStampAt;
+
+    /**
+     * 4.7.17 stun / clash pause. {@code pairFrozenAt}: when either fighter became stunned or clashing
+     * (hit, movement and grace windows stop). {@code hitPauseMs}: paused time credited to the hit
+     * stamped at {@code hitPauseAnchor} (a new hit drops it). {@code selfFrozenAt}: when this fighter
+     * became stunned or clashing (own combo and momentum stop).
+     */
+    public long pairFrozenAt;
+    public long hitPauseMs;
+    public long hitPauseAnchor;
+    public long selfFrozenAt;
+    /** Any clash seen last pulse (post-clash hold on the edge). */
+    public boolean wasClashing;
+    /** Both fighters were in a strike clash last pulse. */
+    public boolean inStrikeClash;
+    /** After a strike clash ends: watch for the loser's stun until this time. */
+    public long strikeResultUntil;
+    public int clashWins;
+    public int clashLosses;
+    public int clashTies;
 
     public double sessionTp;
     public double sessionMelee;
@@ -89,6 +113,18 @@ public final class SparPlayerRuntime {
         comboUntil = 0L;
         momentumTier = 0;
         momentumUntil = 0L;
+        comboStampAt = 0L;
+        momentumStampAt = 0L;
+        pairFrozenAt = 0L;
+        hitPauseMs = 0L;
+        hitPauseAnchor = 0L;
+        selfFrozenAt = 0L;
+        wasClashing = false;
+        inStrikeClash = false;
+        strikeResultUntil = 0L;
+        clashWins = 0;
+        clashLosses = 0;
+        clashTies = 0;
         sessionTp = 0;
         sessionMelee = 0;
         sessionKi = 0;
@@ -109,6 +145,7 @@ public final class SparPlayerRuntime {
         moveY = 0;
         moveZ = 0;
         moveValidUntil = 0L;
+        moveStampAt = 0L;
         heavyMotionUntil = 0L;
         ffKdHealed = false;
         tpPending = 0;
