@@ -371,6 +371,8 @@ public final class PrestigePointsSystem {
         int gained = pointsForTurnIn(want);
         int newHeld = held - want;
         PrestigeSystem.setHeldPublic(player, newHeld);
+        // The level cap drops with held right away (4.7.18), not on the next scheduled re-sync.
+        PrestigeSystem.pushHeldToCap(player);
         int balance = getPoints(player) + gained;
         setPoints(player, balance);
         SystemTelemetry.log("prestige_points", "turn_in", player, null, Map.of(

@@ -2,7 +2,6 @@ package com.dbzlegacy.adaptivedifficulty.mixin;
 
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath;
-import com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration;
 import com.dragonminez.common.stats.StatsData;
 import net.minecraftforge.fml.ModList;
 import org.spongepowered.asm.mixin.Mixin;
@@ -17,9 +16,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * 2.2.4 has one level cap ({@code configuredLevelMaximum()}) and no prestige-count cap: its
  * {@code canPrestigeAuthoritative} only checks the {@code prestige_saga:3} quest. LM keeps the cap of
  * 20 ({@link LmOverhaulCapMath#configuredMaxPrestigeCount()}) here: {@code setCount} clamps to it, and
- * {@code canPrestige} / {@code canPrestigeAuthoritative} (the one {@code tryPrestige} asks) say no at 20
- * held, below LM's prestige requirement for the held count (4.7.15, the same ladder as LM's menu:
- * {@link LmOverhaulCapMath#blocksOverhaulPrestige}), or while LM's prestige integration is off. They
+ * {@code canPrestige} / {@code canPrestigeAuthoritative} (the one {@code tryPrestige} asks) always say no
+ * while LM owns prestige (4.7.18: players prestige only through LM's menu, so Overhaul's count never runs
+ * ahead of the held wallet). With LM prestige off they say no at 20 held or below the requirement for
+ * the held count ({@link LmOverhaulCapMath#blocksOverhaulPrestige}). They
  * never say yes, so 2.2.4's own quest check still applies. {@code maxAssignableTotal} uses the same level cap as the menus. The
  * {@code hexStatReference} hook is gone with the method. Every hook is {@code require = 0}: if a
  * dmzrevamp update moves one, boot continues and the startup self-test warns.
@@ -54,8 +54,11 @@ public abstract class DmzRevampPrestigeCapMixin {
         return Math.max(0, Math.min(LmOverhaulCapMath.configuredMaxPrestigeCount(), count));
     }
 
-    /** At the cap of 20, below the requirement for the held count, or LM prestige on without the integration. */
+    /** LM owns prestige (LM menu only), at the cap of 20, or below the requirement for the held count. */
     private static boolean lm$blocked(StatsData data) {
+        if (lmOwnsPrestige()) {
+            return true;
+        }
         int count = 0;
         try {
             count = com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
@@ -63,9 +66,6 @@ public abstract class DmzRevampPrestigeCapMixin {
         } catch (Throwable ignored) {
         }
         if (count >= LmOverhaulCapMath.configuredMaxPrestigeCount()) {
-            return true;
-        }
-        if (lmOwnsPrestige() && !LmOverhaulPrestigeIntegration.integrationActive()) {
             return true;
         }
         if (data == null) {

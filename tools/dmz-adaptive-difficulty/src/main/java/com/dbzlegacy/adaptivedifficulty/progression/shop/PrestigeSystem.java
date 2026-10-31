@@ -550,6 +550,23 @@ public final class PrestigeSystem {
                     .scheduleSyncAfterStatsReset(player);
         } catch (Throwable ignored) {
         }
+        // 4.7.18: the level cap follows held, so push Overhaul's count and the new cap now.
+        pushHeldToCap(player);
+    }
+
+    /** Overhaul's count from the held wallet, then the level cap that follows it (4.7.18). */
+    public static void pushHeldToCap(ServerPlayer player) {
+        try {
+            com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge.syncFromLegacy(player);
+        } catch (Throwable t) {
+            com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod.LOGGER.warn(
+                    "[{}] prestige count sync failed: {}", com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod.MOD_ID,
+                    t.toString());
+        }
+        try {
+            com.dbzlegacy.adaptivedifficulty.progression.PersonalLevelCapMirror.publish(player);
+        } catch (Throwable ignored) {
+        }
     }
 
     /** Live Prestige NPC.js — clear saga quests/dialogs after purchase. */

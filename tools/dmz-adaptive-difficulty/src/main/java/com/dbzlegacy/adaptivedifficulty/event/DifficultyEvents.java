@@ -158,6 +158,7 @@ public final class DifficultyEvents {
         com.dbzlegacy.adaptivedifficulty.command.MohistCommandBridge.tryRegister(event.getServer());
         DragonBallRadarPickup.registerGriefPrevention();
         VanillaDifficultyGuard.restoreIfPeaceful(event.getServer());
+        com.dbzlegacy.adaptivedifficulty.progression.PrestigeCapProbe.runIfRequested(event.getServer());
         try {
             com.dbzlegacy.adaptivedifficulty.data.CnpcDataMigrator.migrateWorldIfNeeded(event.getServer());
         } catch (Throwable t) {
