@@ -304,6 +304,11 @@ checked: `AdaptiveDifficultyMod` (version string, and the boot call to `Prestige
 `PrestigePointsSystem` (`getPoints` / `setPoints` read and write another character's favor through
 `PrestigeCharacter`; the account path is unchanged). The other 23 are unchanged.
 
+Audit fixes, same day: `PrestigePointsSystem` re-extracted again. javap: the two skill-floor scans
+read `ProgressionData.shop` (the active character's purchases) instead of `ProgressionData.stored`;
+nothing else changed. `GodKiEnhancementShop` and `PrestigeCustomShop` are unchanged: their `pp_*`
+keys reach the character's bag through `ProgressionData`.
+
 ## Refresh the reference set
 
 ```bash

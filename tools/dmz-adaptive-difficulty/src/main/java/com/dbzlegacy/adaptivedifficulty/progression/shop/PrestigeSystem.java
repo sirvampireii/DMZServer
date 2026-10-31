@@ -390,7 +390,10 @@ public final class PrestigeSystem {
         int seed = Math.max(0, Math.max(overhaulCount, Math.max(faction, skill)));
         seed = clampHeld(seed, maxHeld());
         tag.m_128405_(KEY_HELD, seed);
-        mirrorFactionHeld(player, seed);
+        // Faction 4 is per account: only the account character mirrors its held count there.
+        if (PrestigeCharacter.isAccount(player)) {
+            mirrorFactionHeld(player, seed);
+        }
     }
 
     /**
@@ -537,7 +540,10 @@ public final class PrestigeSystem {
         if (PersistentDataAccess.isWritable(tag)) {
             tag.m_128405_(KEY_HELD, clamped);
         }
-        mirrorFactionHeld(player, clamped);
+        // Faction 4 is per account: only the account character mirrors its held count there.
+        if (PrestigeCharacter.isAccount(player)) {
+            mirrorFactionHeld(player, clamped);
+        }
         try {
             com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
                     .scheduleSyncAfterStatsReset(player);

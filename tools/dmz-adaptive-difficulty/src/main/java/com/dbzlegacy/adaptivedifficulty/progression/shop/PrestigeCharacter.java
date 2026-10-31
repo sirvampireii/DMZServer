@@ -3,18 +3,19 @@ package com.dbzlegacy.adaptivedifficulty.progression.shop;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore;
+import com.dbzlegacy.adaptivedifficulty.progression.ProgressionData;
 import com.dragonminez.common.init.MainAttributes;
 import com.dragonminez.common.network.NetworkHandler;
 import com.dragonminez.common.network.S2C.StatsSyncS2C;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.server.events.players.StatsEvents;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -27,30 +28,23 @@ import net.minecraftforge.registries.RegistryObject;
  * <p>
  * DMZ Ultra 0.4.0 gives one account several characters. Each has its own UUID
  * ({@code Slots.characterId}); slot 0's is the account UUID. Prestige held, lifetime prestiges, the
- * staff override, the favor balance and the confirm timer are kept per character, in the LM player file
- * named by that UUID. Everything else in {@link LmPlayerStore} stays per account. Without Ultra, or
- * with its slots off, the id is the account UUID and nothing changes from 4.7.2.
+ * staff override, the favor balance, the confirm timer and every prestige-shop purchase
+ * ({@link ProgressionData#shop}) are kept per character, in the LM player file named by that UUID.
+ * Everything else in {@link LmPlayerStore} stays per account. Without Ultra, or with its slots off, the
+ * id is the account UUID and nothing changes from 4.7.2.
  * <p>
- * A character's first read copies the account's prestige keys into its own file (once, marked by
- * {@link #KEY_SEEDED}); the account file is left as it was. A character DMZ Ultra creates
- * ({@code CharacterEvent.Born}) starts with no prestige and fresh DragonMineZ stats instead.
+ * Migration: slot 0 is the character that already had the account's prestige and purchases, and it
+ * keeps using the account file. Every other character starts at 0 held, 0 lifetime, 0 favor and no
+ * purchases (marked by {@link #KEY_SEEDED}), so the totals across characters equal the account's
+ * values. A character DMZ Ultra creates ({@code CharacterEvent.Born}) also gets fresh DragonMineZ stats.
  */
 public final class PrestigeCharacter {
-    /** Character file: the account's prestige keys were copied in (or the character was born fresh). */
+    /** Character file: its prestige record was started (at zero). */
     static final String KEY_SEEDED = "lm_prestige_seeded";
     /** Account file: births LM has handled, slot number to the slot's creation time. */
     static final String KEY_BIRTHS = "lm_character_births";
-    /** Account file: the account's prestige keys from before slot 0 was created anew. */
-    static final String KEY_ACCOUNT_SEED = "lm_prestige_account_seed";
-    /** The favor mirror inside the account's {@code lm_progression} bag. */
-    private static final String BAG_POINTS = "prestige_points";
-
-    /** Every prestige key that lives per character. */
-    static final List<String> KEYS = List.of(
-            PrestigeSystem.KEY_HELD,
-            PrestigeSystem.KEY_TOTAL,
-            PrestigeSystem.KEY_TOTAL_STAFF_OVERRIDE,
-            PrestigePointsSystem.ROOT_POINTS);
+    /** Purchase keys in the {@code lm_progression} bag. */
+    private static final String SHOP_PREFIX = "pp_";
 
     /** Account to the character files opened for it this session (flushed and unloaded with the account). */
     private static final Map<UUID, Set<UUID>> OPEN = new ConcurrentHashMap<>();
@@ -102,7 +96,7 @@ public final class PrestigeCharacter {
         return player == null || player.m_20148_().equals(id(player));
     }
 
-    /** The active character's prestige record. Seeds it from the account on first use. */
+    /** The active character's prestige record. Another character's record starts at zero. */
     public static CompoundTag root(ServerPlayer player) {
         if (player == null) {
             return LmPlayerStore.root((UUID) null);
@@ -115,10 +109,9 @@ public final class PrestigeCharacter {
         OPEN.computeIfAbsent(account, k -> ConcurrentHashMap.newKeySet()).add(id);
         CompoundTag character = LmPlayerStore.root(id);
         if (!character.m_128441_(KEY_SEEDED)) {
-            CompoundTag accountRoot = LmPlayerStore.root(account);
-            seed(accountSeed(accountRoot, bagPoints(accountRoot)), character);
+            startEmpty(character);
             AdaptiveDifficultyMod.LOGGER.info(
-                    "[{}] prestige record for {}'s character {} started from the account's",
+                    "[{}] prestige record for {}'s character {} started at zero (slot 0 keeps the account's)",
                     AdaptiveDifficultyMod.MOD_ID, player.m_36316_().getName(), id);
         }
         return character;
@@ -146,39 +139,21 @@ public final class PrestigeCharacter {
     }
 
     /**
-     * The account's prestige keys a character starts from: the snapshot kept when slot 0 was created
-     * anew, else the account file's own keys. Favor is the larger of the record and the bag mirror,
-     * the same rule {@link PrestigePointsSystem#getPoints} uses for the account.
+     * First use of a character other than slot 0: 0 held, 0 lifetime, 0 favor. Nothing is copied from
+     * the account (slot 0 keeps it all), and keys the character already has are kept.
      */
-    static CompoundTag accountSeed(CompoundTag accountRoot, long bagPoints) {
-        if (accountRoot.m_128425_(KEY_ACCOUNT_SEED, 10)) { // TAG_COMPOUND
-            return accountRoot.m_128469_(KEY_ACCOUNT_SEED);
-        }
-        CompoundTag out = new CompoundTag();
-        for (String key : KEYS) {
-            Tag value = accountRoot.m_128423_(key);
-            if (value != null) {
-                out.m_128365_(key, value.m_6426_());
-            }
-        }
-        long points = Math.max(Math.max(0L, bagPoints),
-                LmPlayerStore.getLong(accountRoot, PrestigePointsSystem.ROOT_POINTS, 0L));
-        if (points > 0L || out.m_128441_(PrestigePointsSystem.ROOT_POINTS)) {
-            out.m_128356_(PrestigePointsSystem.ROOT_POINTS, points);
-        }
-        return out;
-    }
-
-    /** Copy the seed into a character record once. Keys the character already has are kept. */
-    static void seed(CompoundTag source, CompoundTag character) {
+    static void startEmpty(CompoundTag character) {
         if (character.m_128441_(KEY_SEEDED)) {
             return;
         }
-        for (String key : KEYS) {
-            Tag value = source.m_128423_(key);
-            if (value != null && !character.m_128441_(key)) {
-                character.m_128365_(key, value.m_6426_());
-            }
+        if (!character.m_128441_(PrestigeSystem.KEY_HELD)) {
+            character.m_128405_(PrestigeSystem.KEY_HELD, 0);
+        }
+        if (!character.m_128441_(PrestigeSystem.KEY_TOTAL)) {
+            character.m_128359_(PrestigeSystem.KEY_TOTAL, "0");
+        }
+        if (!character.m_128441_(PrestigePointsSystem.ROOT_POINTS)) {
+            character.m_128356_(PrestigePointsSystem.ROOT_POINTS, 0L);
         }
         character.m_128379_(KEY_SEEDED, true);
     }
@@ -191,6 +166,15 @@ public final class PrestigeCharacter {
         character.m_128356_(PrestigePointsSystem.ROOT_POINTS, 0L);
         character.m_128473_(PrestigeSystem.KEY_CONFIRM_UNTIL);
         character.m_128379_(KEY_SEEDED, true);
+    }
+
+    /** Drop every prestige-shop purchase ({@code pp_*}) from a bag; other records stay. */
+    static void clearPurchases(CompoundTag bag) {
+        for (String key : new ArrayList<>(bag.m_128431_())) {
+            if (key != null && key.startsWith(SHOP_PREFIX)) {
+                bag.m_128473_(key);
+            }
+        }
     }
 
     /**
@@ -208,7 +192,12 @@ public final class PrestigeCharacter {
         return true;
     }
 
-    /** DMZ Ultra moved the player to another character. */
+    /**
+     * DMZ Ultra moved the player to another character. On the next tick (after a Born event in the
+     * same switch): re-sync the Overhaul count from the new character's held, re-apply only that
+     * character's purchases (which also drops the special-perk attributes of the one before), and
+     * re-check tiers so another character's purchased tiers are revoked.
+     */
     static void switchedIn(ServerPlayer player, UUID fromCharacter) {
         if (player == null) {
             return;
@@ -217,8 +206,6 @@ public final class PrestigeCharacter {
             PrestigeSystem.clearPlayer(fromCharacter);
             LmPlayerStore.flush(fromCharacter);
         }
-        // A Born event follows in the same call for a new character: resolve on the next tick so the
-        // new record is started fresh before anything reads it.
         MinecraftServer server = player.m_20194_();
         if (server == null) {
             return;
@@ -226,41 +213,66 @@ public final class PrestigeCharacter {
         UUID account = player.m_20148_();
         server.execute(() -> {
             ServerPlayer p = server.m_6846_().m_11259_(account);
-            if (p != null) {
-                PrestigeSystem.clearPlayer(id(p));
-                com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
-                        .scheduleSyncAfterStatsReset(p);
+            if (p == null) {
+                return;
+            }
+            PrestigeSystem.clearPlayer(id(p));
+            com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
+                    .scheduleSyncAfterStatsReset(p);
+            try {
+                PrestigePointsSystem.reapplyAllShopPurchases(p);
+            } catch (Throwable t) {
+                AdaptiveDifficultyMod.LOGGER.warn(
+                        "[{}] purchases could not be re-applied after {}'s character switch: {}",
+                        AdaptiveDifficultyMod.MOD_ID, p.m_36316_().getName(), t.toString());
+            }
+            try {
+                var data = com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache.data(p);
+                if (data != null) {
+                    com.dbzlegacy.adaptivedifficulty.tier.UnlockSystem.syncUnlocks(p, data);
+                }
+            } catch (Throwable ignored) {
             }
         });
     }
 
     /**
      * DMZ Ultra created a character and switched the player into it. Only {@code Lifecycle.create}
-     * asks for a born switch, right after writing the slot's blank record, so this is a new character.
+     * asks for a born switch, right after writing the slot's blank record. LM still checks that the
+     * slot's stored record is blank and that the slot's creation time is known and new, so nothing can
+     * reset a character that already has data.
      */
-    static void born(ServerPlayer player, UUID account, int slot, UUID character, long created) {
+    static void born(ServerPlayer player, UUID account, int slot, UUID character, Long created, boolean blank) {
         if (player == null || !player.m_20148_().equals(account) || !character.equals(id(player))) {
             return; // not the player's active character: never touch anyone else's stats
+        }
+        String name = player.m_36316_().getName();
+        if (!blank) {
+            AdaptiveDifficultyMod.LOGGER.warn(
+                    "[{}] {}'s slot {} was born from a record that is not blank; stats and prestige left as they are",
+                    AdaptiveDifficultyMod.MOD_ID, name, slot + 1);
+            return;
+        }
+        if (created == null) {
+            AdaptiveDifficultyMod.LOGGER.warn(
+                    "[{}] {}'s slot {} has no creation time in DMZ Ultra; stats and prestige left as they are",
+                    AdaptiveDifficultyMod.MOD_ID, name, slot + 1);
+            return;
         }
         CompoundTag accountRoot = LmPlayerStore.root(account);
         if (!claimBirth(accountRoot, slot, created)) {
             return;
         }
-        if (account.equals(character) && !accountRoot.m_128441_(KEY_ACCOUNT_SEED)) {
-            // Slot 0 shares the account file: keep what other characters still start from.
-            accountRoot.m_128365_(KEY_ACCOUNT_SEED, accountSeed(accountRoot, bagPoints(accountRoot)));
-        }
         startFresh(root(player));
         PrestigePointsSystem.setPoints(player, 0);
+        clearPurchases(ProgressionData.shop(player));
         PrestigeSystem.clearPlayer(character);
         freshStats(player);
         LmPlayerStore.flush(account);
         LmPlayerStore.flush(character);
         AdaptiveDifficultyMod.LOGGER.info(
-                "[{}] {} created character slot {}: fresh DragonMineZ stats and no prestige",
-                AdaptiveDifficultyMod.MOD_ID, player.m_36316_().getName(), slot + 1);
-        com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
-                .scheduleSyncAfterStatsReset(player);
+                "[{}] {} created character slot {}: fresh DragonMineZ stats, no prestige, no purchases",
+                AdaptiveDifficultyMod.MOD_ID, name, slot + 1);
     }
 
     /** Fresh DragonMineZ stats, the way DMZ Ultra clears a character: new StatsData, base attributes. */
@@ -304,63 +316,59 @@ public final class PrestigeCharacter {
         NetworkHandler.sendToTrackingEntityAndSelf(new StatsSyncS2C(player), player);
     }
 
-    /** Startup self-test: seeding, a fresh start, and the birth guard, on detached records. */
+    /** Startup self-test: migration totals, a fresh start, purchase clearing and the birth guard. */
     public static void selfTest(List<String> broken) {
+        // An account with 3 held, 5 lifetime, 9 favor and two characters besides slot 0.
         CompoundTag account = new CompoundTag();
         account.m_128405_(PrestigeSystem.KEY_HELD, 3);
         account.m_128359_(PrestigeSystem.KEY_TOTAL, "5");
-        account.m_128356_(PrestigePointsSystem.ROOT_POINTS, 7L);
-        account.m_128359_("lm_mastery_points", "40");
-        CompoundTag character = new CompoundTag();
-        seed(accountSeed(account, 9L), character);
-        if (character.m_128451_(PrestigeSystem.KEY_HELD) != 3
-                || !"5".equals(character.m_128461_(PrestigeSystem.KEY_TOTAL))
-                || LmPlayerStore.getLong(character, PrestigePointsSystem.ROOT_POINTS, -1L) != 9L
-                || !character.m_128471_(KEY_SEEDED) || character.m_128441_("lm_mastery_points")) {
-            broken.add("per-character prestige: a character should start from the account's held 3, lifetime 5, "
-                    + "favor 9 (the larger of record and bag) and nothing else, got " + character);
-        }
-        account.m_128405_(PrestigeSystem.KEY_HELD, 8);
-        character.m_128405_(PrestigeSystem.KEY_HELD, 4);
-        seed(accountSeed(account, 0L), character);
-        if (character.m_128451_(PrestigeSystem.KEY_HELD) != 4) {
-            broken.add("per-character prestige: seeding twice must not change a character's record");
+        account.m_128356_(PrestigePointsSystem.ROOT_POINTS, 9L);
+        CompoundTag second = new CompoundTag();
+        CompoundTag third = new CompoundTag();
+        startEmpty(second);
+        startEmpty(third);
+        long held = account.m_128451_(PrestigeSystem.KEY_HELD) + second.m_128451_(PrestigeSystem.KEY_HELD)
+                + third.m_128451_(PrestigeSystem.KEY_HELD);
+        long lifetime = Long.parseLong(account.m_128461_(PrestigeSystem.KEY_TOTAL))
+                + Long.parseLong(second.m_128461_(PrestigeSystem.KEY_TOTAL))
+                + Long.parseLong(third.m_128461_(PrestigeSystem.KEY_TOTAL));
+        long favor = LmPlayerStore.getLong(account, PrestigePointsSystem.ROOT_POINTS, 0L)
+                + LmPlayerStore.getLong(second, PrestigePointsSystem.ROOT_POINTS, 0L)
+                + LmPlayerStore.getLong(third, PrestigePointsSystem.ROOT_POINTS, 0L);
+        if (held != 3 || lifetime != 5 || favor != 9 || second.m_128451_(PrestigeSystem.KEY_HELD) != 0
+                || !second.m_128471_(KEY_SEEDED)) {
+            broken.add("per-character prestige: slot 0 keeps the account's 3 held / 5 lifetime / 9 favor and other "
+                    + "characters start at 0, got totals " + held + " / " + lifetime + " / " + favor);
         }
         CompoundTag own = new CompoundTag();
         own.m_128405_(PrestigeSystem.KEY_HELD, 1);
-        seed(accountSeed(account, 0L), own);
-        if (own.m_128451_(PrestigeSystem.KEY_HELD) != 1 || !"5".equals(own.m_128461_(PrestigeSystem.KEY_TOTAL))) {
-            broken.add("per-character prestige: seeding must keep keys the character already has, got " + own);
+        startEmpty(own);
+        own.m_128405_(PrestigeSystem.KEY_HELD, 2);
+        startEmpty(own);
+        if (own.m_128451_(PrestigeSystem.KEY_HELD) != 2) {
+            broken.add("per-character prestige: starting a record must keep keys it already has, got " + own);
         }
-        startFresh(character);
-        if (character.m_128451_(PrestigeSystem.KEY_HELD) != 0
-                || !"0".equals(character.m_128461_(PrestigeSystem.KEY_TOTAL))
-                || LmPlayerStore.getLong(character, PrestigePointsSystem.ROOT_POINTS, -1L) != 0L
-                || character.m_128441_(PrestigeSystem.KEY_TOTAL_STAFF_OVERRIDE) || !character.m_128471_(KEY_SEEDED)) {
-            broken.add("per-character prestige: a new character should hold 0, lifetime 0, favor 0, got " + character);
+        startFresh(second);
+        if (second.m_128451_(PrestigeSystem.KEY_HELD) != 0
+                || !"0".equals(second.m_128461_(PrestigeSystem.KEY_TOTAL))
+                || LmPlayerStore.getLong(second, PrestigePointsSystem.ROOT_POINTS, -1L) != 0L
+                || second.m_128441_(PrestigeSystem.KEY_TOTAL_STAFF_OVERRIDE)) {
+            broken.add("per-character prestige: a new character should hold 0, lifetime 0, favor 0, got " + second);
+        }
+        CompoundTag bag = new CompoundTag();
+        bag.m_128359_("pp_perm_ultimate", "true");
+        bag.m_128356_("pp_skill_kicontrol", 4L);
+        bag.m_128359_("pp_tier_3", "true");
+        bag.m_128356_("pp_godki_enh", 2L);
+        bag.m_128356_("pp_custom_aura", 1L);
+        bag.m_128359_("fly_training_level", "3");
+        clearPurchases(bag);
+        if (bag.m_128431_().size() != 1 || !bag.m_128441_("fly_training_level")) {
+            broken.add("per-character prestige: a new character should own no purchases (pp_*), got " + bag);
         }
         if (!claimBirth(account, 1, 100L) || claimBirth(account, 1, 100L) || !claimBirth(account, 1, 200L)
                 || !claimBirth(account, 2, 100L)) {
             broken.add("per-character prestige: a birth should be handled once per slot creation");
         }
-        CompoundTag snapshot = accountSeed(account, 0L);
-        account.m_128365_(KEY_ACCOUNT_SEED, snapshot);
-        startFresh(account);
-        CompoundTag later = new CompoundTag();
-        seed(accountSeed(account, 0L), later);
-        if (later.m_128451_(PrestigeSystem.KEY_HELD) != 8) {
-            broken.add("per-character prestige: after slot 0 starts fresh, other characters should still start "
-                    + "from the account's old prestige, got " + later);
-        }
-        CompoundTag empty = new CompoundTag();
-        seed(accountSeed(new CompoundTag(), 0L), empty);
-        if (empty.m_128441_(PrestigeSystem.KEY_HELD) || !empty.m_128471_(KEY_SEEDED)) {
-            broken.add("per-character prestige: an account with no prestige should seed nothing, got " + empty);
-        }
-    }
-
-    private static long bagPoints(CompoundTag accountRoot) {
-        CompoundTag bag = accountRoot.m_128469_("lm_progression");
-        return LmPlayerStore.getLong(bag, BAG_POINTS, 0L);
     }
 }

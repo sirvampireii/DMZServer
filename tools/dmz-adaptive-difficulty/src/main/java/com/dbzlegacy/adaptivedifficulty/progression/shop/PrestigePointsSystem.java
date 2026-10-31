@@ -591,7 +591,7 @@ public final class PrestigePointsSystem {
             return false;
         }
         try {
-            CompoundTag tag = ProgressionData.stored(player);
+            CompoundTag tag = ProgressionData.shop(player);
             for (String key : tag.m_128431_()) {
                 if (key != null && key.startsWith(KEY_SKILL_PREFIX)
                         && ProgressionData.storedGetLong(player, key, 0L) > 0L) {
@@ -651,7 +651,7 @@ public final class PrestigePointsSystem {
         }
         // Also cover any pp_skill_* keys that left the live catalog.
         try {
-            CompoundTag tag = ProgressionData.stored(player);
+            CompoundTag tag = ProgressionData.shop(player);
             for (String key : tag.m_128431_()) {
                 if (key == null || !key.startsWith(KEY_SKILL_PREFIX)) {
                     continue;

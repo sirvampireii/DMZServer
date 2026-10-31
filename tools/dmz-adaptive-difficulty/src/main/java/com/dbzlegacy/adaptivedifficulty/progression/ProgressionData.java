@@ -1,6 +1,7 @@
 package com.dbzlegacy.adaptivedifficulty.progression;
 
 import com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -11,9 +12,15 @@ import net.minecraft.server.level.ServerPlayer;
  * Session temp + persistent NBT storage for progression scripts
  * (replaces CNPC tempdata / storeddata). The stored bag lives in the player's LM-owned file
  * ({@link LmPlayerStore}), not Forge persistent data.
+ * <p>
+ * Prestige-shop purchases ({@code pp_*} keys: permanent forms, skill floors, difficulty tiers, God Ki,
+ * special perks) belong to the active DMZ Ultra character (4.7.3): every {@code stored*} call with a
+ * {@code pp_} key reads and writes {@link #shop}. Slot 0 and players without Ultra use the account bag,
+ * as before; another character has its own bag in its character file, empty until it buys something.
  */
 public final class ProgressionData {
     private static final String ROOT = "lm_progression";
+    private static final String SHOP_PREFIX = "pp_";
     private static final Map<UUID, Map<String, String>> TEMP = new ConcurrentHashMap<>();
 
     private ProgressionData() {}
@@ -92,6 +99,23 @@ public final class ProgressionData {
         return root.m_128469_(ROOT);
     }
 
+    /** The active character's prestige-shop purchase bag ({@code pp_*} keys). */
+    public static CompoundTag shop(ServerPlayer player) {
+        if (PrestigeCharacter.isAccount(player)) {
+            return stored(player);
+        }
+        CompoundTag root = PrestigeCharacter.root(player);
+        if (!root.m_128441_(ROOT)) {
+            root.m_128365_(ROOT, new CompoundTag());
+        }
+        return root.m_128469_(ROOT);
+    }
+
+    /** The bag a key lives in: purchases with the character, everything else with the account. */
+    private static CompoundTag bag(ServerPlayer player, String key) {
+        return key != null && key.startsWith(SHOP_PREFIX) ? shop(player) : stored(player);
+    }
+
     public static boolean storedWritable(ServerPlayer player) {
         return player != null;
     }
@@ -100,16 +124,19 @@ public final class ProgressionData {
     public static void storedClearAll(ServerPlayer player) {
         if (player != null) {
             LmPlayerStore.root(player).m_128473_(ROOT);
+            if (!PrestigeCharacter.isAccount(player)) {
+                PrestigeCharacter.root(player).m_128473_(ROOT);
+            }
         }
     }
 
     public static boolean storedHas(ServerPlayer player, String key) {
-        CompoundTag tag = stored(player);
+        CompoundTag tag = bag(player, key);
         return tag.m_128441_(key);
     }
 
     public static String storedGet(ServerPlayer player, String key, String fallback) {
-        CompoundTag tag = stored(player);
+        CompoundTag tag = bag(player, key);
         if (!tag.m_128441_(key)) {
             return fallback;
         }
@@ -142,7 +169,7 @@ public final class ProgressionData {
      * always read as 0 after {@link #storedPut(ServerPlayer, String, long)}.
      */
     public static long storedGetLong(ServerPlayer player, String key, long fallback) {
-        CompoundTag tag = stored(player);
+        CompoundTag tag = bag(player, key);
         if (!tag.m_128441_(key)) {
             return fallback;
         }
@@ -184,14 +211,14 @@ public final class ProgressionData {
         if (!storedWritable(player)) {
             return;
         }
-        stored(player).m_128359_(key, value == null ? "" : value);
+        bag(player, key).m_128359_(key, value == null ? "" : value);
     }
 
     public static void storedPut(ServerPlayer player, String key, long value) {
         if (!storedWritable(player)) {
             return;
         }
-        stored(player).m_128356_(key, value); // putLong — matches storedGetLong numeric path
+        bag(player, key).m_128356_(key, value); // putLong — matches storedGetLong numeric path
     }
 
     public static void storedPut(ServerPlayer player, String key, double value) {
@@ -206,6 +233,6 @@ public final class ProgressionData {
         if (!storedWritable(player)) {
             return;
         }
-        stored(player).m_128473_(key);
+        bag(player, key).m_128473_(key);
     }
 }

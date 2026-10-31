@@ -42,31 +42,40 @@ logout, every 30 seconds, and on server stop. Writes go to a temp file and are s
 ## Prestige per character (4.7.3)
 
 DMZ Ultra 0.4.0 lets one account hold several characters. Each character has its own UUID
-(`Slots.characterId`); the first character (slot 0) uses the account UUID. Prestige records are kept
+(`Slots.characterId`); the first character (slot 0) uses the account UUID. These records are kept
 per character, in `players/<character-uuid>.json`:
 
 - `lm_prestige_held`, `prestige_total_completed`, `prestige_total_staff_override`,
   `lm_prestige_points` (favor), and `lm_prestige_confirm_until`.
-- Everything else stays in the account file: difficulty data, the `lm_progression` bag (shop
-  purchases, skills, meditation), mastery wallet, cap mirrors, Nemesis mode, rival, sparring and
-  character services.
+- Every prestige-shop purchase: the `pp_*` keys of the `lm_progression` bag (Permanent Majin,
+  Mutant and Ultimate, skill floors, difficulty tiers, God Ki, special perks). `ProgressionData`
+  sends every `pp_*` key to the active character's bag (`ProgressionData.shop`), so the shop, the
+  re-apply loop and the special-perk reconcile only ever see that character's purchases.
+- Everything else stays in the account file: difficulty data, the rest of the `lm_progression`
+  bag (flight, meditation, potential), mastery wallet, cap mirrors, Nemesis mode, rival, sparring
+  and character services.
 
-Slot 0 reads and writes the account file, so a player with one character keeps exactly what they
-had. Another character's file is seeded from the account file the first time it is read: held,
-lifetime, staff override and favor (the larger of `lm_prestige_points` and the bag's
-`prestige_points`) are copied, keys the character already has are kept, and `lm_prestige_seeded`
-marks it done. The account file is left in place. CNPC faction 4 and the shop-purchase inference
-of lifetime prestiges are per account, so they only feed the account file.
+Migration: slot 0 is the character that already had the account's prestige and purchases, and it
+keeps reading and writing the account file. Every other character starts at 0 held, 0 lifetime,
+0 favor and no purchases the first time it is read (`lm_prestige_seeded` marks it); nothing is
+copied, so the totals across characters equal the account's values. CNPC faction 4 and the
+shop-purchase inference of lifetime prestiges are per account: they are only read for, and faction
+4 is only written for, the account character.
 
-A character Ultra creates (`CharacterEvent.Born`) starts with held 0, lifetime 0 and favor 0, and LM
-resets its DragonMineZ stats to a fresh character (new `StatsData`, base attributes). The account
-file's `lm_character_births` records each handled birth (slot number and the slot's creation time),
-so a repeated event changes nothing. If slot 0 itself is created again, the account's old prestige
-keys are first kept in `lm_prestige_account_seed`, and other characters still seed from that.
+On a switch LM, on the next tick, sets the Overhaul count from the new character's held, re-applies
+that character's purchases (the special-perk reconcile drops the previous character's attribute
+bonuses), and re-checks difficulty tiers, which revokes another character's purchased tiers.
+
+A character Ultra creates (`CharacterEvent.Born`) starts with held 0, lifetime 0, favor 0, no
+purchases, and fresh DragonMineZ stats (new `StatsData`, base attributes). LM only does this when
+the slot's stored Ultra record is still the blank one `Lifecycle.create` wrote, and when Ultra
+knows the slot's creation time. The account file's `lm_character_births` records each handled birth
+(slot number and creation time), so a repeated event changes nothing, and a re-created slot (new
+creation time) is handled again.
 
 Without Ultra, or with its slots turned off, every record is the account file, as in 4.7.2.
-Code: `progression/shop/PrestigeCharacter.java` (and `PrestigeCharacterUltra.java`, the only class
-that names Ultra's slots API).
+Code: `progression/shop/PrestigeCharacter.java`, `progression/ProgressionData.java` (purchase
+routing), and `PrestigeCharacterUltra.java` (the only class that names Ultra's slots API).
 
 ## Audit of LM writes into DMZ-owned storage
 

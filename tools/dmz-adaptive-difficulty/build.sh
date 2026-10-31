@@ -121,6 +121,13 @@ if [[ ! -f "$DMZULTRA" ]]; then
   exit 1
 fi
 echo "Using dmzultra jar for compile: $DMZULTRA"
+# dmzultra 0.4.x removed com.dmzultra.journal.Rival, which the nemesis gate mixin compiles against.
+if ! unzip -l "$DMZULTRA" 2>/dev/null | grep -c 'com/dmzultra/journal/Rival.class' > /dev/null; then
+  echo "ERROR: $DMZULTRA has no com.dmzultra.journal.Rival (dmzultra 0.4.x removed it)." >&2
+  echo "  The nemesis gate mixin compiles against dmzultra 0.2.9. Provide both jars:" >&2
+  echo "    DMZULTRA_JAR=<dmzultra-0.2.9.jar>  DMZULTRA_SLOTS_JAR=<dmzultra-0.4.x.jar>" >&2
+  exit 1
+fi
 # dmzultra 0.4.x jar - per-character prestige (PrestigeCharacterUltra) uses its slots API.
 # Compile input only; LM runs with or without dmzultra. Same jar as DMZULTRA_JAR when that is 0.4.x.
 DMZULTRA_SLOTS="${DMZULTRA_SLOTS_JAR:-$DMZULTRA}"
