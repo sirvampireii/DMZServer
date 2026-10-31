@@ -37,6 +37,10 @@ import net.minecraftforge.registries.RegistryObject;
  * keeps using the account file. Every other character starts at 0 held, 0 lifetime, 0 favor and no
  * purchases (marked by {@link #KEY_SEEDED}), so the totals across characters equal the account's
  * values. A character DMZ Ultra creates ({@code CharacterEvent.Born}) also gets fresh DragonMineZ stats.
+ * <p>
+ * Switching into a character whose stored record is still blank resets it the same way (4.7.4): Ultra
+ * skips loading an empty DragonMineZ part, so without it the player would keep the stats of the
+ * character they switched from.
  */
 public final class PrestigeCharacter {
     /** Character file: its prestige record was started (at zero). */
@@ -194,11 +198,16 @@ public final class PrestigeCharacter {
 
     /**
      * DMZ Ultra moved the player to another character. On the next tick (after a Born event in the
-     * same switch): re-sync the Overhaul count from the new character's held, re-apply only that
-     * character's purchases (which also drops the special-perk attributes of the one before), and
-     * re-check tiers so another character's purchased tiers are revoked.
+     * same switch): reset the character if its stored record is blank, re-sync the Overhaul count from
+     * the new character's held, re-apply only that character's purchases (which also drops the
+     * special-perk attributes of the one before), and re-check tiers so another character's purchased
+     * tiers are revoked.
+     * <p>
+     * {@code blank} is read from the incoming slot's stored record when the switch happens. Ultra parks
+     * a character's record when the player switches away, so a character that has played is never
+     * blank here. At creation this reset runs after the Born one; both leave the same blank character.
      */
-    static void switchedIn(ServerPlayer player, UUID fromCharacter) {
+    static void switchedIn(ServerPlayer player, UUID fromCharacter, UUID toCharacter, int toSlot, boolean blank) {
         if (player == null) {
             return;
         }
@@ -216,7 +225,14 @@ public final class PrestigeCharacter {
             if (p == null) {
                 return;
             }
-            PrestigeSystem.clearPlayer(id(p));
+            UUID active = id(p);
+            if (resetOnSwitchIn(blank, toCharacter, active)) {
+                resetToFresh(p, account, active);
+                AdaptiveDifficultyMod.LOGGER.info(
+                        "[{}] {} switched into blank character slot {}: fresh DragonMineZ stats, no prestige, "
+                                + "no purchases", AdaptiveDifficultyMod.MOD_ID, p.m_36316_().getName(), toSlot + 1);
+            }
+            PrestigeSystem.clearPlayer(active);
             com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge
                     .scheduleSyncAfterStatsReset(p);
             try {
@@ -234,6 +250,14 @@ public final class PrestigeCharacter {
             } catch (Throwable ignored) {
             }
         });
+    }
+
+    /**
+     * Reset on switch-in only when the incoming slot's stored record is blank and the player is still
+     * on that character a tick later (a second switch in between leaves everything alone).
+     */
+    static boolean resetOnSwitchIn(boolean blank, UUID toCharacter, UUID active) {
+        return blank && toCharacter != null && toCharacter.equals(active);
     }
 
     /**
@@ -263,6 +287,14 @@ public final class PrestigeCharacter {
         if (!claimBirth(accountRoot, slot, created)) {
             return;
         }
+        resetToFresh(player, account, character);
+        AdaptiveDifficultyMod.LOGGER.info(
+                "[{}] {} created character slot {}: fresh DragonMineZ stats, no prestige, no purchases",
+                AdaptiveDifficultyMod.MOD_ID, name, slot + 1);
+    }
+
+    /** The active character's prestige, favor and purchases cleared, with fresh DragonMineZ stats. */
+    private static void resetToFresh(ServerPlayer player, UUID account, UUID character) {
         startFresh(root(player));
         PrestigePointsSystem.setPoints(player, 0);
         clearPurchases(ProgressionData.shop(player));
@@ -270,9 +302,6 @@ public final class PrestigeCharacter {
         freshStats(player);
         LmPlayerStore.flush(account);
         LmPlayerStore.flush(character);
-        AdaptiveDifficultyMod.LOGGER.info(
-                "[{}] {} created character slot {}: fresh DragonMineZ stats, no prestige, no purchases",
-                AdaptiveDifficultyMod.MOD_ID, name, slot + 1);
     }
 
     /** Fresh DragonMineZ stats, the way DMZ Ultra clears a character: new StatsData, base attributes. */
@@ -316,7 +345,10 @@ public final class PrestigeCharacter {
         NetworkHandler.sendToTrackingEntityAndSelf(new StatsSyncS2C(player), player);
     }
 
-    /** Startup self-test: migration totals, a fresh start, purchase clearing and the birth guard. */
+    /**
+     * Startup self-test: migration totals, a fresh start, purchase clearing, the birth guard and the
+     * switch-in reset guard.
+     */
     public static void selfTest(List<String> broken) {
         // An account with 3 held, 5 lifetime, 9 favor and two characters besides slot 0.
         CompoundTag account = new CompoundTag();
@@ -369,6 +401,14 @@ public final class PrestigeCharacter {
         if (!claimBirth(account, 1, 100L) || claimBirth(account, 1, 100L) || !claimBirth(account, 1, 200L)
                 || !claimBirth(account, 2, 100L)) {
             broken.add("per-character prestige: a birth should be handled once per slot creation");
+        }
+        UUID fresh = new UUID(0L, 7L);
+        UUID other = new UUID(0L, 8L);
+        if (!resetOnSwitchIn(true, fresh, fresh) || !resetOnSwitchIn(true, fresh, fresh)
+                || resetOnSwitchIn(false, fresh, fresh) || resetOnSwitchIn(true, fresh, other)
+                || resetOnSwitchIn(true, null, fresh)) {
+            broken.add("per-character prestige: switching into a blank character should reset it every time, "
+                    + "and never a populated one or one the player already left");
         }
     }
 }

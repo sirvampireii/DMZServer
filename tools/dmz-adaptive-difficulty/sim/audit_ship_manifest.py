@@ -1485,13 +1485,16 @@ def main() -> int:
           and "PrestigePointsSystem.reapplyAllShopPurchases(p);" in _switch
           and "UnlockSystem.syncUnlocks(p, data);" in _switch)
     _born = pc.split("static void born(", 1)[-1].split("\n    }\n", 1)[0]
+    _reset = pc.split("private static void resetToFresh(", 1)[-1].split("\n    }\n", 1)[0]
     check("birth: active character, blank record, known new creation time, once; fresh prestige, stats, no purchases",
           "CharacterEvent.Born.class" in pc_ultra
           and "!character.equals(id(player))" in _born
           and "if (!blank) {" in _born and "if (created == null) {" in _born
           and "if (!claimBirth(accountRoot, slot, created)) {" in _born
-          and "startFresh(root(player));" in _born and "freshStats(player);" in _born
-          and "clearPurchases(ProgressionData.shop(player));" in _born
+          and "resetToFresh(player, account, character);" in _born
+          and "startFresh(root(player));" in _reset and "freshStats(player);" in _reset
+          and "PrestigePointsSystem.setPoints(player, 0);" in _reset
+          and "clearPurchases(ProgressionData.shop(player));" in _reset
           and "stats.copyFrom(new StatsData((Player) player));" in pc
           and "new StatsSyncS2C(player)" in pc
           and 'record.m_128471_("blank")' in pc_ultra and "SlotStore.readRecord(" in pc_ultra
@@ -1503,6 +1506,55 @@ def main() -> int:
           and "DMZULTRA_JAR=<dmzultra-0.2.9.jar>  DMZULTRA_SLOTS_JAR=<dmzultra-0.4.x.jar>" in pc_build)
     check("self-test covers migration totals, fresh start, purchase clearing, and the birth guard",
           "PrestigeCharacter.selfTest(broken);" in pc_test)
+
+    print("\n--- § blank switch-in reset (4.7.4) ---")
+    _on_switch = pc_ultra.split("private static void onSwitchIn(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest blank-switch-in-reset row", "blank-switch-in-reset" in manifest)
+    check("switch-in reads the incoming slot's stored record (blank flag, no dmz part; unreadable = not blank)",
+          "SlotKey to = event.to();" in _on_switch
+          and "blankRecord(player.m_20194_(), to)" in _on_switch
+          and "Slots.characterId(to)" in _on_switch
+          and 'record.m_128469_("parts").m_128469_("dmz").m_128456_()' in pc_ultra
+          and "return false;\n        }\n    }" in pc_ultra.split("private static boolean blankRecord(", 1)[-1])
+    check("a blank incoming character gets the same fresh reset as a birth, every switch, before purchases re-apply",
+          "if (resetOnSwitchIn(blank, toCharacter, active)) {" in _switch
+          and "resetToFresh(p, account, active);" in _switch
+          and _switch.find("resetToFresh(p, account, active);")
+              < _switch.find("PrestigePointsSystem.reapplyAllShopPurchases(p);")
+          and "claimBirth" not in _switch
+          and "return blank && toCharacter != null && toCharacter.equals(active);" in pc)
+    check("self-test covers the switch-in reset guard", "resetOnSwitchIn(true, fresh, other)" in pc)
+
+    print("\n--- § ultra form scaling off (4.7.4) ---")
+    uf = read(SRC / "progression/bridge/UltraFormScale.java")
+    uf_cfg = read(SRC / "config/DifficultyConfig.java")
+    uf_help = read(SRC / "config/editor/ConfigFieldHelp.java")
+    uf_reg = read(SRC / "config/ConfigRegistry.java")
+    uf_started = pc_ev.split("public void onServerStarted(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest ultra-form-scale-off row", "ultra-form-scale-off" in manifest)
+    check("config flag disableUltraFormScaling, default on, with help text and registry entry",
+          "public boolean disableUltraFormScaling = true;" in uf_cfg
+          and "disableUltraFormScaling=" in uf_help and '"disableUltraFormScaling"' in uf_reg)
+    check("OverhaulScale.simulate(false) is called by reflection only, no compile dependency",
+          'CLASS = "com.dmzultra.form.OverhaulScale"' in uf
+          and 'scale.getMethod("simulate", Boolean.class)' in uf
+          and "simulate.invoke(null, Boolean.FALSE);" in uf
+          and not any("import com.dmzultra.form" in read(f) for f in SRC.rglob("*.java")))
+    check("runs on ServerStarted (after Ultra's boot self-test), never at mod construction",
+          "UltraFormScale.onServerStarted();" in uf_started
+          and "UltraFormScale" not in pc_mod)
+    check("missing class or method: warning, LM keeps booting, scale left on",
+          "} catch (Throwable absent) {\n            return null;" in uf
+          and "DMZ Ultra form scaling left on:" in uf
+          and "UltraFormScale.onServerStarted();\n        } catch (Throwable t) {" in uf_started)
+    check("pulse re-applies the disable when active() reads true again, and hands it back when the flag is off",
+          'safePulse("ultra-form-scale"' in pc_ev
+          and "} else if ((Boolean) active.invoke(null)) {" in uf
+          and "simulate.invoke(null, (Object) null);" in uf)
+    check("startup log says whether the scale was disabled or left on",
+          "DMZ Ultra form scaling disabled" in uf
+          and "DMZ Ultra form scaling left on: disableUltraFormScaling is false" in uf)
+    check("self-test covers a missing OverhaulScale class", "UltraFormScale.selfTest(broken);" in pc_test)
 
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")

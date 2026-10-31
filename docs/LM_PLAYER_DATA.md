@@ -73,6 +73,12 @@ knows the slot's creation time. The account file's `lm_character_births` records
 (slot number and creation time), so a repeated event changes nothing, and a re-created slot (new
 creation time) is handled again.
 
+Switching into a character whose stored Ultra record is still blank gets the same reset, on every
+such switch (4.7.4). Ultra skips loading an empty DragonMineZ part, so before 4.7.4 a new character
+you switched away from and back to kept the stats of the character you came from. Ultra saves a
+character's record when you switch away from it, so a character that has played is never blank and
+is never reset.
+
 Without Ultra, or with its slots turned off, every record is the account file, as in 4.7.2.
 Code: `progression/shop/PrestigeCharacter.java`, `progression/ProgressionData.java` (purchase
 routing), and `PrestigeCharacterUltra.java` (the only class that names Ultra's slots API).

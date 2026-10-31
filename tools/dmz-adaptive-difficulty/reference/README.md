@@ -309,6 +309,13 @@ read `ProgressionData.shop` (the active character's purchases) instead of `Progr
 nothing else changed. `GodKiEnhancementShop` and `PrestigeCustomShop` are unchanged: their `pp_*`
 keys reach the character's bag through `ProgressionData`.
 
+## Re-baseline (2026-10-30, 4.7.4 Ultra form scaling off, blank switch-in reset)
+
+Three classes re-extracted from `mods/LegacyMechanics-4.7.4.jar`; javap member and string diffs
+checked: `AdaptiveDifficultyMod` (version string only), `ConfigRegistry` (one new string, the
+`disableUltraFormScaling` case in the progression field switch; members unchanged),
+`ConfigFieldHelp` (one new help line for `disableUltraFormScaling`). The other 22 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

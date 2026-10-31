@@ -60,6 +60,7 @@ endKiCleanupEnabled=Purge / cap leftover DMZ ki_laser / ki_blast in The End (v2.
 endKiPurgeWhenNoDragon=When no dragon is alive, purge all End ki projectiles.
 endKiMaxAliveWhileDragon=Hard cap on End ki projectiles while a dragon is alive (script default 32).
 enableOverhaulPrestigeIntegration=Use dmzrevamp Statistics prestige UI + native scaling/rebirth.
+disableUltraFormScaling=Keep DMZ Ultra forms at their configured multipliers (on), or let Ultra scale them up per race when Overhaul is loaded (off). Applies at restart, or within 10 seconds of a config reload.
 enableSkillCheck=Donator Skill Check UI (/skillcheck, CNPC interact / trigger 21).
 donatorPermission=LuckPerms node for donators: Skill Check.
 selfRevivePermission=LuckPerms node that lets a player use /lm revive on themselves (staff always can).
