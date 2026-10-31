@@ -717,6 +717,10 @@ public final class DifficultyEvents {
         safePulse("sparring", () -> SparringSystem.pulse(server, tick));
         safePulse("progression", () -> ProgressionSystem.pulse(server, tick));
         safePulse("level-pull", () -> DifficultyActions.pulseLevelPulls(server));
+        if (tick % 20 == 0) {
+            safePulse("gui-login-check",
+                    () -> com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.pulseLoginChecks(server));
+        }
         if (tick % 600 == 0) {
             safePulse("player-store", com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore::flushAll);
         }

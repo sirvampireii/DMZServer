@@ -329,6 +329,11 @@ unchanged.
 only). The other 24 are unchanged. (The catalog was first built as 4.7.5 and never shipped; 4.7.6
 went out first, so it ships as 4.7.7.)
 
+## Re-baseline (2026-10-31, 4.7.8 GUI bridge login check)
+
+`AdaptiveDifficultyMod` re-extracted from `mods/LegacyMechanics-4.7.8.jar` (javap: version string
+only). The other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

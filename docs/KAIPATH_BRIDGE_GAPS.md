@@ -1,6 +1,6 @@
 # Ultra bridge gap matrix (LM ↔ KaiPath)
 
-**LM 4.6.216** + **KaiPath 1.3.31** (recommended; bytecode-audited 2026-10-18 — see the audit section below). Official KaiPath updates are owned by the KaiPath mod developer.
+**LM 4.7.8** + **KaiPath 1.5.1** (live; bytecode-read and checked against the live debug log 2026-10-31 — see "Verified on live" below). Earlier audit: LM 4.6.216 + KaiPath 1.3.31 (2026-10-18). Official KaiPath updates are owned by the KaiPath mod developer.
 
 **At a glance:** Bridge chrome gaps closed on **1.3.17** — `fixedFooter` pins `footer:true`; `portraitFrame` is advertised. LM wire already matched (`footer:true`); guitest tracks `FEATURE_FIXED_FOOTER` as shipped. Custom **`bodyParts`** closed on **1.3.29** — the client advertises it and LM ships the Body Parts Shop (player-chosen pieces on model customize). JLDK one-pager: [`KAIPATH_JLDK_CLIENT_BRIEF.md`](KAIPATH_JLDK_CLIENT_BRIEF.md).
 
@@ -26,8 +26,8 @@ LM verified holding its end: the live 4.6.216 jar's sync JSON (`subject uuid:…
 
 | Gap | Owner | LM status | KaiPath action |
 |-----|-------|-----------|----------------|
-| **`parts.colors` dropped in `applySync`** — parts render gray (critical) | **JLDK** | On the wire since 4.6.216; kit reference verified + pinned | Parse the `colors` object in `BodyPartPreview.applySync` and thread it to `mergeLook`. Contract (protocol § playerModel.parts.colors): use each key **present**; reflective `FormParts$Look` only for absent keys. Today the parse skips `colors` entirely, so the gray reflection fallback wins for every remote player. The kit reference ships the working chain plus a test that feeds message 3 end to end (`GuiModelSyncPacketTest.mergeLookColorsFromMessage3`: encode → decode → handle → applySync → colorsFor/partsJsonFor → mergeLook carries the server colors, never the `0x808080` reflection defaults) — merge that shape. |
-| **Double tail when a shop tail is worn** — natural race tail renders *alongside* the chosen tail piece | **JLDK** (LM/kit closed) | On the wire since 4.6.216: `suppressNaturalTail` set on message 3 when a chosen `tail`-slot piece is equipped, cleared the moment it is unequipped (natural tail then renders exactly as before). Kit reference verified + pinned (`GuiModelSyncPacketTest.shopTailSuppression`: shop tail + flag → exactly one tail mesh, unequip restores the natural tail). | Read `suppressNaturalTail` in `BodyPartPreview.applySync`, store it on `WorldState`, and when it is `true` **and** the entity still has the natural race tail, hide the race-tail bones (`tail1` / `tail1m` in DMZ) while the piece is worn; restore on `false`. This is a **bone-visibility** hook, *not* a `meshesFor` filter — the race tail is not drawn from the `bodyParts` array at all (it comes from `isHasSaiyanTail()`), so a mesh-level dedupe cannot see it. Reference impl: `RaceTailSuppressMixin` (injects at `BoneVisibilityHandler.updateVisibility` RETURN, `require = 0`, mixin-plugin gated on DragonMineZ presence so it degrades to no-suppression rather than a broken client). Merge that shape. |
+| **Per-channel world state** — a second mod syncing parts for a player replaces LM's pieces | **JLDK** (kit done) | LM sends on `legacymechanics:gui` only | 1.5.1 keys the world cache by player only. Copy the kit: `BodyPartPreview.applySync(channelId, partsJson, reason)` keeps one snapshot per channel and renders their combination; register message 3 with `(p, ctx) -> GuiModelSyncPacket.handle(p, ctx, channelId)`. The two-argument `applySync` still works as one channel. |
+| **Double tail when a shop tail is worn** — natural race tail renders *alongside* the chosen tail piece (still open on 1.5.1: no `suppressNaturalTail` read, no `RaceTailSuppressMixin`) | **JLDK** (LM/kit closed) | On the wire since 4.6.216: `suppressNaturalTail` set on message 3 when a chosen `tail`-slot piece is equipped, cleared the moment it is unequipped (natural tail then renders exactly as before). Kit reference verified + pinned (`GuiModelSyncPacketTest.shopTailSuppression`: shop tail + flag → exactly one tail mesh, unequip restores the natural tail). | Read `suppressNaturalTail` in `BodyPartPreview.applySync`, store it on `WorldState`, and when it is `true` **and** the entity still has the natural race tail, hide the race-tail bones (`tail1` / `tail1m` in DMZ) while the piece is worn; restore on `false`. This is a **bone-visibility** hook, *not* a `meshesFor` filter — the race tail is not drawn from the `bodyParts` array at all (it comes from `isHasSaiyanTail()`), so a mesh-level dedupe cannot see it. Reference impl: `RaceTailSuppressMixin` (injects at `BoneVisibilityHandler.updateVisibility` RETURN, `require = 0`, mixin-plugin gated on DragonMineZ presence so it degrades to no-suppression rather than a broken client). Merge that shape. |
 | World render depends on dmzultra client-side | JLDK (design note) | Sync pipeline complete | `FormPartsPreviewMixin` is the only world path (optional-mixin guarded on `com.dmzultra.client.forms.FormParts`). Clients without dmzultra draw the base entity with no pieces — intended optional-mod contract, not a sync bug. |
 | No dedicated config screen | Later | Config editor works via `GuiOpenPacket` + `fillScreen` | `LmScreens` registers `hub` / `emptyHub` only; a native config screen id would be cleaner but is not required. |
 | Per-part colors not in wire format | Later (reserved) | Per-category `parts.colors` covers LM | `BodyPartWire$Entry` is the 3-field record `(id, source, slot)` — a per-part color needs a format bump. Reserve; do not overload the record. |
@@ -36,13 +36,35 @@ LM verified holding its end: the live 4.6.216 jar's sync JSON (`subject uuid:…
 | `titleTint` read but unadvertised | Closed on LM | Never sent — not a wire field (protocol § client-internal) | Drop the read or keep it tolerant and unadvertised; `palette`/`accent` already cover title color. |
 | Subject format drift | Documented | `uuid:<owner-uuid>` on message 3 (protocol § GuiModelSyncPacket) | Keep resolving only `uuid:`-prefixed subjects (already the 1.3.31 guard). Note for the record: LM's wire subject has **always** been `uuid:`; the "plain username" incident was server **log diagnostics** (`safeName`), not the wire. |
 
-`/lm admin guitest` on KaiPath **1.3.29** (advertises `icon` + `bodyParts`):
+`/lm admin guitest` on KaiPath **1.5.1** (advertises all eighteen ids, `bodyPartsSync` included):
 
 ```text
 missingShipped=none pendingNext=none
 ```
 
 A 1.3.17 client that stops before `icon` reports `missingShipped=icon`. A 1.3.22 client without `bodyParts` reports `missingShipped=bodyParts`. Omitting any shipped id (including `palette`, `sound`, `buttonSkin`, `frame`, `pagedBook`, `portraitFrame`, `combined.forms.v1`, `icon`, `bodyParts`) warns as `missingShipped`.
+
+## Verified on live (2026-10-31, LM 4.7.7 + KaiPath 1.5.1)
+
+Read from the live `logs/debug.log` of one boot:
+
+- 35 of 42 logins advertised all eighteen ids, `bodyParts` and `bodyPartsSync` included, within a second of
+  logging in. The other 7 never advertised: four joined together in the first second after boot, three are
+  `_c1`/`_c2` names. None of them had KaiPath in Forge's connection data.
+- Message 3 went out: 49 world-sync broadcasts (login 36, equip 8, unequip 5); the 8 with pieces carried the
+  right ids, slots and `suppressNaturalTail`, to clients that advertised `bodyPartsSync`.
+- Every KaiPath login still logged "Ultra client gap … advertised=false features=[]": LM checked at the server's
+  login event, before the client's advertisement arrived. Fixed in LM 4.7.8 (check ~10 s after login).
+
+## Closed on KaiPath 1.5.1 / LM 4.7.8
+
+| Gap | Notes |
+|-----|-------|
+| **`bodyPartsSync`** | Advertised (18th id) since KaiPath 1.3.31; live runs 1.5.1. LM moved `FEATURE_BODY_PARTS_SYNC` from `PENDING_NEXT` into `SHIPPED_ON_RECOMMENDED` (recommended KaiPath 1.5.1); `PENDING_NEXT` is empty. |
+| **`parts.colors` dropped in `applySync`** (parts rendered gray) | KaiPath 1.5.1 threads `colors` to `mergeLook` (`colorsFor`, `mergeLook(look, meshes, colors, partsJson)`). |
+| **Advertise only at client setup** | At mod setup there is no server connection, so the kit's setup-time advertise did nothing. KaiPath 1.5.1 advertises on `LoggingIn` and on each `GuiOpenPacket`; the kit reference now does the same (`advertiseAll`). |
+| **False "client gap" at every login** | LM 4.7.8 checks ~10 s after login (`context=login+10s`) and only reports a client that still has not advertised; an arriving advertisement is checked on arrival. |
+
 
 ## Closed on KaiPath 1.3.29
 

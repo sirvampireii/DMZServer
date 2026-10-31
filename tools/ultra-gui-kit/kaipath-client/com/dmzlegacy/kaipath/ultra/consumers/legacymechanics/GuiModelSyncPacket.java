@@ -70,10 +70,18 @@ public final class GuiModelSyncPacket {
 
     /** Replace the world-render cache with this snapshot (server-authoritative). */
     public static void handle(GuiModelSyncPacket packet, Supplier<NetworkEvent.Context> ctx) {
+        handle(packet, ctx, "");
+    }
+
+    /**
+     * Replace this channel's snapshot for the subject (server-authoritative). Other
+     * {@code <modid>:gui} channels' pieces for the same player stay as they are.
+     */
+    public static void handle(GuiModelSyncPacket packet, Supplier<NetworkEvent.Context> ctx, String channelId) {
         NetworkEvent.Context context = ctx.get();
         context.enqueueWork(() -> {
             try {
-                BodyPartPreview.applySync(packet.partsJson(), packet.reason());
+                BodyPartPreview.applySync(channelId, packet.partsJson(), packet.reason());
             } catch (Throwable t) {
                 UltraUiBridge.LOGGER.error(
                         "[kaipath] GuiModelSyncPacket apply failed reason={}",

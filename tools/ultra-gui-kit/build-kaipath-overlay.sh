@@ -75,6 +75,8 @@ if [[ -d "$TEST_SRC" ]]; then
   javac --release 17 -encoding UTF-8 -proc:none -cp "$(abs "$CLASSES")$CP_SEP$(abs "$SERVER_CLASSES")$CP_SEP$CP" -d "$TEST_CLASSES" @"$OUT_DIR/tests.list"
   java -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$CLASSES")$CP_SEP$CP" \
     com.dmzlegacy.kaipath.ultra.consumers.legacymechanics.GuiOpenPacketRoundTripTest
+  java -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$CLASSES")$CP_SEP$CP" \
+    com.dmzlegacy.kaipath.ultra.consumers.legacymechanics.InspectPreviewSubjectTest
   java -Dultragui.fixture="$HERE/server/BridgeFutureFieldsFixture.json" \
     -Dultragui.sketch="$HERE/server/HelloWorldServerSketch.java" \
     -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$SERVER_CLASSES")$CP_SEP$(abs "$STUB_CLASSES")$CP_SEP$(abs "$GSON")" \

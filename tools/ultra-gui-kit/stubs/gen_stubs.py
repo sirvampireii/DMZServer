@@ -284,6 +284,7 @@ public class MinecraftForge {
 package net.minecraftforge.client.event;
 import net.minecraftforge.eventbus.api.Event;
 public class ClientPlayerNetworkEvent extends Event {
+  public static class LoggingIn extends ClientPlayerNetworkEvent {}
   public static class LoggingOut extends ClientPlayerNetworkEvent {}
 }
 """,

@@ -949,6 +949,7 @@ public final class UltraScreenSelfTest {
         checkBoostStartReplies(broken);
         checkPrestigeFollowsOverhaul(broken);
         com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter.selfTest(broken);
+        com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.selfTest(broken);
 
         if (broken.isEmpty()) {
             LmLog.event(
