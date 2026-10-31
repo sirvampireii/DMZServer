@@ -1358,7 +1358,7 @@ public final class UltraScreenSelfTest {
                 return;
             }
             AdaptiveDifficultyMod.LOGGER.info("[{}] Overhaul prestige: level cap {} at 0 held, {} at 1 held (max {}), "
-                            + "prestige cap {} enforced, button needs {} at 0 held "
+                            + "prestige cap {} enforced, menu needs {} at 0 held; Overhaul's prestige button "
                             + "(level {} with its quest done: allowed={}, quest done={})",
                     AdaptiveDifficultyMod.MOD_ID, capAt0, capAt1, overhaulCap, max, needAt0, level, lowAllowed,
                     low.getPlayerQuestData().isQuestCompleted("prestige_saga:3"));

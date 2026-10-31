@@ -115,6 +115,26 @@ public final class DmzRevampPrestigeBridge {
         return LmOverhaulCapMath.prestigeRequirement(overhaulCount(data));
     }
 
+    /**
+     * 4.7.18 safety net, run on the 10 s player pulse: when Overhaul's count differs from the held
+     * wallet, re-sync. Costs one NBT read and one field read when they match. It targets the same
+     * value as the login / reset syncs, so it never fights them.
+     */
+    public static void reconcile(ServerPlayer player) {
+        if (player == null || !DifficultyConfig.get().enablePrestigeSystem || !revampPresent()) {
+            return;
+        }
+        StatsData data = DmzProgression.stats(player);
+        if (data == null) {
+            return;
+        }
+        int want = LmOverhaulPrestigeIntegration.toOverhaulCount(
+                com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.getHeldWallet(player));
+        if (PrestigeSystem.count(data) != want) {
+            syncFromLegacy(player);
+        }
+    }
+
     public static int overhaulCount(StatsData data) {
         if (data == null || !ensureMethods()) {
             return 0;

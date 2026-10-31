@@ -1820,6 +1820,29 @@ def main() -> int:
           "blocksOverhaulPrestige(held, want - 1)" in nl_test
           and 'completeQuest("prestige_saga:3")' in nl_test)
 
+    print("\n--- § prestige cap held sync 4.7.18 ---")
+    hs_ps = read(SRC / "progression/shop/PrestigeSystem.java")
+    hs_pps = read(SRC / "progression/shop/PrestigePointsSystem.java")
+    hs_br = read(SRC / "progression/bridge/DmzRevampPrestigeBridge.java")
+    hs_prog = read(SRC / "progression/ProgressionSystem.java")
+    hs_mx = read(SRC / "mixin/DmzRevampPrestigeCapMixin.java")
+    hs_int = read(SRC / "mixin/PrestigeServiceIntegrationMixin.java")
+    hs_set = hs_ps.split("public static void setHeldPublic(ServerPlayer player, int value) {", 1)[-1].split("\n    }\n", 1)[0]
+    hs_turn = hs_pps.split("public static String turnIn(ServerPlayer player, int amount) {", 1)[-1].split("\n    }\n", 1)[0]
+    hs_rec = hs_br.split("public static void reconcile(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    hs_blk = hs_mx.split("private static boolean lm$blocked(StatsData data) {", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest prestige-cap-held-sync row", "prestige-cap-held-sync" in manifest)
+    check("every held change pushes Overhaul's count and the cap now; turn-in calls it too",
+          "pushHeldToCap(player);" in hs_set and "PrestigeSystem.pushHeldToCap(player);" in hs_turn
+          and "DmzRevampPrestigeBridge.syncFromLegacy(player);" in hs_ps
+          and "PersonalLevelCapMirror.publish(player);" in hs_ps.split("public static void pushHeldToCap(", 1)[-1].split("\n    }\n", 1)[0])
+    check("10 s reconcile: re-sync only when Overhaul's count differs from the held wallet",
+          "if (PrestigeSystem.count(data) != want) {" in hs_rec and "syncFromLegacy(player);" in hs_rec
+          and "DmzRevampPrestigeBridge.reconcile(player);" in hs_prog)
+    check("Overhaul's prestige button refused while LM owns prestige; player pointed to /lm",
+          hs_blk.lstrip().startswith("if (lmOwnsPrestige()) {\n            return true;")
+          and "LmOverhaulPrestigeIntegration.onOverhaulPrestigeButton(player);" in hs_int)
+
     print("\n--- § sparring stun clash 4.7.17 ---")
     sp_sys = read(SRC / "sparring/SparringSystem.java")
     sp_cmb = read(SRC / "sparring/SparCombat.java")

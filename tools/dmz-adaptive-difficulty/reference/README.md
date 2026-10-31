@@ -390,6 +390,12 @@ Two classes re-extracted from `mods/LegacyMechanics-4.7.17.jar`; javap diffs che
 `AdaptiveDifficultyMod` (version string) and `ConfigFieldHelp` (help lines for the new sparring
 timer fields). The other 23 are unchanged.
 
+## Re-baseline (2026-10-31, 4.7.18 prestige cap held sync)
+
+Two classes re-extracted from `mods/LegacyMechanics-4.7.18.jar`; javap diffs checked:
+`AdaptiveDifficultyMod` (version string) and `PrestigePointsSystem` (`turnIn` now calls
+`PrestigeSystem.pushHeldToCap` after lowering held; nothing else). The other 23 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

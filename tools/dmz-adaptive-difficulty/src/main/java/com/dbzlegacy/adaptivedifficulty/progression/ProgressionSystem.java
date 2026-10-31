@@ -201,6 +201,10 @@ public final class ProgressionSystem {
                 }
                 if (tick % 200 == 0) {
                     try {
+                        com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge.reconcile(player);
+                    } catch (Throwable ignored) {
+                    }
+                    try {
                         PersonalLevelCapMirror.publish(player);
                     } catch (Throwable ignored) {
                     }

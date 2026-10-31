@@ -140,4 +140,18 @@ public final class LmOverhaulPrestigeIntegration {
 
     /** Overhaul native prestige no longer writes back into the LM wallet. */
     public static void syncLmWalletFromOverhaulCount(ServerPlayer player) {}
+
+    /**
+     * Overhaul's prestige button was pressed (4.7.18: LM refuses it while LM owns prestige). Tell the
+     * player where prestige lives instead of a silent no.
+     */
+    public static void onOverhaulPrestigeButton(ServerPlayer player) {
+        DifficultyConfig cfg = DifficultyConfig.get();
+        if (player == null || cfg == null || !cfg.enablePrestigeSystem) {
+            return;
+        }
+        com.dbzlegacy.adaptivedifficulty.util.DmzRewards.msg(player,
+                com.dbzlegacy.adaptivedifficulty.util.LmChat.info("Prestige",
+                        "Prestige happens in the LegacyMechanics menu: type /lm and choose Prestige."));
+    }
 }
