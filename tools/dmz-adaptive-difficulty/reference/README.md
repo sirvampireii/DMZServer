@@ -323,6 +323,12 @@ checked: `AdaptiveDifficultyMod` (version string only), `ConfigRegistry` (one ne
 re-extracted from `mods/LegacyMechanics-4.7.6.jar` (javap: version string only). The other 22 are
 unchanged.
 
+## Re-baseline (2026-10-31, 4.7.7 body-parts catalog from DMZ Ultra 0.4.0)
+
+`AdaptiveDifficultyMod` re-extracted from `mods/LegacyMechanics-4.7.7.jar` (javap: version string
+only). The other 24 are unchanged. (The catalog was first built as 4.7.5 and never shipped; 4.7.6
+went out first, so it ships as 4.7.7.)
+
 ## Refresh the reference set
 
 ```bash

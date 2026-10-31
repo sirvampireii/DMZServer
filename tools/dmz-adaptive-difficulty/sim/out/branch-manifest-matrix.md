@@ -5,12 +5,12 @@ Owner-request markers from [LM_SHIP_MANIFEST.md](../../../docs/LM_SHIP_MANIFEST.
 
 | Branch | LM ver | prestige-held-need | prestige-gui-need | prestige-no-cap-chest | skillcheck-no-bypass | skillcheck-plugin-gate | rival-challenge-pending | rival-challenge-backend | rival-chest-challenge-pending | rival-declare-decide | spar-pending-decide | spar-dojo-war-decide | spar-no-end-session | manifest-doc | deploy-gate | build-prestige-jar-overlay | manifest-javap-prestige | admin-no-cnpc-import-chest | gui-tp-audit-script | rival-challenge-persist | dojo-war-offline | build-backend-ship-overlay | android-no-saiyan-deny | android-gui-copy | manifest-android-row | manifest-preview-row | class-stamina-config-scale | class-stamina-mixin-registered | death-tp-penalty | death-tp-penalty-mixin | score |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **main** | 4.7.4 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 29/29 |
-| main | 4.7.4 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 29/29 |
+| **main** | 4.7.6 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 29/29 |
+| main | 4.7.6 | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | 29/29 |
 
 ## Interpretation
 
-- **Best tip:** `main` (29/29, LM 4.7.4)
+- **Best tip:** `main` (29/29, LM 4.7.6)
 - **`main` matches best** — safe canonical for deploy.
 
 ## Branch regressions (vs best tip)

@@ -1,52 +1,93 @@
 {
   "source": "dmzultra",
-  "catalog": "assets/dmzultra/form_parts/forms.json",
-  "note": "Form key is race/group/form, the same key DMZUltra FormParts.of builds. Piece ids are FormParts catalog ids. 'designs' carries the per-form FormParts Design colors (own/trim/horn/light from the upstream a/b/c/g keys) so a dedicated server can send explicit colors in GuiModelSyncPacket without the client mod.",
+  "ultraVersion": "0.4.0",
+  "catalog": "assets/dmzultra/form_parts/forms.json + every set table (sets.json order, then unlisted tables)",
+  "generator": "tools/dmz-adaptive-difficulty/sim/gen_dmzultra_form_parts.py",
+  "note": "Generated; do not hand-edit. Form key is race/group/form, the same key DMZUltra FormParts.of builds (variant keys such as #slim are left out). Piece ids are FormParts ids; 'pieces' is forms.json's piece list, the ids every client can draw, and the Body Parts Shop list. 'designs' carries the per-form FormParts Design colors (own/trim/horn/light from the upstream a/b/c/g keys) so a dedicated server can send explicit colors in GuiModelSyncPacket without the client mod.",
   "pieces": [
     "ankle_fins",
     "ankle_flame",
+    "ankle_fur",
     "ankle_ring",
     "antennae",
     "antlers",
     "arm_blade",
+    "arm_blade_fused",
     "arm_fins",
+    "arm_wrap_r",
     "arm_wraps",
     "back_crystals",
     "back_spines",
+    "back_strap",
+    "bankai_coat",
+    "blade_cloth",
+    "blood_chains",
     "bracer",
     "brow_gem",
     "brow_spikes",
     "cape",
     "cape_ragged",
     "cat_ears",
+    "chest_hole",
     "chest_orb",
     "claws",
+    "coat_sleeve",
     "collar_high",
     "crest_fin",
     "cuffs",
     "diadem",
     "dorsal_fin",
     "ear_fins",
+    "face_streaks_l",
+    "face_streaks_l_long",
     "flame_crown",
+    "fullbring_guard",
+    "fullbring_limbs",
+    "fullbring_plates",
+    "fullbring_shins",
+    "fur_collar",
     "gauntlet",
     "gear_wheel",
     "greave",
+    "hair_long_black",
     "hair_spikes",
+    "hakama_flare",
     "halo_clock",
     "halo_disc",
     "halo_ring",
     "halo_shards",
     "headband",
+    "horn_single_l",
     "horns_great",
     "horns_nub",
+    "horns_pair_short",
     "horns_ram",
     "horns_swept",
+    "horns_vasto",
     "knee_spike",
     "mandala",
     "mane",
+    "mane_long",
+    "mask_crown",
+    "mask_half_l",
+    "mask_jaw_long",
+    "mask_plate_cracked",
+    "mask_plate_full",
+    "mask_stripes_10",
+    "mask_stripes_3",
+    "mask_stripes_full_l",
+    "mask_stripes_vasto",
+    "mask_teeth_closed",
+    "mask_teeth_open",
+    "mugetsu_armbands",
+    "mugetsu_face_wrap",
+    "mugetsu_wraps",
+    "offhand_blade_short",
     "orbit_rings",
     "pauldron",
+    "pommel_chain",
     "sash",
+    "sash_knot",
     "scarf",
     "shoulder_crystal",
     "shoulder_gear",
@@ -61,6 +102,7 @@
     "tail_spade",
     "tail_stinger",
     "third_eye",
+    "true_coat",
     "usekh",
     "whiskers",
     "wing_cases",
@@ -70,9 +112,1165 @@
     "wings_insect",
     "wings_light",
     "wrist_flame",
+    "wrist_fur",
     "wrist_ring"
   ],
   "forms": {
+    "sekhari/base/base": [
+      "sekhari_corona",
+      "sekhari_mane_cap",
+      "sekhari_ruff",
+      "sekhari_tail"
+    ],
+    "sekhari/superforms/awakenedguardian": [
+      "sekf_frontlet",
+      "sekf_furcollar",
+      "sekf_stelae",
+      "sekhari_corona",
+      "sekhari_mane_cap",
+      "sekhari_tail"
+    ],
+    "sekhari/superforms/sunmane": [
+      "sekf_frontlet",
+      "sekf_sundisc",
+      "sekf_sunmane",
+      "sekhari_mane_cap",
+      "sekhari_ruff",
+      "sekhari_tail"
+    ],
+    "sekhari/superforms/divinebeast": [
+      "sekf_beastmane",
+      "sekf_clawgauntlets",
+      "sekf_frontlet",
+      "sekf_hindclaws",
+      "sekhari_mane_cap",
+      "sekhari_tail"
+    ],
+    "sekhari/superforms/pharaohascendant": [
+      "sekf_ankh",
+      "sekf_lappets",
+      "sekf_nemes",
+      "sekf_radisc",
+      "sekf_royalkilt",
+      "sekf_usekh",
+      "sekhari_tail"
+    ],
+    "sekhari/crownforms/sphinxawakening": [
+      "sekcrown_beard",
+      "sekcrown_wings_folded",
+      "sekhari_corona",
+      "sekhari_mane_cap",
+      "sekhari_ruff",
+      "sekhari_tail"
+    ],
+    "sekhari/crownforms/royalsekhari": [
+      "sekcrown_armlets",
+      "sekcrown_beard",
+      "sekcrown_corona",
+      "sekcrown_crown",
+      "sekcrown_wings_folded",
+      "sekhari_mane_cap",
+      "sekhari_ruff",
+      "sekhari_tail"
+    ],
+    "sekhari/crownforms/celestialsekhari": [
+      "sekcrown_armlets",
+      "sekcrown_beard",
+      "sekcrown_corona",
+      "sekcrown_crown",
+      "sekcrown_wings",
+      "sekhari_mane_cap",
+      "sekhari_ruff",
+      "sekhari_tail"
+    ],
+    "sekhari/crownforms/sekhariascendant": [
+      "sekcrown_armlets",
+      "sekcrown_beard",
+      "sekcrown_corona",
+      "sekcrown_crown",
+      "sekcrown_feathers",
+      "sekcrown_horns",
+      "sekcrown_vambraces",
+      "sekcrown_wings",
+      "sekhari_mane_cap",
+      "sekhari_ruff",
+      "sekhari_tail"
+    ],
+    "sekhari/crownforms/eternalsekhari": [
+      "sekcrown_armlets",
+      "sekcrown_beard",
+      "sekcrown_corona",
+      "sekcrown_crown",
+      "sekcrown_horns",
+      "sekcrown_shen",
+      "sekcrown_vambraces",
+      "sekcrown_wings",
+      "sekcrown_wings_low",
+      "sekhari_mane_cap",
+      "sekhari_ruff",
+      "sekhari_tail"
+    ],
+    "sekhari/predatorforms/eclipseprowler": [
+      "sekhari_mane_cap",
+      "sekhari_ruff",
+      "sekprowl_crescents",
+      "sekprowl_mane",
+      "sekprowl_sash",
+      "sekprowl_tail"
+    ],
+    "sekhari/predatorforms/solarlion": [
+      "sekhari_mane_cap",
+      "sekhari_ruff",
+      "sekprowl_flares",
+      "sekprowl_mane",
+      "sekprowl_sash",
+      "sekprowl_sunblades",
+      "sekprowl_suntail"
+    ],
+    "seiunjin/shape/crest": [
+      "seiun_crest",
+      "seiun_crest_side",
+      "seiun_brow"
+    ],
+    "seiunjin/shape/finback": [
+      "seiun_finback",
+      "seiun_ear_fin"
+    ],
+    "seiunjin/shape/horned": [
+      "seiun_horn",
+      "seiun_horn_prong",
+      "seiun_brow_plate"
+    ],
+    "seiunjin/shape/stardrift": [
+      "seiun_orbit_head",
+      "seiun_orbit_body",
+      "seiun_crown_star"
+    ],
+    "seiunjin/shape/bare": [],
+    "seiunjin/morph/blade": [
+      "seiun_morph_blade"
+    ],
+    "seiunjin/morph/blade_fp": [
+      "seiun_morph_blade_fp"
+    ],
+    "seiunjin/morph/blade_slim": [
+      "seiun_morph_blade_slim"
+    ],
+    "seiunjin/morph/blade_slim_fp": [
+      "seiun_morph_blade_slim_fp"
+    ],
+    "seiunjin/morph/longarm": [
+      "seiun_morph_longarm"
+    ],
+    "seiunjin/morph/longarm_fp": [
+      "seiun_morph_longarm_fp"
+    ],
+    "seiunjin/morph/longarm_slim": [
+      "seiun_morph_longarm_slim"
+    ],
+    "seiunjin/morph/longarm_slim_fp": [
+      "seiun_morph_longarm_slim_fp"
+    ],
+    "seiunjin/morph/finwing": [
+      "seiun_morph_finwing"
+    ],
+    "seiunjin/morph/finwing_fp": [
+      "seiun_morph_finwing_fp"
+    ],
+    "seiunjin/morph/finwing_slim": [
+      "seiun_morph_finwing_slim"
+    ],
+    "seiunjin/morph/finwing_slim_fp": [
+      "seiun_morph_finwing_slim_fp"
+    ],
+    "seiunjin/superforms/starbirth": [
+      "seiun_sb_kindle",
+      "seiun_sb_kindle_arm",
+      "seiun_sb_motes",
+      "seiun_sb_spurs",
+      "seiun_sb_buds",
+      "seiun_sb_flares_arm",
+      "seiun_sb_flares"
+    ],
+    "seiunjin/superforms/nebula": [
+      "seiun_nb_mantle",
+      "seiun_nb_billow",
+      "seiun_nb_wisps",
+      "seiun_sb_flares_arm",
+      "seiun_sb_flares"
+    ],
+    "seiunjin/superforms/pulsar": [
+      "seiun_ps_ring_inner",
+      "seiun_ps_ring_outer",
+      "seiun_ps_heart",
+      "seiun_ps_cuffs"
+    ],
+    "seiunjin/superforms/quasarbody": [
+      "seiun_qb_jets",
+      "seiun_qb_flare",
+      "seiun_qb_plates",
+      "seiun_qb_guards",
+      "seiun_qb_knees"
+    ],
+    "seiunjin/cosmosforms/eventhorizon": [
+      "seiun_eh_collar",
+      "seiun_eh_arcs",
+      "seiun_eh_cuffs",
+      "seiun_eh_knees"
+    ],
+    "seiunjin/cosmosforms/starforged": [
+      "seiun_sf_pauldrons",
+      "seiun_sf_vambraces",
+      "seiun_sf_greaves",
+      "seiun_sf_star"
+    ],
+    "makaijin/base/base": [
+      "mk_horns_coil",
+      "mk_tail"
+    ],
+    "makaijin/superforms/demonblood": [
+      "mkf_brand_coil",
+      "mkf_db_veins",
+      "mkf_db_hornflames_coil",
+      "mkf_db_spines",
+      "mkf_db_spurs"
+    ],
+    "makaijin/superforms/hornedfury": [
+      "mkf_brand_coil",
+      "mkf_db_veins",
+      "mkf_hf_horns_coil",
+      "mkf_hf_mane",
+      "mkf_db_spines",
+      "mkf_db_spurs"
+    ],
+    "makaijin/superforms/abyssalsovereign": [
+      "mkf_brand_coil",
+      "mkf_db_veins",
+      "mkf_hf_horns_coil",
+      "mkf_as_crown_coil",
+      "mkf_as_cape",
+      "mkf_db_spurs"
+    ],
+    "makaijin/superforms/realmtyrant": [
+      "mkf_brand_coil",
+      "mkf_db_veins",
+      "mkf_rt_horns_coil",
+      "mkf_rt_crown_coil",
+      "mkf_as_cape",
+      "mkf_rt_spaulders",
+      "mkf_rt_vents",
+      "mkf_db_spurs"
+    ],
+    "makaijin/abyssforms/demonawakening": [
+      "mkl_brow_nubs",
+      "mkl_forearm_fins",
+      "mkl_cinders"
+    ],
+    "makaijin/abyssforms/highdemon": [
+      "mkl_brow_nubs",
+      "mkl_forearm_fins",
+      "mkl_talons",
+      "mkl_spine_ridge"
+    ],
+    "makaijin/abyssforms/demongod": [
+      "mkl_brow_nubs",
+      "mkl_talons",
+      "mkl_spine_ridge",
+      "mkl_sigil_wheel",
+      "mkl_pinions"
+    ],
+    "makaijin/abyssforms/abyssaldemon": [
+      "mkl_forearm_fins",
+      "mkl_talons",
+      "mkl_spine_ridge",
+      "mkl_pinions_great",
+      "mkl_shoulder_crystals",
+      "mkl_abyss_tail"
+    ],
+    "makaijin/abyssforms/demonsovereign": [
+      "mkl_sovereign_crown",
+      "mkl_abyss_heart",
+      "mkl_talons",
+      "mkl_pinions_great",
+      "mkl_shoulder_crystals",
+      "mkl_abyss_tail"
+    ],
+    "makaijin/infernalforms/demonrealmlord": [
+      "mkl_lord_collar",
+      "mkl_realm_stole",
+      "mkl_sigil_bracers",
+      "mkl_diadem"
+    ],
+    "makaijin/infernalforms/infernalflame": [
+      "mkl_lord_collar",
+      "mkl_flame_crown",
+      "mkl_flame_wings",
+      "mkl_wrist_flames",
+      "mkl_ankle_flames",
+      "mkl_flame_tail"
+    ],
+    "taimujin/legendaryforms/timetorn": [
+      "mtaimu_shards",
+      "mtaimu_coat"
+    ],
+    "taimujin/legendaryforms/fracturedhour": [
+      "mtaimu_shards",
+      "mtaimu_coat",
+      "mtaimu_halo",
+      "mtaimu_wings"
+    ],
+    "taimujin/legendaryforms/endofhours": [
+      "mtaimu_greathalo",
+      "mtaimu_sand",
+      "mtaimu_core",
+      "mtaimu_orbit"
+    ],
+    "angel/legendaryforms/unboundhalo": [
+      "mua_halo_free",
+      "mua_wrist_bands",
+      "mua_sash_tails"
+    ],
+    "angel/legendaryforms/starbreaker": [
+      "mua_star_ring",
+      "mua_light_mantle",
+      "mua_hem_ribbons",
+      "mua_cuff_ribbons"
+    ],
+    "angel/legendaryforms/lawlesslight": [
+      "mua_ll_cuirass",
+      "mua_ll_core",
+      "mua_ll_pauldrons",
+      "mua_ll_vambraces",
+      "mua_ll_greaves",
+      "mua_ll_faulds",
+      "mua_ll_crown",
+      "mua_ll_orbit"
+    ],
+    "sekhari/legendaryforms/feralpride": [
+      "msek_claws",
+      "msek_cuffs",
+      "msek_hackles",
+      "msek_mane_cap",
+      "msek_ruff",
+      "msek_tail_feral",
+      "msek_wildmane"
+    ],
+    "sekhari/legendaryforms/dunetitan": [
+      "msek_claws",
+      "msek_hackles",
+      "msek_mane_cap",
+      "msek_ruff_titan",
+      "msek_tail_feral",
+      "msek_titan_breast",
+      "msek_titan_greaves",
+      "msek_titan_pauldrons",
+      "msek_titan_sand",
+      "msek_titan_tassets",
+      "msek_titan_vambraces",
+      "msek_wildmane"
+    ],
+    "sekhari/legendaryforms/suneater": [
+      "msek_blacksun",
+      "msek_se_cap",
+      "msek_se_eclipse",
+      "msek_se_embers",
+      "msek_se_greaves",
+      "msek_se_heart",
+      "msek_se_pauldrons",
+      "msek_se_tail",
+      "msek_se_vambraces"
+    ],
+    "seiunjin/legendaryforms/flarebloom": [
+      "mseiun_bloom_back",
+      "mseiun_bloom_shoulder",
+      "mseiun_bloom_heart"
+    ],
+    "seiunjin/legendaryforms/coronagiant": [
+      "mseiun_corona",
+      "mseiun_crust_pauldron",
+      "mseiun_crust_pauldron_rear",
+      "mseiun_crust_breast",
+      "mseiun_crust_vambrace",
+      "mseiun_crust_greave"
+    ],
+    "seiunjin/legendaryforms/supernovaheart": [
+      "mseiun_nova_heart",
+      "mseiun_nova_ejecta",
+      "mseiun_nova_rays",
+      "mseiun_nova_rays_arm",
+      "mseiun_nova_rays_leg"
+    ],
+    "makaijin/legendaryforms/abyssborn": [
+      "mmak_ab_horns_coil",
+      "mmak_ab_crust",
+      "mmak_ab_spines",
+      "mmak_ab_tail"
+    ],
+    "makaijin/legendaryforms/giantofthepit": [
+      "mmak_ab_horns_coil",
+      "mmak_ab_spines",
+      "mmak_gp_crest",
+      "mmak_gp_pauldrons",
+      "mmak_gp_tassets",
+      "mmak_gp_greaves",
+      "mmak_gp_tail",
+      "mmak_gp_cuirass",
+      "mmak_gp_vambraces",
+      "mmak_gp_chains"
+    ],
+    "makaijin/legendaryforms/pitlord": [
+      "mmak_pl_horns_coil",
+      "mmak_pl_crown_coil",
+      "mmak_pl_wings",
+      "mmak_pl_tail"
+    ],
+    "soulreaper/legendaryforms/hollowborn": [
+      "msr_gauntlet",
+      "msr_greave",
+      "msr_spine",
+      "msr_hole",
+      "msr_tail",
+      "msr_pauldron",
+      "msr_wisps"
+    ],
+    "evil/shared/veins": [
+      "evil_veins_face"
+    ],
+    "evil/shared/mark": [
+      "evil_majin_m"
+    ],
+    "evil/shared/mark_and_veins": [
+      "evil_majin_m",
+      "evil_veins_face"
+    ],
+    "saiyan/corruptedforms/majinmark": [
+      "evil_majin_m",
+      "evil_veins_face",
+      "evsai_guard_cracked",
+      "evsai_mm_wisps"
+    ],
+    "saiyan/corruptedforms/evilsaiyan": [
+      "evsai_guard_spiked",
+      "evsai_cape_strips",
+      "evsai_torn_sash",
+      "evsai_aura_dark"
+    ],
+    "saiyan/corruptedforms/evilsupersaiyan": [
+      "evsai_guard_spiked",
+      "evsai_cape_strips",
+      "evsai_torn_sash",
+      "evsai_dark_crest",
+      "evsai_black_lightning",
+      "evsai_aura_gold"
+    ],
+    "human/thrallforms/majinthrall": [
+      "evh_thrall_mark",
+      "evh_thrall_brow",
+      "evh_thrall_eyes",
+      "evh_thrall_arm",
+      "evh_thrall_rags"
+    ],
+    "human/thrallforms/cybermercenary": [
+      "evh_merc_arm",
+      "evh_merc_jaw",
+      "evh_merc_lens",
+      "evh_merc_pack",
+      "evh_merc_collar"
+    ],
+    "human/thrallforms/darkmasked": [
+      "evh_dark_mask",
+      "evh_dark_pauldron",
+      "evh_dark_bracer",
+      "evh_dark_chest",
+      "evh_dark_greave",
+      "evh_dark_cape"
+    ],
+    "namekian/daimaoforms/demonkingmantle": [
+      "daimao_cape",
+      "daimao_pads",
+      "daimao_robe",
+      "daimao_crown",
+      "daimao_brow",
+      "daimao_shoes"
+    ],
+    "namekian/daimaoforms/demonkingyouth": [
+      "daimao_youth_robe",
+      "daimao_youth_obi",
+      "daimao_youth_crown",
+      "daimao_youth_crest",
+      "daimao_brow",
+      "daimao_youth_shoes"
+    ],
+    "frostdemon/tyrantforms/chilledlegacy": [
+      "chilled_visor",
+      "chilled_pauldron",
+      "chilled_harness",
+      "chilled_tassets",
+      "chilled_banners",
+      "chilled_bracers"
+    ],
+    "frostdemon/tyrantforms/goldencooler": [
+      "gcooler_crown",
+      "gcooler_mask",
+      "gcooler_shoulders",
+      "gcooler_bracers",
+      "gcooler_greaves",
+      "gcooler_plastron"
+    ],
+    "frostdemon/tyrantforms/darkemperor": [
+      "darkemp_crest",
+      "darkemp_eyes",
+      "darkemp_aura",
+      "darkemp_pauldrons",
+      "darkemp_vambraces",
+      "darkemp_tabard"
+    ],
+    "majin/maliceforms/darkmaskbuu": [
+      "malice_mask",
+      "malice_collar_fat",
+      "malice_pauldron_wide",
+      "malice_bracer_wide",
+      "malice_belt_fat",
+      "malice_cape_fat"
+    ],
+    "majin/maliceforms/hatredincarnate": [
+      "hatred_vents",
+      "hatred_cloak_fat",
+      "hatred_armvents_wide"
+    ],
+    "majin/maliceforms/absorptiontyrant": [
+      "tyrant_crest",
+      "tyrant_mantle_fat",
+      "tyrant_sash_fat",
+      "tyrant_spikes_wide"
+    ],
+    "bioandroid/parasiteforms/tuffleparasite": [
+      "tuffle_crest",
+      "tuffle_lens",
+      "parasite_veins",
+      "parasite_gem",
+      "tuffle_pauldron",
+      "parasite_growth",
+      "crest_tendrils"
+    ],
+    "bioandroid/parasiteforms/hellcorruption": [
+      "parasite_veins",
+      "parasite_gem",
+      "hell_crown",
+      "hell_blade",
+      "hell_claws",
+      "hell_ruff",
+      "hell_tatters",
+      "hell_rift"
+    ],
+    "glind/kishinforms/demongodawakened": [
+      "demongod_crown",
+      "demongod_pauldrons",
+      "demongod_breastplate",
+      "demongod_vambraces",
+      "demongod_tassets"
+    ],
+    "glind/kishinforms/demongodtrue": [
+      "demongod_crown_true",
+      "demongod_pauldrons_true",
+      "demongod_breastplate",
+      "demongod_gauntlets",
+      "demongod_greaves",
+      "demongod_tassets_true",
+      "demongod_wings"
+    ],
+    "taimujin/ravagerforms/breakermask": [
+      "evt_mask",
+      "evt_collar",
+      "evt_coat",
+      "evt_tails"
+    ],
+    "taimujin/ravagerforms/chronoravager": [
+      "evt_mask",
+      "evt_collar",
+      "evt_coat",
+      "evt_tails",
+      "evt_maskrift",
+      "evt_pauldrons",
+      "evt_vambraces",
+      "evt_gorget",
+      "evt_dial"
+    ],
+    "angel/severedforms/severedhalo": [
+      "eva_halo",
+      "eva_wings"
+    ],
+    "angel/severedforms/dethroned": [
+      "eva_halo",
+      "eva_dwings",
+      "eva_chains",
+      "eva_manacles"
+    ],
+    "sekhari/devourerforms/heartdevourer": [
+      "sekhari_corona",
+      "sekhari_mane_cap",
+      "sekhari_tail",
+      "evsek_jaw_mask",
+      "evsek_devour_mane",
+      "evsek_heart_pectoral"
+    ],
+    "sekhari/devourerforms/ammitascendant": [
+      "sekhari_corona",
+      "sekhari_mane_cap",
+      "evsek_jaw_mask",
+      "evsek_tooth_crown",
+      "evsek_devour_mane",
+      "evsek_regalia_collar",
+      "evsek_scute_mantle",
+      "evsek_shendyt",
+      "evsek_scaled_tail"
+    ],
+    "seiunjin/blackholeforms/voideater": [
+      "evsei_horizon_halo",
+      "evsei_accretion_ring",
+      "evsei_void_plates"
+    ],
+    "seiunjin/blackholeforms/eventcollapse": [
+      "evsei_collapse_core",
+      "evsei_spaghetti",
+      "evsei_infall",
+      "evsei_accretion_ring",
+      "evsei_void_plates"
+    ],
+    "makaijin/demonkingforms/kingofdemons": [
+      "evmak_kod_horns_coil",
+      "evmak_crown_coil",
+      "evil_majin_m",
+      "evmak_cape_yoke",
+      "evmak_cape_clasps",
+      "evmak_cape_collar",
+      "evmak_cape",
+      "evmak_cape_drapes"
+    ],
+    "makaijin/demonkingforms/makaioshin": [
+      "evmak_sd_horns_coil",
+      "evmak_demon_crest",
+      "evmak_kai_mantle",
+      "evmak_kai_robe_back",
+      "evmak_kai_sash",
+      "evmak_kai_tabard",
+      "evmak_ear_hoops",
+      "evmak_kai_shoulders",
+      "evmak_kai_vest",
+      "evmak_kai_stole",
+      "evmak_kai_sleeves"
+    ],
+    "soulreaper/hogyokuforms/hogyokuchrysalis": [
+      "hgy_cx_husk",
+      "hgy_cx_crest",
+      "hgy_cx_collar",
+      "hgy_cx_pauldrons",
+      "hgy_cx_bracers",
+      "hgy_cx_sheaths",
+      "hgy_cx_strands"
+    ],
+    "soulreaper/hogyokuforms/hogyokuascended": [
+      "hgy_as_wings",
+      "hgy_as_mask",
+      "hgy_as_core",
+      "hgy_as_tails"
+    ],
+    "majin/reflectionforms/goldenmimic": [
+      "mim_locks_gold",
+      "mim_gold_mantle_wide",
+      "mim_gold_cuffs_fat"
+    ],
+    "majin/reflectionforms/ascendedmimic": [
+      "mim_locks_asc",
+      "mim_gold_mantle_wide",
+      "mim_asc_spines_wide",
+      "mim_gold_cuffs_fat",
+      "mim_asc_bolts_fat",
+      "mim_asc_bolts_wide"
+    ],
+    "majin/reflectionforms/godmimic": [
+      "mim_locks_god",
+      "mim_god_halo",
+      "mim_god_stole_fat",
+      "mim_god_cuffs_fat"
+    ],
+    "human/gammaframeforms/gammaframe": [
+      "gamma_cape",
+      "gamma_fins_wide",
+      "gamma_emblem",
+      "gamma_vents_wide"
+    ],
+    "human/gammaframeforms/gammaoverdrive": [
+      "gamma_cape",
+      "gamma_fins_wide",
+      "gamma_emblem",
+      "gamma_vents_wide",
+      "gamma_od_sinks",
+      "gamma_od_plumes",
+      "gamma_od_plumes_wide",
+      "gamma_od_thrusters_wide"
+    ],
+    "human/gammaframeforms/majincircuit": [
+      "mand_tail",
+      "mand_tendrils",
+      "mand_ear_cores",
+      "mand_bands_wide",
+      "mand_spine"
+    ],
+    "bioandroid/genomefrostdemon/frostdemonstrain1": [
+      "fstr_horns",
+      "fstr_shoulder_domes",
+      "fstr_forearm_gems"
+    ],
+    "bioandroid/genomefrostdemon/frostdemonstrain2": [
+      "fstr_horns",
+      "fstr_shoulder_domes",
+      "fstr_forearm_gems",
+      "fstr_skull_dome",
+      "fstr_chest_plate"
+    ],
+    "bioandroid/genomefrostdemon/frostdemonstrain3": [
+      "fstr_horns",
+      "fstr_shoulder_domes",
+      "fstr_forearm_gems",
+      "fstr_skull_dome",
+      "fstr_chest_plate",
+      "fstr_crown",
+      "fstr_wing_carapace",
+      "fstr_elbow_spikes"
+    ],
+    "bioandroid/genomemajin/majinstrain1": [
+      "bstr_antenna",
+      "bstr_coils",
+      "bstr_vents"
+    ],
+    "bioandroid/genomemajin/majinstrain2": [
+      "bstr_antenna",
+      "bstr_coils",
+      "bstr_goo_mantle",
+      "bstr_wing_drips"
+    ],
+    "bioandroid/genomemajin/majinstrain3": [
+      "bstr_antenna",
+      "bstr_coils",
+      "bstr_goo_mantle",
+      "bstr_wing_drips",
+      "bstr_tendrils",
+      "bstr_crest_curls"
+    ],
+    "bioandroid/genometaimujin/taimujinstrain1": [
+      "tstr_collar",
+      "tstr_hands",
+      "tstr_shoulder_dials"
+    ],
+    "bioandroid/genometaimujin/taimujinstrain2": [
+      "tstr_collar",
+      "tstr_hands",
+      "tstr_shoulder_dials",
+      "tstr_crest_gears",
+      "tstr_wing_bezels"
+    ],
+    "bioandroid/genometaimujin/taimujinstrain3": [
+      "tstr_collar",
+      "tstr_hands",
+      "tstr_shoulder_dials",
+      "tstr_crest_gears",
+      "tstr_wing_bezels",
+      "tstr_lemniscate",
+      "tstr_tenten"
+    ],
+    "bioandroid/genomehuman/humanstrain1": [
+      "hstr_shell",
+      "hstr_wristbands",
+      "hstr_obi"
+    ],
+    "bioandroid/genomehuman/humanstrain2": [
+      "hstr_shell",
+      "hstr_wristbands",
+      "hstr_obi",
+      "hstr_third_eye",
+      "hstr_kikoho"
+    ],
+    "bioandroid/genomehuman/humanstrain3": [
+      "hstr_shell",
+      "hstr_wristbands",
+      "hstr_obi",
+      "hstr_third_eye",
+      "hstr_kikoho",
+      "hstr_four_arms",
+      "hstr_max_bulk"
+    ],
+    "bioandroid/genomesaiyan/saiyanstrain1": [
+      "ystr_tail",
+      "ystr_armor_flaps",
+      "ystr_rage_fur"
+    ],
+    "bioandroid/genomesaiyan/saiyanstrain2": [
+      "ystr_tail",
+      "ystr_armor_flaps",
+      "ystr_rage_fur",
+      "ystr_ssj_spikes",
+      "ystr_gold_flares"
+    ],
+    "bioandroid/genomesaiyan/saiyanstrain3": [
+      "ystr_tail",
+      "ystr_armor_flaps",
+      "ystr_ssj_spikes",
+      "ystr_gold_flares",
+      "ystr_lightning",
+      "ystr_ssj3_mane"
+    ],
+    "bioandroid/genomenamekian/namekianstrain1": [
+      "nkstr_antennae",
+      "nkstr_ears",
+      "nkstr_regen"
+    ],
+    "bioandroid/genomenamekian/namekianstrain2": [
+      "nkstr_antennae",
+      "nkstr_ears",
+      "nkstr_regen",
+      "nkstr_tabard",
+      "nkstr_heal"
+    ],
+    "bioandroid/genomenamekian/namekianstrain3": [
+      "nkstr_elder_antennae",
+      "nkstr_ears",
+      "nkstr_regen",
+      "nkstr_tabard",
+      "nkstr_heal",
+      "nkstr_pauldrons",
+      "nkstr_capelet"
+    ],
+    "bioandroid/genomesphinxian/sphinxianstrain1": [
+      "sstr_mane",
+      "sstr_ruff",
+      "sstr_ears",
+      "sstr_claws"
+    ],
+    "bioandroid/genomesphinxian/sphinxianstrain2": [
+      "sstr_mane",
+      "sstr_ruff",
+      "sstr_ears",
+      "sstr_claws",
+      "sstr_corona",
+      "sstr_pauldrons",
+      "sstr_tassels"
+    ],
+    "bioandroid/genomesphinxian/sphinxianstrain3": [
+      "sstr_mane",
+      "sstr_ruff",
+      "sstr_ears",
+      "sstr_claws",
+      "sstr_corona",
+      "sstr_pauldrons",
+      "sstr_tassels",
+      "sstr_sunwings",
+      "sstr_diadem"
+    ],
+    "bioandroid/genomealien/alienstrain1": [
+      "nstr_stars",
+      "nstr_crestfin",
+      "nstr_orbit"
+    ],
+    "bioandroid/genomealien/alienstrain2": [
+      "nstr_stars",
+      "nstr_crestfin",
+      "nstr_orbit",
+      "nstr_mantle",
+      "nstr_veils",
+      "nstr_core"
+    ],
+    "bioandroid/genomealien/alienstrain3": [
+      "nstr_stars",
+      "nstr_crestfin",
+      "nstr_orbit",
+      "nstr_mantle",
+      "nstr_veils",
+      "nstr_core",
+      "nstr_horns",
+      "nstr_wingfins",
+      "nstr_halo"
+    ],
+    "bioandroid/genomedemon/demonstrain1": [
+      "mstr_horns",
+      "mstr_ears",
+      "mstr_spurs",
+      "mstr_veins",
+      "mstr_sigil"
+    ],
+    "bioandroid/genomedemon/demonstrain2": [
+      "mstr_horns",
+      "mstr_ears",
+      "mstr_spurs",
+      "mstr_veins",
+      "mstr_sigil",
+      "mstr_spear",
+      "mstr_mane",
+      "mstr_plates"
+    ],
+    "bioandroid/genomedemon/demonstrain3": [
+      "mstr_ears",
+      "mstr_spurs",
+      "mstr_veins",
+      "mstr_spear",
+      "mstr_mane",
+      "mstr_plates",
+      "mstr_coil",
+      "mstr_crown",
+      "mstr_tassets",
+      "mstr_talons"
+    ],
+    "bioandroid/genomeangel/angelstrain1": [
+      "gna_halo",
+      "gna_cuffs"
+    ],
+    "bioandroid/genomeangel/angelstrain2": [
+      "gna_halo",
+      "gna_cuffs",
+      "gna_plume",
+      "gna_robes"
+    ],
+    "bioandroid/genomeangel/angelstrain3": [
+      "gna_halo",
+      "gna_cuffs",
+      "gna_plume",
+      "gna_robes",
+      "gna_staff",
+      "gna_cuirass",
+      "gna_shoulders"
+    ],
+    "bioandroid/genomeglind/glindstrain1": [
+      "gnl_ears",
+      "gnl_bracers"
+    ],
+    "bioandroid/genomeglind/glindstrain2": [
+      "gnl_ears",
+      "gnl_bracers",
+      "gnl_eclipse",
+      "gnl_mantle"
+    ],
+    "bioandroid/genomeglind/glindstrain3": [
+      "gnl_ears",
+      "gnl_bracers",
+      "gnl_eclipse",
+      "gnl_mantle",
+      "gnl_veil",
+      "gnl_spires"
+    ],
+    "bioandroid/genomeandroid/androidstrain1": [
+      "gnd_absorbers",
+      "gnd_ears"
+    ],
+    "bioandroid/genomeandroid/androidstrain2": [
+      "gnd_absorbers",
+      "gnd_ears",
+      "gnd_core",
+      "gnd_pistons"
+    ],
+    "bioandroid/genomeandroid/androidstrain3": [
+      "gnd_cannons",
+      "gnd_ears",
+      "gnd_core",
+      "gnd_pistons",
+      "gnd_dome"
+    ],
+    "bioandroid/genomesoulreaper/soulreaperstrain1": [
+      "gnr_blade",
+      "gnr_saya"
+    ],
+    "bioandroid/genomesoulreaper/soulreaperstrain2": [
+      "gnr_blade",
+      "gnr_saya",
+      "gnr_mask",
+      "gnr_hakama"
+    ],
+    "bioandroid/genomesoulreaper/soulreaperstrain3": [
+      "gnr_blade",
+      "gnr_saya",
+      "gnr_mask",
+      "gnr_hakama",
+      "gnr_sleeves",
+      "gnr_tails"
+    ],
+    "soulreaper/innerhollow/unmasked": [
+      "hakama_flare",
+      "inner_sash_knot",
+      "inner_hair_spiky"
+    ],
+    "soulreaper/innerhollow/masked": [
+      "hakama_flare",
+      "inner_sash_knot",
+      "inner_hair_nape",
+      "mask_inner_plate",
+      "mask_inner_crown",
+      "mask_inner_jaw_long",
+      "mask_inner_teeth_open",
+      "mask_inner_lines",
+      "horns_inner"
+    ],
+    "soulreaper/innerhollow/complete": [
+      "hakama_flare",
+      "inner_sash_knot",
+      "mask_inner_plate",
+      "mask_inner_crown",
+      "mask_inner_jaw_long",
+      "mask_inner_teeth_open",
+      "mask_inner_lines",
+      "horns_inner",
+      "vasto_mane",
+      "vasto_neck_fur",
+      "vasto_ankle_fur",
+      "vasto_wrist_fur",
+      "vasto_chest_hole",
+      "vasto_claws"
+    ],
+    "soulreaper/maskkit/skull_l1": [
+      "kp_skull_half",
+      "ke_skull_fierce_h",
+      "ki_skull_h",
+      "kt_closed_h",
+      "ks_canon_3_h"
+    ],
+    "soulreaper/maskkit/skull_l3": [
+      "kp_skull_full",
+      "ke_skull_fierce",
+      "ki_skull",
+      "kt_closed",
+      "ks_canon_10_w10"
+    ],
+    "soulreaper/maskkit/helmet_l1": [
+      "kp_helmet_half",
+      "ke_helmet_fierce_h",
+      "ki_helmet_h",
+      "kt_closed_h",
+      "ks_canon_3_h"
+    ],
+    "soulreaper/maskkit/helmet_l3": [
+      "kp_helmet_full",
+      "ke_helmet_fierce",
+      "ki_helmet",
+      "kt_closed",
+      "ks_canon_10_w10"
+    ],
+    "soulreaper/maskkit/insect_l1": [
+      "kp_insect_half",
+      "ke_insect_fierce_h",
+      "ki_insect_h",
+      "kt_closed_h",
+      "ks_canon_3_h"
+    ],
+    "soulreaper/maskkit/insect_l3": [
+      "kp_insect_full",
+      "ke_insect_fierce",
+      "ki_insect",
+      "kt_closed",
+      "ks_canon_10_w10"
+    ],
+    "soulreaper/maskkit/beast_l1": [
+      "kp_beast_half",
+      "ke_beast_fierce_h",
+      "ki_beast_h",
+      "kt_closed_h",
+      "ks_canon_3_h"
+    ],
+    "soulreaper/maskkit/beast_l3": [
+      "kp_beast_full",
+      "ke_beast_fierce",
+      "ki_beast",
+      "kt_closed",
+      "ks_canon_10_w10"
+    ],
+    "soulreaper/maskkit/hooded_l1": [
+      "kp_hooded_half",
+      "ke_hooded_fierce_h",
+      "ki_hooded_h",
+      "kt_closed_h",
+      "ks_canon_3_h"
+    ],
+    "soulreaper/maskkit/hooded_l3": [
+      "kp_hooded_full",
+      "ke_hooded_fierce",
+      "ki_hooded",
+      "kt_closed",
+      "ks_canon_10_w10"
+    ],
+    "soulreaper/maskkit/crescent_l1": [
+      "kp_crescent_half",
+      "ke_crescent_fierce_h",
+      "ki_crescent_h",
+      "kt_closed_h",
+      "ks_canon_3_h"
+    ],
+    "soulreaper/maskkit/crescent_l3": [
+      "kp_crescent_full",
+      "ke_crescent_fierce",
+      "ki_crescent",
+      "kt_closed",
+      "ks_canon_10_w10"
+    ],
+    "soulreaper/maskkit/skull_l4_full": [
+      "kp_skull_full",
+      "ke_skull_fierce",
+      "ki_skull",
+      "kt_closed",
+      "ks_full_left_w10",
+      "kj_skull"
+    ],
+    "soulreaper/maskkit/insect_l4_band": [
+      "kp_insect_b_full",
+      "ke_insect_visor",
+      "ki_insect_b",
+      "kt_fangs",
+      "ks_both_sides_w14",
+      "kj_insect"
+    ],
+    "soulreaper/maskkit/beast_l3_slit": [
+      "kp_beast_full",
+      "ke_beast_slit",
+      "ki_beast",
+      "kt_inter",
+      "ks_across_eyes_w12",
+      "kh_swept"
+    ],
+    "soulreaper/maskkit/crescent_l3_crescent": [
+      "kp_crescent_b_full",
+      "ke_crescent_crescent",
+      "ki_crescent_b",
+      "ks_jaw_bars_w12",
+      "kh_single"
+    ],
+    "soulreaper/maskkit/hooded_l2_round": [
+      "kp_hooded_full",
+      "ke_hooded_round",
+      "ki_hooded",
+      "kt_fangs",
+      "ks_mirrored_3_w10",
+      "kh_spikes"
+    ],
+    "bleach/outfits/shihakusho": [
+      "sh_kosode",
+      "sh_sleeves",
+      "sh_hakama",
+      "sh_obi",
+      "sh_feet"
+    ],
+    "bleach/outfits/bankai_coat": [
+      "bk_coat",
+      "bk_sleeves",
+      "bk_skirt",
+      "bk_hakama",
+      "bk_feet"
+    ],
+    "bleach/outfits/mugetsu": [
+      "mg_wraps",
+      "mg_armwraps",
+      "mg_hakama",
+      "mg_feet",
+      "mg_tails"
+    ],
+    "bleach/outfits/torn_hakama": [
+      "mg_hakama"
+    ],
     "human/fistforms/limitbreaker": [
       "headband",
       "arm_wraps",
@@ -249,125 +1447,6 @@
       "shoulder_spikes",
       "halo_shards"
     ],
-    "bioandroid/genomealien/alienstrain1": [
-      "antennae"
-    ],
-    "bioandroid/genomealien/alienstrain2": [
-      "antennae",
-      "star_crown"
-    ],
-    "bioandroid/genomealien/alienstrain3": [
-      "antennae",
-      "star_crown",
-      "orbit_rings"
-    ],
-    "bioandroid/genomedemon/demonstrain1": [
-      "horns_nub"
-    ],
-    "bioandroid/genomedemon/demonstrain2": [
-      "horns_swept",
-      "tail_spade"
-    ],
-    "bioandroid/genomedemon/demonstrain3": [
-      "horns_great",
-      "tail_spade",
-      "wings_bat_small"
-    ],
-    "bioandroid/genomefrostdemon/frostdemonstrain1": [
-      "shoulder_crystal"
-    ],
-    "bioandroid/genomefrostdemon/frostdemonstrain2": [
-      "shoulder_crystal",
-      "back_crystals"
-    ],
-    "bioandroid/genomefrostdemon/frostdemonstrain3": [
-      "shoulder_crystal",
-      "back_crystals",
-      "halo_shards"
-    ],
-    "bioandroid/genomehuman/humanstrain1": [
-      "arm_wraps"
-    ],
-    "bioandroid/genomehuman/humanstrain2": [
-      "arm_wraps",
-      "wrist_flame",
-      "sash"
-    ],
-    "bioandroid/genomehuman/humanstrain3": [
-      "arm_wraps",
-      "wrist_flame",
-      "sash",
-      "mandala"
-    ],
-    "bioandroid/genomemajin/majinstrain1": [
-      "cuffs"
-    ],
-    "bioandroid/genomemajin/majinstrain2": [
-      "cuffs",
-      "cape"
-    ],
-    "bioandroid/genomemajin/majinstrain3": [
-      "cuffs",
-      "cape",
-      "horns_nub",
-      "halo_ring"
-    ],
-    "bioandroid/genomenamekian/namekianstrain1": [
-      "ear_fins"
-    ],
-    "bioandroid/genomenamekian/namekianstrain2": [
-      "ear_fins",
-      "shoulder_guard",
-      "back_spines"
-    ],
-    "bioandroid/genomenamekian/namekianstrain3": [
-      "ear_fins",
-      "shoulder_guard",
-      "back_spines",
-      "antlers",
-      "whiskers"
-    ],
-    "bioandroid/genomesaiyan/saiyanstrain1": [
-      "tail_fur"
-    ],
-    "bioandroid/genomesaiyan/saiyanstrain2": [
-      "tail_fur",
-      "wrist_flame"
-    ],
-    "bioandroid/genomesaiyan/saiyanstrain3": [
-      "tail_fur",
-      "wrist_flame",
-      "ankle_flame",
-      "flame_crown"
-    ],
-    "bioandroid/genomesphinxian/sphinxianstrain1": [
-      "tail_lion",
-      "claws"
-    ],
-    "bioandroid/genomesphinxian/sphinxianstrain2": [
-      "tail_lion",
-      "claws",
-      "usekh"
-    ],
-    "bioandroid/genomesphinxian/sphinxianstrain3": [
-      "tail_lion",
-      "claws",
-      "usekh",
-      "wings_feather",
-      "halo_disc"
-    ],
-    "bioandroid/genometaimujin/taimujinstrain1": [
-      "wrist_ring"
-    ],
-    "bioandroid/genometaimujin/taimujinstrain2": [
-      "wrist_ring",
-      "halo_clock"
-    ],
-    "bioandroid/genometaimujin/taimujinstrain3": [
-      "wrist_ring",
-      "halo_clock",
-      "gear_wheel"
-    ],
     "majin/miraforms/majinawakening": [
       "cuffs"
     ],
@@ -406,104 +1485,6 @@
       "chest_orb",
       "claws",
       "shoulder_spikes"
-    ],
-    "demon/abyssforms/demonawakening": [
-      "horns_nub"
-    ],
-    "demon/abyssforms/highdemon": [
-      "horns_swept",
-      "claws"
-    ],
-    "demon/abyssforms/demongod": [
-      "horns_swept",
-      "claws",
-      "tail_spade",
-      "wings_bat_small"
-    ],
-    "demon/abyssforms/abyssaldemon": [
-      "horns_great",
-      "claws",
-      "tail_spade",
-      "wings_bat",
-      "shoulder_spikes"
-    ],
-    "demon/abyssforms/demonsovereign": [
-      "horns_great",
-      "brow_spikes",
-      "claws",
-      "tail_spade",
-      "wings_bat",
-      "shoulder_spikes",
-      "chest_orb"
-    ],
-    "demon/infernalforms/demonrealmlord": [
-      "horns_ram",
-      "collar_high",
-      "cape",
-      "pauldron",
-      "bracer",
-      "diadem"
-    ],
-    "demon/infernalforms/infernalflame": [
-      "horns_great",
-      "wings_bat",
-      "tail_spade",
-      "shoulder_spikes",
-      "wrist_flame",
-      "ankle_flame",
-      "flame_crown"
-    ],
-    "sphinxian/crownforms/sphinxawakening": [
-      "cat_ears",
-      "tail_lion"
-    ],
-    "sphinxian/crownforms/royalsphinxian": [
-      "cat_ears",
-      "tail_lion",
-      "usekh",
-      "diadem"
-    ],
-    "sphinxian/crownforms/celestialsphinxian": [
-      "cat_ears",
-      "tail_lion",
-      "usekh",
-      "diadem",
-      "wings_feather"
-    ],
-    "sphinxian/crownforms/sphinxianascendant": [
-      "cat_ears",
-      "tail_lion",
-      "usekh",
-      "diadem",
-      "wings_feather",
-      "halo_disc",
-      "bracer"
-    ],
-    "sphinxian/crownforms/eternalsphinxian": [
-      "cat_ears",
-      "tail_lion",
-      "usekh",
-      "diadem",
-      "wings_feather",
-      "halo_disc",
-      "bracer",
-      "greave",
-      "tabard"
-    ],
-    "sphinxian/predatorforms/eclipseprowler": [
-      "cat_ears",
-      "tail_lion",
-      "claws",
-      "shoulder_spikes",
-      "back_spines"
-    ],
-    "sphinxian/predatorforms/solarlion": [
-      "cat_ears",
-      "tail_lion",
-      "claws",
-      "mane",
-      "halo_disc",
-      "wrist_flame"
     ],
     "taimujin/eonforms/temporalawakening": [
       "wrist_ring"
@@ -545,22 +1526,1075 @@
       "orbit_rings",
       "wings_light"
     ],
-    "alien/cosmosforms/eventhorizon": [
-      "antennae",
-      "orbit_rings",
-      "chest_orb",
-      "halo_shards"
+    "soulreaper/zanpakutoforms/shikai": [
+      "hakama_flare",
+      "sash_knot",
+      "back_strap"
     ],
-    "alien/cosmosforms/starforged": [
-      "antennae",
-      "star_crown",
-      "chest_orb",
-      "wings_light",
-      "mandala",
-      "shoulder_crystal"
+    "soulreaper/zanpakutoforms/bankai": [
+      "hakama_flare",
+      "bankai_coat",
+      "coat_sleeve",
+      "arm_wrap_r"
+    ],
+    "soulreaper/zanpakutoforms/vastolorde": [
+      "hakama_flare",
+      "mask_plate_full",
+      "mask_crown",
+      "mask_jaw_long",
+      "mask_teeth_open",
+      "mask_stripes_vasto",
+      "horns_vasto",
+      "mane_long",
+      "chest_hole",
+      "wrist_fur",
+      "ankle_fur",
+      "claws"
+    ],
+    "soulreaper/zanpakutoforms/mugetsu": [
+      "hakama_flare",
+      "sash_knot",
+      "hair_long_black",
+      "mugetsu_face_wrap",
+      "mugetsu_wraps",
+      "mugetsu_armbands",
+      "arm_blade_fused"
+    ],
+    "soulreaper/truezanpakutoforms/trueshikai": [
+      "hakama_flare",
+      "sash_knot",
+      "true_coat",
+      "back_strap"
+    ],
+    "soulreaper/truezanpakutoforms/truebankai": [
+      "hakama_flare",
+      "true_coat",
+      "coat_sleeve",
+      "face_streaks_l"
+    ],
+    "soulreaper/truezanpakutoforms/hornofsalvation": [
+      "hakama_flare",
+      "true_coat",
+      "coat_sleeve",
+      "face_streaks_l_long",
+      "horn_single_l"
+    ],
+    "soulreaper/truezanpakutoforms/bloodchains": [
+      "hakama_flare",
+      "true_coat",
+      "coat_sleeve",
+      "horns_pair_short",
+      "blood_chains"
+    ],
+    "soulreaper/base/base": [
+      "hakama_flare",
+      "sash_knot"
+    ],
+    "glind/demongodforms/demongodawakened": [
+      "demongod_crown",
+      "demongod_pauldrons",
+      "demongod_breastplate",
+      "demongod_vambraces",
+      "demongod_tassets"
+    ],
+    "glind/demongodforms/demongodtrue": [
+      "demongod_crown_true",
+      "demongod_pauldrons_true",
+      "demongod_breastplate",
+      "demongod_gauntlets",
+      "demongod_greaves",
+      "demongod_tassets_true",
+      "demongod_wings"
     ]
   },
   "designs": {
+    "sekhari/base/base": {
+      "own": 7227946,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 11558943
+    },
+    "sekhari/superforms/awakenedguardian": {
+      "own": 7227946,
+      "trim": 14858330,
+      "horn": 14271642,
+      "light": 16757310
+    },
+    "sekhari/superforms/sunmane": {
+      "own": 7227946,
+      "trim": 15912034,
+      "horn": 15259568,
+      "light": 16758062
+    },
+    "sekhari/superforms/divinebeast": {
+      "own": 15721676,
+      "trim": 14263868,
+      "horn": 15919314,
+      "light": 16755242
+    },
+    "sekhari/superforms/pharaohascendant": {
+      "own": 2244750,
+      "trim": 15779928,
+      "horn": 11814188,
+      "light": 16766038
+    },
+    "sekhari/crownforms/sphinxawakening": {
+      "own": 2969500,
+      "trim": 14859362,
+      "horn": 15129020,
+      "light": 4185286
+    },
+    "sekhari/crownforms/royalsekhari": {
+      "own": 2377636,
+      "trim": 15582807,
+      "horn": 15655620,
+      "light": 5039316
+    },
+    "sekhari/crownforms/celestialsekhari": {
+      "own": 2045840,
+      "trim": 15846490,
+      "horn": 15854296,
+      "light": 16770722
+    },
+    "sekhari/crownforms/sekhariascendant": {
+      "own": 2244764,
+      "trim": 16044130,
+      "horn": 15986138,
+      "light": 7925984
+    },
+    "sekhari/crownforms/eternalsekhari": {
+      "own": 1846902,
+      "trim": 16767078,
+      "horn": 16380898,
+      "light": 16773310
+    },
+    "sekhari/predatorforms/eclipseprowler": {
+      "own": 2368047,
+      "trim": 6968120,
+      "horn": 2893874,
+      "light": 16768668
+    },
+    "sekhari/predatorforms/solarlion": {
+      "own": 7219730,
+      "trim": 15774788,
+      "horn": 15721416,
+      "light": 16751662
+    },
+    "seiunjin/shape/crest": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/shape/finback": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/shape/horned": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/shape/stardrift": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/shape/bare": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/morph/blade": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/morph/blade_fp": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/morph/blade_slim": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/morph/blade_slim_fp": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/morph/longarm": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/morph/longarm_fp": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/morph/longarm_slim": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/morph/longarm_slim_fp": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/morph/finwing": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/morph/finwing_fp": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/morph/finwing_slim": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/morph/finwing_slim_fp": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 13625087,
+      "light": 16773577
+    },
+    "seiunjin/superforms/starbirth": {
+      "own": 5917344,
+      "trim": 15260159,
+      "horn": 16771000,
+      "light": 16773577
+    },
+    "seiunjin/superforms/nebula": {
+      "own": 4865164,
+      "trim": 14212336,
+      "horn": 16763120,
+      "light": 16773577
+    },
+    "seiunjin/superforms/pulsar": {
+      "own": 1845867,
+      "trim": 14542591,
+      "horn": 8382719,
+      "light": 11071743
+    },
+    "seiunjin/superforms/quasarbody": {
+      "own": 2767759,
+      "trim": 16777215,
+      "horn": 13625087,
+      "light": 10475775
+    },
+    "seiunjin/cosmosforms/eventhorizon": {
+      "own": 3812474,
+      "trim": 9337855,
+      "horn": 6966232,
+      "light": 12033279
+    },
+    "seiunjin/cosmosforms/starforged": {
+      "own": 7695419,
+      "trim": 15317321,
+      "horn": 16771494,
+      "light": 16765562
+    },
+    "makaijin/base/base": {
+      "light": 16738847
+    },
+    "makaijin/superforms/demonblood": {
+      "own": 4855325,
+      "trim": 10119742,
+      "horn": 3812916,
+      "light": 16738847
+    },
+    "makaijin/superforms/hornedfury": {
+      "own": 4855325,
+      "trim": 10119742,
+      "horn": 3812916,
+      "light": 16734746
+    },
+    "makaijin/superforms/abyssalsovereign": {
+      "own": 4855325,
+      "trim": 11039807,
+      "horn": 3812916,
+      "light": 16738847
+    },
+    "makaijin/superforms/realmtyrant": {
+      "own": 5903387,
+      "trim": 13144383,
+      "horn": 3418672,
+      "light": 16742958
+    },
+    "makaijin/abyssforms/demonawakening": {
+      "own": 3807778,
+      "trim": 11569726,
+      "horn": 9203320,
+      "light": 16730662
+    },
+    "makaijin/abyssforms/highdemon": {
+      "own": 3807778,
+      "trim": 11569726,
+      "horn": 8545391,
+      "light": 16726830
+    },
+    "makaijin/abyssforms/demongod": {
+      "own": 3807778,
+      "trim": 11569726,
+      "horn": 7887462,
+      "light": 16723518
+    },
+    "makaijin/abyssforms/abyssaldemon": {
+      "own": 3807778,
+      "trim": 11569726,
+      "horn": 7229532,
+      "light": 15735344
+    },
+    "makaijin/abyssforms/demonsovereign": {
+      "own": 3807778,
+      "trim": 11569726,
+      "horn": 6571602,
+      "light": 16719688
+    },
+    "makaijin/infernalforms/demonrealmlord": {
+      "own": 8002602,
+      "trim": 13213770,
+      "horn": 7628908,
+      "light": 16742943
+    },
+    "makaijin/infernalforms/infernalflame": {
+      "own": 6952482,
+      "trim": 14725200,
+      "horn": 6970978,
+      "light": 16747038
+    },
+    "taimujin/legendaryforms/timetorn": {
+      "own": 4995920,
+      "trim": 4865379,
+      "horn": 7620812,
+      "light": 4190975
+    },
+    "taimujin/legendaryforms/fracturedhour": {
+      "own": 4995920,
+      "trim": 4865379,
+      "horn": 7620812,
+      "light": 5433087
+    },
+    "taimujin/legendaryforms/endofhours": {
+      "own": 4995920,
+      "trim": 4865379,
+      "horn": 7620812,
+      "light": 8255999
+    },
+    "angel/legendaryforms/unboundhalo": {
+      "own": 16179878,
+      "trim": 14264394,
+      "horn": 12575743,
+      "light": 16771496
+    },
+    "angel/legendaryforms/starbreaker": {
+      "own": 16179878,
+      "trim": 14264394,
+      "horn": 12575743,
+      "light": 16765562
+    },
+    "angel/legendaryforms/lawlesslight": {
+      "own": 16179878,
+      "trim": 14264394,
+      "horn": 12575743,
+      "light": 16762992
+    },
+    "sekhari/legendaryforms/feralpride": {
+      "own": 5913126,
+      "trim": 15320170,
+      "horn": 15721416,
+      "light": 16734751
+    },
+    "sekhari/legendaryforms/dunetitan": {
+      "own": 14859896,
+      "trim": 15249456,
+      "horn": 15721416,
+      "light": 16767322
+    },
+    "sekhari/legendaryforms/suneater": {
+      "own": 3810328,
+      "trim": 16758062,
+      "horn": 2365211,
+      "light": 16727322
+    },
+    "seiunjin/legendaryforms/flarebloom": {
+      "own": 3028088,
+      "trim": 10336511,
+      "horn": 13623551,
+      "light": 12375295
+    },
+    "seiunjin/legendaryforms/coronagiant": {
+      "own": 6969430,
+      "trim": 8282714,
+      "horn": 15231274,
+      "light": 16756810
+    },
+    "seiunjin/legendaryforms/supernovaheart": {
+      "own": 2238031,
+      "trim": 11519743,
+      "horn": 14477567,
+      "light": 9417471
+    },
+    "makaijin/legendaryforms/abyssborn": {
+      "own": 3812398,
+      "trim": 3880246,
+      "horn": 1971993,
+      "light": 16734720
+    },
+    "makaijin/legendaryforms/giantofthepit": {
+      "own": 9208189,
+      "trim": 4076852,
+      "horn": 1971993,
+      "light": 16738847
+    },
+    "makaijin/legendaryforms/pitlord": {
+      "own": 3155754,
+      "trim": 3813937,
+      "horn": 1708566,
+      "light": 16730640
+    },
+    "soulreaper/legendaryforms/hollowborn": {
+      "own": 1447452,
+      "trim": 15723488,
+      "horn": 15723488,
+      "light": 12727360
+    },
+    "evil/shared/veins": {
+      "own": 3811888,
+      "trim": 12886094,
+      "horn": 15131868,
+      "light": 13111342
+    },
+    "evil/shared/mark": {
+      "own": 3811888,
+      "trim": 12886094,
+      "horn": 15131868,
+      "light": 13111342
+    },
+    "evil/shared/mark_and_veins": {
+      "own": 3811888,
+      "trim": 12886094,
+      "horn": 15131868,
+      "light": 13111342
+    },
+    "saiyan/corruptedforms/majinmark": {
+      "own": 3811888,
+      "trim": 12886094,
+      "horn": 15131868,
+      "light": 13111342
+    },
+    "saiyan/corruptedforms/evilsaiyan": {
+      "own": 3811888,
+      "trim": 12886094,
+      "horn": 15131868,
+      "light": 13111342
+    },
+    "saiyan/corruptedforms/evilsupersaiyan": {
+      "own": 3811888,
+      "trim": 12886094,
+      "horn": 15131868,
+      "light": 13111342
+    },
+    "human/thrallforms/majinthrall": {
+      "own": 6038321,
+      "trim": 2895668,
+      "horn": 11022671,
+      "light": 16731501
+    },
+    "human/thrallforms/cybermercenary": {
+      "own": 4212044,
+      "trim": 11383222,
+      "horn": 9117247,
+      "light": 16724040
+    },
+    "human/thrallforms/darkmasked": {
+      "own": 9117247,
+      "trim": 2301730,
+      "horn": 11022671,
+      "light": 16722506
+    },
+    "namekian/daimaoforms/demonkingmantle": {
+      "own": 8394784,
+      "trim": 3880515,
+      "horn": 8876206,
+      "light": 10170320
+    },
+    "namekian/daimaoforms/demonkingyouth": {
+      "own": 3222837,
+      "trim": 3880515,
+      "horn": 8876206,
+      "light": 10170320
+    },
+    "frostdemon/tyrantforms/chilledlegacy": {
+      "own": 6946984,
+      "trim": 11109702,
+      "horn": 6834822,
+      "light": 10112511
+    },
+    "frostdemon/tyrantforms/goldencooler": {
+      "own": 7348396,
+      "trim": 13804094,
+      "horn": 15254110,
+      "light": 16765514
+    },
+    "frostdemon/tyrantforms/darkemperor": {
+      "own": 3024696,
+      "trim": 9968166,
+      "horn": 5260648,
+      "light": 14686250
+    },
+    "majin/maliceforms/darkmaskbuu": {
+      "own": 1445916,
+      "trim": 13934636,
+      "horn": 15262418,
+      "light": 14033006
+    },
+    "majin/maliceforms/hatredincarnate": {
+      "own": 1445916,
+      "trim": 13934636,
+      "horn": 15262418,
+      "light": 14033006
+    },
+    "majin/maliceforms/absorptiontyrant": {
+      "own": 1445916,
+      "trim": 13934636,
+      "horn": 15262418,
+      "light": 14033006
+    },
+    "bioandroid/parasiteforms/tuffleparasite": {
+      "own": 1317398,
+      "trim": 12436165,
+      "horn": 14867403,
+      "light": 3781962
+    },
+    "bioandroid/parasiteforms/hellcorruption": {
+      "own": 3213839,
+      "trim": 922640,
+      "horn": 14867403,
+      "light": 3781962
+    },
+    "glind/kishinforms/demongodawakened": {
+      "own": 4915330,
+      "trim": 13151080,
+      "horn": 4077125,
+      "light": 12482275
+    },
+    "glind/kishinforms/demongodtrue": {
+      "own": 4915330,
+      "trim": 13151080,
+      "horn": 4077125,
+      "light": 12482275
+    },
+    "taimujin/ravagerforms/breakermask": {
+      "own": 11538987,
+      "trim": 11636019,
+      "horn": 3026490,
+      "light": 16723270
+    },
+    "taimujin/ravagerforms/chronoravager": {
+      "own": 11538987,
+      "trim": 11636019,
+      "horn": 3026490,
+      "light": 16726832
+    },
+    "angel/severedforms/severedhalo": {
+      "own": 3026490,
+      "trim": 8816012,
+      "horn": 11538987,
+      "light": 16722495
+    },
+    "angel/severedforms/dethroned": {
+      "own": 3026490,
+      "trim": 8816012,
+      "horn": 11538987,
+      "light": 14164026
+    },
+    "sekhari/devourerforms/heartdevourer": {
+      "own": 2762272,
+      "trim": 13144090,
+      "horn": 14538431,
+      "light": 14723114
+    },
+    "sekhari/devourerforms/ammitascendant": {
+      "own": 2762272,
+      "trim": 13144090,
+      "horn": 14538431,
+      "light": 14723114
+    },
+    "seiunjin/blackholeforms/voideater": {
+      "own": 2762272,
+      "trim": 13144090,
+      "horn": 14538431,
+      "light": 9068766
+    },
+    "seiunjin/blackholeforms/eventcollapse": {
+      "own": 2762272,
+      "trim": 13144090,
+      "horn": 14538431,
+      "light": 9068766
+    },
+    "makaijin/demonkingforms/kingofdemons": {
+      "own": 3811888,
+      "trim": 12886094,
+      "horn": 15131868,
+      "light": 16738847
+    },
+    "makaijin/demonkingforms/makaioshin": {
+      "own": 3811888,
+      "trim": 12886094,
+      "horn": 15131868,
+      "light": 16738847
+    },
+    "soulreaper/hogyokuforms/hogyokuchrysalis": {
+      "own": 15723764,
+      "trim": 15065302,
+      "horn": 10637546,
+      "light": 10118128
+    },
+    "soulreaper/hogyokuforms/hogyokuascended": {
+      "own": 15723764,
+      "trim": 15065302,
+      "horn": 10637546,
+      "light": 10118128
+    },
+    "majin/reflectionforms/goldenmimic": {
+      "own": 8007578,
+      "trim": 14263858,
+      "horn": 15780700,
+      "light": 16765514
+    },
+    "majin/reflectionforms/ascendedmimic": {
+      "own": 8007578,
+      "trim": 14263858,
+      "horn": 15780700,
+      "light": 9364722
+    },
+    "majin/reflectionforms/godmimic": {
+      "own": 11216208,
+      "trim": 14263858,
+      "horn": 15723233,
+      "light": 15224942
+    },
+    "human/gammaframeforms/gammaframe": {
+      "own": 2501952,
+      "trim": 6055021,
+      "horn": 14575654,
+      "light": 6871278
+    },
+    "human/gammaframeforms/gammaoverdrive": {
+      "own": 2501952,
+      "trim": 6055021,
+      "horn": 14575654,
+      "light": 12645631
+    },
+    "human/gammaframeforms/majincircuit": {
+      "own": 12501960,
+      "trim": 10594221,
+      "horn": 15363744,
+      "light": 15363744
+    },
+    "bioandroid/genomefrostdemon/frostdemonstrain1": {
+      "own": 12699350,
+      "trim": 7549863,
+      "horn": 1778715,
+      "light": 12577023
+    },
+    "bioandroid/genomefrostdemon/frostdemonstrain2": {
+      "own": 12699350,
+      "trim": 7549863,
+      "horn": 1778715,
+      "light": 12577023
+    },
+    "bioandroid/genomefrostdemon/frostdemonstrain3": {
+      "own": 12699350,
+      "trim": 7549863,
+      "horn": 1778715,
+      "light": 12577023
+    },
+    "bioandroid/genomemajin/majinstrain1": {
+      "own": 15105971,
+      "trim": 16747716,
+      "horn": 1778715,
+      "light": 16747716
+    },
+    "bioandroid/genomemajin/majinstrain2": {
+      "own": 15105971,
+      "trim": 16747716,
+      "horn": 1778715,
+      "light": 16747716
+    },
+    "bioandroid/genomemajin/majinstrain3": {
+      "own": 15105971,
+      "trim": 16747716,
+      "horn": 1778715,
+      "light": 16747716
+    },
+    "bioandroid/genometaimujin/taimujinstrain1": {
+      "own": 10254896,
+      "trim": 6113163,
+      "horn": 1778715,
+      "light": 16764786
+    },
+    "bioandroid/genometaimujin/taimujinstrain2": {
+      "own": 10254896,
+      "trim": 6113163,
+      "horn": 1778715,
+      "light": 16764786
+    },
+    "bioandroid/genometaimujin/taimujinstrain3": {
+      "own": 10254896,
+      "trim": 6113163,
+      "horn": 1778715,
+      "light": 16764786
+    },
+    "bioandroid/genomehuman/humanstrain1": {
+      "own": 3100056,
+      "trim": 12892835,
+      "horn": 5400884,
+      "light": 16771494
+    },
+    "bioandroid/genomehuman/humanstrain2": {
+      "own": 3100056,
+      "trim": 12892835,
+      "horn": 5400884,
+      "light": 16771494
+    },
+    "bioandroid/genomehuman/humanstrain3": {
+      "own": 3100056,
+      "trim": 12892835,
+      "horn": 5400884,
+      "light": 16771494
+    },
+    "bioandroid/genomesaiyan/saiyanstrain1": {
+      "own": 11963188,
+      "trim": 13881027,
+      "horn": 6897701,
+      "light": 16767050
+    },
+    "bioandroid/genomesaiyan/saiyanstrain2": {
+      "own": 11963188,
+      "trim": 13881027,
+      "horn": 6897701,
+      "light": 16767050
+    },
+    "bioandroid/genomesaiyan/saiyanstrain3": {
+      "own": 11963188,
+      "trim": 13881027,
+      "horn": 6897701,
+      "light": 16767050
+    },
+    "bioandroid/genomenamekian/namekianstrain1": {
+      "own": 14933191,
+      "trim": 6108798,
+      "horn": 13067900,
+      "light": 8191834
+    },
+    "bioandroid/genomenamekian/namekianstrain2": {
+      "own": 14933191,
+      "trim": 6108798,
+      "horn": 13067900,
+      "light": 8191834
+    },
+    "bioandroid/genomenamekian/namekianstrain3": {
+      "own": 14933191,
+      "trim": 6108798,
+      "horn": 13067900,
+      "light": 8191834
+    },
+    "bioandroid/genomesphinxian/sphinxianstrain1": {
+      "own": 12749880,
+      "trim": 15320170,
+      "horn": 3875606,
+      "light": 15507514
+    },
+    "bioandroid/genomesphinxian/sphinxianstrain2": {
+      "own": 12749880,
+      "trim": 15320170,
+      "horn": 3875606,
+      "light": 15507514
+    },
+    "bioandroid/genomesphinxian/sphinxianstrain3": {
+      "own": 12749880,
+      "trim": 15320170,
+      "horn": 3875606,
+      "light": 15507514
+    },
+    "bioandroid/genomealien/alienstrain1": {
+      "own": 3882892,
+      "trim": 11554728,
+      "horn": 1778715,
+      "light": 16773577
+    },
+    "bioandroid/genomealien/alienstrain2": {
+      "own": 3882892,
+      "trim": 11554728,
+      "horn": 1778715,
+      "light": 16773577
+    },
+    "bioandroid/genomealien/alienstrain3": {
+      "own": 3882892,
+      "trim": 11554728,
+      "horn": 1778715,
+      "light": 16773577
+    },
+    "bioandroid/genomedemon/demonstrain1": {
+      "own": 4855325,
+      "trim": 10119742,
+      "horn": 4601400,
+      "light": 16738847
+    },
+    "bioandroid/genomedemon/demonstrain2": {
+      "own": 4855325,
+      "trim": 10119742,
+      "horn": 4601400,
+      "light": 16738847
+    },
+    "bioandroid/genomedemon/demonstrain3": {
+      "own": 4855325,
+      "trim": 10119742,
+      "horn": 4601400,
+      "light": 16738847
+    },
+    "bioandroid/genomeangel/angelstrain1": {
+      "own": 5056058,
+      "trim": 13687264,
+      "horn": 1778715,
+      "light": 10478830
+    },
+    "bioandroid/genomeangel/angelstrain2": {
+      "own": 5056058,
+      "trim": 13687264,
+      "horn": 1778715,
+      "light": 10478830
+    },
+    "bioandroid/genomeangel/angelstrain3": {
+      "own": 5056058,
+      "trim": 13687264,
+      "horn": 1778715,
+      "light": 10478830
+    },
+    "bioandroid/genomeglind/glindstrain1": {
+      "own": 10654914,
+      "trim": 3548742,
+      "horn": 1778715,
+      "light": 15911024
+    },
+    "bioandroid/genomeglind/glindstrain2": {
+      "own": 10654914,
+      "trim": 3548742,
+      "horn": 1778715,
+      "light": 15911024
+    },
+    "bioandroid/genomeglind/glindstrain3": {
+      "own": 10654914,
+      "trim": 3548742,
+      "horn": 1778715,
+      "light": 15911024
+    },
+    "bioandroid/genomeandroid/androidstrain1": {
+      "own": 9279136,
+      "trim": 5923436,
+      "horn": 1778715,
+      "light": 16018016
+    },
+    "bioandroid/genomeandroid/androidstrain2": {
+      "own": 9279136,
+      "trim": 5923436,
+      "horn": 1778715,
+      "light": 16018016
+    },
+    "bioandroid/genomeandroid/androidstrain3": {
+      "own": 9279136,
+      "trim": 5923436,
+      "horn": 1778715,
+      "light": 16018016
+    },
+    "bioandroid/genomesoulreaper/soulreaperstrain1": {
+      "own": 1778715,
+      "trim": 13157044,
+      "horn": 10102322,
+      "light": 11849976
+    },
+    "bioandroid/genomesoulreaper/soulreaperstrain2": {
+      "own": 1778715,
+      "trim": 13157044,
+      "horn": 10102322,
+      "light": 11849976
+    },
+    "bioandroid/genomesoulreaper/soulreaperstrain3": {
+      "own": 1778715,
+      "trim": 13157044,
+      "horn": 10102322,
+      "light": 11849976
+    },
+    "soulreaper/innerhollow/unmasked": {
+      "own": 15593200,
+      "trim": 15320170,
+      "horn": 14273968,
+      "light": 8434943
+    },
+    "soulreaper/innerhollow/masked": {
+      "own": 15593200,
+      "trim": 15320170,
+      "horn": 14273968,
+      "light": 8434943
+    },
+    "soulreaper/innerhollow/complete": {
+      "own": 15593200,
+      "trim": 15320170,
+      "horn": 14273968,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/skull_l1": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/skull_l3": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/helmet_l1": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/helmet_l3": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/insect_l1": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/insect_l3": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/beast_l1": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/beast_l3": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/hooded_l1": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/hooded_l3": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/crescent_l1": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/crescent_l3": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/skull_l4_full": {
+      "own": 10624040,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/insect_l4_band": {
+      "own": 3580578,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/beast_l3_slit": {
+      "own": 16022838,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/crescent_l3_crescent": {
+      "own": 8209589,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/maskkit/hooded_l2_round": {
+      "own": 14197300,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "bleach/outfits/shihakusho": {
+      "own": 1447452,
+      "trim": 10359844,
+      "horn": 15526370,
+      "light": 16777215
+    },
+    "bleach/outfits/bankai_coat": {
+      "own": 1447452,
+      "trim": 10359844,
+      "horn": 15526370,
+      "light": 16777215
+    },
+    "bleach/outfits/mugetsu": {
+      "own": 1447452,
+      "trim": 10359844,
+      "horn": 15526370,
+      "light": 16777215
+    },
+    "bleach/outfits/torn_hakama": {
+      "own": 1447452,
+      "trim": 10359844,
+      "horn": 15526370,
+      "light": 16777215
+    },
     "human/fistforms/limitbreaker": {
       "own": 13186347,
       "trim": 15320170,
@@ -729,168 +2763,6 @@
       "horn": 15266032,
       "light": 16769686
     },
-    "bioandroid/genomealien/alienstrain1": {
-      "own": 4667509,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 10124031
-    },
-    "bioandroid/genomealien/alienstrain2": {
-      "own": 4667509,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 10124031
-    },
-    "bioandroid/genomealien/alienstrain3": {
-      "own": 4667509,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 10124031
-    },
-    "bioandroid/genomedemon/demonstrain1": {
-      "own": 6759029,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 14699263
-    },
-    "bioandroid/genomedemon/demonstrain2": {
-      "own": 6759029,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 14699263
-    },
-    "bioandroid/genomedemon/demonstrain3": {
-      "own": 8003420,
-      "trim": 15320170,
-      "horn": 2300966,
-      "light": 14699263
-    },
-    "bioandroid/genomefrostdemon/frostdemonstrain1": {
-      "own": 3892085,
-      "trim": 15320170,
-      "horn": 13168383,
-      "light": 8444159
-    },
-    "bioandroid/genomefrostdemon/frostdemonstrain2": {
-      "own": 3892085,
-      "trim": 15320170,
-      "horn": 13168383,
-      "light": 8444159
-    },
-    "bioandroid/genomefrostdemon/frostdemonstrain3": {
-      "own": 3892085,
-      "trim": 15320170,
-      "horn": 13168383,
-      "light": 8444159
-    },
-    "bioandroid/genomehuman/humanstrain1": {
-      "own": 13186347,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 16768896
-    },
-    "bioandroid/genomehuman/humanstrain2": {
-      "own": 13186347,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 16768896
-    },
-    "bioandroid/genomehuman/humanstrain3": {
-      "own": 15855334,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 16768896
-    },
-    "bioandroid/genomemajin/majinstrain1": {
-      "own": 7682910,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 16744652
-    },
-    "bioandroid/genomemajin/majinstrain2": {
-      "own": 8007578,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 16744652
-    },
-    "bioandroid/genomemajin/majinstrain3": {
-      "own": 8007578,
-      "trim": 15320170,
-      "horn": 2300966,
-      "light": 16744652
-    },
-    "bioandroid/genomenamekian/namekianstrain1": {
-      "own": 3765545,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 8191834
-    },
-    "bioandroid/genomenamekian/namekianstrain2": {
-      "own": 3765545,
-      "trim": 15320170,
-      "horn": 14273968,
-      "light": 8191834
-    },
-    "bioandroid/genomenamekian/namekianstrain3": {
-      "own": 3765545,
-      "trim": 15320170,
-      "horn": 14273968,
-      "light": 8191834
-    },
-    "bioandroid/genomesaiyan/saiyanstrain1": {
-      "own": 7693090,
-      "trim": 15320170,
-      "horn": 5978658,
-      "light": 16767050
-    },
-    "bioandroid/genomesaiyan/saiyanstrain2": {
-      "own": 7693090,
-      "trim": 15320170,
-      "horn": 5978658,
-      "light": 16767050
-    },
-    "bioandroid/genomesaiyan/saiyanstrain3": {
-      "own": 7693090,
-      "trim": 15320170,
-      "horn": 5978658,
-      "light": 16767050
-    },
-    "bioandroid/genomesphinxian/sphinxianstrain1": {
-      "own": 7688448,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 16759846
-    },
-    "bioandroid/genomesphinxian/sphinxianstrain2": {
-      "own": 2052003,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 16759846
-    },
-    "bioandroid/genomesphinxian/sphinxianstrain3": {
-      "own": 15855334,
-      "trim": 15320170,
-      "horn": 15320170,
-      "light": 16759846
-    },
-    "bioandroid/genometaimujin/taimujinstrain1": {
-      "own": 4607592,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 16769686
-    },
-    "bioandroid/genometaimujin/taimujinstrain2": {
-      "own": 4607592,
-      "trim": 13805654,
-      "horn": 15722191,
-      "light": 16769686
-    },
-    "bioandroid/genometaimujin/taimujinstrain3": {
-      "own": 4607592,
-      "trim": 13805654,
-      "horn": 15722191,
-      "light": 16769686
-    },
     "majin/miraforms/majinawakening": {
       "own": 7680864,
       "trim": 15320170,
@@ -932,90 +2804,6 @@
       "trim": 15320170,
       "horn": 2300966,
       "light": 11758591
-    },
-    "demon/abyssforms/demonawakening": {
-      "own": 3889781,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 8439039
-    },
-    "demon/abyssforms/highdemon": {
-      "own": 3889781,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 8438783
-    },
-    "demon/abyssforms/demongod": {
-      "own": 4083624,
-      "trim": 15320170,
-      "horn": 14472944,
-      "light": 8426239
-    },
-    "demon/abyssforms/abyssaldemon": {
-      "own": 7999520,
-      "trim": 15320170,
-      "horn": 1972772,
-      "light": 16721473
-    },
-    "demon/abyssforms/demonsovereign": {
-      "own": 9314125,
-      "trim": 12162620,
-      "horn": 2757144,
-      "light": 16728458
-    },
-    "demon/infernalforms/demonrealmlord": {
-      "own": 3809118,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 12606463
-    },
-    "demon/infernalforms/infernalflame": {
-      "own": 12859918,
-      "trim": 15320170,
-      "horn": 2300442,
-      "light": 16753226
-    },
-    "sphinxian/crownforms/sphinxawakening": {
-      "own": 5254773,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 11494911
-    },
-    "sphinxian/crownforms/royalsphinxian": {
-      "own": 2052003,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 12878079
-    },
-    "sphinxian/crownforms/celestialsphinxian": {
-      "own": 15593463,
-      "trim": 15320170,
-      "horn": 6063840,
-      "light": 8440831
-    },
-    "sphinxian/crownforms/sphinxianascendant": {
-      "own": 16052714,
-      "trim": 15320170,
-      "horn": 15320170,
-      "light": 16769686
-    },
-    "sphinxian/crownforms/eternalsphinxian": {
-      "own": 1774896,
-      "trim": 15320170,
-      "horn": 15320170,
-      "light": 16765514
-    },
-    "sphinxian/predatorforms/eclipseprowler": {
-      "own": 4668277,
-      "trim": 15320170,
-      "horn": 1446428,
-      "light": 10191103
-    },
-    "sphinxian/predatorforms/solarlion": {
-      "own": 14917675,
-      "trim": 15320170,
-      "horn": 15722191,
-      "light": 16765514
     },
     "taimujin/eonforms/temporalawakening": {
       "own": 4665717,
@@ -1059,17 +2847,71 @@
       "horn": 15722191,
       "light": 16768896
     },
-    "alien/cosmosforms/eventhorizon": {
-      "own": 3679093,
-      "trim": 2761792,
-      "horn": 6966232,
-      "light": 8015359
+    "soulreaper/zanpakutoforms/shikai": {
+      "own": 8002074,
+      "trim": 5857390,
+      "horn": 15722191,
+      "light": 8434943
     },
-    "alien/cosmosforms/starforged": {
-      "own": 7695419,
+    "soulreaper/zanpakutoforms/bankai": {
+      "own": 1184278,
+      "trim": 10359844,
+      "horn": 15722191,
+      "light": 8421631
+    },
+    "soulreaper/zanpakutoforms/vastolorde": {
+      "own": 920076,
       "trim": 15320170,
-      "horn": 16771494,
-      "light": 16771712
+      "horn": 14273968,
+      "light": 14687790
+    },
+    "soulreaper/zanpakutoforms/mugetsu": {
+      "own": 5264991,
+      "trim": 789520,
+      "horn": 15722191,
+      "light": 8421631
+    },
+    "soulreaper/truezanpakutoforms/trueshikai": {
+      "own": 1184278,
+      "trim": 5857390,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "soulreaper/truezanpakutoforms/truebankai": {
+      "own": 921106,
+      "trim": 10359844,
+      "horn": 15722191,
+      "light": 8421631
+    },
+    "soulreaper/truezanpakutoforms/hornofsalvation": {
+      "own": 921106,
+      "trim": 10359844,
+      "horn": 14273968,
+      "light": 14686250
+    },
+    "soulreaper/truezanpakutoforms/bloodchains": {
+      "own": 1181192,
+      "trim": 5900304,
+      "horn": 14273968,
+      "light": 14687790
+    },
+    "soulreaper/base/base": {
+      "own": 3887989,
+      "trim": 15320170,
+      "horn": 15722191,
+      "light": 8434943
+    },
+    "glind/demongodforms/demongodawakened": {
+      "own": 4915330,
+      "trim": 13151080,
+      "horn": 4077125,
+      "light": 12482275
+    },
+    "glind/demongodforms/demongodtrue": {
+      "own": 4915330,
+      "trim": 13151080,
+      "horn": 4077125,
+      "light": 12482275
     }
   }
 }

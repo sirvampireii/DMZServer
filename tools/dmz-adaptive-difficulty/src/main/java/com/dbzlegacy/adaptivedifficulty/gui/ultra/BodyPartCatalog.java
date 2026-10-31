@@ -81,10 +81,14 @@ public final class BodyPartCatalog {
         return List.copyOf(out.values());
     }
 
-    /** Standard slot for a piece id. Unknown shapes use {@link #SLOT_BODY}. */
+    /**
+     * Standard slot for a piece id. Unknown shapes use {@link #SLOT_BODY}. A DMZUltra set piece
+     * carries its set's prefix ({@code ystr_tail}, {@code msek_tail_feral}), so a tail is also a
+     * {@code _tail} suffix or a {@code _tail_} infix; plural {@code _tails} ids are cloth (sash tails).
+     */
     public static String slot(String id) {
         String s = id == null ? "" : id.trim().toLowerCase(Locale.ROOT);
-        if (s.equals(SAIYAN_TAIL) || s.startsWith("tail_")) {
+        if (s.equals(SAIYAN_TAIL) || s.startsWith("tail_") || s.endsWith("_tail") || s.contains("_tail_")) {
             return SLOT_TAIL;
         }
         if (s.startsWith("wing")) {
