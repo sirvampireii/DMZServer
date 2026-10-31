@@ -121,7 +121,15 @@ if [[ ! -f "$DMZULTRA" ]]; then
   exit 1
 fi
 echo "Using dmzultra jar for compile: $DMZULTRA"
-CP="$CP:$NOEA:$MELEE:$DMZULTRA"
+# dmzultra 0.4.x jar - per-character prestige (PrestigeCharacterUltra) uses its slots API.
+# Compile input only; LM runs with or without dmzultra. Same jar as DMZULTRA_JAR when that is 0.4.x.
+DMZULTRA_SLOTS="${DMZULTRA_SLOTS_JAR:-$DMZULTRA}"
+if ! unzip -l "$DMZULTRA_SLOTS" 2>/dev/null | grep -c 'com/dmzultra/slots/api/CharacterEvent\$Born.class' > /dev/null; then
+  echo "Missing dmzultra 0.4.x jar with the slots API (set DMZULTRA_SLOTS_JAR)." >&2
+  exit 1
+fi
+echo "Using dmzultra slots jar for compile: $DMZULTRA_SLOTS"
+CP="$CP:$NOEA:$MELEE:$DMZULTRA:$DMZULTRA_SLOTS"
 
 echo "Cleaning compile output before packaging"
 rm -rf "$OUT"

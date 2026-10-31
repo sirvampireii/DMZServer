@@ -1433,6 +1433,54 @@ def main() -> int:
           and "DmzRevampPrestigeBridge.levelCap(sd)" in pf_test
           and "configuredMaxPrestigeCount()" in pf_test)
 
+    print("\n--- § prestige per character ---")
+    pc = read(SRC / "progression/shop/PrestigeCharacter.java")
+    pc_ultra = read(SRC / "progression/shop/PrestigeCharacterUltra.java")
+    pc_ps = read(SRC / "progression/shop/PrestigeSystem.java")
+    pc_pp = read(SRC / "progression/shop/PrestigePointsSystem.java")
+    pc_mod = read(SRC / "AdaptiveDifficultyMod.java")
+    pc_ev = read(SRC / "event/DifficultyEvents.java")
+    pc_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    check("manifest prestige-per-character row", "prestige-per-character" in manifest)
+    check("character id: Slots.characterId when Ultra slots are on, the account UUID otherwise",
+          "return Slots.enabled() ? Slots.characterId(player) : null;" in pc_ultra
+          and "return character == null ? account : character;" in pc
+          and 'Class.forName("com.dmzultra.slots.api.Slots", false' in pc
+          and "PrestigeCharacter.register();" in pc_mod)
+    check("only PrestigeCharacterUltra names the Ultra slots API",
+          not any("com.dmzultra.slots" in read(f) for f in SRC.rglob("*.java")
+                  if f.name not in ("PrestigeCharacterUltra.java", "PrestigeCharacter.java"))
+          and "import com.dmzultra" not in pc)
+    check("every prestige record goes through the character: held, lifetime, override, confirm, favor",
+          "LmPlayerStore" not in pc_ps and pc_ps.count("PrestigeCharacter.root(player)") == 10
+          and "CONFIRM_UNTIL.get(PrestigeCharacter.id(player))" in pc_ps
+          and "CONFIRM_UNTIL.put(PrestigeCharacter.id(player)," in pc_ps
+          and "PrestigeCharacter.getLong(player, ROOT_POINTS, 0L)" in pc_pp
+          and "PrestigeCharacter.root(player).m_128356_(ROOT_POINTS, n);" in pc_pp)
+    check("account-wide legacy sources (faction 4, shop inference) only feed the account record",
+          pc_ps.count("PrestigeCharacter.isAccount(player) ? readFactionPoints(player, FACTION_HELD_ID) : null") == 2
+          and "if (!PrestigeCharacter.isAccount(player)) {\n            return false;" in pc_ps)
+    check("migration: copy the account's held/lifetime/override/favor once, keep existing keys, account file untouched",
+          "if (character.m_128441_(KEY_SEEDED)) {" in pc
+          and "if (value != null && !character.m_128441_(key)) {" in pc
+          and ("PrestigeSystem.KEY_HELD,\n            PrestigeSystem.KEY_TOTAL,\n"
+               "            PrestigeSystem.KEY_TOTAL_STAFF_OVERRIDE,\n            PrestigePointsSystem.ROOT_POINTS);") in pc)
+    check("switch: Overhaul count re-synced from the new character's held on the next tick",
+          "CharacterEvent.SwitchIn.class" in pc_ultra
+          and ".scheduleSyncAfterStatsReset(p);" in pc.split("static void switchedIn(", 1)[-1].split("\n    }\n", 1)[0])
+    _born = pc.split("static void born(", 1)[-1].split("\n    }\n", 1)[0]
+    check("birth: active character only, once per slot creation, fresh prestige and fresh DMZ stats",
+          "CharacterEvent.Born.class" in pc_ultra
+          and "!character.equals(id(player))" in _born
+          and "if (!claimBirth(accountRoot, slot, created)) {" in _born
+          and "startFresh(root(player));" in _born and "freshStats(player);" in _born
+          and "stats.copyFrom(new StatsData((Player) player));" in pc
+          and "new StatsSyncS2C(player)" in pc)
+    check("character files flushed on save and unloaded on logout",
+          "PrestigeCharacter.flush(player);" in pc_ev and "PrestigeCharacter.unload(player);" in pc_ev)
+    check("self-test covers seeding, fresh start, and the birth guard",
+          "PrestigeCharacter.selfTest(broken);" in pc_test)
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")

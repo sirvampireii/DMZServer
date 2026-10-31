@@ -39,6 +39,35 @@ Code: `data/LmPlayerStore.java` (store), `data/LmPlayerDataMigration.java` (one-
 Files are written when the content changed: on every difficulty save, on the player save event, on
 logout, every 30 seconds, and on server stop. Writes go to a temp file and are swapped in.
 
+## Prestige per character (4.7.3)
+
+DMZ Ultra 0.4.0 lets one account hold several characters. Each character has its own UUID
+(`Slots.characterId`); the first character (slot 0) uses the account UUID. Prestige records are kept
+per character, in `players/<character-uuid>.json`:
+
+- `lm_prestige_held`, `prestige_total_completed`, `prestige_total_staff_override`,
+  `lm_prestige_points` (favor), and `lm_prestige_confirm_until`.
+- Everything else stays in the account file: difficulty data, the `lm_progression` bag (shop
+  purchases, skills, meditation), mastery wallet, cap mirrors, Nemesis mode, rival, sparring and
+  character services.
+
+Slot 0 reads and writes the account file, so a player with one character keeps exactly what they
+had. Another character's file is seeded from the account file the first time it is read: held,
+lifetime, staff override and favor (the larger of `lm_prestige_points` and the bag's
+`prestige_points`) are copied, keys the character already has are kept, and `lm_prestige_seeded`
+marks it done. The account file is left in place. CNPC faction 4 and the shop-purchase inference
+of lifetime prestiges are per account, so they only feed the account file.
+
+A character Ultra creates (`CharacterEvent.Born`) starts with held 0, lifetime 0 and favor 0, and LM
+resets its DragonMineZ stats to a fresh character (new `StatsData`, base attributes). The account
+file's `lm_character_births` records each handled birth (slot number and the slot's creation time),
+so a repeated event changes nothing. If slot 0 itself is created again, the account's old prestige
+keys are first kept in `lm_prestige_account_seed`, and other characters still seed from that.
+
+Without Ultra, or with its slots turned off, every record is the account file, as in 4.7.2.
+Code: `progression/shop/PrestigeCharacter.java` (and `PrestigeCharacterUltra.java`, the only class
+that names Ultra's slots API).
+
 ## Audit of LM writes into DMZ-owned storage
 
 **Forge persistent data on players.** The durable records are the keys in the table above. These

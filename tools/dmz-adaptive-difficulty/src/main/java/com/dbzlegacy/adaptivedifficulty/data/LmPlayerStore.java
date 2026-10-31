@@ -93,7 +93,11 @@ public final class LmPlayerStore {
     }
 
     public static long getLong(Entity player, String key, long fallback) {
-        CompoundTag tag = root(player);
+        return getLong(root(player), key, fallback);
+    }
+
+    /** A numeric record (or a string holding one) from {@code tag}; {@code fallback} when missing. */
+    public static long getLong(CompoundTag tag, String key, long fallback) {
         if (!tag.m_128441_(key)) {
             return fallback;
         }

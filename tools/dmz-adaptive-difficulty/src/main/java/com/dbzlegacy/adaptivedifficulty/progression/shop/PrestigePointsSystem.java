@@ -202,6 +202,11 @@ public final class PrestigePointsSystem {
         if (player == null) {
             return 0;
         }
+        if (!PrestigeCharacter.isAccount(player)) {
+            // Another character's favor: its own record only, never the account bag.
+            return (int) Math.min(Integer.MAX_VALUE,
+                    Math.max(0L, PrestigeCharacter.getLong(player, ROOT_POINTS, 0L)));
+        }
         int fromBag = Math.max(0, (int) ProgressionData.storedGetLong(player, KEY_POINTS, 0L));
         long fromRoot = com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.getLong(player, ROOT_POINTS, -1L);
         int n = fromBag;
@@ -222,6 +227,10 @@ public final class PrestigePointsSystem {
             return;
         }
         int n = Math.max(0, points);
+        if (!PrestigeCharacter.isAccount(player)) {
+            PrestigeCharacter.root(player).m_128356_(ROOT_POINTS, n);
+            return;
+        }
         ProgressionData.storedPut(player, KEY_POINTS, n);
         com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.putLong(player, ROOT_POINTS, n);
     }

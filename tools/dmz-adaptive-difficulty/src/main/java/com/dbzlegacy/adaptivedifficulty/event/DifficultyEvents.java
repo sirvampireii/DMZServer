@@ -398,6 +398,7 @@ public final class DifficultyEvents {
         if (event.getEntity() instanceof ServerPlayer player) {
             DifficultyCache.save(player);
             com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.flush(player.m_20148_());
+            com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter.flush(player);
         }
     }
 
@@ -435,6 +436,7 @@ public final class DifficultyEvents {
             ProgressionSystem.onLogout(player);
             DifficultyActions.clearLevelPull(player.m_20148_());
             com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.unload(player.m_20148_());
+            com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter.unload(player);
         }
     }
 
