@@ -373,6 +373,12 @@ unchanged.
 `AdaptiveDifficultyMod` re-extracted from `mods/LegacyMechanics-4.7.14.jar` (javap: version string
 only). The other 24 are unchanged, also when compiled against dmzrevamp 2.2.4 and DragonMineZ 2.2.1.
 
+## Re-baseline (2026-10-31, 4.7.15 prestige need ladder)
+
+Three classes re-extracted from `mods/LegacyMechanics-4.7.15.jar`; javap diffs checked:
+`AdaptiveDifficultyMod` (version string), `ProgressionGuiApi` and `UltraPrestigeScreens` (player text:
+"Need" instead of "your cap"; lore lines built with `UltraStyle`). The other 22 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

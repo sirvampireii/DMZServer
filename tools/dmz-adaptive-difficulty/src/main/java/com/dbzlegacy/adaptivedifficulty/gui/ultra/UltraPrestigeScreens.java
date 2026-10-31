@@ -149,11 +149,11 @@ public final class UltraPrestigeScreens {
             spec.line(UltraStyle.danger("Prestige system is disabled. Ask staff to turn it on."));
         } else {
             spec.labelValue("Need", ph.getOrDefault("required_fmt", "0"));
-            spec.line(UltraStyle.dim("Reaching your current cap earns your next prestige."));
+            spec.line(UltraStyle.dim("Reaching the Need power earns your next prestige."));
             if ("true".equalsIgnoreCase(ph.get("ready"))) {
                 spec.line(UltraStyle.confirm("Ready to prestige."));
             } else {
-                spec.line(UltraStyle.dim("Reach your cap first."));
+                spec.line(UltraStyle.dim("Reach the Need power first."));
             }
         }
         spec.buttonsAfterLines();

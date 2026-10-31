@@ -18,8 +18,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * {@code canPrestigeAuthoritative} only checks the {@code prestige_saga:3} quest. LM keeps the cap of
  * 20 ({@link LmOverhaulCapMath#configuredMaxPrestigeCount()}) here: {@code setCount} clamps to it, and
  * {@code canPrestige} / {@code canPrestigeAuthoritative} (the one {@code tryPrestige} asks) say no at 20
- * held or while LM's prestige integration is off. They never say yes, so 2.2.4's own quest check
- * still decides the rest (the flat level cap does not gate it). {@code maxAssignableTotal} uses the same level cap as the menus. The
+ * held, below LM's prestige requirement for the held count (4.7.15, the same ladder as LM's menu:
+ * {@link LmOverhaulCapMath#blocksOverhaulPrestige}), or while LM's prestige integration is off. They
+ * never say yes, so 2.2.4's own quest check still applies. {@code maxAssignableTotal} uses the same level cap as the menus. The
  * {@code hexStatReference} hook is gone with the method. Every hook is {@code require = 0}: if a
  * dmzrevamp update moves one, boot continues and the startup self-test warns.
  */
@@ -53,7 +54,7 @@ public abstract class DmzRevampPrestigeCapMixin {
         return Math.max(0, Math.min(LmOverhaulCapMath.configuredMaxPrestigeCount(), count));
     }
 
-    /** At the cap of 20, or LM prestige on without the Overhaul integration: no prestige. */
+    /** At the cap of 20, below the requirement for the held count, or LM prestige on without the integration. */
     private static boolean lm$blocked(StatsData data) {
         int count = 0;
         try {
@@ -64,7 +65,17 @@ public abstract class DmzRevampPrestigeCapMixin {
         if (count >= LmOverhaulCapMath.configuredMaxPrestigeCount()) {
             return true;
         }
-        return lmOwnsPrestige() && !LmOverhaulPrestigeIntegration.integrationActive();
+        if (lmOwnsPrestige() && !LmOverhaulPrestigeIntegration.integrationActive()) {
+            return true;
+        }
+        if (data == null) {
+            return false;
+        }
+        try {
+            return LmOverhaulCapMath.blocksOverhaulPrestige(count, data.getLevel());
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     private static boolean lmOwnsPrestige() {

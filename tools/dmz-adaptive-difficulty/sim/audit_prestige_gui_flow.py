@@ -46,8 +46,8 @@ def main() -> None:
     ok("main wallet lore has no Cap line before switch", "§7Cap:" not in pre_switch)
     ok("main default shows Need", "required_fmt" in lines_block and "default ->" in lines_block)
 
-    ok("PrestigeSystem need is the Overhaul cap (no veteran branch)",
-       "DmzRevampPrestigeBridge.levelCap(data)" in prestige_sys
+    ok("PrestigeSystem need follows the held count (no veteran branch)",
+       "LmOverhaulCapMath.prestigeRequirement(" in prestige_sys
        and "HELD_GATE_MIN_COMPLETED" not in prestige_sys)
     ok("next requirement shows the cap", 'out.put("next_required", String.valueOf(required))' in gui_api)
     ok("PrestigeSystem heldCountForNeed", "heldCountForNeed" in prestige_sys)
