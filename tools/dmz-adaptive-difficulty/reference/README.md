@@ -316,6 +316,13 @@ checked: `AdaptiveDifficultyMod` (version string only), `ConfigRegistry` (one ne
 `disableUltraFormScaling` case in the progression field switch; members unchanged),
 `ConfigFieldHelp` (one new help line for `disableUltraFormScaling`). The other 22 are unchanged.
 
+## Re-baseline (2026-10-30, 4.7.6 Ultra form-scale workaround removed)
+
+`ConfigRegistry` and `ConfigFieldHelp` restored to their 4.7.3 files: removing
+`disableUltraFormScaling` makes the build byte-identical to them again. `AdaptiveDifficultyMod`
+re-extracted from `mods/LegacyMechanics-4.7.6.jar` (javap: version string only). The other 22 are
+unchanged.
+
 ## Refresh the reference set
 
 ```bash

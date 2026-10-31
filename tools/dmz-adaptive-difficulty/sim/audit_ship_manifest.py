@@ -1525,36 +1525,38 @@ def main() -> int:
           and "return blank && toCharacter != null && toCharacter.equals(active);" in pc)
     check("self-test covers the switch-in reset guard", "resetOnSwitchIn(true, fresh, other)" in pc)
 
-    print("\n--- § ultra form scaling off (4.7.4) ---")
-    uf = read(SRC / "progression/bridge/UltraFormScale.java")
+    print("\n--- § ultra noscale jar (4.7.6) ---")
+    ns_dir = ROOT / "tools" / "dmzultra-noscale"
+    ns_patch = read(ns_dir / "NoScalePatch.java")
+    ns_verify = read(ns_dir / "verify.py")
+    ns_build = read(ns_dir / "build.sh")
     uf_cfg = read(SRC / "config/DifficultyConfig.java")
     uf_help = read(SRC / "config/editor/ConfigFieldHelp.java")
     uf_reg = read(SRC / "config/ConfigRegistry.java")
-    uf_started = pc_ev.split("public void onServerStarted(", 1)[-1].split("\n    }\n", 1)[0]
-    check("manifest ultra-form-scale-off row", "ultra-form-scale-off" in manifest)
-    check("config flag disableUltraFormScaling, default on, with help text and registry entry",
-          "public boolean disableUltraFormScaling = true;" in uf_cfg
-          and "disableUltraFormScaling=" in uf_help and '"disableUltraFormScaling"' in uf_reg)
-    check("OverhaulScale.simulate(false) is called by reflection only, no compile dependency",
-          'CLASS = "com.dmzultra.form.OverhaulScale"' in uf
-          and 'scale.getMethod("simulate", Boolean.class)' in uf
-          and "simulate.invoke(null, Boolean.FALSE);" in uf
-          and not any("import com.dmzultra.form" in read(f) for f in SRC.rglob("*.java")))
-    check("runs on ServerStarted (after Ultra's boot self-test), never at mod construction",
-          "UltraFormScale.onServerStarted();" in uf_started
-          and "UltraFormScale" not in pc_mod)
-    check("missing class or method: warning, LM keeps booting, scale left on",
-          "} catch (Throwable absent) {\n            return null;" in uf
-          and "DMZ Ultra form scaling left on:" in uf
-          and "UltraFormScale.onServerStarted();\n        } catch (Throwable t) {" in uf_started)
-    check("pulse re-applies the disable when active() reads true again, and hands it back when the flag is off",
-          'safePulse("ultra-form-scale"' in pc_ev
-          and "} else if ((Boolean) active.invoke(null)) {" in uf
-          and "simulate.invoke(null, (Object) null);" in uf)
-    check("startup log says whether the scale was disabled or left on",
-          "DMZ Ultra form scaling disabled" in uf
-          and "DMZ Ultra form scaling left on: disableUltraFormScaling is false" in uf)
-    check("self-test covers a missing OverhaulScale class", "UltraFormScale.selfTest(broken);" in pc_test)
+    check("manifest ultra-noscale-jar row; ultra-form-scale-off row retired",
+          "ultra-noscale-jar" in manifest
+          and "| ultra-form-scale-off | Retired in 4.7.6" in manifest)
+    check("LM workaround gone: no UltraFormScale, no disableUltraFormScaling, no OverhaulScale call",
+          not (SRC / "progression/bridge/UltraFormScale.java").exists()
+          and not any("UltraFormScale" in read(f) or "com.dmzultra.form.OverhaulScale" in read(f) or "disableUltraFormScaling" in read(f)
+                      for f in SRC.rglob("*.java"))
+          and "disableUltraFormScaling" not in uf_cfg + uf_help + uf_reg
+          and "ultra-form-scale" not in pc_ev)
+    check("blank switch-in reset kept",
+          "if (resetOnSwitchIn(blank, toCharacter, active)) {" in pc)
+    check("Ultra patch: mixin leaves dmzultra.mixins.json and its class is deleted",
+          'MIXIN = "FormDataScaleMixin"' in ns_patch and "case MIXIN_CLASS -> {" in ns_patch
+          and "static String dropMixin(String json)" in ns_patch)
+    check("Ultra patch: OverhaulScale stays, active() returns false (factorOf is 1.0 for ownerForm)",
+          'patchClass(data, "active", "()Z", NoScalePatch::returnFalse)' in ns_patch
+          and "Opcodes.ICONST_0" in ns_patch)
+    check("Ultra patch: FormsChecks.overhaulScale no longer expects scaled values",
+          'patchClass(data, "overhaulScale", "()V", NoScalePatch::logOff)' in ns_patch)
+    check("Ultra patch: Build-Time stamped noscale, mod version stays 0.4.0",
+          'STAMP = " noscale"' in ns_patch and "mod version stays 0.4.0" in ns_verify)
+    check("Ultra patch build checks the stock jar's sha256 and runs the verifier",
+          'STOCK_SHA="ea63963c59e55ad6cab8ff28967380432c8ee94d7b95a6ee2d58c9ae1b9feacf"' in ns_build
+          and 'verify.py" "$STOCK" "$OUT"' in ns_build)
 
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
