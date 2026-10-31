@@ -10,7 +10,7 @@ public final class BodyPartCatalogSelfTest {
     private BodyPartCatalogSelfTest() {}
 
     public static void main(String[] args) {
-        if (BodyPartCatalog.formCount() < 80) {
+        if (BodyPartCatalog.formCount() < 200) {
             fail("catalog should load DMZUltra form keys, got " + BodyPartCatalog.formCount());
         }
         // The race tail is drawn by the client's race layer, never sent as a piece: a Saiyan in
@@ -36,24 +36,30 @@ public final class BodyPartCatalogSelfTest {
         if (!feather) {
             fail("craneascendant should name wings_feather, got " + wings);
         }
-        List<BodyPartCatalog.Part> demon =
-                BodyPartCatalog.resolve("demon", "abyssforms", "demongod", "", "");
-        boolean horn = false;
-        boolean wing = false;
-        boolean demonTail = false;
-        for (BodyPartCatalog.Part part : demon) {
-            if ("horns_swept".equals(part.id()) && BodyPartCatalog.SLOT_HORNS.equals(part.slot())) {
-                horn = true;
-            }
-            if ("wings_bat_small".equals(part.id()) && BodyPartCatalog.SLOT_WINGS.equals(part.slot())) {
-                wing = true;
-            }
-            if ("tail_spade".equals(part.id()) && BodyPartCatalog.SLOT_TAIL.equals(part.slot())) {
-                demonTail = true;
-            }
+        // DMZUltra 0.4.0 renamed the Noea-era Demon race to Makaijin; its forms moved with it.
+        if (!BodyPartCatalog.resolve("demon", "abyssforms", "demongod", "", "").isEmpty()) {
+            fail("the Noea-era demon/abyssforms key is gone in DMZUltra 0.4.0 and should send nothing");
         }
-        if (!horn || !wing || !demonTail) {
-            fail("demongod should name horns, wings, and a tail, got " + demon);
+        List<BodyPartCatalog.Part> demon =
+                BodyPartCatalog.resolve("makaijin", "abyssforms", "demongod", "", "");
+        if (demon.stream().noneMatch(p -> "mkl_pinions".equals(p.id()))) {
+            fail("makaijin demongod should name its 0.4.0 set pieces, got " + demon);
+        }
+        // DMZUltra 0.4.0 Soul Reaper forms use pieces every client can draw.
+        List<BodyPartCatalog.Part> bankai =
+                BodyPartCatalog.resolve("soulreaper", "zanpakutoforms", "bankai", "", "");
+        if (bankai.stream().noneMatch(p -> "bankai_coat".equals(p.id()))
+                || !BodyPartCatalog.shopPieceIds().containsAll(bankai.stream().map(BodyPartCatalog.Part::id).toList())) {
+            fail("bankai should name bankai_coat from the client piece list, got " + bankai);
+        }
+        // A set piece's tail keeps the single-tail rule: it reads as a tail slot.
+        List<BodyPartCatalog.Part> strain =
+                BodyPartCatalog.resolve("bioandroid", "genomesaiyan", "saiyanstrain1", "", "");
+        if (strain.stream().noneMatch(p -> "ystr_tail".equals(p.id()) && BodyPartCatalog.SLOT_TAIL.equals(p.slot()))) {
+            fail("saiyanstrain1 should name ystr_tail in the tail slot, got " + strain);
+        }
+        if (!BodyPartCatalog.SLOT_BODY.equals(BodyPartCatalog.slot("mua_sash_tails"))) {
+            fail("sash tails are cloth, not a tail slot");
         }
         List<BodyPartCatalog.Part> stacked =
                 BodyPartCatalog.resolve("saiyan", "", "", "sageforms", "craneascendant");
@@ -83,10 +89,10 @@ public final class BodyPartCatalogSelfTest {
             fail("null identity should send nothing");
         }
         List<String> shop = BodyPartCatalog.shopPieceIds();
-        if (shop.size() < 60) {
-            fail("shop piece list should mirror the DMZUltra client catalog, got " + shop.size());
+        if (shop.size() < 109) {
+            fail("shop piece list should mirror the DMZUltra 0.4.0 client catalog, got " + shop.size());
         }
-        if (!shop.contains("wings_feather") || !shop.contains("tail_fur")) {
+        if (!shop.contains("wings_feather") || !shop.contains("tail_fur") || !shop.contains("horns_vasto")) {
             fail("shop pieces should include the client meshes, got " + shop);
         }
         LogManager.getLogger(BodyPartCatalogSelfTest.class).info(

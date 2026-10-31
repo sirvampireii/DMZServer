@@ -1556,6 +1556,39 @@ def main() -> int:
           and "DMZ Ultra form scaling left on: disableUltraFormScaling is false" in uf)
     check("self-test covers a missing OverhaulScale class", "UltraFormScale.selfTest(broken);" in pc_test)
 
+    print("\n--- § body parts catalog 0.4.0 ---")
+    import json as _json
+    bp_json = _json.loads(read(SRC.parents[3] / "resources" / "dmzultra-form-parts.json"))
+    bp_cat = read(SRC / "gui/ultra/BodyPartCatalog.java")
+    bp_test = read(SRC / "gui/ultra/BodyPartCatalogSelfTest.java")
+    bp_gen = read(MOD / "sim" / "gen_dmzultra_form_parts.py")
+    _sr = ["soulreaper/base/base", "soulreaper/truezanpakutoforms/bloodchains",
+           "soulreaper/truezanpakutoforms/hornofsalvation", "soulreaper/truezanpakutoforms/truebankai",
+           "soulreaper/truezanpakutoforms/trueshikai", "soulreaper/zanpakutoforms/bankai",
+           "soulreaper/zanpakutoforms/mugetsu", "soulreaper/zanpakutoforms/shikai",
+           "soulreaper/zanpakutoforms/vastolorde"]
+    check("manifest body-parts-catalog-040 row", "body-parts-catalog-040" in manifest)
+    check("catalog generated from DMZ Ultra 0.4.0 by the committed generator",
+          bp_json.get("ultraVersion") == "0.4.0"
+          and bp_json.get("generator") == "tools/dmz-adaptive-difficulty/sim/gen_dmzultra_form_parts.py"
+          and "def tables(jar):" in bp_gen and '"formKeyAliases"' in bp_gen)
+    check("shop lists Ultra 0.4.0's 109 client pieces; forms cover forms.json and every set table",
+          len(bp_json["pieces"]) == 109 and "horns_vasto" in bp_json["pieces"]
+          and len(bp_json["forms"]) >= 200 and all(k in bp_json["forms"] for k in _sr)
+          and all(p in bp_json["pieces"] for k in _sr for p in bp_json["forms"][k]))
+    check("no variant keys and no Noea-era renamed keys",
+          not any("#" in k or k.split("/")[0] in ("demon", "alien", "sphinxian") for k in bp_json["forms"]))
+    check("every form has a design; the catalog shape BodyPartCatalog reads is unchanged",
+          set(bp_json["designs"]) == set(bp_json["forms"])
+          and all(set(d) <= {"own", "trim", "horn", "light"} for d in bp_json["designs"].values())
+          and '"pieces"' in bp_cat and '"forms"' in bp_cat and '"designs"' in bp_cat)
+    check("a set piece's tail reads as the tail slot (single-tail rule), plural tails stay body",
+          's.endsWith("_tail") || s.contains("_tail_")' in bp_cat
+          and '"ystr_tail"' in bp_test and '"mua_sash_tails"' in bp_test)
+    check("BodyPartCatalogSelfTest covers Soul Reaper, a renamed key and the 0.4.0 shop size",
+          '"bankai_coat"' in bp_test and '"demon", "abyssforms", "demongod"' in bp_test
+          and "shop.size() < 109" in bp_test)
+
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     gf_style = read(SRC / "gui/ultra/UltraStyle.java")

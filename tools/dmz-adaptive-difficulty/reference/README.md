@@ -316,6 +316,11 @@ checked: `AdaptiveDifficultyMod` (version string only), `ConfigRegistry` (one ne
 `disableUltraFormScaling` case in the progression field switch; members unchanged),
 `ConfigFieldHelp` (one new help line for `disableUltraFormScaling`). The other 22 are unchanged.
 
+## Re-baseline (2026-10-30, 4.7.5 body-parts catalog from DMZ Ultra 0.4.0)
+
+`AdaptiveDifficultyMod` re-extracted from `mods/LegacyMechanics-4.7.5.jar` (javap: version string
+only). The other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash
