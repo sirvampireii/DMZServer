@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
 Implementation-Title: LegacyMechanics
-Implementation-Version: 4.7.10
+Implementation-Version: 4.7.11
 MixinConfigs: legacymechanics.mixins.json

@@ -344,6 +344,11 @@ only). The other 24 are unchanged.
 `AdaptiveDifficultyMod` re-extracted from `mods/LegacyMechanics-4.7.10.jar` (javap: version string
 only). The other 24 are unchanged.
 
+## Re-baseline (2026-10-31, 4.7.11 Character Home index)
+
+`AdaptiveDifficultyMod` re-extracted from `mods/LegacyMechanics-4.7.11.jar` (javap: version string
+only). The other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

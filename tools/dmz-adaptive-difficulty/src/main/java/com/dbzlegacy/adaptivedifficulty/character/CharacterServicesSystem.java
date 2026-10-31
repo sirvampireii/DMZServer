@@ -964,6 +964,19 @@ public final class CharacterServicesSystem {
         return DmzContentDiscovery.isKnownRace(raceId);
     }
 
+    /**
+     * How long until {@code kind} ({@code race}/{@code class}/{@code reskin}) can be used again,
+     * as a short duration ("3h 12m"), or {@code ""} when it is ready (or the account skips
+     * cooldowns). For the Character Services index.
+     */
+    public static String cooldownWait(ServerPlayer player, String kind) {
+        if (player == null || CharacterServicesAccess.bypassCooldown(player)) {
+            return "";
+        }
+        long left = cooldownRemaining(player, kind);
+        return left > 0L ? formatDuration(left) : "";
+    }
+
     private static long cooldownRemaining(ServerPlayer player, String kind) {
         CharacterServicesStore.PlayerRecord rec =
                 CharacterServicesStore.get().record(player.m_20148_().toString());
