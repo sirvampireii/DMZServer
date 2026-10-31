@@ -96,15 +96,23 @@ public final class DmzRevampPrestigeBridge {
         DmzSkillUtil.sync(player);
         DmzResourcePoolClamp.syncToClient(player);
         NetworkHandler.sendToPlayer(new ProgressionSyncS2C(player), player);
+        // The level cap follows the count (4.7.16): publish the new one now, not on the next 10 s pulse.
+        com.dbzlegacy.adaptivedifficulty.progression.PersonalLevelCapMirror.publish(player);
     }
 
     /**
-     * The player's level cap: dmzrevamp 2.2.4's {@code PrestigeSystem.configuredLevelMaximum()}, one
-     * value for everyone (150k as LM pins it). This is the cap the prestige gate and menus show;
-     * without dmzrevamp, 100k.
+     * The player's level cap (4.7.16): the prestige need for their Overhaul count (= held),
+     * {@link LmOverhaulCapMath#prestigeRequirement}: 50k at 0 held, 65k at 1, ... 150k from 7 held.
+     * dmzrevamp 2.2.4 caps everyone at {@code configuredLevelMaximum()}, so LM gates the cap by
+     * prestige itself; {@code StatsDataMixin} (stat buys, max total), Overhaul's
+     * {@code maxAssignableTotal} and the TP / stat soft-locks all read this. Without a player or
+     * dmzrevamp: the flat cap ({@link LmOverhaulCapMath#overhaulLevelCap()}).
      */
     public static int levelCap(StatsData data) {
-        return LmOverhaulCapMath.overhaulLevelCap();
+        if (data == null || !revampPresent()) {
+            return LmOverhaulCapMath.overhaulLevelCap();
+        }
+        return LmOverhaulCapMath.prestigeRequirement(overhaulCount(data));
     }
 
     public static int overhaulCount(StatsData data) {

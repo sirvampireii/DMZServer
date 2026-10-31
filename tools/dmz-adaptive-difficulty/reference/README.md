@@ -379,6 +379,11 @@ Three classes re-extracted from `mods/LegacyMechanics-4.7.15.jar`; javap diffs c
 `AdaptiveDifficultyMod` (version string), `ProgressionGuiApi` and `UltraPrestigeScreens` (player text:
 "Need" instead of "your cap"; lore lines built with `UltraStyle`). The other 22 are unchanged.
 
+## Re-baseline (2026-10-31, 4.7.16 prestige level cap ladder)
+
+`AdaptiveDifficultyMod` re-extracted from `mods/LegacyMechanics-4.7.16.jar` (javap: version string
+only). The other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

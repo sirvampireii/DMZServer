@@ -1399,9 +1399,9 @@ def main() -> int:
     pf_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
     check("manifest prestige-follows-overhaul row", "prestige-follows-overhaul" in manifest)
     _req = pf_ps.split("public static int requiredLevel(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    check("requirement = need ladder of the held wallet (4.7.15); the bridge cap stays flat",
+    check("requirement = need ladder of the held wallet (4.7.15); the bridge cap is the same ladder (4.7.16)",
           "LmOverhaulCapMath.prestigeRequirement(" in _req and "getHeldWallet(player)" in _req
-          and "return LmOverhaulCapMath.overhaulLevelCap();" in pf_bridge
+          and "return LmOverhaulCapMath.prestigeRequirement(overhaulCount(data));" in pf_bridge
           and "PrestigeSystem.levelCap(" not in pf_bridge
           and "getCompleted" not in _req and "effectiveMaxLevel" not in pf_ps)
     _over = pf_cap.split("public static int overhaulLevelCap(StatsData data) {", 1)[-1].split("\n    }\n", 1)[0]
@@ -1779,7 +1779,7 @@ def main() -> int:
           and '"levelCap"' not in r24_mix and "PrestigeSystem.levelCap(" not in r24_bridge
           and '"initialLevelCap"' not in r24_math and '"maxPrestigeCount"' not in r24_math
           and '"initialLevelCap"' not in r24_test and '"maxPrestigeCount"' not in r24_test)
-    check("level cap = configuredLevelMaximum, flat; fallback 150k with dmzrevamp",
+    check("Overhaul max = configuredLevelMaximum; fallback 150k with dmzrevamp; no player = that max",
           '.getMethod("configuredLevelMaximum")' in r24_math
           and "return OVERHAUL_ABSOLUTE_LEVEL_CAP;" in r24_math.split("public static int overhaulLevelCap() {", 1)[-1].split("\n    }\n", 1)[0]
           and "return LmOverhaulCapMath.overhaulLevelCap();" in r24_bridge)
@@ -1819,6 +1819,33 @@ def main() -> int:
     check("self-test and server-start probe cover the ladder on both routes",
           "blocksOverhaulPrestige(held, want - 1)" in nl_test
           and 'completeQuest("prestige_saga:3")' in nl_test)
+
+    print("\n--- § prestige level cap ladder 4.7.16 ---")
+    lc_bridge = read(SRC / "progression/bridge/DmzRevampPrestigeBridge.java")
+    lc_stats = read(SRC / "mixin/StatsDataMixin.java")
+    lc_mix = read(SRC / "mixin/DmzRevampPrestigeCapMixin.java")
+    lc_math = read(SRC / "progression/LmOverhaulCapMath.java")
+    lc_events = read(SRC / "event/DifficultyEvents.java")
+    lc_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    lc_cap = lc_bridge.split("public static int levelCap(StatsData data) {", 1)[-1].split("\n    }\n", 1)[0]
+    lc_sync = lc_bridge.split("public static void syncFromLegacy(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest prestige-level-cap-ladder row", "prestige-level-cap-ladder" in manifest)
+    check("level cap = the need ladder of the Overhaul count (= held); flat only without a player or dmzrevamp",
+          "return LmOverhaulCapMath.prestigeRequirement(overhaulCount(data));" in lc_cap
+          and "if (data == null || !revampPresent()) {" in lc_cap
+          and "public static int levelCap(StatsData data) {\n        return com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge.levelCap(data);" in lc_math)
+    check("the cap applies to level gains: stat buys, max total, Overhaul's maxAssignableTotal, TP soft-lock",
+          "LmOverhaulCapMath.maxAssignableTotal(self, LmOverhaulCapMath.levelCap(self))" in lc_stats
+          and "cir.setReturnValue(LmOverhaulCapMath.maxAssignableTotal(self));" in lc_stats
+          and "cir.setReturnValue(LmOverhaulCapMath.maxAssignableTotal(data));" in lc_mix
+          and "return maxAssignableTotal(data, overhaulLevelCap(data));" in lc_math
+          and "LmOverhaulCapMath.levelCap(data);\n                    if (raw >= cap) {" in lc_events)
+    check("new cap published right after the count syncs",
+          "PersonalLevelCapMirror.publish(player);" in lc_sync)
+    check("server-start probe: cap 50k at 0 held, 65k at 1, and in Overhaul's maxAssignableTotal",
+          "LmOverhaulCapMath.levelCap(low)" in lc_test
+          and 'ps.getMethod("maxAssignableTotal"' in lc_test
+          and "level cap does not follow held prestige" in lc_test)
 
     print("\n--- § gui follow-ups 4.6.249 ---")
     gf_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
