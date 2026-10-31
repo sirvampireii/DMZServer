@@ -88,16 +88,17 @@ def main() -> None:
     if (SRC / "mixin/DmzRevampPrestigeLadderMixin.java").exists():
         errors.append("DmzRevampPrestigeLadderMixin must be gone")
     bridge = (SRC / "progression/bridge/DmzRevampPrestigeBridge.java").read_text(encoding="utf-8")
-    if "return LmOverhaulCapMath.overhaulLevelCap();" not in bridge or "PrestigeSystem.levelCap(" in bridge:
-        errors.append("the bridge must read the flat cap, not levelCap")
+    if ("return LmOverhaulCapMath.prestigeRequirement(overhaulCount(data));" not in bridge
+            or "PrestigeSystem.levelCap(" in bridge):
+        errors.append("the bridge cap must be LM's ladder by held count (4.7.16), not Overhaul's levelCap")
 
     if errors:
         print("FAIL prestige need follows Overhaul:")
         for e in errors:
             print(" ", e)
         raise SystemExit(1)
-    print(f"OK prestige need 50k, 65k ... 140k, then 150k by held count (both routes); level cap flat "
-          f"{PIN_MAX:,}; most held = {MAX_HELD}; 100k without dmzrevamp")
+    print(f"OK prestige need and level cap 50k, 65k ... 140k, then 150k by held count (both routes); "
+          f"Overhaul max {PIN_MAX:,}; most held = {MAX_HELD}; 100k without dmzrevamp")
 
 
 if __name__ == "__main__":

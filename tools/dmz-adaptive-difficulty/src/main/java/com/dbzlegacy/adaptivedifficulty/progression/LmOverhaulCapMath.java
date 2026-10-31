@@ -12,11 +12,12 @@ import net.minecraftforge.fml.ModList;
  * <p>
  * dmzrevamp 2.2.4 has one level cap for everyone, {@code PrestigeSystem.configuredLevelMaximum()}
  * ({@code levelsAndAttributes.maxLevel}, which LM pins to 150k; DMZ's own max when Overhaul levels are
- * off). 2.2.4 removed the per-prestige cap ladder ({@code levelCap}, {@code initialLevelCap},
- * {@code maxPrestigeCount}); the cap stays flat (4.7.14). {@link #levelCap(StatsData)} reads that cap.
- * The level needed to prestige is LM's own ladder by held count ({@link #prestigeRequirement}, 4.7.15):
- * 50k at 0 held, +15k per held, 150k from 7 held, never above the cap. Both prestige routes use it
- * (LM's menu and, through {@link #blocksOverhaulPrestige}, Overhaul's button). Without dmzrevamp the cap is
+ * off), and no per-prestige ladder ({@code levelCap}, {@code initialLevelCap},
+ * {@code maxPrestigeCount} are gone). LM keeps its own ladder by held count
+ * ({@link #prestigeRequirement}): 50k at 0 held, +15k per held, 150k from 7 held, never above
+ * {@link #overhaulLevelCap()}. It is both the level needed to prestige (4.7.15; LM's menu and, through
+ * {@link #blocksOverhaulPrestige}, Overhaul's button) and the player's level cap (4.7.16,
+ * {@link #levelCap(StatsData)}), so a player cannot level past what their next prestige needs. Without dmzrevamp the cap is
  * {@link #OVERHAUL_LEVEL_CAP} (100k). The most prestiges a player can hold is LM's own
  * {@link LmOverhaulPrestigeIntegration#OVERHAUL_MAX_PRESTIGE} (20); 2.2.4 has no count cap, so
  * {@code DmzRevampPrestigeCapMixin} enforces it on Overhaul's side. Breakthroughs were removed in
@@ -41,7 +42,7 @@ public final class LmOverhaulCapMath {
 
     private LmOverhaulCapMath() {}
 
-    /** The player's level cap: Overhaul's {@code configuredLevelMaximum()} (100k without dmzrevamp). */
+    /** The player's level cap: {@link #prestigeRequirement} of their held count (4.7.16). */
     public static int levelCap(StatsData data) {
         return com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge.levelCap(data);
     }
@@ -98,9 +99,8 @@ public final class LmOverhaulCapMath {
     }
 
     /**
-     * Overhaul's level cap for this player. Since dmzrevamp 2.2.4 it is the same for everyone
-     * ({@link #overhaulLevelCap()}); kept per player for {@code DmzRevampPrestigeCapMixin}'s
-     * {@code maxAssignableTotal} and prestige gate.
+     * This player's level cap ({@link #levelCap(StatsData)}, by held count), for
+     * {@code DmzRevampPrestigeCapMixin}'s {@code maxAssignableTotal}.
      */
     public static int overhaulLevelCap(StatsData data) {
         return levelCap(data);
@@ -108,8 +108,9 @@ public final class LmOverhaulCapMath {
 
     /**
      * Level needed for the next prestige with {@code held} prestiges held: 50k, 65k, 80k, 95k, 110k,
-     * 125k, 140k for 0-6 held, then 150k. Never above the level cap ({@link #overhaulLevelCap()}), so it
-     * stays reachable. The cap itself does not change with held prestige.
+     * 125k, 140k for 0-6 held, then 150k. Never above Overhaul's cap ({@link #overhaulLevelCap()}), so
+     * it stays reachable. Also the player's level cap (4.7.16): reaching it stops level gains until the
+     * next prestige raises it.
      */
     public static int prestigeRequirement(int held) {
         int h = Math.max(0, held);

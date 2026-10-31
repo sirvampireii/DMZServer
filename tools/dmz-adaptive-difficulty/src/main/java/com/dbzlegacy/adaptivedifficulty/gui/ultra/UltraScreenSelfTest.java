@@ -1303,8 +1303,9 @@ public final class UltraScreenSelfTest {
     }
 
     /**
-     * dmzrevamp present: Overhaul's flat cap matches LM's, and LM's hooks hold Overhaul's prestige count
-     * at 20 (setCount clamp, canPrestigeAuthoritative says no at 20). Run at server start, once
+     * dmzrevamp present: Overhaul's flat cap matches LM's, LM's hooks hold Overhaul's prestige count
+     * at 20 (setCount clamp, canPrestigeAuthoritative says no at 20), and the level cap follows held
+     * prestige (4.7.16: 50k at 0 held, 65k at 1, also in Overhaul's {@code maxAssignableTotal}). Run at server start, once
      * dmzrevamp's config is loaded ({@code DmzRevampConfigBridge}). Warnings only, never a failed boot.
      */
     public static void checkOverhaulFlatCapAndCount() {
@@ -1342,9 +1343,24 @@ public final class UltraScreenSelfTest {
                         AdaptiveDifficultyMod.MOD_ID, level, needAt0);
                 return;
             }
-            AdaptiveDifficultyMod.LOGGER.info("[{}] Overhaul prestige: level cap {} (flat), prestige cap {} enforced, "
-                            + "button needs {} at 0 held (level {} with its quest done: allowed={}, quest done={})",
-                    AdaptiveDifficultyMod.MOD_ID, overhaulCap, max, needAt0, level, lowAllowed,
+            // 4.7.16: the level cap follows the count (the need), on LM's side and in Overhaul's stat total.
+            int capAt0 = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.levelCap(low);
+            int totalAt0 = ((Number) ps.getMethod("maxAssignableTotal", com.dragonminez.common.stats.StatsData.class)
+                    .invoke(null, low)).intValue();
+            int wantTotal = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.maxAssignableTotal(low, needAt0);
+            ps.getMethod("setCount", com.dragonminez.common.stats.StatsData.class, int.class).invoke(null, low, 1);
+            int capAt1 = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.levelCap(low);
+            int needAt1 = com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.prestigeRequirement(1);
+            if (capAt0 != needAt0 || capAt1 != needAt1 || totalAt0 != wantTotal) {
+                AdaptiveDifficultyMod.LOGGER.warn("[{}] level cap does not follow held prestige: {} at 0 held (want {}), "
+                                + "{} at 1 held (want {}), Overhaul stat total at 0 held {} (want {})",
+                        AdaptiveDifficultyMod.MOD_ID, capAt0, needAt0, capAt1, needAt1, totalAt0, wantTotal);
+                return;
+            }
+            AdaptiveDifficultyMod.LOGGER.info("[{}] Overhaul prestige: level cap {} at 0 held, {} at 1 held (max {}), "
+                            + "prestige cap {} enforced, button needs {} at 0 held "
+                            + "(level {} with its quest done: allowed={}, quest done={})",
+                    AdaptiveDifficultyMod.MOD_ID, capAt0, capAt1, overhaulCap, max, needAt0, level, lowAllowed,
                     low.getPlayerQuestData().isQuestCompleted("prestige_saga:3"));
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.warn("[{}] Overhaul prestige check skipped: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());

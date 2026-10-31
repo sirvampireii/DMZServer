@@ -18,8 +18,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * Overrides dmzrevamp {@code StatsDataLevelingRevampMixin} (default priority 1000).
  * Priority 2000 merges after Overhaul so our HEAD/RETURN injects run last and
- * {@code setReturnValue} wins: the level cap Overhaul reports ({@code LmOverhaulCapMath.levelCap}),
- * never stock 50k at prestige 0 or +5k/held from Overhaul's native ladder.
+ * {@code setReturnValue} wins: the player's level cap ({@code LmOverhaulCapMath.levelCap}, LM's ladder
+ * by held prestige since 4.7.16), not Overhaul's flat {@code configuredLevelMaximum()}.
  */
 @Mixin(value = StatsData.class, remap = false, priority = 5000)
 public abstract class StatsDataMixin {
