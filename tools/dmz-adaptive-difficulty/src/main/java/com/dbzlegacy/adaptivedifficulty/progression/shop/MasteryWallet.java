@@ -526,7 +526,10 @@ public final class MasteryWallet {
      * Effects purchase stored it, and {@code reapply()} raises the mastery to level x mastery per level.
      */
     private static String applyGodKi(ServerPlayer player, Form form, int points) {
-        int level = godKiLevel(form);
+        // Old Effects levels are refunded before the level is read (4.7.22), so the checks below see
+        // the wallet level the purchase builds on.
+        GodKiEnhancementShop.refundEffectsInvestment(player);
+        int level = GodKiEnhancementShop.invested(player);
         int max = godKiMaxLevel(form);
         if (points != GODKI_POINTS_PER_LEVEL) {
             return UltraStyle.dangerLine("A God Ki Mastery level costs exactly " + GODKI_POINTS_PER_LEVEL

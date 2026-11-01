@@ -194,16 +194,47 @@ public final class GodKiEnhancementShop {
     }
 
     /**
-     * Mastery wallet level up: store the next level and raise the mastery through {@link #reapply},
-     * the same state the Effects purchase left. The caller has checked the cap and the points.
+     * Mastery wallet level up: settle the one-time Effects refund first (4.7.22 - storing the level
+     * sets the marker, so the refund must run before it), then store the next level and raise the
+     * mastery through {@link #reapply}, the same state the Effects purchase left. The caller has
+     * checked the cap and the points. Public for the dev probe; only the wallet calls it.
      *
      * @return the new level
      */
-    static int levelUpFromWallet(ServerPlayer player) {
+    public static int levelUpFromWallet(ServerPlayer player) {
+        refundEffectsInvestment(player);
         int next = Math.min(maxInvestments(), invested(player) + 1);
         storeLevel(player, next);
         reapply(player);
         return next;
+    }
+
+    /**
+     * Login trigger for the Effects refund (4.7.22): try now, then again over the next 15 seconds,
+     * because the DMZ character often attaches after the login event. Each try is a cheap no-op once
+     * the marker is set or when there is nothing to refund.
+     */
+    public static void refundOnLogin(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        refundEffectsInvestment(player);
+        net.minecraft.server.MinecraftServer server = player.m_20194_();
+        if (server == null) {
+            return;
+        }
+        java.util.UUID id = player.m_20148_();
+        for (int delay : new int[] {20, 100, 300}) {
+            try {
+                server.m_6937_(new net.minecraft.server.TickTask(server.m_129921_() + delay, () -> {
+                    ServerPlayer p = server.m_6846_().m_11259_(id);
+                    if (p != null) {
+                        refundEffectsInvestment(p);
+                    }
+                }));
+            } catch (Throwable ignored) {
+            }
+        }
     }
 
     /** Write the level; the refund marker goes with it so a stored level is never refunded later. */
@@ -215,13 +246,15 @@ public final class GodKiEnhancementShop {
     /**
      * One-time refund of levels bought on the old Effects page (4.7.21): n levels add n favor, the
      * level goes to 0 and the granted God Ki (skill, mastery, form records) is wiped, the same as a
-     * staff {@code /padmin godki} set to 0. Runs from {@link #reapply} once the character is attached,
-     * so the wipe can reach it. The marker is written first, in the same record as the level and the
-     * favor, and the record is saved straight away; a second call is a no-op.
+     * staff {@code /padmin godki} set to 0. Runs on login ({@link #refundOnLogin}), before any level
+     * write (wallet, staff) and from {@link #reapply}; it waits until the character is attached so the
+     * wipe can reach it, and writes nothing until then. The marker is written first, in the same record
+     * as the level and the favor, and the record is saved straight away; a second call is a no-op.
      */
     static void refundEffectsInvestment(ServerPlayer player) {
         if (player == null || !ProgressionData.storedWritable(player)
-                || ProgressionData.storedGetBool(player, KEY_REFUND_DONE)) {
+                || ProgressionData.storedGetBool(player, KEY_REFUND_DONE)
+                || character(player) == null) {
             return;
         }
         int levels = (int) Math.max(0L, ProgressionData.storedGetLong(player, KEY_INVESTED, 0L));
@@ -262,6 +295,8 @@ public final class GodKiEnhancementShop {
             return;
         }
         int clamped = Math.max(0, Math.min(maxInvestments(), count));
+        // Settle the Effects refund before the level write sets its marker (4.7.22).
+        refundEffectsInvestment(player);
         int before = invested(player);
         storeLevel(player, clamped);
         if (clamped == 0) {

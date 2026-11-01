@@ -254,6 +254,11 @@ public final class DifficultyEvents {
             RivalSystem.onLogin(player);
             SparringSystem.onLogin(player);
             ProgressionSystem.onLogin(player);
+            // One-time God Ki Effects refund (4.7.22): marker-guarded, retried until DMZ attaches.
+            try {
+                com.dbzlegacy.adaptivedifficulty.progression.shop.GodKiEnhancementShop.refundOnLogin(player);
+            } catch (Throwable ignored) {
+            }
             try {
                 com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulCapMath.pinOverhaulLevelCaps();
                 com.dbzlegacy.adaptivedifficulty.progression.PersonalLevelCapMirror.publish(player);

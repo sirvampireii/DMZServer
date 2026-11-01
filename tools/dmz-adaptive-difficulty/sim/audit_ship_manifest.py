@@ -1819,6 +1819,30 @@ def main() -> int:
           "blocksOverhaulPrestige(held, want - 1)" in nl_test
           and 'completeQuest("prestige_saga:3")' in nl_test)
 
+    print("\n--- § god ki refund order 4.7.22 ---")
+    ro_gk = read(SRC / "progression/shop/GodKiEnhancementShop.java")
+    ro_up = ro_gk.split("public static int levelUpFromWallet(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    ro_admin = ro_gk.split("static void adminSetInvested(ServerPlayer player, int count) {", 1)[-1].split("\n    }\n", 1)[0]
+    ro_refund = ro_gk.split("static void refundEffectsInvestment(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    ro_login = ro_gk.split("public static void refundOnLogin(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    ro_apply = read(SRC / "progression/shop/MasteryWallet.java").split("private static String applyGodKi(", 1)[-1]
+    ro_events = read(SRC / "event/DifficultyEvents.java").split("public void onLogin(", 1)[-1].split("@SubscribeEvent", 1)[0]
+    check("manifest godki-refund-order row", "godki-refund-order" in manifest)
+    check("wallet level, staff set and wallet apply refund before the level write",
+          ro_up.index("refundEffectsInvestment(player);") < ro_up.index("storeLevel(player, next);")
+          and ro_admin.index("refundEffectsInvestment(player);") < ro_admin.index("storeLevel(player, clamped);")
+          and ro_apply.index("GodKiEnhancementShop.refundEffectsInvestment(player);")
+          < ro_apply.index("int level = GodKiEnhancementShop.invested(player);")
+          < ro_apply.index("GodKiEnhancementShop.levelUpFromWallet(player)"))
+    check("refund waits for the character before writing anything",
+          ro_refund.index("character(player) == null") < ro_refund.index("storedPutBool(player, KEY_REFUND_DONE, true)"))
+    check("login trigger: onLogin -> refundOnLogin, now plus retries at 20 / 100 / 300 ticks",
+          "GodKiEnhancementShop.refundOnLogin(player);" in ro_events
+          and "refundEffectsInvestment(player);" in ro_login and "{20, 100, 300}" in ro_login
+          and "refundEffectsInvestment(p);" in ro_login)
+    check("probe covers the wallet-first order",
+          "GodKiEnhancementShop.levelUpFromWallet(fp);" in read(SRC / "progression/GodKiWalletProbe.java"))
+
     print("\n--- § spend confirm pages 4.7.21 ---")
     sc_pre = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
     sc_pre_src, sc_pre_ask = sc_pre.split("// ── Confirm pages (ask:<action>:<arg>, 4.7.21)", 1)

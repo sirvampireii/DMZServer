@@ -419,6 +419,13 @@ one-time `refundEffectsInvestment`); `ProgressionGuiApi` (`unultimate` only says
 Remove Ultimate). `PrestigeCustomShop$PotionWant`, `$StatWant` and `PrestigePointsSystem$SkillOffer`
 differ only in line-number tables. The other 14 are unchanged.
 
+## Re-baseline (2026-11-01, 4.7.22 God Ki refund order)
+
+`AdaptiveDifficultyMod` (version string) and `GodKiEnhancementShop` (`levelUpFromWallet` public and
+refunds first, `adminSetInvested` refunds first, `refundEffectsInvestment` waits for the character,
+new `refundOnLogin`) re-baselined for `LegacyMechanics-4.7.22.jar`; javap diffs checked. The other
+23 are unchanged.
+
 ## Refresh the reference set
 
 ```bash
