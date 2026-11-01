@@ -76,6 +76,12 @@ public final class MobScaling {
     public static final String TAG_FROM_SPAWNER = "dmz_ad_from_spawner";
     /** Slime / magma cube spawned by a parent split — never AD-convert. */
     public static final String TAG_FROM_SLIME_SPLIT = "dmz_ad_slime_split";
+    /**
+     * Stamped by DMZUltra's {@code GodChamberWaves.spawnWave} on every chamber-wave mob (God
+     * Chamber, Time Chamber, Beerus bouts, Angel Path drills) before it joins the world; Ultra
+     * fits its stats to the player itself, so AD never converts it.
+     */
+    public static final String TAG_CHAMBER_ENEMY = "dmzultra_chamber_enemy";
 
     public static final String TAG_BASE_HEALTH = "dmz_ad_base_max_health";
     public static final String TAG_BASE_ATTACK = "dmz_ad_base_attack";
@@ -147,7 +153,8 @@ public final class MobScaling {
      * <p>
      * All {@link DBSagasEntity} instances are exempt by class (not only quest tags),
      * so transform forms stay protected before {@code dmz_saga_id} is copied on.
-     * The Ender Dragon is owned by the End Strength script.
+     * The Ender Dragon is owned by the End Strength script. DMZUltra chamber-wave
+     * enemies ({@link #TAG_CHAMBER_ENEMY}) are owned by Ultra's own stat fit.
      */
     public static boolean isExemptFromConversion(LivingEntity entity) {
         if (entity == null) {
@@ -171,7 +178,8 @@ public final class MobScaling {
         CompoundTag tag = PersistentDataAccess.get(entity);
         if (tag.m_128471_(TAG_EXEMPT)
                 || tag.m_128471_(TAG_FROM_SPAWNER)
-                || tag.m_128471_(TAG_FROM_SLIME_SPLIT)) {
+                || tag.m_128471_(TAG_FROM_SLIME_SPLIT)
+                || tag.m_128471_(TAG_CHAMBER_ENEMY)) {
             return true;
         }
         if (hasQuestSpawnTags(tag)) {
@@ -252,7 +260,7 @@ public final class MobScaling {
     /**
      * Persist exempt and drop any AD bookkeeping.
      * <p>
-     * Quest/saga/SDD/spawner mobs already have the correct live attributes — never
+     * Quest/saga/SDD/spawner/Ultra-chamber mobs already have the correct live attributes — never
      * {@link #revertToBases} them. Saga transform forms default to 300 max HP; AD
      * capturing that as a "base" and rolling back after quest HP is applied was
      * wiping Goku SSJ (etc.) down to the entity minimum.
@@ -273,7 +281,8 @@ public final class MobScaling {
                 || tag.m_128471_(TAG_SUMMONED_BOSS)
                 || hasQuestSpawnTags(tag)
                 || hasSddSpawnerMark(tag)
-                || tag.m_128471_(TAG_FROM_SPAWNER);
+                || tag.m_128471_(TAG_FROM_SPAWNER)
+                || tag.m_128471_(TAG_CHAMBER_ENEMY);
         if (owned) {
             // Never revertToBases — capture-time bases can be the saga default 300 HP
             // while live attrs already hold quest/form values. Strip AD markers/cosmetics only.

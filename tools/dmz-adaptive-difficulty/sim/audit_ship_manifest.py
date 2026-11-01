@@ -1820,6 +1820,19 @@ def main() -> int:
           "blocksOverhaulPrestige(held, want - 1)" in nl_test
           and 'completeQuest("prestige_saga:3")' in nl_test)
 
+    print("\n--- § ultra chamber exempt 4.7.20 ---")
+    ch_ms = read(SRC / "scaling/MobScaling.java")
+    ch_exempt = ch_ms.split("public static boolean isExemptFromConversion(", 1)[-1].split("\n    }\n", 1)[0]
+    ch_ensure = ch_ms.split("public static void ensureExempt(", 1)[-1].split("\n    }\n", 1)[0]
+    ch_owned = ch_ensure.split("boolean owned =", 1)[-1].split("if (owned)", 1)[0]
+    check("manifest ultra-chamber-exempt row", "ultra-chamber-exempt" in manifest)
+    check("TAG_CHAMBER_ENEMY is Ultra's dmzultra_chamber_enemy tag",
+          'TAG_CHAMBER_ENEMY = "dmzultra_chamber_enemy"' in ch_ms)
+    check("chamber tag exempts from conversion, no config toggle",
+          "tag.m_128471_(TAG_CHAMBER_ENEMY)" in ch_exempt and "config" not in ch_exempt.lower())
+    check("chamber tag is owned in ensureExempt (strip paint, never revertToBases)",
+          "TAG_CHAMBER_ENEMY" in ch_owned and "revertToBases" not in ch_owned)
+
     print("\n--- § quest technique unlock 4.7.19 ---")
     qt_mix = read(SRC / "mixin/StatsDataQuestTechniqueMixin.java")
     qt_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
