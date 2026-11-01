@@ -16,7 +16,8 @@ import net.minecraftforge.common.util.FakePlayerFactory;
  * player with 3 God Ki levels bought on the old Effects page and no refund marker gets the one-time
  * refund through {@code reapply()}, a second {@code reapply()} refunds nothing, then wallet levels are
  * bought with points (one level per 10-point apply, a 5-point apply refused) and a later
- * {@code reapply()} keeps them.
+ * {@code reapply()} keeps them. 4.7.22: the wallet-first order (3 Effects levels, first action a wallet
+ * level) refunds first, then stores level 1, and a second level refunds nothing.
  */
 public final class GodKiWalletProbe {
     private static final UUID PROBE_ID = UUID.fromString("6c6d2d70-726f-6265-2d67-6f646b692d77");
@@ -49,9 +50,30 @@ public final class GodKiWalletProbe {
             log("after reapply with wallet levels", fp);
             reply("old Effects buy", GodKiEnhancementShop.buy(fp));
             log("after old Effects buy", fp);
+            // 4.7.22: wallet-first order - the first action after the update is a wallet level.
+            ProgressionData.storedRemove(fp, "pp_godki_wallet_refund");
+            ProgressionData.storedPut(fp, "pp_godki_enh", 3L);
+            PrestigePointsSystem.setPoints(fp, 2);
+            log("wallet-first start (3 Effects levels, 2 favor, no marker)", fp);
+            int first = GodKiEnhancementShop.levelUpFromWallet(fp);
+            log("after first levelUpFromWallet", fp);
+            check("wallet-first refund: +3 favor, level 1, 1000 mastery", first == 1
+                    && PrestigePointsSystem.getPoints(fp) == 5
+                    && ProgressionData.storedGetLong(fp, "pp_godki_enh", -1L) == 1L
+                    && (long) GodKiEnhancementShop.mastery(fp) == 1000L);
+            int second = GodKiEnhancementShop.levelUpFromWallet(fp);
+            log("after second levelUpFromWallet", fp);
+            check("second levelUpFromWallet: no second refund, level 2", second == 2
+                    && PrestigePointsSystem.getPoints(fp) == 5
+                    && ProgressionData.storedGetLong(fp, "pp_godki_enh", -1L) == 2L);
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.warn("[{}] god ki wallet probe failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString(), t);
         }
+    }
+
+    private static void check(String what, boolean ok) {
+        AdaptiveDifficultyMod.LOGGER.info("[{}] god ki wallet probe check {}: {}", AdaptiveDifficultyMod.MOD_ID, what,
+                ok ? "OK" : "WRONG");
     }
 
     private static void reply(String step, String msg) {
