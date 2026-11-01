@@ -160,6 +160,7 @@ public final class DifficultyEvents {
         VanillaDifficultyGuard.restoreIfPeaceful(event.getServer());
         com.dbzlegacy.adaptivedifficulty.progression.PrestigeCapProbe.runIfRequested(event.getServer());
         com.dbzlegacy.adaptivedifficulty.progression.QuestTechniqueProbe.runIfRequested(event.getServer());
+        com.dbzlegacy.adaptivedifficulty.progression.GodKiWalletProbe.runIfRequested(event.getServer());
         try {
             com.dbzlegacy.adaptivedifficulty.data.CnpcDataMigrator.migrateWorldIfNeeded(event.getServer());
         } catch (Throwable t) {

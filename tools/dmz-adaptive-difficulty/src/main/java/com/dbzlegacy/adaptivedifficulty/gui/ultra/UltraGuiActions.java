@@ -808,6 +808,11 @@ public final class UltraGuiActions {
             return androidStaffReopen(parts.arg);
         }
         String page = stringArg(args, "page");
+        // Confirm pages (4.7.21): after Confirm, back to the page the spend button sat on.
+        String afterConfirm = confirmReturn(screen, page);
+        if (afterConfirm != null) {
+            return afterConfirm;
+        }
         if ("rival".equals(screen)) {
             String refreshed = rivalListReopen(parts.action, page);
             if (refreshed != null) {
@@ -929,6 +934,23 @@ public final class UltraGuiActions {
             };
             case "admin" -> "admin";
             default -> homePage(screen);
+        };
+    }
+
+    /**
+     * A confirm page's source page, or {@code null} when {@code page} is not a confirm page. Only the
+     * confirm page's Confirm button runs a paid {@code do:} action, so the player lands back on the
+     * page the spend button sat on, never on the confirm page again.
+     */
+    static String confirmReturn(String screen, String page) {
+        if (page == null || page.isBlank()) {
+            return null;
+        }
+        return switch (screen == null ? "" : screen) {
+            case "prestige" -> UltraPrestigeScreens.askReturn(page);
+            case "difficulty" -> UltraDifficultyScreens.askReturn(page);
+            case "character", "saga" -> UltraCharacterScreens.askReturn(page);
+            default -> null;
         };
     }
 

@@ -250,8 +250,8 @@ public final class ProgressionCommands {
         } catch (NumberFormatException ignored) {
         }
         lines.add(UltraStyle.labelValue(
-                "God Ki Enhancement",
-                godki + " invested, mastery " + ph.getOrDefault("godki_mastery", "?")));
+                "God Ki Mastery",
+                "level " + godki + ", mastery " + ph.getOrDefault("godki_mastery", "?")));
         lines.add(UltraStyle.labelValue("Favor", ph.getOrDefault("points", "?")));
         for (String line : lines) {
             LmCommandFeedback.tell(source, line);

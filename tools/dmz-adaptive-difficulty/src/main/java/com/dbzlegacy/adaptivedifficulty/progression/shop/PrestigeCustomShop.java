@@ -2,7 +2,6 @@ package com.dbzlegacy.adaptivedifficulty.progression.shop;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
-import com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionData;
@@ -131,9 +130,6 @@ public final class PrestigeCustomShop {
         if (n3 < n2) {
             return UltraStyle.dangerLine((String)("Need " + n2 + " favor (have " + n3 + ")."));
         }
-        if (n2 > 0 && !GuiClickConfirm.confirmed((UUID)serverPlayer.m_20148_(), (String)("pshop-buy:" + string2 + ":" + n))) {
-            return UltraStyle.noticeLine((String)("Buy " + customEntry.name + PrestigeCustomShop.levelSuffix(customEntry, n + 1) + " for " + n2 + " favor? Click again within 10 seconds."));
-        }
         PrestigePointsSystem.setPoints(serverPlayer, n3 - n2);
         PrestigeCustomShop.setOwned(serverPlayer, string2, n + 1);
         PrestigeCustomShop.runCommands(serverPlayer, string2, customEntry, customEntry.commandsOnPurchase, n + 1);
@@ -155,10 +151,7 @@ public final class PrestigeCustomShop {
         if (!customEntry.removable) {
             return UltraStyle.dangerLine((String)(customEntry.name + " can't be removed."));
         }
-        int n2 = (int)Math.floor((double)customEntry.costFor(n - 1) * (double)customEntry.refundPercent / 100.0);
-        if (!GuiClickConfirm.confirmed((UUID)serverPlayer.m_20148_(), (String)("pshop-remove:" + string2 + ":" + n))) {
-            return UltraStyle.noticeLine((String)("Remove " + customEntry.name + PrestigeCustomShop.levelSuffix(customEntry, n) + "? " + (String)(n2 > 0 ? "You get " + n2 + " favor back." : "No favor is refunded.") + " Click again within 10 seconds."));
-        }
+        int n2 = PrestigeCustomShop.removeRefund(customEntry, n);
         PrestigeCustomShop.takeOne(serverPlayer, string2, customEntry, n);
         if (n2 > 0) {
             PrestigePointsSystem.setPoints(serverPlayer, PrestigePointsSystem.getPoints(serverPlayer) + n2);
@@ -736,7 +729,12 @@ public final class PrestigeCustomShop {
         }
     }
 
-    static String levelSuffix(PrestigeShopConfig.CustomEntry customEntry, int n) {
+    /** Favor back for removing one level when {@code owned} levels are held. */
+    public static int removeRefund(PrestigeShopConfig.CustomEntry customEntry, int owned) {
+        return (int)Math.floor((double)customEntry.costFor(owned - 1) * (double)customEntry.refundPercent / 100.0);
+    }
+
+    public static String levelSuffix(PrestigeShopConfig.CustomEntry customEntry, int n) {
         return customEntry.maxPurchases == 1 ? "" : " " + PrestigeCustomShop.roman(n);
     }
 

@@ -406,6 +406,19 @@ only). The other 24 are unchanged.
 `AdaptiveDifficultyMod` re-baselined for `LegacyMechanics-4.7.20.jar` (javap: version string only). The
 other 24 are unchanged.
 
+## Re-baseline (2026-11-01, 4.7.21 confirm pages, God Ki wallet, Ultimate permanent)
+
+Eleven classes re-baselined for `LegacyMechanics-4.7.21.jar`; javap diffs checked:
+`AdaptiveDifficultyMod` (version string); `PrestigePointsSystem` (`unbuyUltimate` removed, the
+`GuiClickConfirm` gates on tier / Ultimate / Majin / Mutant buy and remove removed);
+`PrestigeCustomShop` (buy / remove gates removed, `removeRefund` added, `levelSuffix` public);
+`PrestigeShopConfig` (`cleanId` public); `PrestigeShopHooks` (God Ki and Ultimate help text);
+`GodKiEnhancementShop` (Effects buy points to the wallet, `levelUpFromWallet`, `storeLevel`,
+one-time `refundEffectsInvestment`); `ProgressionGuiApi` (`unultimate` only says it is permanent);
+`UltraPrestigeScreens` (`ask:` confirm pages, God Ki wallet page, Effects without God Ki and
+Remove Ultimate). `PrestigeCustomShop$PotionWant`, `$StatWant` and `PrestigePointsSystem$SkillOffer`
+differ only in line-number tables. The other 14 are unchanged.
+
 ## Refresh the reference set
 
 ```bash

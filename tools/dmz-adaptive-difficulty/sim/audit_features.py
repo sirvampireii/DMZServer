@@ -1644,9 +1644,7 @@ def main() -> int:
         return body.split(end, 1)[0] if end in body else ""
 
     buy_ult = _pp_method("public static String buyUltimate(ServerPlayer player) {",
-                         "public static String unbuyUltimate(ServerPlayer player)")
-    unbuy_ult = _pp_method("public static String unbuyUltimate(ServerPlayer player) {",
-                           "private static String buyForm(ServerPlayer player, boolean majin)")
+                         "private static String buyForm(ServerPlayer player, boolean majin)")
     buy_form = _pp_method("private static String buyForm(ServerPlayer player, boolean majin) {",
                           "private static String unbuyForm(ServerPlayer player, boolean majin)")
     unbuy_form = _pp_method("private static String unbuyForm(ServerPlayer player, boolean majin) {",
@@ -1676,14 +1674,12 @@ def main() -> int:
           and '"buy_ultimate"' in buy_ult
           and '"Unlocked Permanent Ultimate (-" + cost + " favor)"' in buy_ult
           and '"Need " + cost + " favor (have "' in buy_ult)
-    check("ultimate remove: confirm again, full refund, clear Ultimate only",
-          "PrestigeShopConfig.get().forms.ultimate.refund()" in unbuy_ult
-          and "getPoints(player) + refund" in unbuy_ult
-          and "revokeUltimate(player);" in unbuy_ult
-          and 'runDmzEffect(player, "ultimate"' not in unbuy_ult
-          and '"unbuy_ultimate"' in unbuy_ult
-          and "hasMajin" not in unbuy_ult
-          and "hasMutant" not in unbuy_ult)
+    # 4.7.21: Permanent Ultimate is not refundable - the remove path is gone.
+    check("ultimate can't be removed: no unbuyUltimate, no Remove button, unultimate only says so",
+          "unbuyUltimate" not in pp
+          and '"do:unultimate"' not in ultra_prestige
+          and "Remove Ultimate" not in ultra_prestige
+          and "Permanent Ultimate is permanent - it can't be removed or refunded." in gui_api_pp)
     check("majin/mutant buy+remove never check Ultimate",
           "hasUltimate" not in buy_form
           and "ULTIMATE_COST" not in buy_form
@@ -1704,14 +1700,13 @@ def main() -> int:
           'out.put("ultimate"' in gui_api_pp
           and 'out.put("ultimate_can_buy"' in gui_api_pp
           and 'out.put("ultimate_cost"' in gui_api_pp
-          and "buyUltimate(player)" in gui_api_pp
-          and "unbuyUltimate(player)" in gui_api_pp)
-    check("effects screen Ultimate block + reopen routing",
-          '"do:ultimate"' in ultra_prestige
-          and '"do:unultimate"' in ultra_prestige
-          and "Stacks with Majin and Mutant." in ultra_prestige
-          and '"unbuy_ultimate",' in ultra_gui_actions
-          and '"remove_ultimate",' in ultra_gui_actions)
+          and "buyUltimate(player)" in gui_api_pp)
+    check("effects screen Ultimate block: Buy opens its confirm page, owned is a dim row",
+          '"page:ask:ultimate"' in ultra_prestige
+          and '"do:ultimate"' in ultra_prestige
+          and "Permanent, stacks with Majin and Mutant." in ultra_prestige
+          and 'UltraStyle.dim("Ultimate owned")' in ultra_prestige
+          and '"ultimate", "buy_ultimate", "unultimate", "unbuy_ultimate",' in ultra_gui_actions)
 
     # 4.6.222 - GUI consistency sweep: one dash toggle pattern, sentence empty states.
     diff_ultra = read(
@@ -2148,10 +2143,11 @@ def main() -> int:
           and "private static void stripDeadUltimateEffect(ServerPlayer player)" in pps
           and 'effects.hasEffect(DMZ_SKILL_ULTIMATE)' in pps
           and "effects.removeEffect(DMZ_SKILL_ULTIMATE);" in pps)
-    check("revokeUltimate sets the skill to 0 and strips the effect",
+    # 4.7.21: no player path calls revokeUltimate (Ultimate can't be removed); the helper stays for staff repair.
+    check("revokeUltimate sets the skill to 0 and strips the effect; no player path calls it",
           "public static void revokeUltimate(ServerPlayer player)" in pps
           and 'skills.setSkillLevel(DMZ_SKILL_ULTIMATE, 0)' in pps
-          and "revokeUltimate(player);" in pps)
+          and "revokeUltimate(player);" not in pps)
     check("buyUltimate grants via the skill path, never runDmzEffect",
           "grantUltimate(player);" in pps
           and 'runDmzEffect(player, "ultimate", true)' not in pps
@@ -2184,8 +2180,7 @@ def main() -> int:
     check("Ultimate cost / flag key / telemetry names unchanged",
           "public static final int ULTIMATE_COST = 3;" in pps
           and 'private static final String KEY_ULTIMATE = "pp_perm_ultimate";' in pps
-          and '"prestige_points", "buy_ultimate"' in pps
-          and '"prestige_points", "unbuy_ultimate"' in pps)
+          and '"prestige_points", "buy_ultimate"' in pps)
 
     print("\n=== Reskin gender and head bone preview (4.6.16) ===")
     gender_mixin = read(SRC / "com/dbzlegacy/adaptivedifficulty/mixin/StatsSyncC2SGenderMixin.java")
@@ -3589,13 +3584,18 @@ def main() -> int:
         / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty"
         / "mixin/StackFormModeHandlerGodKiGateMixin.java"
     )
+    godki_wallet = read(
+        ROOT
+        / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty"
+        / "progression/shop/MasteryWallet.java"
+    )
     check(
-        "God Ki shop: 1000 mastery per point, max 5 investments, confirm + telemetry",
+        "God Ki: 1000 mastery per level, max 5 levels, bought in the Mastery wallet (4.7.21)",
         "MASTERY_PER_POINT = 1000" in godki_shop
         and "MAX_INVESTMENTS = 5" in godki_shop
-        and "INVESTMENT_COST = 1" in godki_shop
-        and "GuiClickConfirm.confirmed" in godki_shop
-        and '"prestige_points", "buy_godki_enhancement"' in godki_shop,
+        and "GuiClickConfirm" not in godki_shop
+        and "static int levelUpFromWallet(ServerPlayer player)" in godki_shop
+        and '"prestige_points", "apply_godki_mastery"' in godki_wallet,
     )
     check(
         "God Ki shop: login top-up raises mastery to invested x 1000, never lowers",
@@ -3605,11 +3605,13 @@ def main() -> int:
         and "DmzSkillUtil.ensureRegistered(skills, ENHANCEMENT_GROUP, 1)" in godki_shop,
     )
     check(
-        "God Ki shop: store listing + do-routing + reopen to Effects",
-        '"do:godki"' in godki_screen
-        and "God Ki Enhancement" in godki_screen
+        "God Ki: no Effects row; old do:godki only points to the wallet",
+        '"do:godki"' not in godki_screen
+        and "God Ki Enhancement" not in godki_screen
+        and "godKiFormSpec" in godki_screen
         and '"godki".equals(act)' in godki_api
         and "godki_invested" in godki_api
+        and "God Ki Mastery moved to the Mastery wallet" in godki_shop
         and '"godki", "buy_godki", "godki_enhancement" -> "effects"' in godki_actions,
     )
     check(

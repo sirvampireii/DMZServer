@@ -3,7 +3,11 @@ package com.dbzlegacy.adaptivedifficulty.gui;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-/** Second click within 10 seconds confirms a paid or destructive menu action. */
+/**
+ * Second click within 10 seconds confirms a free menu action (title clear, free tier downgrade,
+ * boost start/end, staff Android convert). Since 4.7.21 nothing that spends money, favor, points or
+ * prestige uses this: those open a confirm page with Confirm and Back instead.
+ */
 public final class GuiClickConfirm {
     public static final long WINDOW_MS = 10_000L;
 

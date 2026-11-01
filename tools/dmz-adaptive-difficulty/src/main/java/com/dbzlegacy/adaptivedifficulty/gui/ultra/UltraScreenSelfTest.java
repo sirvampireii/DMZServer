@@ -1033,7 +1033,7 @@ public final class UltraScreenSelfTest {
     }
 
     /**
-     * Mastery wallet: balance display, the buy confirm (first click asks, second confirms), cap
+     * Mastery wallet: balance display, the buy confirm page (the pack button only opens it), cap
      * math and the whole-point limit, and the picker for a known unlock state (a line with nothing
      * unlocked is hidden; lines follow the radial order; an empty state points at the next step).
      */
@@ -1048,7 +1048,7 @@ public final class UltraScreenSelfTest {
             }
             Map<String, String> ids = buttonIds(wallet);
             for (int favor : MasteryWallet.FAVOR_PACKS) {
-                String label = ids.get("do:mastery_buy:" + favor);
+                String label = ids.get("page:ask:mastery_buy:" + favor);
                 String want = (favor * 10) + " points - " + favor + " favor";
                 if (!want.equals(label)) {
                     broken.add("mastery wallet: pack " + favor + " reads '" + label + "', want '" + want + "'");
@@ -1062,11 +1062,22 @@ public final class UltraScreenSelfTest {
         if (!prompt.contains("20 mastery points") || !prompt.contains("2 favor") || !prompt.contains("not refunded")) {
             broken.add("mastery wallet: buy prompt missing cost, points, or no-refund: " + prompt);
         }
-        UUID probe = UUID.randomUUID();
-        String key = "mwallet-buy:2:37";
-        if (com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm.confirmed(probe, key)
-                || !com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm.confirmed(probe, key)) {
-            broken.add("mastery wallet: buy confirm should ask once, then confirm on the second click");
+        for (String id : buttonIds(wallet).keySet()) {
+            if (id.startsWith("do:")) {
+                broken.add("mastery wallet: " + id + " spends on the first tap; it must open a confirm page");
+            }
+        }
+        GuiOpenPacket buyAsk = UltraPrestigeScreens.masteryBuyAskSpec(2, 37, 4, true, true).toPacket();
+        String buyErr = validatePacket(buyAsk, "prestige");
+        Map<String, String> buyIds = buttonIds(buyAsk);
+        if (buyErr != null || !buyIds.containsKey("do:mastery_buy:2")
+                || !"Back to Mastery wallet".equals(buyIds.get("page:mastery_wallet"))
+                || !shownLines(buyAsk).contains("20 mastery points") || !shownLines(buyAsk).contains("37 -> 57")) {
+            broken.add("mastery wallet: buy confirm page should show cost, points, balances, Confirm and Back"
+                    + (buyErr == null ? "" : " (" + buyErr + ")") + ", got " + buyIds);
+        }
+        if (buttonIds(UltraPrestigeScreens.masteryBuyAskSpec(5, 37, 4, true, true).toPacket()).containsKey("do:mastery_buy:5")) {
+            broken.add("mastery wallet: buy confirm offers Confirm without enough favor");
         }
         int[][] cap = {{0, 500, 10}, {450, 500, 1}, {451, 500, 0}, {480, 500, 0}, {500, 500, 0},
                 {520, 500, 0}, {101, 500, 7}, {0, 100, 2}};
@@ -1119,8 +1130,8 @@ public final class UltraScreenSelfTest {
         MasteryWallet.Line ss = lines.get(0);
         GuiOpenPacket formPkt = UltraPrestigeScreens.formSpec(ss, ss.forms.get(0), 5, 0).toPacket();
         Map<String, String> formIds = buttonIds(formPkt);
-        if (!formIds.containsKey("do:mastery_apply:n:ssgrades:supersaiyan:1")
-                || formIds.containsKey("do:mastery_apply:n:ssgrades:supersaiyan:5")) {
+        if (!formIds.containsKey("page:ask:mastery_apply:n:ssgrades:supersaiyan:1")
+                || formIds.containsKey("page:ask:mastery_apply:n:ssgrades:supersaiyan:5")) {
             broken.add("mastery wallet: 420/500 should offer exactly 1 point, got " + formIds.keySet());
         }
         if (!formPkt.linesJson().contains("420 / 500") || !formPkt.linesJson().contains("80")) {
@@ -1128,7 +1139,7 @@ public final class UltraScreenSelfTest {
         }
         MasteryWallet.Line capped = lines.get(1);
         for (String id : buttonIds(UltraPrestigeScreens.formSpec(capped, capped.forms.get(0), 5, 0).toPacket()).keySet()) {
-            if (id.startsWith("do:mastery_apply:")) {
+            if (id.startsWith("page:ask:mastery_apply:") || id.startsWith("do:")) {
                 broken.add("mastery wallet: a capped form offers " + id);
             }
         }
@@ -1141,6 +1152,94 @@ public final class UltraScreenSelfTest {
                 || !applyAsk.contains("not refunded")) {
             broken.add("mastery wallet: apply prompt missing form, result, or no-refund: " + applyAsk);
         }
+        Map<String, String> applyIds = buttonIds(UltraPrestigeScreens.masteryApplyAskSpec(ss, ss.forms.get(0), 1, 5, true).toPacket());
+        if (!applyIds.containsKey("do:mastery_apply:n:ssgrades:supersaiyan:1")
+                || !"Back to SSJ".equals(applyIds.get("page:mw_form:n:ssgrades:supersaiyan"))) {
+            broken.add("mastery wallet: apply confirm page should Confirm and go Back to the form, got " + applyIds);
+        }
+        checkGodKiWallet(broken, lines);
+        checkPrestigeExchangeAsk(broken);
+    }
+
+    /**
+     * God Ki Mastery (4.7.21): always the first wallet line (a real godkienhancement line is dropped),
+     * 100 mastery per point, one level = 10 points = 1,000 mastery, 5 levels, and its Level up runs
+     * through a confirm page.
+     */
+    private static void checkGodKiWallet(List<String> broken, List<MasteryWallet.Line> lines) {
+        MasteryWallet.Line gk = MasteryWallet.godKiLine(0, 5, 1000);
+        MasteryWallet.Form form = gk.forms.get(0);
+        if (!gk.godKi || form.rate != 100 || form.cap != 5000.0 || form.maxPoints() != 50
+                || MasteryWallet.godKiMaxLevel(form) != 5 || MasteryWallet.godKiLevel(form) != 0
+                || MasteryWallet.godKiLevel(MasteryWallet.godKiLine(3, 5, 1000).forms.get(0)) != 3) {
+            broken.add("god ki wallet: want 100 mastery a point, 5 levels of 1,000; got rate " + form.rate
+                    + ", cap " + form.cap);
+        }
+        List<MasteryWallet.Line> withReal = new ArrayList<>(lines);
+        withReal.add(new MasteryWallet.Line("godkienhancement", "God Ki", true, "",
+                List.of(new MasteryWallet.Form("enhancewithgodki", "God Ki", 0, 100))));
+        List<MasteryWallet.Line> all = MasteryWallet.withGodKi(withReal, gk);
+        long godLines = all.stream().filter(l -> "godkienhancement".equals(l.group)).count();
+        if (!all.get(0).godKi || godLines != 1 || all.size() != lines.size() + 1) {
+            broken.add("god ki wallet: God Ki Mastery should be the first and only godkienhancement line");
+        }
+        Map<String, String> pick = buttonIds(UltraPrestigeScreens.linesSpec(all, 0, 0).toPacket());
+        if (!"God Ki Level 0/5".equals(pick.get("page:mw_form:s:godkienhancement:enhancewithgodki"))) {
+            broken.add("god ki wallet: line list should open God Ki Level 0/5 directly, got " + pick);
+        }
+        GuiOpenPacket page = UltraPrestigeScreens.formSpec(gk, form, 37, 0).toPacket();
+        String err = validatePacket(page, "prestige");
+        Map<String, String> ids = buttonIds(page);
+        if (err != null || !ids.containsKey("page:ask:mastery_apply:s:godkienhancement:enhancewithgodki:10")
+                || !shownLines(page).contains("Level 0/5")) {
+            broken.add("god ki wallet: form page should show Level 0/5 and a 10-point Level up"
+                    + (err == null ? "" : " (" + err + ")") + ", got " + ids);
+        }
+        GuiOpenPacket ask = UltraPrestigeScreens.masteryApplyAskSpec(gk, form, 10, 37, true).toPacket();
+        Map<String, String> askIds = buttonIds(ask);
+        if (validatePacket(ask, "prestige") != null
+                || !askIds.containsKey("do:mastery_apply:s:godkienhancement:enhancewithgodki:10")
+                || !shownLines(ask).contains("Level 0 -> 1 of 5") || !shownLines(ask).contains("0 -> 1,000")
+                || !shownLines(ask).contains("37 -> 27")) {
+            broken.add("god ki wallet: level confirm should show the level, mastery, points and Confirm, got " + askIds);
+        }
+        MasteryWallet.Line top = MasteryWallet.godKiLine(5, 5, 1000);
+        for (Object[] c : new Object[][] {{gk, 5, 37}, {gk, 10, 9}, {top, 10, 37}}) {
+            MasteryWallet.Line l = (MasteryWallet.Line) c[0];
+            if (buttonIds(UltraPrestigeScreens.masteryApplyAskSpec(l, l.forms.get(0), (int) c[1], (int) c[2], true)
+                    .toPacket()).keySet().stream().anyMatch(id -> id.startsWith("do:"))) {
+                broken.add("god ki wallet: confirm should not offer Confirm for " + c[1] + " points with " + c[2]
+                        + " held at level " + MasteryWallet.godKiLevel(l.forms.get(0)));
+            }
+        }
+    }
+
+    /** Exchange confirm: prestiges in, favor out, Confirm only when enough are held. */
+    private static void checkPrestigeExchangeAsk(List<String> broken) {
+        GuiOpenPacket ask = UltraPrestigeScreens.turnInAskSpec(3, 5, 10, 4, true).toPacket();
+        String err = validatePacket(ask, "prestige");
+        Map<String, String> ids = buttonIds(ask);
+        if (err != null || !"Exchange 3: +4 favor".equals(ids.get("do:turnin:3"))
+                || !"Back to Exchange shop".equals(ids.get("page:exchange"))
+                || !shownLines(ask).contains("3 prestiges") || !shownLines(ask).contains("10 -> 14")) {
+            broken.add("prestige exchange: confirm page should show prestiges in, favor out, Confirm and Back"
+                    + (err == null ? "" : " (" + err + ")") + ", got " + ids);
+        }
+        if (buttonIds(UltraPrestigeScreens.turnInAskSpec(3, 1, 10, 4, true).toPacket()).containsKey("do:turnin:3")) {
+            broken.add("prestige exchange: confirm offers Confirm while holding fewer prestiges than the pack");
+        }
+        if (!"exchange".equals(UltraPrestigeScreens.askReturn("ask:turnin:3"))
+                || !"mw_form:s:godkienhancement:enhancewithgodki".equals(
+                        UltraPrestigeScreens.askReturn("ask:mastery_apply:s:godkienhancement:enhancewithgodki:10"))
+                || !"perk:aura".equals(UltraPrestigeScreens.askReturn("ask:custom_buy:aura"))
+                || UltraPrestigeScreens.askReturn("exchange") != null) {
+            broken.add("prestige confirm pages: Confirm should land back on the page the spend button sat on");
+        }
+    }
+
+    /** Body text as shown: the packet JSON escapes the greater-than sign as a unicode escape. */
+    private static String shownLines(GuiOpenPacket pkt) {
+        return pkt.linesJson().replace("\\" + "u003e", ">");
     }
 
     /**

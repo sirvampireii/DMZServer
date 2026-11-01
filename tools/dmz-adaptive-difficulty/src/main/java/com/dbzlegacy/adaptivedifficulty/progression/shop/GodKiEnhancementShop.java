@@ -2,12 +2,10 @@ package com.dbzlegacy.adaptivedifficulty.progression.shop;
 
 import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
-import com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionData;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
-import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.ScreenNotify;
 import com.dragonminez.common.stats.character.Character;
 import com.dragonminez.common.stats.extras.FormMasteries;
@@ -18,15 +16,21 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Prestige store: God Ki Enhancement.
+ * God Ki Enhancement: the level store and mastery rules behind God Ki Mastery.
  *
- * <p>1 favor buys one investment; each investment grants
+ * <p>Since 4.7.21 levels are bought in the Mastery Wallet ({@link MasteryWallet}, 10 points a
+ * level), not on the Prestige shop Effects page. Each level grants
  * {@link #MASTERY_PER_POINT} {@code godkienhancement} mastery, up to
- * {@link #MAX_INVESTMENTS} investments (5000 mastery). The investment count
- * is stored per player like the other prestige purchases ({@code pp_*} keys)
- * and survives prestige. Cost, mastery per point, the investment cap and
- * whether it is on sale come from {@link PrestigeShopConfig#godKi}; the
- * constants below are its defaults.
+ * {@link #MAX_INVESTMENTS} levels (5000 mastery). The level count is stored per
+ * player like the other prestige purchases ({@code pp_godki_enh}) and survives
+ * prestige. Mastery per level, the level cap and whether it is on sale come
+ * from {@link PrestigeShopConfig#godKi}; the constants below are its defaults.
+ *
+ * <p>Levels bought on the old Effects page are refunded once per prestige record
+ * ({@link #refundEffectsInvestment}): n levels give back n favor, the level goes to 0
+ * and the granted God Ki is wiped. {@link #KEY_REFUND_DONE} sits in the same record as
+ * the level and the favor and is set before anything changes, and every wallet or staff
+ * level write sets it too, so the refund can never run twice or refund a wallet level.
  *
  * <p>On login (and the post-death / pulse reapply window) the character's
  * God Ki mastery is topped up to {@code invested x 1000} — never lowered.
@@ -55,6 +59,8 @@ public final class GodKiEnhancementShop {
     /** Default favor per investment. */
     public static final int INVESTMENT_COST = 1;
     private static final String KEY_INVESTED = "pp_godki_enh";
+    /** One-time Effects-to-wallet refund marker; same {@code pp_} record as {@link #KEY_INVESTED}. */
+    static final String KEY_REFUND_DONE = "pp_godki_wallet_refund";
 
     private GodKiEnhancementShop() {}
 
@@ -152,15 +158,15 @@ public final class GodKiEnhancementShop {
         if (GOD_FORMS_GROUP.equalsIgnoreCase(g)) {
             return hasEnhancement(player)
                     ? null
-                    : "God forms need God Ki - invest in God Ki Enhancement (Prestige shop, Effects).";
+                    : "God forms need God Ki - add a God Ki Mastery level in the Mastery wallet (Prestige shop).";
         }
         if (ENHANCEMENT_GROUP.equalsIgnoreCase(g)) {
             if (!hasEnhancement(player)) {
-                return "You need God Ki - invest in God Ki Enhancement (Prestige shop, Effects).";
+                return "You need God Ki - add a God Ki Mastery level in the Mastery wallet (Prestige shop).";
             }
             if (mastery(player) < trueFormThreshold()) {
-                return "Your God Ki mastery is too low - invest more in God Ki Enhancement"
-                        + " (Prestige shop, Effects).";
+                return "Your God Ki mastery is too low - add God Ki Mastery levels in the Mastery wallet"
+                        + " (Prestige shop).";
             }
         }
         return null;
@@ -174,54 +180,74 @@ public final class GodKiEnhancementShop {
         ScreenNotify.blocked(player, "God Ki needed", reason, "lm.godki.gate", 4_000L);
     }
 
-    /** Buy the next investment — double-click confirm, menu-inline feedback. */
+    /**
+     * The old Effects purchase ({@code do:godki}, {@code /prestige buy godki}). God Ki is bought in the
+     * Mastery wallet now, so this only says where to go and changes nothing.
+     */
     public static String buy(ServerPlayer player) {
         if (player == null) {
             return UltraStyle.dangerLine("Players only.");
         }
-        int have = invested(player);
-        int max = maxInvestments();
-        int cost = PrestigeShopConfig.get().godKi.costPerPoint;
-        int perPoint = masteryPerPoint();
-        if (have >= max) {
-            return UltraStyle.noticeLine(
-                    "God Ki Enhancement is fully invested (" + have + "/" + max + ").");
-        }
-        if (!PrestigeShopConfig.get().godKi.enabled) {
-            return UltraStyle.dangerLine("God Ki Enhancement is not for sale right now.");
-        }
-        int points = PrestigePointsSystem.getPoints(player);
-        if (points < cost) {
-            return UltraStyle.dangerLine(
-                    "Need " + cost + " favor (have " + points + ").");
-        }
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "godki-enh:" + have)) {
-            return UltraStyle.noticeLine(
-                    "Invest " + cost + " favor in God Ki Enhancement (+"
-                            + DmzRewards.formatWhole(perPoint) + " mastery, " + (have + 1)
-                            + "/" + max + ")? Click again within 10 seconds.");
-        }
-        int next = have + 1;
-        ProgressionData.storedPut(player, KEY_INVESTED, next);
-        PrestigePointsSystem.setPoints(player, points - cost);
+        return UltraStyle.noticeLine("God Ki Mastery moved to the Mastery wallet: open Prestige, then Shop,"
+                + " Mastery wallet, Apply points to a form, God Ki Mastery. A level costs "
+                + MasteryWallet.GODKI_POINTS_PER_LEVEL + " mastery points.");
+    }
+
+    /**
+     * Mastery wallet level up: store the next level and raise the mastery through {@link #reapply},
+     * the same state the Effects purchase left. The caller has checked the cap and the points.
+     *
+     * @return the new level
+     */
+    static int levelUpFromWallet(ServerPlayer player) {
+        int next = Math.min(maxInvestments(), invested(player) + 1);
+        storeLevel(player, next);
         reapply(player);
-        double now = mastery(player);
-        SystemTelemetry.log("prestige_points", "buy_godki_enhancement", player, null, Map.of(
-                "invested", next,
-                "mastery", (long) now,
+        return next;
+    }
+
+    /** Write the level; the refund marker goes with it so a stored level is never refunded later. */
+    private static void storeLevel(ServerPlayer player, int level) {
+        ProgressionData.storedPutBool(player, KEY_REFUND_DONE, true);
+        ProgressionData.storedPut(player, KEY_INVESTED, Math.max(0, level));
+    }
+
+    /**
+     * One-time refund of levels bought on the old Effects page (4.7.21): n levels add n favor, the
+     * level goes to 0 and the granted God Ki (skill, mastery, form records) is wiped, the same as a
+     * staff {@code /padmin godki} set to 0. Runs from {@link #reapply} once the character is attached,
+     * so the wipe can reach it. The marker is written first, in the same record as the level and the
+     * favor, and the record is saved straight away; a second call is a no-op.
+     */
+    static void refundEffectsInvestment(ServerPlayer player) {
+        if (player == null || !ProgressionData.storedWritable(player)
+                || ProgressionData.storedGetBool(player, KEY_REFUND_DONE)) {
+            return;
+        }
+        int levels = (int) Math.max(0L, ProgressionData.storedGetLong(player, KEY_INVESTED, 0L));
+        ProgressionData.storedPutBool(player, KEY_REFUND_DONE, true);
+        if (levels > 0) {
+            ProgressionData.storedPut(player, KEY_INVESTED, 0);
+            PrestigePointsSystem.setPoints(player, PrestigePointsSystem.getPoints(player) + levels);
+            com.dbzlegacy.adaptivedifficulty.noea.GodKiWipeHelper.wipe(player, "godki_wallet_refund");
+        }
+        com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.flush(player.m_20148_());
+        PrestigeCharacter.flush(player);
+        if (levels <= 0) {
+            return;
+        }
+        SystemTelemetry.log("prestige_points", "refund_godki_effects", player, null, Map.of(
+                "levels", levels,
                 "points", PrestigePointsSystem.getPoints(player)
         ));
-        return UltraStyle.color(
-                        "a",
-                        "God Ki Enhancement invested " + next + "/" + max
-                                + " (-" + cost + " favor)")
-                + "\n"
-                + UltraStyle.dim(
-                        "God Ki mastery: " + DmzRewards.formatWhole((long) now)
-                                + " (+" + DmzRewards.formatWhole(perPoint) + " per point)")
-                + (next == 1 ? "\n" + UltraStyle.color("a", "God forms are usable now.") : "")
-                + "\n"
-                + UltraStyle.dim("Favor left: " + PrestigePointsSystem.getPoints(player));
+        try {
+            player.m_213846_(net.minecraft.network.chat.Component.m_237113_(UltraStyle.noticeLine(
+                    "God Ki Mastery moved to the Mastery wallet. Your " + levels + " God Ki level"
+                            + (levels == 1 ? " was" : "s were") + " refunded as " + levels + " favor. Buy them"
+                            + " back in Prestige, Shop, Mastery wallet (" + MasteryWallet.GODKI_POINTS_PER_LEVEL
+                            + " points a level).")));
+        } catch (Throwable ignored) {
+        }
     }
 
     /**
@@ -237,7 +263,7 @@ public final class GodKiEnhancementShop {
         }
         int clamped = Math.max(0, Math.min(maxInvestments(), count));
         int before = invested(player);
-        ProgressionData.storedPut(player, KEY_INVESTED, clamped);
+        storeLevel(player, clamped);
         if (clamped == 0) {
             if (before > 0 || hasEnhancement(player)) {
                 com.dbzlegacy.adaptivedifficulty.noea.GodKiWipeHelper.wipe(player, "admin_godki");
@@ -253,18 +279,20 @@ public final class GodKiEnhancementShop {
     /**
      * Login / reapply top-up: set the enhancement skill and raise mastery to
      * {@code invested x 1000}. Never lowers a higher record. No-op while the
-     * character is not attached — the login reapply window retries.
+     * character is not attached — the login reapply window retries. The one-time
+     * Effects refund runs first, once the character is attached.
      */
     public static void reapply(ServerPlayer player) {
         if (player == null) {
             return;
         }
-        int investments = invested(player);
-        if (investments <= 0) {
-            return;
-        }
         Character character = character(player);
         if (character == null) {
+            return;
+        }
+        refundEffectsInvestment(player);
+        int investments = invested(player);
+        if (investments <= 0) {
             return;
         }
         double expected = expectedMastery(investments);
