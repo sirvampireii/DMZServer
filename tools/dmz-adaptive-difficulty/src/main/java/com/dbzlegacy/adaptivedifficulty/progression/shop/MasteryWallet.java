@@ -2,7 +2,6 @@ package com.dbzlegacy.adaptivedifficulty.progression.shop;
 
 import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore;
-import com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionData;
@@ -37,6 +36,17 @@ import net.minecraft.server.level.ServerPlayer;
  * {@code TransformationsHelper.getUnlockedForms} / {@code getUnlockedStackForms} for each group
  * (skill access + mastery requisite). The radial's free-transform selectability filter is not
  * applied: investing in a form does not need free-transform mastery.
+ *
+ * <p>God Ki Mastery (4.7.21) is one extra line every player sees, unlocked forms or not. It is
+ * synthetic: group {@code godkienhancement}, form {@code enhancewithgodki}, its own rate
+ * ({@code godKi.masteryPerPoint / 10}, 100 per point by default) and whole levels of exactly
+ * {@link #GODKI_POINTS_PER_LEVEL} points. A level is stored as {@code pp_godki_enh} through
+ * {@link GodKiEnhancementShop}, which derives the mastery with {@code reapply()}, the same state the
+ * old Effects purchase left. Any real {@code godkienhancement} line is dropped so this is the only
+ * way to add God Ki mastery here.
+ *
+ * <p>Buy and Apply run from a confirm page (Prestige screen {@code ask:}); there is no same-page
+ * double click.
  */
 public final class MasteryWallet {
     public static final String KEY = "lm_mastery_points";
@@ -50,6 +60,10 @@ public final class MasteryWallet {
     public static final int KIND_SUPER = 0;
     public static final int KIND_MORE = 1;
     public static final int KIND_STACK = 2;
+    /** Points one God Ki Mastery level costs; one Apply is exactly one level. */
+    public static final int GODKI_POINTS_PER_LEVEL = 10;
+    /** Player-facing name of the God Ki line and form. */
+    public static final String GODKI_LABEL = "God Ki Mastery";
 
     private MasteryWallet() {}
 
@@ -59,12 +73,19 @@ public final class MasteryWallet {
         public final String label;
         public final double current;
         public final double cap;
+        /** Mastery one point adds to this form. */
+        public final int rate;
 
         public Form(String name, String label, double current, double cap) {
+            this(name, label, current, cap, MASTERY_PER_POINT);
+        }
+
+        public Form(String name, String label, double current, double cap, int rate) {
             this.name = name;
             this.label = label;
             this.current = current;
             this.cap = cap;
+            this.rate = Math.max(1, rate);
         }
 
         public double headroom() {
@@ -72,7 +93,7 @@ public final class MasteryWallet {
         }
 
         public int maxPoints() {
-            return maxPointsFor(current, cap);
+            return maxPointsFor(current, cap, rate);
         }
     }
 
@@ -83,13 +104,25 @@ public final class MasteryWallet {
         public final boolean stack;
         public final int kind;
         public final List<Form> forms;
+        /** The synthetic God Ki Mastery line: level-based, shown to everyone. */
+        public final boolean godKi;
 
         public Line(String group, String label, boolean stack, String formType, List<Form> forms) {
+            this(group, label, stack, formType, forms, false);
+        }
+
+        private Line(String group, String label, boolean stack, String formType, List<Form> forms, boolean godKi) {
             this.group = group;
             this.label = label;
             this.stack = stack;
             this.kind = kindOf(formType, stack);
             this.forms = forms == null ? List.of() : forms;
+            this.godKi = godKi;
+        }
+
+        /** Mastery one point adds on this line. */
+        public int rate() {
+            return forms.isEmpty() ? MASTERY_PER_POINT : forms.get(0).rate;
         }
 
         /** Page / action token: {@code s:<group>} or {@code n:<group>}. */
@@ -124,20 +157,67 @@ public final class MasteryWallet {
 
     /** Whole points that fit under the cap: headroom / 50, rounded down. Under 50 left is 0. */
     public static int maxPointsFor(double current, double cap) {
+        return maxPointsFor(current, cap, MASTERY_PER_POINT);
+    }
+
+    /** Whole points that fit under the cap at {@code rate} mastery per point. */
+    public static int maxPointsFor(double current, double cap, int rate) {
         double room = cap - current;
         if (!(room > 0.0) || Double.isNaN(room)) {
             return 0;
         }
-        return (int) Math.floor(room / MASTERY_PER_POINT + 1.0E-9);
+        return (int) Math.floor(room / Math.max(1, rate) + 1.0E-9);
     }
 
     /** Points a player can apply right now: the cap limit and their balance, whichever is lower. */
     public static int applicable(double current, double cap, int balance) {
-        return Math.max(0, Math.min(Math.max(0, balance), maxPointsFor(current, cap)));
+        return applicable(current, cap, balance, MASTERY_PER_POINT);
+    }
+
+    public static int applicable(double current, double cap, int balance, int rate) {
+        return Math.max(0, Math.min(Math.max(0, balance), maxPointsFor(current, cap, rate)));
     }
 
     public static double resulting(double current, int points, double cap) {
-        return Math.min(cap, current + (double) Math.max(0, points) * MASTERY_PER_POINT);
+        return resulting(current, points, cap, MASTERY_PER_POINT);
+    }
+
+    public static double resulting(double current, int points, double cap, int rate) {
+        return Math.min(cap, current + (double) Math.max(0, points) * Math.max(1, rate));
+    }
+
+    // ── God Ki Mastery line ───────────────────────────────────────────
+
+    /** Mastery one God Ki point adds: a level's mastery spread over its 10 points (100 by default). */
+    public static int godKiRate(int masteryPerLevel) {
+        return Math.max(1, masteryPerLevel / GODKI_POINTS_PER_LEVEL);
+    }
+
+    /** The God Ki line for a level count, cap and mastery per level (pure; self-test uses it). */
+    public static Line godKiLine(int level, int maxLevel, int masteryPerLevel) {
+        int max = Math.max(0, maxLevel);
+        int lv = Math.max(0, Math.min(max, level));
+        Form form = new Form(GodKiEnhancementShop.ENHANCEMENT_FORM, GODKI_LABEL,
+                (double) lv * masteryPerLevel, (double) max * masteryPerLevel, godKiRate(masteryPerLevel));
+        return new Line(GodKiEnhancementShop.ENHANCEMENT_GROUP, GODKI_LABEL, true, "", List.of(form), true);
+    }
+
+    /** Current God Ki level on the line's form (mastery / mastery per level). */
+    public static int godKiLevel(Form form) {
+        double perLevel = (double) form.rate * GODKI_POINTS_PER_LEVEL;
+        return (int) Math.floor(form.current / perLevel + 1.0E-9);
+    }
+
+    /** Level cap on the line's form. */
+    public static int godKiMaxLevel(Form form) {
+        double perLevel = (double) form.rate * GODKI_POINTS_PER_LEVEL;
+        return (int) Math.floor(form.cap / perLevel + 1.0E-9);
+    }
+
+    /** The player's God Ki line, read from {@code pp_godki_enh} and the godKi shop config. */
+    public static Line godKiLine(ServerPlayer player) {
+        return godKiLine(GodKiEnhancementShop.invested(player), GodKiEnhancementShop.maxInvestments(),
+                GodKiEnhancementShop.masteryPerPoint());
     }
 
     /** Radial grouping: super / legendary / android types first, then other race forms, then stacks. */
@@ -164,16 +244,18 @@ public final class MasteryWallet {
         return out;
     }
 
+    /** Confirm-page summary for a point pack. */
     public static String buyPrompt(int favor) {
-        return "Buy " + pointsForFavor(favor) + " mastery points for " + favor + " favor? "
-                + "Favor spent is not refunded. Click again within 10 seconds.";
+        return "Buy " + pointsForFavor(favor) + " mastery points for " + favor + " favor. "
+                + "Favor spent is not refunded.";
     }
 
+    /** Confirm-page summary for applying points to a form. */
     public static String applyPrompt(int points, String lineLabel, Form form) {
         return "Apply " + points + " mastery point" + (points == 1 ? "" : "s") + " to " + formName(lineLabel, form)
-                + "? Mastery goes from " + whole(form.current) + " to "
-                + whole(resulting(form.current, points, form.cap)) + " (cap " + whole(form.cap) + "). "
-                + "Applied mastery is not refunded. Click again within 10 seconds.";
+                + ". Mastery goes from " + whole(form.current) + " to "
+                + whole(resulting(form.current, points, form.cap, form.rate)) + " (cap " + whole(form.cap) + "). "
+                + "Applied mastery is not refunded.";
     }
 
     public static String formName(String lineLabel, Form form) {
@@ -205,13 +287,13 @@ public final class MasteryWallet {
 
     // ── Live picker ───────────────────────────────────────────────────
 
-    /** The player's unlocked form lines, read fresh from their current DMZ state. */
+    /** God Ki Mastery, then the player's unlocked form lines, read fresh from their current DMZ state. */
     public static List<Line> lines(ServerPlayer player) {
         List<Line> raw = new ArrayList<>();
         Character ch = character(player);
         StatsData data = player == null ? null : DmzProgression.stats(player);
         if (ch == null || data == null) {
-            return raw;
+            return withGodKi(raw, godKiLine(player));
         }
         String race;
         try {
@@ -220,7 +302,7 @@ public final class MasteryWallet {
             race = null;
         }
         if (race == null || race.isBlank()) {
-            return raw;
+            return withGodKi(raw, godKiLine(player));
         }
         String raceKey = race.toLowerCase(Locale.ROOT);
         SkillsConfig skills = null;
@@ -287,7 +369,19 @@ public final class MasteryWallet {
                 }
             }
         }
-        return ordered(raw);
+        return withGodKi(ordered(raw), godKiLine(player));
+    }
+
+    /** God Ki line first, then the form lines; a real {@code godkienhancement} line is dropped. */
+    public static List<Line> withGodKi(List<Line> lines, Line godKi) {
+        List<Line> out = new ArrayList<>();
+        out.add(godKi);
+        for (Line l : lines) {
+            if (!GodKiEnhancementShop.ENHANCEMENT_GROUP.equalsIgnoreCase(l.group)) {
+                out.add(l);
+            }
+        }
+        return out;
     }
 
     /** The line for a {@code s:<group>} / {@code n:<group>} token, from the live picker. */
@@ -328,7 +422,7 @@ public final class MasteryWallet {
 
     // ── Shop actions ──────────────────────────────────────────────────
 
-    /** {@code do:mastery_buy:<favor>} - one of the favor packs, with the shop confirm. */
+    /** {@code do:mastery_buy:<favor>} - one of the favor packs; Confirm on its {@code ask:} page. */
     public static String buy(ServerPlayer player, String arg) {
         if (player == null) {
             return UltraStyle.dangerLine("Players only.");
@@ -353,9 +447,6 @@ public final class MasteryWallet {
             return UltraStyle.dangerLine("Could not save prestige data - try relogging, then buy again.");
         }
         int balance = balance(player);
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "mwallet-buy:" + favor + ":" + balance)) {
-            return UltraStyle.noticeLine(buyPrompt(favor));
-        }
         int gained = pointsForFavor(favor);
         PrestigePointsSystem.setPoints(player, have - favor);
         setBalance(player, balance + gained);
@@ -367,7 +458,7 @@ public final class MasteryWallet {
                         + PrestigePointsSystem.getPoints(player) + ".");
     }
 
-    /** {@code do:mastery_apply:<s|n>:<group>:<form>:<points>} - whole points, confirm first. */
+    /** {@code do:mastery_apply:<s|n>:<group>:<form>:<points>} - whole points; Confirm on its {@code ask:} page. */
     public static String apply(ServerPlayer player, String arg) {
         if (player == null) {
             return UltraStyle.dangerLine("Players only.");
@@ -388,6 +479,9 @@ public final class MasteryWallet {
         Form form = line == null ? null : line.form(formName);
         if (form == null) {
             return UltraStyle.dangerLine("That form is not unlocked for you right now. Open Apply points again to pick one of your forms.");
+        }
+        if (line.godKi) {
+            return applyGodKi(player, form, points);
         }
         String name = formName(line.label, form);
         if (points <= 0) {
@@ -410,10 +504,6 @@ public final class MasteryWallet {
             return UltraStyle.dangerLine(name + " can take at most " + fit + " points before its cap of "
                     + whole(form.cap) + ". Pick a smaller amount.");
         }
-        String key = "mwallet-apply:" + line.token() + ":" + form.name + ":" + points + ":" + balance + ":" + whole(form.current);
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), key)) {
-            return UltraStyle.noticeLine(applyPrompt(points, line.label, form));
-        }
         Character ch = character(player);
         FormMasteries masteries = ch == null ? null : (line.stack ? ch.getStackFormMasteries() : ch.getFormMasteries());
         if (masteries == null) {
@@ -428,6 +518,42 @@ public final class MasteryWallet {
                 "mastery", after, "balance", balance(player)));
         return UltraStyle.color("a", "Applied " + points + " point" + (points == 1 ? "" : "s") + " to " + name
                         + ". Mastery is now " + whole(after) + " / " + whole(form.cap) + ".") + "\n"
+                + UltraStyle.dim("Mastery points left: " + balance(player) + ".");
+    }
+
+    /**
+     * One God Ki level: exactly {@link #GODKI_POINTS_PER_LEVEL} points. The level is stored the way the
+     * Effects purchase stored it, and {@code reapply()} raises the mastery to level x mastery per level.
+     */
+    private static String applyGodKi(ServerPlayer player, Form form, int points) {
+        int level = godKiLevel(form);
+        int max = godKiMaxLevel(form);
+        if (points != GODKI_POINTS_PER_LEVEL) {
+            return UltraStyle.dangerLine("A God Ki Mastery level costs exactly " + GODKI_POINTS_PER_LEVEL
+                    + " points. Use the Level up button on the God Ki Mastery page.");
+        }
+        if (level >= max) {
+            return UltraStyle.noticeLine("God Ki Mastery is at its top level (" + level + "/" + max + ").");
+        }
+        if (!PrestigeShopConfig.get().godKi.enabled) {
+            return UltraStyle.dangerLine("God Ki Mastery is not on sale right now. Points you have stay in your wallet.");
+        }
+        int balance = balance(player);
+        if (balance < points) {
+            return UltraStyle.dangerLine("A God Ki Mastery level costs " + points + " points. You have " + balance
+                    + ". Buy more points on the Mastery wallet page.");
+        }
+        if (!ProgressionData.storedWritable(player)) {
+            return UltraStyle.dangerLine("Could not save prestige data - try relogging, then try again.");
+        }
+        int next = GodKiEnhancementShop.levelUpFromWallet(player);
+        setBalance(player, balance - points);
+        double mastery = GodKiEnhancementShop.mastery(player);
+        SystemTelemetry.log("prestige_points", "apply_godki_mastery", player, null, Map.of(
+                "level", next, "points", points, "mastery", (long) mastery, "balance", balance(player)));
+        return UltraStyle.color("a", "God Ki Mastery is now level " + next + "/" + max + ". God Ki mastery: "
+                        + whole(mastery) + ".") + "\n"
+                + (level == 0 ? UltraStyle.color("a", "God forms are usable now.") + "\n" : "")
                 + UltraStyle.dim("Mastery points left: " + balance(player) + ".");
     }
 }

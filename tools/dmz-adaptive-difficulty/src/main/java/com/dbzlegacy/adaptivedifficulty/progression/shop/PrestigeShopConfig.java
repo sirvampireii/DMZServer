@@ -215,7 +215,7 @@ public final class PrestigeShopConfig {
         return customEntry2;
     }
 
-    static String cleanId(String string) {
+    public static String cleanId(String string) {
         return string == null ? "" : string.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
     }
 

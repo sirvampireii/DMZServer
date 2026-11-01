@@ -43,6 +43,14 @@ public final class UltraCharacterScreens {
             openClassConfirm(player, p.substring("class_confirm:".length()).trim());
             return;
         }
+        if (lower.startsWith("bone_ask:")) {
+            openUnlockAsk(player, false, p.substring("bone_ask:".length()));
+            return;
+        }
+        if (lower.startsWith("part_ask:")) {
+            openUnlockAsk(player, true, p.substring("part_ask:".length()));
+            return;
+        }
         if (lower.startsWith("bones:") || "bones".equals(lower)) {
             openBones(player, parseBonePage(lower));
             return;
@@ -610,7 +618,7 @@ public final class UltraCharacterScreens {
                 String locked = name + " lock";
                 label = UltraStyle.dim(UltraStyle.fitsButton(locked) ? locked : UltraStyle.buttonText(name));
                 style = UltraStyle.STYLE_DIM;
-                action = "do:bone_unlock:" + id;
+                action = "page:bone_ask:" + pg + ":" + id;
             } else {
                 label = UltraStyle.LABEL + UltraStyle.buttonText(name);
                 style = UltraStyle.STYLE_NORMAL;
@@ -653,6 +661,78 @@ public final class UltraCharacterScreens {
             spec.rowGap();
         }
         spec.footerBackHome("Character Home");
+        spec.send(player);
+    }
+
+    /**
+     * After Confirm on an unlock confirm page: back to the shop page it was opened from. {@code null}
+     * when {@code page} is not one (4.7.21).
+     */
+    public static String askReturn(String page) {
+        String p = page == null ? "" : page.trim().toLowerCase(Locale.ROOT);
+        boolean part = p.startsWith("part_ask:");
+        if (!part && !p.startsWith("bone_ask:")) {
+            return null;
+        }
+        return (part ? "bodyparts:" : "bones:") + askPage(p.substring(p.indexOf(':') + 1));
+    }
+
+    /** Shop page index in {@code <page>:<id>}; 0 when missing. */
+    private static int askPage(String rest) {
+        int cut = rest.indexOf(':');
+        try {
+            return Math.max(0, Integer.parseInt(cut < 0 ? "0" : rest.substring(0, cut).trim()));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Unlock confirm for a body part ({@code part_ask:<page>:<id>}) or head look
+     * ({@code bone_ask:<page>:<id>}): the piece, the exact Ancient Coin cost and coins held. Confirm
+     * runs {@code do:bodypart_unlock} / {@code do:bone_unlock}; Back returns to the shop page.
+     */
+    private static void openUnlockAsk(ServerPlayer player, boolean part, String rest) {
+        int pg = askPage(rest);
+        int cut = rest.indexOf(':');
+        String id = (cut < 0 ? rest : rest.substring(cut + 1)).trim().toLowerCase(Locale.ROOT);
+        String back = (part ? "bodyparts:" : "bones:") + pg;
+        String backLabel = part ? "Body parts" : "Model customization";
+        boolean known = part ? CosmeticBodyPartService.isPartKnown(id)
+                : com.dbzlegacy.adaptivedifficulty.character.CosmeticHeadBoneCatalog.isKnown(id);
+        if (id.isBlank() || !known) {
+            open(player, back);
+            return;
+        }
+        String name = part ? CosmeticBodyPartService.displayName(id) : UltraStyle.plain(CosmeticHeadBoneService.wornLabel(id));
+        boolean owned = part ? CosmeticBodyPartService.hasUnlock(player, id) : CosmeticHeadBoneService.hasUnlock(player, id);
+        boolean free = CharacterServicesAccess.bypassCost(player);
+        long cost = free ? 0L : (part ? CosmeticBodyPartService.unlockCost(player, id) : CosmeticHeadBoneService.unlockCost(player, id));
+        UltraScreenSpec spec = sub(player, (part ? "part_ask:" : "bone_ask:") + pg + ":" + id, false)
+                .line(UltraStyle.LABEL + (part ? "Confirm body part unlock" : "Confirm look unlock"))
+                .labelValue(part ? "Part" : "Look", name)
+                .labelValue("Cost", cost <= 0L ? (free ? "Free for staff" : "Free") : CharacterServicesSystem.formatCost(cost))
+                .labelValue("Ancient Coins", com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.inventoryBreakdown(player))
+                .line(UltraStyle.LABEL + "Unlocks " + name + " for good and turns it on. You can turn it off any time.")
+                .line(UltraStyle.dim("Unlocks survive race changes. Coins spent are not refunded."));
+        String block = null;
+        if (owned) {
+            block = "You already own " + name + ". Tap it on the shop page to turn it on or off.";
+        } else if (cost > 0L && !com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.canAfford(player, cost)) {
+            block = UltraStyle.plain(com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.missingText(player, cost));
+        }
+        if (block != null) {
+            spec.line(UltraStyle.danger(block));
+        }
+        spec.buttonsAfterLines();
+        if (block == null) {
+            String pay = cost <= 0L ? "Unlock " + name : "Pay " + com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.compactCost(cost);
+            spec.button((part ? "do:bodypart_unlock:" : "do:bone_unlock:") + id,
+                            UltraStyle.confirm(UltraStyle.fitsButton(pay) ? pay : "Confirm unlock"),
+                            UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
+        }
+        spec.footerBack("page:" + back, backLabel);
         spec.send(player);
     }
 
@@ -731,7 +811,7 @@ public final class UltraCharacterScreens {
                 String locked = name + " lock";
                 label = UltraStyle.dim(UltraStyle.fitsButton(locked) ? locked : UltraStyle.buttonText(name));
                 style = UltraStyle.STYLE_DIM;
-                action = "do:bodypart_unlock:" + id;
+                action = "page:part_ask:" + pg + ":" + id;
             } else {
                 label = UltraStyle.LABEL + UltraStyle.buttonText(name);
                 style = UltraStyle.STYLE_NORMAL;

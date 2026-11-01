@@ -154,9 +154,9 @@ def main() -> int:
           and "PlayerBossSummons.onHurt(event)" in read(SRC / "event/DifficultyEvents.java")
           and "Only the summoner can damage this" in boss_src
           and "tag.m_128471_(TAG_SUMMONED_BOSS)" in read(SRC / "scaling/MobScaling.java"))
-    check("Summons tab lists Wither and Warden with their own confirm pages; no summon command",
+    check("Summons tab lists Wither and Warden with their own pages and confirm pages; no summon command",
           '"page:wither"' in boss_ui and '"page:warden"' in boss_ui
-          and '"do:summon_wither"' in boss_ui and '"do:summon_warden"' in boss_ui
+          and '"page:summon_ask:" + page' in boss_ui and '"do:summon_wither"' in boss_ui and '"do:summon_warden"' in boss_ui
           and '"page:end_dragon"' in boss_ui
           and not any("summon_wither" in read(f) or "summon_warden" in read(f)
                       for f in (SRC / "command").glob("*.java")))
@@ -1089,34 +1089,33 @@ def main() -> int:
           and "PrestigeShopConfig.get().masteryWallet.enabled" in mw and "if (!open())" in mw_buy
           and "cfg.masteryWallet.enabled || MasteryWallet.balance(player) > 0" in mw_scr
           and '"masteryWallet.enabled"' in mw_hooks)
-    check("buy: standard favor wording, shop confirm, favor taken then points added",
+    check("buy: standard favor wording, confirm page (no double click), favor taken then points added",
           '"Need " + favor + " favor (have " + have + ")."' in mw_buy
-          and 'GuiClickConfirm.confirmed(player.m_20148_(), "mwallet-buy:"' in mw_buy
-          and mw_buy.index("GuiClickConfirm.confirmed") < mw_buy.index("PrestigePointsSystem.setPoints(player, have - favor);")
+          and "GuiClickConfirm" not in mw
+          and mw_buy.index("PrestigePointsSystem.setPoints(player, have - favor);") < mw_buy.index("setBalance(player, balance + gained);")
           and "not refunded" in mw.split("public static String buyPrompt(", 1)[-1].split("}", 1)[0])
     check("picker is live: radial group walk + getUnlockedForms / getUnlockedStackForms, no selectability filter",
           "TransformationsHelper.getUnlockedForms(data, race, group)" in mw_lines
           and "TransformationsHelper.getUnlockedStackForms(data, group)" in mw_lines
           and "isSkillAllowedForRace(TransformationsHelper.getSkillNameForType(type), race)" in mw_lines
           and "isSkillAllowedForRace(group, race)" in mw_lines
-          and "getSelectable" not in mw.split("*/", 2)[-1] and "return ordered(raw);" in mw_lines)
+          and "getSelectable" not in mw.split("*/", 2)[-1]
+          and "return withGodKi(ordered(raw), godKiLine(player));" in mw_lines)
     check("radial order and hidden empty lines; names from DMZ lang",
           "!l.forms.isEmpty()" in mw and "comparingInt(l -> l.kind)" in mw
           and "String.CASE_INSENSITIVE_ORDER" in mw
           and 't.contains("super") || t.contains("legendary") || t.contains("android")' in mw
           and 'DmzLang.text("race.dragonminez." + raceKey + ".form."' in mw_lines
           and 'DmzLang.text("race.dragonminez.stack.group."' in mw_lines)
-    check("apply: whole points, headroom / 50 floor, balance bound, confirm, addMastery with cap, sync",
-          "Math.floor(room / MASTERY_PER_POINT + 1.0E-9)" in mw
+    check("apply: whole points, headroom / rate floor, balance bound, addMastery with cap, sync",
+          "Math.floor(room / Math.max(1, rate) + 1.0E-9)" in mw
           and "points > fit" in mw_apply and "points > balance" in mw_apply
-          and 'GuiClickConfirm.confirmed(player.m_20148_(), key)' in mw_apply
           and "line.stack ? ch.getStackFormMasteries() : ch.getFormMasteries()" in mw_apply
           and "masteries.addMastery(line.group, form.name, (double) points * MASTERY_PER_POINT, form.cap);" in mw_apply
-          and "DmzSkillUtil.sync(player);" in mw_apply
-          and mw_apply.index("GuiClickConfirm.confirmed") < mw_apply.index("masteries.addMastery("))
+          and "DmzSkillUtil.sync(player);" in mw_apply)
     check("apply confirm states points, form, resulting mastery, and no refund",
           all(s in mw.split("public static String applyPrompt(", 1)[-1].split("\n    }\n", 1)[0]
-              for s in ('" mastery point"', "formName(lineLabel, form)", "resulting(form.current, points, form.cap)",
+              for s in ('" mastery point"', "formName(lineLabel, form)", "resulting(form.current, points, form.cap, form.rate)",
                         "Applied mastery is not refunded.")))
     check("routes and dispatch: mastery_wallet / mastery_lines / mw_line: / mw_form:, mastery_buy / mastery_apply",
           'case "mastery_wallet", "mastery" -> openMasteryWallet(player);' in mw_scr
@@ -1129,10 +1128,10 @@ def main() -> int:
     check("wallet copy: no raw section signs, no Invalid",
           "§" not in mw and "Invalid" not in mw
           and "§" not in mw_scr.split("// ── Mastery wallet", 1)[-1].split("/** Exchange current prestige", 1)[0])
-    check("self-test: balance, buy confirm, cap math, whole-point limit, picker for a known unlock state",
+    check("self-test: balance, buy confirm page, cap math, whole-point limit, picker for a known unlock state",
           "checkMasteryWallet(broken);" in mw_test and "walletSpec(37, 4, true)" in mw_test
-          and "mwallet-buy:2:37" in mw_test and "maxPointsFor(c[0], c[1])" in mw_test
-          and '"do:mastery_apply:n:ssgrades:supersaiyan:1"' in mw_test
+          and "masteryBuyAskSpec(2, 37, 4, true, true)" in mw_test and "maxPointsFor(c[0], c[1])" in mw_test
+          and '"page:ask:mastery_apply:n:ssgrades:supersaiyan:1"' in mw_test
           and 'List.of("n:ssgrades", "n:supersaiyan", "n:oozaru", "s:kaioken")' in mw_test)
 
     def _fit(cur, cap):
@@ -1819,6 +1818,107 @@ def main() -> int:
     check("self-test and server-start probe cover the ladder on both routes",
           "blocksOverhaulPrestige(held, want - 1)" in nl_test
           and 'completeQuest("prestige_saga:3")' in nl_test)
+
+    print("\n--- § spend confirm pages 4.7.21 ---")
+    sc_pre = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
+    sc_pre_src, sc_pre_ask = sc_pre.split("// ── Confirm pages (ask:<action>:<arg>, 4.7.21)", 1)
+    sc_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    sc_diff_src, sc_diff_ask = sc_diff.split("// ── Confirm pages (4.7.21)", 1)
+    sc_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
+    sc_char_ask = sc_char.split("private static void openUnlockAsk(", 1)[-1].split("private static int parseBonePage(", 1)[0]
+    sc_char_src = sc_char.replace(sc_char_ask, "")
+    sc_actions = read(SRC / "gui/ultra/UltraGuiActions.java")
+    sc_reopen = sc_actions.split("private static String reopenPage(", 1)[-1]
+    sc_dact = read(SRC / "service/DifficultyActions.java")
+    sc_settier = sc_dact.split("private static Result setTier(", 1)[-1].split("private static Result lowerTier(", 1)[0]
+    spend_do = re.compile(r'"do:(turnin|skill|tier|majin|mutant|unmajin|unmutant|ultimate|custom_buy|custom_remove'
+                          r'|mastery_buy|mastery_apply|godki)\b')
+    check("manifest spend-confirm-pages row", "spend-confirm-pages" in manifest)
+    check("GuiClickConfirm guards no spend: shops, wallet, God Ki, paid tier activation",
+          all("GuiClickConfirm" not in read(SRC / ("progression/shop/" + n + ".java"))
+              for n in ("MasteryWallet", "GodKiEnhancementShop", "PrestigePointsSystem", "PrestigeCustomShop"))
+          and sc_settier.count("GuiClickConfirm.confirmed") == 1
+          and sc_settier.index("GuiClickConfirm.confirmed") < sc_settier.index("if (!canPersist(player))")
+          and sc_settier.index("if (downgrade) {") < sc_settier.index("GuiClickConfirm.confirmed"))
+    check("Prestige spend buttons open ask: pages; do: spend actions only on confirm pages",
+          all(t in sc_pre_src for t in ('"page:ask:turnin:"', '"page:ask:skill:"', '"page:ask:tier:"',
+                                        '"page:ask:majin"', '"page:ask:mutant"', '"page:ask:unmajin"',
+                                        '"page:ask:unmutant"', '"page:ask:ultimate"', '"page:ask:custom_buy:"',
+                                        '"page:ask:custom_remove:"', '"page:ask:mastery_buy:"',
+                                        '"page:ask:mastery_apply:"'))
+          and not spend_do.search(sc_pre_src)
+          and all(t in sc_pre_ask for t in ('"do:turnin:"', '"do:skill:"', '"do:tier:"', '"do:custom_buy:"',
+                                            '"do:custom_remove:"', '"do:mastery_buy:"', '"do:mastery_apply:"',
+                                            '"do:ultimate"', '"do:unmajin"')))
+    check("exchange confirm shows prestiges in and favor out from pointsForTurnIn",
+          '.labelValue("You give", plural(amount, "prestige", "prestiges"))' in sc_pre_ask
+          and '.labelValue("You get", gain + " favor")' in sc_pre_ask
+          and "PrestigePointsSystem.pointsForTurnIn(amount)" in sc_pre_ask)
+    check("confirm pages show the cost and only offer Confirm when nothing blocks it; Back to the source",
+          "if (block == null) {" in sc_pre_ask and 'spec.footerBack("page:" + backPage, backLabel);' in sc_pre_ask
+          and sc_pre_ask.count('.labelValue("Cost"') >= 5
+          and '"exchange", "Exchange shop"' in sc_pre_ask and '"mastery_wallet", "Mastery wallet"' in sc_pre_ask)
+    check("Difficulty: coin tier upgrades -> tier_ask, summons -> summon_ask; do: only on confirm pages",
+          'String action = t > active ? "page:tier_ask:" + t : "do:activate:" + t;' in sc_diff_src
+          and '"page:summon_ask:end_dragon"' in sc_diff_src and '"page:summon_ask:" + page' in sc_diff_src
+          and '"do:summon' not in sc_diff_src
+          and '"do:activate:" + t' in sc_diff_ask and '"do:summon_end_dragon"' in sc_diff_ask
+          and '"do:summon_wither"' in sc_diff_ask and '"do:summon_warden"' in sc_diff_ask and '.labelValue("Cost"' in sc_diff_ask)
+    check("Character: Ancient Coin unlocks -> part_ask / bone_ask confirm pages",
+          '"page:bone_ask:" + pg + ":" + id' in sc_char_src and '"page:part_ask:" + pg + ":" + id' in sc_char_src
+          and '"do:bone_unlock:' not in sc_char_src and '"do:bodypart_unlock:' not in sc_char_src
+          and '"do:bodypart_unlock:" : "do:bone_unlock:"' in sc_char_ask and '.labelValue("Cost"' in sc_char_ask)
+    check("Confirm lands back on the source page (confirmReturn before the page echo)",
+          "String afterConfirm = confirmReturn(screen, page);" in sc_reopen
+          and sc_reopen.index("confirmReturn(screen, page)") < sc_reopen.index('if (!page.isBlank() && !"config".equals(screen)')
+          and 'case "prestige" -> UltraPrestigeScreens.askReturn(page);' in sc_actions
+          and 'case "difficulty" -> UltraDifficultyScreens.askReturn(page);' in sc_actions
+          and 'case "character", "saga" -> UltraCharacterScreens.askReturn(page);' in sc_actions)
+
+    print("\n--- § god ki mastery wallet 4.7.21 ---")
+    gw_mw = read(SRC / "progression/shop/MasteryWallet.java")
+    gw_gk = read(SRC / "progression/shop/GodKiEnhancementShop.java")
+    gw_refund = gw_gk.split("static void refundEffectsInvestment(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    gw_reapply = gw_gk.split("public static void reapply(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    gw_store = gw_gk.split("private static void storeLevel(ServerPlayer player, int level) {", 1)[-1].split("\n    }\n", 1)[0]
+    gw_apply = gw_mw.split("private static String applyGodKi(", 1)[-1]
+    check("manifest godki-mastery-wallet row", "godki-mastery-wallet" in manifest)
+    check("God Ki line: always listed first, real godkienhancement line dropped, own rate (masteryPerPoint / 10)",
+          "public static final int GODKI_POINTS_PER_LEVEL = 10;" in gw_mw
+          and "return Math.max(1, masteryPerLevel / GODKI_POINTS_PER_LEVEL);" in gw_mw
+          and "out.add(godKi);" in gw_mw and "ENHANCEMENT_GROUP.equalsIgnoreCase(l.group)" in gw_mw
+          and gw_mw.count("return withGodKi(") == 3 and "MASTERY_PER_POINT = 50;" in gw_mw)
+    check("God Ki apply: exactly 10 points a level, cap, on-sale, balance; level via pp_godki_enh + reapply()",
+          "points != GODKI_POINTS_PER_LEVEL" in gw_apply and "level >= max" in gw_apply
+          and "PrestigeShopConfig.get().godKi.enabled" in gw_apply and "balance < points" in gw_apply
+          and "GodKiEnhancementShop.levelUpFromWallet(player)" in gw_apply
+          and 'KEY_INVESTED = "pp_godki_enh";' in gw_gk
+          and "storeLevel(player, next);\n        reapply(player);" in gw_gk)
+    check("Effects refund: marker first in the same record, n favor back, level 0, God Ki wiped, flushed",
+          'KEY_REFUND_DONE = "pp_godki_wallet_refund";' in gw_gk
+          and "ProgressionData.storedGetBool(player, KEY_REFUND_DONE)" in gw_refund
+          and gw_refund.index("storedPutBool(player, KEY_REFUND_DONE, true)") < gw_refund.index("storedPut(player, KEY_INVESTED, 0)")
+          and "PrestigePointsSystem.getPoints(player) + levels" in gw_refund
+          and 'GodKiWipeHelper.wipe(player, "godki_wallet_refund")' in gw_refund
+          and "LmPlayerStore.flush(player.m_20148_())" in gw_refund and "PrestigeCharacter.flush(player)" in gw_refund)
+    check("every level write sets the marker; refund runs from reapply once the character is attached",
+          "ProgressionData.storedPutBool(player, KEY_REFUND_DONE, true);" in gw_store
+          and "storeLevel(player, clamped);" in gw_gk
+          and gw_reapply.index("if (character == null) {") < gw_reapply.index("refundEffectsInvestment(player);")
+          < gw_reapply.index("int investments = invested(player);"))
+    check("Effects page has no God Ki row; old do:godki only points to the wallet",
+          '"do:godki"' not in sc_pre and "godki_invested" not in sc_pre
+          and "God Ki Mastery moved to the Mastery wallet" in gw_gk
+          and "ProgressionData.storedPut(player, KEY_INVESTED" not in gw_gk.split("public static String buy(", 1)[-1].split("static int levelUpFromWallet", 1)[0])
+
+    print("\n--- § ultimate not refundable 4.7.21 ---")
+    un_pp = read(SRC / "progression/shop/PrestigePointsSystem.java")
+    check("manifest ultimate-not-refundable row", "ultimate-not-refundable" in manifest)
+    check("no unbuyUltimate, no Remove Ultimate; buy stays; Majin/Mutant remove stays behind ask pages",
+          "unbuyUltimate" not in un_pp and "Remove Ultimate" not in sc_pre and '"do:unultimate"' not in sc_pre
+          and "public static String buyUltimate(ServerPlayer player)" in un_pp
+          and "ultimate = new FormOffer(3, 100)" in read(SRC / "progression/shop/PrestigeShopConfig.java")
+          and '"page:ask:unmajin"' in sc_pre and '"page:ask:unmutant"' in sc_pre)
 
     print("\n--- § ultra chamber exempt 4.7.20 ---")
     ch_ms = read(SRC / "scaling/MobScaling.java")

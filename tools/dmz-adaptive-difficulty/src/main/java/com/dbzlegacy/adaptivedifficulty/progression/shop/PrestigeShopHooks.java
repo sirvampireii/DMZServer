@@ -246,14 +246,14 @@ public final class PrestigeShopHooks {
             PrestigeShopHooks.help("forms." + string2, "Permanent " + (String)object + " price and refund.");
             PrestigeShopHooks.help("forms." + string2 + ".enabled", "Sells Permanent " + (String)object + ". Players who own it keep it when this is off.");
             PrestigeShopHooks.help("forms." + string2 + ".cost", "Favor price of Permanent " + (String)object + ".");
-            PrestigeShopHooks.help("forms." + string2 + ".refundPercent", "Percent of the price given back when a player removes Permanent " + (String)object + ".");
+            PrestigeShopHooks.help("forms." + string2 + ".refundPercent", "ultimate".equals(string2) ? "Not used: Permanent Ultimate can't be removed, so nothing is refunded." : "Percent of the price given back when a player removes Permanent " + (String)object + ".");
         }
-        PrestigeShopHooks.help("godKi", "God Ki Enhancement investments (Shop > Effects).");
-        PrestigeShopHooks.help("godKi.enabled", "Allows new God Ki investments. Existing investments keep working when off.");
-        PrestigeShopHooks.help("godKi.costPerPoint", "Favor per God Ki investment.");
-        PrestigeShopHooks.help("godKi.masteryPerPoint", "God Ki mastery each investment guarantees.");
-        PrestigeShopHooks.help("godKi.maxPoints", "Most God Ki investments a player can make (staff /padmin godki still caps at 5).");
-        PrestigeShopHooks.help("masteryWallet", "Mastery points wallet (Shop > Mastery wallet): 1 favor buys 10 points, 1 point adds 50 mastery to an unlocked form.");
+        PrestigeShopHooks.help("godKi", "God Ki Mastery levels (Shop > Mastery wallet, 10 mastery points a level).");
+        PrestigeShopHooks.help("godKi.enabled", "Allows new God Ki Mastery levels in the Mastery wallet. Levels a player has keep working when off.");
+        PrestigeShopHooks.help("godKi.costPerPoint", "Not used since 4.7.21: a God Ki level costs 10 mastery points in the Mastery wallet.");
+        PrestigeShopHooks.help("godKi.masteryPerPoint", "God Ki mastery each level grants. A level is 10 wallet points, so one point adds a tenth of this.");
+        PrestigeShopHooks.help("godKi.maxPoints", "Most God Ki Mastery levels a player can reach (staff /padmin godki still caps at 5).");
+        PrestigeShopHooks.help("masteryWallet", "Mastery points wallet (Shop > Mastery wallet): 1 favor buys 10 points, 1 point adds 50 mastery to an unlocked form. God Ki Mastery: 10 points a level.");
         PrestigeShopHooks.help("masteryWallet.enabled", "Sells mastery points for favor. Points players already have can still be applied when this is off.");
         PrestigeShopHooks.help("customShop", "The Special perks page with your own entries.");
         PrestigeShopHooks.help("customShop.enabled", "Shows the custom entries page. Owners keep their rewards when this is off.");

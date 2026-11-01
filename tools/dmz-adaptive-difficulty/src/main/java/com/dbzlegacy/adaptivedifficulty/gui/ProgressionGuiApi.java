@@ -1251,7 +1251,8 @@ public final class ProgressionGuiApi {
         }
         if ("unultimate".equals(act) || "unbuy_ultimate".equals(act)
                 || "remove_ultimate".equals(act)) {
-            return PrestigePointsSystem.unbuyUltimate(player);
+            // 4.7.21: Permanent Ultimate can't be removed; nothing changes.
+            return UltraStyle.noticeLine("Permanent Ultimate is permanent - it can't be removed or refunded.");
         }
         if ("godki".equals(act) || "godki_enhancement".equals(act) || "buy_godki".equals(act)) {
             return GodKiEnhancementShop.buy(player);

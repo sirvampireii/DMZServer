@@ -2,7 +2,6 @@ package com.dbzlegacy.adaptivedifficulty.progression.shop;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil;
-import com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionData;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
@@ -798,10 +797,6 @@ public final class PrestigePointsSystem {
             return "§cNeed §e" + cost + " §cfavor"
                     + " (have §e" + points + "§c).";
         }
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "prestige-tier:" + tierId)) {
-            return "§eUnlock permanent §fT" + tierId + " §efor §6" + cost
-                    + " §efavor? Click again within 10 seconds.";
-        }
         setPoints(player, points - cost);
         ProgressionData.storedPutBool(player, KEY_TIER_PREFIX + tierId, true);
         // Apply unlock bits for every permanently purchased tier (fills gaps).
@@ -1120,11 +1115,6 @@ public final class PrestigePointsSystem {
             return UltraStyle.dangerLine(
                     "Need " + cost + " favor (have " + points + ").");
         }
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-buy:Permanent Ultimate")) {
-            return UltraStyle.noticeLine(
-                    "Buy Permanent Ultimate for " + cost
-                            + " favor? Click again within 10 seconds.");
-        }
         setPoints(player, points - cost);
         ProgressionData.storedPutBool(player, KEY_ULTIMATE, true);
         grantUltimate(player);
@@ -1133,41 +1123,6 @@ public final class PrestigePointsSystem {
                 "cost", cost
         ));
         return UltraStyle.color("a", "Unlocked Permanent Ultimate (-" + cost + " favor)")
-                + "\n"
-                + UltraStyle.dim("Favor left: " + getPoints(player));
-    }
-
-    /**
-     * Remove Permanent Ultimate: click again within 10 seconds to confirm, refund
-     * {@code forms.ultimate.refundPercent} of the price (default 100 — the full
-     * {@link #ULTIMATE_COST}), clear only the Ultimate flag. Majin / Mutant state is untouched.
-     * Revoke only runs when the shop flag was set — the buy gate guarantees the skill came from
-     * the shop, never from Old Kai — so an earned form is never stripped here.
-     */
-    public static String unbuyUltimate(ServerPlayer player) {
-        if (player == null) {
-            return UltraStyle.dangerLine("Players only.");
-        }
-        if (!hasUltimate(player)) {
-            return UltraStyle.noticeLine("You do not own Permanent Ultimate.");
-        }
-        int refund = PrestigeShopConfig.get().forms.ultimate.refund();
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-remove:Permanent Ultimate")) {
-            return UltraStyle.noticeLine(
-                    "Remove Permanent Ultimate? "
-                            + (refund > 0 ? "You get " + refund + " favor back." : "No favor is refunded.")
-                            + " Click again within 10 seconds.");
-        }
-        ProgressionData.storedPutBool(player, KEY_ULTIMATE, false);
-        revokeUltimate(player);
-        setPoints(player, getPoints(player) + refund);
-        SystemTelemetry.log("prestige_points", "unbuy_ultimate", player, null, Map.of(
-                "points", getPoints(player),
-                "refund", refund
-        ));
-        return UltraStyle.color(
-                        "a", "Removed Permanent Ultimate"
-                                + (refund > 0 ? " (+" + refund + " favor refunded)" : " (no refund)"))
                 + "\n"
                 + UltraStyle.dim("Favor left: " + getPoints(player));
     }
@@ -1201,10 +1156,6 @@ public final class PrestigePointsSystem {
             return "§cYou have §fPermanent Majin§c."
                     + "\n§7Remove Majin first (" + otherRefund + "§7), then buy Mutant.";
         }
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-buy:" + label)) {
-            return "§eBuy §f" + label + " §efor §6" + offer.cost
-                    + " §efavor? Click again within 10 seconds.";
-        }
         setPoints(player, points - offer.cost);
         ProgressionData.storedPutBool(player, majin ? KEY_MAJIN : KEY_MUTANT, true);
         runDmzEffect(player, majin ? "majin" : "mutant", true);
@@ -1231,13 +1182,6 @@ public final class PrestigePointsSystem {
         }
         PrestigeShopConfig.Forms forms = PrestigeShopConfig.get().forms;
         int refund = (majin ? forms.majin : forms.mutant).refund();
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "form-remove:" + label)) {
-            return "§eRemove §f" + label + "§e? "
-                    + (refund > 0
-                            ? "You get §6" + refund + " §efavor back."
-                            : "You will §cnot §eget your favor back.")
-                    + " Click again within 10 seconds.";
-        }
         clearForm(player, majin);
         if (refund > 0) {
             setPoints(player, getPoints(player) + refund);

@@ -41,6 +41,14 @@ public final class UltraDifficultyScreens {
         DifficultyActions.prepareGui(player);
         String raw = page == null || page.isBlank() ? "main" : page.trim();
         String lower = raw.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("tier_ask:")) {
+            openTierAsk(player, parseTier(raw.substring("tier_ask:".length())));
+            return;
+        }
+        if (lower.startsWith("summon_ask:")) {
+            openSummonAsk(player, lower.substring("summon_ask:".length()).trim());
+            return;
+        }
         if (lower.startsWith("title_detail:")) {
             openTitleDetail(player, raw.substring("title_detail:".length()).trim());
             return;
@@ -177,7 +185,8 @@ public final class UltraDifficultyScreens {
                 .labelValue("Ancient Coins", AncientCoinEconomy.inventoryBreakdown(player))
                 .line(UltraStyle.LABEL + "Scaled mobs can hurt other players nearby.")
                 .line(UltraStyle.LABEL + "Upgrades cost Ancient Coins - downgrades are free")
-                .line(UltraStyle.LABEL + "Click again within 10 seconds to confirm");
+                .line(UltraStyle.LABEL + "An upgrade shows its price on a confirm page first")
+                .line(UltraStyle.LABEL + "A downgrade: click again within 10 seconds");
         if (!PaidFeatureAccess.bypassAncientCoinCost(player)) {
             spec.line(UltraStyle.LABEL + "Upgrade cost scales with your level");
         }
@@ -219,19 +228,17 @@ public final class UltraDifficultyScreens {
         String label = UltraStyle.plain(rawLabel);
         boolean enabled = UltraDifficultyTierUi.tierButtonEnabled(t, active, unlocked, eligible);
         String style;
-        String action;
+        // An upgrade spends coins: it opens the confirm page. Same tier and free downgrades act here.
+        String action = t > active ? "page:tier_ask:" + t : "do:activate:" + t;
         if (active == t) {
             style = "confirm";
             label = UltraStyle.confirm(label);
-            action = "do:activate:" + t;
         } else if (enabled) {
             style = "confirm";
             label = UltraStyle.confirm(label);
-            action = "do:activate:" + t;
         } else {
             style = "dim";
             label = UltraStyle.dim(label.isBlank() ? ("T" + t + " - locked") : label);
-            action = "do:activate:" + t;
         }
         if (left) {
             spec.buttonLeft(action, label, style);
@@ -311,9 +318,9 @@ public final class UltraDifficultyScreens {
         }
         spec.buttonsAfterLines();
         if (ready) {
-            spec.button("do:summon_end_dragon", UltraStyle.confirm("Confirm summon"), "confirm").rowGap();
+            spec.button("page:summon_ask:end_dragon", UltraStyle.confirm("Summon End Dragon"), "confirm").rowGap();
         } else {
-            spec.button("do:summon_end_dragon", UltraStyle.dim("Summon locked"), "dim")
+            spec.button("page:summon_ask:end_dragon", UltraStyle.dim("Summon locked"), "dim")
                     .rowGap();
         }
         spec.footerBack("page:summons", "Summons");
@@ -327,7 +334,7 @@ public final class UltraDifficultyScreens {
     private static void openBossSummonConfirm(ServerPlayer player, PlayerBossSummons.Boss boss) {
         boolean ready = PlayerBossSummons.canOpenSummonMenu(player, boss);
         String page = boss == PlayerBossSummons.Boss.WITHER ? "wither" : "warden";
-        String action = boss == PlayerBossSummons.Boss.WITHER ? "do:summon_wither" : "do:summon_warden";
+        String action = "page:summon_ask:" + page;
         UltraScreenSpec spec = sub(page)
                 .line(UltraStyle.LABEL + boss.display)
                 .labelValue("Cost", PlayerBossSummons.costText(player, boss)
@@ -345,11 +352,130 @@ public final class UltraDifficultyScreens {
         }
         spec.buttonsAfterLines();
         if (ready) {
-            spec.button(action, UltraStyle.confirm("Confirm summon"), "confirm").rowGap();
+            spec.button(action, UltraStyle.confirm("Summon " + boss.display), "confirm").rowGap();
         } else {
             spec.button(action, UltraStyle.dim("Summon locked"), "dim").rowGap();
         }
         spec.footerBack("page:summons", "Summons");
+        spec.send(player);
+    }
+
+    // ── Confirm pages (4.7.21) ────────────────────────────────────────
+
+    /**
+     * After Confirm on a confirm page: back to the page its button sat on. {@code null} when
+     * {@code page} is not a confirm page.
+     */
+    public static String askReturn(String page) {
+        String p = page == null ? "" : page.trim().toLowerCase(Locale.ROOT);
+        if (p.startsWith("tier_ask:")) {
+            return "tiers";
+        }
+        if (p.startsWith("summon_ask:")) {
+            String which = p.substring("summon_ask:".length());
+            return "end_dragon".equals(which) || "wither".equals(which) || "warden".equals(which) ? which : "summons";
+        }
+        return null;
+    }
+
+    private static int parseTier(String raw) {
+        try {
+            return Integer.parseInt(raw == null ? "" : raw.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** Tier upgrade confirm: tier, exact coin cost, coins held; Confirm runs {@code do:activate}. */
+    private static void openTierAsk(ServerPlayer player, int t) {
+        PlayerDifficultyData data = DifficultyCache.data(player);
+        UnlockTier tier = UnlockTier.byId(t);
+        if (tier == null || data == null) {
+            openTiers(player);
+            return;
+        }
+        int active = data.getActiveTier();
+        DifficultySnapshot snap = DifficultyCache.refresh(player);
+        boolean unlocked = data.hasUnlockedTier(t) || (snap != null && t <= snap.highestUnlockedTier);
+        boolean eligible = UltraDifficultyTierUi.isEligible(player, tier);
+        boolean free = PaidFeatureAccess.bypassAncientCoinCost(player);
+        long cost = free ? 0L : AncientCoinEconomy.activationCost(tier, player, active);
+        UltraScreenSpec spec = sub("tier_ask:" + t)
+                .line(UltraStyle.LABEL + "Confirm tier upgrade")
+                .labelValue("Tier", "T" + t + " " + tier.display)
+                .labelValue("Active tier", active <= 0 ? "No tier active yet" : "T" + active)
+                .labelValue("Cost", cost <= 0L ? (free ? "Free for staff" : "Free") : AncientCoinEconomy.formatExactCost(cost))
+                .labelValue("Ancient Coins", AncientCoinEconomy.inventoryBreakdown(player))
+                .line(UltraStyle.LABEL + "Mobs near you scale to this tier, with its bigger rewards."
+                        + " Scaled mobs can hurt other players nearby.")
+                .line(UltraStyle.dim("Coins spent are not refunded. Switching to a lower tier later is free."));
+        String block = null;
+        if (!data.isPersonalEnabled()) {
+            block = "Turn on personal difficulty on the Home tab first.";
+        } else if (active == t) {
+            block = "T" + t + " is already your active tier.";
+        } else if (active > 0 && t < active) {
+            block = "Lower tiers are free - pick T" + t + " on the Tiers page.";
+        } else if (!unlocked && !eligible) {
+            block = "T" + t + " is locked. Need " + UltraStyle.plain(UltraDifficultyTierUi.humanRequirement(tier)) + ".";
+        } else if (cost > 0L && !AncientCoinEconomy.canAfford(player, cost)) {
+            block = UltraStyle.plain(AncientCoinEconomy.missingText(player, cost));
+        }
+        if (block != null) {
+            spec.line(UltraStyle.danger(block));
+        }
+        spec.buttonsAfterLines();
+        if (block == null) {
+            String pay = cost <= 0L ? "Activate T" + t : "Pay " + AncientCoinEconomy.compactCost(cost);
+            spec.button("do:activate:" + t, UltraStyle.confirm(UltraStyle.fitsButton(pay) ? pay : "Confirm"),
+                            UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
+        }
+        spec.footerBack("page:tiers", "Tiers");
+        spec.send(player);
+    }
+
+    /** Boss summon confirm: boss, exact cost, coins held, what spawns; Confirm runs the summon. */
+    private static void openSummonAsk(ServerPlayer player, String which) {
+        boolean dragon = "end_dragon".equals(which);
+        PlayerBossSummons.Boss boss = "warden".equals(which) ? PlayerBossSummons.Boss.WARDEN
+                : ("wither".equals(which) ? PlayerBossSummons.Boss.WITHER : null);
+        if (!dragon && boss == null) {
+            openSummons(player);
+            return;
+        }
+        boolean free = PaidFeatureAccess.bypassAncientCoinCost(player);
+        String name = dragon ? "End Dragon" : boss.display;
+        boolean ready = dragon
+                ? EndDimensionStrength.canOpenSummonMenu(player)
+                : PlayerBossSummons.canOpenSummonMenu(player, boss);
+        String cost = dragon
+                ? (free ? "Free for staff" : AncientCoinEconomy.formatExactCost(EndDimensionStrength.summonCopperCost()))
+                : PlayerBossSummons.costText(player, boss)
+                        + (free ? "" : " (" + boss.netheriteCoins() + " Ancient Netherite)");
+        UltraScreenSpec spec = sub("summon_ask:" + which)
+                .line(UltraStyle.LABEL + "Confirm summon")
+                .labelValue("Boss", name)
+                .labelValue("Cost", cost)
+                .labelValue("Ancient Coins", AncientCoinEconomy.inventoryBreakdown(player))
+                .line(UltraStyle.LABEL + "The " + name + " spawns near you right away. You get its drops"
+                        + (dragon ? " and the loot bonus below." : "."));
+        if (dragon) {
+            spec.line(UltraStyle.VALUE + EndDimensionStrength.summonLootBonusLine(player));
+        }
+        spec.line(UltraStyle.dim("Coins are taken when it spawns and are not refunded."));
+        if (!ready) {
+            spec.line(UltraStyle.danger("Requirements not met - the " + name + " page lists what is missing."));
+        }
+        spec.buttonsAfterLines();
+        if (ready) {
+            String go = "Summon " + name;
+            spec.button(dragon ? "do:summon_end_dragon"
+                                    : (boss == PlayerBossSummons.Boss.WITHER ? "do:summon_wither" : "do:summon_warden"),
+                            UltraStyle.confirm(UltraStyle.fitsButton(go) ? go : "Confirm summon"), "confirm")
+                    .rowGap();
+        }
+        spec.footerBack("page:" + which, name);
         spec.send(player);
     }
 

@@ -568,13 +568,7 @@ public final class DifficultyActions {
             openGui(player, returnPage);
             return Result.fail(AncientCoinEconomy.missingText(player, charge));
         }
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "diff-tier:" + tier.id)) {
-            openGui(player, returnPage);
-            return Result.ok(
-                    UltraStyle.YELLOW + "Buy " + UltraStyle.VALUE + tier.display
-                            + UltraStyle.YELLOW + " for " + UltraStyle.GOLD + costText
-                            + UltraStyle.YELLOW + "? Click again within 10 seconds.");
-        }
+        // Paid activation is confirmed on the Tiers confirm page (tier_ask:<t>, 4.7.21); no double click.
         if (charge > 0L && !AncientCoinEconomy.charge(player, charge)) {
             openGui(player, returnPage);
             return Result.fail(AncientCoinEconomy.missingText(player, charge));
