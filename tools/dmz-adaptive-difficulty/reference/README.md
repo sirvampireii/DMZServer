@@ -401,6 +401,11 @@ Two classes re-extracted from `mods/LegacyMechanics-4.7.18.jar`; javap diffs che
 `AdaptiveDifficultyMod` re-extracted from `mods/LegacyMechanics-4.7.19.jar` (javap: version string
 only). The other 24 are unchanged.
 
+## Re-baseline (2026-11-01, 4.7.20 Ultra chamber exempt)
+
+`AdaptiveDifficultyMod` re-baselined for `LegacyMechanics-4.7.20.jar` (javap: version string only). The
+other 24 are unchanged.
+
 ## Refresh the reference set
 
 ```bash
