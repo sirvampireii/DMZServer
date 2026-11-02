@@ -1819,6 +1819,60 @@ def main() -> int:
           "blocksOverhaulPrestige(held, want - 1)" in nl_test
           and 'completeQuest("prestige_saga:3")' in nl_test)
 
+    print("\n--- § revive cooldown and all 4.7.23 ---")
+    rv = read(SRC / "command/LmRevive.java")
+    rv_staff = read(SRC / "util/StaffAccess.java")
+    rv_cfg = read(SRC / "config/DifficultyConfig.java")
+    rv_lit = rv.split("static LiteralArgumentBuilder<CommandSourceStack> literal() {", 1)[-1].split("\n    }\n", 1)[0]
+    rv_all = rv.split("private static int reviveAll(", 1)[-1].split("\n    }\n", 1)[0]
+    rv_dead = rv.split("private static List<ServerPlayer> deadOnlinePlayers(", 1)[-1].split("\n    }\n", 1)[0]
+    rv_cd = rv.split("private static boolean onCooldown(", 1)[-1].split("\n    }\n", 1)[0]
+    rv_start = rv.split("private static void startCooldown(", 1)[-1].split("\n    }\n", 1)[0]
+    rv_call = rv.split("private static int revive(CommandSourceStack source, Collection<ServerPlayer> targets) {", 1)[-1].split("\n    }\n", 1)[0]
+    rv_op = rv_staff.split("public static boolean isOp(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest revive-cooldown-all row", "revive-cooldown-all" in manifest)
+    check("config reviveCooldownSeconds default 300, clamped, registered, explained",
+          "public int reviveCooldownSeconds = 300;" in rv_cfg and "cfg.reviveCooldownSeconds = Math.max(0," in rv_cfg
+          and '"reviveCooldownSeconds"' in read(SRC / "config/ConfigRegistry.java")
+          and "reviveCooldownSeconds=" in read(SRC / "config/editor/ConfigFieldHelp.java"))
+    check("isOp is op level 2 or Bukkit op only (no admin node, not isStaff)",
+          "m_20310_(2)" in rv_op and "hasBukkitIsOp(player)" in rv_op
+          and "adminPermission" not in rv_op and "isStaff" not in rv_op and "hasBukkitPermission" not in rv_op)
+    check("cooldown exempts ops only, keyed by executor UUID, human time-left message",
+          "StaffAccess.isOp(executor)" in rv_cd and "isStaff" not in rv_cd
+          and "COOLDOWN_UNTIL.get(executor.m_20148_())" in rv_cd
+          and "Revive is on cooldown — try again in " in rv_cd and "LmCommandFeedback.tell" in rv_cd
+          and "StaffAccess.isOp(executor)" in rv_start and "reviveCooldownSeconds" in rv_start)
+    check("cooldown starts only on a DMZ count above 0; every form checks it before reviving",
+          "if (revived > 0) {\n                startCooldown(source);" in rv_call
+          and rv.count("startCooldown(source);") == 1
+          and rv.count("if (onCooldown(source)) {") == 3
+          and rv_all.index("onCooldown(source)") < rv_all.index("revive(source, dead)"))
+    check("revive all: literal before the player word, revive-others gate, dead online players only",
+          rv_lit.index('Commands.m_82127_("all")') < rv_lit.index('playerWord("player")')
+          and "StaffAccess.denyUnlessReviveOthers(source) == 0" in rv_all
+          and "hasSelfRevive" not in rv_all
+          and "m_6846_().m_11314_()" in rv_dead and "!stats.getStatus().isAlive()" in rv_dead
+          and "NOBODY_DEAD" in rv_all and "No one is dead right now." in rv
+          and rv_all.index("dead.isEmpty()") < rv_all.index("revive(source, dead)"))
+    check("one reflective revivePlayers call takes the collection; no /dmzrevive dispatch",
+          "method.invoke(null, source, targets)" in rv_call and rv.count(".invoke(") == 1
+          and "revive(source, List.of(player))" in rv and "revive(source, List.of(target))" in rv
+          and "performPrefixedCommand" not in rv and ".execute(" not in rv)
+    check("help and tab completion list /lm revive all",
+          '"/lm revive all"' in read(SRC / "command/LmCommandHelp.java")
+          and 'names.add("all");' in read(SRC / "command/LmCommandSuggestions.java")
+          and "LmCommandSuggestions.filterPlayerSlot(label, coalesced, source, partial)"
+          in read(SRC / "command/MohistCommandBridge.java"))
+
+    def _left(ms):  # mirror of LmRevive.formatLeft
+        total = max(1, (ms + 999) // 1000)
+        m, s = divmod(total, 60)
+        return f"{s}s" if m == 0 else (f"{m}m" if s == 0 else f"{m}m {s}s")
+
+    check("sim: time left reads 3m 12s / 5m / 45s / 1s",
+          _left(192000) == "3m 12s" and _left(300000) == "5m" and _left(44001) == "45s" and _left(1) == "1s")
+
     print("\n--- § god ki refund order 4.7.22 ---")
     ro_gk = read(SRC / "progression/shop/GodKiEnhancementShop.java")
     ro_up = ro_gk.split("public static int levelUpFromWallet(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]

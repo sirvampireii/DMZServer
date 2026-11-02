@@ -55,6 +55,20 @@ public final class LmCommandSuggestions {
         return filterNames(onlinePlayerNames(source), partial);
     }
 
+    /**
+     * Mohist tab list for an online-player slot: player names, plus {@code all} first in the
+     * {@code /lm revive} slot ({@code /lm revive all}, 4.7.23).
+     */
+    public static List<String> filterPlayerSlot(String label, String[] args, CommandSourceStack source,
+            String partial) {
+        List<String> names = new ArrayList<>();
+        if ("lm".equalsIgnoreCase(label) && args != null && args.length == 2 && "revive".equals(lower(args[0]))) {
+            names.add("all");
+        }
+        names.addAll(onlinePlayerNames(source));
+        return filterNames(names, partial);
+    }
+
     /** Tab list for {@code /lm admin clear} and character cooldown clear. Includes offline names. */
     public static List<String> filterClearTargets(CommandSourceStack source, String partial) {
         return filterNames(clearTargetNames(source), partial);
