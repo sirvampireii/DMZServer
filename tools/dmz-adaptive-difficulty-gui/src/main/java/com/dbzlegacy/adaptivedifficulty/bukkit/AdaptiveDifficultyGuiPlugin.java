@@ -1205,7 +1205,7 @@ public final class AdaptiveDifficultyGuiPlugin extends JavaPlugin {
     }
 
     /**
-     * {@code /lm mastery grant-first-superform} and {@code grant-first-legendary}.
+     * {@code /lm mastery grant-first-superform}, {@code grant-first-legendary} and {@code grant-first-godform}.
      * Amount then name, or name then amount. Console must name a player.
      */
     private boolean handleLmMastery(CommandSender sender, String[] args) {
@@ -1221,7 +1221,8 @@ public final class AdaptiveDifficultyGuiPlugin extends JavaPlugin {
             return true;
         }
         String grant = args[1].toLowerCase(Locale.ROOT);
-        if (!"grant-first-superform".equals(grant) && !"grant-first-legendary".equals(grant)) {
+        if (!"grant-first-superform".equals(grant) && !"grant-first-legendary".equals(grant)
+                && !"grant-first-godform".equals(grant)) {
             sendTry(sender, "/lm mastery grant-first-superform <amount> [player]");
             return true;
         }
@@ -1300,10 +1301,11 @@ public final class AdaptiveDifficultyGuiPlugin extends JavaPlugin {
         }
         if (args.length == 2) {
             return filterPrefix(
-                    List.of("grant-first-superform", "grant-first-legendary"), args[1]);
+                    List.of("grant-first-superform", "grant-first-legendary", "grant-first-godform"), args[1]);
         }
         String grant = args[1] == null ? "" : args[1].toLowerCase(Locale.ROOT);
-        if (!"grant-first-superform".equals(grant) && !"grant-first-legendary".equals(grant)) {
+        if (!"grant-first-superform".equals(grant) && !"grant-first-legendary".equals(grant)
+                && !"grant-first-godform".equals(grant)) {
             return null;
         }
         if (args.length == 3 && !isMasteryAmount(args[2])) {

@@ -1819,6 +1819,40 @@ def main() -> int:
           "blocksOverhaulPrestige(held, want - 1)" in nl_test
           and 'completeQuest("prestige_saga:3")' in nl_test)
 
+    print("\n--- § first godform grant 4.7.25 ---")
+    gf_choice = read(SRC / "progression/form/FirstSuperformChoice.java")
+    gf_grant = read(SRC / "progression/form/FirstSuperformMastery.java")
+    gf_mech = read(SRC / "command/MechanicsCommands.java")
+    gf_kind = gf_mech.split("private static FirstSuperformChoice.Kind kindFromToken(", 1)[-1].split("\n    }\n", 1)[0]
+    gf_help = read(SRC / "command/LmCommandHelp.java")
+    check("manifest first-godform-grant row", "first-godform-grant" in manifest)
+    check("Kind.GOD picks the earliest godform like LEGENDARY, no level-0 rule",
+          "LEGENDARY,\n        GOD" in gf_choice and 'contains(candidate.formType, "godform")' in gf_choice
+          and "kind == Kind.LEGENDARY || kind == Kind.GOD" in gf_choice
+          and "return earliest(forms, kind, 0);" in gf_choice
+          and "kind == Kind.GOD ? !isGodform(candidate) : !isLegendary(candidate)" in gf_choice
+          and "return earliest(forms, Kind.SUPER, 1);" in gf_choice)
+    check("command reuses masteryGrant; god token checked first; notice and no-form message",
+          'masteryGrant("grant-first-godform", FirstSuperformChoice.Kind.GOD)' in gf_mech
+          and gf_kind.index('contains("god")') < gf_kind.index('contains("legendary")') < gf_kind.index('contains("super")')
+          and '"Mastery was granted on your first god form."' in gf_mech
+          and "has no god form to grant mastery to." in gf_grant and "first god form" in gf_grant)
+    check("help and tab completion list grant-first-godform",
+          all(f"/lm mastery grant-first-godform {s}" in gf_help for s in ("<amount>", "<amount> <player>", "<player> <amount>"))
+          and '"grant-first-godform".equals(sub)' in read(SRC / "command/LmCommandSuggestions.java"))
+
+    def _pick(forms, kind):  # mirror of FirstSuperformChoice.select
+        need = {"SUPER": "superform", "LEGENDARY": "legendaryform", "GOD": "godform"}[kind]
+        ok = [f for f in forms if need in f[2].lower() and (kind != "SUPER" or f[3] >= 1)]
+        return min(ok, key=lambda f: (f[3], f[0].lower(), f[1].lower()))[1] if ok else None
+
+    saiyan = [("oozaru", "oozaru", "superforms", 0), ("ssgrades", "ssj1", "superforms", 1),
+              ("legendary", "lssj", "legendaryforms", 5), ("godforms", "ssg", "godforms", 20),
+              ("godforms", "ssb", "godforms", 30)]
+    check("sim: Saiyan god -> ssg, super -> ssj1, legendary -> lssj; no god forms -> None",
+          _pick(saiyan, "GOD") == "ssg" and _pick(saiyan, "SUPER") == "ssj1"
+          and _pick(saiyan, "LEGENDARY") == "lssj" and _pick(saiyan[:3], "GOD") is None)
+
     print("\n--- § chamber wave tp 4.7.24 ---")
     cw_mx = read(SRC / "mixin/dmzultra/DmzultraChamberWaveTpMixin.java")
     cw_pv = read(SRC / "mixin/dmzultra/DmzultraTimeChamberTpPreviewMixin.java")

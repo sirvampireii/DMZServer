@@ -148,7 +148,8 @@ public final class MechanicsCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> masteryLiteral() {
         return CommandAccess.staffLiteral("mastery")
                 .then(masteryGrant("grant-first-superform", FirstSuperformChoice.Kind.SUPER))
-                .then(masteryGrant("grant-first-legendary", FirstSuperformChoice.Kind.LEGENDARY));
+                .then(masteryGrant("grant-first-legendary", FirstSuperformChoice.Kind.LEGENDARY))
+                .then(masteryGrant("grant-first-godform", FirstSuperformChoice.Kind.GOD));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> masteryGrant(
@@ -253,6 +254,10 @@ public final class MechanicsCommands {
             return null;
         }
         String lower = token.toLowerCase(Locale.ROOT);
+        // Most specific first, so a future token cannot match two kinds.
+        if (lower.contains("god")) {
+            return FirstSuperformChoice.Kind.GOD;
+        }
         if (lower.contains("legendary")) {
             return FirstSuperformChoice.Kind.LEGENDARY;
         }
@@ -265,6 +270,9 @@ public final class MechanicsCommands {
     private static String noticeFor(FirstSuperformChoice.Kind kind) {
         if (kind == FirstSuperformChoice.Kind.LEGENDARY) {
             return "Mastery was granted on your first legendary form.";
+        }
+        if (kind == FirstSuperformChoice.Kind.GOD) {
+            return "Mastery was granted on your first god form.";
         }
         return "Mastery was granted on your first super form.";
     }
