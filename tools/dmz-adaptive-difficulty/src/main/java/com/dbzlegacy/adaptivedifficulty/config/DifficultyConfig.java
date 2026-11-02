@@ -343,6 +343,11 @@ public final class DifficultyConfig {
     /** LuckPerms node that lets a non-staff player use {@code /lm revive <player>}. */
     public String reviveOthersPermission = "legacymechanics.revive.others";
     /**
+     * Seconds a non-op must wait after a successful {@code /lm revive} (any form) before using it
+     * again. Ops (permission level 2 or Bukkit op) are exempt; 0 turns the cooldown off.
+     */
+    public int reviveCooldownSeconds = 300;
+    /**
      * CNPC display-name needles (case-insensitive substring) that open Skill Check on interact.
      * Also matches scoreboard tag {@code lm_skillcheck}.
      */
@@ -1732,6 +1737,7 @@ public final class DifficultyConfig {
         cfg.dodgeCounterTier = com.dbzlegacy.adaptivedifficulty.tier.DifficultyTier
                 .parse(cfg.dodgeCounterTier, com.dbzlegacy.adaptivedifficulty.tier.DifficultyTier.MASTER).name();
         cfg.lmTipIntervalSeconds = Math.max(60, Math.min(7200, cfg.lmTipIntervalSeconds));
+        cfg.reviveCooldownSeconds = Math.max(0, Math.min(86400, cfg.reviveCooldownSeconds));
         cfg.lmTipNewPlayerIntervalSeconds = Math.max(45, Math.min(3600, cfg.lmTipNewPlayerIntervalSeconds));
         cfg.lmTipLoginDelaySeconds = Math.max(15, Math.min(600, cfg.lmTipLoginDelaySeconds));
         cfg.lmTipNewPlayerMaxLevel = Math.max(1, Math.min(150_000, cfg.lmTipNewPlayerMaxLevel));

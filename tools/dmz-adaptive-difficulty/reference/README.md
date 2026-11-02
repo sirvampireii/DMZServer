@@ -419,6 +419,12 @@ one-time `refundEffectsInvestment`); `ProgressionGuiApi` (`unultimate` only says
 Remove Ultimate). `PrestigeCustomShop$PotionWant`, `$StatWant` and `PrestigePointsSystem$SkillOffer`
 differ only in line-number tables. The other 14 are unchanged.
 
+## Re-baseline (2026-11-01, 4.7.23 revive cooldown and revive all)
+
+`AdaptiveDifficultyMod` (version string), `ConfigRegistry` (new `reviveCooldownSeconds` key in the
+access group) and `ConfigFieldHelp` (its help line) re-baselined for `LegacyMechanics-4.7.23.jar`;
+javap diffs checked. The other 22 are unchanged.
+
 ## Re-baseline (2026-11-01, 4.7.22 God Ki refund order)
 
 `AdaptiveDifficultyMod` (version string) and `GodKiEnhancementShop` (`levelUpFromWallet` public and

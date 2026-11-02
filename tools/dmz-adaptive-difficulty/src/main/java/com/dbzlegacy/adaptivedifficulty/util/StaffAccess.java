@@ -83,6 +83,23 @@ public final class StaffAccess {
         return hasBukkitPermission(player, node);
     }
 
+    /**
+     * Op only: Forge permission level 2 or Bukkit op. Narrower than {@link #isStaff} - the admin node
+     * alone is not an op (the {@code /lm revive} cooldown exempts ops only).
+     */
+    public static boolean isOp(ServerPlayer player) {
+        if (player == null) {
+            return false;
+        }
+        try {
+            if (player.m_20310_(2)) {
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return hasBukkitIsOp(player);
+    }
+
     /** The one donator node ({@code donatorPermission}, default {@code legacymechanics.donator}). */
     public static String donatorNode() {
         String node = DifficultyConfig.get().donatorPermission;

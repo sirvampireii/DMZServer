@@ -73,6 +73,7 @@ donatorPermission=LuckPerms node for donators: Skill Check.
 selfRevivePermission=LuckPerms node that lets a player use /lm revive on themselves (staff always can).
 terminalPermission=LuckPerms node that lets a player open the currency terminal with /terminal.
 reviveOthersPermission=LuckPerms node that lets a player who is not staff revive others with /lm revive <player>.
+reviveCooldownSeconds=Seconds a player who is not an op waits after a successful /lm revive before using it again (0 = off).
 skillCheckNpcNameContains=CNPC display-name needles (case-insensitive substring) that open Skill Check on interact.
 enablePlayerStatChecker=Sneak + right-click another player to dump DMZ stats (PlayerStatChecker.js).
 enableLmTips=Periodic on-screen Legacy Mechanics tips (/lm hub reminders).
