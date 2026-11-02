@@ -548,7 +548,8 @@ public final class LmCommandSuggestions {
     }
 
     private static boolean isMasteryGrant(String sub) {
-        return "grant-first-superform".equals(sub) || "grant-first-legendary".equals(sub);
+        return "grant-first-superform".equals(sub) || "grant-first-legendary".equals(sub)
+                || "grant-first-godform".equals(sub);
     }
 
     /**

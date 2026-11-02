@@ -8,14 +8,17 @@ import java.util.Locale;
  * <p>The first superform is the earliest superform with unlock level 1 or
  * higher. Level-0 forms such as Oozaru for Saiyans are skipped, so a race
  * whose only superform sits at level 0 gets no selection. The first legendary
- * form is the earliest legendary form, and it is a separate grant.
+ * form is the earliest legendary form, and it is a separate grant. The first
+ * god form (formType {@code godforms}; Super Saiyan God for Saiyans) is the
+ * earliest god form, chosen like the legendary one with no level-0 rule.
  */
 public final class FirstSuperformChoice {
     private FirstSuperformChoice() {}
 
     public enum Kind {
         SUPER,
-        LEGENDARY
+        LEGENDARY,
+        GOD
     }
 
     /** One configured form. {@code stack} marks a stack-form fallback. */
@@ -43,8 +46,8 @@ public final class FirstSuperformChoice {
         if (forms == null || forms.isEmpty() || kind == null) {
             return null;
         }
-        if (kind == Kind.LEGENDARY) {
-            return earliest(forms, false, 0);
+        if (kind == Kind.LEGENDARY || kind == Kind.GOD) {
+            return earliest(forms, kind, 0);
         }
         if (kind != Kind.SUPER) {
             return null;
@@ -52,7 +55,7 @@ public final class FirstSuperformChoice {
         // The first real superform is the earliest superform past the level-0
         // form (Oozaru for Saiyans). A race with no superform at level 1 or
         // higher gets no selection -- never fall back to the level-0 form.
-        return earliest(forms, true, 1);
+        return earliest(forms, Kind.SUPER, 1);
     }
 
     public static boolean isSuperform(Candidate candidate) {
@@ -63,26 +66,30 @@ public final class FirstSuperformChoice {
         return candidate != null && contains(candidate.formType, "legendaryform");
     }
 
+    public static boolean isGodform(Candidate candidate) {
+        return candidate != null && contains(candidate.formType, "godform");
+    }
+
     /**
      * Earliest qualifying form: lowest unlock level, then group name, then form name.
      *
      * @param minUnlockLevel minimum unlock level a superform must reach to qualify;
-     *                       legendary forms ignore it, so a level-0 legendary still counts
+     *                       legendary and god forms ignore it, so a level-0 one still counts
      */
-    private static Candidate earliest(java.util.List<Candidate> forms, boolean superform, int minUnlockLevel) {
+    private static Candidate earliest(java.util.List<Candidate> forms, Kind kind, int minUnlockLevel) {
         Candidate best = null;
         for (Candidate candidate : forms) {
             if (candidate == null || candidate.stack || candidate.form.isBlank() || candidate.group.isBlank()) {
                 continue;
             }
-            if (superform) {
+            if (kind == Kind.SUPER) {
                 if (!isSuperform(candidate)) {
                     continue;
                 }
                 if (candidate.unlockLevel < minUnlockLevel) {
                     continue;
                 }
-            } else if (!isLegendary(candidate)) {
+            } else if (kind == Kind.GOD ? !isGodform(candidate) : !isLegendary(candidate)) {
                 continue;
             }
             if (better(candidate, best)) {

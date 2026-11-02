@@ -3316,7 +3316,7 @@ public final class ForgeBridge {
 
     /**
      * Staff mastery grant for one online player
-     * ({@code /lm mastery grant-first-superform} or {@code grant-first-legendary}).
+     * ({@code /lm mastery grant-first-superform}, {@code grant-first-legendary} or {@code grant-first-godform}).
      * Works from console or a player — Mohist Bukkit owns {@code /lm}.
      */
     public static String grantFirstFormMastery(

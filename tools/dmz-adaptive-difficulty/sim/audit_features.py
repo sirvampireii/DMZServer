@@ -2760,6 +2760,7 @@ def main() -> int:
           and "/lm mastery grant-first-legendary <amount>" in mastery_help
           and "/lm mastery grant-first-legendary <amount> <player>" in mastery_help
           and "/lm mastery grant-first-legendary <player> <amount>" in mastery_help
+          and "/lm mastery grant-first-godform <amount> <player>" in mastery_help
           and "grantNamed" in mech
           and "playerWordUnlessNumber" in mech
           and "playerWordUnlessNumber" in read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/command/LmCommandSuggestions.java")
@@ -2778,7 +2779,7 @@ def main() -> int:
           and "getSkillNameForType" in mastery_grant
           and "setMastery" in mastery_grant
           # 4.6.220: super grant skips level-0 forms (Oozaru); earliest with unlock >= 1 wins.
-          and "earliest(forms, true, 1)" in mastery_choice
+          and "earliest(forms, Kind.SUPER, 1)" in mastery_choice
           and "unlockLevel < minUnlockLevel" in mastery_choice
           and "Kind.LEGENDARY" in mastery_choice
           and "Kind.SUPER" in mastery_choice

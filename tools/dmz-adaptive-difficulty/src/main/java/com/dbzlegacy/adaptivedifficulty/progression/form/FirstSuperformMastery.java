@@ -19,7 +19,8 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Quest rewards for the Frieza Saga 16 branch. Each command grants one form:
- * the race's first superform, or its first legendary form.
+ * the race's first superform, its first legendary form, or its first god form
+ * (Super Saiyan God for Saiyans; 4.7.25).
  *
  * <p>The first superform is the earliest superform with unlock level 1 or
  * higher. Level-0 forms such as Oozaru for Saiyans are skipped, so a race
@@ -99,6 +100,9 @@ public final class FirstSuperformMastery {
         if (chosen == null) {
             if (kind == FirstSuperformChoice.Kind.LEGENDARY) {
                 return fail("No legendary form is set for race " + race + ".");
+            }
+            if (kind == FirstSuperformChoice.Kind.GOD) {
+                return fail("Race " + race + " has no god form to grant mastery to.");
             }
             return fail("Race has no superform past its level 0 form to grant mastery to.");
         }
