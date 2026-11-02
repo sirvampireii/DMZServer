@@ -251,6 +251,12 @@ public final class DifficultyConfig {
     };
     public boolean enableGlobalTpBoost = true;
     public boolean enableGlobalMasteryBoost = true;
+    /**
+     * Share of DMZUltra's per-foe TP that Popo's Time Chamber training waves pay (0.0-1.0, default
+     * 0.1). Applied before the player's own TP multipliers; Whis's God Trial is never scaled, and a
+     * foe always pays at least 1 TP.
+     */
+    public double chamberWaveTpMultiplier = 0.1;
     public boolean enableBioAndroid = true;
     public boolean enableRaceLock = true;
     public boolean enableYardrat = true;
@@ -1738,6 +1744,8 @@ public final class DifficultyConfig {
                 .parse(cfg.dodgeCounterTier, com.dbzlegacy.adaptivedifficulty.tier.DifficultyTier.MASTER).name();
         cfg.lmTipIntervalSeconds = Math.max(60, Math.min(7200, cfg.lmTipIntervalSeconds));
         cfg.reviveCooldownSeconds = Math.max(0, Math.min(86400, cfg.reviveCooldownSeconds));
+        cfg.chamberWaveTpMultiplier = Double.isFinite(cfg.chamberWaveTpMultiplier)
+                ? Math.max(0.0, Math.min(1.0, cfg.chamberWaveTpMultiplier)) : 0.1;
         cfg.lmTipNewPlayerIntervalSeconds = Math.max(45, Math.min(3600, cfg.lmTipNewPlayerIntervalSeconds));
         cfg.lmTipLoginDelaySeconds = Math.max(15, Math.min(600, cfg.lmTipLoginDelaySeconds));
         cfg.lmTipNewPlayerMaxLevel = Math.max(1, Math.min(150_000, cfg.lmTipNewPlayerMaxLevel));

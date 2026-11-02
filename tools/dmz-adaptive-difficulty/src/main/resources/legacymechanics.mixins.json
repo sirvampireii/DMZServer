@@ -28,6 +28,8 @@
     "noea.NoeaAbsorptionBonusGateMixin",
     "noea.NoeaTravelSafetyCorpseFixMixin",
     "dmzultra.DmzultraNemesisSpawnGateMixin",
+    "dmzultra.DmzultraChamberWaveTpMixin",
+    "dmzultra.DmzultraTimeChamberTpPreviewMixin",
     "simplymore.VipersCallUnendingVenomMixin",
     "FusionBonusReadGateMixin",
     "StrikeTechniqueReadGateMixin",

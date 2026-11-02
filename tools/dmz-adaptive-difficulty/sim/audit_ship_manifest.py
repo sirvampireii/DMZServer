@@ -1819,6 +1819,49 @@ def main() -> int:
           "blocksOverhaulPrestige(held, want - 1)" in nl_test
           and 'completeQuest("prestige_saga:3")' in nl_test)
 
+    print("\n--- § chamber wave tp 4.7.24 ---")
+    cw_mx = read(SRC / "mixin/dmzultra/DmzultraChamberWaveTpMixin.java")
+    cw_pv = read(SRC / "mixin/dmzultra/DmzultraTimeChamberTpPreviewMixin.java")
+    cw = read(SRC / "progression/ChamberWaveTp.java")
+    cw_cfg = read(SRC / "config/DifficultyConfig.java")
+    cw_json = read(SRC.parents[3] / "resources/legacymechanics.mixins.json")
+    cw_plugin = read(SRC / "mixin/LegacyMechanicsMixinPlugin.java")
+    cw_scale = cw.split("public static long scaleWaveTp(", 1)[-1].split("\n    }\n", 1)[0]
+    cw_s = cw.split("static long scale(long perFoe) {", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest chamber-wave-tp row", "chamber-wave-tp" in manifest)
+    check("config chamberWaveTpMultiplier default 0.1, clamped 0-1, registered, explained",
+          "public double chamberWaveTpMultiplier = 0.1;" in cw_cfg
+          and "Math.max(0.0, Math.min(1.0, cfg.chamberWaveTpMultiplier))" in cw_cfg
+          and '"chamberWaveTpMultiplier"' in read(SRC / "config/ConfigRegistry.java")
+          and "chamberWaveTpMultiplier=" in read(SRC / "config/editor/ConfigFieldHelp.java"))
+    check("mixin scales the perFoe call in step only; trial recorded from Config at start",
+          'method = "step"' in cw_mx and "GodChamberWaves;perFoe(JIZ)J" in cw_mx
+          and 'method = "start"' in cw_mx and "config.trial()" in cw_mx
+          and "!GodChamberWaves.running(player)" in cw_mx
+          and "payOut" not in cw_mx.split("*/", 1)[-1] and "spawnWave" not in cw_mx and "spec(" not in cw_mx)
+    check("trial runs and unknown runs pay the full amount; floor of 1 TP per foe",
+          "if (trial == null || trial) {\n            return perFoe;" in cw_scale
+          and "Math.max(1L, Math.round(perFoe * mult))" in cw_s)
+    check("Popo's menu TP per foe scaled; Whis's screen untouched",
+          'targets = "com.dmzultra.divine.TimeChamber"' in cw_pv and 'method = "sendState"' in cw_pv
+          and "ChamberWaveTp.scalePreview" in cw_pv and "GodChamber\"" not in cw_pv)
+    check("both mixins listed and gated on the Ultra chamber classes",
+          '"dmzultra.DmzultraChamberWaveTpMixin"' in cw_json and '"dmzultra.DmzultraTimeChamberTpPreviewMixin"' in cw_json
+          and "dmzultraChamberPresent()" in cw_plugin
+          and 'getResource("com/dmzultra/divine/GodChamberWaves.class")' in cw_plugin)
+    check("no other TP path reads the chamber multiplier",
+          {p.name for p in SRC.rglob("*.java") if "ChamberWaveTp." in read(p)}
+          == {"DmzultraChamberWaveTpMixin.java", "DmzultraTimeChamberTpPreviewMixin.java"})
+
+    def _cw(base, mult=0.1, trial=False):  # mirror of ChamberWaveTp
+        if trial or mult >= 1.0 or base <= 0:
+            return base
+        return max(1, int(base * mult + 0.5))
+
+    check("sim: 1200 -> 120 on training, 1200 on the trial, 4 -> 1 (floor), 0.0 -> 1",
+          _cw(1200) == 120 and _cw(1200, trial=True) == 1200 and _cw(4) == 1 and _cw(50, 0.0) == 1
+          and _cw(1200, 1.0) == 1200)
+
     print("\n--- § revive cooldown and all 4.7.23 ---")
     rv = read(SRC / "command/LmRevive.java")
     rv_staff = read(SRC / "util/StaffAccess.java")

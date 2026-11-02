@@ -182,7 +182,7 @@ public final class ConfigRegistry {
         return switch (name) {
             case "enableProgression", "enablePotential", "enableLivingWorldMeditation",
                     "meditationDetectionRadius", "meditationLevelSeconds", "enableGlobalTpBoost",
-                    "enableGlobalMasteryBoost",
+                    "enableGlobalMasteryBoost", "chamberWaveTpMultiplier",
                     "enableBioAndroid", "enableRaceLock", "enableYardrat", "enableSpiritualistKi",
                     "enableAndroidConversion", "enableKiWeapons", "enablePiercingBonus",
                     "enableDotExtraDamage", "enableApothicElemental", "enableEndDimensionStrength",
