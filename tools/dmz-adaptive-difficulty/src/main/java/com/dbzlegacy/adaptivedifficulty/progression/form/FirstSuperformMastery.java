@@ -24,7 +24,9 @@ import net.minecraft.server.level.ServerPlayer;
  *
  * <p>The first superform is the earliest superform with unlock level 1 or
  * higher. Level-0 forms such as Oozaru for Saiyans are skipped, so a race
- * whose only superform sits at level 0 gets no grant.
+ * whose only superform sits at level 0 gets no grant. A form's tier comes from
+ * its group name or its formType, with a form-name fallback for god and
+ * legendary ({@link FirstSuperformChoice}; 4.7.27).
  *
  * <p>Race resolution matches {@code TransformationReward.giveReward}:
  * {@code StatsProvider}/{@code StatsCapability} via {@code DmzProgression.stats},
