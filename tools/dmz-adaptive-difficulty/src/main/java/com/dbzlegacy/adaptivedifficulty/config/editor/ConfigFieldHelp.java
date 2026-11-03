@@ -178,7 +178,7 @@ enableBossScaling=Applies extra health and damage scaling to boss mobs.
 enablePotential=Master switch for the Potential progression module.
 enableGlobalTpBoost=Master switch for the global training-points boost.
 enableGlobalMasteryBoost=Master switch for the global form-mastery boost.
-chamberWaveTpMultiplier=Share of the normal TP that each foe in Popo's Time Chamber training waves pays (0.0 to 1.0; 0.1 = 10%). Whis's God Trial is not affected.
+chamberWaveTpMultiplier=Share of the normal TP that each foe in Popo's Time Chamber training waves and Whis's God Trial pays (0.0 to 1.0; 0.1 = 10%). The trial still grants God Ki when completed.
 enableBioAndroid=Master switch for Bio-Android progression.
 enableRaceLock=Master switch for race-lock rules.
 enableYardrat=Master switch for Yardrat progression.

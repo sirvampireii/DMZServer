@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 /**
  * Popo's Time Chamber menu shows TP per foe from {@code GodChamberWaves.tpPerFoe}; with the
  * training-wave nerf (4.7.24) that preview is scaled the same way, so the menu matches the payout.
- * Only Popo's screen ({@code TimeChamber.sendState}); Whis's God Chamber screen is untouched.
+ * Only Popo's screen ({@code TimeChamber.sendState}); Whis's is {@link DmzultraGodChamberTpPreviewMixin}.
  */
 @Mixin(targets = "com.dmzultra.divine.TimeChamber", remap = false)
 public abstract class DmzultraTimeChamberTpPreviewMixin {
