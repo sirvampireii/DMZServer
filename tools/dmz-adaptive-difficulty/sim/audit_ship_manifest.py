@@ -1827,9 +1827,9 @@ def main() -> int:
     gf_help = read(SRC / "command/LmCommandHelp.java")
     check("manifest first-godform-grant row", "first-godform-grant" in manifest)
     check("Kind.GOD picks the earliest godform like LEGENDARY, no level-0 rule",
-          "LEGENDARY,\n        GOD" in gf_choice and 'contains(candidate.formType, "godform")' in gf_choice
+          "LEGENDARY,\n        GOD" in gf_choice and 'inTier(candidate, "godform")' in gf_choice
           and "kind == Kind.LEGENDARY || kind == Kind.GOD" in gf_choice
-          and "return earliest(forms, kind, 0);" in gf_choice
+          and "Candidate tier = earliest(forms, kind, 0);" in gf_choice
           and "kind == Kind.GOD ? !isGodform(candidate) : !isLegendary(candidate)" in gf_choice
           and "return earliest(forms, Kind.SUPER, 1);" in gf_choice)
     check("command reuses masteryGrant; god token checked first; notice and no-form message",
@@ -1852,6 +1852,54 @@ def main() -> int:
     check("sim: Saiyan god -> ssg, super -> ssj1, legendary -> lssj; no god forms -> None",
           _pick(saiyan, "GOD") == "ssg" and _pick(saiyan, "SUPER") == "ssj1"
           and _pick(saiyan, "LEGENDARY") == "lssj" and _pick(saiyan[:3], "GOD") is None)
+
+    print("\n--- § grant first group discovery 4.7.27 ---")
+    gd_select = gf_choice.split("public static Candidate select(", 1)[-1].split("\n    }\n", 1)[0]
+    gd_name = gf_choice.split("private static Candidate earliestByName(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest grant-first-group-discovery row", "grant-first-group-discovery" in manifest)
+    check("tier match on group name or formType for all three kinds",
+          "contains(candidate.group, token) || contains(candidate.formType, token)" in gf_choice
+          and 'return inTier(candidate, "superform");' in gf_choice
+          and 'return inTier(candidate, "legendaryform");' in gf_choice
+          and 'return inTier(candidate, "godform");' in gf_choice)
+    check("name fallback only for god / legendary, only when no tier match; SUPER floor kept",
+          'return tier != null ? tier : earliestByName(forms, kind == Kind.GOD ? "god" : "legendary");' in gd_select
+          and "return earliest(forms, Kind.SUPER, 1);" in gd_select
+          and gd_select.count("earliestByName") == 1)
+    check("name fallback skips God Ki toggle, duktemp and test groups, and stack forms",
+          'java.util.Set.of("godkienhancement", "duktemp", "testformstype")' in gf_choice
+          and "NAME_FALLBACK_EXCLUDED_TYPES.contains(candidate.formType.toLowerCase(Locale.ROOT))" in gd_name
+          and "candidate.stack" in gd_name and "contains(candidate.form, token)" in gd_name
+          and "better(candidate, best)" in gd_name)
+    check("no-form messages unchanged",
+          'fail("No legendary form is set for race " + race + ".")' in gf_grant
+          and 'fail("Race " + race + " has no god form to grant mastery to.")' in gf_grant)
+
+    _TOK = {"SUPER": "superform", "LEGENDARY": "legendaryform", "GOD": "godform"}
+    _SKIP = {"godkienhancement", "duktemp", "testformstype"}
+
+    def _pick2(forms, kind):  # mirror of 4.7.27 select: (group, form, formType, level)
+        key = lambda f: (f[3], f[0].lower(), f[1].lower())
+        ok = [f for f in forms if (_TOK[kind] in f[0].lower() or _TOK[kind] in f[2].lower())
+              and (kind != "SUPER" or f[3] >= 1)]
+        if not ok and kind != "SUPER":
+            word = "god" if kind == "GOD" else "legendary"
+            ok = [f for f in forms if f[2].lower() not in _SKIP and word in f[1].lower()]
+        return min(ok, key=key)[1] if ok else None
+
+    ancient = [("primal_ssjgrades", "supersaiyan", "superforms", 1), ("primalssj", "primal_ssj", "legendaryforms", 1),
+               ("primalssj", "primalgod", "legendaryforms", 3),
+               ("godkienhancement", "enhancewithgodki", "godkienhancement", 1),
+               ("duktemp", "lord_of_nothing", "duktemp", 999)]
+    angel = [("legendaryforms", "unboundhalo", "unboundforms", 1), ("godforms", "highangel", "godforms", 1)]
+    fullbringer = [("fullbringerforms", "partial", "superforms", 1),
+                   ("godkienhancement", "enhancewithgodki", "godkienhancement", 1)]
+    check("sim: ancient_saiyan god -> primalgod (not the God Ki toggle); angel legendary by group; "
+          "fullbringer god/legendary still none; Saiyan picks unchanged",
+          _pick2(ancient, "GOD") == "primalgod" and _pick2(ancient, "LEGENDARY") == "primal_ssj"
+          and _pick2(angel, "LEGENDARY") == "unboundhalo" and _pick2(angel, "GOD") == "highangel"
+          and _pick2(fullbringer, "GOD") is None and _pick2(fullbringer, "LEGENDARY") is None
+          and all(_pick2(saiyan, k) == _pick(saiyan, k) for k in _TOK))
 
     print("\n--- § chamber wave tp 4.7.24 ---")
     cw_mx = read(SRC / "mixin/dmzultra/DmzultraChamberWaveTpMixin.java")

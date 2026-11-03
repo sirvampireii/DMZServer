@@ -9,8 +9,17 @@ import java.util.Locale;
  * higher. Level-0 forms such as Oozaru for Saiyans are skipped, so a race
  * whose only superform sits at level 0 gets no selection. The first legendary
  * form is the earliest legendary form, and it is a separate grant. The first
- * god form (formType {@code godforms}; Super Saiyan God for Saiyans) is the
- * earliest god form, chosen like the legendary one with no level-0 rule.
+ * god form (Super Saiyan God for Saiyans) is the earliest god form, chosen
+ * like the legendary one with no level-0 rule.
+ *
+ * <p>A form belongs to a tier when its group name or its formType contains the
+ * tier token ({@code superform}, {@code legendaryform}, {@code godform}); Ultra
+ * gives some races their own formType (angel {@code legendaryforms} group is
+ * {@code unboundforms}), so the group name has to count too (4.7.27). When a
+ * race has no god or legendary tier match, the earliest form whose name holds
+ * {@code god} / {@code legendary} is used instead (glind
+ * {@code demongodawakened}, makaijin {@code demongod}, ancient_saiyan
+ * {@code primalgod}), skipping the God Ki toggle, dev and test groups.
  */
 public final class FirstSuperformChoice {
     private FirstSuperformChoice() {}
@@ -42,12 +51,17 @@ public final class FirstSuperformChoice {
         }
     }
 
+    /** Group formTypes the name fallback never picks: the God Ki toggle, dev and test groups. */
+    private static final java.util.Set<String> NAME_FALLBACK_EXCLUDED_TYPES =
+            java.util.Set.of("godkienhancement", "duktemp", "testformstype");
+
     public static Candidate select(java.util.List<Candidate> forms, Kind kind) {
         if (forms == null || forms.isEmpty() || kind == null) {
             return null;
         }
         if (kind == Kind.LEGENDARY || kind == Kind.GOD) {
-            return earliest(forms, kind, 0);
+            Candidate tier = earliest(forms, kind, 0);
+            return tier != null ? tier : earliestByName(forms, kind == Kind.GOD ? "god" : "legendary");
         }
         if (kind != Kind.SUPER) {
             return null;
@@ -59,15 +73,19 @@ public final class FirstSuperformChoice {
     }
 
     public static boolean isSuperform(Candidate candidate) {
-        return candidate != null && contains(candidate.formType, "superform");
+        return inTier(candidate, "superform");
     }
 
     public static boolean isLegendary(Candidate candidate) {
-        return candidate != null && contains(candidate.formType, "legendaryform");
+        return inTier(candidate, "legendaryform");
     }
 
     public static boolean isGodform(Candidate candidate) {
-        return candidate != null && contains(candidate.formType, "godform");
+        return inTier(candidate, "godform");
+    }
+
+    private static boolean inTier(Candidate candidate, String token) {
+        return candidate != null && (contains(candidate.group, token) || contains(candidate.formType, token));
     }
 
     /**
@@ -90,6 +108,24 @@ public final class FirstSuperformChoice {
                     continue;
                 }
             } else if (kind == Kind.GOD ? !isGodform(candidate) : !isLegendary(candidate)) {
+                continue;
+            }
+            if (better(candidate, best)) {
+                best = candidate;
+            }
+        }
+        return best;
+    }
+
+    /** Name fallback for god / legendary: earliest form whose name holds {@code token}. */
+    private static Candidate earliestByName(java.util.List<Candidate> forms, String token) {
+        Candidate best = null;
+        for (Candidate candidate : forms) {
+            if (candidate == null || candidate.stack || candidate.form.isBlank() || candidate.group.isBlank()) {
+                continue;
+            }
+            if (NAME_FALLBACK_EXCLUDED_TYPES.contains(candidate.formType.toLowerCase(Locale.ROOT))
+                    || !contains(candidate.form, token)) {
                 continue;
             }
             if (better(candidate, best)) {

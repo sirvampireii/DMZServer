@@ -419,6 +419,11 @@ one-time `refundEffectsInvestment`); `ProgressionGuiApi` (`unultimate` only says
 Remove Ultimate). `PrestigeCustomShop$PotionWant`, `$StatWant` and `PrestigePointsSystem$SkillOffer`
 differ only in line-number tables. The other 14 are unchanged.
 
+## Re-baseline (2026-11-02, 4.7.27 grant-first group discovery)
+
+`AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.27.jar`; javap
+diff checked. The other 24 are unchanged.
+
 ## Re-baseline (2026-11-02, 4.7.26 God Trial wave TP)
 
 `AdaptiveDifficultyMod` (version string) and `ConfigFieldHelp` (the `chamberWaveTpMultiplier` help
