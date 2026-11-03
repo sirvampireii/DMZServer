@@ -1853,6 +1853,25 @@ def main() -> int:
           _pick(saiyan, "GOD") == "ssg" and _pick(saiyan, "SUPER") == "ssj1"
           and _pick(saiyan, "LEGENDARY") == "lssj" and _pick(saiyan[:3], "GOD") is None)
 
+    print("\n--- § chamber endless waves off 4.7.29 ---")
+    ew_mx = read(SRC / "mixin/dmzultra/DmzultraChamberWaveCooldownMixin.java")
+    ew = read(SRC / "progression/ChamberWaveCooldown.java")
+    ew_body = ew.split("public static boolean refuseEndless(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest chamber-endless-waves-off row", "chamber-endless-waves-off" in manifest)
+    check("same start HEAD hook refuses waves <= 0 before the cooldown; drills / demands exempt",
+          "ChamberWaveCooldown.refuseEndless(player, config.waves(), config.drill())" in ew_mx
+          and ew_mx.index("refuseEndless(") < ew_mx.index("refuseStart(")
+          and "drill > 0 || waves > 0" in ew_body)
+    check("action-bar refusal, no op exemption, no packet or screen",
+          '"Endless waves are disabled. Pick a number of waves."' in ew_body and ", true);" in ew_body
+          and "isOp" not in ew_body and "Packet" not in ew_body)
+
+    def _endless(waves, drill):  # mirror of refuseEndless
+        return not (drill > 0 or waves > 0)
+
+    check("sim: waves 0 / -1 refused, 5 allowed, drill with 0 allowed",
+          _endless(0, 0) and _endless(-1, 0) and not _endless(5, 0) and not _endless(0, 3))
+
     print("\n--- § wallet god ki / divine ki 4.7.29 ---")
     kt = read(SRC / "progression/shop/KiMasteryTrack.java")
     kt_mw = read(SRC / "progression/shop/MasteryWallet.java")

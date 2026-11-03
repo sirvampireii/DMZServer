@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * {@code stop(player, announce)}, which removes the session first. So {@code stop}'s HEAD still sees
  * the session through the public {@code status(player)} ({@code mode}: training, trial or drill) and
  * records the end; {@code start}'s HEAD refuses a run still on that kind's cooldown. Drill runs are
- * neither recorded nor refused.
+ * neither recorded nor refused. The same HEAD hook refuses endless runs (wave count 0) first (4.7.29).
  */
 @Mixin(targets = "com.dmzultra.divine.GodChamberWaves", remap = false)
 public abstract class DmzultraChamberWaveCooldownMixin {
@@ -25,7 +25,8 @@ public abstract class DmzultraChamberWaveCooldownMixin {
     @Inject(method = "start", at = @At("HEAD"), cancellable = true, require = 0, remap = false)
     private static void lm$chamberWaveCooldown(ServerPlayer player, GodChamberWaves.Config config, CallbackInfo ci) {
         try {
-            if (config != null && ChamberWaveCooldown.refuseStart(player, config.trial(), config.drill())) {
+            if (config != null && (ChamberWaveCooldown.refuseEndless(player, config.waves(), config.drill())
+                    || ChamberWaveCooldown.refuseStart(player, config.trial(), config.drill()))) {
                 ci.cancel();
             }
         } catch (Throwable ignored) {
