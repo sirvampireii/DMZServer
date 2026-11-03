@@ -423,7 +423,8 @@ differ only in line-number tables. The other 14 are unchanged.
 
 `AdaptiveDifficultyMod` (version string), `ConfigRegistry` (new `chamberWaveCooldownSeconds` key in the
 progression group; the string switch renumbers around it) and `ConfigFieldHelp` (its help line)
-re-baselined for `LegacyMechanics-4.7.28.jar`; javap diffs checked. The other 22 are unchanged.
+re-baselined for `LegacyMechanics-4.7.28.jar`; javap diffs checked. The other 22 are unchanged. `ConfigFieldHelp` re-baselined
+again in the same version for the `chamberWaveTpMultiplier` help line (default now 0.025).
 
 ## Re-baseline (2026-11-02, 4.7.27 grant-first group discovery)
 

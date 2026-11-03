@@ -1962,8 +1962,12 @@ def main() -> int:
     cw_scale = cw.split("public static long scaleWaveTp(", 1)[-1].split("\n    }\n", 1)[0]
     cw_s = cw.split("static long scale(long perFoe) {", 1)[-1].split("\n    }\n", 1)[0]
     check("manifest chamber-wave-tp row", "chamber-wave-tp" in manifest)
-    check("config chamberWaveTpMultiplier default 0.1, clamped 0-1, registered, explained",
-          "public double chamberWaveTpMultiplier = 0.1;" in cw_cfg
+    check("manifest chamber-wave-tp-default row", "chamber-wave-tp-default" in manifest)
+    check("config chamberWaveTpMultiplier default 0.025 (4.7.28), clamped 0-1, registered, explained",
+          "public double chamberWaveTpMultiplier = 0.025;" in cw_cfg
+          and "cfg.chamberWaveTpMultiplier)) : 0.025;" in cw_cfg
+          and "Math.min(1.0, m)) : 0.025;" in cw
+          and "0.025 = 2.5%" in read(SRC / "config/editor/ConfigFieldHelp.java")
           and "Math.max(0.0, Math.min(1.0, cfg.chamberWaveTpMultiplier))" in cw_cfg
           and '"chamberWaveTpMultiplier"' in read(SRC / "config/ConfigRegistry.java")
           and "chamberWaveTpMultiplier=" in read(SRC / "config/editor/ConfigFieldHelp.java"))
@@ -1980,13 +1984,13 @@ def main() -> int:
           == {"DmzultraChamberWaveTpMixin.java", "DmzultraTimeChamberTpPreviewMixin.java",
               "DmzultraGodChamberTpPreviewMixin.java"})
 
-    def _cw(base, mult=0.1, trial=False):  # mirror of ChamberWaveTp (trial scaled since 4.7.26)
+    def _cw(base, mult=0.025, trial=False):  # mirror of ChamberWaveTp (trial scaled since 4.7.26)
         if mult >= 1.0 or base <= 0:
             return base
         return max(1, int(base * mult + 0.5))
 
-    check("sim: 1200 -> 120, 4 -> 1 (floor), 0.0 -> 1, 1.0 -> unchanged",
-          _cw(1200) == 120 and _cw(4) == 1 and _cw(50, 0.0) == 1 and _cw(1200, 1.0) == 1200)
+    check("sim: 1200 -> 30 at the 0.025 default, 1200 -> 120 at 0.1, 4 -> 1 (floor), 0.0 -> 1, 1.0 -> unchanged",
+          _cw(1200) == 30 and _cw(1200, 0.1) == 120 and _cw(4) == 1 and _cw(50, 0.0) == 1 and _cw(1200, 1.0) == 1200)
 
     print("\n--- § chamber wave tp trial 4.7.26 ---")
     check("manifest chamber-wave-tp-trial row", "chamber-wave-tp-trial" in manifest)
@@ -2008,8 +2012,8 @@ def main() -> int:
     check("config help no longer says the God Trial is unaffected",
           "God Trial is not affected" not in read(SRC / "config/editor/ConfigFieldHelp.java")
           and "God Trial is never scaled" not in cw_cfg)
-    check("sim: a trial foe paying 1200 now pays 120, the same as a training foe",
-          _cw(1200, trial=True) == 120 == _cw(1200))
+    check("sim: a trial foe paying 1200 now pays 30, the same as a training foe",
+          _cw(1200, trial=True) == 30 == _cw(1200))
 
     print("\n--- § revive cooldown and all 4.7.23 ---")
     rv = read(SRC / "command/LmRevive.java")

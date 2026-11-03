@@ -3,7 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.progression;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 
 /**
- * Chamber-wave TP multiplier (config {@code chamberWaveTpMultiplier}, default 0.1). Applied to
+ * Chamber-wave TP multiplier (config {@code chamberWaveTpMultiplier}, default 0.025 since 4.7.28). Applied to
  * Ultra's per-foe wave TP before the player's own TP multipliers, on every chamber run: Popo's Time
  * Chamber training waves (4.7.24) and Whis's God Trial (4.7.26). Every other TP path is untouched.
  * A scaled amount never drops below 1 TP per foe. Called from the dmzultra chamber mixins.
@@ -38,6 +38,6 @@ public final class ChamberWaveTp {
 
     public static double multiplier() {
         double m = DifficultyConfig.get().chamberWaveTpMultiplier;
-        return Double.isFinite(m) ? Math.max(0.0, Math.min(1.0, m)) : 0.1;
+        return Double.isFinite(m) ? Math.max(0.0, Math.min(1.0, m)) : 0.025;
     }
 }

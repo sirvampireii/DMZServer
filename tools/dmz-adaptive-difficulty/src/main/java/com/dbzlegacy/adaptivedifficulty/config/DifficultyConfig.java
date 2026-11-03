@@ -252,11 +252,11 @@ public final class DifficultyConfig {
     public boolean enableGlobalTpBoost = true;
     public boolean enableGlobalMasteryBoost = true;
     /**
-     * Share of DMZUltra's per-foe TP that chamber waves pay (0.0-1.0, default 0.1): Popo's Time
+     * Share of DMZUltra's per-foe TP that chamber waves pay (0.0-1.0, default 0.025): Popo's Time
      * Chamber training waves and Whis's God Trial (4.7.26). Applied before the player's own TP
      * multipliers; a foe always pays at least 1 TP.
      */
-    public double chamberWaveTpMultiplier = 0.1;
+    public double chamberWaveTpMultiplier = 0.025;
     /**
      * Seconds a player waits after a chamber wave run ends before starting another of the same kind
      * (training or God Trial; separate timers). 0 = off. Angel Drills, sanctuary Demands and ops are
@@ -1752,7 +1752,7 @@ public final class DifficultyConfig {
         cfg.reviveCooldownSeconds = Math.max(0, Math.min(86400, cfg.reviveCooldownSeconds));
         cfg.chamberWaveCooldownSeconds = Math.max(0, cfg.chamberWaveCooldownSeconds);
         cfg.chamberWaveTpMultiplier = Double.isFinite(cfg.chamberWaveTpMultiplier)
-                ? Math.max(0.0, Math.min(1.0, cfg.chamberWaveTpMultiplier)) : 0.1;
+                ? Math.max(0.0, Math.min(1.0, cfg.chamberWaveTpMultiplier)) : 0.025;
         cfg.lmTipNewPlayerIntervalSeconds = Math.max(45, Math.min(3600, cfg.lmTipNewPlayerIntervalSeconds));
         cfg.lmTipLoginDelaySeconds = Math.max(15, Math.min(600, cfg.lmTipLoginDelaySeconds));
         cfg.lmTipNewPlayerMaxLevel = Math.max(1, Math.min(150_000, cfg.lmTipNewPlayerMaxLevel));
