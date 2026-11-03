@@ -244,7 +244,7 @@ public final class GlobalTpBoost {
 
     public static String statusLine() {
         if (!ACTIVE.get()) {
-            return "§7Global TP boost: §cOFF";
+            return UltraStyle.LABEL + "Global TP boost: OFF";
         }
         long rem = Math.max(0L, END_TIME.get() - System.currentTimeMillis());
         return "§7Global TP boost: §a" + formatMult(MULTIPLIER.get())

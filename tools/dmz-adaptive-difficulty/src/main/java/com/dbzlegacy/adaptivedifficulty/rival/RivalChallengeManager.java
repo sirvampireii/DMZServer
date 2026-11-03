@@ -238,6 +238,9 @@ public final class RivalChallengeManager {
     }
 
     public String acceptChallenge(ServerPlayer player, String counterpartyPicker) {
+        if (counterpartyPicker == null || counterpartyPicker.isBlank()) {
+            return pendingIncomingList(player, "accept");
+        }
         ChallengeRequest req = resolveIncomingRequest(player, counterpartyPicker);
         LmLog.event(
                 "[{}] rivalAcceptChallenge player={} picker={} requestFound={} from={} to={} expiresAt={} reqId={}",
@@ -301,6 +304,9 @@ public final class RivalChallengeManager {
     }
 
     public String declineChallenge(ServerPlayer player, String counterpartyPicker) {
+        if (counterpartyPicker == null || counterpartyPicker.isBlank()) {
+            return pendingIncomingList(player, "decline");
+        }
         ChallengeRequest req = resolveIncomingRequest(player, counterpartyPicker);
         if (req == null) {
             return counterpartyPicker != null && !counterpartyPicker.isBlank()
@@ -321,22 +327,59 @@ public final class RivalChallengeManager {
         return cancelChallenge(player, null);
     }
 
+    /**
+     * Cancels your outgoing request, or forfeits a live challenge (4.7.31). Forfeiting needs the
+     * opponent's name: a bare cancel never ends a live duel, it says who you are fighting and how
+     * to forfeit.
+     */
     public String cancelChallenge(ServerPlayer player, String counterpartyPicker) {
+        boolean named = counterpartyPicker != null && !counterpartyPicker.isBlank();
         ChallengeRequest outgoing = resolveOutgoingRequest(player, counterpartyPicker);
         if (outgoing != null) {
             dropRequest(outgoing.id);
-            return "§eChallenge request cancelled.";
-        }
-        if (counterpartyPicker != null && !counterpartyPicker.isBlank()) {
-            return "§cNo outgoing challenge to that player.";
+            return UltraStyle.YELLOW + "Challenge request to " + UltraStyle.WHITE + outgoing.toName
+                    + UltraStyle.YELLOW + " cancelled.";
         }
         RivalChallenge ch = getChallenge(player.m_20148_());
-        if (ch == null || ch.status == RivalChallenge.Phase.ENDED) {
-            return "§cYou have no active challenge.";
+        boolean live = ch != null && ch.status != RivalChallenge.Phase.ENDED;
+        UUID other = live ? ch.other(player.m_20148_()) : null;
+        String them = live ? nameOf(ch, other) : "";
+        if (!named) {
+            if (live) {
+                return UltraStyle.DANGER + "You are in a live challenge with " + UltraStyle.WHITE + them
+                        + UltraStyle.DANGER + ". To forfeit it, type " + UltraStyle.WHITE
+                        + "/rival do challenge cancel " + them;
+            }
+            return UltraStyle.DANGER + "You have no pending or live challenge to cancel.";
         }
-        UUID other = ch.other(player.m_20148_());
+        if (!live || !matchesCounterparty(other, counterpartyPicker, them)) {
+            return UltraStyle.DANGER + "You have no pending or live challenge with that player.";
+        }
         endChallenge(player.m_20194_(), ch, other, player.m_20148_(), false, "forfeit");
-        return "§eYou forfeited the challenge.";
+        return UltraStyle.YELLOW + "You forfeited the challenge against " + UltraStyle.WHITE + them
+                + UltraStyle.YELLOW + ".";
+    }
+
+    /** Bare accept / decline: list the pending challenges with the command to answer each one. */
+    private String pendingIncomingList(ServerPlayer player, String verb) {
+        if (player == null) {
+            return UltraStyle.DANGER + "No pending challenge to " + verb + ".";
+        }
+        UUID self = player.m_20148_();
+        StringBuilder out = new StringBuilder();
+        for (ChallengeRequest req : requests.values()) {
+            if (req == null || !self.equals(req.to)) {
+                continue;
+            }
+            long mins = Math.max(1L, req.durationMs / 60_000L);
+            out.append('\n').append(UltraStyle.WHITE).append(req.fromName).append(UltraStyle.LABEL)
+                    .append(" (").append(mins).append(" min) - type ").append(UltraStyle.WHITE)
+                    .append("/rival do challenge ").append(verb).append(' ').append(req.fromName);
+        }
+        if (out.length() == 0) {
+            return UltraStyle.DANGER + "No pending challenge to " + verb + ".";
+        }
+        return UltraStyle.YELLOW + "Name the challenge to " + verb + ":" + out;
     }
 
     public void queueHurt(ServerPlayer victim, ServerPlayer attacker, boolean ki) {

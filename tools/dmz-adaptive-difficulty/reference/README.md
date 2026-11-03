@@ -419,6 +419,14 @@ one-time `refundEffectsInvestment`); `ProgressionGuiApi` (`unultimate` only says
 Remove Ultimate). `PrestigeCustomShop$PotionWant`, `$StatWant` and `PrestigePointsSystem$SkillOffer`
 differ only in line-number tables. The other 14 are unchanged.
 
+## Re-baseline (2026-11-03, 4.7.31 GUI humanization)
+
+`AdaptiveDifficultyMod` (version string), `ProgressionGuiApi` (prestige lore says Level cap / Reach level X
+first, one Global TP boost: OFF format) and `UltraPrestigeScreens` (Level cap wording, Remove Mutant /
+Majin first, full skill names, shop-empty next step, Edit shop moved to Staff Admin) re-baselined for
+`LegacyMechanics-4.7.31.jar`; javap member lists identical (string and body changes only). The other 22
+are unchanged.
+
 ## Re-baseline (2026-11-02, 4.7.30 grant-first form skill fix)
 
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.30.jar`; javap

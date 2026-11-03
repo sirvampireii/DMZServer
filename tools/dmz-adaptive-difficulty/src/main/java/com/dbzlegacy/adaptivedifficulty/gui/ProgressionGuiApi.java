@@ -822,7 +822,7 @@ public final class ProgressionGuiApi {
             }
             default -> {
                 List<String> lore = new ArrayList<>();
-                lore.add(ph.getOrDefault("boost", "§7Global TP boost: §cOFF"));
+                lore.add(ph.getOrDefault("boost", UltraStyle.LABEL + "Global TP boost: OFF"));
                 lore.add(ph.getOrDefault("mastery_boost",
                         UltraStyle.GRAY + "Global mastery boost: " + UltraStyle.RED + "OFF"));
                 lore.add("§8Browse categories to see script ports.");
@@ -1170,8 +1170,8 @@ public final class ProgressionGuiApi {
             }
             case "cap" -> {
                 lore.add("§7Your level cap: §f" + ph.getOrDefault("level_cap_fmt", "100,000"));
-                lore.add(UltraStyle.LABEL + "Your next prestige needs " + UltraStyle.YELLOW
-                        + ph.getOrDefault("required_fmt", "0") + UltraStyle.LABEL + " power.");
+                lore.add(UltraStyle.LABEL + "Your next prestige needs level " + UltraStyle.YELLOW
+                        + ph.getOrDefault("required_fmt", "0") + UltraStyle.LABEL + ".");
             }
             case "tiers", "tier", "difficulty" -> {
                 lore.add("§7Prestige favor: §e" + ph.getOrDefault("points", "0"));
@@ -1183,14 +1183,13 @@ public final class ProgressionGuiApi {
             default -> {
                 lore.add("§7Prestige favor: §e" + ph.getOrDefault("points", "0"));
                 lore.add("§7Lifetime prestiges: §f" + ph.getOrDefault("completed", "0"));
-                lore.add(UltraStyle.LABEL + "Need: " + UltraStyle.YELLOW + ph.getOrDefault("required_fmt", "0")
-                        + UltraStyle.LABEL + " power");
-                lore.add(UltraStyle.LABEL + "Reaching the Need power earns your next prestige.");
-                lore.add(UltraStyle.LABEL + "Each prestige you hold raises the Need, up to 150,000.");
+                lore.add(UltraStyle.LABEL + "Level cap: " + UltraStyle.YELLOW + ph.getOrDefault("required_fmt", "0"));
+                lore.add(UltraStyle.LABEL + "Reach your level cap to earn your next prestige.");
+                lore.add(UltraStyle.LABEL + "Each prestige you hold raises your level cap, up to 150,000.");
                 if ("true".equalsIgnoreCase(ph.get("ready"))) {
                     lore.add("§eYou can prestige now.");
                 } else {
-                    lore.add("§cYou need a higher level first.");
+                    lore.add(UltraStyle.DANGER + "Reach level " + ph.getOrDefault("required_fmt", "0") + " first.");
                 }
             }
         }
@@ -1258,7 +1257,7 @@ public final class ProgressionGuiApi {
             return GodKiEnhancementShop.buy(player);
         }
         if ("breakthrough".equals(act) || "cap".equals(act) || "buy_cap".equals(act)) {
-            return UltraStyle.LABEL + "There is nothing to buy for your level cap. Reaching the Need power earns your next prestige.";
+            return UltraStyle.LABEL + "There is nothing to buy for your level cap. Reach your level cap to earn your next prestige.";
         }
         if ("tier".equals(act) || "buy_tier".equals(act) || "unlock_tier".equals(act)) {
             int tierId;

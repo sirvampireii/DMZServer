@@ -230,7 +230,7 @@ def main() -> int:
           and "Win a challenge against this rival to claim Proving Grounds." in status_body)
     check("profile keeps Declare / Accept their declare / Remove / not-on-list / Back to Rival tab",
           '"do:declare:" + arg' in detail and '"page:accept_confirm:" + arg' in detail
-          and '"do:remove:" + arg' in detail and "Not on your rival list." in detail
+          and '"page:remove_confirm:" + profileArg(arg, returnPage)' in detail and "Not on your rival list." in detail
           and 'UltraPickHelper.pageArg("actions", returnPage), "Rival"' in detail)
     check("Rival list page removed; Home has no Rival list; page:list opens the Rival tab",
           "private static void openList(" not in rival_ui
@@ -768,7 +768,7 @@ def main() -> int:
           and '"info|My rival stats"' in g_rival and 'sub("info")' in g_info
           and 'footerBackHome("Rival Home")' in g_info)
     check("event log: the turn-on action is never dim while the log is off",
-          'logOn ? UltraStyle.confirm("Event log - ON") : "Turn event log on"' in g_diff
+          'logOn ? UltraStyle.confirm("Event log - ON") : "Event log - ON"' in g_diff
           and 'UltraStyle.dim("Event log - ON")' not in g_diff)
     check("no Invalid / Usage replies in progression boosts or spar mentor settings",
           "Invalid" not in g_prog and "Usage: spar do mentor_tpmsg" not in g_spar and "Pick Mentor TP - ON or OFF" in g_spar)
@@ -981,11 +981,10 @@ def main() -> int:
           and gm_cmd.index('Commands.m_82127_("boost")') < gm_cmd.index('Commands.m_82127_("masteryboost")')
           and "masteryBoostEncoded(" in gm_cmd and "masteryBoostMinutes(" in gm_cmd
           and "masteryBoostEnd(" in gm_cmd and "masteryBoostStatus(" in gm_cmd)
-    check("status line beside the TP boost line in GUI home, Boosts tab, legacy lore, and chat menu",
+    check("status line beside the TP boost line in GUI home, Boosts tab, and legacy lore",
           "GlobalMasteryBoost.statusLine();" in gm_sys
           and '"mastery_boost"' in read(SRC / "gui/ProgressionGuiApi.java")
-          and '"mastery_boost"' in read(SRC / "gui/ultra/UltraProgressionScreens.java")
-          and "GlobalMasteryBoost.statusLine()" in read(SRC / "gui/ProgressionChatMenu.java"))
+          and '"mastery_boost"' in read(SRC / "gui/ultra/UltraProgressionScreens.java"))
     check("mastery boost copy: no raw section signs, no Invalid, errors say what to do",
           "\u00a7" not in gm and "Invalid" not in gm and "Turn it on in the progression settings first." in gm)
 
@@ -1025,7 +1024,7 @@ def main() -> int:
     _presets = ['act + "1.25:30"', 'act + "1.5:30"', 'act + "2:30"', 'act + "2:60"', 'act + "3:30"']
     check("control view: own status line, five confirm presets, danger End, Back to Boosts",
           all(p in bs_view for p in _presets) and bs_view.count('"confirm")') == 5
-          and 'act + "end", UltraStyle.danger("End boost"), "danger"' in bs_view
+          and 'act + "end", UltraStyle.danger("End this boost"), "danger"' in bs_view
           and 'String act = mastery ? "do:masteryboost:" : "do:boost:";' in bs_view
           and "mastery ? masteryBoostLine(ph) : tpBoostLine(ph)" in bs_view
           and 'spec.footerBack("page:boosts", "Boosts");' in bs_view)
@@ -1424,8 +1423,8 @@ def main() -> int:
           and "maxPrestigeCount" not in pf_cfg_bridge.split("public static void onServerStarting()", 1)[-1]
           and "pinPrestigeCap" not in pf_cfg_bridge
           and "return LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE;" in pf_cap)
-    check("menus state the rule; next requirement shows the Need",
-          "Reaching the Need power earns your next prestige." in pf_ultra
+    check("menus state the rule; next requirement shows the level cap",
+          "Reach your level cap to earn your next prestige." in pf_ultra
           and "Reaching your current cap" not in pf_ultra and "Reaching your current cap" not in pf_gui
           and "Reaching your current cap" not in pf_ps
           and 'out.put("next_required", String.valueOf(required))' in pf_gui)
@@ -1852,6 +1851,78 @@ def main() -> int:
     check("sim: Saiyan god -> ssg, super -> ssj1, legendary -> lssj; no god forms -> None",
           _pick(saiyan, "GOD") == "ssg" and _pick(saiyan, "SUPER") == "ssj1"
           and _pick(saiyan, "LEGENDARY") == "lssj" and _pick(saiyan[:3], "GOD") is None)
+
+    print("\n--- § gui humanize 4.7.31 ---")
+    gh = lambda p: read(SRC / p)
+    gh_rival = gh("gui/ultra/UltraRivalScreens.java")
+    gh_remove = gh_rival.split("private static void openRemoveConfirm(", 1)[-1].split("\n    }\n", 1)[0]
+    gh_detail = gh_rival.split("private static void openListDetail(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest gui-humanize-4731 row", "gui-humanize-4731" in manifest)
+    check("P0 Remove rival: profile asks first, truthful notice, End rivalry confirm runs do:remove",
+          "cannot be undone from this menu" not in gh_rival
+          and '"page:remove_confirm:" + profileArg(arg, returnPage)' in gh_detail
+          and '"do:remove:' not in gh_detail
+          and 'p.startsWith("remove_confirm:")' in gh_rival
+          and "They drop to Declared - you can declare again any time." in gh_remove
+          and 'UltraStyle.danger("End rivalry")' in gh_remove and '"do:remove:" + arg' in gh_remove)
+    gh_pres = gh("gui/ultra/UltraPrestigeScreens.java")
+    gh_prog = gh("gui/ProgressionGuiApi.java")
+    check("P1 prestige: level cap + real number, no Need power / Need higher level",
+          all("Need power" not in x and "Need higher level" not in x for x in (gh_pres, gh_prog))
+          and '.labelValue("Need",' not in gh_pres and '"Reach level " + ph.getOrDefault("required_fmt", "0")' in gh_pres
+          and 'spec.labelValue("Level cap", ph.getOrDefault("required_fmt", "0"));' in gh_pres
+          and "int need = h < PRESTIGE_NEED.length ? PRESTIGE_NEED[h] : PRESTIGE_NEED_TOP;"
+          in gh("progression/LmOverhaulCapMath.java"))
+    check("P1 wording: full wipe, End this boost, GUI:/-> help, Ancient Coins path, weight names, Mutant/Majin",
+          "full wipe" not in gh("gui/CharacterServicesGuiApi.java")
+          and 'danger("End this boost")' in gh("gui/ultra/UltraProgressionScreens.java")
+          and '"GUI: ' not in gh("gui/RivalGuiApi.java") and '"GUI: ' not in gh("sparring/SparringSystem.java")
+          and '"-> Rival' not in gh("gui/RivalGuiApi.java")
+          and "(GUI toggle)" not in gh("command/DifficultyCommands.java")
+          and "turtle_shell, workout_weights" not in gh("gui/ultra/UltraWeightShopScreens.java")
+          and '"Remove Mutant first"' in gh_pres and '"Remove Majin first"' in gh_pres)
+    gh_char = gh("gui/ultra/UltraCharacterScreens.java")
+    check("P1 Android: one accurate forms line on every Android page, no 'cannot be undone'",
+          "It cannot be undone." not in gh_char and "within 10 seconds. This cannot be undone." not in gh_char
+          and gh_char.count("ANDROID_FORMS_LINE") == 4
+          and '"Converting to Android deletes Super and Legendary forms."' in gh_char)
+    gh_diff = gh("gui/ultra/UltraDifficultyScreens.java")
+    check("P1 Clear active tier and P2 Unequip title go through ask pages",
+          'spec.buttonLeft("page:clear_tier_ask"' in gh_diff and '.buttonRight("page:title_unequip_ask"' in gh_diff
+          and gh_diff.count('"do:lower_tier:0"') == 1 and gh_diff.count('"do:clear_title"') == 1
+          and "You will need Ancient Coins to activate a tier again." in gh_diff
+          and '"clear_tier_ask".equals(p)' in gh_diff and '"title_unequip_ask".equals(p)' in gh_diff)
+    gh_ch = gh("rival/RivalChallengeManager.java")
+    gh_cancel = gh_ch.split("public String cancelChallenge(ServerPlayer player, String counterpartyPicker) {", 1)[-1].split("\n    }\n", 1)[0]
+    check("P1 challenges: bare cancel never forfeits a live duel; bare accept/decline list",
+          gh_cancel.index("if (!named) {") < gh_cancel.index("endChallenge(")
+          and "matchesCounterparty(other, counterpartyPicker, them)" in gh_cancel
+          and gh_ch.count("return pendingIncomingList(player,") == 2
+          and "acceptChallenge(player, who)" in gh("gui/RivalGuiApi.java")
+          and 'challengeCancel(ctx.getSource(), "")' in gh("command/RivalCommands.java"))
+    check("P1 chat menu: no ALL-CAPS status words",
+          all(w not in gh("gui/DifficultyChatMenu.java") for w in
+              ('"SYSTEM DISABLED"', '"NOT AVAILABLE"', '"DIFFICULTY OFF"', '"CURRENT"', '"[SWITCH]"', '"LOCKED"', '"EQUIPPED"')))
+    check("P2 polish: Equipped, Reload Legacy Mechanics config, dash toggles, Staff only., full skill names",
+          '"Equipped: " + bone' in gh_char and "Reload LM config" not in gh_diff
+          and "Reload LM config" not in gh("gui/ultra/UltraHubScreens.java")
+          and "Turn event log" not in gh_diff and '"Personal - ON"' in gh_diff and '"Full team - ON"' in gh_diff
+          and all("That menu is for staff only." not in gh(f) for f in
+                  ("gui/CnpcStaffTestGui.java", "gui/ProgressionMenu.java", "gui/SkillsMenu.java"))
+          and '"Def Pen"' not in gh_pres and '"Ki Manip"' not in gh_pres and '"Ki Prot"' not in gh_pres
+          and '"Def Pen"' not in gh("progression/shop/SkillUnlockService.java"))
+    gh_w = gh("gui/ultra/UltraWeightShopScreens.java")
+    check("P2 weight shop: Ancient Copper, Free for staff, 10,000,000, no 1.3.9, says what to do",
+          "Free (staff)" not in gh_w and "1.3.9" not in gh_w and "1 copper per" not in gh_w
+          and "ancient copper" not in gh_w and '"%,d", MAX_WEIGHT_VALUE' in gh_w
+          and "Ask staff to stock it." in gh_w)
+    check("P2 shop hub has no staff button; Edit prestige shop lives on Staff Admin",
+          '"page:staff_edit"' not in gh_pres
+          and '"page:" + PAGE_PRESTIGE_SHOP_EDIT' in gh("gui/ultra/UltraHubScreens.java")
+          and "UltraHubScreens.PAGE_PRESTIGE_SHOP_EDIT.equalsIgnoreCase(pg)" in gh("gui/ultra/UltraGui.java"))
+    check("P2 rival chat has no exclamation marks; ProgressionChatMenu gone",
+          "as a rival!" not in gh("rival/RivalSystem.java") and "Mutual!" not in gh("rival/RivalSystem.java")
+          and not (SRC / "gui/ProgressionChatMenu.java").exists())
 
     print("\n--- § grant first skill usable 4.7.30 ---")
     gs = read(SRC / "progression/form/FirstSuperformMastery.java")
@@ -3148,8 +3219,8 @@ def main() -> int:
     check("Progression CNPC staff flag toggles", "HINT_TOGGLE_STAFF" in cnpc_prog and "paintAllFlags" in cnpc_prog)
     prog_chest = read(BUKKIT / "ProgressionChestGui.java")
     check("Progression chest staff section toggles", "allFlags" in prog_chest and "SlotAction.act(\"flag\"" in prog_chest)
-    chat_prog = read(SRC / "gui/ProgressionChatMenu.java")
-    check("Progression chat staff flag toggles", "appendFlagToggles" in chat_prog and "[All flags]" in chat_prog)
+    check("ProgressionChatMenu retired (4.7.31: dead code, zero referrers)",
+          not (SRC / "gui/ProgressionChatMenu.java").exists())
     cmi_prog = read(BUKKIT / "CmiProgressionGui.java")
     check("Progression CMI no flag board methods", "openFlags" not in cmi_prog and "openFabledFlags" not in cmi_prog)
     check("Android build overlay ships AndroidConversion", "progression/race/AndroidConversion.class" in build_sh)

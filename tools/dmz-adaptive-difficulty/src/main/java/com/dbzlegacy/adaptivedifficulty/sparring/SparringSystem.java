@@ -1861,7 +1861,7 @@ public final class SparringSystem {
         } else {
             return UltraStyle.YELLOW + "Pick which apprentice to release (" + UltraStyle.VALUE
                     + bond.apprenticeNamesSummary()
-                    + UltraStyle.YELLOW + ").\n" + UltraStyle.DIM + "GUI: Training bonds - Release apprentice…";
+                    + UltraStyle.YELLOW + ").\n" + UltraStyle.DIM + "In the menu: Training bonds, then Release apprentice.";
         }
         clearBond(appUuid, player.m_20148_().toString(), true);
         return UltraStyle.LABEL + "Released apprentice " + UltraStyle.VALUE + name + UltraStyle.LABEL + ". 12-hour cooldown started.";

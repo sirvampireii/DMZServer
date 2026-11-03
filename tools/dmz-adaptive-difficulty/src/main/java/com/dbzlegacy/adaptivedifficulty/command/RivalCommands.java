@@ -113,9 +113,18 @@ public final class RivalCommands {
                                                         ctx.getSource(),
                                                         StringArgumentType.getString(ctx, "player"),
                                                         IntegerArgumentType.getInteger(ctx, "minutes"))))))
-                        .then(Commands.m_82127_("accept").executes(ctx -> challengeAccept(ctx.getSource())))
-                        .then(Commands.m_82127_("decline").executes(ctx -> challengeDecline(ctx.getSource())))
-                        .then(Commands.m_82127_("cancel").executes(ctx -> challengeCancel(ctx.getSource()))))
+                        .then(Commands.m_82127_("accept").executes(ctx -> challengeAccept(ctx.getSource(), ""))
+                                .then(LmCommandSuggestions.playerWord("player")
+                                        .executes(ctx -> challengeAccept(
+                                                ctx.getSource(), StringArgumentType.getString(ctx, "player")))))
+                        .then(Commands.m_82127_("decline").executes(ctx -> challengeDecline(ctx.getSource(), ""))
+                                .then(LmCommandSuggestions.playerWord("player")
+                                        .executes(ctx -> challengeDecline(
+                                                ctx.getSource(), StringArgumentType.getString(ctx, "player")))))
+                        .then(Commands.m_82127_("cancel").executes(ctx -> challengeCancel(ctx.getSource(), ""))
+                                .then(LmCommandSuggestions.playerWord("player")
+                                        .executes(ctx -> challengeCancel(
+                                                ctx.getSource(), StringArgumentType.getString(ctx, "player"))))))
                 .then(CommandAccess.staffLiteral("admin")
                         .executes(ctx -> adminHelp(ctx.getSource()))
                         .then(Commands.m_82127_("help").executes(ctx -> adminHelp(ctx.getSource())))
@@ -315,30 +324,30 @@ public final class RivalCommands {
         return 1;
     }
 
-    private static int challengeAccept(CommandSourceStack source) {
+    private static int challengeAccept(CommandSourceStack source, String who) {
         ServerPlayer player = playerOrNull(source);
         if (player == null || !enabled(player)) {
             return 0;
         }
-        DmzRewards.msg(player, RivalChallengeManager.get().acceptChallenge(player));
+        DmzRewards.msg(player, RivalChallengeManager.get().acceptChallenge(player, who));
         return 1;
     }
 
-    private static int challengeDecline(CommandSourceStack source) {
+    private static int challengeDecline(CommandSourceStack source, String who) {
         ServerPlayer player = playerOrNull(source);
         if (player == null || !enabled(player)) {
             return 0;
         }
-        DmzRewards.msg(player, RivalChallengeManager.get().declineChallenge(player));
+        DmzRewards.msg(player, RivalChallengeManager.get().declineChallenge(player, who));
         return 1;
     }
 
-    private static int challengeCancel(CommandSourceStack source) {
+    private static int challengeCancel(CommandSourceStack source, String who) {
         ServerPlayer player = playerOrNull(source);
         if (player == null || !enabled(player)) {
             return 0;
         }
-        DmzRewards.msg(player, RivalChallengeManager.get().cancelChallenge(player));
+        DmzRewards.msg(player, RivalChallengeManager.get().cancelChallenge(player, who));
         return 1;
     }
 

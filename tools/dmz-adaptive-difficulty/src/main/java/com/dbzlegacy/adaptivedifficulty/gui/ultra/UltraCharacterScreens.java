@@ -182,7 +182,7 @@ public final class UltraCharacterScreens {
                 .line(indexLine("Customize model",
                         (bone.isBlank() || "-".equals(bone) || "None".equalsIgnoreCase(bone)
                                 ? "No head parts equipped."
-                                : "Wearing " + bone + ".")
+                                : "Equipped: " + bone + ".")
                                 + " Swap the parts on your head.",
                         bonesBlock))
                 .line(indexLine("Body parts",
@@ -239,6 +239,10 @@ public final class UltraCharacterScreens {
             spec.buttonRight(action, text, style);
         }
     }
+
+    /** The one Android forms warning every Android page shows (4.7.31). */
+    static final String ANDROID_FORMS_LINE = "Converting to Android deletes Super and Legendary forms."
+            + " Removing Android restores their skills.";
 
     /** Startup self-test: Home index reasons, dimmed lines and wording. */
     public static void selfTest(List<String> broken) {
@@ -497,7 +501,7 @@ public final class UltraCharacterScreens {
             spec.rowGap();
         }
         if (placed == 0) {
-            spec.line(UltraStyle.dim("No classes are available for your race."));
+            spec.line(UltraStyle.dim("No classes are available for your race. Ask staff - your race may not have classes yet."));
         }
         if (pg > 0) {
             spec.buttonLeft("page:class:" + (pg - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
@@ -923,7 +927,7 @@ public final class UltraCharacterScreens {
         }
         spec.buttonLeft(
                         "do:bodypart_color_reset:" + channel,
-                        UltraStyle.confirm("Reset to default"),
+                        UltraStyle.confirm("Reset to natural look"),
                         UltraStyle.STYLE_CONFIRM)
                 .rowGap();
         if (pg > 0) {
@@ -1077,7 +1081,7 @@ public final class UltraCharacterScreens {
                 // Upgraded wins over race: never trap an upgraded player without a way out.
                 spec.line(UltraStyle.LABEL + "Remove Android forms and restore your previous look.")
                         .line(UltraStyle.LABEL + "Cost " + UltraStyle.GREEN + "free")
-                        .notice("Click again within 10 seconds. This cannot be undone.")
+                        .notice("Click again within 10 seconds. " + ANDROID_FORMS_LINE)
                         .buttonsAfterLines();
                 spec.button(
                                 "do:" + UltraStyle.PAGE_ANDROID_REMOVE,
@@ -1295,8 +1299,8 @@ public final class UltraCharacterScreens {
                                 ? "Convert " + name + " to Android?"
                                 : "Remove the Android upgrade from " + name + "?"))
                 .notice(convert
-                        ? "This deletes Super forms and Legendary forms. It cannot be undone."
-                        : "Form skills are restored. Race, stats, and progression stay.");
+                        ? ANDROID_FORMS_LINE
+                        : ANDROID_FORMS_LINE + " Race, stats, and progression stay.");
         spec.buttonsAfterLines();
         spec.button(
                         "do:android_staff:" + (convert ? "convert:" : "remove:") + canonical,
@@ -1347,7 +1351,7 @@ public final class UltraCharacterScreens {
     private static String playerName(ServerPlayer viewer, String uuidArg) {
         String shown = UltraStyle.plain(RivalGuiApi.displayPickerArg(viewer, uuidArg));
         if (shown == null || shown.isBlank()) {
-            return "Unknown player";
+            return "Unknown player. Check the spelling and try again.";
         }
         return shown;
     }

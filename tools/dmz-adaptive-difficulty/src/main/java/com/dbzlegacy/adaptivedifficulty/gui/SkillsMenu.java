@@ -16,7 +16,7 @@ public final class SkillsMenu {
             return;
         }
         if (!StaffAccess.isStaff(player)) {
-            DmzRewards.msg(player, UltraStyle.dangerLine("That menu is for staff only."));
+            DmzRewards.msg(player, UltraStyle.dangerLine("Staff only."));
             return;
         }
         com.dbzlegacy.adaptivedifficulty.progression.shop.SkillCheckService.clearSession(player);

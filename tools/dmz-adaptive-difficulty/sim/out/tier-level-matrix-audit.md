@@ -122,7 +122,7 @@ Each form checked at mastery 0% + 100% (Base once). Soft-cap + no zero dmg.
 | saiyan | 22 | 315 | OK | OK | OK | OK |
 | sento_saiyan | 11 | 161 | OK | OK | OK | OK |
 | viltrumite | 8 | 119 | OK | OK | OK | OK |
-- ✅ race/form soft-cap all cells (1554) — 0.04s
+- ✅ race/form soft-cap all cells (1554) — 0.05s
 - ✅ race/form mobDmg > 0 all cells — ok
 - ✅ race peak form ladders / floors — 10 peaks ok
 

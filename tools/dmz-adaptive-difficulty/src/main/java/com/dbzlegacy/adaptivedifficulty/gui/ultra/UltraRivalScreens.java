@@ -41,6 +41,10 @@ public final class UltraRivalScreens {
             openListDetail(player, raw.substring("list_detail:".length()).trim());
             return;
         }
+        if (p.startsWith("remove_confirm:")) {
+            openRemoveConfirm(player, raw.substring("remove_confirm:".length()).trim());
+            return;
+        }
         if (p.startsWith("records:")) {
             openRecords(player, p.substring("records:".length()).trim());
             return;
@@ -466,7 +470,7 @@ public final class UltraRivalScreens {
         if (stillRival) {
             profileStatus(spec, RivalGuiApi.rivalLinkFor(player, arg));
         }
-        spec.notice("Removing a rival cannot be undone from this menu.")
+        spec.notice("Removing a rival moves them to History. You can declare again any time.")
                 .buttonsAfterLines();
         if (stillRival) {
             // Silent can be upgraded from the profile. Declared and above already sent that step.
@@ -484,7 +488,8 @@ public final class UltraRivalScreens {
                             .rowGap();
                 }
             }
-            spec.button("do:remove:" + arg, UltraStyle.danger("Remove rival"), "danger")
+            // Ask first (4.7.31): the ask page says what removal does before anything changes.
+            spec.button("page:remove_confirm:" + profileArg(arg, returnPage), UltraStyle.danger("Remove rival"), "danger")
                     .rowGap();
         } else if (arg != null && !arg.isBlank()) {
             spec.line(UltraStyle.dim("Not on your rival list."));
@@ -764,6 +769,8 @@ public final class UltraRivalScreens {
         UltraScreenSpec spec = sub("challenge_time:" + target)
                 .line(UltraStyle.LABEL + "Challenge length")
                 .labelValue("Rival", who == null || who.isBlank() ? "-" : who)
+                .line(UltraStyle.LABEL + "Challenge " + (who == null || who.isBlank() ? "this rival" : UltraStyle.plain(who))
+                        + " to a spar. Pick how many minutes - the challenge is sent right away.")
                 .buttonsAfterLines();
         if (target != null && !target.isBlank()) {
             for (int min = 1; min <= 10; min += 2) {
@@ -781,6 +788,36 @@ public final class UltraRivalScreens {
             }
         }
         spec.footerBack("page:pick_challenge", "Challenge pick");
+        spec.send(player);
+    }
+
+    /**
+     * Ask page before Remove rival (4.7.31). Removal is reversible: the remover's side moves to
+     * History and a Mutual / Declared partner keeps them as Declared, so either can declare again.
+     * Silent / Pending links only move to History. {@code payload} is the profile's {@code arg|N}.
+     */
+    private static void openRemoveConfirm(ServerPlayer player, String payload) {
+        String arg = payload == null ? "" : payload;
+        int bar = arg.lastIndexOf('|');
+        if (bar > 0 && UltraPickHelper.pageIndex("p:" + arg.substring(bar + 1)) > 0) {
+            arg = arg.substring(0, bar);
+        }
+        String who = RivalGuiApi.displayPickerArg(player, arg);
+        String plain = who == null || who.isBlank() ? "-" : UltraStyle.plain(who);
+        String status = RivalGuiApi.rivalStatusLabel(player, arg);
+        boolean oneSided = "silent".equalsIgnoreCase(status) || "pending".equalsIgnoreCase(status);
+        UltraScreenSpec spec = sub("remove_confirm:" + payload)
+                .line(UltraStyle.LABEL + "End rivalry")
+                .labelValue("Rival", plain)
+                .notice(oneSided
+                        ? "End your rivalry with " + plain + "? It moves to History - you can declare again any time."
+                        : "End your rivalry with " + plain + "? They drop to Declared - you can declare again any time.")
+                .buttonsAfterLines();
+        if (!arg.isBlank()) {
+            spec.button("do:remove:" + arg, UltraStyle.danger("End rivalry"), "danger")
+                    .rowGap();
+        }
+        spec.footerBack("page:list_detail:" + payload, "Rival profile");
         spec.send(player);
     }
 

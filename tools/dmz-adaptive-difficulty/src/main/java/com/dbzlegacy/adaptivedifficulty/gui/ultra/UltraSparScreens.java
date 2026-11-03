@@ -561,10 +561,11 @@ public final class UltraSparScreens {
         String who = "mentor".equals(action) && "leave".equalsIgnoreCase(targetArg)
                 ? "Your master"
                 : RivalGuiApi.displayPickerArg(player, targetArg);
+        String plain = who == null || who.isBlank() ? "-" : UltraStyle.plain(who);
         UltraScreenSpec spec = sub("pick_confirm:" + payload)
                 .line(UltraStyle.LABEL + copy[0])
-                .labelValue("Target", who == null || who.isBlank() ? "-" : who)
-                .line(UltraStyle.LABEL + copy[1])
+                .labelValue("Target", plain)
+                .line(UltraStyle.LABEL + askLine(action, plain))
                 .buttonsAfterLines();
         boolean destructive = isDestructiveConfirm(action);
         spec.button(
@@ -592,6 +593,20 @@ public final class UltraSparScreens {
         return switch (action == null ? "" : action) {
             case "mentor", "mentor_release", "mentor_decline" -> true;
             default -> false;
+        };
+    }
+
+    /** The ask-page question: names the action and who it is for (4.7.31). */
+    private static String askLine(String action, String who) {
+        return switch (action == null ? "" : action) {
+            case "mentor_invite" -> "Invite " + who + " to train under you?";
+            case "apprentice_invite" -> "Ask " + who + " to be your master?";
+            case "mentor_release" -> "Release " + who + " as your apprentice? A 12-hour cooldown starts.";
+            case "mentor" -> "Leave your master? A 12-hour cooldown starts.";
+            case "mentor_accept" -> "Accept " + who + "'s invite and form a training bond?";
+            case "mentor_decline" -> "Decline " + who + "'s mentor invite?";
+            case "dojo_challenge" -> "Challenge " + who + " to a dojo war?";
+            default -> confirmCopy(action)[1];
         };
     }
 

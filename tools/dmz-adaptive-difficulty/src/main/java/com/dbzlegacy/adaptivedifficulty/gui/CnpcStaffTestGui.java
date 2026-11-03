@@ -16,7 +16,7 @@ public final class CnpcStaffTestGui {
             return false;
         }
         if (!StaffAccess.isStaff(player)) {
-            player.m_213846_(Component.m_237113_(UltraStyle.dangerLine("That menu is for staff only.")));
+            player.m_213846_(Component.m_237113_(UltraStyle.dangerLine("Staff only.")));
             return false;
         }
         if (!DifficultyConfig.get().enableStaffCnpcTestGui) {

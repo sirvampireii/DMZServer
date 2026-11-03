@@ -19,7 +19,7 @@ public final class ProgressionMenu {
         String target = page == null || page.isBlank() ? "main" : page;
         boolean androidRemove = isAndroidRemovePage(target);
         if (!androidRemove && !StaffAccess.isStaff(player)) {
-            DmzRewards.msg(player, UltraStyle.dangerLine("That menu is for staff only."));
+            DmzRewards.msg(player, UltraStyle.dangerLine("Staff only."));
             return;
         }
         if (!DifficultyConfig.get().enableProgression && !androidRemove) {
