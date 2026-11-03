@@ -82,7 +82,8 @@ public final class UltraGui {
             switch (id) {
                 case "hub" -> UltraHubScreens.open(data, pg);
                 // Staff-global screens stay on the viewer (config drafts / admin tools).
-                case "admin" -> UltraHubScreens.open(viewer, "admin");
+                case "admin" -> UltraHubScreens.open(viewer,
+                        UltraHubScreens.PAGE_PRESTIGE_SHOP_EDIT.equalsIgnoreCase(pg) ? pg : "admin");
                 case "difficulty" -> UltraDifficultyScreens.open(data, pg);
                 case "rival" -> UltraRivalScreens.open(data, pg);
                 case "spar" -> UltraSparScreens.open(data, pg);

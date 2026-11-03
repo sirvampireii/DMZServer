@@ -7,7 +7,7 @@ public final class LmCommandMessages {
     public static final String NEED_STAFF =
             "§cYou need staff permission for that (op or difficulty.admin).";
 
-    public static final String STAFF_ONLY = "§cThat command is for staff.";
+    public static final String STAFF_ONLY = "§cStaff only.";
 
     public static final String PLAYERS_ONLY = "§cRun that while logged in as a player.";
 

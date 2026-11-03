@@ -115,14 +115,14 @@ public final class UltraProgressionScreens {
                         act + "3:30",
                         UltraStyle.confirm(UltraStyle.boostPreset("3", "30")),
                         "confirm")
-                .buttonRight(act + "end", UltraStyle.danger("End boost"), "danger")
+                .buttonRight(act + "end", UltraStyle.danger("End this boost"), "danger")
                 .rowGap();
         spec.footerBack("page:boosts", "Boosts");
         return spec;
     }
 
     private static String tpBoostLine(Map<String, String> ph) {
-        return ph.getOrDefault("boost", UltraStyle.LABEL + "Global TP boost: Off");
+        return ph.getOrDefault("boost", UltraStyle.LABEL + "Global TP boost: OFF");
     }
 
     private static String masteryBoostLine(Map<String, String> ph) {

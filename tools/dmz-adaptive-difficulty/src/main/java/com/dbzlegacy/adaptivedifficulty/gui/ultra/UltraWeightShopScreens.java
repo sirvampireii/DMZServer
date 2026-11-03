@@ -17,12 +17,12 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.util.LazyOptional;
 
 /**
- * Sparring -> Weights shop. Players pick a DMZ weight type, type a weight value (1 copper per
+ * Sparring -> Weights shop. Players pick a DMZ weight type, type a weight value (1 Ancient Copper per
  * point), confirm, then receive the item with {@code WeightValue} NBT via
  * {@code WeightItem.setWeight(stack, value)} (reflection; falls back to direct NBT).
  *
  * <p>Requires KaiPath {@code textInput} (GuiOpenPacket field 11). Clients without it see a clear
- * blocker message on the input page (KaiPath 1.3.9+ advertises it).
+ * blocker message on the input page (newer KaiPath clients advertise it).
  */
 public final class UltraWeightShopScreens {
     /** Hard cap so typed values stay sane (1 copper : 1 weight). */
@@ -77,7 +77,7 @@ public final class UltraWeightShopScreens {
         AncientCoinEconomy.migrateWalletToItems(player);
         UltraScreenSpec spec =
                 sub("weights")
-                        .line(UltraStyle.LABEL + "Training weights - 1 ancient copper per weight value.")
+                        .line(UltraStyle.LABEL + "Training weights - 1 Ancient Copper per weight value.")
                         .labelValue(
                                 "Copper",
                                 String.valueOf(
@@ -114,14 +114,14 @@ public final class UltraWeightShopScreens {
                                         AncientCoinEconomy.countOf(
                                                 player, AncientCoinEconomy.CoinKind.COPPER)))
                         .labelValue("Ancient Coins", AncientCoinEconomy.inventoryBreakdown(player))
-                        .labelValue("Price", "1 copper per weight value")
+                        .labelValue("Price", "1 Ancient Copper per weight value")
                         .labelValue("Max value", String.valueOf(MAX_WEIGHT_VALUE));
 
         if (!UltraClientFeatures.hasTextInput(player)) {
             spec.line(UltraStyle.danger("Typed weight entry needs a newer KaiPath client."))
                     .line(
                             UltraStyle.LABEL
-                                    + "Install KaiPath 1.3.9 or newer to type weight values. "
+                                    + "Update KaiPath to type weight values. "
                                     + "Until then this shop cannot take a typed value.");
             spec.buttonsAfterLines();
             spec.footerBack("page:weights", "Weights shop");
@@ -217,7 +217,7 @@ public final class UltraWeightShopScreens {
         return switch (act) {
             case "weight_quote", "quote" -> quote(player, arg, args, page);
             case "weight_buy", "buy_weight" -> buy(player, arg);
-            default -> UltraStyle.dangerLine("That weight shop action is not available.");
+            default -> UltraStyle.dangerLine("That weight shop button is out of date. Reopen the weights shop and try again.");
         };
     }
 
@@ -277,7 +277,7 @@ public final class UltraWeightShopScreens {
             return bad;
         }
         boolean free = PaidFeatureAccess.bypassAncientCoinCost(player);
-        String costText = free ? "Free (staff)" : AncientCoinEconomy.formatExactCost(value);
+        String costText = free ? "Free for staff" : AncientCoinEconomy.formatExactCost(value);
         return UltraStyle.noticeLine(
                 offer.label
                         + " - weight "
@@ -293,10 +293,10 @@ public final class UltraWeightShopScreens {
     private static String validateCommandOffer(WeightOffer offer, int value) {
         if (offer == null) {
             return UltraStyle.dangerLine(
-                    "Unknown weight type - try turtle_shell, workout_weights, or piccolo_cape.");
+                    "Unknown weight type - pick Turtle Shell, Workout Weights, or Piccolo Cape.");
         }
         if (value < 1 || value > MAX_WEIGHT_VALUE) {
-            return UltraStyle.dangerLine("Type a whole number from 1 to " + MAX_WEIGHT_VALUE + ".");
+            return UltraStyle.dangerLine("Type a whole number from 1 to " + String.format(Locale.ROOT, "%,d", MAX_WEIGHT_VALUE) + ".");
         }
         return null;
     }
@@ -319,7 +319,7 @@ public final class UltraWeightShopScreens {
         }
         ItemStack stack = ItemIds.stack(offer.itemId, 1);
         if (stack == null || stack.m_41619_()) {
-            return UltraStyle.dangerLine("That weight item is not available on this server.");
+            return UltraStyle.dangerLine("That weight item is not sold on this server. Ask staff to stock it.");
         }
         if (charge > 0L && !AncientCoinEconomy.charge(player, charge)) {
             String missing = UltraStyle.dangerLine(AncientCoinEconomy.missingText(player, charge));
@@ -332,7 +332,7 @@ public final class UltraWeightShopScreens {
         }
         applyWeightValue(stack, value);
         String destination = giveWeightItem(player, stack);
-        String costText = free ? "Free (staff)" : AncientCoinEconomy.formatExactCost(cost);
+        String costText = free ? "Free for staff" : AncientCoinEconomy.formatExactCost(cost);
         String notice =
                 UltraStyle.noticeLine(
                         "Bought "

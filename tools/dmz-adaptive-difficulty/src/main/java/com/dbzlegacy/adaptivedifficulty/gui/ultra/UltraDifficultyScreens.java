@@ -49,6 +49,14 @@ public final class UltraDifficultyScreens {
             openSummonAsk(player, lower.substring("summon_ask:".length()).trim());
             return;
         }
+        if ("clear_tier_ask".equals(lower)) {
+            openClearTierAsk(player);
+            return;
+        }
+        if ("title_unequip_ask".equals(lower)) {
+            openUnequipTitleAsk(player);
+            return;
+        }
         if (lower.startsWith("title_detail:")) {
             openTitleDetail(player, raw.substring("title_detail:".length()).trim());
             return;
@@ -203,7 +211,7 @@ public final class UltraDifficultyScreens {
             placeTierButton(spec, player, data, max, active, t + 1, false);
             spec.rowGap();
         }
-        spec.buttonLeft("do:lower_tier:0", UltraStyle.danger("Clear active tier"), "danger");
+        spec.buttonLeft("page:clear_tier_ask", UltraStyle.danger("Clear active tier"), "danger");
         placeDifficultyToggle(spec, data.isPersonalEnabled());
         spec.rowGap();
         spec.footerBackToMain();
@@ -368,8 +376,11 @@ public final class UltraDifficultyScreens {
      */
     public static String askReturn(String page) {
         String p = page == null ? "" : page.trim().toLowerCase(Locale.ROOT);
-        if (p.startsWith("tier_ask:")) {
+        if (p.startsWith("tier_ask:") || "clear_tier_ask".equals(p)) {
             return "tiers";
+        }
+        if ("title_unequip_ask".equals(p)) {
+            return "titles";
         }
         if (p.startsWith("summon_ask:")) {
             String which = p.substring("summon_ask:".length());
@@ -432,6 +443,45 @@ public final class UltraDifficultyScreens {
                     .rowGap();
         }
         spec.footerBack("page:tiers", "Tiers");
+        spec.send(player);
+    }
+
+    /** Ask before clearing the active tier (4.7.31): turning a tier back on costs Ancient Coins. */
+    private static void openClearTierAsk(ServerPlayer player) {
+        PlayerDifficultyData data = DifficultyCache.data(player);
+        int active = data == null ? 0 : data.getActiveTier();
+        UltraScreenSpec spec = sub("clear_tier_ask")
+                .line(UltraStyle.LABEL + "Clear active tier")
+                .labelValue("Active tier", active <= 0 ? "No tier active" : "T" + active)
+                .notice("Clear your active tier? You will need Ancient Coins to activate a tier again.");
+        if (active <= 0) {
+            spec.line(UltraStyle.dim("No tier is active, so there is nothing to clear."));
+        }
+        spec.buttonsAfterLines();
+        if (active > 0) {
+            spec.button("do:lower_tier:0", UltraStyle.danger("Clear active tier"), UltraStyle.STYLE_DANGER)
+                    .rowGap();
+        }
+        spec.footerBack("page:tiers", "Tiers");
+        spec.send(player);
+    }
+
+    /** Ask before unequipping the worn title (4.7.31); equipping it again is free. */
+    private static void openUnequipTitleAsk(ServerPlayer player) {
+        DifficultyTitle title = DifficultyTitle.byId(TitleSystem.activeId(player));
+        UltraScreenSpec spec = sub("title_unequip_ask")
+                .line(UltraStyle.LABEL + "Unequip title")
+                .labelValue("Equipped", title == null ? "No title equipped" : UltraStyle.plain(title.display))
+                .notice("Unequip your title? You can equip it again for free any time.");
+        if (title == null) {
+            spec.line(UltraStyle.dim("No title is equipped, so there is nothing to unequip."));
+        }
+        spec.buttonsAfterLines();
+        if (title != null) {
+            spec.button("do:clear_title", UltraStyle.danger("Unequip title"), UltraStyle.STYLE_DANGER)
+                    .rowGap();
+        }
+        spec.footerBack("page:titles_p0", "Titles");
         spec.send(player);
     }
 
@@ -551,20 +601,20 @@ public final class UltraDifficultyScreens {
         spec.buttonLeft(
                         "do:mode:personal",
                         mode == TeamMode.PERSONAL_ONLY
-                                ? UltraStyle.confirm("Personal - on")
+                                ? UltraStyle.confirm("Personal - ON")
                                 : UltraStyle.dim("Personal"),
                         mode == TeamMode.PERSONAL_ONLY ? "confirm" : "dim")
                 .buttonRight(
                         "do:mode:threshold",
                         mode == TeamMode.THRESHOLD_BONUS_ONLY
-                                ? UltraStyle.confirm("Threshold - on")
+                                ? UltraStyle.confirm("Threshold - ON")
                                 : UltraStyle.dim("Threshold"),
                         mode == TeamMode.THRESHOLD_BONUS_ONLY ? "confirm" : "dim")
                 .rowGap();
         spec.buttonLeft(
                         "do:mode:full",
                         mode == TeamMode.FULL_TEAM_SCALING
-                                ? UltraStyle.confirm("Full team - on")
+                                ? UltraStyle.confirm("Full team - ON")
                                 : UltraStyle.dim("Full team"),
                         mode == TeamMode.FULL_TEAM_SCALING ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM)
                 .rowGap();
@@ -684,7 +734,7 @@ public final class UltraDifficultyScreens {
                         "do:toggle_title_sense",
                         sense ? UltraStyle.confirm("Title Sense - ON") : UltraStyle.dim("Title Sense - OFF"),
                         sense ? "confirm" : "dim")
-                .buttonRight("do:clear_title", UltraStyle.danger("Unequip title"), "danger")
+                .buttonRight("page:title_unequip_ask", UltraStyle.danger("Unequip title"), "danger")
                 .rowGap();
         spec.footerBackHome("Difficulty Home");
         spec.send(player);
@@ -809,7 +859,7 @@ public final class UltraDifficultyScreens {
                 .line(UltraStyle.LABEL + "Server tools - typed admin: /difficulty admin")
                 .line(UltraStyle.LABEL + "Reload config, event log, and LM Staff Admin hub")
                 .buttonsAfterLines();
-        spec.buttonLeft("do:reload", UltraStyle.confirm("Reload LM config"), "confirm")
+        spec.buttonLeft("do:reload", UltraStyle.confirm("Reload Legacy Mechanics config"), "confirm")
                 .buttonRight("page:stats", UltraStyle.danger("Staff details"), "danger")
                 .rowGap();
         spec.buttonLeft("open:admin", UltraStyle.danger("LM Staff Admin"), "danger")
@@ -832,13 +882,13 @@ public final class UltraDifficultyScreens {
         spec.buttonLeft("do:syslog:status", UltraStyle.danger("Status"), "danger")
                 .buttonRight(
                         "do:syslog:on",
-                        logOn ? UltraStyle.confirm("Event log - ON") : "Turn event log on",
+                        logOn ? UltraStyle.confirm("Event log - ON") : "Event log - ON",
                         logOn ? "confirm" : UltraStyle.STYLE_NORMAL)
                 .rowGap();
         spec.buttonLeft(
                         "do:syslog:off",
                         logOn
-                                ? UltraStyle.danger("Turn event log off")
+                                ? UltraStyle.danger("Event log - OFF")
                                 : UltraStyle.dim("Event log - OFF"),
                         logOn ? "danger" : "dim")
                 .buttonRight("do:syslog:flush", UltraStyle.danger("Flush"), "danger")

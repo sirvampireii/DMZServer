@@ -221,7 +221,7 @@ public final class RivalSystem {
         store.declareRequests.put(me.uuid + ">" + them.uuid, req);
         store.markDirty();
 
-        DmzRewards.msg(target, LmChat.tagged("Rival", "§e" + me.name + " §7visibly declared you as a rival!"));
+        DmzRewards.msg(target, LmChat.tagged("Rival", "§e" + me.name + " §7visibly declared you as a rival."));
         DmzRewards.msg(target, LmChat.tip("/rival", "→ Rival"));
         return "§aDeclared §f" + them.name + "§a. §8They appear on your list as Declared;"
                 + " they were notified (Pending)." + declaredNote;
@@ -323,7 +323,7 @@ public final class RivalSystem {
         notifyMutualAccepted(player, me, them, true);
         // Colors via UltraStyle so bare section-sign never lands in this success path.
         return UltraStyle.GREEN + "Accepted " + UltraStyle.WHITE + them.name
-                + UltraStyle.GREEN + " - Mutual!"
+                + UltraStyle.GREEN + " - Mutual."
                 + UltraStyle.DARK_GRAY + " Replaced Mutual with " + UltraStyle.WHITE + drop.name
                 + UltraStyle.DARK_GRAY + ".";
     }
@@ -401,8 +401,8 @@ public final class RivalSystem {
         store.markDirty();
         notifyMutualAccepted(player, me, them, dualSilent);
         return dualSilent
-                ? "§aAccepted §f" + them.name + " §a— Declared → Mutual!"
-                : "§aAccepted rivalry with §f" + them.name + " §a— Mutual!";
+                ? "§aAccepted §f" + them.name + " §a— Declared → Mutual."
+                : "§aAccepted rivalry with §f" + them.name + " §a— Mutual.";
     }
 
     private static void notifyMutualAccepted(
@@ -416,8 +416,8 @@ public final class RivalSystem {
                     "/rival",
                     null,
                     dualSilent
-                            ? "§a" + me.name + " accepted — Declared → Mutual!"
-                            : "§a" + me.name + " accepted your rivalry — Mutual!",
+                            ? "§a" + me.name + " accepted — Declared → Mutual."
+                            : "§a" + me.name + " accepted your rivalry — Mutual.",
                     "§8Both ways. Full rivalry benefits."));
         }
     }

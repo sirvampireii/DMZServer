@@ -891,10 +891,10 @@ public final class UltraScreenSelfTest {
                         .page("boosts")
                         .activeTab("boosts")
                         .tabs("home|Home", "boosts|Boosts", "coins|Coins")
-                        .line("Global TP boost: Off")
+                        .line("Global TP boost: OFF")
                         .line("Presets start a boost")
                         .setRow(100)
-                        .button("do:boost:end", "End boost", "danger")
+                        .button("do:boost:end", "End this boost", "danger")
                         .toPacket(),
                 false);
         UltraScreenSpec counted =

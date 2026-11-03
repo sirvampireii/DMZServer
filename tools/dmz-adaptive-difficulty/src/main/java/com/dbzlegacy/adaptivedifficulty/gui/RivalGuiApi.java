@@ -858,12 +858,12 @@ public final class RivalGuiApi {
             case "title", "titles" -> titleLines(player);
             case "help" -> List.of(
                     UltraStyle.HEADER + "/rival " + UltraStyle.DIM + "- Rival System",
-                    UltraStyle.LABEL + "Prefer " + UltraStyle.YELLOW + "/lm " + UltraStyle.LABEL + "-> Rival from the hub",
-                    UltraStyle.LABEL + "GUI: List - Challenge - Top - Progress",
+                    UltraStyle.LABEL + "Prefer " + UltraStyle.YELLOW + "/lm " + UltraStyle.LABEL + "and the Rival button",
+                    UltraStyle.LABEL + "Menu tabs: List, Challenge, Top, Progress",
                     UltraStyle.YELLOW + "/rival <player> " + UltraStyle.LABEL + "silent rival",
                     UltraStyle.YELLOW + "/rival declare|accept|decline|remove <player>",
                     UltraStyle.YELLOW + "/rival challenge send <player> [minutes]",
-                    UltraStyle.LABEL + "GUI: pick rival -> choose 1-10 minutes",
+                    UltraStyle.LABEL + "In the menu: pick a rival, then choose 1-10 minutes",
                     UltraStyle.YELLOW + "/rival spectate [player]|stop",
                     UltraStyle.YELLOW + "/rival admin save|refresh|status (staff)"
             );
@@ -934,12 +934,15 @@ public final class RivalGuiApi {
             return UltraStyle.YELLOW + "Rival Instinct " + (on ? "ON" : "OFF");
         }
         if ("challenge".equals(act)) {
-            String sub = a.toLowerCase(Locale.ROOT);
+            // "accept|decline|cancel [player]": the name picks which challenge (4.7.31).
+            String[] words = a.split("\\s+", 2);
+            String sub = words[0].toLowerCase(Locale.ROOT);
+            String who = words.length > 1 ? words[1].trim() : "";
             return switch (sub) {
-                case "accept" -> RivalChallengeManager.get().acceptChallenge(player);
-                case "decline", "deny" -> RivalChallengeManager.get().declineChallenge(player);
-                case "cancel" -> RivalChallengeManager.get().cancelChallenge(player);
-                default -> UltraStyle.DANGER + "Usage: rival do challenge accept|decline|cancel";
+                case "accept" -> RivalChallengeManager.get().acceptChallenge(player, who);
+                case "decline", "deny" -> RivalChallengeManager.get().declineChallenge(player, who);
+                case "cancel" -> RivalChallengeManager.get().cancelChallenge(player, who);
+                default -> UltraStyle.DANGER + "Type accept, decline, or cancel after /rival do challenge, then the player's name.";
             };
         }
         if ("challenge_accept".equals(act) || "challengeaccept".equals(act)) {

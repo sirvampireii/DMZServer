@@ -206,14 +206,14 @@ public final class SkillUnlockService {
 
     private static void appendSagaCompact(List<String> out, ServerPlayer player, Skills skills) {
         appendSagaSkillCompact(out, player, skills, "kicontrol", "Ki Control", UltraStyle.DARK_AQUA, 1);
-        appendSagaSkillCompact(out, player, skills, "kimanipulation", "Ki Manip", UltraStyle.BLUE, 10);
+        appendSagaSkillCompact(out, player, skills, "kimanipulation", "Ki Manipulation", UltraStyle.BLUE, 10);
         appendSagaSkillCompact(out, player, skills, "kisense", "Ki Sense", UltraStyle.DARK_PURPLE, 10);
-        appendSagaSkillCompact(out, player, skills, "defense_penetration", "Def Pen", UltraStyle.RED, 10);
+        appendSagaSkillCompact(out, player, skills, "defense_penetration", "Defense Penetration", UltraStyle.RED, 10);
         appendSagaSkillCompact(out, player, skills, "healing_reduction", "Heal Red", UltraStyle.DARK_RED, 10);
         appendSagaSkillCompact(out, player, skills, "instant_transmission", "IT", UltraStyle.LIGHT_PURPLE, 10);
         appendSagaSkillCompact(out, player, skills, "ki_infusion", "Ki Infusion", UltraStyle.AQUA, 10);
         appendSagaSkillCompact(out, player, skills, "kiboost", "Ki Boost", UltraStyle.DARK_AQUA, 4);
-        appendSagaSkillCompact(out, player, skills, "kiprotection", "Ki Prot", UltraStyle.BLUE, 10);
+        appendSagaSkillCompact(out, player, skills, "kiprotection", "Ki Protection", UltraStyle.BLUE, 10);
         appendSagaSkillCompact(out, player, skills, "kaioken", "Kaioken", UltraStyle.RED, 5);
         appendSagaSkillCompact(out, player, skills, "fusion", "Fusion", UltraStyle.LIGHT_PURPLE, 5);
     }

@@ -27,6 +27,9 @@ public final class UltraHubScreens {
     /** One hub system tile. {@code alwaysOn} skips the placeholder availability check. */
     private record HubTile(String system, String label, String onStyle, boolean alwaysOn) {}
 
+    /** Staff Admin page that opens the prestige shop editor (4.7.31). */
+    static final String PAGE_PRESTIGE_SHOP_EDIT = "prestige_shop_edit";
+
     public static void open(ServerPlayer player, String page) {
         if (player == null) {
             return;
@@ -34,6 +37,14 @@ public final class UltraHubScreens {
         String p = page == null || page.isBlank() ? "main" : page.toLowerCase(Locale.ROOT);
         if ("admin".equals(p)) {
             openAdmin(player);
+            return;
+        }
+        if (PAGE_PRESTIGE_SHOP_EDIT.equals(p)) {
+            if (StaffAccess.isStaff(player)) {
+                UltraGui.open(player, "config", "edit:prestige-shop:0:");
+            } else {
+                openMain(player);
+            }
             return;
         }
         openMain(player);
@@ -90,7 +101,7 @@ public final class UltraHubScreens {
         JsonObject page1 = new JsonObject();
         page1.addProperty("title", "Staff Admin");
         JsonArray lines1 = new JsonArray();
-        lines1.add("Reload LM config from disk.");
+        lines1.add("Reload Legacy Mechanics config from disk.");
         lines1.add("Open Progression panel or Config editor.");
         page1.add("lines", lines1);
         bookPages.add(page1);
@@ -115,10 +126,13 @@ public final class UltraHubScreens {
                         bookPages,
                         0)
                 .setRow(UltraStyle.CONTENT_ROW + 88 + UltraStyle.BTN_GAP);
-        spec.button("do:reload", UltraStyle.confirm("Reload LM config"), UltraStyle.STYLE_CONFIRM)
+        spec.button("do:reload", UltraStyle.confirm("Reload Legacy Mechanics config"), UltraStyle.STYLE_CONFIRM)
                 .rowGap();
         spec.buttonLeft("open:progression", "Progression panel", UltraStyle.STYLE_NORMAL)
                 .buttonRight("open:config", "Config editor", UltraStyle.STYLE_NORMAL)
+                .rowGap();
+        // 4.7.31: moved off the Prestige shop hub so that page keeps six buttons.
+        spec.button("page:" + PAGE_PRESTIGE_SHOP_EDIT, UltraStyle.danger("Edit prestige shop"), UltraStyle.STYLE_DANGER)
                 .rowGap();
         // Sub-page of the hub: one exit back to it (nav:home would reopen this page).
         spec.footerBackToMain();

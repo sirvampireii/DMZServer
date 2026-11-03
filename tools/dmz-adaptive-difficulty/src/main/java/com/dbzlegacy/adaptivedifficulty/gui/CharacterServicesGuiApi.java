@@ -210,7 +210,7 @@ public final class CharacterServicesGuiApi {
                         ? UltraStyle.DIM + "Price scales with your level"
                         : UltraStyle.DIM + "Fixed price for everyone");
             } else {
-                lines.add(UltraStyle.DIM + "Free - full wipe, then pick class and look");
+                lines.add(UltraStyle.DIM + "Free - wipe stats, then pick class and look");
             }
             return lines;
         }
@@ -227,7 +227,7 @@ public final class CharacterServicesGuiApi {
                         ? UltraStyle.DIM + "Price scales with your level"
                         : UltraStyle.DIM + "Fixed price for everyone");
             } else {
-                lines.add(UltraStyle.DIM + "Free - full wipe, then pick class and look");
+                lines.add(UltraStyle.DIM + "Free - wipe stats, then pick class and look");
             }
             lines.add(UltraStyle.LABEL + "Purchased looks carry over. Your class stays if the new race has it.");
             lines.add(UltraStyle.LABEL + "If not, the editor opens so you can pick a class at no extra cost.");

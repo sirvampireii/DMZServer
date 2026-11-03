@@ -86,7 +86,7 @@ public final class DifficultyChatMenu {
                 UltraStyle.DIM + "── " + UltraStyle.VALUE + "Legacy Mechanics · Difficulty "
                         + UltraStyle.DIM + "──"));
         if (!DifficultyConfig.isEnabled()) {
-            send(player, Component.m_237113_(UltraStyle.DANGER + UltraStyle.BOLD + "SYSTEM DISABLED"));
+            send(player, Component.m_237113_(UltraStyle.DANGER + UltraStyle.BOLD + "System disabled"));
             if (isStaff(player)) {
                 send(player, Component.m_237113_(
                         UltraStyle.DIM + "Re-enable: " + UltraStyle.VALUE + "/difficulty admin on"));
@@ -96,7 +96,7 @@ public final class DifficultyChatMenu {
             return;
         }
         if (!SystemGate.allows(player)) {
-            send(player, Component.m_237113_(UltraStyle.YELLOW + UltraStyle.BOLD + "NOT AVAILABLE"));
+            send(player, Component.m_237113_(UltraStyle.YELLOW + UltraStyle.BOLD + "Not available"));
             if (isStaff(player)) {
                 send(player, Component.m_237113_(
                         UltraStyle.DIM + "Whitelist: " + UltraStyle.VALUE
@@ -110,7 +110,7 @@ public final class DifficultyChatMenu {
         boolean personalOn = data.isPersonalEnabled();
         boolean coinChatOn = data.isCoinDropChat();
         if (!personalOn) {
-            send(player, Component.m_237113_(UltraStyle.YELLOW + UltraStyle.BOLD + "DIFFICULTY OFF"));
+            send(player, Component.m_237113_(UltraStyle.YELLOW + UltraStyle.BOLD + "Difficulty off"));
             send(player, Component.m_237113_(
                     UltraStyle.LABEL + "No scaling, kill coins, AI pressure, or tier buys"));
             send(player, Component.m_237113_(
@@ -223,11 +223,11 @@ public final class DifficultyChatMenu {
                     (activeHere ? UltraStyle.CONFIRM + "● " : unlocked ? UltraStyle.YELLOW : UltraStyle.DIM)
                             + "T" + tier.id + " " + tier.display);
             if (activeHere) {
-                line = line.m_7220_(Component.m_237113_(" " + UltraStyle.confirm("CURRENT")));
+                line = line.m_7220_(Component.m_237113_(" " + UltraStyle.confirm("Current")));
             } else if (canLower) {
                 line = line.m_7220_(Component.m_237113_(" " + UltraStyle.confirm("Free") + " "))
                         .m_7220_(btn(
-                                UltraStyle.VALUE + "[DOWNGRADE]",
+                                UltraStyle.VALUE + "[Downgrade]",
                                 "/difficulty do activate " + tier.id + " tiers",
                                 "Downgrade to Tier " + tier.id + " — Free"));
             } else if (unlocked) {
@@ -237,14 +237,14 @@ public final class DifficultyChatMenu {
                         : (UltraStyle.GOLD + AncientCoinEconomy.formatExactCost(directed));
                 line = line.m_7220_(Component.m_237113_(" " + costLabel + " "))
                         .m_7220_(btn(
-                                UltraStyle.confirm("[SWITCH]"),
+                                UltraStyle.confirm("[Switch]"),
                                 "/difficulty do activate " + tier.id + " tiers",
                                 freeCost || directed <= 0L
                                         ? "Activate Tier " + tier.id + " — Free"
                                         : "Pay Ancient Coins for Tier " + tier.id + " (pay-up OK, change returned)"));
             } else {
                 line = line.m_7220_(Component.m_237113_(
-                        " " + UltraStyle.danger("LOCKED") + " " + UltraStyle.DIM + "("
+                        " " + UltraStyle.danger("Locked") + " " + UltraStyle.DIM + "("
                                 + tier.requirementTip() + ")"));
             }
             send(player, line);
@@ -282,11 +282,11 @@ public final class DifficultyChatMenu {
             if (earned) {
                 boolean equipped = title.id.equals(data.getActiveTitle());
                 if (equipped) {
-                    line = line.m_7220_(Component.m_237113_(" " + UltraStyle.confirm("EQUIPPED")));
+                    line = line.m_7220_(Component.m_237113_(" " + UltraStyle.confirm("Equipped")));
                 } else {
                     line = line.m_7220_(Component.m_237113_(" "))
                             .m_7220_(btn(
-                                    UltraStyle.confirm("[EQUIP]"),
+                                    UltraStyle.confirm("[Equip]"),
                                     "/difficulty do equip_title " + title.id + " titles",
                                     "Equip " + title.display));
                 }
@@ -376,7 +376,7 @@ public final class DifficultyChatMenu {
         send(player, Component.m_237113_(
                 UltraStyle.DIM + "──────── " + UltraStyle.VALUE + "Admin " + UltraStyle.DIM + "────────"));
         send(player, Component.m_237113_(
-                (cfg.enabled ? UltraStyle.confirm("System ENABLED") : UltraStyle.danger("System DISABLED"))
+                (cfg.enabled ? UltraStyle.confirm("System enabled") : UltraStyle.danger("System disabled"))
                         + " " + UltraStyle.DIM + UltraStyle.SEP + " "
                         + (cfg.whitelistEnabled
                                 ? UltraStyle.YELLOW + "Whitelist ON " + UltraStyle.LABEL + "("

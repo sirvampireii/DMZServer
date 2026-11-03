@@ -157,12 +157,14 @@ public final class UltraPrestigeScreens {
         if (!"true".equalsIgnoreCase(ph.get("system_enabled"))) {
             spec.line(UltraStyle.danger("Prestige system is disabled. Ask staff to turn it on."));
         } else {
-            spec.labelValue("Need", ph.getOrDefault("required_fmt", "0"));
-            spec.line(UltraStyle.dim("Reaching the Need power earns your next prestige."));
+            // The level cap is the next-prestige target from the held-count ladder
+            // (LmOverhaulCapMath.prestigeRequirement: 50k at 0 held, +15k per held, 150k from 7).
+            spec.labelValue("Level cap", ph.getOrDefault("required_fmt", "0"));
+            spec.line(UltraStyle.dim("Reach your level cap to earn your next prestige."));
             if ("true".equalsIgnoreCase(ph.get("ready"))) {
                 spec.line(UltraStyle.confirm("Ready to prestige."));
             } else {
-                spec.line(UltraStyle.dim("Reach the Need power first."));
+                spec.line(UltraStyle.dim("Reach level " + ph.getOrDefault("required_fmt", "0") + " first."));
             }
         }
         spec.buttonsAfterLines();
@@ -189,7 +191,7 @@ public final class UltraPrestigeScreens {
         } else {
             spec.button(
                             "page:confirm",
-                            UltraStyle.dim("Need higher level"),
+                            UltraStyle.dim("Reach level " + ph.getOrDefault("required_fmt", "0") + " first"),
                             UltraStyle.STYLE_DIM)
                     .rowGap();
         }
@@ -208,7 +210,7 @@ public final class UltraPrestigeScreens {
                 .line(UltraStyle.LABEL + "Confirm prestige")
                 .labelValue("Current prestige amount",
                         ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", String.valueOf(com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE)))
-                .labelValue("Need", ph.getOrDefault("required_fmt", "0"))
+                .labelValue("Level cap", ph.getOrDefault("required_fmt", "0"))
                 .notice("This resets your stats and adds one to your current prestige amount.");
         if (PrestigeUniverseRoleWarn.isGodOfDestruction(player)) {
             spec.line(UltraStyle.danger(PrestigeUniverseRoleWarn.GOD_OF_DESTRUCTION));
@@ -271,10 +273,7 @@ public final class UltraPrestigeScreens {
                             UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
-        if (StaffAccess.isStaff(player)) {
-            spec.button("page:staff_edit", UltraStyle.danger("Edit shop (staff)"), UltraStyle.STYLE_DANGER)
-                    .rowGap();
-        }
+        // Edit prestige shop lives on Staff Admin (4.7.31); page:staff_edit still works for old links.
         spec.footerBackToMain();
         spec.send(player);
     }
@@ -817,7 +816,7 @@ public final class UltraPrestigeScreens {
                 } else {
                     spec.button(
                                     "page:ask:majin",
-                                    UltraStyle.dim("Need Mutant off"),
+                                    UltraStyle.dim("Remove Mutant first"),
                                     UltraStyle.STYLE_DIM)
                             .rowGap();
                 }
@@ -838,7 +837,7 @@ public final class UltraPrestigeScreens {
                 } else {
                     spec.button(
                                     "page:ask:mutant",
-                                    UltraStyle.dim("Need Majin off"),
+                                    UltraStyle.dim("Remove Majin first"),
                                     UltraStyle.STYLE_DIM)
                             .rowGap();
                 }
@@ -926,7 +925,7 @@ public final class UltraPrestigeScreens {
                     .rowGap();
         }
         if (rows.isEmpty()) {
-            spec.line(UltraStyle.dim("Nothing for sale right now."));
+            spec.line(UltraStyle.dim("Nothing for sale right now. Ask staff to stock the shop."));
         }
         spec.footerBack("page:shop", "Shop");
         spec.send(player);
@@ -1002,11 +1001,8 @@ public final class UltraPrestigeScreens {
     private static String skillCaption(String label, int bought, int max, boolean maxed, int cost) {
         String name = switch (label == null ? "" : label) {
             case "Instant Transmission" -> "Transmit";
-            case "Defense Penetration" -> "Def Pen";
             case "Potential Unlock" -> "Potential";
-            case "Ki Manipulation" -> "Ki Manip";
-            case "Healing Reduction" -> "Heal Cut";
-            case "Ki Protection" -> "Ki Prot";
+            case "Healing Reduction" -> "Healing Cut";
             default -> label == null || label.isBlank() ? "Skill" : label;
         };
         String prog = bought + "/" + (max > 0 ? max : "?");

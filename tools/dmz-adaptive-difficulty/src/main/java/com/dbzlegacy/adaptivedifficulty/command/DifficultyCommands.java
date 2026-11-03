@@ -531,7 +531,6 @@ public final class DifficultyCommands {
         source.m_288197_(() -> Component.m_237113_(
                 "§6Staff free Ancient Coin costs: " + (on ? "§aON" : "§eOFF")
                         + "\n§7When ON, ops/staff skip coin charges on LM paid features."
-                        + "\n§8/lm → Progression → Ancient Coins (GUI toggle)"
                         + "\n§8/difficulty admin stafffree on|off|toggle"
         ), false);
         return 1;
