@@ -28,6 +28,13 @@ import net.minecraft.server.level.ServerPlayer;
  * its group name or its formType, with a form-name fallback for god and
  * legendary ({@link FirstSuperformChoice}; 4.7.27).
  *
+ * <p>The form-group skill is made usable before any mastery is written (4.7.30): transforming needs
+ * mastery and the skill at level 1 or more, and DMZ's raw {@code Skills.setSkillLevel} creates a
+ * level-0 / max-0 skill when the form skill has no {@code skills.json} costs (superforms,
+ * legendaryforms, godforms). {@link #ensureSkill} registers a usable max first (never lowering a
+ * healthy one), sets the level, and checks it stuck; when it did not, the grant fails naming the skill
+ * instead of reporting mastery. A re-grant repairs a broken skill even when the mastery is already there.
+ *
  * <p>Race resolution matches {@code TransformationReward.giveReward}:
  * {@code StatsProvider}/{@code StatsCapability} via {@code DmzProgression.stats},
  * then {@code Character.getRaceName()}. Form groups come from the live race
@@ -113,7 +120,20 @@ public final class FirstSuperformMastery {
             return fail("Could not read form mastery for " + race + ".");
         }
         double cap = masteryCap(race, chosen, stack);
-        ensureSkill(data, chosen, stack);
+        String skill = skillName(chosen, stack);
+        SkillFix fix = ensureSkill(data.getSkills(), skill, chosen.unlockLevel);
+        if (fix == SkillFix.FAILED) {
+            DmzSkillUtil.sync(player);
+            return fail("Could not unlock the " + skillLabel(skill) + " skill for " + chosen.label()
+                    + ". Ask staff to re-grant after a relog.");
+        }
+        String skillNote = switch (fix) {
+            case UNLOCKED -> "\n" + UltraStyle.CONFIRM + "The " + skillLabel(skill) + " skill is unlocked, so the form"
+                    + " can be used now.";
+            case REPAIRED -> "\n" + UltraStyle.CONFIRM + "The " + skillLabel(skill) + " skill was broken and has been"
+                    + " repaired, so the form can be used now.";
+            default -> "";
+        };
         double current = masteries.getMastery(chosen.group, chosen.form);
         double target = Math.min(cap, Math.max(current, amount));
         boolean raised = target > current + 1.0E-9;
@@ -127,13 +147,13 @@ public final class FirstSuperformMastery {
             return new Outcome(true,
                     UltraStyle.YELLOW + who + " already has " + UltraStyle.WHITE + format(current)
                             + UltraStyle.YELLOW + " mastery on " + UltraStyle.WHITE + label
-                            + UltraStyle.YELLOW + ".");
+                            + UltraStyle.YELLOW + "." + skillNote);
         }
         return new Outcome(true,
                 UltraStyle.CONFIRM + "Granted mastery on " + UltraStyle.WHITE + label
                         + UltraStyle.CONFIRM + " (" + race + ") for " + UltraStyle.WHITE + who
                         + UltraStyle.CONFIRM + ". Now " + UltraStyle.WHITE + format(target)
-                        + UltraStyle.CONFIRM + ".");
+                        + UltraStyle.CONFIRM + "." + skillNote);
     }
 
     private static Candidate fromHelper(StatsData data, String race, boolean stack) {
@@ -214,23 +234,60 @@ public final class FirstSuperformMastery {
         }
     }
 
-    private static void ensureSkill(StatsData data, Candidate chosen, boolean stack) {
-        try {
-            String skill = skillName(chosen, stack);
-            if (skill == null || skill.isBlank()) {
-                return;
-            }
-            Skills skills = data.getSkills();
-            if (skills == null) {
-                return;
-            }
-            int need = Math.max(0, chosen.unlockLevel);
-            boolean missing = !skills.hasSkill(skill) || skills.getSkillLevel(skill) < need;
-            if (missing) {
-                skills.setSkillLevel(skill, need);
-            }
-        } catch (Throwable ignored) {
+    /** What {@link #ensureSkill} had to do. */
+    enum SkillFix {
+        /** Already usable; nothing changed. */
+        READY,
+        /** The skill was absent and is now set. */
+        UNLOCKED,
+        /** The skill existed but its level or max was too low (e.g. a 0 / 0 record); fixed. */
+        REPAIRED,
+        /** The level did not stick: the form is still locked. */
+        FAILED
+    }
+
+    /**
+     * Make the form-group skill usable: level at least {@code max(1, unlockLevel)}. When the skill is
+     * absent or its max is too low, it is registered first through {@link DmzSkillUtil#ensureRegistered}
+     * with the best-known max (live, skills.json, else 10; never below the level). A healthy max is
+     * never lowered: DMZ's register overwrites the max of an existing skill, so it only runs when the
+     * max is too low. The level is then set and read back. Package-visible for the dev probe.
+     */
+    static SkillFix ensureSkill(Skills skills, String skill, int unlockLevel) {
+        if (skills == null || skill == null || skill.isBlank()) {
+            return SkillFix.FAILED;
         }
+        int need = Math.max(1, unlockLevel);
+        try {
+            boolean had = skills.hasSkill(skill);
+            if (had && skills.getMaxSkillLevel(skill) >= need && skills.getSkillLevel(skill) >= need) {
+                return SkillFix.READY;
+            }
+            if (!had || skills.getMaxSkillLevel(skill) < need) {
+                int max = Math.max(need, DmzSkillUtil.maxLevel(skills, skill, 10));
+                DmzSkillUtil.ensureRegistered(skills, skill, max);
+            }
+            if (skills.getSkillLevel(skill) < need) {
+                DmzSkillUtil.setLevel(skills, skill, need);
+            }
+            if (!skills.hasSkill(skill) || skills.getSkillLevel(skill) < need) {
+                return SkillFix.FAILED;
+            }
+            return had ? SkillFix.REPAIRED : SkillFix.UNLOCKED;
+        } catch (Throwable t) {
+            return SkillFix.FAILED;
+        }
+    }
+
+    /** Player-facing name of a form-group skill. */
+    static String skillLabel(String skill) {
+        String id = skill == null ? "" : skill.toLowerCase(Locale.ROOT);
+        return switch (id) {
+            case "superforms" -> "Super Forms";
+            case "legendaryforms" -> "Legendary Forms";
+            case "godforms" -> "God Forms";
+            default -> DmzSkillUtil.prettySkillLabel(skill);
+        };
     }
 
     /** Same skill id {@code TransformationReward.grantFormSkill} writes. */
