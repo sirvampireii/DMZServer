@@ -1,38 +1,22 @@
 package com.dbzlegacy.adaptivedifficulty.progression;
 
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Popo's Time Chamber training-wave TP multiplier (4.7.24, config {@code chamberWaveTpMultiplier},
- * default 0.1). Applied to Ultra's per-foe wave TP before the player's own TP multipliers; Whis's
- * God Trial and every other TP path are untouched. A scaled amount never drops below 1 TP per foe.
- * Called from the dmzultra chamber mixins.
+ * Chamber-wave TP multiplier (config {@code chamberWaveTpMultiplier}, default 0.1). Applied to
+ * Ultra's per-foe wave TP before the player's own TP multipliers, on every chamber run: Popo's Time
+ * Chamber training waves (4.7.24) and Whis's God Trial (4.7.26). Every other TP path is untouched.
+ * A scaled amount never drops below 1 TP per foe. Called from the dmzultra chamber mixins.
  */
 public final class ChamberWaveTp {
-    /** Player UUID -> whether their current (latest started) chamber run is Whis's God Trial. */
-    private static final Map<UUID, Boolean> TRIAL_RUN = new ConcurrentHashMap<>();
-
     private ChamberWaveTp() {}
 
-    public static void recordRun(UUID player, boolean trial) {
-        if (player != null) {
-            TRIAL_RUN.put(player, trial);
-        }
-    }
-
-    /** Per-foe wave TP for this player's run: scaled on training runs, unchanged on the trial. */
-    public static long scaleWaveTp(UUID player, long perFoe) {
-        Boolean trial = player == null ? null : TRIAL_RUN.get(player);
-        if (trial == null || trial) {
-            return perFoe;
-        }
+    /** Per-foe wave TP for a chamber run (training or trial), scaled by the multiplier. */
+    public static long scaleWaveTp(long perFoe) {
         return scale(perFoe);
     }
 
-    /** Popo's menu preview (TP per foe at each power step), scaled like the payout. */
+    /** Popo's and Whis's menu preview (TP per foe at each power step), scaled like the payout. */
     public static long[] scalePreview(long[] perFoe) {
         if (perFoe == null) {
             return null;

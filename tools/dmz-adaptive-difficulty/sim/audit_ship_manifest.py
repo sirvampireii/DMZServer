@@ -1868,33 +1868,49 @@ def main() -> int:
           and "Math.max(0.0, Math.min(1.0, cfg.chamberWaveTpMultiplier))" in cw_cfg
           and '"chamberWaveTpMultiplier"' in read(SRC / "config/ConfigRegistry.java")
           and "chamberWaveTpMultiplier=" in read(SRC / "config/editor/ConfigFieldHelp.java"))
-    check("mixin scales the perFoe call in step only; trial recorded from Config at start",
+    check("mixin scales the perFoe call in step only",
           'method = "step"' in cw_mx and "GodChamberWaves;perFoe(JIZ)J" in cw_mx
-          and 'method = "start"' in cw_mx and "config.trial()" in cw_mx
-          and "!GodChamberWaves.running(player)" in cw_mx
           and "payOut" not in cw_mx.split("*/", 1)[-1] and "spawnWave" not in cw_mx and "spec(" not in cw_mx)
-    check("trial runs and unknown runs pay the full amount; floor of 1 TP per foe",
-          "if (trial == null || trial) {\n            return perFoe;" in cw_scale
-          and "Math.max(1L, Math.round(perFoe * mult))" in cw_s)
-    check("Popo's menu TP per foe scaled; Whis's screen untouched",
-          'targets = "com.dmzultra.divine.TimeChamber"' in cw_pv and 'method = "sendState"' in cw_pv
-          and "ChamberWaveTp.scalePreview" in cw_pv and "GodChamber\"" not in cw_pv)
+    check("floor of 1 TP per foe", "Math.max(1L, Math.round(perFoe * mult))" in cw_s)
     check("both mixins listed and gated on the Ultra chamber classes",
           '"dmzultra.DmzultraChamberWaveTpMixin"' in cw_json and '"dmzultra.DmzultraTimeChamberTpPreviewMixin"' in cw_json
           and "dmzultraChamberPresent()" in cw_plugin
           and 'getResource("com/dmzultra/divine/GodChamberWaves.class")' in cw_plugin)
     check("no other TP path reads the chamber multiplier",
           {p.name for p in SRC.rglob("*.java") if "ChamberWaveTp." in read(p)}
-          == {"DmzultraChamberWaveTpMixin.java", "DmzultraTimeChamberTpPreviewMixin.java"})
+          == {"DmzultraChamberWaveTpMixin.java", "DmzultraTimeChamberTpPreviewMixin.java",
+              "DmzultraGodChamberTpPreviewMixin.java"})
 
-    def _cw(base, mult=0.1, trial=False):  # mirror of ChamberWaveTp
-        if trial or mult >= 1.0 or base <= 0:
+    def _cw(base, mult=0.1, trial=False):  # mirror of ChamberWaveTp (trial scaled since 4.7.26)
+        if mult >= 1.0 or base <= 0:
             return base
         return max(1, int(base * mult + 0.5))
 
-    check("sim: 1200 -> 120 on training, 1200 on the trial, 4 -> 1 (floor), 0.0 -> 1",
-          _cw(1200) == 120 and _cw(1200, trial=True) == 1200 and _cw(4) == 1 and _cw(50, 0.0) == 1
-          and _cw(1200, 1.0) == 1200)
+    check("sim: 1200 -> 120, 4 -> 1 (floor), 0.0 -> 1, 1.0 -> unchanged",
+          _cw(1200) == 120 and _cw(4) == 1 and _cw(50, 0.0) == 1 and _cw(1200, 1.0) == 1200)
+
+    print("\n--- § chamber wave tp trial 4.7.26 ---")
+    check("manifest chamber-wave-tp-trial row", "chamber-wave-tp-trial" in manifest)
+    check("every chamber run scaled: no trial record, no start inject, no early return",
+          "return scale(perFoe);" in cw_scale and "TRIAL_RUN" not in cw and "recordRun" not in cw
+          and 'method = "start"' not in cw_mx and "@Inject" not in cw_mx
+          and "ChamberWaveTp.scaleWaveTp(base)" in cw_mx)
+    check("god-ki award, foe sizing and wave spawns untouched by the wave mixin",
+          "GodKi" not in cw_mx.split("*/", 1)[-1] and "godKi" not in cw_mx.split("*/", 1)[-1]
+          and "spawnWave" not in cw_mx and "spec(" not in cw_mx and "buildTotalMultiplier" not in cw)
+    cw_gpv = read(SRC / "mixin/dmzultra/DmzultraGodChamberTpPreviewMixin.java")
+    check("Popo's and Whis's menu TP per foe both scaled like the payout",
+          'targets = "com.dmzultra.divine.TimeChamber"' in cw_pv and "ChamberWaveTp.scalePreview" in cw_pv
+          and 'targets = "com.dmzultra.divine.GodChamber"' in cw_gpv and 'method = "sendState"' in cw_gpv
+          and "GodChamberWaves;tpPerFoe(" in cw_gpv and "ChamberWaveTp.scalePreview" in cw_gpv
+          and '"dmzultra.DmzultraGodChamberTpPreviewMixin"' in cw_json
+          and 'endsWith("DmzultraGodChamberTpPreviewMixin")' in cw_plugin
+          and 'getResource("com/dmzultra/divine/GodChamber.class")' in cw_plugin)
+    check("config help no longer says the God Trial is unaffected",
+          "God Trial is not affected" not in read(SRC / "config/editor/ConfigFieldHelp.java")
+          and "God Trial is never scaled" not in cw_cfg)
+    check("sim: a trial foe paying 1200 now pays 120, the same as a training foe",
+          _cw(1200, trial=True) == 120 == _cw(1200))
 
     print("\n--- § revive cooldown and all 4.7.23 ---")
     rv = read(SRC / "command/LmRevive.java")

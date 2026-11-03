@@ -30,6 +30,7 @@
     "dmzultra.DmzultraNemesisSpawnGateMixin",
     "dmzultra.DmzultraChamberWaveTpMixin",
     "dmzultra.DmzultraTimeChamberTpPreviewMixin",
+    "dmzultra.DmzultraGodChamberTpPreviewMixin",
     "simplymore.VipersCallUnendingVenomMixin",
     "FusionBonusReadGateMixin",
     "StrikeTechniqueReadGateMixin",

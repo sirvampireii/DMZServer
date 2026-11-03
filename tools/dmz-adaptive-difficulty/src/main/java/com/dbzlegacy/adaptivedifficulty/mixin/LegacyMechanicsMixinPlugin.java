@@ -63,7 +63,8 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
             return dedicatedServer() && dmzultraRivalPresent();
         }
         if (mixinClassName != null && (mixinClassName.endsWith("DmzultraChamberWaveTpMixin")
-                || mixinClassName.endsWith("DmzultraTimeChamberTpPreviewMixin"))) {
+                || mixinClassName.endsWith("DmzultraTimeChamberTpPreviewMixin")
+                || mixinClassName.endsWith("DmzultraGodChamberTpPreviewMixin"))) {
             return dedicatedServer() && dmzultraChamberPresent();
         }
         return dedicatedServer();
@@ -165,15 +166,17 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
     }
 
     /**
-     * dmzultra chamber waves - the chamber-wave TP mixins target {@code GodChamberWaves} and
-     * {@code TimeChamber}. Resource lookup only, so the targets are not loaded early.
+     * dmzultra chamber waves - the chamber-wave TP mixins target {@code GodChamberWaves},
+     * {@code TimeChamber} and {@code GodChamber}. Resource lookup only, so the targets are not loaded
+     * early.
      */
     private static boolean dmzultraChamberPresent() {
         try {
             ClassLoader loader = LegacyMechanicsMixinPlugin.class.getClassLoader();
             return loader != null
                     && loader.getResource("com/dmzultra/divine/GodChamberWaves.class") != null
-                    && loader.getResource("com/dmzultra/divine/TimeChamber.class") != null;
+                    && loader.getResource("com/dmzultra/divine/TimeChamber.class") != null
+                    && loader.getResource("com/dmzultra/divine/GodChamber.class") != null;
         } catch (Throwable ignored) {
             return false;
         }

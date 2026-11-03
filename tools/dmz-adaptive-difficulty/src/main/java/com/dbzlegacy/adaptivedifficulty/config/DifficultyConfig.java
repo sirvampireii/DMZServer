@@ -252,9 +252,9 @@ public final class DifficultyConfig {
     public boolean enableGlobalTpBoost = true;
     public boolean enableGlobalMasteryBoost = true;
     /**
-     * Share of DMZUltra's per-foe TP that Popo's Time Chamber training waves pay (0.0-1.0, default
-     * 0.1). Applied before the player's own TP multipliers; Whis's God Trial is never scaled, and a
-     * foe always pays at least 1 TP.
+     * Share of DMZUltra's per-foe TP that chamber waves pay (0.0-1.0, default 0.1): Popo's Time
+     * Chamber training waves and Whis's God Trial (4.7.26). Applied before the player's own TP
+     * multipliers; a foe always pays at least 1 TP.
      */
     public double chamberWaveTpMultiplier = 0.1;
     public boolean enableBioAndroid = true;
