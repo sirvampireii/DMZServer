@@ -102,6 +102,21 @@ public final class ChamberWaveCooldown {
         return true;
     }
 
+    /**
+     * Endless waves are off (4.7.29): Ultra's {@code Config.clamp()} turns a wave count of 0 or less
+     * into an endless run, so such a start is refused with an action-bar line. Applies to training
+     * and trial alike; Angel Drills and sanctuary Demands ({@code drill > 0}) set their own counts and
+     * are exempt.
+     */
+    public static boolean refuseEndless(ServerPlayer player, int waves, int drill) {
+        if (player == null || drill > 0 || waves > 0) {
+            return false;
+        }
+        player.m_5661_(Component.m_237113_("Endless waves are disabled. Pick a number of waves.")
+                .m_130940_(ChatFormatting.YELLOW), true);
+        return true;
+    }
+
     /** "1:05", "0:09" (m:ss), rounded up to the next second. */
     static String formatLeft(long millis) {
         long total = Math.max(1L, (millis + 999L) / 1000L);

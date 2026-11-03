@@ -5,6 +5,7 @@ import com.dbzlegacy.adaptivedifficulty.config.editor.ConfigEditor;
 import com.dbzlegacy.adaptivedifficulty.net.gui.GuiOpenPacket;
 import com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork;
 import com.dbzlegacy.adaptivedifficulty.progression.form.FirstSuperformChoice;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.KiMasteryTrack;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.MasteryWallet;
 import com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings;
 import com.dbzlegacy.adaptivedifficulty.sparring.SparStore;
@@ -1162,9 +1163,10 @@ public final class UltraScreenSelfTest {
     }
 
     /**
-     * God Ki Mastery (4.7.21): always the first wallet line (a real godkienhancement line is dropped),
-     * 100 mastery per point, one level = 10 points = 1,000 mastery, 5 levels, and its Level up runs
-     * through a confirm page.
+     * God Ki Mastery (4.7.21): always the first wallet line, 100 mastery per point, one level = 10
+     * points = 1,000 mastery, 5 levels, and its Level up runs through a confirm page. Since 4.7.29 it
+     * feeds the godki stack form (token k:godki), Divine Ki Mastery (k:divineki) follows it when open,
+     * and real godkienhancement / godki lines are dropped.
      */
     private static void checkGodKiWallet(List<String> broken, List<MasteryWallet.Line> lines) {
         MasteryWallet.Line gk = MasteryWallet.godKiLine(0, 5, 1000);
@@ -1178,19 +1180,35 @@ public final class UltraScreenSelfTest {
         List<MasteryWallet.Line> withReal = new ArrayList<>(lines);
         withReal.add(new MasteryWallet.Line("godkienhancement", "God Ki", true, "",
                 List.of(new MasteryWallet.Form("enhancewithgodki", "God Ki", 0, 100))));
-        List<MasteryWallet.Line> all = MasteryWallet.withGodKi(withReal, gk);
-        long godLines = all.stream().filter(l -> "godkienhancement".equals(l.group)).count();
-        if (!all.get(0).godKi || godLines != 1 || all.size() != lines.size() + 1) {
-            broken.add("god ki wallet: God Ki Mastery should be the first and only godkienhancement line");
+        withReal.add(new MasteryWallet.Line("godki", "Godki", true, "",
+                List.of(new MasteryWallet.Form("godki", "Godki", 0, 5000))));
+        MasteryWallet.Line dk = MasteryWallet.kiLine(KiMasteryTrack.DIVINE_KI, 0, 5, 1000);
+        List<MasteryWallet.Line> all = MasteryWallet.withGodKi(withReal, List.of(gk, dk));
+        long realLines = all.stream().filter(l -> !l.godKi
+                && ("godkienhancement".equals(l.group) || "godki".equals(l.group))).count();
+        if (!all.get(0).godKi || all.get(0).track != KiMasteryTrack.GOD_KI || all.get(1).track != KiMasteryTrack.DIVINE_KI
+                || realLines != 0 || all.size() != lines.size() + 2
+                || !"k:godki".equals(gk.token()) || !"k:divineki".equals(dk.token())
+                || !"godki".equals(gk.group) || !"godki".equals(form.name) || !"divineki".equals(dk.forms.get(0).name)) {
+            broken.add("god ki wallet: God Ki then Divine Ki Mastery should lead, feed godki:godki / godki:divineki,"
+                    + " and real godkienhancement / godki lines should be dropped");
         }
         Map<String, String> pick = buttonIds(UltraPrestigeScreens.linesSpec(all, 0, 0).toPacket());
-        if (!"God Ki Level 0/5".equals(pick.get("page:mw_form:s:godkienhancement:enhancewithgodki"))) {
-            broken.add("god ki wallet: line list should open God Ki Level 0/5 directly, got " + pick);
+        if (!"God Ki Level 0/5".equals(pick.get("page:mw_form:k:godki:godki"))
+                || !"Divine Ki Level 0/5".equals(pick.get("page:mw_form:k:divineki:divineki"))) {
+            broken.add("god ki wallet: line list should open God Ki / Divine Ki Level 0/5 directly, got " + pick);
+        }
+        GuiOpenPacket dpage = UltraPrestigeScreens.formSpec(dk, dk.forms.get(0), 37, 0).toPacket();
+        if (validatePacket(dpage, "prestige") != null
+                || !buttonIds(dpage).containsKey("page:ask:mastery_apply:k:divineki:divineki:10")
+                || !shownLines(dpage).contains("Divine Ki Mastery") || shownLines(dpage).contains("God forms")) {
+            broken.add("god ki wallet: Divine Ki page should show its own level and a 10-point Level up, got "
+                    + buttonIds(dpage));
         }
         GuiOpenPacket page = UltraPrestigeScreens.formSpec(gk, form, 37, 0).toPacket();
         String err = validatePacket(page, "prestige");
         Map<String, String> ids = buttonIds(page);
-        if (err != null || !ids.containsKey("page:ask:mastery_apply:s:godkienhancement:enhancewithgodki:10")
+        if (err != null || !ids.containsKey("page:ask:mastery_apply:k:godki:godki:10")
                 || !shownLines(page).contains("Level 0/5")) {
             broken.add("god ki wallet: form page should show Level 0/5 and a 10-point Level up"
                     + (err == null ? "" : " (" + err + ")") + ", got " + ids);
@@ -1198,7 +1216,7 @@ public final class UltraScreenSelfTest {
         GuiOpenPacket ask = UltraPrestigeScreens.masteryApplyAskSpec(gk, form, 10, 37, true).toPacket();
         Map<String, String> askIds = buttonIds(ask);
         if (validatePacket(ask, "prestige") != null
-                || !askIds.containsKey("do:mastery_apply:s:godkienhancement:enhancewithgodki:10")
+                || !askIds.containsKey("do:mastery_apply:k:godki:godki:10")
                 || !shownLines(ask).contains("Level 0 -> 1 of 5") || !shownLines(ask).contains("0 -> 1,000")
                 || !shownLines(ask).contains("37 -> 27")) {
             broken.add("god ki wallet: level confirm should show the level, mastery, points and Confirm, got " + askIds);

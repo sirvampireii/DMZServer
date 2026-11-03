@@ -1100,7 +1100,7 @@ def main() -> int:
           and "isSkillAllowedForRace(TransformationsHelper.getSkillNameForType(type), race)" in mw_lines
           and "isSkillAllowedForRace(group, race)" in mw_lines
           and "getSelectable" not in mw.split("*/", 2)[-1]
-          and "return withGodKi(ordered(raw), godKiLine(player));" in mw_lines)
+          and "return withGodKi(ordered(raw), kiLines(player));" in mw_lines)
     check("radial order and hidden empty lines; names from DMZ lang",
           "!l.forms.isEmpty()" in mw and "comparingInt(l -> l.kind)" in mw
           and "String.CASE_INSENSITIVE_ORDER" in mw
@@ -1853,6 +1853,81 @@ def main() -> int:
           _pick(saiyan, "GOD") == "ssg" and _pick(saiyan, "SUPER") == "ssj1"
           and _pick(saiyan, "LEGENDARY") == "lssj" and _pick(saiyan[:3], "GOD") is None)
 
+    print("\n--- § chamber endless waves off 4.7.29 ---")
+    ew_mx = read(SRC / "mixin/dmzultra/DmzultraChamberWaveCooldownMixin.java")
+    ew = read(SRC / "progression/ChamberWaveCooldown.java")
+    ew_body = ew.split("public static boolean refuseEndless(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest chamber-endless-waves-off row", "chamber-endless-waves-off" in manifest)
+    check("same start HEAD hook refuses waves <= 0 before the cooldown; drills / demands exempt",
+          "ChamberWaveCooldown.refuseEndless(player, config.waves(), config.drill())" in ew_mx
+          and ew_mx.index("refuseEndless(") < ew_mx.index("refuseStart(")
+          and "drill > 0 || waves > 0" in ew_body)
+    check("action-bar refusal, no op exemption, no packet or screen",
+          '"Endless waves are disabled. Pick a number of waves."' in ew_body and ", true);" in ew_body
+          and "isOp" not in ew_body and "Packet" not in ew_body)
+
+    def _endless(waves, drill):  # mirror of refuseEndless
+        return not (drill > 0 or waves > 0)
+
+    check("sim: waves 0 / -1 refused, 5 allowed, drill with 0 allowed",
+          _endless(0, 0) and _endless(-1, 0) and not _endless(5, 0) and not _endless(0, 3))
+
+    print("\n--- § wallet god ki / divine ki 4.7.29 ---")
+    kt = read(SRC / "progression/shop/KiMasteryTrack.java")
+    kt_mw = read(SRC / "progression/shop/MasteryWallet.java")
+    kt_gk = read(SRC / "progression/shop/GodKiEnhancementShop.java")
+    kt_pp = read(SRC / "progression/shop/PrestigePointsSystem.java")
+    kt_scr = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
+    kt_reapply = kt.split("public void reapply(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    kt_open = kt.split("public static boolean divineKiOpen(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    kt_has = kt_gk.split("public static boolean hasEnhancement(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    kt_lines = kt_mw.split("public static List<Line> kiLines(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    kt_apply = kt_mw.split("private static String applyGodKi(", 1)[-1]
+    check("manifest wallet-godki-divineki row", "wallet-godki-divineki" in manifest)
+    check("God Ki line feeds godki:godki on its own key; Divine Ki feeds godki:divineki on a new key",
+          'GOD_KI("pp_godki_form", "godki", "God Ki")' in kt and 'DIVINE_KI("pp_divineki", "divineki", "Divine Ki")' in kt
+          and 'public static final String GROUP = "godki";' in kt
+          and "new Line(KiMasteryTrack.GROUP, track.label(), true" in kt_mw)
+    check("old pp_godki_enh levels not read, converted or deleted by the wallet",
+          "pp_godki_enh" not in kt.split("*/", 1)[-1] and "GodKiEnhancementShop.invested(" not in kt_mw
+          and "levelUpFromWallet" not in kt_mw and "storedRemove" not in kt)
+    check("same scale and cost: godKi shop cap / mastery per level, 10 points a level",
+          "return Math.max(0, GodKiEnhancementShop.maxInvestments());" in kt
+          and "return Math.max(1, GodKiEnhancementShop.masteryPerPoint());" in kt
+          and "points != GODKI_POINTS_PER_LEVEL" in kt_apply)
+    check("level raises stack mastery to level x per level, never lowers, cap at least the level",
+          "masteries.getMastery(GROUP, form) >= expected" in kt_reapply
+          and "masteries.setMastery(GROUP, form, expected, Math.max(expected, configCap()));" in kt_reapply
+          and "character.getStackFormMasteries()" in kt)
+    check("Divine Ki hidden until God Ki is mastered (level cap or full godki mastery)",
+          "GOD_KI.level(player) >= max" in kt_open
+          and "GOD_KI.formMastery(player) >= (double) max * masteryPerLevel()" in kt_open
+          and "if (KiMasteryTrack.divineKiOpen(player)) {" in kt_lines
+          and kt_lines.index("GOD_KI") < kt_lines.index("DIVINE_KI"))
+    check("level lines have their own tokens; real godkienhancement and godki lines dropped",
+          "return LEVEL_TOKEN_PREFIX + track.form;" in kt_mw
+          and "KiMasteryTrack.GROUP.equalsIgnoreCase(l.group)" in kt_mw)
+    check("God forms gate: a wallet God Ki level keeps hasEnhancement true",
+          kt_has.index("KiMasteryTrack.GOD_KI.level(player) >= 1") < kt_has.index("DmzSkillUtil.skills(player)"))
+    check("login / respawn top-up covers both tracks",
+          "KiMasteryTrack.reapplyAll(player);" in kt_pp and "for (KiMasteryTrack track : values())" in kt)
+    check("screens read the line's own title; Divine Ki page has no God forms line",
+          'line.kiName() + " Level "' in kt_scr and '"Confirm " + line.label + " level"' in kt_scr
+          and 'boolean god = line.track == KiMasteryTrack.GOD_KI;' in kt_scr)
+    check("trial, grantGodKi and fighting gain untouched by the tracks",
+          all(s not in kt.split("*/", 1)[-1] for s in ("grantGodKi", "GodChamber", "masteryPerHit", "AngelPath")))
+
+    def _kt(level, current, per=1000):  # mirror of KiMasteryTrack.reapply
+        want = level * per
+        return current if level <= 0 or current >= want else want
+
+    def _open(god_level, god_mastery, cap=5, per=1000):  # mirror of divineKiOpen
+        return cap > 0 and (god_level >= cap or god_mastery >= cap * per)
+
+    check("sim: level 1 from 40 -> 1000, level 2 from 3500 stays, level 0 untouched; Divine opens at 5/5 or 5000",
+          _kt(1, 40) == 1000 and _kt(2, 3500) == 3500 and _kt(0, 12) == 12
+          and _open(5, 0) and _open(0, 5000) and not _open(4, 4999))
+
     print("\n--- § chamber wave cooldown 4.7.28 ---")
     wc_mx = read(SRC / "mixin/dmzultra/DmzultraChamberWaveCooldownMixin.java")
     wc = read(SRC / "progression/ChamberWaveCooldown.java")
@@ -2082,8 +2157,8 @@ def main() -> int:
           ro_up.index("refundEffectsInvestment(player);") < ro_up.index("storeLevel(player, next);")
           and ro_admin.index("refundEffectsInvestment(player);") < ro_admin.index("storeLevel(player, clamped);")
           and ro_apply.index("GodKiEnhancementShop.refundEffectsInvestment(player);")
-          < ro_apply.index("int level = GodKiEnhancementShop.invested(player);")
-          < ro_apply.index("GodKiEnhancementShop.levelUpFromWallet(player)"))
+          < ro_apply.index("int level = track.level(player);")
+          < ro_apply.index("int next = track.levelUp(player);"))
     check("refund waits for the character before writing anything",
           ro_refund.index("character(player) == null") < ro_refund.index("storedPutBool(player, KEY_REFUND_DONE, true)"))
     check("login trigger: onLogin -> refundOnLogin, now plus retries at 20 / 100 / 300 ticks",
@@ -2160,12 +2235,13 @@ def main() -> int:
     check("God Ki line: always listed first, real godkienhancement line dropped, own rate (masteryPerPoint / 10)",
           "public static final int GODKI_POINTS_PER_LEVEL = 10;" in gw_mw
           and "return Math.max(1, masteryPerLevel / GODKI_POINTS_PER_LEVEL);" in gw_mw
-          and "out.add(godKi);" in gw_mw and "ENHANCEMENT_GROUP.equalsIgnoreCase(l.group)" in gw_mw
-          and gw_mw.count("return withGodKi(") == 3 and "MASTERY_PER_POINT = 50;" in gw_mw)
-    check("God Ki apply: exactly 10 points a level, cap, on-sale, balance; level via pp_godki_enh + reapply()",
+          and "List<Line> out = new ArrayList<>(levelLines);" in gw_mw
+          and "ENHANCEMENT_GROUP.equalsIgnoreCase(l.group)" in gw_mw
+          and gw_mw.count("return withGodKi(") == 4 and "MASTERY_PER_POINT = 50;" in gw_mw)
+    check("God Ki apply: exactly 10 points a level, cap, on-sale, balance; level on its track (4.7.29)",
           "points != GODKI_POINTS_PER_LEVEL" in gw_apply and "level >= max" in gw_apply
           and "PrestigeShopConfig.get().godKi.enabled" in gw_apply and "balance < points" in gw_apply
-          and "GodKiEnhancementShop.levelUpFromWallet(player)" in gw_apply
+          and "int next = track.levelUp(player);" in gw_apply
           and 'KEY_INVESTED = "pp_godki_enh";' in gw_gk
           and "storeLevel(player, next);\n        reapply(player);" in gw_gk)
     check("Effects refund: marker first in the same record, n favor back, level 0, God Ki wiped, flushed",

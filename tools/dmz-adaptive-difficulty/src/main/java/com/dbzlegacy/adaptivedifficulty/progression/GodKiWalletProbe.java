@@ -3,6 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.progression;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.GodKiEnhancementShop;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.KiMasteryTrack;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.MasteryWallet;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem;
 import com.mojang.authlib.GameProfile;
@@ -39,7 +40,8 @@ public final class GodKiWalletProbe {
             GodKiEnhancementShop.reapply(fp);
             log("after second reapply (no second refund)", fp);
             LmPlayerStore.putLong(fp, MasteryWallet.KEY, 25L);
-            String token = "s:" + GodKiEnhancementShop.ENHANCEMENT_GROUP + ":" + GodKiEnhancementShop.ENHANCEMENT_FORM;
+            // 4.7.29: the wallet's God Ki line feeds the godki stack form (its own level track).
+            String token = MasteryWallet.godKiLine(fp).token() + ":" + KiMasteryTrack.GOD_KI.form;
             reply("apply 5 points", MasteryWallet.apply(fp, token + ":5"));
             log("after 5-point apply", fp);
             reply("apply 10 points", MasteryWallet.apply(fp, token + ":10"));

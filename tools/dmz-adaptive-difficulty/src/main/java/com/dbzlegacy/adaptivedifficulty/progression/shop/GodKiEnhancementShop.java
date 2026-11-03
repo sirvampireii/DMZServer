@@ -110,11 +110,16 @@ public final class GodKiEnhancementShop {
 
     /**
      * The enhancement exists on the character: the skill is present or any
-     * mastery record is — presence even when unobtainable in normal play.
+     * mastery record is — presence even when unobtainable in normal play. A
+     * Mastery wallet God Ki level ({@link KiMasteryTrack#GOD_KI}, 4.7.29) counts
+     * too, so God forms stay open for players who master God Ki in the wallet.
      */
     public static boolean hasEnhancement(ServerPlayer player) {
         if (player == null) {
             return false;
+        }
+        if (KiMasteryTrack.GOD_KI.level(player) >= 1) {
+            return true;
         }
         try {
             Skills skills = DmzSkillUtil.skills(player);

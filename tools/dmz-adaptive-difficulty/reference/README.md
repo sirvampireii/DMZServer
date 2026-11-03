@@ -419,6 +419,13 @@ one-time `refundEffectsInvestment`); `ProgressionGuiApi` (`unultimate` only says
 Remove Ultimate). `PrestigeCustomShop$PotionWant`, `$StatWant` and `PrestigePointsSystem$SkillOffer`
 differ only in line-number tables. The other 14 are unchanged.
 
+## Re-baseline (2026-11-02, 4.7.29 wallet God Ki / Divine Ki lines)
+
+`AdaptiveDifficultyMod` (version string), `UltraPrestigeScreens` (level-line pages and confirm read the
+line's own title: God Ki / Divine Ki), `GodKiEnhancementShop` (`hasEnhancement` also true at wallet God
+Ki level 1+) and `PrestigePointsSystem` (`reapplyAllShopPurchases` calls `KiMasteryTrack.reapplyAll`)
+re-baselined for `LegacyMechanics-4.7.29.jar`; javap diffs checked. The other 21 are unchanged.
+
 ## Re-baseline (2026-11-02, 4.7.28 chamber wave cooldown)
 
 `AdaptiveDifficultyMod` (version string), `ConfigRegistry` (new `chamberWaveCooldownSeconds` key in the
