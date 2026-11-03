@@ -1853,6 +1853,52 @@ def main() -> int:
           _pick(saiyan, "GOD") == "ssg" and _pick(saiyan, "SUPER") == "ssj1"
           and _pick(saiyan, "LEGENDARY") == "lssj" and _pick(saiyan[:3], "GOD") is None)
 
+    print("\n--- § grant first skill usable 4.7.30 ---")
+    gs = read(SRC / "progression/form/FirstSuperformMastery.java")
+    gs_ens = gs.split("static SkillFix ensureSkill(Skills skills, String skill, int unlockLevel) {", 1)[-1].split("\n    }\n", 1)[0]
+    gs_grant = gs.split("public static Outcome grant(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest grant-first-skill-usable row", "grant-first-skill-usable" in manifest)
+    check("ensureSkill: no raw setSkillLevel; register usable max only when absent / too low; level >= 1; read back",
+          "skills.setSkillLevel(" not in gs and "int need = Math.max(1, unlockLevel);" in gs_ens
+          and "if (!had || skills.getMaxSkillLevel(skill) < need) {" in gs_ens
+          and "Math.max(need, DmzSkillUtil.maxLevel(skills, skill, 10))" in gs_ens
+          and "DmzSkillUtil.ensureRegistered(skills, skill, max);" in gs_ens
+          and "DmzSkillUtil.setLevel(skills, skill, need);" in gs_ens
+          and "skills.getSkillLevel(skill) < need) {\n                return SkillFix.FAILED;" in gs_ens)
+    check("ensureRegistered falls back to 10 when no max is configured",
+          "if (want <= 0) {\n                want = 10;" in read(SRC / "progression/DmzSkillUtil.java"))
+    check("grant: skill first, failure names the skill and writes no mastery; notes on both success branches",
+          gs_grant.index("ensureSkill(data.getSkills(), skill, chosen.unlockLevel)")
+          < gs_grant.index("if (fix == SkillFix.FAILED) {")
+          < gs_grant.index("masteries.getMastery(chosen.group, chosen.form)")
+          < gs_grant.index("masteries.setMastery(")
+          and '"Could not unlock the " + skillLabel(skill) + " skill for "' in gs_grant
+          and "Ask staff to re-grant after a relog." in gs_grant
+          and gs_grant.count("+ skillNote);") == 2 and "was broken and has been" in gs_grant)
+    check("player text names skills, not ids",
+          'case "superforms" -> "Super Forms";' in gs and 'case "godforms" -> "God Forms";' in gs
+          and 'case "legendaryforms" -> "Legendary Forms";' in gs)
+    check("probe registered and gated",
+          "FormSkillGrantProbe.runIfRequested(event.getServer());" in read(SRC / "event/DifficultyEvents.java")
+          and 'Boolean.getBoolean("lm.probe.formSkillGrant")' in read(SRC / "progression/form/FormSkillGrantProbe.java"))
+
+    def _fix(has, level, mx, unlock, cfg_max=0, sticks=True):  # mirror of ensureSkill on a model skill
+        need = max(1, unlock)
+        if has and mx >= need and level >= need:
+            return "READY", level, mx
+        if not has or mx < need:
+            mx = max(need, mx if mx > 0 else (cfg_max if cfg_max > 0 else 10))
+        if sticks and level < need:
+            level = min(need, mx)
+        if not sticks or level < need:
+            return "FAILED", level, mx
+        return ("REPAIRED" if has else "UNLOCKED"), level, mx
+
+    check("sim: absent -> UNLOCKED 1/10; 0/0 -> REPAIRED 1/10; healthy 3/8 READY; stuck -> FAILED",
+          _fix(False, 0, 0, 1) == ("UNLOCKED", 1, 10) and _fix(True, 0, 0, 1) == ("REPAIRED", 1, 10)
+          and _fix(True, 3, 8, 1) == ("READY", 3, 8) and _fix(True, 0, 0, 1, sticks=False)[0] == "FAILED"
+          and _fix(False, 0, 0, 0)[1] == 1)
+
     print("\n--- § chamber endless waves off 4.7.29 ---")
     ew_mx = read(SRC / "mixin/dmzultra/DmzultraChamberWaveCooldownMixin.java")
     ew = read(SRC / "progression/ChamberWaveCooldown.java")
