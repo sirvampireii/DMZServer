@@ -3591,12 +3591,13 @@ def main() -> int:
         / "progression/shop/MasteryWallet.java"
     )
     check(
-        "God Ki: 1000 mastery per level, max 5 levels, bought in the Mastery wallet (4.7.21)",
+        "God Ki: 1000 mastery per level, max 5 levels, bought in the Mastery wallet (4.7.21; godki form 4.7.29)",
         "MASTERY_PER_POINT = 1000" in godki_shop
         and "MAX_INVESTMENTS = 5" in godki_shop
         and "GuiClickConfirm" not in godki_shop
         and "static int levelUpFromWallet(ServerPlayer player)" in godki_shop
-        and '"prestige_points", "apply_godki_mastery"' in godki_wallet,
+        and 'KiMasteryTrack.GOD_KI ? "apply_godki_mastery" : "apply_divineki_mastery"' in godki_wallet
+        and "int next = track.levelUp(player);" in godki_wallet,
     )
     check(
         "God Ki shop: login top-up raises mastery to invested x 1000, never lowers",

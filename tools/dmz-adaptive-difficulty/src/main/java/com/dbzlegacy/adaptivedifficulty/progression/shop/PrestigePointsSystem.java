@@ -1312,6 +1312,11 @@ public final class PrestigePointsSystem {
             GodKiEnhancementShop.reapply(player);
         } catch (Throwable ignored) {
         }
+        // Mastery wallet God Ki / Divine Ki levels: top the godki stack forms up (4.7.29).
+        try {
+            KiMasteryTrack.reapplyAll(player);
+        } catch (Throwable ignored) {
+        }
         // Force a sync so clients see the level cap immediately after respawn.
         try {
             DmzSkillUtil.sync(player);

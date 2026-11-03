@@ -1,6 +1,7 @@
 package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
 import com.dbzlegacy.adaptivedifficulty.gui.ProgressionGuiApi;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.KiMasteryTrack;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.MasteryWallet;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCustomShop;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem;
@@ -396,7 +397,7 @@ public final class UltraPrestigeScreens {
             for (MasteryWallet.Line line : UltraPickHelper.pageSlice(lines, MASTERY_PICKS_PER_PAGE, pg)) {
                 if (line.godKi && !line.forms.isEmpty()) {
                     MasteryWallet.Form gk = line.forms.get(0);
-                    String gkRaw = "God Ki Level " + MasteryWallet.godKiLevel(gk) + "/"
+                    String gkRaw = line.kiName() + " Level " + MasteryWallet.godKiLevel(gk) + "/"
                             + MasteryWallet.godKiMaxLevel(gk);
                     if (!UltraStyle.fitsButton(gkRaw)) {
                         gkRaw = line.label;
@@ -515,8 +516,8 @@ public final class UltraPrestigeScreens {
     }
 
     /**
-     * God Ki Mastery page: level, God Ki mastery, and one Level up button (exactly 10 points). Shown
-     * to every player; Back returns to the line list.
+     * God Ki / Divine Ki Mastery page: level, mastery, and one Level up button (exactly 10 points).
+     * God Ki is shown to every player, Divine Ki once God Ki is mastered; Back returns to the line list.
      */
     static UltraScreenSpec godKiFormSpec(MasteryWallet.Line line, MasteryWallet.Form form, int balance) {
         int level = MasteryWallet.godKiLevel(form);
@@ -526,14 +527,18 @@ public final class UltraPrestigeScreens {
         UltraScreenSpec spec = sub("mw_form:" + line.token() + ":" + form.name)
                 .lineGap(2)
                 .bodyPad(4);
-        spec.labelValue("God Ki Mastery", "Level " + level + "/" + max);
-        spec.labelValue("God Ki mastery", MasteryWallet.whole(form.current) + " / " + MasteryWallet.whole(form.cap));
+        String ki = line.kiName();
+        boolean god = line.track == KiMasteryTrack.GOD_KI;
+        spec.labelValue(line.label, "Level " + level + "/" + max);
+        spec.labelValue(ki + " mastery", MasteryWallet.whole(form.current) + " / " + MasteryWallet.whole(form.cap));
         spec.labelValue("Mastery points", String.valueOf(balance));
-        spec.line(UltraStyle.LABEL + "Each level costs " + cost + " points and adds " + MasteryWallet.whole(perLevel)
-                + " God Ki mastery.");
-        spec.line(UltraStyle.dim("Level 1 unlocks God forms. Applied points are not refunded."));
+        spec.line(UltraStyle.LABEL + "Each level costs " + cost + " points and raises " + ki + " form mastery to the"
+                + " next " + MasteryWallet.whole(perLevel) + ".");
+        spec.line(UltraStyle.dim(god
+                ? "Level 1 unlocks God forms. Level " + max + " opens Divine Ki Mastery. Applied points are not refunded."
+                : "Applied points are not refunded."));
         if (level >= max) {
-            spec.line(UltraStyle.dim("God Ki Mastery is at its top level."));
+            spec.line(UltraStyle.dim(line.label + " is at its top level."));
         } else if (balance < cost) {
             spec.line(UltraStyle.dim("You need " + cost + " points for a level. Buy points on the Mastery wallet page."));
         }
@@ -1366,26 +1371,27 @@ public final class UltraPrestigeScreens {
             int level = MasteryWallet.godKiLevel(form);
             int max = MasteryWallet.godKiMaxLevel(form);
             double perLevel = (double) form.rate * MasteryWallet.GODKI_POINTS_PER_LEVEL;
-            UltraScreenSpec spec = askSpec("mastery_apply:" + token + ":" + points, "Confirm God Ki Mastery level")
-                    .labelValue("God Ki Mastery", "Level " + level + " -> " + Math.min(max, level + 1) + " of " + max)
-                    .labelValue("God Ki mastery", MasteryWallet.whole(form.current) + " -> "
+            boolean god = line.track == KiMasteryTrack.GOD_KI;
+            UltraScreenSpec spec = askSpec("mastery_apply:" + token + ":" + points, "Confirm " + line.label + " level")
+                    .labelValue(line.label, "Level " + level + " -> " + Math.min(max, level + 1) + " of " + max)
+                    .labelValue(line.kiName() + " mastery", MasteryWallet.whole(form.current) + " -> "
                             + MasteryWallet.whole(Math.min(form.cap, form.current + perLevel)))
                     .labelValue("Cost", MasteryWallet.GODKI_POINTS_PER_LEVEL + " mastery points")
                     .labelValue("Mastery points", balance + " -> " + Math.max(0, balance - points))
-                    .line(UltraStyle.dim((level == 0 ? "Level 1 unlocks God forms. " : "")
+                    .line(UltraStyle.dim((god && level == 0 ? "Level 1 unlocks God forms. " : "")
                             + "Applied points are not refunded."));
             String block = null;
             if (points != MasteryWallet.GODKI_POINTS_PER_LEVEL) {
                 block = "A level costs exactly " + MasteryWallet.GODKI_POINTS_PER_LEVEL + " points.";
             } else if (level >= max) {
-                block = "God Ki Mastery is at its top level.";
+                block = line.label + " is at its top level.";
             } else if (!godKiOnSale) {
-                block = "God Ki Mastery is not on sale right now.";
+                block = line.label + " is not on sale right now.";
             } else if (balance < points) {
                 block = "You need " + points + " points (have " + balance + "). Buy points on the Mastery wallet page.";
             }
             return askFinish(spec, block, doAction, "Level up for " + points + " points", false, back,
-                    MasteryWallet.GODKI_LABEL);
+                    line.label);
         }
         UltraScreenSpec spec = askSpec("mastery_apply:" + token + ":" + points, "Confirm mastery points")
                 .labelValue("Form", MasteryWallet.formName(line.label, form))
