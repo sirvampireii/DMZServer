@@ -46,6 +46,11 @@ public final class ConfigPaths {
         return dataDir().resolve("global-tp-boost.json");
     }
 
+    /** Chamber wave start cooldowns: last run end per player and kind (survives restart). */
+    public static Path chamberWaveCooldownPath() {
+        return dataDir().resolve("chamber-wave-cooldown.json");
+    }
+
     public static Path globalMasteryBoostPath() {
         return dataDir().resolve("global-mastery-boost.json");
     }

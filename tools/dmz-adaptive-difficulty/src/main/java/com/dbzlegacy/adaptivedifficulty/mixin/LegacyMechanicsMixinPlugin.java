@@ -63,6 +63,7 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
             return dedicatedServer() && dmzultraRivalPresent();
         }
         if (mixinClassName != null && (mixinClassName.endsWith("DmzultraChamberWaveTpMixin")
+                || mixinClassName.endsWith("DmzultraChamberWaveCooldownMixin")
                 || mixinClassName.endsWith("DmzultraTimeChamberTpPreviewMixin")
                 || mixinClassName.endsWith("DmzultraGodChamberTpPreviewMixin"))) {
             return dedicatedServer() && dmzultraChamberPresent();

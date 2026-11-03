@@ -1853,6 +1853,57 @@ def main() -> int:
           _pick(saiyan, "GOD") == "ssg" and _pick(saiyan, "SUPER") == "ssj1"
           and _pick(saiyan, "LEGENDARY") == "lssj" and _pick(saiyan[:3], "GOD") is None)
 
+    print("\n--- § chamber wave cooldown 4.7.28 ---")
+    wc_mx = read(SRC / "mixin/dmzultra/DmzultraChamberWaveCooldownMixin.java")
+    wc = read(SRC / "progression/ChamberWaveCooldown.java")
+    wc_cfg = read(SRC / "config/DifficultyConfig.java")
+    wc_plugin = read(SRC / "mixin/LegacyMechanicsMixinPlugin.java")
+    wc_json = read(SRC.parents[3] / "resources/legacymechanics.mixins.json")
+    wc_refuse = wc.split("public static boolean refuseStart(", 1)[-1].split("\n    }\n", 1)[0]
+    wc_stop = wc_mx.split("lm$recordChamberWaveEnd(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest chamber-wave-cooldown row", "chamber-wave-cooldown" in manifest)
+    check("config chamberWaveCooldownSeconds default 120, clamped >= 0, registered, explained",
+          "public int chamberWaveCooldownSeconds = 120;" in wc_cfg
+          and "cfg.chamberWaveCooldownSeconds = Math.max(0, cfg.chamberWaveCooldownSeconds);" in wc_cfg
+          and '"chamberWaveCooldownSeconds"' in read(SRC / "config/ConfigRegistry.java")
+          and "chamberWaveCooldownSeconds=" in read(SRC / "config/editor/ConfigFieldHelp.java"))
+    check("cancellable HEAD inject on start; end recorded at HEAD of stop by status mode",
+          '@Inject(method = "start", at = @At("HEAD"), cancellable = true' in wc_mx
+          and "ci.cancel();" in wc_mx and '@Inject(method = "stop", at = @At("HEAD")' in wc_mx
+          and "GodChamberWaves.status(player)" in wc_stop
+          and "GodChamberWaves.Status.TRIAL" in wc_stop and "GodChamberWaves.Status.TRAINING" in wc_stop
+          and "DRILL" not in wc_stop)
+    check("drills / demands and ops exempt; separate training and trial timers",
+          "drill > 0 || StaffAccess.isOp(player)" in wc_refuse
+          and "int kind = trial ? TRIAL : TRAINING;" in wc_refuse
+          and "config.trial(), config.drill()" in wc_mx)
+    check("refusal is an action-bar line with m:ss, no packet or screen",
+          "player.m_5661_(" in wc_refuse and ".m_130940_(ChatFormatting.YELLOW), true);" in wc_refuse
+          and "can start again in" in wc_refuse
+          and "Packet" not in wc_mx + wc and "sendState" not in wc_mx + wc)
+    check("durable: LM-owned JSON written on every end (temp + atomic move), loaded lazily",
+          'resolve("chamber-wave-cooldown.json")' in read(SRC / "config/ConfigPaths.java")
+          and "ConfigPaths.chamberWaveCooldownPath()" in wc and "save(map);" in wc
+          and "StandardCopyOption.ATOMIC_MOVE" in wc and "Files.newBufferedReader(file)" in wc)
+    check("mixin listed and gated on the Ultra chamber classes",
+          '"dmzultra.DmzultraChamberWaveCooldownMixin"' in wc_json
+          and 'endsWith("DmzultraChamberWaveCooldownMixin")' in wc_plugin)
+    check("no TP / god-ki / foe / wave changes in the cooldown mixin",
+          all(s not in wc_mx.split("*/", 1)[-1] for s in ("perFoe", "payOut", "grantGodKi", "spawnWave", "spec(", "@Redirect")))
+
+    def _fmt(ms):  # mirror of ChamberWaveCooldown.formatLeft
+        t = max(1, (ms + 999) // 1000)
+        return f"{t // 60}:{t % 60:02d}"
+
+    def _left(last, now, cd_s):  # mirror of remaining()
+        cd = max(0, cd_s) * 1000
+        return 0 if cd <= 0 or last <= 0 else max(0, last + cd - now)
+
+    check("sim: 2:00 just after end, 1:05 at 55s, free at 120s, off at 0, m:ss rounding",
+          _fmt(_left(1000, 1000, 120)) == "2:00" and _fmt(_left(1000, 56_000, 120)) == "1:05"
+          and _left(1000, 121_000, 120) == 0 and _left(1, 2, 0) == 0 and _left(0, 5, 120) == 0
+          and _fmt(8_001) == "0:09")
+
     print("\n--- § grant first group discovery 4.7.27 ---")
     gd_select = gf_choice.split("public static Candidate select(", 1)[-1].split("\n    }\n", 1)[0]
     gd_name = gf_choice.split("private static Candidate earliestByName(", 1)[-1].split("\n    }\n", 1)[0]
@@ -1911,8 +1962,12 @@ def main() -> int:
     cw_scale = cw.split("public static long scaleWaveTp(", 1)[-1].split("\n    }\n", 1)[0]
     cw_s = cw.split("static long scale(long perFoe) {", 1)[-1].split("\n    }\n", 1)[0]
     check("manifest chamber-wave-tp row", "chamber-wave-tp" in manifest)
-    check("config chamberWaveTpMultiplier default 0.1, clamped 0-1, registered, explained",
-          "public double chamberWaveTpMultiplier = 0.1;" in cw_cfg
+    check("manifest chamber-wave-tp-default row", "chamber-wave-tp-default" in manifest)
+    check("config chamberWaveTpMultiplier default 0.025 (4.7.28), clamped 0-1, registered, explained",
+          "public double chamberWaveTpMultiplier = 0.025;" in cw_cfg
+          and "cfg.chamberWaveTpMultiplier)) : 0.025;" in cw_cfg
+          and "Math.min(1.0, m)) : 0.025;" in cw
+          and "0.025 = 2.5%" in read(SRC / "config/editor/ConfigFieldHelp.java")
           and "Math.max(0.0, Math.min(1.0, cfg.chamberWaveTpMultiplier))" in cw_cfg
           and '"chamberWaveTpMultiplier"' in read(SRC / "config/ConfigRegistry.java")
           and "chamberWaveTpMultiplier=" in read(SRC / "config/editor/ConfigFieldHelp.java"))
@@ -1929,13 +1984,13 @@ def main() -> int:
           == {"DmzultraChamberWaveTpMixin.java", "DmzultraTimeChamberTpPreviewMixin.java",
               "DmzultraGodChamberTpPreviewMixin.java"})
 
-    def _cw(base, mult=0.1, trial=False):  # mirror of ChamberWaveTp (trial scaled since 4.7.26)
+    def _cw(base, mult=0.025, trial=False):  # mirror of ChamberWaveTp (trial scaled since 4.7.26)
         if mult >= 1.0 or base <= 0:
             return base
         return max(1, int(base * mult + 0.5))
 
-    check("sim: 1200 -> 120, 4 -> 1 (floor), 0.0 -> 1, 1.0 -> unchanged",
-          _cw(1200) == 120 and _cw(4) == 1 and _cw(50, 0.0) == 1 and _cw(1200, 1.0) == 1200)
+    check("sim: 1200 -> 30 at the 0.025 default, 1200 -> 120 at 0.1, 4 -> 1 (floor), 0.0 -> 1, 1.0 -> unchanged",
+          _cw(1200) == 30 and _cw(1200, 0.1) == 120 and _cw(4) == 1 and _cw(50, 0.0) == 1 and _cw(1200, 1.0) == 1200)
 
     print("\n--- § chamber wave tp trial 4.7.26 ---")
     check("manifest chamber-wave-tp-trial row", "chamber-wave-tp-trial" in manifest)
@@ -1957,8 +2012,8 @@ def main() -> int:
     check("config help no longer says the God Trial is unaffected",
           "God Trial is not affected" not in read(SRC / "config/editor/ConfigFieldHelp.java")
           and "God Trial is never scaled" not in cw_cfg)
-    check("sim: a trial foe paying 1200 now pays 120, the same as a training foe",
-          _cw(1200, trial=True) == 120 == _cw(1200))
+    check("sim: a trial foe paying 1200 now pays 30, the same as a training foe",
+          _cw(1200, trial=True) == 30 == _cw(1200))
 
     print("\n--- § revive cooldown and all 4.7.23 ---")
     rv = read(SRC / "command/LmRevive.java")
