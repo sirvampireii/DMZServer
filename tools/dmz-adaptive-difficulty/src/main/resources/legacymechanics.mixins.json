@@ -29,6 +29,7 @@
     "noea.NoeaTravelSafetyCorpseFixMixin",
     "dmzultra.DmzultraNemesisSpawnGateMixin",
     "dmzultra.DmzultraChamberWaveTpMixin",
+    "dmzultra.DmzultraChamberWaveCooldownMixin",
     "dmzultra.DmzultraTimeChamberTpPreviewMixin",
     "dmzultra.DmzultraGodChamberTpPreviewMixin",
     "simplymore.VipersCallUnendingVenomMixin",

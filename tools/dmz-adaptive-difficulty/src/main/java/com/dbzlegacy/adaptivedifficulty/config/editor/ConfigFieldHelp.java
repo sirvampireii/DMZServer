@@ -179,6 +179,7 @@ enablePotential=Master switch for the Potential progression module.
 enableGlobalTpBoost=Master switch for the global training-points boost.
 enableGlobalMasteryBoost=Master switch for the global form-mastery boost.
 chamberWaveTpMultiplier=Share of the normal TP that each foe in Popo's Time Chamber training waves and Whis's God Trial pays (0.0 to 1.0; 0.1 = 10%). The trial still grants God Ki when completed.
+chamberWaveCooldownSeconds=Seconds a player waits after a wave run ends before starting another (0 = off). Training and the God Trial have separate timers; Angel Drills, sanctuary Demands and ops are not limited. Survives restarts.
 enableBioAndroid=Master switch for Bio-Android progression.
 enableRaceLock=Master switch for race-lock rules.
 enableYardrat=Master switch for Yardrat progression.
