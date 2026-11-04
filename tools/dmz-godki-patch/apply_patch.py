@@ -4,6 +4,7 @@ import sys
 ROOT = sys.argv[1]
 SD = ROOT + "/com/dragonminez/common/stats/StatsData.java"
 SH = ROOT + "/com/dragonminez/server/events/players/actionmode/StackFormModeHandler.java"
+FH = ROOT + "/com/dragonminez/server/events/players/actionmode/FormModeHandler.java"
 
 
 def rep(text, old, new):
@@ -35,7 +36,8 @@ s = rep(s, """      double kiShare = GodRitualHelper.kiShareMultiplier(this, sta
       return total * this.getDivineKiFactor();
    }""")
 
-# 3. God Ki standalone: no base-form multiplier while the godki form is active.
+# 3. God Ki standalone: no base-form multiplier while God Ki is copying. With no god form to copy
+#    (no pool for the race), isGodKiCopyActive is false and God Ki is the stock stack form.
 s = rep(s, """   public double getFormMultiplier(String statName) {
       String currentForm = this.character.getActiveForm();""", """   public double getFormMultiplier(String statName) {
       if (this.isGodKiCopyActive()) {
@@ -61,6 +63,8 @@ HELPERS = '''
    private static final String GODKI_FORM = "godki";
    private static final String DIVINEKI_FORM = "divineki";
    private static final double DIVINEKI_FULL_MASTERY = 5000.0;
+   private static Method kaiPathManaged;
+   private static boolean kaiPathLooked;
 
    private boolean isGodKiStackForm(String form) {
       return this.character.hasActiveStackForm()
@@ -69,7 +73,7 @@ HELPERS = '''
    }
 
    public boolean isGodKiCopyActive() {
-      return this.isGodKiStackForm(GODKI_FORM);
+      return this.isGodKiStackForm(GODKI_FORM) && this.hasGodKiCopy();
    }
 
    public boolean isDivineKiActive() {
@@ -115,6 +119,45 @@ HELPERS = '''
       return !this.isGodKiCopyActive() && this.isInGodForm();
    }
 
+   public static boolean isGodKiForm(FormData form) {
+      return form != null && GODKI_FORM.equalsIgnoreCase(form.getName());
+   }
+
+   public boolean isInBaseForm() {
+      return !this.character.hasActiveForm() || "base".equals(this.character.getActiveForm());
+   }
+
+   public boolean canActivateGodKi() {
+      return this.isInBaseForm() || !this.hasGodKiCopy();
+   }
+
+   public boolean hasGodKiCopy() {
+      return this.findGodKiCopySource() != null;
+   }
+
+   private static boolean isKaiPathDivineGroup(String group) {
+      if (!kaiPathLooked) {
+         kaiPathLooked = true;
+
+         try {
+            kaiPathManaged = Class.forName("com.dmzlegacy.kaipath.DivineForms", true, StatsData.class.getClassLoader())
+               .getMethod("managed", String.class);
+         } catch (Throwable var2) {
+            kaiPathManaged = null;
+         }
+      }
+
+      if (kaiPathManaged != null && group != null) {
+         try {
+            return Boolean.TRUE.equals(kaiPathManaged.invoke(null, group));
+         } catch (Throwable var3) {
+            return false;
+         }
+      } else {
+         return false;
+      }
+   }
+
    private double getDivineKiFactor() {
       if (this.isDivineKiActive() && this.isInGodForm()) {
          double mastery = this.character.getStackFormMasteries().getMastery(GODKI_GROUP, DIVINEKI_FORM);
@@ -126,9 +169,24 @@ HELPERS = '''
    }
 
    private double getGodKiCopyMultiplier(String statName) {
+      Object[] source = this.findGodKiCopySource();
+      if (source == null) {
+         return 1.0;
+      } else {
+         FormData form = (FormData)source[0];
+         if ((Boolean)source[2]) {
+            double mastery = this.character.getFormMasteries().getMastery((String)source[1], form.getName());
+            return this.getMasteryAdjustedMultiplier(form, statName, mastery);
+         } else {
+            return this.getBaseFormMultiplier(form, statName);
+         }
+      }
+   }
+
+   private Object[] findGodKiCopySource() {
       Map<String, FormConfig> groups = FusionForms.allFormGroups(this);
       if (groups == null || groups.isEmpty()) {
-         return 1.0;
+         return null;
       } else {
          String race = this.character.getRaceName();
          String[] six = new String[]{"STR", "SKP", "DEF", "VIT", "PWR", "ENE"};
@@ -136,12 +194,15 @@ HELPERS = '''
          String bestGroup = null;
          double bestAvg = -1.0;
          FormData lowestForm = null;
+         String lowestGroup = null;
          double lowestAvg = Double.MAX_VALUE;
 
          for (Entry<String, FormConfig> entry : groups.entrySet()) {
             String group = entry.getKey();
             FormConfig config = entry.getValue();
-            if (config != null && isGodFormGroup(group, config)) {
+            boolean godGroup = config != null && isGodFormGroup(group, config);
+            boolean kaiPathGroup = config != null && !godGroup && isKaiPathDivineGroup(group);
+            if (godGroup || kaiPathGroup) {
                for (FormData form : TransformationsHelper.getUnlockedForms(this, race, group)) {
                   if (form != null && !form.isIncompatibleWith(GODKI_GROUP, GODKI_FORM)) {
                      double mastery = this.character.getFormMasteries().getMastery(group, form.getName());
@@ -160,7 +221,7 @@ HELPERS = '''
                   }
                }
 
-               if (config.getForms() != null) {
+               if (godGroup && config.getForms() != null) {
                   for (FormData form : config.getForms().values()) {
                      if (form != null && !form.isIncompatibleWith(GODKI_GROUP, GODKI_FORM)) {
                         double sum = 0.0;
@@ -173,6 +234,7 @@ HELPERS = '''
                         if (avg < lowestAvg) {
                            lowestAvg = avg;
                            lowestForm = form;
+                           lowestGroup = group;
                         }
                      }
                   }
@@ -181,16 +243,17 @@ HELPERS = '''
          }
 
          if (bestForm != null) {
-            double bestMastery = this.character.getFormMasteries().getMastery(bestGroup, bestForm.getName());
-            return this.getMasteryAdjustedMultiplier(bestForm, statName, bestMastery);
+            return new Object[]{bestForm, bestGroup, true};
          } else {
-            return lowestForm != null ? this.getBaseFormMultiplier(lowestForm, statName) : 1.0;
+            return lowestForm != null ? new Object[]{lowestForm, lowestGroup, false} : null;
          }
       }
    }
 
    public double getStackFormMultiplier(String statName) {'''
 s = rep(s, "\n   public double getStackFormMultiplier(String statName) {", HELPERS)
+if "import java.lang.reflect.Method;" not in s:
+    s = rep(s, "import java.util.Collection;", "import java.lang.reflect.Method;\nimport java.util.Collection;")
 if "import java.util.Locale;" not in s:
     s = rep(s, "import java.util.Map.Entry;", "import java.util.Locale;\nimport java.util.Map.Entry;")
 open(SD, "w", encoding="utf-8").write(s)
@@ -206,6 +269,8 @@ h = rep(h, """      FormData nextForm = TransformationsHelper.getNextAvailableSt
          return false;
       } else if (StatsData.isDivineKiForm(nextForm) && !data.canActivateDivineKi()) {
          return false;
+      } else if (StatsData.isGodKiForm(nextForm) && !data.canActivateGodKi()) {
+         return false;
       } else {
          if (data.getCharacter().hasActiveForm()) {""")
 # attemptTransform: refuse with the existing not_stackable message.
@@ -213,11 +278,38 @@ h = rep(h, """      FormData nextForm = TransformationsHelper.getNextAvailableSt
       if (nextForm != null) {
          if (data.getCharacter().hasActiveForm()) {""", """      FormData nextForm = TransformationsHelper.getNextAvailableStackForm(data);
       if (nextForm != null) {
-         if (StatsData.isDivineKiForm(nextForm) && !data.canActivateDivineKi()) {
+         if (StatsData.isDivineKiForm(nextForm) && !data.canActivateDivineKi()
+            || StatsData.isGodKiForm(nextForm) && !data.canActivateGodKi()) {
             player.m_5661_(Component.m_237115_("message.dragonminez.form.not_stackable"), true);
             return;
          }
 
          if (data.getCharacter().hasActiveForm()) {""")
 open(SH, "w", encoding="utf-8").write(h)
+
+f = open(FH, encoding="utf-8").read()
+# canCharge: no charge-up into any form while God Ki is active.
+f = rep(f, """      FormData nextForm = TransformationsHelper.getNextAvailableForm(data);
+      if (nextForm == null) {
+         return false;
+      } else {
+         return TransformationsHelper.isOozaruForm(nextForm)""", """      FormData nextForm = TransformationsHelper.getNextAvailableForm(data);
+      if (nextForm == null) {
+         return false;
+      } else if (data.isGodKiCopyActive()) {
+         return false;
+      } else {
+         return TransformationsHelper.isOozaruForm(nextForm)""")
+# attemptTransform: refuse with not_stackable instead of stock's stack_removed path.
+f = rep(f, """      FormData nextForm = TransformationsHelper.getNextAvailableForm(data);
+      if (nextForm != null) {
+         String targetGroup = TransformationsHelper.getTransformTargetGroup(data);""", """      FormData nextForm = TransformationsHelper.getNextAvailableForm(data);
+      if (nextForm != null) {
+         if (data.isGodKiCopyActive()) {
+            player.m_5661_(Component.m_237115_("message.dragonminez.form.not_stackable"), true);
+            return;
+         }
+
+         String targetGroup = TransformationsHelper.getTransformTargetGroup(data);""")
+open(FH, "w", encoding="utf-8").write(f)
 print("patched")
