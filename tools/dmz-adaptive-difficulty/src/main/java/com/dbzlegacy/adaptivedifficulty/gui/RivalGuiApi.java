@@ -447,6 +447,24 @@ public final class RivalGuiApi {
         return null;
     }
 
+    /**
+     * True when the viewer's link is a one-way Declared: the viewer declared, the other player never
+     * declared back. Removing it deletes their side too ({@code RivalSystem.remove}), so the ask page
+     * must not say they drop to Declared (4.7.33). Read only.
+     */
+    public static boolean isOneWayDeclare(ServerPlayer viewer, String pickerArg) {
+        RivalLink link = rivalLinkFor(viewer, pickerArg);
+        if (link == null || link.status() != com.dbzlegacy.adaptivedifficulty.rival.RivalStatus.DECLARED
+                || link.uuid == null || link.uuid.isBlank()) {
+            return false;
+        }
+        RivalStore store = RivalStore.get();
+        RivalPlayerRecord me = store.ensurePlayer(viewer);
+        RivalPlayerRecord them = store.get(link.uuid.trim());
+        RivalLink theirs = them == null || them.rivals == null || me == null ? null : them.rivals.get(me.uuid);
+        return theirs == null || !theirs.declaredByMe;
+    }
+
     private static java.util.Set<String> currentRivalKeys(ServerPlayer viewer) {
         java.util.Set<String> keys = new java.util.HashSet<>();
         for (String card : currentRivalCards(viewer)) {

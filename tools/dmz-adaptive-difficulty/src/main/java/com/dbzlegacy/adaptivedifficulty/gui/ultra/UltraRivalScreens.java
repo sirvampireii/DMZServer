@@ -806,12 +806,21 @@ public final class UltraRivalScreens {
         String plain = who == null || who.isBlank() ? "-" : UltraStyle.plain(who);
         String status = RivalGuiApi.rivalStatusLabel(player, arg);
         boolean oneSided = "silent".equalsIgnoreCase(status) || "pending".equalsIgnoreCase(status);
+        // 4.7.33: a one-way Declared (they never declared back) is deleted on both sides, not dropped.
+        boolean oneWayDeclare = !oneSided && RivalGuiApi.isOneWayDeclare(player, arg);
+        String notice;
+        if (oneSided) {
+            notice = "End your rivalry with " + plain + "? It moves to History - you can declare again any time.";
+        } else if (oneWayDeclare) {
+            notice = "End your rivalry with " + plain + "? It moves to History and you come off their rival list"
+                    + " - you can declare again any time.";
+        } else {
+            notice = "End your rivalry with " + plain + "? They drop to Declared - you can declare again any time.";
+        }
         UltraScreenSpec spec = sub("remove_confirm:" + payload)
                 .line(UltraStyle.LABEL + "End rivalry")
                 .labelValue("Rival", plain)
-                .notice(oneSided
-                        ? "End your rivalry with " + plain + "? It moves to History - you can declare again any time."
-                        : "End your rivalry with " + plain + "? They drop to Declared - you can declare again any time.")
+                .notice(notice)
                 .buttonsAfterLines();
         if (!arg.isBlank()) {
             spec.button("do:remove:" + arg, UltraStyle.danger("End rivalry"), "danger")

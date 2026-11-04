@@ -556,6 +556,8 @@ public final class RivalSystem {
         }
 
         RivalLink theirLink = them.rivals.get(me.uuid);
+        // Read before the branches below change it: a one-way Declared deletes their side (4.7.33 notify).
+        boolean theyKeepDeclare = theirLink != null && theirLink.declaredByMe;
         if (wasShared) {
             /*
              * Mutual / Nemesis remove: other keeps a one-way declare (Silent) toward you.
@@ -614,7 +616,9 @@ public final class RivalSystem {
                     DmzRewards.msg(online, LmChat.info("Rival", "You still have them as Declared."));
                 } else if (wasDeclared) {
                     DmzRewards.msg(online, LmChat.note("Rival", "§f" + me.name + " §7ended Declared rivalry with you."));
-                    DmzRewards.msg(online, LmChat.info("Rival", "You still have them as Declared."));
+                    DmzRewards.msg(online, LmChat.info("Rival", theyKeepDeclare
+                            ? "You still have them as Declared."
+                            : "They are off your rival list too."));
                 }
             }
         }

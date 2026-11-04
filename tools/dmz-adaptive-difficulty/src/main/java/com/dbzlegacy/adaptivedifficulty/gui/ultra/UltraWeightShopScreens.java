@@ -84,7 +84,7 @@ public final class UltraWeightShopScreens {
                                         AncientCoinEconomy.countOf(
                                                 player, AncientCoinEconomy.CoinKind.COPPER)))
                         .labelValue("Ancient Coins", AncientCoinEconomy.inventoryBreakdown(player))
-                        .labelValue("Max value", String.valueOf(MAX_WEIGHT_VALUE))
+                        .labelValue("Max value", String.format(Locale.ROOT, "%,d", MAX_WEIGHT_VALUE))
                         .line(UltraStyle.LABEL + "Pick a type, type the weight value, then confirm.")
                         .buttonsAfterLines();
         for (WeightOffer offer : WeightOffer.values()) {
@@ -115,7 +115,7 @@ public final class UltraWeightShopScreens {
                                                 player, AncientCoinEconomy.CoinKind.COPPER)))
                         .labelValue("Ancient Coins", AncientCoinEconomy.inventoryBreakdown(player))
                         .labelValue("Price", "1 Ancient Copper per weight value")
-                        .labelValue("Max value", String.valueOf(MAX_WEIGHT_VALUE));
+                        .labelValue("Max value", String.format(Locale.ROOT, "%,d", MAX_WEIGHT_VALUE));
 
         if (!UltraClientFeatures.hasTextInput(player)) {
             spec.line(UltraStyle.danger("Typed weight entry needs a newer KaiPath client."))
@@ -129,7 +129,7 @@ public final class UltraWeightShopScreens {
             return;
         }
 
-        spec.line(UltraStyle.LABEL + "Type how much weight value you want (1-" + MAX_WEIGHT_VALUE + ").");
+        spec.line(UltraStyle.LABEL + "Type how much weight value you want (1-" + String.format(Locale.ROOT, "%,d", MAX_WEIGHT_VALUE) + ").");
         spec.buttonsAfterLines();
         spec.textField(
                         INPUT_ID,
@@ -241,7 +241,7 @@ public final class UltraWeightShopScreens {
         Integer value = parseWeightValue(argsString(args, "value"));
         if (value == null) {
             return UltraStyle.dangerLine(
-                    "Type a whole number from 1 to " + MAX_WEIGHT_VALUE + ".");
+                    "Type a whole number from 1 to " + String.format(Locale.ROOT, "%,d", MAX_WEIGHT_VALUE) + ".");
         }
         openConfirm(player, offer.id, value);
         return "";
