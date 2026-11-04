@@ -102,3 +102,21 @@ Same probe and live configs, run on stock and on the v2 jar (sha256 `547dbc76…
 The (c) refusal is proven through `canCharge`, the check the transform keybind charge uses. On this
 fake player, `performAction` left the form unchanged on stock too, so the `attemptTransform`
 refusal is checked by its bytecode, not by a stock-vs-v2 difference.
+
+## Test-server results, v2 revision 3 (2026-11-03)
+
+Live Saiyan and Seiun-jin forms, the live general-server.json and godki.json, Ultra 0.4.0, KaiPath 1.5.2
+and Living World 2.5.1 loaded. Totals are getTotalMultiplier (STR / DEF, or STR / DEF / VIT).
+
+| Case | Result |
+|---|---|
+| (a) God Ki in Super Saiyan God / Blue / Super Saiyan | refused (canCharge false, no stack form) |
+| (b) God Ki from base | 14.0175 / 9.7127 = Blue Perfected alone |
+| (c) God Ki on, transform into Super Saiyan / Blue Perfected | refused; God Ki stays at 14.0175 / 9.7127 |
+| (d) Divine from God Ki / god form / Super Saiyan | refused / allowed / refused; ×1.01 = 14.157675, ×1.05 = 14.718375; locked at God Ki mastery 4,999, unlocked at 5,000 |
+| (e) Ultimate with no base / over Blue Perfected | 15.0175 / 28.035 (stock) |
+| (f) Seiun-jin: God Ki in base / Starbirth + God Ki / transform with God Ki on | 1.95 / 1.8 / 2.505; 6.95 / 6.05 / 2.505; allowed. All identical to stock 2.2.1 |
+| (g) Saiyan, no god form unlocked, God Ki from base | 4.25 / 3.25 (Super Saiyan God base) |
+| (h) Seiun-jin + a godforms group written to config, then `ConfigManager.reload()` (Ultra's install path) | copy mode: God Ki copies it (4.25 / 3.25), refused in Starbirth |
+| (h) group deleted, reload | old God Ki again: Starbirth + God Ki 6.95 / 6.05 |
+| (h) KaiPath | `kaipath_kai` injected for Seiun-jin; `managed()` true via reflection; 0 unlocked, so Seiun-jin keeps old God Ki. Copying an unlocked Kai / Destroyer form needs a KaiPath office holder and was not exercised |
