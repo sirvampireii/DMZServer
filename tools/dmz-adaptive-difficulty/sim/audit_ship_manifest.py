@@ -1852,6 +1852,28 @@ def main() -> int:
           _pick(saiyan, "GOD") == "ssg" and _pick(saiyan, "SUPER") == "ssj1"
           and _pick(saiyan, "LEGENDARY") == "lssj" and _pick(saiyan[:3], "GOD") is None)
 
+    print("\n--- § grant first mastery topup 4.7.32 ---")
+    gt = read(SRC / "progression/form/FirstSuperformMastery.java")
+    gt_grant = gt.split("public static Outcome grant(", 1)[-1].split("\n    }\n", 1)[0]
+    gt_probe = read(SRC / "progression/form/FormSkillGrantProbe.java")
+    check("manifest grant-first-mastery-topup row", "grant-first-mastery-topup" in manifest)
+    check("grant compares mastery exactly: no epsilon swallows a sub-epsilon gap",
+          "boolean raised = target > current;" in gt_grant and "1.0E-9" not in gt_grant)
+    check("raised branch writes the exact target and reads it back",
+          gt_grant.index("boolean raised = target > current;")
+          < gt_grant.index("masteries.setMastery(chosen.group, chosen.form, target, cap);")
+          < gt_grant.index("if (masteries.getMastery(chosen.group, chosen.form) < target) {")
+          and "Ask staff to re-grant after a relog." in gt_grant)
+    check("skill repair still runs before the mastery top-up (one grant fixes both)",
+          gt_grant.index("ensureSkill(data.getSkills(), skill, chosen.unlockLevel)")
+          < gt_grant.index("boolean raised = target > current;"))
+    check("probe covers hair 9.999999999999831 -> exactly 10.0 and exact 10.0 -> already has",
+          "9.999999999999831" in gt_probe and "topped == 10.0" in gt_probe
+          and 'exact.message.contains("already has")' in gt_probe)
+    gt_hair = 9.999999999999831
+    check("model: live hair fails the strict gate, old epsilon skipped it, exact compare raises it",
+          not (gt_hair >= 10.0) and not (10.0 > gt_hair + 1e-9) and 10.0 > gt_hair)
+
     print("\n--- § gui humanize 4.7.31 ---")
     gh = lambda p: read(SRC / p)
     gh_rival = gh("gui/ultra/UltraRivalScreens.java")
