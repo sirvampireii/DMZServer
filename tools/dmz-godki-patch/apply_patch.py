@@ -1,10 +1,11 @@
-"""apply_patch.py <srcDir> [--fixup-only]: the godki copy / divine factor patch on decompiled DMZ 2.2.1 sources."""
+"""apply_patch.py <srcDir> [--fixup-only]: the godki copy / divine patch (v3) on decompiled DMZ 2.2.1 sources."""
 import sys
 
 ROOT = sys.argv[1]
 SD = ROOT + "/com/dragonminez/common/stats/StatsData.java"
 SH = ROOT + "/com/dragonminez/server/events/players/actionmode/StackFormModeHandler.java"
 FH = ROOT + "/com/dragonminez/server/events/players/actionmode/FormModeHandler.java"
+EA = ROOT + "/com/dragonminez/common/network/C2S/ExecuteActionC2S.java"
 
 
 def rep(text, old, new):
@@ -46,7 +47,8 @@ s = rep(s, """   public double getFormMultiplier(String statName) {
 
       String currentForm = this.character.getActiveForm();""")
 
-# 1, 2, 5. Stack multiplier: godki copies the strongest god form; divineki's own multipliers are inert.
+# 1, 2, 5. Stack multiplier: godki copies the strongest god form. Divine on a god form: stack term 1.0,
+#    the factor does the work. Divine on a normal form: falls through to its mastery-adjusted config.
 s = rep(s, """            if (formData == null) {
                return 1.0;
             } else if ("ultimate".equalsIgnoreCase(currentFormGroup) && !ConfigManager.getServerConfig().getGameplay().getUltimateFormFixedValue()) {""",
@@ -54,7 +56,7 @@ s = rep(s, """            if (formData == null) {
                return 1.0;
             } else if (this.isGodKiCopyActive()) {
                return this.getGodKiCopyMultiplier(statName);
-            } else if (this.isDivineKiActive()) {
+            } else if (this.isDivineKiActive() && this.isInGodForm()) {
                return 1.0;
             } else if ("ultimate".equalsIgnoreCase(currentFormGroup) && !ConfigManager.getServerConfig().getGameplay().getUltimateFormFixedValue()) {""")
 
@@ -62,7 +64,7 @@ HELPERS = '''
    private static final String GODKI_GROUP = "godki";
    private static final String GODKI_FORM = "godki";
    private static final String DIVINEKI_FORM = "divineki";
-   private static final double DIVINEKI_FULL_MASTERY = 5000.0;
+   private static final double DIVINEKI_FULL_MASTERY = 10000.0;
    private static Method kaiPathManaged;
    private static boolean kaiPathLooked;
 
@@ -116,7 +118,7 @@ HELPERS = '''
    }
 
    public boolean canActivateDivineKi() {
-      return !this.isGodKiCopyActive() && this.isInGodForm();
+      return !this.isGodKiCopyActive() && this.character.hasActiveForm() && !this.isInBaseForm();
    }
 
    public static boolean isGodKiForm(FormData form) {
@@ -162,7 +164,7 @@ HELPERS = '''
       if (this.isDivineKiActive() && this.isInGodForm()) {
          double mastery = this.character.getStackFormMasteries().getMastery(GODKI_GROUP, DIVINEKI_FORM);
          double m = Double.isNaN(mastery) ? 0.0 : Math.max(0.0, Math.min(DIVINEKI_FULL_MASTERY, mastery));
-         return 1.0 + 0.01 + 0.04 * (m / DIVINEKI_FULL_MASTERY);
+         return 1.0 + 0.01 + 0.09 * (m / DIVINEKI_FULL_MASTERY);
       } else {
          return 1.0;
       }
@@ -312,4 +314,33 @@ f = rep(f, """      FormData nextForm = TransformationsHelper.getNextAvailableFo
 
          String targetGroup = TransformationsHelper.getTransformTargetGroup(data);""")
 open(FH, "w", encoding="utf-8").write(f)
+
+e = open(EA, encoding="utf-8").read()
+# Instant transform (the instant key) skips both action-mode handlers: carry the same gates.
+e = rep(e, """      FormData nextForm = TransformationsHelper.getNextAvailableStackForm(data);
+      if (nextForm == null) {
+         return false;
+      } else if (!nextForm.getFormStackable()) {""", """      FormData nextForm = TransformationsHelper.getNextAvailableStackForm(data);
+      if (nextForm == null) {
+         return false;
+      } else if (StatsData.isDivineKiForm(nextForm) && !data.canActivateDivineKi()
+         || StatsData.isGodKiForm(nextForm) && !data.canActivateGodKi()) {
+         player.m_5661_(Component.m_237115_("message.dragonminez.form.not_stackable"), true);
+         return false;
+      } else if (!nextForm.getFormStackable()) {""")
+e = rep(e, """      FormData nextForm = TransformationsHelper.getNextAvailableForm(data);
+      if (nextForm == null) {
+         return false;
+      } else if (TransformationsHelper.isOozaruForm(nextForm)) {
+         return false;
+      } else {""", """      FormData nextForm = TransformationsHelper.getNextAvailableForm(data);
+      if (nextForm == null) {
+         return false;
+      } else if (TransformationsHelper.isOozaruForm(nextForm)) {
+         return false;
+      } else if (data.isGodKiCopyActive()) {
+         player.m_5661_(Component.m_237115_("message.dragonminez.form.not_stackable"), true);
+         return false;
+      } else {""")
+open(EA, "w", encoding="utf-8").write(e)
 print("patched")

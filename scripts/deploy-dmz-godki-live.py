@@ -1,13 +1,15 @@
-"""Swap live DMZ to dragonminez-2.2.1-godki.jar (tools/dmz-godki-patch).
+"""Swap live DMZ to the patched jar from tools/dmz-godki-patch (dragonminez-2.2.1.N.jar).
 
 Usage: python scripts/deploy-dmz-godki-live.py <live-sftp.env> <patched jar> LIVE
 
-Moves every live mods/dragonminez-*.jar to recycle_bin/ (rollback: move it back, delete the godki
+Moves every live mods/dragonminez-*.jar to recycle_bin/ (rollback: move it back, delete the patched
 jar), uploads the patched jar through a .part file, and checks the remote sha256 against the local
-one. Live mods/ ends with exactly one dragonminez jar. Run the godki.json patch
-(scripts/patch-godki-json-godki-copy.py --apply) with it. The server needs a full restart afterwards.
+one. Live mods/ ends with exactly one dragonminez jar. The jar is uploaded under its own file name.
+Run the matching godki.json patch (v3: scripts/patch-godki-json-v3.py --apply) with it. The server needs a full restart afterwards.
 """
 import hashlib
+import os
+import re
 import sys
 import time
 
@@ -22,7 +24,9 @@ for line in open(sys.argv[1], encoding="utf-8"):
         k, v = line.split("=", 1)
         env[k.strip()] = v.strip().strip('"').strip("'")
 local = sys.argv[2]
-name = "dragonminez-2.2.1-godki.jar"
+name = os.path.basename(local)
+if not re.fullmatch(r"dragonminez-2\.2\.1(\.\d+|-godki)\.jar", name):
+    sys.exit(f"not a patched DMZ jar name: {name}")
 want = hashlib.sha256(open(local, "rb").read()).hexdigest()
 print("local", name, want)
 
