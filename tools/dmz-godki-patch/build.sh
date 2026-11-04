@@ -14,6 +14,7 @@ JAR_OUT="$OUT/dragonminez-2.2.1-godki.jar"
 SD=com/dragonminez/common/stats/StatsData.class
 SH=com/dragonminez/server/events/players/actionmode/StackFormModeHandler.class
 FH=com/dragonminez/server/events/players/actionmode/FormModeHandler.class
+EA=com/dragonminez/common/network/C2S/ExecuteActionC2S.class
 export PYTHONUTF8=1
 
 win() { if command -v cygpath > /dev/null; then cygpath -w "$1"; else echo "$1"; fi; }
@@ -63,8 +64,9 @@ CP=""
 for p in "${CP_LIST[@]}"; do CP="${CP:+$CP$SEP}$(win "$p")"; done
 ASM_CP="$(win "$L/org/ow2/asm/asm/9.6/asm-9.6.jar")$SEP$(win "$L/org/ow2/asm/asm-tree/9.6/asm-tree-9.6.jar")"
 
-echo ">> decompile StatsData + StackFormModeHandler + FormModeHandler"
-(cd "$WORK/cls" && unzip -q -o "$DMZ" "$SD" 'com/dragonminez/common/stats/StatsData$1.class' "$SH" "$FH")
+echo ">> decompile StatsData + StackFormModeHandler + FormModeHandler + ExecuteActionC2S"
+(cd "$WORK/cls" && unzip -q -o "$DMZ" "$SD" 'com/dragonminez/common/stats/StatsData$1.class' "$SH" "$FH" "$EA" \
+  'com/dragonminez/common/network/C2S/ExecuteActionC2S$1.class' 'com/dragonminez/common/network/C2S/ExecuteActionC2S$ActionType.class')
 java -jar "$(win "$WORK/tools/vineflower-1.10.1.jar")" -e="$(win "$DMZ")" -e="$(win "$SRG")" -e="$(win "$FORGE_U")" \
   "$(win "$WORK/cls")" "$(win "$WORK/src")" > "$WORK/vineflower.log" 2>&1
 python3 "$HERE/apply_patch.py" "$WORK/src" --fixup-only
@@ -81,21 +83,24 @@ mkdir -p "$WORK/out1"
 javac -nowarn -proc:none --release 17 -g -cp "$CP" -d "$(win "$WORK/out1")" $(find "$WORK/src" -name '*.java')
 
 echo ">> transplant patched methods into the stock class bytes"
-mkdir -p "$WORK/out2/$(dirname "$SD")" "$WORK/out2/$(dirname "$SH")"
+mkdir -p "$WORK/out2/$(dirname "$SD")" "$WORK/out2/$(dirname "$SH")" "$WORK/out2/$(dirname "$EA")"
 java -cp "$ASM_CP" "$(win "$HERE/Transplant.java")" "$(win "$WORK/cls/$FH")" "$(win "$WORK/out1/$FH")" "$(win "$WORK/out2/$FH")"   canCharge,attemptTransform
 java -cp "$ASM_CP" "$(win "$HERE/Transplant.java")" "$(win "$WORK/cls/$SD")" "$(win "$WORK/out1/$SD")" "$(win "$WORK/out2/$SD")" \
   getTotalMultiplier,getFormMultiplier,getStackFormMultiplier
 java -cp "$ASM_CP" "$(win "$HERE/Transplant.java")" "$(win "$WORK/cls/$SH")" "$(win "$WORK/out1/$SH")" "$(win "$WORK/out2/$SH")" \
   canCharge,attemptTransform
+java -cp "$ASM_CP" "$(win "$HERE/Transplant.java")" "$(win "$WORK/cls/$EA")" "$(win "$WORK/out1/$EA")" "$(win "$WORK/out2/$EA")" \
+  instantTransformForm,instantTransformStackForm
 
 echo ">> fidelity: only the patched / added methods may differ from stock"
-python3 "$HERE/fidelity.py" "$WORK/cls" "$WORK/out2" "$SD" "$SH" "$FH" | tee "$OUT/fidelity.txt"
+python3 "$HERE/fidelity.py" "$WORK/cls" "$WORK/out2" "$SD" "$SH" "$FH" "$EA" | tee "$OUT/fidelity.txt"
 python3 - "$OUT/fidelity.txt" <<'EOF'
 import re, sys
 allowed = {"getTotalMultiplier", "getFormMultiplier", "getStackFormMultiplier", "canCharge", "attemptTransform",
            "isGodKiStackForm", "isGodKiCopyActive", "isDivineKiActive", "isDivineKiForm", "isGodFormGroup",
            "isInGodForm", "canActivateDivineKi", "getDivineKiFactor", "getGodKiCopyMultiplier",
-           "isGodKiForm", "isInBaseForm", "canActivateGodKi", "hasGodKiCopy", "findGodKiCopySource", "isKaiPathDivineGroup"}
+           "isGodKiForm", "isInBaseForm", "canActivateGodKi", "hasGodKiCopy", "findGodKiCopySource", "isKaiPathDivineGroup",
+           "instantTransformForm", "instantTransformStackForm"}
 bad = [l for l in open(sys.argv[1], encoding="utf-8") if l.strip().startswith("DIFF")
        and re.search(r"(\w+)\(", l.split("DIFF", 1)[1]).group(1) not in allowed]
 if bad:
@@ -104,6 +109,6 @@ print("fidelity gate OK: only the patched / added methods differ")
 EOF
 
 echo ">> repack"
-python3 "$HERE/repack.py" "$DMZ" "$JAR_OUT" "$WORK/out2" "$SD" "$SH" "$FH"
+python3 "$HERE/repack.py" "$DMZ" "$JAR_OUT" "$WORK/out2" "$SD" "$SH" "$FH" "$EA"
 sha256sum "$JAR_OUT" | tee "$OUT/sha256.txt"
 echo "Built $JAR_OUT"
