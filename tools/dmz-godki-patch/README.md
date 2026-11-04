@@ -20,8 +20,9 @@ two transform handlers (`StackFormModeHandler`, `FormModeHandler`).
 | God Ki stands alone: `getFormMultiplier` returns 1.0 while the `godki.godki` stack form is active. | `getFormMultiplier` |
 | Divine Ki multiplies the combined total by `1 + 0.01 + 0.04 * min(mastery, 5000) / 5000` (×1.01 to ×1.05), after the add-or-multiply step. It does this only while the base form is a god form. Its own stack multiplier is 1.0, so its fixed config values are inert. | `getTotalMultiplier`, `getStackFormMultiplier` |
 | Divine Ki can't be activated or charged while God Ki is active or off a god form. The refusal uses the existing `message.dragonminez.form.not_stackable`. | `StackFormModeHandler.canCharge` / `attemptTransform` |
-| v2: God Ki activates from base form only (no active form, or form `base`). It never stacks on any form, so the rule is code, not an `incompatibleWith` list (a finite list can't say "any form"; God Ki's list stays `[]`). Refused with `not_stackable`. | `StackFormModeHandler.canCharge` / `attemptTransform` (`canActivateGodKi`) |
-| v2: while God Ki is active, transforming into any form is refused with `not_stackable`, and God Ki stays on. Stock DMZ would instead drop an incompatible stack form (`stack_removed`). Reverting to base keeps God Ki, since base contributes 1.0. | `FormModeHandler.canCharge` / `attemptTransform` |
+| v2: for players with a god form to copy, God Ki activates from base form only (no active form, or form `base`). It never stacks on any form, so the rule is code, not an `incompatibleWith` list (a finite list can't say "any form"; God Ki's list stays `[]`). Refused with `not_stackable`. | `StackFormModeHandler.canCharge` / `attemptTransform` (`canActivateGodKi`) |
+| v2: while God Ki is copying, transforming into any form is refused with `not_stackable`, and God Ki stays on. Stock DMZ would instead drop an incompatible stack form (`stack_removed`). Reverting to base keeps God Ki, since base contributes 1.0. | `FormModeHandler.canCharge` / `attemptTransform` |
+| v2: races with no god form to copy keep stock God Ki. With no god-form pool (no unlocked god form and no base pool form), God Ki is the stock stack form: config multipliers, mastery-adjusted, combined with the active form as in stock 2.2.1. It activates from any form, the two gates above don't apply, and it is that race's god form. "Has a copy" uses the copy's own pool scan (`findGodKiCopySource`), not a race list. Divine Ki stays unreachable for these races (`isInGodForm` needs a real god form). | `isGodKiCopyActive` = God Ki active **and** `hasGodKiCopy()` |
 
 God Ki and Divine Ki are both forms in the `godki` stack group. Every check therefore keys on the
 group *and* the form name, so Divine Ki is never treated as God Ki.
@@ -33,6 +34,19 @@ group), so the patch adds an explicit check.
 
 Config (step 4): `scripts/patch-godki-json-godki-copy.py <env> [--apply]` clears God Ki's
 `incompatibleWith`. It is a dry run without `--apply`. Ship it with the jar, never on the stock jar.
+
+## God form discovery (DMZ, Ultra, KaiPath)
+
+Every check runs live, at the moment it's needed, so a race that gains or loses god forms switches
+behaviour with no code change. Nothing is cached per race and there are no race or form lists.
+
+| Source | How God Ki finds it | Status |
+|---|---|---|
+| DMZ | `FusionForms.allFormGroups(this)`. A group is a god group if its name is `godforms` / `biogodforms` / `divineforms` / `evildivineforms` or its `formType` contains `godform`. | Wired (existing scan) |
+| Ultra 0.4.0 | Ultra installs its god lines as DMZ form groups with `formType` `godforms` (live: `arcosian_god`, `monkey_god`, `namek_god`, `human_god_forms`, `dark_god`, `viltrumgod`, `ancestral_divinity`, `divine_evolution`). `FormInstallerEvents` calls `ConfigManager.reload()` after installing, so new lines reach the DMZ scan without a restart. Ultra's own `RaceExtraForms.godKi()` is **not** a god-form registry: it lists per-form God Ki *aura* variants (about 90 forms, including non-god forms such as Ultra Super Saiyan 2-4 and Seiun-jin's Event Horizon / Starforged / Flare Bloom), so it isn't used. | Covered by the DMZ scan; nothing extra to wire |
+| KaiPath 1.5.2 | KaiPath's Kai (`kaipath_kai`) and Destroyer (`kaipath_hakaishin`) divine forms are injected into every race's `getAllFormsForRace` by `DivineFormConfigMixin`, with `formType` = the group id, so the name/type scan misses them. `isKaiPathDivineGroup` asks `com.dmzlegacy.kaipath.DivineForms.managed(group)` through a one-time reflective lookup; absent KaiPath simply means false. KaiPath definitions use race `*`, so those groups exist for every race. They therefore count only as **unlocked** copy candidates (a player who actually has a Kai / Destroyer form), never for the lowest-base fallback. Otherwise every race would get a pool and lose old God Ki. | Wired (optional reflection) |
+
+`isInGodForm` (Divine Ki) is unchanged: DMZ / Ultra god groups only, not KaiPath forms.
 
 ## How the jar is built (and why it is safe)
 

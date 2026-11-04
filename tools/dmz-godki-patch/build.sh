@@ -95,7 +95,7 @@ import re, sys
 allowed = {"getTotalMultiplier", "getFormMultiplier", "getStackFormMultiplier", "canCharge", "attemptTransform",
            "isGodKiStackForm", "isGodKiCopyActive", "isDivineKiActive", "isDivineKiForm", "isGodFormGroup",
            "isInGodForm", "canActivateDivineKi", "getDivineKiFactor", "getGodKiCopyMultiplier",
-           "isGodKiForm", "isInBaseForm", "canActivateGodKi"}
+           "isGodKiForm", "isInBaseForm", "canActivateGodKi", "hasGodKiCopy", "findGodKiCopySource", "isKaiPathDivineGroup"}
 bad = [l for l in open(sys.argv[1], encoding="utf-8") if l.strip().startswith("DIFF")
        and re.search(r"(\w+)\(", l.split("DIFF", 1)[1]).group(1) not in allowed]
 if bad:
