@@ -1852,6 +1852,31 @@ def main() -> int:
           _pick(saiyan, "GOD") == "ssg" and _pick(saiyan, "SUPER") == "ssj1"
           and _pick(saiyan, "LEGENDARY") == "lssj" and _pick(saiyan[:3], "GOD") is None)
 
+    print("\n--- § text fixes 4.7.33 ---")
+    tf_w = read(SRC / "gui/ultra/UltraWeightShopScreens.java")
+    tf_r = read(SRC / "gui/ultra/UltraRivalScreens.java")
+    tf_remove = tf_r.split("private static void openRemoveConfirm(", 1)[-1].split("\n    }\n", 1)[0]
+    tf_sys = read(SRC / "rival/RivalSystem.java")
+    tf_api = read(SRC / "gui/RivalGuiApi.java")
+    check("manifest text-fixes-4733 row", "text-fixes-4733" in manifest)
+    check("weight shop: every player-facing max reads 10,000,000 (no raw MAX_WEIGHT_VALUE in text)",
+          '"Type a whole number from 1 to " + MAX_WEIGHT_VALUE' not in tf_w
+          and '"(1-" + MAX_WEIGHT_VALUE' not in tf_w
+          and 'String.valueOf(MAX_WEIGHT_VALUE))' not in tf_w
+          and tf_w.count('String.format(Locale.ROOT, "%,d", MAX_WEIGHT_VALUE)') == 5)
+    check("remove ask page: one-way Declared says they come off your list, not drop to Declared",
+          "RivalGuiApi.isOneWayDeclare(player, arg)" in tf_remove
+          and "you come off their rival list" in tf_remove
+          and "They drop to Declared - you can declare again any time." in tf_remove
+          and "It moves to History - you can declare again any time." in tf_remove)
+    check("isOneWayDeclare mirrors RivalSystem.remove: partner's declaredByMe decides",
+          "return theirs == null || !theirs.declaredByMe;" in tf_api
+          and "theirLink.declaredByMe" in tf_sys)
+    check("Declared remove notify: claims Declared only when they still declare",
+          "boolean theyKeepDeclare = theirLink != null && theirLink.declaredByMe;" in tf_sys
+          and '"They are off your rival list too."' in tf_sys
+          and "Saved to History. They may still have you as Declared." in tf_sys)
+
     print("\n--- § grant first mastery topup 4.7.32 ---")
     gt = read(SRC / "progression/form/FirstSuperformMastery.java")
     gt_grant = gt.split("public static Outcome grant(", 1)[-1].split("\n    }\n", 1)[0]
