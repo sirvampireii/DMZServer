@@ -67,9 +67,10 @@ public final class PrestigeShopConfig {
                     prestigeShopConfig = (PrestigeShopConfig)GSON.fromJson((Reader)bufferedReader, PrestigeShopConfig.class);
                 }
                 boolean packsMigrated = prestigeShopConfig != null && prestigeShopConfig.exchange != null && prestigeShopConfig.exchange.packs18MigratedV1;
+                boolean godKiMigrated = prestigeShopConfig != null && prestigeShopConfig.godKi != null && prestigeShopConfig.godKi.maxPoints10MigratedV1;
                 INSTANCE = PrestigeShopConfig.sanitize(prestigeShopConfig == null ? new PrestigeShopConfig() : prestigeShopConfig);
-                if (!packsMigrated) {
-                    // 4.7.13: write the migrated pack list and its flag back once.
+                if (!packsMigrated || !godKiMigrated) {
+                    // 4.7.13 / 4.7.34: write the migrated values and their flags back once.
                     PrestigeShopConfig.save();
                 }
             }
@@ -160,6 +161,9 @@ public final class PrestigeShopConfig {
         prestigeShopConfig.forms.mutant = PrestigeShopConfig.cleanForm(prestigeShopConfig.forms.mutant, 5, 0);
         prestigeShopConfig.forms.ultimate = PrestigeShopConfig.cleanForm(prestigeShopConfig.forms.ultimate, 3, 100);
         GodKi godKi = prestigeShopConfig.godKi;
+        if (GodKi.migrateMaxPoints10(godKi)) {
+            AdaptiveDifficultyMod.LOGGER.info("[{}] prestige-shop: God Ki / Divine Ki Mastery cap raised from 5 to 10 levels", (Object)"legacymechanics");
+        }
         godKi.costPerPoint = Math.max(0, godKi.costPerPoint);
         godKi.masteryPerPoint = Math.max(1, godKi.masteryPerPoint);
         godKi.maxPoints = Math.max(1, Math.min(100, godKi.maxPoints));
@@ -391,7 +395,28 @@ public final class PrestigeShopConfig {
         public boolean enabled = true;
         public int costPerPoint = 1;
         public int masteryPerPoint = 1000;
-        public int maxPoints = 5;
+        public int maxPoints = 10;
+        public boolean maxPoints10MigratedV1 = false;
+
+        /** The pre-4.7.34 default; a saved cap equal to it is raised once by {@link #migrateMaxPoints10}. */
+        public static final int OLD_DEFAULT_MAX_POINTS = 5;
+
+        /**
+         * One-time 4.7.34 upgrade: a saved God Ki / Divine Ki level cap still equal to the old default
+         * (5 levels, 5,000 mastery) becomes 10 (10,000, the DMZ godki v3 cap). A cap staff changed is
+         * kept. Returns true when the cap changed.
+         */
+        public static boolean migrateMaxPoints10(GodKi godKi) {
+            if (godKi.maxPoints10MigratedV1) {
+                return false;
+            }
+            godKi.maxPoints10MigratedV1 = true;
+            if (godKi.maxPoints != OLD_DEFAULT_MAX_POINTS) {
+                return false;
+            }
+            godKi.maxPoints = 10;
+            return true;
+        }
     }
 
     /** Mastery points wallet (Shop > Mastery wallet). Rates are fixed in {@link MasteryWallet}. */

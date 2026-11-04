@@ -432,6 +432,14 @@ are unchanged.
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.30.jar`; javap
 diff checked. The other 24 are unchanged.
 
+## Re-baseline (2026-11-04, 4.7.34 God Ki wallet 10 levels)
+
+`AdaptiveDifficultyMod` (version string), `PrestigeShopConfig` and `PrestigeShopConfig$GodKi` (default
+`maxPoints` 10, one-time 5 -> 10 migration and its flag), `GodKiEnhancementShop` (`MAX_INVESTMENTS` 10),
+`PrestigeAdminCommandTree` (inlined `MAX_INVESTMENTS`) and `PrestigeShopHooks` (help lines) re-baselined
+for `LegacyMechanics-4.7.34.jar`. The other seven `PrestigeShopConfig$*` inner classes differ only in
+`LineNumberTable` entries (source lines moved); javap diffs checked. The other 12 are unchanged.
+
 ## Re-baseline (2026-11-02, 4.7.29 wallet God Ki / Divine Ki lines)
 
 `AdaptiveDifficultyMod` (version string), `UltraPrestigeScreens` (level-line pages and confirm read the
