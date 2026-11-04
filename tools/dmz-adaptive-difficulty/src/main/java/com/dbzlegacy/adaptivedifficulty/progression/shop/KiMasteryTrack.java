@@ -12,7 +12,7 @@ import net.minecraft.server.level.ServerPlayer;
 /**
  * Mastery Wallet level tracks for the {@code godki} stack forms (4.7.29): God Ki Mastery feeds
  * {@code godki:godki}, Divine Ki Mastery feeds {@code godki:divineki}. Both use the God Ki shop
- * scale ({@link PrestigeShopConfig#godKi}: 5 levels of 1,000 mastery by default) and cost
+ * scale ({@link PrestigeShopConfig#godKi}: 10 levels of 1,000 mastery by default since 4.7.34) and cost
  * {@link MasteryWallet#GODKI_POINTS_PER_LEVEL} points a level.
  *
  * <p>The level is stored per player in the prestige record ({@link #key}), like {@code pp_godki_enh}
@@ -22,7 +22,7 @@ import net.minecraft.server.level.ServerPlayer;
  * login. The track is a mastery accelerator only: it grants no skill and does not unlock the forms.
  *
  * <p>Divine Ki Mastery is offered once God Ki is mastered: God Ki level at its cap, or
- * {@code godki:godki} mastery at the full scale (5,000).
+ * {@code godki:godki} mastery at the full scale (10,000 by default).
  */
 public enum KiMasteryTrack {
     GOD_KI("pp_godki_form", "godki", "God Ki"),

@@ -1750,7 +1750,7 @@ def main() -> int:
           "OLD_DEFAULT_AMOUNTS = List.of(1, 2, 3, 6, 9);" in xp_cfg
           and "public boolean packs18MigratedV1 = false;" in xp_cfg
           and "Exchange.migratePacks18(exchange)" in xp_cfg
-          and "if (!packsMigrated) {" in xp_cfg)
+          and "if (!packsMigrated || !godKiMigrated) {" in xp_cfg)
     check("Bulk line and lore list every bonus pack; reply bonus is gained minus amount",
           "bulkLine(amounts, PrestigePointsSystem::pointsForTurnIn)" in xp_scr
           and "Bulk: 3 for 4 favor, 6 for 8, 9 for 13, 12 for 18, 15 for 23, or 18 for 28." in xp_scr
@@ -1851,6 +1851,32 @@ def main() -> int:
     check("sim: Saiyan god -> ssg, super -> ssj1, legendary -> lssj; no god forms -> None",
           _pick(saiyan, "GOD") == "ssg" and _pick(saiyan, "SUPER") == "ssj1"
           and _pick(saiyan, "LEGENDARY") == "lssj" and _pick(saiyan[:3], "GOD") is None)
+
+    print("\n--- § god ki wallet 10k 4.7.34 ---")
+    gw_cfg = read(SRC / "progression/shop/PrestigeShopConfig.java")
+    gw_gk = read(SRC / "progression/shop/GodKiEnhancementShop.java")
+    gw_kt = read(SRC / "progression/shop/KiMasteryTrack.java")
+    gw_hooks = read(SRC / "progression/shop/PrestigeShopHooks.java")
+    gw_mig = gw_cfg.split("public static boolean migrateMaxPoints10(GodKi godKi) {", 1)[-1].split("\n        }\n", 1)[0]
+    check("manifest godki-wallet-10k row", "godki-wallet-10k" in manifest)
+    check("God Ki / Divine Ki tracks default to 10 levels x 1,000 mastery",
+          "public int maxPoints = 10;" in gw_cfg and "public int masteryPerPoint = 1000;" in gw_cfg
+          and "public static final int MAX_INVESTMENTS = 10;" in gw_gk
+          and "return PrestigeShopConfig.get().godKi.maxPoints;" in gw_gk
+          and "return Math.max(0, GodKiEnhancementShop.maxInvestments());" in gw_kt)
+    check("saved cap 5 (old default) raised to 10 once; a staff-set cap is kept",
+          "public boolean maxPoints10MigratedV1 = false;" in gw_cfg
+          and "public static final int OLD_DEFAULT_MAX_POINTS = 5;" in gw_cfg
+          and "if (godKi.maxPoints10MigratedV1) {" in gw_mig and "godKi.maxPoints10MigratedV1 = true;" in gw_mig
+          and "if (godKi.maxPoints != OLD_DEFAULT_MAX_POINTS) {" in gw_mig and "godKi.maxPoints = 10;" in gw_mig
+          and gw_mig.index("maxPoints10MigratedV1 = true") < gw_mig.index("godKi.maxPoints = 10")
+          and "GodKi.migrateMaxPoints10(godKi)" in gw_cfg
+          and "|| !godKiMigrated" in gw_cfg)
+    check("Divine Ki line opens at the God Ki cap (level max or godki mastery max x 1,000)",
+          "GOD_KI.level(player) >= max" in gw_kt
+          and "GOD_KI.formMastery(player) >= (double) max * masteryPerLevel()" in gw_kt)
+    check("config help covers the cap and its migration flag",
+          '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
     print("\n--- § text fixes 4.7.33 ---")
     tf_w = read(SRC / "gui/ultra/UltraWeightShopScreens.java")

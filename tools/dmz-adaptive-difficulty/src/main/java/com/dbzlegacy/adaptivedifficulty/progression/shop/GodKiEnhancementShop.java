@@ -21,7 +21,7 @@ import net.minecraft.server.level.ServerPlayer;
  * <p>Since 4.7.21 levels are bought in the Mastery Wallet ({@link MasteryWallet}, 10 points a
  * level), not on the Prestige shop Effects page. Each level grants
  * {@link #MASTERY_PER_POINT} {@code godkienhancement} mastery, up to
- * {@link #MAX_INVESTMENTS} levels (5000 mastery). The level count is stored per
+ * {@link #MAX_INVESTMENTS} levels (10,000 mastery since 4.7.34). The level count is stored per
  * player like the other prestige purchases ({@code pp_godki_enh}) and survives
  * prestige. Mastery per level, the level cap and whether it is on sale come
  * from {@link PrestigeShopConfig#godKi}; the constants below are its defaults.
@@ -54,8 +54,8 @@ public final class GodKiEnhancementShop {
     public static final String GOD_FORMS_GROUP = "godforms";
     /** Default mastery granted per invested prestige point. */
     public static final int MASTERY_PER_POINT = 1000;
-    /** Default cap: five investments = 5000 mastery. */
-    public static final int MAX_INVESTMENTS = 5;
+    /** Default cap: ten investments = 10,000 mastery (4.7.34; five before). */
+    public static final int MAX_INVESTMENTS = 10;
     /** Default favor per investment. */
     public static final int INVESTMENT_COST = 1;
     private static final String KEY_INVESTED = "pp_godki_enh";
