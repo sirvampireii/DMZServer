@@ -35,6 +35,11 @@ import net.minecraft.server.level.ServerPlayer;
  * healthy one), sets the level, and checks it stuck; when it did not, the grant fails naming the skill
  * instead of reporting mastery. A re-grant repairs a broken skill even when the mastery is already there.
  *
+ * <p>Mastery is compared exactly (4.7.32). Fighting gain leaves hair such as 9.999999999999831, and
+ * DMZ's {@code meetsMasteryRequisite} is a strict compare, so that value keeps a 10-mastery form
+ * locked. Any gap below the target is topped up to the exact target; "already has" only fires when the
+ * stored value is already at or above it.
+ *
  * <p>Race resolution matches {@code TransformationReward.giveReward}:
  * {@code StatsProvider}/{@code StatsCapability} via {@code DmzProgression.stats},
  * then {@code Character.getRaceName()}. Form groups come from the live race
@@ -136,9 +141,16 @@ public final class FirstSuperformMastery {
         };
         double current = masteries.getMastery(chosen.group, chosen.form);
         double target = Math.min(cap, Math.max(current, amount));
-        boolean raised = target > current + 1.0E-9;
+        // Exact compare (4.7.32): DMZ's form gate has no epsilon, so 9.999999999999831 is still locked
+        // at 10. Any gap, however small, is written as the exact target and read back.
+        boolean raised = target > current;
         if (raised) {
             masteries.setMastery(chosen.group, chosen.form, target, cap);
+            if (masteries.getMastery(chosen.group, chosen.form) < target) {
+                DmzSkillUtil.sync(player);
+                return fail("Could not set mastery on " + chosen.label() + " to " + format(target)
+                        + ". Ask staff to re-grant after a relog.");
+            }
         }
         DmzSkillUtil.sync(player);
         String who = player.m_6302_();
@@ -184,7 +196,8 @@ public final class FirstSuperformMastery {
         }
     }
 
-    private static List<Candidate> configuredForms(String race) {
+    /** Package-visible for the dev probe. */
+    static List<Candidate> configuredForms(String race) {
         List<Candidate> out = new ArrayList<>();
         Map<String, FormConfig> groups = formsForRace(race);
         if (groups == null) {

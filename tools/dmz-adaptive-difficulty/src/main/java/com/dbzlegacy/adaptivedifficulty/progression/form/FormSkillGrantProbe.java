@@ -3,6 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.progression.form;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dragonminez.common.stats.StatsData;
+import com.dragonminez.common.stats.extras.FormMasteries;
 import com.dragonminez.common.stats.skills.Skills;
 import com.mojang.authlib.GameProfile;
 import java.util.UUID;
@@ -16,7 +17,9 @@ import net.minecraftforge.common.util.FakePlayerFactory;
  * godforms skill is unlocked with a usable max; a 0 / 0 superforms record (what raw
  * {@code setSkillLevel} leaves) is repaired; a healthy max is not lowered; a skill that will not take
  * a level fails. Then a fake Seiun-jin player gets grant-first-superform from scratch, and again with
- * the skill broken back to 0 / 0 and the mastery already there.
+ * the skill broken back to 0 / 0 and the mastery already there. 4.7.32: mastery hair
+ * (9.999999999999831) with a broken skill is topped up to exactly 10.0 and repaired in one grant, and a
+ * grant on the exact 10.0 reports "already has".
  */
 public final class FormSkillGrantProbe {
     private static final UUID PROBE_ID = UUID.fromString("6c6d2d70-726f-6265-2d66-6f726d736b6c");
@@ -88,6 +91,33 @@ public final class FormSkillGrantProbe {
                     again.ok && again.message.contains("already has") && again.message.contains("repaired")
                             && data.getSkills().getSkillLevel("superforms") >= 1
                             && data.getSkills().getMaxSkillLevel("superforms") >= 1,
+                    data.getSkills(), "superforms");
+
+            // 4.7.32: fighting-gain hair below the target, skill broken again. One grant fixes both.
+            FirstSuperformChoice.Candidate form = FirstSuperformChoice.select(
+                    FirstSuperformMastery.configuredForms("seiunjin"), FirstSuperformChoice.Kind.SUPER);
+            if (form == null) {
+                AdaptiveDifficultyMod.LOGGER.info("[{}] form skill probe: no Seiun-jin superform, hair steps skipped",
+                        AdaptiveDifficultyMod.MOD_ID);
+                return;
+            }
+            FormMasteries masteries = data.getCharacter().getFormMasteries();
+            masteries.setMastery(form.group, form.form, 9.999999999999831, Double.MAX_VALUE);
+            data.getSkills().removeSkill("superforms");
+            data.getSkills().setSkillLevel("superforms", 0);
+            FirstSuperformMastery.Outcome hair = FirstSuperformMastery.grant(fp, 10.0, FirstSuperformChoice.Kind.SUPER);
+            reply("grant-first-superform, mastery 9.999999999999831, skill 0/0", hair);
+            double topped = masteries.getMastery(form.group, form.form);
+            check("hair grant: granted (not already has), stored exactly 10.0, skill repaired [stored " + topped + "]",
+                    hair.ok && hair.message.contains("Granted mastery") && !hair.message.contains("already has")
+                            && hair.message.contains("repaired") && topped == 10.0
+                            && data.getSkills().getSkillLevel("superforms") >= 1,
+                    data.getSkills(), "superforms");
+            FirstSuperformMastery.Outcome exact = FirstSuperformMastery.grant(fp, 10.0, FirstSuperformChoice.Kind.SUPER);
+            reply("grant-first-superform, mastery exactly 10.0", exact);
+            check("exact grant: already has, still 10.0",
+                    exact.ok && exact.message.contains("already has")
+                            && masteries.getMastery(form.group, form.form) == 10.0,
                     data.getSkills(), "superforms");
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.warn("[{}] form skill probe failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString(), t);
