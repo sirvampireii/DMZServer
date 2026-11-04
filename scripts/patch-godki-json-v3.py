@@ -1,4 +1,4 @@
-"""God Ki v3 patch (DMZ 2.2.1-godki v3): raise God Ki / Divine Ki mastery to 10,000 in godki.json.
+"""God Ki v3 patch (DMZ 2.2.1.1, godki v3): raise God Ki / Divine Ki mastery to 10,000 in godki.json.
 
 godki maxMastery 5000 -> 10000, divineki maxMastery 5000 -> 10000, divineki unlockOnMastery
 5000 -> 10000 (Divine Ki unlocks when God Ki is fully mastered). Every other field is kept as is.

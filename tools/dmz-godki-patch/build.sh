@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Build dragonminez-2.2.1-godki.jar from the stock DMZ 2.2.1 jar (see README.md).
-#   DMZ_JAR=/path/to/dragonminez-2.2.1.jar bash tools/dmz-godki-patch/build.sh
-# Output: tools/dmz-godki-patch/out/dragonminez-2.2.1-godki.jar (gitignored).
+# Build dragonminez-<PATCH_VERSION>.jar from the stock DMZ 2.2.1 jar (see README.md).
+#   DMZ_JAR=/path/to/dragonminez-2.2.1.jar [PATCH_VERSION=2.2.1.N] bash tools/dmz-godki-patch/build.sh
+# PATCH_VERSION is stamped into META-INF/mods.toml; bump the default for each new patch build.
+# Output: tools/dmz-godki-patch/out/dragonminez-<PATCH_VERSION>.jar (gitignored).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
@@ -10,7 +11,8 @@ DMZ="${DMZ_JAR:?set DMZ_JAR to the stock dragonminez-2.2.1.jar}"
 STOCK_SHA="039ce26942145cfa3c9d5619b7967b08d5b7ed3316157f88dc383f0b89568181"
 WORK="$HERE/work"
 OUT="$HERE/out"
-JAR_OUT="$OUT/dragonminez-2.2.1-godki.jar"
+PATCH_VERSION="${PATCH_VERSION:-2.2.1.1}"
+JAR_OUT="$OUT/dragonminez-$PATCH_VERSION.jar"
 SD=com/dragonminez/common/stats/StatsData.class
 SH=com/dragonminez/server/events/players/actionmode/StackFormModeHandler.class
 FH=com/dragonminez/server/events/players/actionmode/FormModeHandler.class
@@ -109,6 +111,6 @@ print("fidelity gate OK: only the patched / added methods differ")
 EOF
 
 echo ">> repack"
-python3 "$HERE/repack.py" "$DMZ" "$JAR_OUT" "$WORK/out2" "$SD" "$SH" "$FH" "$EA"
+python3 "$HERE/repack.py" "$DMZ" "$JAR_OUT" "$WORK/out2" "$PATCH_VERSION" "$SD" "$SH" "$FH" "$EA"
 sha256sum "$JAR_OUT" | tee "$OUT/sha256.txt"
 echo "Built $JAR_OUT"

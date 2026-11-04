@@ -1,12 +1,27 @@
-# DMZ 2.2.1 God Ki copy / Divine Ki patch (v3)
+# DMZ 2.2.1 God Ki copy / Divine Ki patch (v3 = 2.2.1.1)
 
-Builds `dragonminez-2.2.1-godki.jar` from the stock `dragonminez-2.2.1.jar`
-(sha256 `039ce269…8181`, the jar live runs). Not an LM change. KaiPath and DMZUltra are untouched.
+Builds `dragonminez-<PATCH_VERSION>.jar` (now `dragonminez-2.2.1.1.jar`) from the stock
+`dragonminez-2.2.1.jar` (sha256 `039ce269…8181`). Live ran stock 2.2.1, then rev 3 as
+`dragonminez-2.2.1-godki.jar`. Not an LM change. KaiPath and DMZUltra are untouched.
 
 ```bash
-DMZ_JAR=/path/to/dragonminez-2.2.1.jar bash tools/dmz-godki-patch/build.sh
-# -> tools/dmz-godki-patch/out/dragonminez-2.2.1-godki.jar, godki-patch.diff, fidelity.txt, sha256.txt
+DMZ_JAR=/path/to/dragonminez-2.2.1.jar [PATCH_VERSION=2.2.1.N] bash tools/dmz-godki-patch/build.sh
+# -> tools/dmz-godki-patch/out/dragonminez-<PATCH_VERSION>.jar, godki-patch.diff, fidelity.txt, sha256.txt
 ```
+
+## Patch version
+
+Each patch build stamps its own version on the one `version="2.2.1"` line of `META-INF/mods.toml`
+(the only DMZ version that matters; there is no version constant in code). `PATCH_VERSION` defaults to
+`2.2.1.1` in `build.sh`. **The next patch build is 2.2.1.2**: bump the default (or set the env var); no
+code change is needed. The jar is named after it, `dragonminez-<PATCH_VERSION>.jar`. `repack.py`
+accepts only `2.2.1.N` and checks that the mods.toml change is exactly that line. `MANIFEST.MF` keeps
+stock `2.2.1`.
+
+DMZ's `displayTest` is `MATCH_VERSION`: **the client pack must ship the same jar**, or clients still on
+2.2.1 (or an older patch) are refused at join with a version mismatch. Every dependent mod checked
+accepts 2.2.1.N: LM, dmzrevamp and Living World `[2.2,)`; Ultra, KaiPath and Ultimate Key `[2.2,2.3)`;
+apothicdmz and dmz_spellbooks `[2.1.2,)`.
 
 ## What changes
 
@@ -72,9 +87,9 @@ forms for Divine Ki: config mode, no factor.
    `instantTransformStackForm` (ExecuteActionC2S), then adds the new helper methods. Every other method
    keeps its original bytecode. The other 175 StatsData methods never go through the decompiler.
 4. `fidelity.py` gates the build: it fails if any method outside that list differs from stock.
-5. `repack.py` copies the stock jar entry for entry and swaps just the four class files. It checks
-   that every other entry is byte-identical (9,125 of 9,129). `mods.toml` stays `2.2.1`, and the jar
-   is unsigned.
+5. `repack.py` copies the stock jar entry for entry and swaps just the four class files, then stamps
+   the patch version into `mods.toml`. It checks that every other entry is byte-identical (9,124 of
+   9,129) and that the `mods.toml` diff is that one line. The jar is unsigned.
 
 Clients need the same jar for the scouter, stats screen and radial to show the copied values. The
 server computes damage either way.
@@ -137,7 +152,8 @@ and Living World 2.5.1 loaded. Totals are getTotalMultiplier (STR / DEF, or STR 
 
 Live Saiyan and Seiun-jin forms, the live general-server.json, godki.json with the v3 values
 (maxMastery 10000 for both, Divine Ki unlockOnMastery 10000), Ultra 0.4.0 and KaiPath 1.5.2 loaded.
-v3 jar sha256 `f1a0ef49…dec2c`. Totals are getTotalMultiplier (STR / DEF / VIT).
+First run on the v3 classes before version stamping (sha256 `f1a0ef49…dec2c`), then rerun on
+`dragonminez-2.2.1.1.jar` (sha256 `dd5dfd8a…63bb1`) with identical probe output. Totals are getTotalMultiplier (STR / DEF / VIT).
 
 | Case | Result |
 |---|---|
@@ -150,7 +166,8 @@ v3 jar sha256 `f1a0ef49…dec2c`. Totals are getTotalMultiplier (STR / DEF / VIT
 | (a) instant key: form transform with God Ki copying / without God Ki | refused, God Ki stays on / transforms |
 | (e) Divine on `kaipath_kai.divine` (Saiyan and Seiun-jin) | isInGodForm false, divine activates, config mode: stack 3.6 / 4.5 / 5.4 STR, no factor |
 | Seiun-jin (no god pool) | Starbirth + God Ki 6.95 / 6.05 / 2.505 (stock, unchanged); Divine on Starbirth is config mode like (c) |
-| (f) whole-jar diff vs stock | 4 class entries differ (StatsData, StackFormModeHandler, FormModeHandler, ExecuteActionC2S), 9,125 identical; fidelity gate passes |
+| (f) whole-jar diff vs stock | 4 class entries differ (StatsData, StackFormModeHandler, FormModeHandler, ExecuteActionC2S) plus the single mods.toml version line; 9,124 identical; fidelity gate passes |
+| (g) version | Forge's version checker logs `[dragonminez] Current: 2.2.1.1` (the ModInfo version the mod list and Spark show); Ultra's self-test reads "DragonMineZ 2.2.1.1" |
 | (f) hardcoded 5000 scan | none left in the four patched classes (the only 10000 is `DIVINEKI_FULL_MASTERY`) |
 
 LM's own God Ki gate (`StackFormModeHandlerGodKiGateMixin`, "God forms need God Ki") refused the
