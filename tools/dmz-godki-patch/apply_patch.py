@@ -4,6 +4,7 @@ import sys
 ROOT = sys.argv[1]
 SD = ROOT + "/com/dragonminez/common/stats/StatsData.java"
 SH = ROOT + "/com/dragonminez/server/events/players/actionmode/StackFormModeHandler.java"
+FH = ROOT + "/com/dragonminez/server/events/players/actionmode/FormModeHandler.java"
 
 
 def rep(text, old, new):
@@ -115,6 +116,18 @@ HELPERS = '''
       return !this.isGodKiCopyActive() && this.isInGodForm();
    }
 
+   public static boolean isGodKiForm(FormData form) {
+      return form != null && GODKI_FORM.equalsIgnoreCase(form.getName());
+   }
+
+   public boolean isInBaseForm() {
+      return !this.character.hasActiveForm() || "base".equals(this.character.getActiveForm());
+   }
+
+   public boolean canActivateGodKi() {
+      return this.isInBaseForm();
+   }
+
    private double getDivineKiFactor() {
       if (this.isDivineKiActive() && this.isInGodForm()) {
          double mastery = this.character.getStackFormMasteries().getMastery(GODKI_GROUP, DIVINEKI_FORM);
@@ -206,6 +219,8 @@ h = rep(h, """      FormData nextForm = TransformationsHelper.getNextAvailableSt
          return false;
       } else if (StatsData.isDivineKiForm(nextForm) && !data.canActivateDivineKi()) {
          return false;
+      } else if (StatsData.isGodKiForm(nextForm) && !data.canActivateGodKi()) {
+         return false;
       } else {
          if (data.getCharacter().hasActiveForm()) {""")
 # attemptTransform: refuse with the existing not_stackable message.
@@ -213,11 +228,38 @@ h = rep(h, """      FormData nextForm = TransformationsHelper.getNextAvailableSt
       if (nextForm != null) {
          if (data.getCharacter().hasActiveForm()) {""", """      FormData nextForm = TransformationsHelper.getNextAvailableStackForm(data);
       if (nextForm != null) {
-         if (StatsData.isDivineKiForm(nextForm) && !data.canActivateDivineKi()) {
+         if (StatsData.isDivineKiForm(nextForm) && !data.canActivateDivineKi()
+            || StatsData.isGodKiForm(nextForm) && !data.canActivateGodKi()) {
             player.m_5661_(Component.m_237115_("message.dragonminez.form.not_stackable"), true);
             return;
          }
 
          if (data.getCharacter().hasActiveForm()) {""")
 open(SH, "w", encoding="utf-8").write(h)
+
+f = open(FH, encoding="utf-8").read()
+# canCharge: no charge-up into any form while God Ki is active.
+f = rep(f, """      FormData nextForm = TransformationsHelper.getNextAvailableForm(data);
+      if (nextForm == null) {
+         return false;
+      } else {
+         return TransformationsHelper.isOozaruForm(nextForm)""", """      FormData nextForm = TransformationsHelper.getNextAvailableForm(data);
+      if (nextForm == null) {
+         return false;
+      } else if (data.isGodKiCopyActive()) {
+         return false;
+      } else {
+         return TransformationsHelper.isOozaruForm(nextForm)""")
+# attemptTransform: refuse with not_stackable instead of stock's stack_removed path.
+f = rep(f, """      FormData nextForm = TransformationsHelper.getNextAvailableForm(data);
+      if (nextForm != null) {
+         String targetGroup = TransformationsHelper.getTransformTargetGroup(data);""", """      FormData nextForm = TransformationsHelper.getNextAvailableForm(data);
+      if (nextForm != null) {
+         if (data.isGodKiCopyActive()) {
+            player.m_5661_(Component.m_237115_("message.dragonminez.form.not_stackable"), true);
+            return;
+         }
+
+         String targetGroup = TransformationsHelper.getTransformTargetGroup(data);""")
+open(FH, "w", encoding="utf-8").write(f)
 print("patched")
