@@ -96,6 +96,12 @@ public final class DifficultyEvents {
     /** Last polled form key — catches future races that swap forms without mult spikes. */
     private static final Map<UUID, String> LAST_FORM_KEY = new ConcurrentHashMap<>();
     private static final Map<String, Long> PULSE_WARN_AT = new ConcurrentHashMap<>();
+    /**
+     * Test-only dragon ball probe (4.7.36): its class ships only in the testprobe jar
+     * (LM_TEST_PROBES=1 bash build.sh), never in mods/. Looked up by name when
+     * -Dlm.probe.dragonBalls is set; null otherwise. See docs/LM_TEST_PROBES.md.
+     */
+    private static final java.lang.reflect.Method DRAGON_BALL_PROBE = findDragonBallProbe();
 
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
@@ -728,10 +734,13 @@ public final class DifficultyEvents {
         safePulse("sparring", () -> SparringSystem.pulse(server, tick));
         safePulse("progression", () -> ProgressionSystem.pulse(server, tick));
         safePulse("level-pull", () -> DifficultyActions.pulseLevelPulls(server));
-        if (DragonBallProbe.active()) {
+        if (DRAGON_BALL_PROBE != null) {
             safePulse("dragon-ball-probe", () -> {
-                DragonBallProbe.pulse(server, tick);
-                DragonBallProbe.pistonTick(server, tick);
+                try {
+                    DRAGON_BALL_PROBE.invoke(null, server, tick);
+                } catch (ReflectiveOperationException e) {
+                    throw new IllegalStateException(e);
+                }
             });
         }
         if (tick % 20 == 0) {
@@ -741,6 +750,20 @@ public final class DifficultyEvents {
         }
         if (tick % 600 == 0) {
             safePulse("player-store", com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore::flushAll);
+        }
+    }
+
+    private static java.lang.reflect.Method findDragonBallProbe() {
+        if (System.getProperty("lm.probe.dragonBalls", "").isEmpty()) {
+            return null;
+        }
+        try {
+            return Class.forName("com.dbzlegacy.adaptivedifficulty.event.DragonBallProbe")
+                    .getMethod("tick", net.minecraft.server.MinecraftServer.class, int.class);
+        } catch (ReflectiveOperationException e) {
+            AdaptiveDifficultyMod.LOGGER.warn("[{}] -Dlm.probe.dragonBalls is set but this jar has no probe "
+                    + "(build the testprobe jar with LM_TEST_PROBES=1)", AdaptiveDifficultyMod.MOD_ID);
+            return null;
         }
     }
 
@@ -1028,6 +1051,12 @@ public final class DifficultyEvents {
     @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
     public void onDragonBallBreak(BlockEvent.BreakEvent event) {
         DragonBallRadarPickup.onBreak(event);
+    }
+
+    /** Pistons cannot push, pull or break a dragon ball (4.7.36). */
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public void onDragonBallPiston(net.minecraftforge.event.level.PistonEvent.Pre event) {
+        DragonBallPistonGuard.onPistonPre(event);
     }
 
     /** One set per player (4.7.35): a full-set holder leaves a ground ball of that set where it is. */

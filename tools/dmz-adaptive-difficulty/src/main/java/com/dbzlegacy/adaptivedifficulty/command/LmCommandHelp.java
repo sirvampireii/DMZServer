@@ -417,7 +417,7 @@ public final class LmCommandHelp {
                         LmStaffHelp.cmd("/padmin completed <player> set <amount>", "set completed count"),
                         LmStaffHelp.cmd("/padmin completed <player> add <amount>", "add completed count"),
                         LmStaffHelp.cmd("/padmin completed <player> remove <amount>", "remove completed count"),
-                        LmStaffHelp.cmd("/padmin godki <player> set <0-5>", "set God Ki investments"),
+                        LmStaffHelp.cmd("/padmin godki <player> set <0-10>", "set God Ki investments"),
                         LmStaffHelp.cmd("/padmin godki <player> add <n>", "add God Ki investments"),
                         LmStaffHelp.cmd("/padmin godki <player> remove <n>", "remove God Ki investments")),
                 new LmStaffHelp.Section("Shop unlocks",

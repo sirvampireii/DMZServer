@@ -1164,17 +1164,17 @@ public final class UltraScreenSelfTest {
 
     /**
      * God Ki Mastery (4.7.21): always the first wallet line, 100 mastery per point, one level = 10
-     * points = 1,000 mastery, 5 levels, and its Level up runs through a confirm page. Since 4.7.29 it
+     * points = 1,000 mastery, 10 levels (4.7.34; 5 before), and its Level up runs through a confirm page. Since 4.7.29 it
      * feeds the godki stack form (token k:godki), Divine Ki Mastery (k:divineki) follows it when open,
      * and real godkienhancement / godki lines are dropped.
      */
     private static void checkGodKiWallet(List<String> broken, List<MasteryWallet.Line> lines) {
-        MasteryWallet.Line gk = MasteryWallet.godKiLine(0, 5, 1000);
+        MasteryWallet.Line gk = MasteryWallet.godKiLine(0, 10, 1000);
         MasteryWallet.Form form = gk.forms.get(0);
-        if (!gk.godKi || form.rate != 100 || form.cap != 5000.0 || form.maxPoints() != 50
-                || MasteryWallet.godKiMaxLevel(form) != 5 || MasteryWallet.godKiLevel(form) != 0
-                || MasteryWallet.godKiLevel(MasteryWallet.godKiLine(3, 5, 1000).forms.get(0)) != 3) {
-            broken.add("god ki wallet: want 100 mastery a point, 5 levels of 1,000; got rate " + form.rate
+        if (!gk.godKi || form.rate != 100 || form.cap != 10000.0 || form.maxPoints() != 100
+                || MasteryWallet.godKiMaxLevel(form) != 10 || MasteryWallet.godKiLevel(form) != 0
+                || MasteryWallet.godKiLevel(MasteryWallet.godKiLine(3, 10, 1000).forms.get(0)) != 3) {
+            broken.add("god ki wallet: want 100 mastery a point, 10 levels of 1,000; got rate " + form.rate
                     + ", cap " + form.cap);
         }
         List<MasteryWallet.Line> withReal = new ArrayList<>(lines);
@@ -1182,7 +1182,7 @@ public final class UltraScreenSelfTest {
                 List.of(new MasteryWallet.Form("enhancewithgodki", "God Ki", 0, 100))));
         withReal.add(new MasteryWallet.Line("godki", "Godki", true, "",
                 List.of(new MasteryWallet.Form("godki", "Godki", 0, 5000))));
-        MasteryWallet.Line dk = MasteryWallet.kiLine(KiMasteryTrack.DIVINE_KI, 0, 5, 1000);
+        MasteryWallet.Line dk = MasteryWallet.kiLine(KiMasteryTrack.DIVINE_KI, 0, 10, 1000);
         List<MasteryWallet.Line> all = MasteryWallet.withGodKi(withReal, List.of(gk, dk));
         long realLines = all.stream().filter(l -> !l.godKi
                 && ("godkienhancement".equals(l.group) || "godki".equals(l.group))).count();
@@ -1194,9 +1194,9 @@ public final class UltraScreenSelfTest {
                     + " and real godkienhancement / godki lines should be dropped");
         }
         Map<String, String> pick = buttonIds(UltraPrestigeScreens.linesSpec(all, 0, 0).toPacket());
-        if (!"God Ki Level 0/5".equals(pick.get("page:mw_form:k:godki:godki"))
-                || !"Divine Ki Level 0/5".equals(pick.get("page:mw_form:k:divineki:divineki"))) {
-            broken.add("god ki wallet: line list should open God Ki / Divine Ki Level 0/5 directly, got " + pick);
+        if (!"God Ki Level 0/10".equals(pick.get("page:mw_form:k:godki:godki"))
+                || !"Divine Ki Level 0/10".equals(pick.get("page:mw_form:k:divineki:divineki"))) {
+            broken.add("god ki wallet: line list should open God Ki / Divine Ki Level 0/10 directly, got " + pick);
         }
         GuiOpenPacket dpage = UltraPrestigeScreens.formSpec(dk, dk.forms.get(0), 37, 0).toPacket();
         if (validatePacket(dpage, "prestige") != null
@@ -1209,19 +1209,19 @@ public final class UltraScreenSelfTest {
         String err = validatePacket(page, "prestige");
         Map<String, String> ids = buttonIds(page);
         if (err != null || !ids.containsKey("page:ask:mastery_apply:k:godki:godki:10")
-                || !shownLines(page).contains("Level 0/5")) {
-            broken.add("god ki wallet: form page should show Level 0/5 and a 10-point Level up"
+                || !shownLines(page).contains("Level 0/10")) {
+            broken.add("god ki wallet: form page should show Level 0/10 and a 10-point Level up"
                     + (err == null ? "" : " (" + err + ")") + ", got " + ids);
         }
         GuiOpenPacket ask = UltraPrestigeScreens.masteryApplyAskSpec(gk, form, 10, 37, true).toPacket();
         Map<String, String> askIds = buttonIds(ask);
         if (validatePacket(ask, "prestige") != null
                 || !askIds.containsKey("do:mastery_apply:k:godki:godki:10")
-                || !shownLines(ask).contains("Level 0 -> 1 of 5") || !shownLines(ask).contains("0 -> 1,000")
+                || !shownLines(ask).contains("Level 0 -> 1 of 10") || !shownLines(ask).contains("0 -> 1,000")
                 || !shownLines(ask).contains("37 -> 27")) {
             broken.add("god ki wallet: level confirm should show the level, mastery, points and Confirm, got " + askIds);
         }
-        MasteryWallet.Line top = MasteryWallet.godKiLine(5, 5, 1000);
+        MasteryWallet.Line top = MasteryWallet.godKiLine(10, 10, 1000);
         for (Object[] c : new Object[][] {{gk, 5, 37}, {gk, 10, 9}, {top, 10, 37}}) {
             MasteryWallet.Line l = (MasteryWallet.Line) c[0];
             if (buttonIds(UltraPrestigeScreens.masteryApplyAskSpec(l, l.forms.get(0), (int) c[1], (int) c[2], true)

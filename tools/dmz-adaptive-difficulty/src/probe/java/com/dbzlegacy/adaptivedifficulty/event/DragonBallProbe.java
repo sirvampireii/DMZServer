@@ -36,8 +36,9 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
- * Dev-only probe for 4.7.35 dragon balls (JVM flag {@code -Dlm.probe.dragonBalls=main|restart}; never
- * runs otherwise). Drives fake players through the real event paths (block break, radar left-click,
+ * Test-only probe for the dragon balls (4.7.35; pistons 4.7.36). Lives in src/probe/java and ships only
+ * in the testprobe jar ({@code LM_TEST_PROBES=1 bash build.sh}); never in mods/ or on live. Runs when the
+ * server has {@code -Dlm.probe.dragonBalls=main|restart} (docs/LM_TEST_PROBES.md). Drives fake players through the real event paths (block break, radar left-click,
  * item pickup, block use) and logs one line per check: "dragon ball probe check NAME: OK|WRONG".
  *
  * <p>main: radar-only break (pickaxe, fist, wrong radar, right radar, Bi-Dimensional Radar), one set
@@ -65,6 +66,14 @@ public final class DragonBallProbe {
 
     public static boolean active() {
         return !MODE.isEmpty() && !done;
+    }
+
+    /** Entry point DifficultyEvents finds by name each server tick (test builds only). */
+    public static void tick(MinecraftServer server, int tick) {
+        if (active()) {
+            pulse(server, tick);
+        }
+        pistonTick(server, tick);
     }
 
     public static void pulse(MinecraftServer server, int tick) {
@@ -214,7 +223,21 @@ public final class DragonBallProbe {
                 BlockPos click = base.m_7918_(-3, 0, 0);
                 BlockState state = ow.m_8055_(click);
                 hold(fs, ItemStack.f_41583_);
-                state.m_60664_(ow, fs, InteractionHand.MAIN_HAND, new BlockHitResult(Vec3.m_82512_(click), Direction.UP, click, false));
+                Object used = state.m_60664_(ow, fs, InteractionHand.MAIN_HAND,
+                        new BlockHitResult(Vec3.m_82512_(click), Direction.UP, click, false));
+                List<String> near = new ArrayList<>();
+                for (int dx = -5; dx <= 5; dx++) {
+                    for (int dy = -5; dy <= 5; dy++) {
+                        for (int dz = -5; dz <= 5; dz++) {
+                            BlockPos q = click.m_7918_(dx, dy, dz);
+                            if (isBall(ow, q)) {
+                                near.add(dx + "," + dy + "," + dz);
+                            }
+                        }
+                    }
+                }
+                log("summon click: block " + state.m_60734_() + " result " + used + ", dragon definition "
+                        + DragonBallDefinitions.getDragonForSetAndDimension("earth", ow.m_46472_()) + ", balls near " + near);
                 Entity dragon = null;
                 for (Entity entity : ow.m_8583_()) {
                     if (entity != null && !entity.m_213877_() && entity.getClass().getName().equals(DRAGON)) {
@@ -340,61 +363,98 @@ public final class DragonBallProbe {
         fh.m_150109_().m_6211_();
     }
 
-    /** Can a piston move or break a dragon ball? (Out of scope either way; logged for the report.) */
+    /**
+     * Pistons cannot push, pull or break a dragon ball (4.7.36). Five rigs on a stone floor, each piston
+     * facing north: a piston against a ball, a sticky piston pulling a ball, a piston pushing stone into a
+     * ball, and a piston moving slime / honey with a ball stuck to its side. Read a second after they fire.
+     */
     private static void pistonTest(ServerLevel ow, DragonBallSetDefinition earth) {
-        BlockPos base = ow.m_220360_().m_7918_(-40, 0, -40);
-        base = new BlockPos(base.m_123341_(), ow.m_6924_(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
-                base.m_123341_(), base.m_123343_()) + 1, base.m_123343_());
-        for (int dz = 0; dz >= -3; dz--) {
-            ow.m_46597_(base.m_7918_(0, -1, dz), vanillaBlock("stone").m_49966_()); // ground under piston, ball and target
-            ow.m_46597_(base.m_7918_(0, 1, dz), Blocks.f_50016_.m_49966_());
+        BlockPos spawn = ow.m_220360_();
+        int x0 = spawn.m_123341_() - 60;
+        int z0 = spawn.m_123343_() - 40;
+        int y = ow.m_6924_(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x0, z0) + 3;
+        Block ball = earth.getBlockForStar(1);
+        RIGS.clear();
+        for (int i = 0; i < RIG_NAMES.length; i++) {
+            BlockPos p = new BlockPos(x0 + i * 8, y, z0);
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -5; dz <= 2; dz++) {
+                    ow.m_46597_(p.m_7918_(dx, -1, dz), vanillaBlock("stone").m_49966_());
+                    ow.m_46597_(p.m_7918_(dx, 0, dz), Blocks.f_50016_.m_49966_());
+                    ow.m_46597_(p.m_7918_(dx, 1, dz), Blocks.f_50016_.m_49966_());
+                }
+            }
+            BlockPos at = switch (i) {
+                case 0 -> p.m_122012_();
+                case 1 -> p.m_122013_(2);
+                case 2 -> p.m_122013_(2);
+                default -> p.m_122012_().m_122024_();
+            };
+            if (i != 1) {
+                ow.m_46597_(at, ball.m_49966_());
+            }
+            if (i == 2) {
+                ow.m_46597_(p.m_122012_(), vanillaBlock("stone").m_49966_());
+            } else if (i == 3) {
+                ow.m_46597_(p.m_122012_(), vanillaBlock("slime_block").m_49966_());
+            } else if (i == 4) {
+                ow.m_46597_(p.m_122012_(), vanillaBlock("honey_block").m_49966_());
+            }
+            ow.m_46597_(p, vanillaBlock(i == 1 ? "sticky_piston" : "piston").m_49966_());
+            ow.m_46597_(p.m_122019_(), vanillaBlock("redstone_block").m_49966_());
+            RIGS.add(new BlockPos[] {p, at});
         }
-        // A piston's default state faces north, so it pushes toward -z.
-        BlockPos piston = base;
-        BlockPos ball = base.m_122012_();
-        BlockPos beyond = ball.m_122012_();
-        Block block = earth.getBlockForStar(1);
-        ow.m_46597_(beyond, Blocks.f_50016_.m_49966_());
-        ow.m_46597_(ball, block.m_49966_());
-        ow.m_46597_(piston.m_122019_(), vanillaBlock("stone").m_49966_());
-        ow.m_46597_(piston, vanillaBlock("piston").m_49966_());
-        check("piston test: the ball sits on ground before the push", isBall(ow, ball));
-        ow.m_46597_(piston.m_122019_(), vanillaBlock("redstone_block").m_49966_());
-        // the piston extends on its next block event; read the result a few ticks later
-        AdaptiveDifficultyMod.LOGGER.info("[{}] dragon ball probe piston test placed at {}", AdaptiveDifficultyMod.MOD_ID, piston);
-        pistonAt = piston;
-        pistonBall = ball;
-        pistonBeyond = beyond;
         pistonLevel = ow;
-        pistonCheckAt = ow.m_7654_().m_129921_() + 10;
+        pistonBall = ball;
+        pistonStage = 0;
+        pistonCheckAt = ow.m_7654_().m_129921_() + 6;
+        log("piston rigs placed from " + RIGS.get(0)[0]);
     }
 
-    private static BlockPos pistonAt;
-    private static BlockPos pistonBall;
-    private static BlockPos pistonBeyond;
+    private static final String[] RIG_NAMES = {"a piston pushing a ball", "a sticky piston pulling a ball",
+            "a piston pushing stone into a ball", "a piston moving slime with a ball stuck to it",
+            "a piston moving honey with a ball stuck to it"};
+    private static final List<BlockPos[]> RIGS = new ArrayList<>();
     private static ServerLevel pistonLevel;
+    private static Block pistonBall;
+    private static int pistonStage;
     private static int pistonCheckAt = Integer.MAX_VALUE;
 
-    /** Called every tick by {@link #pulse}'s caller so the piston result is read on time. */
+    /** Called every tick: stage 0 sets up the sticky pull, stage 1 reads every rig and cleans up. */
     public static void pistonTick(MinecraftServer server, int tick) {
         if (pistonLevel == null || tick < pistonCheckAt) {
             return;
         }
-        boolean stayed = pistonLevel.m_8055_(pistonBall).m_60734_() instanceof com.dragonminez.common.init.block.custom.DragonBallBlock;
-        boolean moved = pistonLevel.m_8055_(pistonBeyond).m_60734_() instanceof com.dragonminez.common.init.block.custom.DragonBallBlock;
-        int dropped = 0;
-        for (Entity entity : pistonLevel.m_8583_()) {
-            if (entity instanceof ItemEntity item && !item.m_213877_() && DragonBallSetHold.setOf(item.m_32055_()) != null
-                    && item.m_20183_().m_123331_(pistonBall) < 16) {
-                dropped++;
-                item.m_146870_(); // the probe's own ball; do not let it despawn into a lost-item respawn
-            }
+        if (pistonStage == 0) {
+            // the sticky piston has extended into air; put the ball on its head and cut the power to pull it
+            BlockPos[] sticky = RIGS.get(1);
+            pistonLevel.m_46597_(sticky[1], pistonBall.m_49966_());
+            pistonLevel.m_46597_(sticky[0].m_122019_(), Blocks.f_50016_.m_49966_());
+            pistonStage = 1;
+            pistonCheckAt = tick + 20;
+            return;
         }
-        log("piston result: ball " + (stayed ? "stayed in place" : moved ? "was pushed one block"
-                : dropped > 0 ? "was broken and dropped as an item" : "vanished"));
-        check("piston does not move or break a dragon ball", stayed);
-        for (BlockPos p : new BlockPos[] {pistonBeyond, pistonBall, pistonAt.m_122019_(), pistonAt}) {
-            pistonLevel.m_7471_(p, false);
+        for (int i = 0; i < RIGS.size(); i++) {
+            BlockPos[] rig = RIGS.get(i);
+            int dropped = 0;
+            for (Entity entity : pistonLevel.m_8583_()) {
+                if (entity instanceof ItemEntity item && !item.m_213877_() && DragonBallSetHold.setOf(item.m_32055_()) != null
+                        && item.m_20183_().m_123331_(rig[1]) < 64) {
+                    dropped++;
+                    item.m_146870_(); // the probe's own ball; do not let it despawn into a lost-item respawn
+                }
+            }
+            boolean stayed = isBall(pistonLevel, rig[1]);
+            log("piston rig: " + RIG_NAMES[i] + " -> ball " + (stayed ? "stayed in place"
+                    : dropped > 0 ? "was broken and dropped as an item" : "was moved"));
+            check("piston: " + RIG_NAMES[i] + " leaves it in place", stayed && dropped == 0);
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -5; dz <= 2; dz++) {
+                    for (int dy = 0; dy <= 1; dy++) {
+                        pistonLevel.m_7471_(rig[0].m_7918_(dx, dy, dz), false);
+                    }
+                }
+            }
         }
         pistonLevel = null;
     }
