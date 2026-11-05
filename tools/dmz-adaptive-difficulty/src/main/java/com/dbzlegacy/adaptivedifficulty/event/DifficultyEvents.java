@@ -70,6 +70,7 @@ import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.MobSpawnEvent;
+import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
@@ -172,6 +173,7 @@ public final class DifficultyEvents {
 
     @SubscribeEvent
     public void onServerStopping(ServerStoppingEvent event) {
+        DragonBallRespawn.reset();
         // Never throw from stop handlers — a hot-swapped LM jar can split classloaders and
         // abort shutdown while players are still flushed to disk (invalid playerdata).
         try {
@@ -726,9 +728,16 @@ public final class DifficultyEvents {
         safePulse("sparring", () -> SparringSystem.pulse(server, tick));
         safePulse("progression", () -> ProgressionSystem.pulse(server, tick));
         safePulse("level-pull", () -> DifficultyActions.pulseLevelPulls(server));
+        if (DragonBallProbe.active()) {
+            safePulse("dragon-ball-probe", () -> {
+                DragonBallProbe.pulse(server, tick);
+                DragonBallProbe.pistonTick(server, tick);
+            });
+        }
         if (tick % 20 == 0) {
             safePulse("gui-login-check",
                     () -> com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.pulseLoginChecks(server));
+            safePulse("dragon-ball-respawn", () -> DragonBallRespawn.pulse(server, tick));
         }
         if (tick % 600 == 0) {
             safePulse("player-store", com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore::flushAll);
@@ -1012,10 +1021,19 @@ public final class DifficultyEvents {
         DragonBallRadarPickup.onLeftClickBlock(event);
     }
 
-    /** A claim plugin may still cancel the break. Allow it only for this radar click. */
+    /**
+     * Only the matching radar breaks a dragon ball (4.7.35); tools and fists are refused.
+     * A claim plugin may still cancel the break. Allow it only for this radar click.
+     */
     @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
     public void onDragonBallBreak(BlockEvent.BreakEvent event) {
         DragonBallRadarPickup.onBreak(event);
+    }
+
+    /** One set per player (4.7.35): a full-set holder leaves a ground ball of that set where it is. */
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public void onDragonBallItemPickup(EntityItemPickupEvent event) {
+        DragonBallRadarPickup.onItemPickup(event);
     }
 
     /** Sneak + right-click another player → DMZ stat dump (PlayerStatChecker.js).

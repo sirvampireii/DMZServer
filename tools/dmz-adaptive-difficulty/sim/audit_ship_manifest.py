@@ -1878,6 +1878,42 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § dragon balls 4.7.35 ---")
+    db_pick = read(SRC / "event/DragonBallRadarPickup.java")
+    db_hold = read(SRC / "event/DragonBallSetHold.java")
+    db_resp = read(SRC / "event/DragonBallRespawn.java")
+    db_ev = read(SRC / "event/DifficultyEvents.java")
+    db_break = db_pick.split("public static void onBreak(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest dragon-balls-4735 row", "dragon-balls-4735" in manifest)
+    check("respawn: 3 minutes, armed by both pickup paths, fires DMZ's scatter, not regenerateSet",
+          "DELAY_TICKS = 3 * 60 * 20;" in db_resp
+          and "DragonBallsHandler.scatterDragonBalls(home, setId);" in db_resp
+          and "regenerateSet(" not in db_resp
+          and db_pick.count("DragonBallRespawn.afterPickup(") == 2
+          and "inWorld(server, definition) > 0" in db_resp
+          and "summonActive(server, setId)" in db_resp
+          and 'safePulse("dragon-ball-respawn", () -> DragonBallRespawn.pulse(server, tick));' in db_ev
+          and "DragonBallRespawn.reset();" in db_ev)
+    check("respawn at boot: a set already at 0 gets a fresh timer (no instant spawn)",
+          "if (!bootChecked) {" in db_resp
+          and 'arm(server, definition.getId(), "no ball of it is in the world at boot");' in db_resp)
+    check("one set per player: inventory, ender chest, bags, Curios; all 7 stars of one set",
+          "scan(player.m_150109_(), definition, stars);" in db_hold
+          and "scan(player.m_36327_(), definition, stars);" in db_hold
+          and "ForgeCapabilities.ITEM_HANDLER" in db_hold
+          and "getEquippedCurios" in db_hold
+          and "return stars.containsAll(definition.getStars());" in db_hold)
+    check("one set per player: radar left-click, radar break and ground pickup all refuse a full-set holder",
+          db_pick.count("DragonBallSetHold.holdsFullSet(") == 4
+          and "public static void onItemPickup(EntityItemPickupEvent event)" in db_pick
+          and "DragonBallRadarPickup.onItemPickup(event);" in db_ev)
+    check("radar-only break: no matching radar cancels the break",
+          "if (!holdsMatchingRadar(player, ball)) {" in db_break
+          and db_break.index("event.setCanceled(true);") < db_break.index("event.setCanceled(false);"))
+    check("biradar takes Earth and Namek balls",
+          'FUSED_RADAR = "fused_radar"' in db_pick
+          and '(FUSED_RADAR.equals(definition.getId()) && ("earth".equals(set) || "namek".equals(set)))' in db_pick)
+
     print("\n--- § text fixes 4.7.33 ---")
     tf_w = read(SRC / "gui/ultra/UltraWeightShopScreens.java")
     tf_r = read(SRC / "gui/ultra/UltraRivalScreens.java")

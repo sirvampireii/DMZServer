@@ -17,6 +17,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.eventbus.api.Event;
@@ -24,12 +25,19 @@ import net.minecraftforge.eventbus.api.Event;
 /**
  * One left-click with the radar for that ball set takes the ball into the
  * inventory. The Earth radar takes Earth balls. The Namek radar takes Namek
- * balls. A different radar leaves the ball where it is.
+ * balls. The Bi-Dimensional Radar takes both. A different radar leaves the ball
+ * where it is.
+ *
+ * <p>4.7.35: nothing else breaks a dragon ball (no tool, no fist), a player who
+ * already carries a full set of that kind cannot take another ball of it
+ * ({@link DragonBallSetHold}), and taking the last ball of a set starts its
+ * three-minute respawn ({@link DragonBallRespawn}).
  *
  * <p>FTB Chunks cancels the left click, and GriefPrevention cancels the break.
  * This click still takes the ball. Every other block stays protected.
  */
 public final class DragonBallRadarPickup {
+    private static final String FUSED_RADAR = "fused_radar";
     private static final Map<String, Long> TAKEN = new ConcurrentHashMap<>();
     private static volatile boolean griefPreventionHooked;
 
@@ -56,6 +64,13 @@ public final class DragonBallRadarPickup {
             if (!holdsMatchingRadar(side.player, ball)) {
                 return;
             }
+            if (DragonBallSetHold.holdsFullSet(side.player, ball.getBallSetId())) {
+                DragonBallSetHold.tellAlreadyHeld(side.player, ball.getBallSetId());
+                event.setCanceled(true);
+                event.setUseBlock(Event.Result.DENY);
+                event.setUseItem(Event.Result.DENY);
+                return;
+            }
             if (!deposit(side.level, pos, side.player, ball)) {
                 return;
             }
@@ -78,6 +93,14 @@ public final class DragonBallRadarPickup {
                 return;
             }
             if (!holdsMatchingRadar(player, ball)) {
+                // Only the matching radar takes a dragon ball; tools and fists leave it in place.
+                event.setCanceled(true);
+                DragonBallSetHold.tellNeedsRadar(player, ball.getBallSetId());
+                return;
+            }
+            if (DragonBallSetHold.holdsFullSet(player, ball.getBallSetId())) {
+                event.setCanceled(true);
+                DragonBallSetHold.tellAlreadyHeld(player, ball.getBallSetId());
                 return;
             }
             if (event.getLevel() instanceof ServerLevel level && wasTaken(level, event.getPos())) {
@@ -181,7 +204,8 @@ public final class DragonBallRadarPickup {
             int z = (Integer) bukkitBlock.getClass().getMethod("getZ").invoke(bukkitBlock);
             BlockPos pos = new BlockPos(x, y, z);
             BlockState state = level.m_8055_(pos);
-            if (!(state.m_60734_() instanceof DragonBallBlock ball) || !holdsMatchingRadar(player, ball)) {
+            if (!(state.m_60734_() instanceof DragonBallBlock ball) || !holdsMatchingRadar(player, ball)
+                    || DragonBallSetHold.holdsFullSet(player, ball.getBallSetId())) {
                 return;
             }
             event.getClass().getMethod("setCancelled", boolean.class).invoke(event, false);
@@ -204,7 +228,38 @@ public final class DragonBallRadarPickup {
             return false;
         }
         DragonRadarDefinition definition = radar.getDefinition();
-        return definition != null && definition.supportsBallSet(ball.getBallSetId());
+        if (definition == null) {
+            return false;
+        }
+        String set = ball.getBallSetId();
+        // DMZ registers the Bi-Dimensional Radar with ballSetId "earth" only; it covers Namek too.
+        return definition.supportsBallSet(set)
+                || (FUSED_RADAR.equals(definition.getId()) && ("earth".equals(set) || "namek".equals(set)));
+    }
+
+    /**
+     * A ground dragon-ball item: a player who already carries a full set of that kind leaves it
+     * on the ground. A pickup that goes through may be the last ball of the set.
+     */
+    public static void onItemPickup(EntityItemPickupEvent event) {
+        try {
+            if (event == null || event.getEntity() == null || event.getItem() == null
+                    || event.getEntity().m_9236_().m_5776_()) {
+                return;
+            }
+            String set = DragonBallSetHold.setOf(event.getItem().m_32055_());
+            if (set == null) {
+                return;
+            }
+            Player player = event.getEntity();
+            if (DragonBallSetHold.holdsFullSet(player, set)) {
+                event.setCanceled(true);
+                DragonBallSetHold.tellAlreadyHeld(player, set);
+                return;
+            }
+            DragonBallRespawn.afterPickup(player.m_20194_(), set);
+        } catch (Throwable ignored) {
+        }
     }
 
     private static boolean deposit(ServerLevel level, BlockPos pos, Player player, DragonBallBlock ball) {
@@ -227,6 +282,7 @@ public final class DragonBallRadarPickup {
         if (!player.m_150109_().m_36054_(stack)) {
             player.m_36176_(stack, false);
         }
+        DragonBallRespawn.afterPickup(level.m_7654_(), ball.getBallSetId());
         level.m_5594_(null, pos, SoundEvents.f_12019_, SoundSource.PLAYERS, 0.4f, 1.0f);
         return true;
     }
