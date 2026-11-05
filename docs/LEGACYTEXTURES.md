@@ -4,8 +4,8 @@ A Forge 1.20.1 mod that carries the HD textures for DragonMineZ and NB Armors, a
 switch between HD and the standard look for their own game. It is a new mod, separate from
 LegacyMechanics. Source: `tools/legacytextures/`.
 
-- **Identity:** modId `legacytextures`, version 0.2.1, `displayTest = MATCH_VERSION`.
-- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.1). See
+- **Identity:** modId `legacytextures`, version 0.2.2, `displayTest = MATCH_VERSION`.
+- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.2). See
   [NB Armors inside Legacy Textures](#nb-armors-inside-legacy-textures). The separate
   `nbarmors-0.1.0.jar` must not be installed next to it, because two copies of a mod id will not load.
 - **Dependencies:**
@@ -160,6 +160,12 @@ has no JSON yet:
   is deleted.
 - A file a set lacks comes from its `fallback` set, and in the end from vanilla, never a missing
   texture. A fallback loop is stopped.
+- **Vanilla falls back to HD (0.2.2).** In vanilla mode the mods' own file always wins. For a file the
+  mods do not have at all (for example DMZ ships human/Saiyan male body types 1-2 only; 3-7, `tattoo_6` and female body type 3
+  are HD-only), the viewer's HD set is the last resort. Before 0.2.2 such a character showed a vanilla
+  viewer only a floating head: DMZ's `getSafeTexture` fell back to `bodytype_male_0_layer1.png`, which
+  exists nowhere, and the bind hook drew it transparent. A file missing from both still draws
+  transparent.
 - `categories`:
   - `players`: `dragonminez:textures/entity|armor`, `geo`, `animations`.
   - `armor`: everything in `nbarmors:textures`.
@@ -198,7 +204,10 @@ The resource-manager hook covers every place DMZ 2.2.1.1 checks or reads a file 
 - `DBSagaModel`
 
 **The selection-skew guard comes from this.** A viewer's creator only offers options their own game
-has, and every validated layer agrees with what the bind hook draws.
+can draw, and every validated layer agrees with what the bind hook draws. Since 0.2.2 a vanilla
+viewer's game can draw the HD-only options too (through the fallback above), so `TextureCounter`
+counts and offers them in vanilla mode as well: the creator shows the same option counts in both
+modes.
 
 There are **no mixins into DMZ or NB Armors classes**. DMZ builds its paths as hardcoded
 `dragonminez:` strings and has no resolver hook to use. Redirecting at the two vanilla lookup

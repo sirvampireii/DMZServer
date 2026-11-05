@@ -25,6 +25,9 @@ public final class ResolverTest {
         ResourceLocation bodyHd = rl("legacytextures", "textures/hd/dragonminez/entity/races/humansaiyan/bodytype_male_3_layer1.png");
         ResourceLocation tattoo6 = rl("dragonminez", "textures/entity/races/tattoos/tattoo_6.png");
         ResourceLocation tattoo6Hd = rl("legacytextures", "textures/hd/dragonminez/entity/races/tattoos/tattoo_6.png");
+        ResourceLocation body6 = rl("dragonminez", "textures/entity/races/humansaiyan/bodytype_male_6_layer1.png");
+        ResourceLocation body6Hd = rl("legacytextures", "textures/hd/dragonminez/entity/races/humansaiyan/bodytype_male_6_layer1.png");
+        ResourceLocation missing = rl("dragonminez", "textures/entity/races/humansaiyan/bodytype_male_0_layer1.png");
         ResourceLocation gi = rl("nbarmors", "textures/armor/angel1_1jbra.png");
         ResourceLocation giHd = rl("legacytextures", "textures/hd/nbarmors/armor/angel1_1jbra.png");
         ResourceLocation geo = rl("dragonminez", "geo/entity/races/frostdemon.geo.json");
@@ -35,6 +38,7 @@ public final class ResolverTest {
         files.add(body);
         files.add(bodyHd);
         files.add(tattoo6Hd); // HD-only option: no vanilla file
+        files.add(body6Hd); // HD-only body type
         files.add(gi);
         files.add(giHd);
         files.add(geo);
@@ -55,8 +59,12 @@ public final class ResolverTest {
         r.configure(reg, mode(TextureMode.Preset.ALL_VANILLA), false, "hd");
         check("ALL_VANILLA: body is the mod's own file (same instance)", r.variant(body) == body);
         check("ALL_VANILLA: gi is the jar file", r.variant(gi) == gi);
-        check("ALL_VANILLA: HD-only tattoo has no file (option count stops; bind draws blank)",
-                r.variant(tattoo6) == tattoo6 && !r.exists(tattoo6));
+        check("ALL_VANILLA: HD-only tattoo falls back to its HD file (0.2.2; vanilla has none)",
+                tattoo6Hd.equals(r.variant(tattoo6)) && !r.exists(tattoo6));
+        check("ALL_VANILLA: HD-only body type 6 draws its HD body, not a floating head (0.2.2)",
+                body6Hd.equals(r.variant(body6)));
+        check("ALL_VANILLA: a file missing from both sets stays itself (bind draws blank)",
+                r.variant(missing) == missing);
 
         r.configure(reg, mode(TextureMode.Preset.PLAYERS_HD_ONLY), false, "hd");
         check("PLAYERS_HD_ONLY: body -> HD", bodyHd.equals(r.variant(body)));

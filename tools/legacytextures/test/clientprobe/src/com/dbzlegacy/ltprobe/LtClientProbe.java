@@ -57,6 +57,11 @@ public final class LtClientProbe {
     private static final Logger LOG = LoggerFactory.getLogger("LtProbe");
     private static final ResourceLocation BODY = rl("dragonminez", "textures/entity/races/humansaiyan/bodytype_male_1_layer1.png");
     private static final ResourceLocation BODY_HD = rl("legacytextures", "textures/hd/dragonminez/entity/races/humansaiyan/bodytype_male_1_layer1.png");
+    private static final ResourceLocation BODY6 = rl("dragonminez", "textures/entity/races/humansaiyan/bodytype_male_6_layer1.png");
+    private static final ResourceLocation BODY6_HD = rl("legacytextures", "textures/hd/dragonminez/entity/races/humansaiyan/bodytype_male_6_layer1.png");
+    /** DMZ's getSafeTexture fallback: in neither DMZ nor the HD set. */
+    private static final ResourceLocation BODY0 = rl("dragonminez", "textures/entity/races/humansaiyan/bodytype_male_0_layer1.png");
+    private static final ResourceLocation TATTOO6_HD = rl("legacytextures", "textures/hd/dragonminez/entity/races/tattoos/tattoo_6.png");
     private static final ResourceLocation FEMALE3 = rl("dragonminez", "textures/entity/races/humansaiyan/bodytype_female_3_layer1.png");
     private static final ResourceLocation TATTOO6 = rl("dragonminez", "textures/entity/races/tattoos/tattoo_6.png");
     private static final ResourceLocation GI = rl("nbarmors", "textures/armor/angel1_1jbra.png");
@@ -148,12 +153,15 @@ public final class LtClientProbe {
                 check("HD payload is in the loaded packs", raw(BODY_HD) && raw(GI_HD) && raw(GEO_HD) && raw(WIDGETS_HD));
                 sync(TextureMode.Preset.ALL_VANILLA, "hd");
                 check("vanilla: body binds the DMZ file", bound(BODY).equals(BODY));
-                check("vanilla: HD-only tattoo_6 is not a file (DMZ counts stop before it)", !raw(TATTOO6));
-                check("vanilla: HD-only female bodytype 3 is not a file", !raw(FEMALE3));
-                check("vanilla: HD-only tattoo_6 binds transparent, not the checkerboard", bound(TATTOO6).equals(LtHooks.BLANK));
-                for (int i = 0; i < 5; i++) {
-                    bound(TATTOO6);
-                }
+                // 0.2.2: vanilla prefers DMZ's file and falls back to HD only for files DMZ lacks
+                check("vanilla: body type 1 is DMZ's own file, byte for byte (no HD leak)",
+                        sha(BODY).equals(rawSha("dragonminez", BODY)) && !sha(BODY).equals(sha(BODY_HD)));
+                check("vanilla: HD-only body type 6 is a file through the HD fallback (DMZ keeps the body)", raw(BODY6));
+                check("vanilla: HD-only body type 6 binds its HD body, not blank (no floating head)", bound(BODY6).equals(BODY6_HD));
+                check("vanilla: HD-only tattoo_6 and female body type 3 resolve through HD", raw(TATTOO6) && raw(FEMALE3)
+                        && bound(TATTOO6).equals(TATTOO6_HD));
+                check("vanilla: a file missing from both sets binds transparent, not the checkerboard",
+                        !raw(BODY0) && bound(BODY0).equals(LtHooks.BLANK));
                 check("vanilla: NB gi binds the file now shipped in Legacy Textures", bound(GI).equals(GI));
                 check("vanilla: frostdemon model is the DMZ one", LtHooks.modelTarget(GEO).equals(GEO));
                 vanillaTattoos = tattoos();
@@ -169,7 +177,8 @@ public final class LtClientProbe {
                 check("female bodytype 3 is a file through the HD set", raw(FEMALE3));
                 int hd = tattoos();
                 line("   DMZ tattoo option count (HD) = " + hd);
-                check("DMZ creator offers more tattoos with HD on (selection-skew guard)", hd > vanillaTattoos);
+                check("vanilla and HD offer the same tattoo count (HD-only options draw in vanilla since 0.2.2)",
+                        hd == vanillaTattoos);
                 check("NB gi binds HD", bound(GI).equals(GI_HD));
                 check("world/menus stay vanilla", bound(WIDGETS).equals(WIDGETS));
                 geometry(true);
@@ -205,10 +214,10 @@ public final class LtClientProbe {
                 int before = reloadsSeen;
                 for (int i = 1; i <= 3; i++) {
                     sync(TextureMode.Preset.ALL_VANILLA, "hd");
-                    boolean v = bound(BODY).equals(BODY) && !raw(TATTOO6) && bound(TATTOO6).equals(LtHooks.BLANK)
+                    boolean v = bound(BODY).equals(BODY) && bound(BODY6).equals(BODY6_HD) && bound(BODY0).equals(LtHooks.BLANK)
                             && tattoos() == vanillaTattoos && cubes(geoModel().getBakedModel(GEOMETRY[0])) == cubes(GEOMETRY[0]);
                     sync(TextureMode.Preset.PLAYERS_HD_ONLY, "hd");
-                    boolean h = bound(BODY).equals(BODY_HD) && raw(TATTOO6) && tattoos() > vanillaTattoos
+                    boolean h = bound(BODY).equals(BODY_HD) && raw(TATTOO6) && tattoos() == vanillaTattoos
                             && cubes(geoModel().getBakedModel(GEOMETRY[0])) == cubes(hd(GEOMETRY[0]));
                     check("toggle " + i + ": textures, option counts and geometry fresh each way", v && h);
                 }
