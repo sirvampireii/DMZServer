@@ -64,3 +64,6 @@ libraries/live-pull/
 # Mimo task watcher local state
 mimo-tasks/.seen.txt
 mimo-tasks/.logs/
+
+# Legacy Textures build output (sources, payload and audits are committed)
+tools/legacytextures/build/

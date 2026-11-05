@@ -1,0 +1,8 @@
+{
+  "id": "vanilla",
+  "name": "Vanilla (DragonMineZ and NB Armors defaults)",
+  "namespace": "",
+  "basePath": "",
+  "categories": ["players", "armor", "gui", "world"],
+  "fallback": ""
+}

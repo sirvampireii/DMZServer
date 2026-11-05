@@ -1,0 +1,40 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "All Rights Reserved"
+
+[[mods]]
+modId = "legacytextures"
+version = "0.1.0"
+displayName = "Legacy Textures"
+authors = "DBZ Legacy"
+description = '''HD texture sets for DragonMineZ and NB Armors, with a per-player switch between HD and vanilla. Each player only changes what their own game draws.'''
+# Server keeps each player's choice; the client carries the textures and draws them. Both sides need the same jar.
+displayTest = "MATCH_VERSION"
+
+[[dependencies.legacytextures]]
+modId = "forge"
+mandatory = true
+versionRange = "[47,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.legacytextures]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.20.1,1.21)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.legacytextures]]
+modId = "dragonminez"
+mandatory = false
+versionRange = "[2.2,)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.legacytextures]]
+modId = "nbarmors"
+mandatory = false
+versionRange = "[0.1.0,)"
+ordering = "AFTER"
+side = "BOTH"
