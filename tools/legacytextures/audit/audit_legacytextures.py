@@ -160,6 +160,11 @@ def main() -> int:
     check("mixin classes: every non-handler method is private" + (f" ({bad})" if bad else ""), not bad)
     screen = (SRC / "client" / "TextureScreen.java").read_text(encoding="utf-8")
     check("menu text: no 'Hub', no 'Invalid input'", "Hub" not in screen and "Invalid input" not in screen)
+    net = (SRC / "net" / "LtNetwork.java").read_text(encoding="utf-8")
+    check("menu (0.2.4): My face runs /faceanim on|off (the command's store and broadcast, no second packet)",
+          '"faceanim on"' in screen and '"faceanim off"' in screen and net.count("CHANNEL.messageBuilder(") == 4)
+    check("menu (0.2.4): See blinking / See shouting write the [faceanim] config",
+          "FaceAnimConfig.setBlink(" in screen and "FaceAnimConfig.setScream(" in screen)
     lang = json.loads((LT / "src/main/resources/assets/legacytextures/lang/en_us.json").read_text(encoding="utf-8"))
     player_text = [SRC / "client" / "TextureScreen.java", SRC / "client" / "ClientStatus.java",
                    SRC / "server" / "LtCommand.java"]

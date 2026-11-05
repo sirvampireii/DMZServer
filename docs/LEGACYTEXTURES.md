@@ -4,8 +4,8 @@ A Forge 1.20.1 mod that carries the HD textures for DragonMineZ and NB Armors, a
 switch between HD and the standard look for their own game. It is a new mod, separate from
 LegacyMechanics. Source: `tools/legacytextures/`.
 
-- **Identity:** modId `legacytextures`, version 0.2.3, `displayTest = MATCH_VERSION`.
-- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.3). See
+- **Identity:** modId `legacytextures`, version 0.2.4, `displayTest = MATCH_VERSION`.
+- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.4). See
   [NB Armors inside Legacy Textures](#nb-armors-inside-legacy-textures). The separate
   `nbarmors-0.1.0.jar` must not be installed next to it, because two copies of a mod id will not load.
 - **Dependencies:**
@@ -29,6 +29,8 @@ changed in Controls → Legacy Textures. All menu, command and status text comes
 | NB Armors outfits | NB Armors armor and vanity textures (jbra layouts) | At once (no reload) |
 | World, items and menus | Block, item and particle textures (atlases), menu art | One texture reload with the loading screen |
 | HD set | Which HD set the switches use (only when more than one is installed) | Same as the switches |
+| My face (0.2.4) | Your own face animation, for every viewer; the same switch as `/faceanim` | At once, needs the server to run Legacy Textures |
+| See blinking / See shouting (0.2.4) | Whether this game draws other players' blinks and shouts (`[faceanim]` config) | At once, only this game |
 
 The same choices can be typed:
 
@@ -143,6 +145,12 @@ The code is identifiable in `faceanim/` (`FaceAnimator`, `FaceFlags`, `FaceAnimC
   the Legacy Textures channel, protocol 3). This needs the server to run this jar.
 - **What a viewer sees:** `config/legacytextures-client.toml`, section `[faceanim]`: `enableBlink`
   and `enableScream` (both default `true`). Turning one off changes only that game.
+- **In the menu (0.2.4):** the bottom row of the texture menu holds both. "My face" shows the switch
+  the server sent (on until it says otherwise) and a click runs `/faceanim on|off`, so the store,
+  the chat reply and the update to every viewer are the command's own; it is greyed out when the
+  server has no `/faceanim`. "See blinking" and "See shouting" write `enableBlink`/`enableScream`
+  and save the file; the next frame uses them. The menu redraws when any of the three changes, so a
+  typed `/faceanim` shows there too.
 - The animation and the body fixes are client-side; only `/faceanim` needs the server.
 
 ## NB Armors inside Legacy Textures

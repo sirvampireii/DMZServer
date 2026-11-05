@@ -24,6 +24,7 @@ import net.minecraft.client.GuiMessage;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.renderer.texture.AbstractTexture;
@@ -388,7 +389,9 @@ public final class LtClientProbe {
             }
             return;
         }
-        if (mc.f_91080_ != null) {
+        boolean menuSteps = step >= 33 && step <= 38 && mc.f_91080_ != null
+                && mc.f_91080_.getClass().getSimpleName().equals("TextureScreen"); // 0.2.4: the menu stays open
+        if (mc.f_91080_ != null && !menuSteps) {
             mc.m_91152_(null); // DMZ may open its character screen for a new player; look at the world instead
         }
         if (pendingShot != null) {
@@ -592,6 +595,87 @@ public final class LtClientProbe {
                 wait = 10;
             }
             case 32 -> {
+                line("== face animation in the texture menu (0.2.4)");
+                mc.f_91074_.f_108617_.m_246623_("legacytextures");
+                wait = 40;
+            }
+            case 33 -> {
+                check("the menu opened", mc.f_91080_ != null && mc.f_91080_.getClass().getSimpleName().equals("TextureScreen"));
+                Button own = menuButton(mc, "My face: ");
+                Button blink = menuButton(mc, "See blinking: ");
+                Button scream = menuButton(mc, "See shouting: ");
+                line("   row: " + own.m_6035_().getString() + " | " + blink.m_6035_().getString() + " | " + scream.m_6035_().getString());
+                check("menu: My face / See blinking / See shouting rows, all on, My face clickable (server runs the mod)",
+                        own.m_6035_().getString().equals("My face: On") && blink.m_6035_().getString().equals("See blinking: On")
+                                && scream.m_6035_().getString().equals("See shouting: On") && own.f_93623_);
+                int bottom = 0;
+                boolean roomy = true;
+                for (Object o : mc.f_91080_.m_6702_()) {
+                    if (o instanceof Button b && !b.m_6035_().getString().equals("Done")) {
+                        bottom = Math.max(bottom, b.m_252907_() + b.m_93694_());
+                    }
+                }
+                for (Button b : List.of(own, blink, scream)) {
+                    String longest = b.m_6035_().getString().replaceFirst("On$", "Off");
+                    roomy &= b.m_5711_() >= 80 && mc.f_91062_.m_92895_(longest) <= b.m_5711_() - 16;
+                }
+                line("   lowest row ends at y=" + bottom);
+                check("menu layout: every row ends above Done even on the smallest screen (240 high, Done at 208)", bottom <= 206);
+                check("menu layout: the face buttons are 80px+ and keep 8px padding with the longest label", roomy);
+                chatMark = chatSize();
+                own.m_5691_();
+                wait = 40;
+            }
+            case 34 -> {
+                String chat = chatSince(chatMark);
+                line("   menu click chat: " + chat.replace('\n', '|'));
+                check("menu My face off: same reply as /faceanim off", chat.contains("Face animation off"));
+                check("menu My face off: stored and sent back to every viewer (this game too)",
+                        !FaceFlags.enabled(mc.f_91074_.m_20148_()));
+                check("menu My face off: no blink", routeAt(mc, closedTick(mc.f_91074_), EYE).equals(EYE));
+                check("menu redraws: My face: Off", menuButton(mc, "My face: ").m_6035_().getString().equals("My face: Off"));
+                menuButton(mc, "My face: ").m_5691_();
+                wait = 40;
+            }
+            case 35 -> {
+                check("menu My face on: the face animates again", FaceFlags.enabled(mc.f_91074_.m_20148_())
+                        && routeAt(mc, closedTick(mc.f_91074_), EYE).equals(EYE_CLOSED)
+                        && menuButton(mc, "My face: ").m_6035_().getString().equals("My face: On"));
+                menuButton(mc, "See blinking: ").m_5691_();
+                menuButton(mc, "See shouting: ").m_5691_();
+                check("menu See blinking off: applies at once (no blink for this viewer, own face still on for others)",
+                        !FaceAnimConfig.blink() && routeAt(mc, closedTick(mc.f_91074_), EYE).equals(EYE)
+                                && FaceFlags.enabled(mc.f_91074_.m_20148_()));
+                check("menu See shouting off: applies at once", !FaceAnimConfig.scream());
+                chatMark = chatSize();
+                mc.f_91074_.f_108617_.m_246623_("faceanim off");
+                wait = 40;
+            }
+            case 36 -> {
+                String toml = Files.readString(FMLPaths.CONFIGDIR.get().resolve("legacytextures-client.toml"), StandardCharsets.UTF_8);
+                line("   config: " + toml.substring(Math.max(0, toml.indexOf("[faceanim]"))).replaceAll("\\s*#[^\\n]*", "").replace('\n', ' '));
+                check("config file reflects the menu: enableBlink = false, enableScream = false",
+                        toml.contains("enableBlink = false") && toml.contains("enableScream = false"));
+                check("typed /faceanim off: same reply as before", chatSince(chatMark).contains("Face animation off"));
+                check("typed /faceanim off: the open menu shows My face: Off and the viewer rows Off",
+                        menuButton(mc, "My face: ").m_6035_().getString().equals("My face: Off")
+                                && menuButton(mc, "See blinking: ").m_6035_().getString().equals("See blinking: Off")
+                                && menuButton(mc, "See shouting: ").m_6035_().getString().equals("See shouting: Off"));
+                menuButton(mc, "See blinking: ").m_5691_();
+                menuButton(mc, "See shouting: ").m_5691_();
+                mc.f_91074_.f_108617_.m_246623_("faceanim on");
+                wait = 40;
+            }
+            case 37 -> {
+                String toml = Files.readString(FMLPaths.CONFIGDIR.get().resolve("legacytextures-client.toml"), StandardCharsets.UTF_8);
+                check("all three back on (menu, config file, server flag)", FaceAnimConfig.blink() && FaceAnimConfig.scream()
+                        && toml.contains("enableBlink = true") && toml.contains("enableScream = true")
+                        && FaceFlags.enabled(mc.f_91074_.m_20148_())
+                        && menuButton(mc, "My face: ").m_6035_().getString().equals("My face: On"));
+                mc.m_91152_(null);
+                wait = 10;
+            }
+            case 38 -> {
                 finish(mc);
             }
             default -> {
@@ -626,6 +710,18 @@ public final class LtClientProbe {
     }
 
     // ---------------------------------------------------------------- helpers
+
+    // ---------------------------------------------------------------- 0.2.4: face animation in the menu
+
+    /** The open texture menu's button whose label starts with {@code start}. */
+    private static Button menuButton(Minecraft mc, String start) {
+        for (Object o : mc.f_91080_.m_6702_()) {
+            if (o instanceof Button b && b.m_6035_().getString().startsWith(start)) {
+                return b;
+            }
+        }
+        throw new IllegalStateException("no menu button " + start + " on " + mc.f_91080_);
+    }
 
     // ---------------------------------------------------------------- 0.2.3: face animation and shaded bodies
 

@@ -47,5 +47,15 @@
   "legacytextures.faceanim.off": "Face animation off: your face stays still for everyone. Type /faceanim on to turn it back on.",
   "legacytextures.faceanim.is_on": "Your face animation is on. Type /faceanim off to keep your face still for everyone.",
   "legacytextures.faceanim.is_off": "Your face animation is off. Type /faceanim on to blink and shout again.",
-  "legacytextures.faceanim.player_only": "Only a player can change their own face animation."
+  "legacytextures.faceanim.player_only": "Only a player can change their own face animation.",
+  "legacytextures.state.on": "On",
+  "legacytextures.state.off": "Off",
+  "legacytextures.face.mine": "My face: %s",
+  "legacytextures.face.mine.help_on": "My face animation: you blink, and shout while you charge. Everyone sees this, not just you. Click to keep your face still for everyone (same as /faceanim off).",
+  "legacytextures.face.mine.help_off": "My face animation is off: your face stays still for everyone. Click to blink and shout again (same as /faceanim on).",
+  "legacytextures.face.mine.no_server": "My face animation is stored by the server, and this server does not run Legacy Textures, so it cannot be changed here.",
+  "legacytextures.face.blink": "See blinking: %s",
+  "legacytextures.face.blink.help": "Whether players' eyes blink in your game. Only your game changes; other players still see it. Switches at once.",
+  "legacytextures.face.scream": "See shouting: %s",
+  "legacytextures.face.scream.help": "Whether players' mouths open into a shout while they charge, in your game. Only your game changes; other players still see it. Switches at once."
 }
