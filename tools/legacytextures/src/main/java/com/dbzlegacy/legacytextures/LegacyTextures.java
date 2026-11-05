@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
 @Mod(LegacyTextures.MODID)
 public final class LegacyTextures {
     public static final String MODID = "legacytextures";
-    public static final String VERSION = "0.2.0";
+    public static final String VERSION = "0.2.2";
     public static final Logger LOG = LoggerFactory.getLogger("LegacyTextures");
 
     @SuppressWarnings("removal") // FMLJavaModLoadingContext.get(): still the 47.x way to reach the mod bus

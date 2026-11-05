@@ -59,6 +59,7 @@ public final class LtNetwork {
         static void handle(SyncMode m, Supplier<NetworkEvent.Context> ctx) {
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
                     () -> () -> com.dbzlegacy.legacytextures.client.ClientState.onServerSync(m.mode, m.openMenu));
+            ctx.get().setPacketHandled(true);
         }
     }
 
@@ -74,6 +75,7 @@ public final class LtNetwork {
         static void handle(AskHealth m, Supplier<NetworkEvent.Context> ctx) {
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
                     () -> () -> com.dbzlegacy.legacytextures.client.ClientStatus.report());
+            ctx.get().setPacketHandled(true);
         }
     }
 
@@ -93,6 +95,7 @@ public final class LtNetwork {
                 ModeStore.set(player, m.mode);
                 sync(player, ModeStore.get(player), false);
             }
+            ctx.get().setPacketHandled(true);
         }
     }
 }

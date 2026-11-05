@@ -4,7 +4,7 @@ license = "All Rights Reserved"
 
 [[mods]]
 modId = "legacytextures"
-version = "0.2.0"
+version = "0.2.2"
 displayName = "Legacy Textures"
 authors = "DBZ Legacy"
 description = '''HD texture sets for DragonMineZ and NB Armors, with a per-player switch between HD and vanilla. Each player only changes what their own game draws. Includes NB Armors.'''
@@ -15,7 +15,7 @@ displayTest = "MATCH_VERSION"
 # for every item, texture and model. Remove any separate nbarmors-*.jar: two copies of this mod id will not load.
 [[mods]]
 modId = "nbarmors"
-version = "0.2.0"
+version = "0.2.2"
 displayName = "NB Armors (in Legacy Textures)"
 authors = "Ported from NB Armors 3.1 by Naruke"
 description = '''Port of the NB Armors 1.7.10 outfit pack (armor, vanity items and headwear) to Minecraft 1.20.1, with a shared Curios vanity slot. Shipped inside Legacy Textures.'''

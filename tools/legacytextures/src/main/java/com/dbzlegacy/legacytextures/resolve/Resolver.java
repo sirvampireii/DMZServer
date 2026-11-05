@@ -16,6 +16,8 @@ import net.minecraft.resources.ResourceLocation;
 public final class Resolver {
     private final Predicate<ResourceLocation> rawExists;
     private final Map<ResourceLocation, ResourceLocation> variants = new ConcurrentHashMap<>();
+    /** The viewer's HD set (or its fallback): vanilla mode's last resort for files the mod lacks. */
+    private volatile TextureSet hd;
     private final Map<ResourceLocation, Boolean> exists = new ConcurrentHashMap<>();
     private volatile SetRegistry sets = SetRegistry.vanillaOnly();
     private volatile TextureSet players;
@@ -26,7 +28,7 @@ public final class Resolver {
     public Resolver(Predicate<ResourceLocation> rawExists) {
         this.rawExists = rawExists;
         TextureSet v = sets.vanilla();
-        players = armor = world = v;
+        players = armor = world = hd = v;
     }
 
     /**
@@ -36,7 +38,7 @@ public final class Resolver {
      */
     public synchronized void configure(SetRegistry registry, TextureMode mode, boolean worldHd, String worldSet) {
         sets = registry;
-        TextureSet hd = registry.hdOrFallback(mode.set);
+        hd = registry.hdOrFallback(mode.set);
         players = mode.players ? hd : registry.vanilla();
         armor = mode.nbArmor ? hd : registry.vanilla();
         world = worldHd ? registry.hdOrFallback(worldSet) : registry.vanilla();
@@ -60,7 +62,12 @@ public final class Resolver {
         };
     }
 
-    /** The file to use instead of {@code loc}, or {@code loc} itself (same instance) for the mod's own file. */
+    /**
+     * The file to use instead of {@code loc}, or {@code loc} itself (same instance) for the mod's own file.
+     * Vanilla mode prefers the mod's own file; when the mod has no such file (an HD-only body type, 0.2.2)
+     * the viewer's HD set is the last resort, so a vanilla viewer sees a body instead of a floating head.
+     * A file missing from both stays {@code loc} (the bind hook then draws BLANK, as before).
+     */
     public ResourceLocation variant(ResourceLocation loc) {
         Category c = Category.of(loc);
         if (c == null) {
@@ -68,7 +75,10 @@ public final class Resolver {
         }
         TextureSet start = activeSet(c);
         if (start.isVanilla()) {
-            return loc;
+            if (exists(loc)) {
+                return loc;
+            }
+            start = hd;
         }
         ResourceLocation hit = variants.get(loc);
         if (hit == null) {

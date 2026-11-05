@@ -23,6 +23,7 @@ final class TextureScreen extends Screen {
     private static final int WIDE_W = 3 * PRESET_W + 2 * GAP;
     private final Screen parent;
     private int seenRevision = -1;
+    private int worldNoteY;
 
     TextureScreen(Screen parent) {
         super(Component.m_237115_("legacytextures.menu.title"));
@@ -51,9 +52,10 @@ final class TextureScreen extends Screen {
         y += ROW + 14;
         y = toggle("players", mode.players, m -> m.withPlayers(!m.players), left, y);
         y = toggle("nbarmor", mode.nbArmor, m -> m.withNbArmor(!m.nbArmor), left, y);
-        toggle("world", mode.world, m -> m.withWorld(!m.world), left, y);
+        y = toggle("world", mode.world, m -> m.withWorld(!m.world), left, y);
+        worldNoteY = y + 2; // the note sits under the last switch row
 
-        y += ROW + 18;
+        y += 18 - GAP;
         List<TextureSet> sets = ClientState.registry().hdSets();
         TextureSet active = ClientState.registry().hdOrFallback(mode.set);
         Button setButton = Button.m_253074_(Component.m_237110_("legacytextures.set.button", new Object[] {active.name}),
@@ -116,7 +118,7 @@ final class TextureScreen extends Screen {
         g.m_280653_(this.f_96547_, this.f_96539_, this.f_96543_ / 2, 16, 0xFFFFFF);
         g.m_280653_(this.f_96547_, Component.m_237115_("legacytextures.menu.subtitle"), this.f_96543_ / 2, 30, 0xAAAAAA);
         g.m_280653_(this.f_96547_, Component.m_237115_("legacytextures.menu.world_note"),
-                this.f_96543_ / 2, 52 + ROW + 14 + 3 * (ROW + GAP) + 2, 0xAAAAAA);
+                this.f_96543_ / 2, worldNoteY, 0xAAAAAA);
         super.m_88315_(g, mouseX, mouseY, partialTick);
     }
 
