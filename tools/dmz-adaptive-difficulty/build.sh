@@ -638,6 +638,11 @@ fi
 # StatsData#load (mixins → DmzResourcePoolClamp) and clients see "Invalid player data".
 
 echo "Built $JAR (base: $(basename "$BASE_JAR"))"
+# Test-only probes (src/probe/java) never ship: the production jar must not carry a FakePlayer harness.
+if jar tf "$JAR" | grep -q 'event/DragonBallProbe'; then
+  echo "ERROR: $JAR contains the test-only DragonBallProbe (it belongs in src/probe/java)" >&2
+  exit 1
+fi
 if jar tf "$JAR" | grep -Eq 'StatsDataHudPoolMaxMixin|StatsDataOverhaulCombatScaleMixin'; then
   echo "ERROR: shipped jar still contains unregistered prestige scale mixin classes" >&2
   exit 1
@@ -827,4 +832,19 @@ if [[ -f "$ROOT/mods/LegacyMechanics-${VERSION}.jar" ]]; then
   python3 "$HERE_SIM/audit_gui_abi.py"
 else
   echo "WARN: LegacyMechanics-${VERSION}.jar missing — skip GUI ABI audit" >&2
+fi
+
+# Test-only build (4.7.36): LM_TEST_PROBES=1 also writes build/LegacyMechanics-${VERSION}-testprobe.jar =
+# the production jar + the classes in src/probe/java (dragon ball probe, -Dlm.probe.dragonBalls).
+# For the local test server only; never copy it to mods/ or live. See docs/LM_TEST_PROBES.md.
+if [[ "${LM_TEST_PROBES:-0}" == "1" ]]; then
+  PROBE_SRC="$HERE/src/probe/java"
+  PROBE_OUT="$HERE/build/probe-classes"
+  PROBE_JAR="$HERE/build/${NAME}-${VERSION}-testprobe.jar"
+  rm -rf "$PROBE_OUT" && mkdir -p "$PROBE_OUT"
+  mapfile -t PROBE_SOURCES < <(find "$PROBE_SRC" -name '*.java' | sort)
+  javac --release 17 -encoding UTF-8 -proc:none -cp "$CP:$OUT" -d "$PROBE_OUT" "${PROBE_SOURCES[@]}"
+  cp "$JAR" "$PROBE_JAR"
+  (cd "$PROBE_OUT" && jar uf "$PROBE_JAR" .)
+  echo "Built test-only $PROBE_JAR (probe classes: $(find "$PROBE_OUT" -name '*.class' | wc -l))"
 fi

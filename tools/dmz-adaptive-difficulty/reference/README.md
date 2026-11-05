@@ -432,6 +432,11 @@ are unchanged.
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.30.jar`; javap
 diff checked. The other 24 are unchanged.
 
+## Re-baseline (2026-11-05, 4.7.36 audit fixes + pistons)
+
+`AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.36.jar`; javap diff checked
+(the `4.7.35` -> `4.7.36` constant is the only change). The other 24 are unchanged.
+
 ## Re-baseline (2026-11-05, 4.7.35 dragon balls)
 
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.35.jar`; javap diff checked

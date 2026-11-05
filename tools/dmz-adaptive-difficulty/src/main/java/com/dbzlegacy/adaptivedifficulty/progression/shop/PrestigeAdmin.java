@@ -167,7 +167,7 @@ public final class PrestigeAdmin {
         int before = GodKiEnhancementShop.invested(target);
         Integer next = applyMode(before, mode, amount, 0, GodKiEnhancementShop.MAX_INVESTMENTS);
         if (next == null) {
-            return "§cUsage: godki <player> <set|add|remove> <0-5>";
+            return "§cUsage: godki <player> <set|add|remove> <0-10>";
         }
         GodKiEnhancementShop.adminSetInvested(target, next);
         log(target, "admin_godki", mode, before, next);

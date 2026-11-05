@@ -1878,6 +1878,41 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.36 ---")
+    p36_ev = read(SRC / "event/DifficultyEvents.java")
+    p36_guard = read(SRC / "event/DragonBallPistonGuard.java")
+    p36_build = read(MOD / "build.sh")
+    p36_help = read(SRC / "command/LmCommandHelp.java")
+    p36_admin = read(SRC / "progression/shop/PrestigeAdmin.java")
+    p36_self = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    p36_gk = p36_self.split("private static void checkGodKiWallet(", 1)[-1].split("/** Exchange confirm:", 1)[0]
+    check("manifest lm-4736-audit-pistons row", "lm-4736-audit-pistons" in manifest)
+    check("pistons: PistonEvent.Pre cancelled when the push or destroy list holds a dragon ball",
+          "public void onDragonBallPiston(net.minecraftforge.event.level.PistonEvent.Pre event)" in p36_ev
+          and "DragonBallPistonGuard.onPistonPre(event);" in p36_ev
+          and "structure.m_60422_();" in p36_guard
+          and "hasBall(level, structure.m_60436_()) || hasBall(level, structure.m_60437_())" in p36_guard
+          and "event.setCanceled(true);" in p36_guard)
+    check("probe is test-only: not in src/main, in src/probe, found by name, never in the production jar",
+          not (SRC / "event/DragonBallProbe.java").exists()
+          and (MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/event/DragonBallProbe.java").exists()
+          and "DragonBallProbe.active()" not in p36_ev
+          and 'Class.forName("com.dbzlegacy.adaptivedifficulty.event.DragonBallProbe")' in p36_ev
+          and 'System.getProperty("lm.probe.dragonBalls", "").isEmpty()' in p36_ev
+          and "grep -q 'event/DragonBallProbe'" in p36_build
+          and 'LM_TEST_PROBES:-0' in p36_build
+          and (ROOT / "docs/LM_TEST_PROBES.md").exists())
+    check("staff God Ki strings read <0-10>",
+          '"/padmin godki <player> set <0-10>"' in p36_help
+          and "godki <player> <set|add|remove> <0-10>" in p36_admin
+          and "<0-5>" not in p36_help and "<0-5>" not in p36_admin)
+    check("self-test checks the 10-level God Ki wallet",
+          "MasteryWallet.godKiLine(0, 10, 1000);" in p36_gk and "form.cap != 10000.0" in p36_gk
+          and "form.maxPoints() != 100" in p36_gk and "godKiMaxLevel(form) != 10" in p36_gk
+          and '"God Ki Level 0/10"' in p36_gk and '"Divine Ki Level 0/10"' in p36_gk
+          and 'contains("Level 0/10")' in p36_gk and '"Level 0 -> 1 of 10"' in p36_gk
+          and "0/5" not in p36_gk and ", 5, 1000)" not in p36_gk)
+
     print("\n--- § dragon balls 4.7.35 ---")
     db_pick = read(SRC / "event/DragonBallRadarPickup.java")
     db_hold = read(SRC / "event/DragonBallSetHold.java")
