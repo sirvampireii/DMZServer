@@ -1,0 +1,19 @@
+{
+  "kind": "vanity",
+  "textureWidth": 64, "textureHeight": 32,
+  "dropped": [],
+  "unattached": [],
+  "parts": [
+    {"name": "Pbody", "parent": "body", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [6, 10], "mirror": false, "boxes": [[7, -7, 3, 4, 4, 4, 0]]},
+    {"name": "Phead", "parent": "Pbody", "pivot": [9, -7, 5], "rot": [0, 0, 0], "uv": [0, 1], "mirror": false, "boxes": [[-2, -3.5, -2, 4, 3, 4, 0.5]]},
+    {"name": "Ear1", "parent": "Phead", "pivot": [-1, -4, 0], "rot": [0, 0, 0], "uv": [15, 0], "mirror": false, "boxes": [[-2, -3.9, -1, 3, 4, 0, 0]]},
+    {"name": "Ear2", "parent": "Phead", "pivot": [1, -4, 0], "rot": [0, 0, 0], "uv": [15, 0], "mirror": true, "boxes": [[-1, -3.9, -1, 3, 4, 0, 0]]},
+    {"name": "Pcheek1", "parent": "Phead", "pivot": [-2.5, -1.5, -1], "rot": [0, 0.384, 0.7854], "uv": [16, 6], "mirror": true, "boxes": [[-1, -1, 0, 2, 2, 0, 0.01]]},
+    {"name": "Pcheek2", "parent": "Phead", "pivot": [2.5, -1.5, -1], "rot": [0, -0.384, -0.7854], "uv": [16, 6], "mirror": false, "boxes": [[-1, -1, 0, 2, 2, 0, 0.01]]},
+    {"name": "Parm1", "parent": "Pbody", "pivot": [7, -6.5, 5], "rot": [0, 0, 0.2094], "uv": [22, 10], "mirror": false, "boxes": [[-1, 0, -1, 1, 4, 2, 0]]},
+    {"name": "Parm2", "parent": "Pbody", "pivot": [11, -6.5, 5], "rot": [0, 0, -0.2094], "uv": [22, 10], "mirror": true, "boxes": [[0, 0, -1, 1, 4, 2, 0]]},
+    {"name": "Pfeet1", "parent": "Pbody", "pivot": [8, -2.5, 5], "rot": [-0.6108652, 0.2617994, 0], "uv": [0, 10], "mirror": false, "boxes": [[-1, -0.5, -0.5, 2, 3, 1, 0]]},
+    {"name": "Pfeet2", "parent": "Pbody", "pivot": [10, -2.5, 5], "rot": [-0.6108652, -0.2617994, 0], "uv": [0, 10], "mirror": true, "boxes": [[-1, -0.5, -0.5, 2, 3, 1, 0]]},
+    {"name": "Ptail", "parent": "Pbody", "pivot": [9, -4.5, 7], "rot": [0.2617994, 0, 0], "uv": [21, 0], "mirror": false, "boxes": [[-0.5, 0.5, -0.5, 1, 7, 1, 0]]}
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "nbarmors:bscoutern",
+    "nbarmors:gscoutern",
+    "nbarmors:piscoutern",
+    "nbarmors:pscoutern",
+    "nbarmors:rscoutern",
+    "nbarmors:yscoutern"
+  ]
+}

@@ -17,6 +17,10 @@ public final class LtHooks {
     /** Above zero while a lookup must see the loaded packs as they are (a key loading its own file, a raw probe). */
     private static final ThreadLocal<int[]> RAW = ThreadLocal.withInitial(() -> new int[1]);
     private static final Set<String> FAILED = ConcurrentHashMap.newKeySet();
+    // How often each hook ran since start (racy counters; /legacytextures status shows them as health).
+    static long binds;
+    static long lookups;
+    static long models;
 
     private LtHooks() {
     }
@@ -31,6 +35,7 @@ public final class LtHooks {
         if (loc == null) {
             return null;
         }
+        binds++;
         ResourceLocation v = ClientState.RESOLVER.variant(loc);
         if (v != loc) {
             return v;
@@ -50,6 +55,7 @@ public final class LtHooks {
         if (loc == null || RAW.get()[0] > 0) {
             return null;
         }
+        lookups++;
         Minecraft mc = Minecraft.m_91087_();
         if (mc == null || self != mc.m_91098_()) {
             return null;
@@ -63,6 +69,7 @@ public final class LtHooks {
         if (loc == null) {
             return null;
         }
+        models++;
         ResourceLocation v = ClientState.RESOLVER.variant(loc);
         return v != loc && GeckoBridge.isBaked(v) ? v : loc;
     }
@@ -90,6 +97,11 @@ public final class LtHooks {
     public static void keyLoad(boolean start) {
         int[] depth = RAW.get();
         depth[0] = start ? depth[0] + 1 : Math.max(0, depth[0] - 1);
+    }
+
+    /** Hooks that threw at least once (each then keeps drawing the mods' own textures for that call). */
+    static Set<String> failedHooks() {
+        return FAILED;
     }
 
     public static void hookFailed(String hook, Throwable t) {

@@ -16,11 +16,11 @@ import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.network.simple.SimpleChannel;
 
 /**
- * Two small packets. The server owns the stored choice: the client asks for a change
- * ({@link SetMode}) and the server answers with the stored result ({@link SyncMode}), also on login.
+ * Three small packets. The server owns the stored choice: the client asks for a change
+ * ({@link SetMode}) and the server answers with the stored result ({@link SyncMode}), also on login. {@link AskHealth} asks the client for its health report.
  */
 public final class LtNetwork {
-    public static final String PROTOCOL = "1";
+    public static final String PROTOCOL = "2";
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(LegacyTextures.MODID, "main"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
 
@@ -32,6 +32,13 @@ public final class LtNetwork {
                 .encoder(SyncMode::encode).decoder(SyncMode::decode).consumerMainThread(SyncMode::handle).add();
         CHANNEL.messageBuilder(SetMode.class, 1, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(SetMode::encode).decoder(SetMode::decode).consumerMainThread(SetMode::handle).add();
+        CHANNEL.messageBuilder(AskHealth.class, 2, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(AskHealth::encode).decoder(AskHealth::decode).consumerMainThread(AskHealth::handle).add();
+    }
+
+    /** /legacytextures status: the hooks and caches live on the client, so the client reports them. */
+    public static void askHealth(ServerPlayer player) {
+        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), new AskHealth());
     }
 
     public static void sync(ServerPlayer player, TextureMode mode, boolean openMenu) {
@@ -52,6 +59,21 @@ public final class LtNetwork {
         static void handle(SyncMode m, Supplier<NetworkEvent.Context> ctx) {
             DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
                     () -> () -> com.dbzlegacy.legacytextures.client.ClientState.onServerSync(m.mode, m.openMenu));
+        }
+    }
+
+    /** Server to client: print this game's hook and cache health in chat. */
+    public record AskHealth() {
+        static void encode(AskHealth m, FriendlyByteBuf buf) {
+        }
+
+        static AskHealth decode(FriendlyByteBuf buf) {
+            return new AskHealth();
+        }
+
+        static void handle(AskHealth m, Supplier<NetworkEvent.Context> ctx) {
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT,
+                    () -> () -> com.dbzlegacy.legacytextures.client.ClientStatus.report());
         }
     }
 

@@ -1,0 +1,13 @@
+{
+  "kind": "vanity",
+  "textureWidth": 64, "textureHeight": 32,
+  "dropped": [],
+  "unattached": [],
+  "parts": [
+    {"name": "earbase", "parent": "head", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [0, 0], "mirror": false, "boxes": [[-4, -8, -4, 7, 7, 7, -0.2]]},
+    {"name": "earleft", "parent": "earbase", "pivot": [3.5, -3, -2], "rot": [0, -0.1745329, 0.7853982], "uv": [0, 0], "mirror": false, "boxes": [[-1, -4, 0, 2, 4, 0, 0]]},
+    {"name": "earright", "parent": "earbase", "pivot": [-3.5, -3, -2], "rot": [0, 0.1745329, -0.7853982], "uv": [0, 4], "mirror": false, "boxes": [[-1, -4, 0, 2, 4, 0, 0]]},
+    {"name": "earleft1", "parent": "earbase", "pivot": [3.5, -3, -2], "rot": [0, -0.1745329, 1.396263], "uv": [4, 0], "mirror": false, "boxes": [[-1, -4, 0, 2, 4, 0, 0]]},
+    {"name": "earright1", "parent": "earbase", "pivot": [-3.5, -3, -2], "rot": [0, 0.1745329, -1.396263], "uv": [4, 4], "mirror": false, "boxes": [[-1, -4, 0, 2, 4, 0, 0]]}
+  ]
+}

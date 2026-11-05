@@ -1,0 +1,13 @@
+{
+  "kind": "vanity",
+  "textureWidth": 64, "textureHeight": 32,
+  "dropped": [],
+  "unattached": [],
+  "parts": [
+    {"name": "tailjb", "parent": "body", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [40, 16], "mirror": false, "boxes": [[-4, 9, -2, 8, 3, 4, 0.05]]},
+    {"name": "tailj1", "parent": "tailjb", "pivot": [0, 10, 1], "rot": [-0.34906584, 0, 0], "uv": [0, 0], "mirror": false, "boxes": [[-2, -1.5, 0, 4, 3, 9, 0]]},
+    {"name": "tailj2", "parent": "tailj1", "pivot": [0, 0.5, 7.5], "rot": [0.34906584, 0, 0], "uv": [0, 0], "mirror": false, "boxes": [[-2, -1.5, 0, 4, 3, 9, -0.4]]},
+    {"name": "tailj3", "parent": "tailj2", "pivot": [0, 0.5, 7.5], "rot": [0.34906584, 0, 0], "uv": [0, 0], "mirror": false, "boxes": [[-2, -1.5, 0, 4, 3, 9, -0.6]]},
+    {"name": "cellmax", "parent": "tailj3", "pivot": [0, -0.5, 6], "rot": [0, 0, 0], "uv": [0, 22], "mirror": false, "boxes": [[-2.5, -2.5, 0, 5, 5, 5, 0.2]]}
+  ]
+}

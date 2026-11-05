@@ -67,6 +67,11 @@ final class CacheFlush {
         }
     }
 
+    /** DMZ caches that could not be cleared (each listed once); empty when every switch is clean. */
+    static Set<String> failed() {
+        return FAILED;
+    }
+
     private static void failed(String what, Throwable t) {
         if (FAILED.add(what)) {
             LegacyTextures.LOG.warn("could not clear DragonMineZ cache {} ({}); a texture switch may need F3+T "

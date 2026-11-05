@@ -1,0 +1,51 @@
+{
+  "legacytextures.menu.title": "Legacy Textures",
+  "legacytextures.menu.subtitle": "Pick what your own game draws. Other players are not affected.",
+  "legacytextures.menu.world_note": "Changing the world look reloads textures once (a few seconds).",
+  "legacytextures.menu.done": "Done",
+
+  "legacytextures.preset.all_hd": "All HD",
+  "legacytextures.preset.players_hd_only": "Players HD only",
+  "legacytextures.preset.all_vanilla": "All vanilla",
+  "legacytextures.preset.all_hd.help": "HD for players, NB Armors and the world.",
+  "legacytextures.preset.players_hd_only.help": "HD for players and NB Armors; standard world.",
+  "legacytextures.preset.all_vanilla.help": "The standard look everywhere.",
+  "legacytextures.preset.reload": "%s Reloads your textures once (a few seconds).",
+  "legacytextures.preset.instant": "%s Switches at once.",
+  "legacytextures.preset.custom": "custom mix",
+
+  "legacytextures.state.hd": "HD",
+  "legacytextures.state.standard": "Standard",
+  "legacytextures.switch": "%s: %s",
+  "legacytextures.switch.players": "Players and DragonMineZ armor",
+  "legacytextures.switch.nbarmor": "NB Armors outfits",
+  "legacytextures.switch.world": "World, items and menus",
+  "legacytextures.switch.players.help": "Bodies, faces, hair, tattoos, forms and DragonMineZ armor on every player. Switches at once.",
+  "legacytextures.switch.nbarmor.help": "Gis, armors and vanity outfits from NB Armors. Switches at once.",
+  "legacytextures.switch.world.help": "Blocks, items and menu art. Clicking this reloads your textures once; the game pauses for a few seconds while it loads.",
+
+  "legacytextures.set.button": "HD set: %s",
+  "legacytextures.set.help.many": "Click to use the next HD set. Every switch set to HD uses this set.",
+  "legacytextures.set.help.one": "Only one HD set is installed. Add more in config/legacytextures/texture_sets.",
+
+  "legacytextures.cmd.preset": "Preset set to %s.",
+  "legacytextures.cmd.hd": "%s now use HD textures.",
+  "legacytextures.cmd.vanilla": "%s now use the standard textures.",
+  "legacytextures.cmd.look": "Your HD switches now use the '%s' texture set. If your game does not have that set, it keeps using the standard HD set.",
+  "legacytextures.cmd.reload_note": "Your game reloads its textures once to switch the world look.",
+  "legacytextures.cmd.status": "Legacy Textures: %s. Players: %s, NB Armors: %s, world: %s. HD set: %s. Type /legacytextures to change it.",
+
+  "legacytextures.status.title": "Your game (Legacy Textures %s):",
+  "legacytextures.status.hooks": "Texture hooks: drawing %s, file checks %s, models %s.",
+  "legacytextures.status.hook.active": "working",
+  "legacytextures.status.hook.idle": "not used yet",
+  "legacytextures.status.hook.failed": "FAILED (standard textures from here on)",
+  "legacytextures.status.sets": "Texture sets: %s. World HD loaded: %s.",
+  "legacytextures.status.cache_ok": "DragonMineZ caches: all clear on each switch.",
+  "legacytextures.status.cache_bad": "DragonMineZ caches that could not be cleared: %s. A switch may need F3+T until Legacy Textures is updated.",
+  "legacytextures.status.yes": "yes",
+  "legacytextures.status.no": "no",
+
+  "key.categories.legacytextures": "Legacy Textures",
+  "key.legacytextures.menu": "Open the texture menu"
+}

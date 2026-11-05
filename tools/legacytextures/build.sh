@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build Legacy Textures (Forge 1.20.1 / 47.4.10, Java 17). Same javac-on-SRG setup as LegacyMechanics.
-#   bash tools/legacytextures/build.sh
+#   [DMZ_JAR=<dragonminez jar>] [NB_JAR=<nbarmors-0.1.0.jar>] bash tools/legacytextures/build.sh
 # Client classes come from a Forge 1.20.1-47.4.10 client install (the CurseForge launcher's
 # libraries folder by default; set CLIENT_LIBS to use another). Output: build/legacytextures-<VERSION>.jar
 set -euo pipefail
@@ -18,7 +18,11 @@ SEP=":"; command -v cygpath > /dev/null && SEP=";"
 
 VERSION="$(sed -n 's/.*String VERSION = "\([0-9.]*\)".*/\1/p' "$SRC/com/dbzlegacy/legacytextures/LegacyTextures.java")"
 [[ -n "$VERSION" ]] || { echo "Could not read VERSION" >&2; exit 1; }
-TOML_V="$(sed -n 's/^version = "\(.*\)"/\1/p' "$RES/META-INF/mods.toml")"
+# Every [[mods]] entry (legacytextures and the absorbed nbarmors) carries the jar version.
+TOML_V="$(sed -n 's/^version = "\(.*\)"/\1/p' "$RES/META-INF/mods.toml" | sort -u | paste -sd' ')"
+BANNER='LOG.info("Legacy Textures {} loaded", VERSION);'
+grep -qF "$BANNER" "$SRC/com/dbzlegacy/legacytextures/LegacyTextures.java" \
+  || { echo "Boot banner must print VERSION: $BANNER" >&2; exit 1; }
 MF_V="$(sed -n 's/^Implementation-Version: *\(.*\)\r\{0,1\}$/\1/p' "$RES/META-INF/MANIFEST.MF")"
 if [[ "$TOML_V" != "$VERSION" || "$MF_V" != "$VERSION" ]]; then
   echo "Version pins disagree: VERSION=$VERSION mods.toml=$TOML_V MANIFEST=$MF_V" >&2
@@ -32,6 +36,12 @@ for f in "$CLIENT_SRG" "$FORGE_C"; do
   [[ -f "$f" ]] || { echo "Missing $f - install Forge 1.20.1-47.4.10 client or set CLIENT_LIBS" >&2; exit 1; }
 done
 GECKO="$(ls "$ROOT"/mods/geckolib-forge-1.20.1-*.jar | head -1)"
+CURIOS="$(ls "$ROOT"/mods/curios-forge-*+1.20.1.jar | head -1)"
+# The absorbed NB Armors compat layer compiles against the live DragonMineZ (2.2.1.1, built by
+# tools/dmz-godki-patch). A moved DbzArmorItem constructor fails this compile and the audit below.
+DMZ="${DMZ_JAR:-$ROOT/tools/dmz-godki-patch/out/dragonminez-2.2.1.1.jar}"
+[[ -f "$DMZ" ]] || { echo "Missing $DMZ - build tools/dmz-godki-patch or set DMZ_JAR to the live DragonMineZ jar" >&2; exit 1; }
+export DMZ_JAR="$DMZ"
 CP_LIST=(
   "$FORGE_C" "$CLIENT_SRG"
   "$L/net/minecraftforge/forge/1.20.1-47.4.10/forge-1.20.1-47.4.10-universal.jar"
@@ -56,6 +66,8 @@ CP_LIST=(
   "$(ls "$L"/io/netty/netty-common/*/*.jar | head -1)"
   "$(ls "$CL"/org/joml/joml/*/*.jar | tail -1)"
   "$GECKO"
+  "$CURIOS"
+  "$DMZ"
 )
 CP=""
 for p in "${CP_LIST[@]}"; do
@@ -80,6 +92,11 @@ javac --release 17 -encoding UTF-8 -proc:none -cp "$(win "$OUT/classes")$SEP$CP"
   "$(win "$HERE/test/ResolverTest.java")"
 java -cp "$(win "$OUT/test")$SEP$(win "$OUT/classes")$SEP$(win "$RES")$SEP$CP" ResolverTest
 
+if [[ -n "${NB_JAR:-}" ]]; then
+  echo ">> NB Armors resources match $NB_JAR"
+  python3 "$HERE/import/import_nbarmors.py" --nb "$(win "$NB_JAR")" --check
+fi
+
 echo ">> package"
 JAR="$OUT/legacytextures-$VERSION.jar"
 cp -r "$OUT/classes/." "$OUT/jar/"
@@ -91,6 +108,9 @@ echo ">> jar audits"
 python3 "$ROOT/tools/dmz-adaptive-difficulty/sim/audit_jar_inner_classes.py" "$(win "$JAR")" com/dbzlegacy/legacytextures/
 python3 "$ROOT/scripts/audit_jar_manifest.py" "$(win "$JAR")" "$VERSION"
 python3 "$HERE/audit/audit_legacytextures.py" "$(win "$JAR")" "$VERSION"
+if [[ -n "${NB_JAR:-}" ]]; then
+  python3 "$HERE/audit/audit_nb_fidelity.py" "$(win "$NB_JAR")" "$(win "$JAR")"
+fi
 
 sha256sum "$JAR" | tee "$OUT/sha256.txt"
 echo "Built $JAR"

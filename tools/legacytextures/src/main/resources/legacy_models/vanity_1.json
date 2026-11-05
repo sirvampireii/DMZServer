@@ -1,0 +1,15 @@
+{
+  "kind": "vanity",
+  "textureWidth": 64, "textureHeight": 32,
+  "dropped": [],
+  "unattached": [],
+  "parts": [
+    {"name": "scarfbase", "parent": "head", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [0, 0], "mirror": false, "boxes": [[-4.5, -1, -4.5, 9, 2, 9, 0]]},
+    {"name": "scarf1", "parent": "scarfbase", "pivot": [0, 0, 0], "rot": [-0.2, 0, 0], "uv": [18, 11], "mirror": false, "boxes": [[-4.5, 1, -2.5, 9, 4, 0, 0]]},
+    {"name": "scarf2", "parent": "scarf1", "pivot": [0, 5, -2.5], "rot": [0, 0, 0], "uv": [18, 15], "mirror": false, "boxes": [[-4.5, 0, 0, 9, 4, 0, 0]]},
+    {"name": "scarf3", "parent": "scarf2", "pivot": [0, 4, 0], "rot": [0, 0, 0], "uv": [18, 19], "mirror": false, "boxes": [[-4.5, 0, 0, 9, 4, 0, 0]]},
+    {"name": "scarf4", "parent": "scarfbase", "pivot": [0, 0, 0], "rot": [0.2, 0, 0], "uv": [0, 11], "mirror": false, "boxes": [[-4.5, 1, 2.5, 9, 4, 0, 0]]},
+    {"name": "scarf5", "parent": "scarf4", "pivot": [0, 5, 2.5], "rot": [0, 0, 0], "uv": [0, 15], "mirror": false, "boxes": [[-4.5, 0, 0, 9, 4, 0, 0]]},
+    {"name": "scarf6", "parent": "scarf5", "pivot": [0, 4, 0], "rot": [0, 0, 0], "uv": [0, 19], "mirror": false, "boxes": [[-4.5, 0, 0, 9, 4, 0, 0]]}
+  ]
+}

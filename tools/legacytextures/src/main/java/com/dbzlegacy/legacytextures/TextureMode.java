@@ -14,20 +14,21 @@ public final class TextureMode {
     private static final Pattern SET_ID = Pattern.compile("[a-z0-9_-]{1,32}");
 
     public enum Preset {
-        ALL_HD(true, true, true, "All HD"),
-        PLAYERS_HD_ONLY(true, true, false, "Players HD only"),
-        ALL_VANILLA(false, false, false, "All vanilla");
+        ALL_HD(true, true, true),
+        PLAYERS_HD_ONLY(true, true, false),
+        ALL_VANILLA(false, false, false);
 
         public final boolean players;
         public final boolean nbArmor;
         public final boolean world;
-        public final String label;
+        /** Lang key of the player-facing name (assets/legacytextures/lang). */
+        public final String key;
 
-        Preset(boolean players, boolean nbArmor, boolean world, String label) {
+        Preset(boolean players, boolean nbArmor, boolean world) {
             this.players = players;
             this.nbArmor = nbArmor;
             this.world = world;
-            this.label = label;
+            this.key = "legacytextures.preset." + name().toLowerCase(Locale.ROOT);
         }
 
         public static Preset parse(String name) {

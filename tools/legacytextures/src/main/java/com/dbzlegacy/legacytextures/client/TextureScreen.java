@@ -11,9 +11,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * The texture menu (/legacytextures). Three one-tap presets, one switch per category and the HD set
- * picker. Every change is sent to the server, which stores it and sends it back; the menu redraws
- * from that answer. Players and NB Armors switch at once; the world switch reloads textures once.
+ * The texture menu (/legacytextures or the menu key). Three one-tap presets, one switch per category
+ * and the HD set picker. Every change is sent to the server, which stores it and sends it back; the
+ * menu redraws from that answer. Players and NB Armors switch at once; the world switch reloads
+ * textures once. All text comes from assets/legacytextures/lang.
  */
 final class TextureScreen extends Screen {
     private static final int GAP = 4;
@@ -24,7 +25,7 @@ final class TextureScreen extends Screen {
     private int seenRevision = -1;
 
     TextureScreen(Screen parent) {
-        super(Component.m_237113_("Legacy Textures"));
+        super(Component.m_237115_("legacytextures.menu.title"));
         this.parent = parent;
     }
 
@@ -38,9 +39,9 @@ final class TextureScreen extends Screen {
         TextureMode.Preset current = mode.preset();
         int x = left;
         for (TextureMode.Preset p : TextureMode.Preset.values()) {
-            Button b = Button.m_253074_(Component.m_237113_(p.label), btn -> pick(m -> m.withPreset(p)))
+            Button b = Button.m_253074_(Component.m_237115_(p.key), btn -> pick(m -> m.withPreset(p)))
                     .m_252987_(x, y, PRESET_W, ROW)
-                    .m_257505_(Tooltip.m_257550_(Component.m_237113_(presetHelp(p, mode))))
+                    .m_257505_(Tooltip.m_257550_(presetHelp(p, mode)))
                     .m_253136_();
             b.f_93623_ = p != current;
             this.m_142416_(b);
@@ -48,58 +49,42 @@ final class TextureScreen extends Screen {
         }
 
         y += ROW + 14;
-        this.m_142416_(Button.m_253074_(label("Players and DragonMineZ armor", mode.players),
-                        btn -> pick(m -> m.withPlayers(!m.players)))
-                .m_252987_(left, y, WIDE_W, ROW)
-                .m_257505_(Tooltip.m_257550_(Component.m_237113_(
-                        "Bodies, faces, hair, tattoos, forms and DragonMineZ armor on every player. Switches at once.")))
-                .m_253136_());
-        y += ROW + GAP;
-        this.m_142416_(Button.m_253074_(label("NB Armors outfits", mode.nbArmor),
-                        btn -> pick(m -> m.withNbArmor(!m.nbArmor)))
-                .m_252987_(left, y, WIDE_W, ROW)
-                .m_257505_(Tooltip.m_257550_(Component.m_237113_(
-                        "Gis, armors and vanity outfits from NB Armors. Switches at once.")))
-                .m_253136_());
-        y += ROW + GAP;
-        this.m_142416_(Button.m_253074_(label("World, items and menus", mode.world),
-                        btn -> pick(m -> m.withWorld(!m.world)))
-                .m_252987_(left, y, WIDE_W, ROW)
-                .m_257505_(Tooltip.m_257550_(Component.m_237113_(
-                        "Blocks, items and menu art. Clicking this reloads your textures once; the game pauses for "
-                                + "a few seconds while it loads.")))
-                .m_253136_());
+        y = toggle("players", mode.players, m -> m.withPlayers(!m.players), left, y);
+        y = toggle("nbarmor", mode.nbArmor, m -> m.withNbArmor(!m.nbArmor), left, y);
+        toggle("world", mode.world, m -> m.withWorld(!m.world), left, y);
 
         y += ROW + 18;
         List<TextureSet> sets = ClientState.registry().hdSets();
         TextureSet active = ClientState.registry().hdOrFallback(mode.set);
-        Button setButton = Button.m_253074_(Component.m_237113_("HD set: " + active.name),
+        Button setButton = Button.m_253074_(Component.m_237110_("legacytextures.set.button", new Object[] {active.name}),
                         btn -> pick(m -> m.withSet(nextSet(sets, m.set))))
                 .m_252987_(left, y, WIDE_W, ROW)
-                .m_257505_(Tooltip.m_257550_(Component.m_237113_(sets.size() > 1
-                        ? "Click to use the next HD set. Every switch set to HD uses this set."
-                        : "Only one HD set is installed. Add more in config/legacytextures/texture_sets.")))
+                .m_257505_(Tooltip.m_257550_(Component.m_237115_(
+                        sets.size() > 1 ? "legacytextures.set.help.many" : "legacytextures.set.help.one")))
                 .m_253136_();
         setButton.f_93623_ = sets.size() > 1;
         this.m_142416_(setButton);
 
-        this.m_142416_(Button.m_253074_(Component.m_237113_("Done"), btn -> this.m_7379_())
+        this.m_142416_(Button.m_253074_(Component.m_237115_("legacytextures.menu.done"), btn -> this.m_7379_())
                 .m_252987_(this.f_96543_ / 2 - PRESET_W / 2, this.f_96544_ - 32, PRESET_W, ROW)
                 .m_253136_());
     }
 
-    private static Component label(String what, boolean hd) {
-        return Component.m_237113_(what + ": " + (hd ? "HD" : "Standard"));
+    /** One switch row; returns the next row's y. */
+    private int toggle(String what, boolean hd, UnaryOperator<TextureMode> change, int left, int y) {
+        Component label = Component.m_237110_("legacytextures.switch", new Object[] {
+                Component.m_237115_("legacytextures.switch." + what),
+                Component.m_237115_(hd ? "legacytextures.state.hd" : "legacytextures.state.standard")});
+        this.m_142416_(Button.m_253074_(label, btn -> pick(change))
+                .m_252987_(left, y, WIDE_W, ROW)
+                .m_257505_(Tooltip.m_257550_(Component.m_237115_("legacytextures.switch." + what + ".help")))
+                .m_253136_());
+        return y + ROW + GAP;
     }
 
-    private static String presetHelp(TextureMode.Preset p, TextureMode mode) {
-        String what = switch (p) {
-            case ALL_HD -> "HD for players, NB Armors and the world.";
-            case PLAYERS_HD_ONLY -> "HD for players and NB Armors; standard world.";
-            case ALL_VANILLA -> "The standard look everywhere.";
-        };
-        boolean reload = p.world != mode.world;
-        return what + (reload ? " Reloads your textures once (a few seconds)." : " Switches at once.");
+    private static Component presetHelp(TextureMode.Preset p, TextureMode mode) {
+        String when = p.world != mode.world ? "legacytextures.preset.reload" : "legacytextures.preset.instant";
+        return Component.m_237110_(when, new Object[] {Component.m_237115_(p.key + ".help")});
     }
 
     private static String nextSet(List<TextureSet> sets, String current) {
@@ -129,9 +114,8 @@ final class TextureScreen extends Screen {
     public void m_88315_(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         this.m_280273_(g);
         g.m_280653_(this.f_96547_, this.f_96539_, this.f_96543_ / 2, 16, 0xFFFFFF);
-        g.m_280653_(this.f_96547_, Component.m_237113_("Pick what your own game draws. Other players are not affected."),
-                this.f_96543_ / 2, 30, 0xAAAAAA);
-        g.m_280653_(this.f_96547_, Component.m_237113_("Changing the world look reloads textures once (a few seconds)."),
+        g.m_280653_(this.f_96547_, Component.m_237115_("legacytextures.menu.subtitle"), this.f_96543_ / 2, 30, 0xAAAAAA);
+        g.m_280653_(this.f_96547_, Component.m_237115_("legacytextures.menu.world_note"),
                 this.f_96543_ / 2, 52 + ROW + 14 + 3 * (ROW + GAP) + 2, 0xAAAAAA);
         super.m_88315_(g, mouseX, mouseY, partialTick);
     }
