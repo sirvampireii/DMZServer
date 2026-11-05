@@ -26,6 +26,12 @@ public final class ClientEvents {
         modBus.addListener(ClientEvents::onReloadListeners);
         modBus.addListener(ClientEvents::onKeyMappings);
         MinecraftForge.EVENT_BUS.addListener(ClientEvents::onClientTick);
+        MinecraftForge.EVENT_BUS.addListener(ClientEvents::onLoggingOut);
+    }
+
+    /** A server's /faceanim switches belong to that server. */
+    private static void onLoggingOut(net.minecraftforge.client.event.ClientPlayerNetworkEvent.LoggingOut event) {
+        com.dbzlegacy.legacytextures.faceanim.FaceFlags.clear();
     }
 
     private static void onKeyMappings(RegisterKeyMappingsEvent event) {

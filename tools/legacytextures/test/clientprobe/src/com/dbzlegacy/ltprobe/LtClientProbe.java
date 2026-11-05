@@ -5,6 +5,12 @@ import com.dbzlegacy.legacytextures.TextureMode;
 import com.dbzlegacy.legacytextures.client.ClientState;
 import com.dbzlegacy.legacytextures.client.ClientStatus;
 import com.dbzlegacy.legacytextures.client.LtHooks;
+import com.dbzlegacy.legacytextures.faceanim.FaceAnimConfig;
+import com.dbzlegacy.legacytextures.faceanim.FaceAnimator;
+import com.dbzlegacy.legacytextures.faceanim.FaceFlags;
+import com.dragonminez.common.stats.StatsCapability;
+import com.dragonminez.common.stats.StatsData;
+import com.dragonminez.common.stats.StatsProvider;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
@@ -515,6 +521,77 @@ public final class LtClientProbe {
                 wait = 10;
             }
             case 28 -> {
+                line("== face animation (absorbed DMZ Face Anim, 0.2.3)");
+                check("face animation mixin applied", logHas("hook applied: DMZSkinLayerFaceMixin"));
+                check("face animation hook ran while the player was drawn", logHas("face animation hook active in DMZSkinLayer"));
+                faceStats = StatsProvider.get(StatsCapability.INSTANCE, mc.f_91074_).orElse(null);
+                check("DMZ stats for the player", faceStats != null && faceStats.getStatus() != null);
+                int closed = closedTick(mc.f_91074_);
+                String blink = routeAt(mc, closed, EYE);
+                check("blink: at a closed-eye tick the eye layer draws its closed frame, and that frame is a file",
+                        blink.equals(EYE_CLOSED) && raw(rl("dragonminez", blink)));
+                String angel = routeAt(mc, closed, ANGEL_EYE);
+                check("blink: Angel eyes close too (angel/ frames, base eyes shipped)", angel.equals(ANGEL_CLOSED)
+                        && raw(rl("dragonminez", angel)) && raw(rl("dragonminez", ANGEL_EYE)));
+                int blinks = 0;
+                boolean was = false;
+                for (int t = 0; t < 900; t++) {
+                    boolean shut = !routeAt(mc, 9000 + t, EYE).equals(EYE);
+                    blinks += shut && !was ? 1 : 0;
+                    was = shut;
+                }
+                line("   blinks in 900 ticks (45 s): " + blinks);
+                check("blink cycle: one blink every 90 ticks (about 4.5 s)", blinks == 10);
+                faceStats.getStatus().setChargingKi(true);
+                String mouth = MOUTH;
+                for (int i = 1; i <= 5; i++) {
+                    mouth = routeAt(mc, 20000 + i, MOUTH);
+                }
+                faceStats.getStatus().setChargingKi(false);
+                for (int i = 6; i <= 12; i++) {
+                    routeAt(mc, 20000 + i, MOUTH);
+                }
+                check("scream: charging ki opens the mouth into a scream frame (a file)",
+                        mouth.contains("anim/mouth_scream_") && raw(rl("dragonminez", mouth)));
+                check("scream: stops once charging stops", routeAt(mc, 20013, MOUTH).equals(MOUTH));
+                configValue("BLINK", false);
+                check("viewer [faceanim] enableBlink=false: no blink for this viewer", routeAt(mc, closed, EYE).equals(EYE));
+                configValue("BLINK", true);
+                chatMark = chatSize();
+                mc.f_91074_.f_108617_.m_246623_("faceanim off");
+                wait = 40;
+            }
+            case 29 -> {
+                String chat = chatSince(chatMark);
+                line("   faceanim chat: " + chat.replace('\n', '|'));
+                check("/faceanim off: reply says the face stays still for everyone", chat.contains("Face animation off"));
+                check("/faceanim off: the switch reached this game (as a viewer of yourself)",
+                        !FaceFlags.enabled(mc.f_91074_.m_20148_()));
+                check("/faceanim off: no blink for this player", routeAt(mc, closedTick(mc.f_91074_), EYE).equals(EYE));
+                line("== rejoin: /faceanim off must survive a fresh login");
+                mc.f_91073_.m_7462_();
+                mc.m_91320_(new TitleScreen());
+                join(mc);
+                wait = 60;
+            }
+            case 30 -> {
+                check("fresh login: /faceanim off is kept (stored on the server, sent on login)",
+                        !FaceFlags.enabled(mc.f_91074_.m_20148_()));
+                chatMark = chatSize();
+                mc.f_91074_.f_108617_.m_246623_("faceanim on");
+                wait = 40;
+            }
+            case 31 -> {
+                faceStats = StatsProvider.get(StatsCapability.INSTANCE, mc.f_91074_).orElse(null);
+                check("/faceanim on: the face animates again", FaceFlags.enabled(mc.f_91074_.m_20148_())
+                        && routeAt(mc, closedTick(mc.f_91074_), EYE).equals(EYE_CLOSED));
+                line("== shaded bodies follow the switch (Majin, Frost Demon, BioAndroid)");
+                for (ResourceLocation body : SHADED_BODIES) {
+                    shadedSwitch(body);
+                }
+                wait = 10;
+            }
+            case 32 -> {
                 finish(mc);
             }
             default -> {
@@ -549,6 +626,116 @@ public final class LtClientProbe {
     }
 
     // ---------------------------------------------------------------- helpers
+
+    // ---------------------------------------------------------------- 0.2.3: face animation and shaded bodies
+
+    private static final String EYE = "textures/entity/races/humansaiyan/faces/humansaiyan_eye_0_0.png";
+    private static final String EYE_CLOSED = "textures/entity/races/humansaiyan/faces/anim/humansaiyan_eye_0_0_closed.png";
+    private static final String ANGEL_EYE = "textures/entity/races/angel/faces/angel_eye_0_0.png";
+    private static final String ANGEL_CLOSED = "textures/entity/races/angel/faces/anim/angel_eye_0_0_closed.png";
+    private static final String MOUTH = "textures/entity/races/humansaiyan/faces/humansaiyan_mouth_0.png";
+    private static final List<ResourceLocation> SHADED_BODIES = List.of(
+            rl("dragonminez", "textures/entity/races/majin/bodytype_female_0_layer1.png"),
+            rl("dragonminez", "textures/entity/races/frostdemon/bodytype_0_layer1.png"),
+            rl("dragonminez", "textures/entity/races/bioandroid/base_0_layer1.png"));
+    private StatsData faceStats;
+
+    /** FaceAnimator's route for {@code path} as if the player were drawn at {@code tick}. */
+    private String routeAt(Minecraft mc, int tick, String path) {
+        int real = mc.f_91074_.f_19797_;
+        try {
+            mc.f_91074_.f_19797_ = tick;
+            FaceAnimator.begin(mc.f_91074_, faceStats, 0.0F);
+            return FaceAnimator.route(path);
+        } finally {
+            FaceAnimator.end();
+            mc.f_91074_.f_19797_ = real;
+        }
+    }
+
+    /** A tick at which this player's eyes are fully closed (FaceAnimator's own blink formula). */
+    private static int closedTick(net.minecraft.client.player.AbstractClientPlayer player) throws Exception {
+        java.lang.reflect.Method blink = FaceAnimator.class.getDeclaredMethod("blinkFrame",
+                net.minecraft.client.player.AbstractClientPlayer.class, float.class);
+        blink.setAccessible(true);
+        for (int t = 1000; t < 1200; t++) {
+            if ((int) blink.invoke(null, player, (float) t) == 2) {
+                return t;
+            }
+        }
+        throw new IllegalStateException("no closed-eye tick in two blink cycles");
+    }
+
+    private static void configValue(String field, boolean on) throws Exception {
+        Field f = FaceAnimConfig.class.getDeclaredField(field);
+        f.setAccessible(true);
+        ((net.minecraftforge.common.ForgeConfigSpec.BooleanValue) f.get(null)).set(on);
+    }
+
+    private static boolean logHas(String text) throws IOException {
+        return Files.readString(FMLPaths.GAMEDIR.get().resolve("logs/latest.log"), StandardCharsets.UTF_8).contains(text);
+    }
+
+    /**
+     * Build DMZ's shaded body for {@code body} in HD, switch players to vanilla and build it again: the
+     * map must be empty after the switch and the rebuilt body must differ. Negative control: put the HD
+     * entry back as if the map had not been cleared and DMZ hands back the HD body (the stays-HD bug).
+     */
+    @SuppressWarnings("unchecked")
+    private void shadedSwitch(ResourceLocation body) throws Exception {
+        Class<?> sgp = Class.forName("com.dragonminez.client.util.SkinGathererProvider");
+        Field mapField = sgp.getDeclaredField("SHADED_LAYERS");
+        mapField.setAccessible(true);
+        Map<ResourceLocation, ResourceLocation[]> map = (Map<ResourceLocation, ResourceLocation[]>) mapField.get(null);
+        java.lang.reflect.Method build = sgp.getDeclaredMethod("shadedLayer", ResourceLocation.class);
+        build.setAccessible(true);
+        String race = body.m_135815_().split("/")[3];
+        ClientState.onServerSync(ClientState.mode().withPlayers(true), false);
+        ResourceLocation[] hd = (ResourceLocation[]) build.invoke(null, body);
+        long hdHash = shadedHash(hd);
+        ClientState.onServerSync(ClientState.mode().withPlayers(false), false);
+        boolean emptied = !map.containsKey(body);
+        int left = shadedLeft();
+        ResourceLocation[] vanilla = (ResourceLocation[]) build.invoke(null, body);
+        long vanillaHash = shadedHash(vanilla);
+        line("   " + race + ": HD shaded " + Long.toHexString(hdHash) + ", vanilla shaded " + Long.toHexString(vanillaHash)
+                + ", DMZ left " + left);
+        check(race + ": HD -> vanilla empties DMZ's shaded layer and rebuilds the body from the vanilla file",
+                emptied && hd != null && hdHash != vanillaHash);
+        ClientState.onServerSync(ClientState.mode().withPlayers(true), false);
+        ResourceLocation[] hd2 = (ResourceLocation[]) build.invoke(null, body);
+        ClientState.onServerSync(ClientState.mode().withPlayers(false), false);
+        map.put(body, hd2); // what an uncleared map looks like
+        boolean stale = build.invoke(null, body) == hd2;
+        check(race + ": negative control - an uncleared shaded layer keeps the HD body after the switch", stale);
+        map.remove(body);
+    }
+
+    private static int shadedLeft() throws Exception {
+        java.lang.reflect.Method m = Class.forName("com.dbzlegacy.legacytextures.client.CacheFlush")
+                .getDeclaredMethod("shadedLeft");
+        m.setAccessible(true);
+        return (int) m.invoke(null);
+    }
+
+    private static long shadedHash(ResourceLocation[] shaded) {
+        if (shaded == null) {
+            return 0L;
+        }
+        long h = 1125899906842597L;
+        for (ResourceLocation r : shaded) {
+            AbstractTexture tex = Minecraft.m_91087_().m_91097_().m_118506_(r);
+            if (tex instanceof net.minecraft.client.renderer.texture.DynamicTexture dyn && dyn.m_117991_() != null) {
+                com.mojang.blaze3d.platform.NativeImage img = dyn.m_117991_();
+                for (int y = 0; y < img.m_85084_(); y++) {
+                    for (int x = 0; x < img.m_84982_(); x++) {
+                        h = 31 * h + img.m_84985_(x, y);
+                    }
+                }
+            }
+        }
+        return h;
+    }
 
     private void sync(TextureMode.Preset p, String set) {
         ClientState.onServerSync(TextureMode.of(p, set), false);

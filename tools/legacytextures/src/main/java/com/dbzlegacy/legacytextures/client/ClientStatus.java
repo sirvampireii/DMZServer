@@ -30,6 +30,10 @@ public final class ClientStatus {
             say(Component.m_237110_("legacytextures.status.cache_bad", new Object[] {String.join(", ", CacheFlush.failed())}),
                     ChatFormatting.RED);
         }
+        if (CacheFlush.shadedLeft() > 0) {
+            say(Component.m_237110_("legacytextures.status.shaded_left", new Object[] {CacheFlush.shadedLeft()}),
+                    ChatFormatting.YELLOW);
+        }
     }
 
     private static Component hook(String name, long calls) {

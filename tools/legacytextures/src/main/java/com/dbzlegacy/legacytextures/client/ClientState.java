@@ -86,7 +86,7 @@ public final class ClientState {
     /** Rebuilds the resolver for the current choice and drops every cached texture answer. Main thread. */
     static void refresh() {
         RESOLVER.configure(registry, mode, worldHdLoaded, worldSetLoaded);
-        CacheFlush.flushAll();
+        CacheFlush.flushAll(mode);
         revision++;
     }
 

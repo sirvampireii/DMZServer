@@ -25,6 +25,7 @@ import net.minecraft.server.level.ServerPlayer;
  * /legacytextures players|nbarmor|world hd|vanilla
  * /legacytextures look &lt;set id&gt;           which HD set the HD switches use
  * /legacytextures status                  your choice, plus your game's hook and cache health
+ * /faceanim [on|off|toggle]               your own face animation (blink and shout), for everyone
  * </pre>
  * Every player may use it; it only changes what that player's own game draws. All text is lang keys
  * (assets/legacytextures/lang), translated by the player's game.
@@ -54,6 +55,11 @@ public final class LtCommand {
                 })));
         root.then(Commands.m_82127_("status").executes(LtCommand::status));
         dispatcher.register(root);
+        dispatcher.register(Commands.m_82127_("faceanim")
+                .executes(ctx -> faceAnim(ctx, null))
+                .then(Commands.m_82127_("on").executes(ctx -> faceAnim(ctx, Boolean.TRUE)))
+                .then(Commands.m_82127_("off").executes(ctx -> faceAnim(ctx, Boolean.FALSE)))
+                .then(Commands.m_82127_("toggle").executes(ctx -> faceAnim(ctx, !current(ctx)))));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> toggle(String word, String what,
@@ -95,6 +101,34 @@ public final class LtCommand {
         ctx.getSource().m_288197_(() -> text.m_6881_().m_130940_(ChatFormatting.YELLOW), false);
         LtNetwork.askHealth(player);
         return 1;
+    }
+
+    /**
+     * /faceanim: a player turns their own face animation on or off for every viewer (0.2.3). No argument
+     * shows the current setting. Stored on the server and sent to everyone, including later logins.
+     */
+    private static int faceAnim(CommandContext<CommandSourceStack> ctx, Boolean on) {
+        ServerPlayer player = ctx.getSource().m_230896_();
+        if (player == null) {
+            ctx.getSource().m_81352_(Component.m_237115_("legacytextures.faceanim.player_only"));
+            return 0;
+        }
+        if (on == null) {
+            Component text = Component.m_237115_(FaceAnimStore.get(player)
+                    ? "legacytextures.faceanim.is_on" : "legacytextures.faceanim.is_off");
+            ctx.getSource().m_288197_(() -> text.m_6881_().m_130940_(ChatFormatting.YELLOW), false);
+            return 1;
+        }
+        FaceAnimStore.set(player, on);
+        LtNetwork.broadcastFace(player);
+        Component text = Component.m_237115_(on ? "legacytextures.faceanim.on" : "legacytextures.faceanim.off");
+        ctx.getSource().m_288197_(() -> text.m_6881_().m_130940_(ChatFormatting.GREEN), false);
+        return 1;
+    }
+
+    private static boolean current(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer player = ctx.getSource().m_230896_();
+        return player == null || FaceAnimStore.get(player);
     }
 
     private static Component state(boolean hd) {

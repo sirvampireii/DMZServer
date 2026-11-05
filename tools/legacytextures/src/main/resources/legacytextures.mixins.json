@@ -7,7 +7,8 @@
   "client": [
     "TextureManagerMixin",
     "ReloadableResourceManagerMixin",
-    "GeoModelMixin"
+    "GeoModelMixin",
+    "DMZSkinLayerFaceMixin"
   ],
   "injectors": {
     "defaultRequire": 0
