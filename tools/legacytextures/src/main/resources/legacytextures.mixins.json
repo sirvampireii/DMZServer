@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.dbzlegacy.legacytextures.mixin",
+  "plugin": "com.dbzlegacy.legacytextures.mixin.LtMixinPlugin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "TextureManagerMixin",
+    "ReloadableResourceManagerMixin",
+    "GeoModelMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

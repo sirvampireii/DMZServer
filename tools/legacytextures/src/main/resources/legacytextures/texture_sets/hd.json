@@ -1,0 +1,8 @@
+{
+  "id": "hd",
+  "name": "HD (ZoneMC v2.1 + NB Armors HD)",
+  "namespace": "legacytextures",
+  "basePath": "hd",
+  "categories": ["players", "armor", "gui", "world"],
+  "fallback": "vanilla"
+}
