@@ -34,7 +34,8 @@ for p in "$CF/libraries/net/minecraftforge/forge/1.20.1-47.4.10/forge-1.20.1-47.
          "$ROOT/libraries/org/slf4j/slf4j-api/2.0.1/slf4j-api-2.0.1.jar" \
          "$ROOT/libraries/org/apache/maven/maven-artifact/3.8.5/maven-artifact-3.8.5.jar" \
          "$ROOT/mods/geckolib-forge-1.20.1-4.8.4.jar" \
-         "$ROOT/mods/curios-forge-5.14.1+1.20.1.jar"; do
+         "$ROOT/mods/curios-forge-5.14.1+1.20.1.jar" \
+         "$DMZ"; do
   CP="$CP$SEP$(win "$p")"
 done
 PB="$GAME/.probe-build"

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build Legacy Textures (Forge 1.20.1 / 47.4.10, Java 17). Same javac-on-SRG setup as LegacyMechanics.
-#   [DMZ_JAR=<dragonminez jar>] [NB_JAR=<nbarmors-0.1.0.jar>] bash tools/legacytextures/build.sh
+#   [DMZ_JAR=<dragonminez jar>] [NB_JAR=<nbarmors-0.1.0.jar>] [FA_JAR=<dmzfaceanim-0.2.0.jar> ZONE_ZIP=<DMZ HD Plus.zip>]
+#   bash tools/legacytextures/build.sh
 # Client classes come from a Forge 1.20.1-47.4.10 client install (the CurseForge launcher's
 # libraries folder by default; set CLIENT_LIBS to use another). Output: build/legacytextures-<VERSION>.jar
 set -euo pipefail
@@ -60,6 +61,7 @@ CP_LIST=(
   "$L/com/mojang/brigadier/1.1.8/brigadier-1.1.8.jar"
   "$L/com/mojang/authlib/4.0.43/authlib-4.0.43.jar"
   "$L/com/google/guava/guava/31.1-jre/guava-31.1-jre.jar"
+  "$L/com/electronwill/night-config/core/3.6.4/core-3.6.4.jar"
   "$(ls "$L"/com/mojang/datafixerupper/*/*.jar | head -1)"
   "$(ls "$L"/it/unimi/dsi/fastutil/*/*.jar | head -1)"
   "$(ls "$L"/io/netty/netty-buffer/*/*.jar | head -1)"
@@ -95,6 +97,10 @@ java -cp "$(win "$OUT/test")$SEP$(win "$OUT/classes")$SEP$(win "$RES")$SEP$CP" R
 if [[ -n "${NB_JAR:-}" ]]; then
   echo ">> NB Armors resources match $NB_JAR"
   python3 "$HERE/import/import_nbarmors.py" --nb "$(win "$NB_JAR")" --check
+fi
+if [[ -n "${FA_JAR:-}" && -n "${ZONE_ZIP:-}" ]]; then
+  echo ">> face animation frames match $FA_JAR + $ZONE_ZIP"
+  python3 "$HERE/import/import_faceanim.py" --fa "$(win "$FA_JAR")" --zone "$(win "$ZONE_ZIP")" --check
 fi
 
 echo ">> package"

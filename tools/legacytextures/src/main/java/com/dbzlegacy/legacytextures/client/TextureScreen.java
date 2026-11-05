@@ -1,20 +1,26 @@
 package com.dbzlegacy.legacytextures.client;
 
 import com.dbzlegacy.legacytextures.TextureMode;
+import com.dbzlegacy.legacytextures.faceanim.FaceAnimConfig;
+import com.dbzlegacy.legacytextures.faceanim.FaceFlags;
 import com.dbzlegacy.legacytextures.resolve.TextureSet;
 import java.util.List;
+import java.util.UUID;
 import java.util.function.UnaryOperator;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 
 /**
  * The texture menu (/legacytextures or the menu key). Three one-tap presets, one switch per category
  * and the HD set picker. Every change is sent to the server, which stores it and sends it back; the
  * menu redraws from that answer. Players and NB Armors switch at once; the world switch reloads
- * textures once. All text comes from assets/legacytextures/lang.
+ * textures once. The last row (0.2.4) holds the face animation switches: "My face" is the same stored
+ * switch as /faceanim (the click runs that command), "See blinking" and "See shouting" are this game's
+ * [faceanim] config. All text comes from assets/legacytextures/lang.
  */
 final class TextureScreen extends Screen {
     private static final int GAP = 4;
@@ -23,6 +29,7 @@ final class TextureScreen extends Screen {
     private static final int WIDE_W = 3 * PRESET_W + 2 * GAP;
     private final Screen parent;
     private int seenRevision = -1;
+    private int seenFace = -1;
     private int worldNoteY;
 
     TextureScreen(Screen parent) {
@@ -33,9 +40,10 @@ final class TextureScreen extends Screen {
     @Override
     protected void m_7856_() {
         seenRevision = ClientState.revision();
+        seenFace = faceState();
         TextureMode mode = ClientState.mode();
         int left = this.f_96543_ / 2 - WIDE_W / 2;
-        int y = 52;
+        int y = 44;
 
         TextureMode.Preset current = mode.preset();
         int x = left;
@@ -49,7 +57,7 @@ final class TextureScreen extends Screen {
             x += PRESET_W + GAP;
         }
 
-        y += ROW + 14;
+        y += ROW + 8;
         y = toggle("players", mode.players, m -> m.withPlayers(!m.players), left, y);
         y = toggle("nbarmor", mode.nbArmor, m -> m.withNbArmor(!m.nbArmor), left, y);
         y = toggle("world", mode.world, m -> m.withWorld(!m.world), left, y);
@@ -67,6 +75,9 @@ final class TextureScreen extends Screen {
         setButton.f_93623_ = sets.size() > 1;
         this.m_142416_(setButton);
 
+        y += ROW + GAP + 2;
+        faceRow(left, y);
+
         this.m_142416_(Button.m_253074_(Component.m_237115_("legacytextures.menu.done"), btn -> this.m_7379_())
                 .m_252987_(this.f_96543_ / 2 - PRESET_W / 2, this.f_96544_ - 32, PRESET_W, ROW)
                 .m_253136_());
@@ -82,6 +93,59 @@ final class TextureScreen extends Screen {
                 .m_257505_(Tooltip.m_257550_(Component.m_237115_("legacytextures.switch." + what + ".help")))
                 .m_253136_());
         return y + ROW + GAP;
+    }
+
+    /** Face animation: my own face (for everyone, via /faceanim), then what this game shows of others. */
+    private void faceRow(int left, int y) {
+        boolean mine = FaceFlags.enabled(ownId());
+        boolean server = serverHasFaceAnim();
+        Button own = Button.m_253074_(Component.m_237110_("legacytextures.face.mine", new Object[] {onOff(mine)}),
+                        btn -> setOwnFace(!mine))
+                .m_252987_(left, y, PRESET_W, ROW)
+                .m_257505_(Tooltip.m_257550_(Component.m_237115_(!server ? "legacytextures.face.mine.no_server"
+                        : mine ? "legacytextures.face.mine.help_on" : "legacytextures.face.mine.help_off")))
+                .m_253136_();
+        own.f_93623_ = server;
+        this.m_142416_(own);
+        boolean blink = FaceAnimConfig.blink();
+        this.m_142416_(Button.m_253074_(Component.m_237110_("legacytextures.face.blink", new Object[] {onOff(blink)}),
+                        btn -> FaceAnimConfig.setBlink(!blink))
+                .m_252987_(left + PRESET_W + GAP, y, PRESET_W, ROW)
+                .m_257505_(Tooltip.m_257550_(Component.m_237115_("legacytextures.face.blink.help")))
+                .m_253136_());
+        boolean scream = FaceAnimConfig.scream();
+        this.m_142416_(Button.m_253074_(Component.m_237110_("legacytextures.face.scream", new Object[] {onOff(scream)}),
+                        btn -> FaceAnimConfig.setScream(!scream))
+                .m_252987_(left + 2 * (PRESET_W + GAP), y, PRESET_W, ROW)
+                .m_257505_(Tooltip.m_257550_(Component.m_237115_("legacytextures.face.scream.help")))
+                .m_253136_());
+    }
+
+    private static Component onOff(boolean on) {
+        return Component.m_237115_(on ? "legacytextures.state.on" : "legacytextures.state.off");
+    }
+
+    private UUID ownId() {
+        LocalPlayer player = this.f_96541_.f_91074_;
+        return player != null ? player.m_20148_() : null;
+    }
+
+    /** /faceanim is only there when the server runs Legacy Textures; without it the switch cannot be stored. */
+    private boolean serverHasFaceAnim() {
+        LocalPlayer player = this.f_96541_.f_91074_;
+        return player != null && player.f_108617_.m_105146_().getRoot().getChild("faceanim") != null;
+    }
+
+    /** Same path as typing /faceanim on|off: the server stores it, replies in chat and tells every viewer. */
+    private void setOwnFace(boolean on) {
+        if (serverHasFaceAnim()) {
+            this.f_96541_.f_91074_.f_108617_.m_246623_(on ? "faceanim on" : "faceanim off");
+        }
+    }
+
+    /** The face switches as one number, so the menu redraws when the server answers or a switch changes. */
+    private int faceState() {
+        return (FaceFlags.enabled(ownId()) ? 1 : 0) | (FaceAnimConfig.blink() ? 2 : 0) | (FaceAnimConfig.scream() ? 4 : 0);
     }
 
     private static Component presetHelp(TextureMode.Preset p, TextureMode mode) {
@@ -107,7 +171,7 @@ final class TextureScreen extends Screen {
 
     @Override
     public void m_86600_() {
-        if (seenRevision != ClientState.revision()) {
+        if (seenRevision != ClientState.revision() || seenFace != faceState()) {
             this.m_232761_();
         }
     }

@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
 Implementation-Title: LegacyTextures
-Implementation-Version: 0.2.2
+Implementation-Version: 0.2.4
 MixinConfigs: legacytextures.mixins.json

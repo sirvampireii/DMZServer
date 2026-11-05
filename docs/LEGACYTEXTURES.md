@@ -4,8 +4,8 @@ A Forge 1.20.1 mod that carries the HD textures for DragonMineZ and NB Armors, a
 switch between HD and the standard look for their own game. It is a new mod, separate from
 LegacyMechanics. Source: `tools/legacytextures/`.
 
-- **Identity:** modId `legacytextures`, version 0.2.2, `displayTest = MATCH_VERSION`.
-- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.2). See
+- **Identity:** modId `legacytextures`, version 0.2.4, `displayTest = MATCH_VERSION`.
+- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.4). See
   [NB Armors inside Legacy Textures](#nb-armors-inside-legacy-textures). The separate
   `nbarmors-0.1.0.jar` must not be installed next to it, because two copies of a mod id will not load.
 - **Dependencies:**
@@ -29,6 +29,8 @@ changed in Controls → Legacy Textures. All menu, command and status text comes
 | NB Armors outfits | NB Armors armor and vanity textures (jbra layouts) | At once (no reload) |
 | World, items and menus | Block, item and particle textures (atlases), menu art | One texture reload with the loading screen |
 | HD set | Which HD set the switches use (only when more than one is installed) | Same as the switches |
+| My face (0.2.4) | Your own face animation, for every viewer; the same switch as `/faceanim` | At once, needs the server to run Legacy Textures |
+| See blinking / See shouting (0.2.4) | Whether this game draws other players' blinks and shouts (`[faceanim]` config) | At once, only this game |
 
 The same choices can be typed:
 
@@ -39,7 +41,9 @@ The same choices can be typed:
   - **Texture hooks:** drawing, file checks and models. Each shows "working", "not used yet" (the
     hook never ran, for example because its target changed) or "FAILED".
   - **Sets:** the sets loaded, and whether world HD is loaded.
-  - **DMZ caches:** any DragonMineZ cache that could not be cleared.
+  - **DMZ caches:** any DragonMineZ cache that could not be cleared, and (0.2.3) whether DragonMineZ
+    still held shaded body layers that Legacy Textures had to drop on the last switch.
+- `/faceanim on|off|toggle`: your own face animation, for everyone (see Face animation below).
 
 The choice is stored in the player's persisted data. It survives death, dimension changes and
 restarts, and is sent to the player on login and after every change. Players who never chose get
@@ -113,6 +117,41 @@ Result: all 1,043 catalog textures and all 305 `_layer1` torso textures are insi
 - **The `*_layer2.png` / head `*_layer1.png` "gaps":** an earlier count came from applying
   `ArmorTextureResolver`'s pattern to every slot. Only DMZ torso chests use that pattern; legs,
   head and boots use `wornTexture`.
+
+## Face animation (absorbed DMZ Face Anim, 0.2.3)
+
+Eyes blink and the mouth opens into a shout on DragonMineZ faces, for every race DMZ draws a face for
+(human/Saiyan, Namekian, Frost Demon, Majin, BioAndroid, Glind, Angel). This was the separate mod
+DMZ Face Anim 0.2.0 (`dmzfaceanim-0.2.0.jar`, sha256 7260a2b0...); its owner (the server owner)
+relicensed it into Legacy Textures on 2026-11-05, so the GPL-3.0-only license of that jar does not ship.
+The code is identifiable in `faceanim/` (`FaceAnimator`, `FaceFlags`, `FaceAnimConfig`) and
+`mixin/DMZSkinLayerFaceMixin`; the frames come from `import/import_faceanim.py`
+(`FACEANIM_MANIFEST.json`).
+
+- **Blink:** a 90-tick cycle (about 4.5 s) with a per-player offset; half, closed, closed, half.
+- **Shout:** while the player charges ki, or charges an action other than fusion; the mouth opens
+  over a few ticks and shows `mouth_scream_1..3`, drawn untinted.
+- **How:** `DMZSkinLayer.renderFace` marks the face being drawn; each face layer path (eyes, mouth)
+  is swapped for its frame and drawn by DMZ's own 11-argument `renderColoredLayer`, so tint, light and
+  the HD switch stay DMZ's. Nothing binds a texture or keeps a GL id. Every hook is `require = 0`.
+- **Frames:** 479 files under `dragonminez:textures/entity/races/<race>/faces/anim/` plus the four base
+  Angel eyes `angel/faces/angel_eye_0_0..3.png`. They stay in the `dragonminez:` namespace because DMZ
+  draws faces by that path; none of them exists in DragonMineZ (the audit checks), so no DMZ file is
+  replaced. The Angel art came from the ZoneMC pack's `anjo/` folder and is renamed to DMZ's `angel/`;
+  the 30 `anjo_form1..5` frames had no DMZ face and were dropped.
+- **Each player's own switch:** `/faceanim on|off|toggle` (no argument shows the setting). It changes
+  that player's face for every viewer, is stored in their persisted data on the server (default on),
+  and is sent on login, when a player comes into view and on every change (packet `FaceAnimFlag` on
+  the Legacy Textures channel, protocol 3). This needs the server to run this jar.
+- **What a viewer sees:** `config/legacytextures-client.toml`, section `[faceanim]`: `enableBlink`
+  and `enableScream` (both default `true`). Turning one off changes only that game.
+- **In the menu (0.2.4):** the bottom row of the texture menu holds both. "My face" shows the switch
+  the server sent (on until it says otherwise) and a click runs `/faceanim on|off`, so the store,
+  the chat reply and the update to every viewer are the command's own; it is greyed out when the
+  server has no `/faceanim`. "See blinking" and "See shouting" write `enableBlink`/`enableScream`
+  and save the file; the next frame uses them. The menu redraws when any of the three changes, so a
+  typed `/faceanim` shows there too.
+- The animation and the body fixes are client-side; only `/faceanim` needs the server.
 
 ## NB Armors inside Legacy Textures
 
@@ -232,7 +271,12 @@ audits that every target exists in the DMZ jar:
 
 - `TextureCounter.clearCache()` (also clears `DMZSkinLayer.VALIDATED_TEXTURES_CACHE`)
 - `DMZSkinLayer.clearValidatedTexturesCache()`
-- `SkinGathererProvider.clearShadedLayers()`
+- `SkinGathererProvider.clearShadedLayers()`, then (0.2.3) `SkinGathererProvider.SHADED_LAYERS` emptied
+  by reflection as well. DMZ builds a shaded body (Majin, Frost Demon, BioAndroid) once per
+  `dragonminez:` layer path and keeps it in that map; the `dragonminez:shaded/...` keys never go
+  through the resolver, so a layer left in the map keeps an HD body after a switch to vanilla. The
+  call stays first because it also frees the layers' GL textures. If the map still held layers after
+  the call, the log warns with the switch and `/legacytextures status` says so.
 - `ArmorTextureResolver.clearCache()`
 - `DMZPlayerModel.MODEL_RESOLUTION_CACHE` / `FILE_EXISTS_CACHE`
 - `DMZRendererCache.clear()`
@@ -261,9 +305,13 @@ bash tools/legacytextures/build.sh            # DMZ_JAR=<dragonminez jar> to aud
   - The inner-class and referenced-class scan.
   - The manifest and mixin config check.
   - `audit/audit_legacytextures.py`: identity and dependencies, assets only under `legacytextures:`
-    and `nbarmors:`, no lang files except the two own `en_us.json`, the payload matches the manifest,
-    the set files, mixin method visibility, no raw `§`, every DMZ cache target present, and GeckoLib's
-    `GeoModel` has exactly one `getBakedModel` overload (GeoModelMixin targets it by name).
+    and `nbarmors:` plus the face frames under `dragonminez:.../faces/` (exactly the
+    `FACEANIM_MANIFEST.json` list, none present in the DMZ jar), no lang files except the two own
+    `en_us.json`, the payload matches the manifest, the set files, mixin method visibility, no raw `§`,
+    every DMZ cache target present (including `SHADED_LAYERS`), the four `DMZSkinLayer` methods the
+    face mixin hooks, and GeckoLib's `GeoModel` has exactly one `getBakedModel` overload.
+  - With `FA_JAR=<dmzfaceanim-0.2.0.jar> ZONE_ZIP=<DMZ HD Plus.zip>`, the face frames are checked
+    byte for byte against their sources (`import/import_faceanim.py --check`).
 - **HD hair cap (0.2.1):** the ZoneMC `hair_base.png` hung lower over the forehead than DMZ's and
   showed as a second flat hair under the 3D strands. `import/fit_hair_cap.py <dragonminez jar>` fits it
   to DMZ's 64x64 footprint (248 cells, rows 16-18 clear); `--check` only reports. Rerun it after

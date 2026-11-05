@@ -4,7 +4,9 @@
 Fails the build when:
   * mods.toml loses an identity/dependency rule (displayTest, the four dependency ranges);
   * the jar carries an asset outside the legacytextures and nbarmors namespaces (a same-path override
-    would make the vanilla variant unreachable), any lang file other than its own two
+    would make the vanilla variant unreachable), except the face animation frames under
+    dragonminez:textures/entity/races/<race>/faces/ that FACEANIM_MANIFEST.json lists and DragonMineZ
+    does not ship (0.2.3; DMZSkinLayer draws faces by dragonminez: path), any lang file other than its own two
     (assets/legacytextures/lang/en_us.json and assets/nbarmors/lang/en_us.json; lang merges globally,
     so a ZoneMC lang file would change text for everyone), or any dmzanatomy / jinryuudragonbc file;
   * the HD payload in the jar does not match import/IMPORT_MANIFEST.json;
@@ -13,6 +15,8 @@ Fails the build when:
   * a Java source has a raw section sign, or menu/command/status text is not a lang lookup;
   * the absorbed NB Armors classes/resources do not match the nbarmors 0.1.0 jar (NB_MANIFEST.json);
   * a DragonMineZ touchpoint of the NB compat layer moved (DbzArmorItem constructors, DMZPlayerRenderer);
+  * a DMZSkinLayer method the face animation mixin hooks moved (renderFace, the 11-argument
+    renderColoredLayer, renderFadingColoredLayer, renderFeatureShadow);
   * GeckoLib's GeoModel no longer has exactly one getBakedModel overload (GeoModelMixin targets it by
     name with require = 0, so a second overload would be hooked, or a renamed one silently skipped);
   * a DragonMineZ cache CacheFlush clears is missing from the DMZ jar (DMZ_JAR, default the newest
@@ -78,11 +82,29 @@ def main() -> int:
             check(f"{owner} -> {mid} mandatory={mand} {rng}" + (f" {order}" if order else "") + " side BOTH",
                   g is not None and g[0] == mand and g[1] == rng and (order is None or g[2] == order) and g[3] == "BOTH")
 
+    dmz = os.environ.get("DMZ_JAR") or str(ROOT / "tools/dmz-godki-patch/out/dragonminez-2.2.1.1.jar")
+    with zipfile.ZipFile(dmz) as dz:
+        dmz_names = set(dz.namelist())
+
     print("--- assets")
     assets = [n for n in names if n.startswith("assets/")]
     namespaces = {n.split("/")[1] for n in assets}
-    check("assets only under legacytextures and the absorbed nbarmors (no dragonminez/minecraft overrides)",
-          namespaces == {"legacytextures", "nbarmors"})
+    check("assets only under legacytextures, the absorbed nbarmors and the face frames (no minecraft overrides)",
+          namespaces == {"legacytextures", "nbarmors", "dragonminez"})
+    fam = json.loads((LT / "import" / "FACEANIM_MANIFEST.json").read_text(encoding="utf-8"))
+    faces = sorted(n for n in assets if n.startswith("assets/dragonminez/"))
+    check(f"dragonminez: assets are exactly the {fam['frames_total']} face frames FACEANIM_MANIFEST lists",
+          faces == fam["files"] and len(faces) == fam["frames_total"])
+    check("face frames only under textures/entity/races/<race>/faces/ (anim/ frames, angel base eyes)",
+          all(re.fullmatch(r"assets/dragonminez/textures/entity/races/[a-z]+/faces/(anim/)?[a-z0-9_]+\.png", n)
+              for n in faces))
+    overrides = [n for n in faces if n in dmz_names]
+    check(f"no face frame replaces a {Path(dmz).name} file" + (f" {overrides[:3]}" if overrides else ""), not overrides)
+    check("Angel frames under angel/ (no anjo/ folder, no dead anjo_form frames)",
+          not any("/anjo/" in n or "anjo_form" in n for n in faces)
+          and sum("/angel/faces/anim/" in n for n in faces) == 9
+          and [n for n in faces if "/angel/faces/angel_eye" in n] == [
+              f"assets/dragonminez/textures/entity/races/angel/faces/angel_eye_0_{i}.png" for i in range(4)])
     check("lang: only Legacy Textures' own en_us and NB Armors' en_us (no ZoneMC lang)",
           sorted(n for n in assets if "/lang/" in n) == ["assets/legacytextures/lang/en_us.json",
                                                          "assets/nbarmors/lang/en_us.json"])
@@ -138,6 +160,11 @@ def main() -> int:
     check("mixin classes: every non-handler method is private" + (f" ({bad})" if bad else ""), not bad)
     screen = (SRC / "client" / "TextureScreen.java").read_text(encoding="utf-8")
     check("menu text: no 'Hub', no 'Invalid input'", "Hub" not in screen and "Invalid input" not in screen)
+    net = (SRC / "net" / "LtNetwork.java").read_text(encoding="utf-8")
+    check("menu (0.2.4): My face runs /faceanim on|off (the command's store and broadcast, no second packet)",
+          '"faceanim on"' in screen and '"faceanim off"' in screen and net.count("CHANNEL.messageBuilder(") == 4)
+    check("menu (0.2.4): See blinking / See shouting write the [faceanim] config",
+          "FaceAnimConfig.setBlink(" in screen and "FaceAnimConfig.setScream(" in screen)
     lang = json.loads((LT / "src/main/resources/assets/legacytextures/lang/en_us.json").read_text(encoding="utf-8"))
     player_text = [SRC / "client" / "TextureScreen.java", SRC / "client" / "ClientStatus.java",
                    SRC / "server" / "LtCommand.java"]
@@ -154,7 +181,6 @@ def main() -> int:
     check("every lang key the code uses is in assets/legacytextures/lang/en_us.json"
           + (f" {missing_keys}" if missing_keys else ""), not missing_keys)
 
-    dmz = os.environ.get("DMZ_JAR") or str(ROOT / "tools/dmz-godki-patch/out/dragonminez-2.2.1.1.jar")
     gecko = str(sorted((ROOT / "mods").glob("geckolib-forge-1.20.1-*.jar"))[-1])
     print("--- DragonMineZ touchpoints of the NB Armors compat layer (" + Path(dmz).name + ")")
     armor = subprocess.run(["javap", "-cp", dmz + os.pathsep + gecko, "com.dragonminez.common.init.armor.DbzArmorItem"],
@@ -176,6 +202,22 @@ def main() -> int:
     overloads = [line.strip() for line in geo.splitlines() if re.search(r"\bgetBakedModel\(", line)]
     check("GeoModel has exactly one getBakedModel overload, getBakedModel(ResourceLocation)" + (f" {overloads}" if len(overloads) != 1 else ""),
           len(overloads) == 1 and "getBakedModel(net.minecraft.resources.ResourceLocation)" in overloads[0])
+
+    print("--- DragonMineZ touchpoints of the face animation mixin (" + Path(dmz).name + ")")
+    skin = subprocess.run(["javap", "-p", "-cp", dmz + os.pathsep + gecko, "com.dragonminez.client.render.layer.DMZSkinLayer"],
+                          capture_output=True, text=True).stdout
+    geo_t, pose, buf = ("software.bernie.geckolib.cache.object.BakedGeoModel", "com.mojang.blaze3d.vertex.PoseStack",
+                        "net.minecraft.client.renderer.MultiBufferSource")
+    check("DMZSkinLayer.renderFace(pose, T, model, buffer, player, stats, float, int, int, float)",
+          f"void renderFace({pose}, T, {geo_t}, {buf}, net.minecraft.client.player.AbstractClientPlayer, "
+          "com.dragonminez.common.stats.StatsData, float, int, int, float);" in skin)
+    check("DMZSkinLayer.renderColoredLayer 11-argument overload (the one the face route calls)",
+          f"void renderColoredLayer({geo_t}, {pose}, T, {buf}, java.lang.String, float[], float, int, int, float, boolean);" in skin)
+    check("DMZSkinLayer.renderFadingColoredLayer and renderFeatureShadow",
+          f"void renderFadingColoredLayer({geo_t}, {pose}, T, {buf}, java.lang.String, float[], float, int, int, float);" in skin
+          and f"void renderFeatureShadow({geo_t}, {pose}, T, {buf}, java.lang.String, float[], float, int, int, float);" in skin)
+    mixins = json.loads((LT / "src/main/resources/legacytextures.mixins.json").read_text(encoding="utf-8"))
+    check("face animation mixin registered (client)", "DMZSkinLayerFaceMixin" in mixins["client"])
 
     print("--- DragonMineZ caches CacheFlush clears")
     flush = (SRC / "client" / "CacheFlush.java").read_text(encoding="utf-8")
