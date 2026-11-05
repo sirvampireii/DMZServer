@@ -416,5 +416,8 @@
    "assets/nbarmors/textures/armor/zarama_1.png",
    "assets/nbarmors/textures/armor/zeno_1.png"
   ]
+ },
+ "local_edits": {
+  "assets/legacytextures/textures/hd/dragonminez/entity/races/hair_base.png": "0.2.1: fitted to DMZ's 64x64 hair_base footprint (248 cells, no row-9 fringe) by import/fit_hair_cap.py; rerun it after a re-import"
  }
 }

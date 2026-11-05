@@ -481,6 +481,31 @@ public final class LtClientProbe {
                 line("   world chat: " + chat.replace('\n', '|'));
                 check("world hd: chat warns that textures reload once", chat.contains("reloads its textures once"));
                 check("world hd: exactly one reload", reloadsSeen - reloadsBefore == 1 && ClientState.worldHdLoaded());
+                // 0.2.1: show the hair cap; the run script clears the vanity head when this file appears
+                Files.writeString(gameDir.resolve("ltprobe-need-nohead"), mc.f_91074_.m_36316_().getName());
+                wait = 40;
+            }
+            case 26 -> {
+                if (Files.exists(gameDir.resolve("ltprobe-need-nohead"))) {
+                    step = 26;
+                    wait = 10;
+                    return;
+                }
+                ItemStack head = CuriosApi.getCuriosInventory(mc.f_91074_).resolve()
+                        .flatMap(inv -> inv.getStacksHandler("vanity")).map(h -> h.getStacks().getStackInSlot(0))
+                        .orElse(ItemStack.f_41583_);
+                check("vanity head removed for the hair shots", head.m_41619_());
+                check("ALL_HD for the hair shot", ClientState.mode().players && ClientState.mode().world);
+                shot(mc, "ltprobe-hair-hd.png");
+                afterShot = () -> mc.f_91074_.f_108617_.m_246623_("legacytextures players vanilla");
+                wait = 40;
+            }
+            case 27 -> {
+                check("players back to standard for the vanilla hair shot", !ClientState.mode().players);
+                shot(mc, "ltprobe-hair-standard.png");
+                wait = 10;
+            }
+            case 28 -> {
                 finish(mc);
             }
             default -> {

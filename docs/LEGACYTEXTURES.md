@@ -4,8 +4,8 @@ A Forge 1.20.1 mod that carries the HD textures for DragonMineZ and NB Armors, a
 switch between HD and the standard look for their own game. It is a new mod, separate from
 LegacyMechanics. Source: `tools/legacytextures/`.
 
-- **Identity:** modId `legacytextures`, version 0.2.0, `displayTest = MATCH_VERSION`.
-- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.0). See
+- **Identity:** modId `legacytextures`, version 0.2.1, `displayTest = MATCH_VERSION`.
+- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.1). See
   [NB Armors inside Legacy Textures](#nb-armors-inside-legacy-textures). The separate
   `nbarmors-0.1.0.jar` must not be installed next to it, because two copies of a mod id will not load.
 - **Dependencies:**
@@ -251,9 +251,14 @@ bash tools/legacytextures/build.sh            # DMZ_JAR=<dragonminez jar> to aud
 - **Jar audits:**
   - The inner-class and referenced-class scan.
   - The manifest and mixin config check.
-  - `audit/audit_legacytextures.py`: identity and dependencies, assets only under `legacytextures:`,
-    no lang, the payload matches the manifest, the set files, mixin method visibility, no raw `§`,
-    and every DMZ cache target present.
+  - `audit/audit_legacytextures.py`: identity and dependencies, assets only under `legacytextures:`
+    and `nbarmors:`, no lang files except the two own `en_us.json`, the payload matches the manifest,
+    the set files, mixin method visibility, no raw `§`, every DMZ cache target present, and GeckoLib's
+    `GeoModel` has exactly one `getBakedModel` overload (GeoModelMixin targets it by name).
+- **HD hair cap (0.2.1):** the ZoneMC `hair_base.png` hung lower over the forehead than DMZ's and
+  showed as a second flat hair under the 3D strands. `import/fit_hair_cap.py <dragonminez jar>` fits it
+  to DMZ's 64x64 footprint (248 cells, rows 16-18 clear); `--check` only reports. Rerun it after
+  `import_assets.py` re-imports the HD set (`IMPORT_MANIFEST.json` lists it under `local_edits`).
 - **Version pins:** `LegacyTextures.VERSION`, both `mods.toml` entries, `MANIFEST.MF` and the boot
   banner (`Legacy Textures <VERSION> loaded`) must agree.
 - **NB Armors:**
@@ -294,6 +299,9 @@ screenshot in each mode:
 - Live `mods/` should have exactly one Legacy Textures file. 0.2.0 replaces the
   `legacytextures-0.1.0.jar.pending` staged there; that one is never renamed.
 - `MATCH_VERSION`: clients need the same jar as the server.
+- Curios is a hard dependency (`[5.14.1,)`, NB Armors' vanity slot): keep Curios 5.14.1 in the server
+  `mods/` and in the client modpack.
+- Do not ship 0.2.x until the owner decides the NB Armors license question.
 - The old `dbzlr-texture-pack-assets-0.2.2.jar` is a code-less snapshot of a different pack lineage
   (no overlap with ZoneMC v2.1). Leave it in place until Legacy Textures is live, then remove it.
 - The live server resource pack (Halloween Redux, minecraft namespace only) is unaffected.

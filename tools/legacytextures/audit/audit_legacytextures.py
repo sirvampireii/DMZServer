@@ -3,15 +3,18 @@
 
 Fails the build when:
   * mods.toml loses an identity/dependency rule (displayTest, the four dependency ranges);
-  * the jar carries an asset outside the legacytextures namespace (a same-path override would make
-    the vanilla variant unreachable), a lang file (lang merges globally, it cannot be per-viewer),
-    or any dmzanatomy / jinryuudragonbc file;
+  * the jar carries an asset outside the legacytextures and nbarmors namespaces (a same-path override
+    would make the vanilla variant unreachable), any lang file other than its own two
+    (assets/legacytextures/lang/en_us.json and assets/nbarmors/lang/en_us.json; lang merges globally,
+    so a ZoneMC lang file would change text for everyone), or any dmzanatomy / jinryuudragonbc file;
   * the HD payload in the jar does not match import/IMPORT_MANIFEST.json;
   * a shipped texture set file is missing or wrong (vanilla, hd -> fallback vanilla);
   * a mixin class has a non-private method that is not a handler (Mixin would merge it);
   * a Java source has a raw section sign, or menu/command/status text is not a lang lookup;
   * the absorbed NB Armors classes/resources do not match the nbarmors 0.1.0 jar (NB_MANIFEST.json);
   * a DragonMineZ touchpoint of the NB compat layer moved (DbzArmorItem constructors, DMZPlayerRenderer);
+  * GeckoLib's GeoModel no longer has exactly one getBakedModel overload (GeoModelMixin targets it by
+    name with require = 0, so a second overload would be hooked, or a renamed one silently skipped);
   * a DragonMineZ cache CacheFlush clears is missing from the DMZ jar (DMZ_JAR, default the newest
     mods/dragonminez-*.jar), so a DMZ update that renames one is caught here, not in game.
 """
@@ -166,6 +169,13 @@ def main() -> int:
     check("DMZPlayerRenderer extends GeoEntityRenderer (DmzClientCompat adds its layers there)",
           "class com.dragonminez.client.render.DMZPlayerRenderer" in renderer
           and "extends software.bernie.geckolib.renderer.GeoEntityRenderer" in renderer)
+
+    print("--- GeckoLib touchpoint of GeoModelMixin (" + Path(gecko).name + ")")
+    geo = subprocess.run(["javap", "-cp", gecko, "software.bernie.geckolib.model.GeoModel"],
+                         capture_output=True, text=True).stdout
+    overloads = [line.strip() for line in geo.splitlines() if re.search(r"\bgetBakedModel\(", line)]
+    check("GeoModel has exactly one getBakedModel overload, getBakedModel(ResourceLocation)" + (f" {overloads}" if len(overloads) != 1 else ""),
+          len(overloads) == 1 and "getBakedModel(net.minecraft.resources.ResourceLocation)" in overloads[0])
 
     print("--- DragonMineZ caches CacheFlush clears")
     flush = (SRC / "client" / "CacheFlush.java").read_text(encoding="utf-8")
