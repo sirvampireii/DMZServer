@@ -1,0 +1,9 @@
+{
+  "kind": "vanity",
+  "textureWidth": 64, "textureHeight": 32,
+  "dropped": [],
+  "unattached": [],
+  "parts": [
+    {"name": "ggmask", "parent": "head", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [0, 0], "mirror": false, "boxes": [[-3.5, -9, -4.5, 7, 9, 0, 0]]}
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "kind": "armor",
+  "textureWidth": 128, "textureHeight": 64,
+  "dropped": ["rightarm (alias of right_arm)", "leftarm (alias of left_arm)", "Brightarm (alias of right_arm)", "Bleftarm (alias of left_arm)", "jrmc_body (JRMCore body-shape part)", "hip2 (JRMCore body-shape part)", "hip (JRMCore body-shape part)", "waist (JRMCore body-shape part)", "Bbreast (JRMCore body-shape part)", "breast (JRMCore body-shape part)", "Bbreast2 (JRMCore body-shape part)", "breast2 (JRMCore body-shape part)", "bottom2 (JRMCore body-shape part)", "bottom (JRMCore body-shape part)"],
+  "unattached": ["rightleg", "leftleg", "skirt3"],
+  "parts": [
+    {"name": "head", "parent": null, "pivot": [0, 0.1, 0], "rot": [0, 0, 0], "uv": [0, 0], "mirror": false, "boxes": [[-4, -8, -4, 8, 8, 8, 0]]},
+    {"name": "body", "parent": null, "pivot": [0, 0.1, 0], "rot": [0, 0, 0], "uv": [16, 16], "mirror": false, "boxes": [[-4, 0, -2, 8, 12, 4, 0]]},
+    {"name": "right_arm", "parent": null, "pivot": [-5, 2.1, 0], "rot": [0, 0, 0], "uv": [40, 16], "mirror": false, "boxes": [[-3, -2, -2, 4, 12, 4, 0]]},
+    {"name": "left_arm", "parent": null, "pivot": [5, 2.1, 0], "rot": [0, 0, 0], "uv": [40, 16], "mirror": true, "boxes": [[-1, -2, -2, 4, 12, 4, 0]]},
+    {"name": "right_leg", "parent": null, "pivot": [-1.9, 12.1, 0], "rot": [0, 0, 0], "uv": [0, 16], "mirror": false, "boxes": [[-2, 0, -2, 4, 12, 4, 0]]},
+    {"name": "left_leg", "parent": null, "pivot": [1.9, 12.1, 0], "rot": [0, 0, 0], "uv": [0, 16], "mirror": true, "boxes": [[-2, 0, -2, 4, 12, 4, 0]]},
+    {"name": "skirt1", "parent": "body", "pivot": [0, -1, 0], "rot": [-0.001, 0, 0], "uv": [32, 0], "mirror": false, "boxes": [[-8, 0.5, -2, 16, 24, 4, 0.1]]},
+    {"name": "skirt2", "parent": "body", "pivot": [0, -1, 0], "rot": [0.001, 0, 0], "uv": [72, 0], "mirror": false, "boxes": [[-8, 0.5, -2, 16, 24, 4, 0.1]]},
+    {"name": "skirt4", "parent": "body", "pivot": [0, -1, 0], "rot": [0, 0, 0], "uv": [40, 28], "mirror": false, "boxes": [[-8, 0.5, -2, 16, 24, 4, 0.1]]},
+    {"name": "skirt5", "parent": "body", "pivot": [0, -1, 0], "rot": [0, 0, 0], "uv": [80, 28], "mirror": false, "boxes": [[-8, 0.5, -2, 16, 24, 4, 0.1]]}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "kind": "vanity",
+  "textureWidth": 64, "textureHeight": 32,
+  "dropped": [],
+  "unattached": [],
+  "parts": [
+    {"name": "mhornbase", "parent": "head", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [0, 0], "mirror": false, "boxes": [[-4, -8, -4, 8, 8, 8, 0]]},
+    {"name": "mhornbr", "parent": "mhornbase", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [32, 0], "mirror": false, "boxes": [[-6.5, -8, -1.5, 4, 3, 3, 0]]},
+    {"name": "mhornr1", "parent": "mhornbase", "pivot": [0, 0, 0], "rot": [0, 0, 0.7853982], "uv": [32, 6], "mirror": false, "boxes": [[-12, -1, -1, 4, 2, 2, 0]]},
+    {"name": "mhornr2", "parent": "mhornbase", "pivot": [0, 0, 0], "rot": [0, 0, 1.570796], "uv": [32, 10], "mirror": false, "boxes": [[-12, 8, -0.5, 4, 1, 1, 0]]},
+    {"name": "mhornbl", "parent": "mhornbase", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [32, 0], "mirror": true, "boxes": [[2.5, -8, -1.5, 4, 3, 3, 0]]},
+    {"name": "mhornl1", "parent": "mhornbase", "pivot": [0, 0, 0], "rot": [0, 0, -0.7853982], "uv": [32, 6], "mirror": true, "boxes": [[8, -1, -1, 4, 2, 2, 0]]},
+    {"name": "mhornl2", "parent": "mhornbase", "pivot": [0, 0, 0], "rot": [0, 0, -1.570796], "uv": [32, 10], "mirror": true, "boxes": [[8, 8, -0.5, 4, 1, 1, 0]]}
+  ]
+}

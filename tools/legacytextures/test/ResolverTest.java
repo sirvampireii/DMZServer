@@ -1,0 +1,124 @@
+import com.dbzlegacy.legacytextures.TextureMode;
+import com.dbzlegacy.legacytextures.resolve.Category;
+import com.dbzlegacy.legacytextures.resolve.Resolver;
+import com.dbzlegacy.legacytextures.resolve.SetRegistry;
+import com.dbzlegacy.legacytextures.resolve.TextureSet;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Set;
+import net.minecraft.resources.ResourceLocation;
+
+/** Resolver and set registry rules, run by build.sh. No game needed. */
+public final class ResolverTest {
+    private static int failures;
+
+    public static void main(String[] args) throws Exception {
+        Path dir = Files.createTempDirectory("lt-sets");
+        SetRegistry reg = SetRegistry.load(dir,
+                name -> ResolverTest.class.getResourceAsStream("/legacytextures/texture_sets/" + name));
+        check("defaults written on first load", Files.exists(dir.resolve("vanilla.json")) && Files.exists(dir.resolve("hd.json")));
+        check("registry has vanilla + hd", reg.get("vanilla") != null && reg.get("hd") != null);
+
+        Set<ResourceLocation> files = new HashSet<>();
+        ResourceLocation body = rl("dragonminez", "textures/entity/races/humansaiyan/bodytype_male_3_layer1.png");
+        ResourceLocation bodyHd = rl("legacytextures", "textures/hd/dragonminez/entity/races/humansaiyan/bodytype_male_3_layer1.png");
+        ResourceLocation tattoo6 = rl("dragonminez", "textures/entity/races/tattoos/tattoo_6.png");
+        ResourceLocation tattoo6Hd = rl("legacytextures", "textures/hd/dragonminez/entity/races/tattoos/tattoo_6.png");
+        ResourceLocation gi = rl("nbarmors", "textures/armor/angel1_1jbra.png");
+        ResourceLocation giHd = rl("legacytextures", "textures/hd/nbarmors/armor/angel1_1jbra.png");
+        ResourceLocation geo = rl("dragonminez", "geo/entity/races/frostdemon.geo.json");
+        ResourceLocation geoHd = rl("legacytextures", "geo/hd/dragonminez/entity/races/frostdemon.geo.json");
+        ResourceLocation stone = rl("minecraft", "textures/block/stone.png");
+        ResourceLocation widgets = rl("minecraft", "textures/gui/widgets.png");
+        ResourceLocation widgetsHd = rl("legacytextures", "textures/hd/minecraft/gui/widgets.png");
+        files.add(body);
+        files.add(bodyHd);
+        files.add(tattoo6Hd); // HD-only option: no vanilla file
+        files.add(gi);
+        files.add(giHd);
+        files.add(geo);
+        files.add(geoHd);
+        files.add(stone);
+        files.add(widgets);
+        files.add(widgetsHd);
+        Resolver r = new Resolver(files::contains);
+
+        check("category players / armor / world / gui / none",
+                Category.of(body) == Category.PLAYERS && Category.of(gi) == Category.ARMOR
+                        && Category.of(stone) == Category.WORLD && Category.of(widgets) == Category.GUI
+                        && Category.of(rl("othermod", "textures/x.png")) == null
+                        && Category.of(rl("dragonminez", "lang/en_us.json")) == null);
+        check("hd map / source round trip", bodyHd.equals(reg.get("hd").map(body))
+                && body.equals(reg.get("hd").source("textures/hd/dragonminez/entity/races/humansaiyan/bodytype_male_3_layer1.png")));
+
+        r.configure(reg, mode(TextureMode.Preset.ALL_VANILLA), false, "hd");
+        check("ALL_VANILLA: body is the mod's own file (same instance)", r.variant(body) == body);
+        check("ALL_VANILLA: gi is the jar file", r.variant(gi) == gi);
+        check("ALL_VANILLA: HD-only tattoo has no file (option count stops; bind draws blank)",
+                r.variant(tattoo6) == tattoo6 && !r.exists(tattoo6));
+
+        r.configure(reg, mode(TextureMode.Preset.PLAYERS_HD_ONLY), false, "hd");
+        check("PLAYERS_HD_ONLY: body -> HD", bodyHd.equals(r.variant(body)));
+        check("PLAYERS_HD_ONLY: HD-only tattoo exists through the set", tattoo6Hd.equals(r.variant(tattoo6)));
+        check("PLAYERS_HD_ONLY: geo -> HD", geoHd.equals(r.variant(geo)));
+        check("PLAYERS_HD_ONLY: NB gi -> HD", giHd.equals(r.variant(gi)));
+        check("PLAYERS_HD_ONLY: world and gui stay vanilla", r.variant(stone) == stone && r.variant(widgets) == widgets);
+
+        TextureMode nbVanilla = mode(TextureMode.Preset.PLAYERS_HD_ONLY).withNbArmor(false);
+        r.configure(reg, nbVanilla, false, "hd");
+        check("nbArmor vanilla: gi is the jar file while players stay HD",
+                r.variant(gi) == gi && bodyHd.equals(r.variant(body)));
+
+        r.configure(reg, mode(TextureMode.Preset.ALL_HD), true, "hd");
+        check("ALL_HD after reload: gui -> HD", widgetsHd.equals(r.variant(widgets)));
+        check("ALL_HD: a file the set lacks falls back to vanilla, never missing", r.variant(stone) == stone);
+        r.configure(reg, mode(TextureMode.Preset.ALL_HD), false, "hd");
+        check("ALL_HD before the reload finishes: world/gui still vanilla", r.variant(widgets) == widgets);
+
+        for (int i = 0; i < 3; i++) {
+            r.configure(reg, mode(TextureMode.Preset.ALL_VANILLA), false, "hd");
+            boolean v = r.variant(body) == body;
+            r.configure(reg, mode(TextureMode.Preset.PLAYERS_HD_ONLY), false, "hd");
+            boolean h = bodyHd.equals(r.variant(body));
+            check("toggle " + (i + 1) + ": no stale answer across switches", v && h);
+        }
+
+        // A third set, dropped in as one JSON: partial, falls back to hd, then vanilla.
+        Files.writeString(dir.resolve("hd2.json"), "{\"id\":\"hd2\",\"name\":\"HD copy\",\"namespace\":\"ltcopy\","
+                + "\"basePath\":\"hd2\",\"categories\":[\"players\"],\"fallback\":\"hd\"}");
+        Files.writeString(dir.resolve("bad.json"), "{\"id\":\"bad\",\"namespace\":\"dragonminez\",\"basePath\":\"x\"}");
+        SetRegistry reg3 = SetRegistry.load(dir, name -> null);
+        check("third set appears in the picker list", reg3.hdSets().stream().anyMatch(s -> s.id.equals("hd2")));
+        check("a set that reuses a mod namespace is refused", reg3.get("bad") == null && !reg3.warnings().isEmpty());
+        files.add(rl("ltcopy", "textures/hd2/dragonminez/entity/races/humansaiyan/bodytype_male_3_layer1.png"));
+        r.configure(reg3, mode(TextureMode.Preset.PLAYERS_HD_ONLY).withSet("hd2"), false, "hd");
+        check("hd2: its own file wins", "ltcopy".equals(r.variant(body).m_135827_()));
+        check("hd2: a file it lacks falls back to hd", tattoo6Hd.equals(r.variant(tattoo6)));
+        check("hd2: armor is not its category -> chain gives hd", giHd.equals(r.variant(gi)));
+        check("unknown set id uses hd", reg3.hdOrFallback("nope").id.equals("hd"));
+        check("fallback loop stops at vanilla", reg3.chain(reg3.get("hd2")).get(reg3.chain(reg3.get("hd2")).size() - 1)
+                .isVanilla());
+
+        if (failures > 0) {
+            System.err.println("ResolverTest: " + failures + " failure(s)");
+            System.exit(1);
+        }
+        System.out.println("ResolverTest OK");
+    }
+
+    private static TextureMode mode(TextureMode.Preset p) {
+        return TextureMode.of(p, "hd");
+    }
+
+    private static ResourceLocation rl(String ns, String path) {
+        return ResourceLocation.fromNamespaceAndPath(ns, path);
+    }
+
+    private static void check(String name, boolean ok) {
+        System.out.println((ok ? "  ok   " : "  FAIL ") + name);
+        if (!ok) {
+            failures++;
+        }
+    }
+}

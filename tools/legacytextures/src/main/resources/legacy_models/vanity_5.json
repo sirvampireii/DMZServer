@@ -1,0 +1,15 @@
+{
+  "kind": "vanity",
+  "textureWidth": 64, "textureHeight": 32,
+  "dropped": [],
+  "unattached": [],
+  "parts": [
+    {"name": "xicorbase", "parent": "head", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [0, 0], "mirror": false, "boxes": [[-4, -8, -4, 8, 8, 8, 0]]},
+    {"name": "xicor1", "parent": "xicorbase", "pivot": [2, -1, -3], "rot": [0.7853982, -0.2094395, 0], "uv": [0, 0], "mirror": true, "boxes": [[-0.5, -0.5, -1.5, 1, 1, 1, 0]]},
+    {"name": "xicor2", "parent": "xicorbase", "pivot": [-2, -1, -3], "rot": [0.7853982, 0.2094395, 0], "uv": [0, 0], "mirror": true, "boxes": [[-0.5, -0.5, -1.5, 1, 1, 1, 0]]},
+    {"name": "xicor3", "parent": "xicorbase", "pivot": [-3, -7, -3], "rot": [0.3839724, 0, -0.1919862], "uv": [32, 0], "mirror": false, "boxes": [[-1, -3, -1, 2, 3, 2, 0]]},
+    {"name": "xicor4", "parent": "xicorbase", "pivot": [3, -7, -3], "rot": [0.3839724, 0, 0.1919862], "uv": [32, 0], "mirror": true, "boxes": [[-1, -3, -1, 2, 3, 2, 0]]},
+    {"name": "xicor5", "parent": "xicorbase", "pivot": [-3.5, -10, -4], "rot": [0, 0, 0], "uv": [32, 5], "mirror": false, "boxes": [[-0.5, -2.5, -0.5, 1, 3, 1, 0.2]]},
+    {"name": "xicor6", "parent": "xicorbase", "pivot": [3.5, -10, -4], "rot": [0, 0, 0], "uv": [32, 5], "mirror": true, "boxes": [[-0.5, -2.5, -0.5, 1, 3, 1, 0.2]]}
+  ]
+}

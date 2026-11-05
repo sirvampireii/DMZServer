@@ -1,0 +1,12 @@
+{
+  "kind": "vanity",
+  "textureWidth": 256, "textureHeight": 128,
+  "dropped": [],
+  "unattached": [],
+  "parts": [
+    {"name": "handle", "parent": "body", "pivot": [0, 3, 4], "rot": [1.5707964, 0, 1.5707964], "uv": [0, 0], "mirror": false, "boxes": [[-2, 0, -2, 4, 28, 4, 0]]},
+    {"name": "knob", "parent": "handle", "pivot": [0, 28, 0], "rot": [0, 0, 0], "uv": [0, 112], "mirror": false, "boxes": [[-4, 0, -4, 8, 8, 8, 0]]},
+    {"name": "blade", "parent": "handle", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [16, 0], "mirror": false, "boxes": [[-6, -96, 0, 12, 96, 0, 0.1]]},
+    {"name": "cross", "parent": "handle", "pivot": [0, -0.6, 0], "rot": [0.7853982, 0, 0], "uv": [0, 104], "mirror": false, "boxes": [[-10, -2, -2, 20, 4, 4, 0]]}
+  ]
+}

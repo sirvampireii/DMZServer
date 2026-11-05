@@ -1,0 +1,54 @@
+[
+    {
+        "id":  "angels",
+        "title":  "Angels Outfits"
+    },
+    {
+        "id":  "hakais",
+        "title":  "Hakaishins Outfits"
+    },
+    {
+        "id":  "supkai",
+        "title":  "Supreme Kais Outfits"
+    },
+    {
+        "id":  "db",
+        "title":  "Dragon Ball"
+    },
+    {
+        "id":  "dbz",
+        "title":  "Dragon Ball Z"
+    },
+    {
+        "id":  "dbs",
+        "title":  "Dragon Ball Super"
+    },
+    {
+        "id":  "dbgt",
+        "title":  "Dragon Ball GT"
+    },
+    {
+        "id":  "dbh",
+        "title":  "Dragon Ball Heroes/Xeno"
+    },
+    {
+        "id":  "dbm",
+        "title":  "Dragon Ball Multiverse"
+    },
+    {
+        "id":  "origin",
+        "title":  "Original Outfits"
+    },
+    {
+        "id":  "scoutern",
+        "title":  "New Scouters"
+    },
+    {
+        "id":  "exvani",
+        "title":  "Extra Slot hats"
+    },
+    {
+        "id":  "potara",
+        "title":  "Potaras"
+    }
+]

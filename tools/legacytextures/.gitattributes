@@ -1,0 +1,6 @@
+# The HD payload and the NB Armors resources must stay byte-identical to their sources
+# (import_assets.py --check, import_nbarmors.py --check).
+src/main/resources/assets/** -text
+src/main/resources/data/** -text
+src/main/resources/legacy_models/** -text
+src/main/resources/nbarmors_*.json -text

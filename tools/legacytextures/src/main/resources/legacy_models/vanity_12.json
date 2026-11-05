@@ -1,0 +1,14 @@
+{
+  "kind": "vanity",
+  "textureWidth": 128, "textureHeight": 64,
+  "dropped": [],
+  "unattached": [],
+  "parts": [
+    {"name": "aeoshead", "parent": "head", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [0, 0], "mirror": false, "boxes": [[-4, -8, -4, 8, 8, 8, 0]]},
+    {"name": "hat1", "parent": "aeoshead", "pivot": [0, 0, 0], "rot": [-0.2617994, 0, 0], "uv": [32, 0], "mirror": false, "boxes": [[-5, -9, -6.9, 10, 6, 6, 0.3]]},
+    {"name": "hat2", "parent": "aeoshead", "pivot": [0, 0, 0], "rot": [-0.4363323, 0, 0], "uv": [32, 12], "mirror": false, "boxes": [[-5, -9.5, -7.9, 10, 6, 6, 0]]},
+    {"name": "hat3", "parent": "aeoshead", "pivot": [0, 0, 0], "rot": [-0.6981317, 0, 0], "uv": [32, 24], "mirror": false, "boxes": [[-5, -11, -8.9, 10, 8, 6, -0.3]]},
+    {"name": "handr", "parent": "aeoshead", "pivot": [0, 0, 0], "rot": [-0.6981317, 0, 0], "uv": [64, -2], "mirror": true, "boxes": [[-5.4, -6, -9, 0, 5, 2, 0]]},
+    {"name": "handl", "parent": "aeoshead", "pivot": [0, 0, 0], "rot": [-0.6981317, 0, 0], "uv": [64, -2], "mirror": true, "boxes": [[5.4, -6, -9, 0, 5, 2, 0]]}
+  ]
+}

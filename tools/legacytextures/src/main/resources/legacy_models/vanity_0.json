@@ -1,0 +1,27 @@
+{
+  "kind": "vanity",
+  "textureWidth": 64, "textureHeight": 32,
+  "dropped": [],
+  "unattached": [],
+  "parts": [
+    {"name": "BoTbase", "parent": "body", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [14, 3], "mirror": false, "boxes": [[-2, -2, 10, 4, 4, 1, 0]]},
+    {"name": "Spike1", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, -0.7853982], "uv": [14, 0], "mirror": false, "boxes": [[-1, -1, 10, 20, 2, 1, 0]]},
+    {"name": "Spike2", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, -2.356194], "uv": [14, 0], "mirror": false, "boxes": [[-1, -1, 10, 20, 2, 1, 0]]},
+    {"name": "BoTtop", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, 0], "uv": [0, 6], "mirror": false, "boxes": [[-3, -14, 10, 6, 3, 1, 0]]},
+    {"name": "BoT1", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, -0.3926991], "uv": [0, 0], "mirror": false, "boxes": [[-3, -16, 10, 6, 5, 1, 0]]},
+    {"name": "BoT2", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, -0.7853982], "uv": [0, 6], "mirror": false, "boxes": [[-3, -14, 10, 6, 3, 1, 0]]},
+    {"name": "BoT3", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, -1.178097], "uv": [0, 0], "mirror": false, "boxes": [[-3, -16, 10, 6, 5, 1, 0]]},
+    {"name": "BoTRight", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, -1.570796], "uv": [0, 6], "mirror": false, "boxes": [[-3, -14, 10, 6, 3, 1, 0]]},
+    {"name": "BoT4", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, -1.963495], "uv": [0, 0], "mirror": false, "boxes": [[-3, -16, 10, 6, 5, 1, 0]]},
+    {"name": "BoT5", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, -2.356194], "uv": [0, 6], "mirror": false, "boxes": [[-3, -14, 10, 6, 3, 1, 0]]},
+    {"name": "BoT6", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, -2.748893], "uv": [0, 0], "mirror": false, "boxes": [[-3, -16, 10, 6, 5, 1, 0]]},
+    {"name": "BoTBottom", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, -3.141593], "uv": [0, 6], "mirror": false, "boxes": [[-3, -14, 10, 6, 3, 1, 0]]},
+    {"name": "BoT7", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, 2.748893], "uv": [0, 0], "mirror": false, "boxes": [[-3, -16, 10, 6, 5, 1, 0]]},
+    {"name": "BoT8", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, 2.356194], "uv": [0, 6], "mirror": false, "boxes": [[-3, -14, 10, 6, 3, 1, 0]]},
+    {"name": "BoT9", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, 1.963495], "uv": [0, 0], "mirror": false, "boxes": [[-3, -16, 10, 6, 5, 1, 0]]},
+    {"name": "BoTleft", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, 1.570796], "uv": [0, 6], "mirror": false, "boxes": [[-3, -14, 10, 6, 3, 1, 0]]},
+    {"name": "BoT10", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, 1.178097], "uv": [0, 0], "mirror": false, "boxes": [[-3, -16, 10, 6, 5, 1, 0]]},
+    {"name": "BoT11", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, 0.7853982], "uv": [0, 6], "mirror": false, "boxes": [[-3, -14, 10, 6, 3, 1, 0]]},
+    {"name": "BoT12", "parent": "BoTbase", "pivot": [0, 0, 0], "rot": [0, 0, 0.3926991], "uv": [0, 0], "mirror": false, "boxes": [[-3, -16, 10, 6, 5, 1, 0]]}
+  ]
+}
