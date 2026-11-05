@@ -60,6 +60,7 @@ public final class DragonBallProbe {
     private static List<BlockPos> namekLeft = new ArrayList<>();
     private static int namekBefore;
     private static UUID dragonId;
+    private static BlockPos summonAt;
     private static boolean done;
 
     private DragonBallProbe() {}
@@ -219,8 +220,15 @@ public final class DragonBallProbe {
                     ow.m_46597_(at, earth.getBlockForStar(star).m_49966_());
                 }
                 fs.m_150109_().m_6211_();
-                check("placed set counts 7 and cancels the timer on the next pulse", count(server, earth) == 7);
-                BlockPos click = base.m_7918_(-3, 0, 0);
+                check("placed set counts 7", count(server, earth) == 7);
+                summonAt = base;
+                next(tick, 2); // a player takes a moment between placing and summoning; the pulse sees the set
+            }
+            case 6 -> {
+                FakePlayer fs = player(ow, "lm_db_probe_s");
+                check("placed set cancelled the respawn timer", DragonBallRespawn.secondsLeft(server, "earth") < 0);
+                BlockPos base = summonAt;
+                BlockPos click = base; // the middle ball: all 7 are within DMZ's 5-block summon radius
                 BlockState state = ow.m_8055_(click);
                 hold(fs, ItemStack.f_41583_);
                 Object used = state.m_60664_(ow, fs, InteractionHand.MAIN_HAND,
@@ -248,7 +256,7 @@ public final class DragonBallProbe {
                 dragonId = dragon == null ? null : dragon.m_20148_();
                 next(tick, 3);
             }
-            case 6 -> {
+            case 7 -> {
                 check("no LM timer while the dragon is up", DragonBallRespawn.secondsLeft(server, "earth") < 0);
                 Entity entity = dragonId == null ? null : ow.m_8791_(dragonId);
                 if (entity != null) {
@@ -262,12 +270,12 @@ public final class DragonBallProbe {
                 }
                 next(tick, 6);
             }
-            case 7 -> {
+            case 8 -> {
                 check("after the wish DMZ scatters the Earth set again (7 of 7)", count(server, earth) == 7);
                 materialize(ow, earth);
                 next(tick, 5);
             }
-            case 8 -> {
+            case 9 -> {
                 if (pending(ow, earth) > 0) {
                     materialize(ow, earth);
                     waitUntil = tick + 2 * SECOND;
