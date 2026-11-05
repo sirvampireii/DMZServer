@@ -1,0 +1,2 @@
+# The HD payload must stay byte-identical to the source packs (import_assets.py --check).
+src/main/resources/assets/** -text
