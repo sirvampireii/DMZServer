@@ -643,6 +643,10 @@ if jar tf "$JAR" | grep -q 'event/DragonBallProbe'; then
   echo "ERROR: $JAR contains the test-only DragonBallProbe (it belongs in src/probe/java)" >&2
   exit 1
 fi
+if jar tf "$JAR" | grep -Eq 'progression/(GodFormsGateProbe|ChamberWaveCapProbe)'; then
+  echo "ERROR: $JAR contains a test-only 4.7.37 probe (they belong in src/probe/java)" >&2
+  exit 1
+fi
 if jar tf "$JAR" | grep -Eq 'StatsDataHudPoolMaxMixin|StatsDataOverhaulCombatScaleMixin'; then
   echo "ERROR: shipped jar still contains unregistered prestige scale mixin classes" >&2
   exit 1
@@ -843,7 +847,9 @@ if [[ "${LM_TEST_PROBES:-0}" == "1" ]]; then
   PROBE_JAR="$HERE/build/${NAME}-${VERSION}-testprobe.jar"
   rm -rf "$PROBE_OUT" && mkdir -p "$PROBE_OUT"
   mapfile -t PROBE_SOURCES < <(find "$PROBE_SRC" -name '*.java' | sort)
-  javac --release 17 -encoding UTF-8 -proc:none -cp "$CP:$OUT" -d "$PROBE_OUT" "${PROBE_SOURCES[@]}"
+  # 4.7.37: ChamberWaveCapProbe subclasses FakePlayer, whose hierarchy needs DataFixerUpper (probe only).
+  PROBE_DFU="$(ls "$ROOT"/libraries/com/mojang/datafixerupper/*/datafixerupper-*.jar | head -1)"
+  javac --release 17 -encoding UTF-8 -proc:none -cp "$CP:$OUT:$PROBE_DFU" -d "$PROBE_OUT" "${PROBE_SOURCES[@]}"
   cp "$JAR" "$PROBE_JAR"
   (cd "$PROBE_OUT" && jar uf "$PROBE_JAR" .)
   echo "Built test-only $PROBE_JAR (probe classes: $(find "$PROBE_OUT" -name '*.class' | wc -l))"

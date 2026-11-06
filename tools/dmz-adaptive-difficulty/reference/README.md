@@ -432,6 +432,13 @@ are unchanged.
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.30.jar`; javap
 diff checked. The other 24 are unchanged.
 
+## Re-baseline (2026-11-05, 4.7.37 godforms natural mastery + chamber wave cap)
+
+`AdaptiveDifficultyMod` (version string) and `GodKiEnhancementShop` re-baselined for `LegacyMechanics-4.7.37.jar`;
+javap diff checked: the `4.7.36` -> `4.7.37` constant; in `GodKiEnhancementShop` the new `GOD_FORMS_MASTERY`
+constant and `naturalGodKiMastery`, `canUseCustomGodForms` reading it, and the new godforms block text in
+`blockReason` (the rest is constant-pool renumbering). The other 23 are unchanged.
+
 ## Re-baseline (2026-11-05, 4.7.36 audit fixes + pistons)
 
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.36.jar`; javap diff checked

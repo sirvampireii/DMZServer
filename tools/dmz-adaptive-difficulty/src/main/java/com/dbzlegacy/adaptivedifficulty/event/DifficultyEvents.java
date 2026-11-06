@@ -169,6 +169,10 @@ public final class DifficultyEvents {
         com.dbzlegacy.adaptivedifficulty.progression.QuestTechniqueProbe.runIfRequested(event.getServer());
         com.dbzlegacy.adaptivedifficulty.progression.GodKiWalletProbe.runIfRequested(event.getServer());
         com.dbzlegacy.adaptivedifficulty.progression.form.FormSkillGrantProbe.runIfRequested(event.getServer());
+        runStartProbe(event.getServer(), "lm.probe.godForms",
+                "com.dbzlegacy.adaptivedifficulty.progression.GodFormsGateProbe");
+        runStartProbe(event.getServer(), "lm.probe.chamberCap",
+                "com.dbzlegacy.adaptivedifficulty.progression.ChamberWaveCapProbe");
         try {
             com.dbzlegacy.adaptivedifficulty.data.CnpcDataMigrator.migrateWorldIfNeeded(event.getServer());
         } catch (Throwable t) {
@@ -750,6 +754,22 @@ public final class DifficultyEvents {
         }
         if (tick % 600 == 0) {
             safePulse("player-store", com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore::flushAll);
+        }
+    }
+
+    /**
+     * Test-only start probes (4.7.37: God forms gate, chamber wave cap), testprobe jar only: each runs
+     * once at server start when its -D flag is set. See docs/LM_TEST_PROBES.md.
+     */
+    private static void runStartProbe(net.minecraft.server.MinecraftServer server, String flag, String probeClass) {
+        if (System.getProperty(flag, "").isEmpty()) {
+            return;
+        }
+        try {
+            Class.forName(probeClass).getMethod("run", net.minecraft.server.MinecraftServer.class).invoke(null, server);
+        } catch (ReflectiveOperationException e) {
+            AdaptiveDifficultyMod.LOGGER.warn("[{}] -D{} is set but this jar has no probe "
+                    + "(build the testprobe jar with LM_TEST_PROBES=1): {}", AdaptiveDifficultyMod.MOD_ID, flag, e.toString());
         }
     }
 
