@@ -1878,6 +1878,56 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.37 ---")
+    p37_shop = read(SRC / "progression/shop/GodKiEnhancementShop.java")
+    p37_ev = read(SRC / "event/DifficultyEvents.java")
+    p37_build = read(MOD / "build.sh")
+    p37_gate = p37_shop.split("public static String blockReason(", 1)[-1].split("/** Transform-gate feedback", 1)[0]
+    p37_gods = p37_gate.split("if (GOD_FORMS_GROUP.equalsIgnoreCase(g))", 1)[-1].split("if (ENHANCEMENT_GROUP", 1)[0]
+    check("manifest lm-4737-godforms-natural-mastery row", "lm-4737-godforms-natural-mastery" in manifest)
+    check("godforms gate: enhancement OR 1000 natural godki:godki mastery (formMastery, no new field)",
+          "public static final double GOD_FORMS_MASTERY = 1000.0;" in p37_shop
+          and "return hasEnhancement(player) || naturalGodKiMastery(player) >= GOD_FORMS_MASTERY - 1.0E-9;" in p37_shop
+          and "KiMasteryTrack.GOD_KI.formMastery(player)" in p37_shop
+          and "canUseCustomGodForms(player)" in p37_gods)
+    check("godforms gate: wallet check kept in hasEnhancement (back-compat)",
+          "if (KiMasteryTrack.GOD_KI.level(player) >= 1) {" in p37_shop)
+    check("godforms message names the natural path first; godkienhancement messages unchanged",
+          '"God forms need 1000 God Ki mastery - fight in God Ki form to raise it, or add a God Ki"' in p37_gods
+          and '" Mastery level in the Mastery wallet (Prestige shop)."' in p37_gods
+          and "God forms need God Ki -" not in p37_shop
+          and '"You need God Ki - add a God Ki Mastery level in the Mastery wallet (Prestige shop)."' in p37_gate
+          and '"Your God Ki mastery is too low - add God Ki Mastery levels in the Mastery wallet"' in p37_gate)
+    check("god forms probe is test-only: src/probe, found by name, never in the production jar",
+          not (SRC / "progression/GodFormsGateProbe.java").exists()
+          and (MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/GodFormsGateProbe.java").exists()
+          and '"com.dbzlegacy.adaptivedifficulty.progression.GodFormsGateProbe"' in p37_ev
+          and '"lm.probe.godForms"' in p37_ev
+          and "Class.forName(probeClass)" in p37_ev
+          and "grep -Eq 'progression/(GodFormsGateProbe|ChamberWaveCapProbe)'" in p37_build)
+    p37_cap = read(SRC / "progression/ChamberWaveCap.java")
+    p37_mix = read(SRC / "mixin/dmzultra/DmzultraChamberWaveCooldownMixin.java")
+    check("manifest lm-4737-chamber-wave-cap row", "lm-4737-chamber-wave-cap" in manifest)
+    check("chamber cap: 10 waves x 5 foes, named constants, clamp not refuse, drills untouched",
+          "public static final int MAX_WAVES = 10;" in p37_cap
+          and "public static final int MAX_PER_WAVE = 5;" in p37_cap
+          and "config.drill() > 0" in p37_cap
+          and "Math.min(MAX_WAVES, config.waves())" in p37_cap
+          and "Math.min(MAX_PER_WAVE, config.perWave())" in p37_cap
+          and "new GodChamberWaves.Config(config.trial(), perWave, waves" in p37_cap)
+    check("chamber cap: config replaced at start HEAD, notice at RETURN only for a started training run",
+          '@ModifyVariable(method = "start", at = @At("HEAD"), argsOnly = true' in p37_mix
+          and "ChamberWaveCap.onStart(player, config)" in p37_mix
+          and '@Inject(method = "start", at = @At("RETURN")' in p37_mix
+          and "ChamberWaveCap.afterStart(player)" in p37_mix
+          and "status.mode() == GodChamberWaves.Status.TRAINING" in p37_cap
+          and '"Wave count capped at "' in p37_cap and '"Enemies per wave capped at "' in p37_cap)
+    check("chamber cap probe is test-only",
+          not (SRC / "progression/ChamberWaveCapProbe.java").exists()
+          and (MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/ChamberWaveCapProbe.java").exists()
+          and '"com.dbzlegacy.adaptivedifficulty.progression.ChamberWaveCapProbe"' in p37_ev
+          and '"lm.probe.chamberCap"' in p37_ev)
+
     print("\n--- § lm 4.7.36 ---")
     p36_ev = read(SRC / "event/DifficultyEvents.java")
     p36_guard = read(SRC / "event/DragonBallPistonGuard.java")

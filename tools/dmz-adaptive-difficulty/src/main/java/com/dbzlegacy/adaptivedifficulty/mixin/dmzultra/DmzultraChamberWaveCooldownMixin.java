@@ -1,11 +1,13 @@
 package com.dbzlegacy.adaptivedifficulty.mixin.dmzultra;
 
+import com.dbzlegacy.adaptivedifficulty.progression.ChamberWaveCap;
 import com.dbzlegacy.adaptivedifficulty.progression.ChamberWaveCooldown;
 import com.dmzultra.divine.GodChamberWaves;
 import net.minecraft.server.level.ServerPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
@@ -18,6 +20,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * the session through the public {@code status(player)} ({@code mode}: training, trial or drill) and
  * records the end; {@code start}'s HEAD refuses a run still on that kind's cooldown. Drill runs are
  * neither recorded nor refused. The same HEAD hook refuses endless runs (wave count 0) first (4.7.29).
+ *
+ * <p>4.7.37: a start is capped at 10 waves x 5 foes ({@link ChamberWaveCap}); the config argument is
+ * replaced at HEAD, so Ultra's own {@code clamp()} and session see the capped run. Drills pass through
+ * unchanged and the God Trial stays Ultra's fixed 5 x 5. The cap notice is sent at return, only if a
+ * training run started.
  */
 @Mixin(targets = "com.dmzultra.divine.GodChamberWaves", remap = false)
 public abstract class DmzultraChamberWaveCooldownMixin {
@@ -29,6 +36,23 @@ public abstract class DmzultraChamberWaveCooldownMixin {
                     || ChamberWaveCooldown.refuseStart(player, config.trial(), config.drill()))) {
                 ci.cancel();
             }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    @ModifyVariable(method = "start", at = @At("HEAD"), argsOnly = true, require = 0, remap = false)
+    private static GodChamberWaves.Config lm$capTrainingWaves(GodChamberWaves.Config config, ServerPlayer player) {
+        try {
+            return ChamberWaveCap.onStart(player, config);
+        } catch (Throwable t) {
+            return config;
+        }
+    }
+
+    @Inject(method = "start", at = @At("RETURN"), require = 0, remap = false)
+    private static void lm$chamberWaveCapNotice(ServerPlayer player, GodChamberWaves.Config config, CallbackInfo ci) {
+        try {
+            ChamberWaveCap.afterStart(player);
         } catch (Throwable ignored) {
         }
     }

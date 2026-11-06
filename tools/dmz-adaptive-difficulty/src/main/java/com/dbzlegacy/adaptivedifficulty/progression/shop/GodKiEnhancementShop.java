@@ -39,7 +39,8 @@ import net.minecraft.server.level.ServerPlayer;
  * through normal gameplay.
  *
  * <p>God forms gate on this: custom God forms (group {@code godforms}) need
- * the enhancement present; the true God Ki form (group
+ * the enhancement present or (4.7.37) 1,000 natural {@code godki:godki} stack
+ * mastery, the same record DMZ's own form requisites read; the true God Ki form (group
  * {@code godkienhancement}) additionally needs the mastery threshold from
  * {@link DifficultyConfig#godKiTrueFormMasteryThreshold}.
  * {@code FormModeHandlerGodKiGateMixin} / {@code StackFormModeHandlerGodKiGateMixin}
@@ -56,6 +57,11 @@ public final class GodKiEnhancementShop {
     public static final int MASTERY_PER_POINT = 1000;
     /** Default cap: ten investments = 10,000 mastery (4.7.34; five before). */
     public static final int MAX_INVESTMENTS = 10;
+    /**
+     * {@code godki:godki} stack mastery that opens the {@code godforms} group without a wallet level
+     * (4.7.37). Fixed, matching the Glind godforms and SSB+ {@code unlockOnMastery}.
+     */
+    public static final double GOD_FORMS_MASTERY = 1000.0;
     /** Default favor per investment. */
     public static final int INVESTMENT_COST = 1;
     private static final String KEY_INVESTED = "pp_godki_enh";
@@ -136,9 +142,18 @@ public final class GodKiEnhancementShop {
                 || masteryRecordPresent(character.getFormMasteries());
     }
 
-    /** Custom God forms: the enhancement flag alone. */
+    /**
+     * Custom God forms: the enhancement flag, or 1,000 God Ki mastery earned in play (4.7.37). The
+     * wallet check inside {@link #hasEnhancement} stays as back-compat; a wallet level already
+     * raises the same mastery through {@link KiMasteryTrack#reapply}.
+     */
     public static boolean canUseCustomGodForms(ServerPlayer player) {
-        return hasEnhancement(player);
+        return hasEnhancement(player) || naturalGodKiMastery(player) >= GOD_FORMS_MASTERY - 1.0E-9;
+    }
+
+    /** Live DMZ {@code godki:godki} stack mastery (0 when the character is not attached). */
+    public static double naturalGodKiMastery(ServerPlayer player) {
+        return player == null ? 0.0 : KiMasteryTrack.GOD_KI.formMastery(player);
     }
 
     /** True God Ki form: the enhancement flag plus the mastery threshold. */
@@ -161,9 +176,10 @@ public final class GodKiEnhancementShop {
         }
         String g = group.trim();
         if (GOD_FORMS_GROUP.equalsIgnoreCase(g)) {
-            return hasEnhancement(player)
+            return canUseCustomGodForms(player)
                     ? null
-                    : "God forms need God Ki - add a God Ki Mastery level in the Mastery wallet (Prestige shop).";
+                    : "God forms need 1000 God Ki mastery - fight in God Ki form to raise it, or add a God Ki"
+                            + " Mastery level in the Mastery wallet (Prestige shop).";
         }
         if (ENHANCEMENT_GROUP.equalsIgnoreCase(g)) {
             if (!hasEnhancement(player)) {
