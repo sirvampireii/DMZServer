@@ -1878,6 +1878,43 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.40 ---")
+    p40_core = read(SRC / "progression/HitTakenMastery.java")
+    p40_hit = read(SRC / "mixin/StatsEventsHitTakenMasteryMixin.java")
+    p40_ret = read(SRC / "mixin/PotionEffectHelperHitTakenMasteryMixin.java")
+    p40_json = read(SRC.parents[3] / "resources/legacymechanics.mixins.json")
+    p40_ev = read(SRC / "event/DifficultyEvents.java")
+    p40_build = read(MOD / "build.sh")
+    check("manifest lm-4740-hit-taken-mastery row", "lm-4740-hit-taken-mastery" in manifest)
+    check("hit-taken factor 0.25; sparring NPC (shadow dummy / quest SPAR partner) x 0.5 more = 0.125",
+          "public static final double HIT_TAKEN_FACTOR = 0.25;" in p40_core
+          and "public static final double NPC_SPAR_FACTOR = 0.5;" in p40_core
+          and "return isSparNpc(attacker) ? HIT_TAKEN_FACTOR * NPC_SPAR_FACTOR : HIT_TAKEN_FACTOR;" in p40_core
+          and "if (entity == null || entity instanceof ServerPlayer) {" in p40_core
+          and "if (entity instanceof ShadowDummyEntity) {" in p40_core
+          and "return QuestService.isSparPartner(entity);" in p40_core)
+    check("only the hit victim (a player) is scaled; the attacker's dealt grant is untouched",
+          "if (event == null || !(event.getEntity() instanceof ServerPlayer victim)) {" in p40_core
+          and "return mark != null && entity != null && entity == mark.victim() ? value * mark.factor() : value;" in p40_core
+          and p40_core.count("ACTIVE.remove();") == 2)
+    check("hook: StatsEvents.onEntityHit HEAD begin / RETURN end (DMZ's per-hit mastery grant)",
+          "@Mixin(value = StatsEvents.class, remap = false)" in p40_hit
+          and '@Inject(method = "onEntityHit", at = @At("HEAD"), remap = false)' in p40_hit
+          and '@Inject(method = "onEntityHit", at = @At("RETURN"), remap = false)' in p40_hit
+          and "HitTakenMastery.begin(event);" in p40_hit and "HitTakenMastery.end();" in p40_hit)
+    check("hook: applyMasteryGainMultiplier result scaled per entity (all factors multiply, boosts stay on top)",
+          "@Mixin(value = PotionEffectHelper.class, remap = false)" in p40_ret
+          and '@Inject(method = "applyMasteryGainMultiplier", at = @At("RETURN"), cancellable = true, remap = false)' in p40_ret
+          and "double scaled = HitTakenMastery.scale(entity, value);" in p40_ret)
+    check("both mixins registered", '"PotionEffectHelperHitTakenMasteryMixin"' in p40_json
+          and '"StatsEventsHitTakenMasteryMixin"' in p40_json and "NpcSpar" not in p40_json)
+    check("hit taken mastery probe is test-only: src/probe, found by name, never in the production jar",
+          not (SRC / "progression/HitTakenMasteryProbe.java").exists()
+          and (MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/HitTakenMasteryProbe.java").exists()
+          and '"lm.probe.hitTakenMastery"' in p40_ev
+          and '"com.dbzlegacy.adaptivedifficulty.progression.HitTakenMasteryProbe"' in p40_ev
+          and "|HitTakenMasteryProbe)'" in p40_build)
+
     print("\n--- § lm 4.7.38 ---")
     import json as _json38
     p38_cat = _json38.loads(read(SRC.parents[3] / "resources" / "dmzultra-form-parts.json"))
@@ -1929,7 +1966,7 @@ def main() -> int:
           and '"com.dbzlegacy.adaptivedifficulty.progression.GodFormsGateProbe"' in p37_ev
           and '"lm.probe.godForms"' in p37_ev
           and "Class.forName(probeClass)" in p37_ev
-          and "grep -Eq 'progression/(GodFormsGateProbe|ChamberWaveCapProbe)'" in p37_build)
+          and "grep -Eq 'progression/(GodFormsGateProbe|ChamberWaveCapProbe" in p37_build)
     p37_cap = read(SRC / "progression/ChamberWaveCap.java")
     p37_mix = read(SRC / "mixin/dmzultra/DmzultraChamberWaveCooldownMixin.java")
     check("manifest lm-4737-chamber-wave-cap row", "lm-4737-chamber-wave-cap" in manifest)

@@ -35,6 +35,24 @@ in `mods/` has no probe classes, so the flag does nothing there except log one w
 - **Test server needs:** DragonMineZ (for `dragonminez:master_popo`) and Ultra 0.4.x.
 - **Output:** `chamber cap probe check <name>: OK|WRONG`, then `chamber cap probe OK` or `FAILED: <n>`.
 
+## Hit taken mastery probe (`-Dlm.probe.hitTakenMastery`)
+
+- **Source:** `src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/HitTakenMasteryProbe.java` (4.7.40).
+- **Build and hook:** as the God forms probe (testprobe jar, one run at server start).
+- **What it does:** a fake player in a form with per-hit mastery takes, then deals, one small hit
+  (1 damage, so DMZ's damage scale is 1) through DMZ's own `StatsEvents.onEntityHit`. The opponents
+  are another player, a master / Popo spar shadow, a summoned player shadow, a quest SPAR partner and
+  a zombie. Mastery is reset before every hit. "DMZ formula" is a direct `gainMastery` with the same
+  inputs, the rate before 4.7.40. It checks:
+  - Hits taken from the zombie (not sparring) and from a player (PvP spar): 0.25 x the DMZ formula.
+  - Hits taken from each sparring NPC: 0.125 x the DMZ formula, half the PvP figure.
+  - Hits dealt to every opponent: exactly the DMZ formula (unchanged).
+  - With a Mastery Gain effect the boost still multiplies on top and the same shares hold.
+  - Nothing is left marked after the hits.
+- **Test server needs:** DragonMineZ 2.2.1.x (shadow dummy, quest registry with a SPAR quest).
+- **Output:** `hit taken mastery probe check <name>: OK|WRONG`, per-hit figures, then `hit taken mastery
+  probe OK` or `FAILED: <n>`.
+
 ## Dragon ball probe (`-Dlm.probe.dragonBalls`)
 
 - **Source:** `src/probe/java/com/dbzlegacy/adaptivedifficulty/event/DragonBallProbe.java`

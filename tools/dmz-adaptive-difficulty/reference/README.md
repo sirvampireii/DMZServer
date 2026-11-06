@@ -432,6 +432,11 @@ are unchanged.
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.30.jar`; javap
 diff checked. The other 24 are unchanged.
 
+## Re-baseline (2026-11-06, 4.7.40 NPC spar mastery)
+
+`AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.40.jar`; javap diff checked
+(the `4.7.38` -> `4.7.40` constant is the only change). The other 24 are unchanged.
+
 ## Re-baseline (2026-11-05, 4.7.38 Glind godforms body parts)
 
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.38.jar`; javap diff checked
