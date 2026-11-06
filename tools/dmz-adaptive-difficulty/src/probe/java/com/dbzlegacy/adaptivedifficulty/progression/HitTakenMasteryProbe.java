@@ -32,23 +32,23 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
- * Test-only probe (4.7.40; ships only in the testprobe jar, {@code -Dlm.probe.npcSparMastery}): real
+ * Test-only probe (4.7.40; ships only in the testprobe jar, {@code -Dlm.probe.hitTakenMastery}): real
  * {@code LivingHurtEvent}s through DMZ's own {@code StatsEvents.onEntityHit}, the per-hit form mastery
  * grant. A fake player in a form takes and deals one small hit at a time against another player, a
- * master / Popo spar shadow, a summoned player shadow, a quest SPAR partner, and a zombie. Mastery per hit
- * against each sparring NPC is half the player-vs-player figure; player vs player and the zombie equal
- * DMZ's unmodified formula (a direct gainMastery with the same inputs). Repeated with a Mastery Gain
- * effect: the boost still multiplies on top. Logs "npc spar mastery probe check ...: OK|WRONG" and a
- * final OK / FAILED line.
+ * master / Popo spar shadow, a summoned player shadow, a quest SPAR partner, and a zombie. "DMZ formula" is
+ * a direct gainMastery with the same inputs (the pre-4.7.40 rate). Hits taken: zombie and player 0.25x,
+ * sparring NPCs 0.125x (half of PvP). Hits dealt: all unchanged. Repeated with a Mastery Gain effect: the
+ * boost still multiplies on top. Logs "hit taken mastery probe check ...: OK|WRONG" and a final OK /
+ * FAILED line.
  */
-public final class NpcSparMasteryProbe {
+public final class HitTakenMasteryProbe {
     private static final UUID PROBE_ID = UUID.fromString("6c6d2d70-726f-6265-2d6e-707373706172");
     private static final UUID OPPONENT_ID = UUID.fromString("6c6d2d70-726f-6265-2d6e-707373706f70");
     private static final float HIT = 1.0f;
     private static final double EPS = 1.0E-9;
     private static int failed;
 
-    private NpcSparMasteryProbe() {}
+    private HitTakenMasteryProbe() {}
 
     public static void run(MinecraftServer server) {
         failed = 0;
@@ -88,14 +88,14 @@ public final class NpcSparMasteryProbe {
             pass(level, fp, opponent, popoSpar, playerShadow, questPartner, zombie, form, "Mastery Gain x" + boost);
             fp.m_21219_();
 
-            check("nothing left marked after the hits", NpcSparMastery.scaleBase(1.0) == 1.0);
+            check("nothing left marked after the hits", HitTakenMastery.scale(fp, 1.0) == 1.0);
             character.getFormMasteries().setMastery(form[0], form[1], 0.0, 1000.0);
             character.clearActiveForm();
         } catch (Throwable t) {
             failed++;
-            AdaptiveDifficultyMod.LOGGER.warn("[{}] npc spar mastery probe threw: {}", AdaptiveDifficultyMod.MOD_ID, t.toString(), t);
+            AdaptiveDifficultyMod.LOGGER.warn("[{}] hit taken mastery probe threw: {}", AdaptiveDifficultyMod.MOD_ID, t.toString(), t);
         }
-        AdaptiveDifficultyMod.LOGGER.info("[{}] npc spar mastery probe {}", AdaptiveDifficultyMod.MOD_ID,
+        AdaptiveDifficultyMod.LOGGER.info("[{}] hit taken mastery probe {}", AdaptiveDifficultyMod.MOD_ID,
                 failed == 0 ? "OK" : "FAILED: " + failed);
     }
 
@@ -114,11 +114,13 @@ public final class NpcSparMasteryProbe {
         double questTaken = taken(fp, form, level.m_269111_().m_269333_(questPartner));
         double zombieTaken = taken(fp, form, level.m_269111_().m_269333_(zombie));
         log(label + ", per hit taken", expectTaken, pvpTaken, popoTaken, shadowTaken, questTaken, zombieTaken);
-        check(label + ": hit taken from a player = DMZ formula (PvP unchanged)", expectTaken > 0 && same(pvpTaken, expectTaken));
-        check(label + ": hit taken from a zombie = DMZ formula (normal fighting unchanged)", same(zombieTaken, expectTaken));
-        check(label + ": hit taken from the Popo spar shadow = half of PvP", same(popoTaken, pvpTaken * 0.5));
-        check(label + ": hit taken from a summoned player shadow = half of PvP", same(shadowTaken, pvpTaken * 0.5));
-        check(label + ": hit taken from a quest SPAR partner = half of PvP", same(questTaken, pvpTaken * 0.5));
+        check(label + ": hit taken from a zombie (not sparring) = 0.25 x DMZ formula",
+                expectTaken > 0 && same(zombieTaken, expectTaken * 0.25));
+        check(label + ": hit taken from a player (PvP spar) = 0.25 x DMZ formula", same(pvpTaken, expectTaken * 0.25));
+        check(label + ": hit taken from the Popo spar shadow = 0.125 x DMZ formula (half of PvP)",
+                same(popoTaken, expectTaken * 0.125) && same(popoTaken, pvpTaken * 0.5));
+        check(label + ": hit taken from a summoned player shadow = 0.125 x DMZ formula", same(shadowTaken, expectTaken * 0.125));
+        check(label + ": hit taken from a quest SPAR partner = 0.125 x DMZ formula", same(questTaken, expectTaken * 0.125));
 
         double pvpDealt = dealt(fp, form, opponent);
         double popoDealt = dealt(fp, form, popoSpar);
@@ -126,11 +128,9 @@ public final class NpcSparMasteryProbe {
         double questDealt = dealt(fp, form, questPartner);
         double zombieDealt = dealt(fp, form, zombie);
         log(label + ", per hit dealt", expectDealt, pvpDealt, popoDealt, shadowDealt, questDealt, zombieDealt);
-        check(label + ": hit dealt to a player = DMZ formula (PvP unchanged)", expectDealt > 0 && same(pvpDealt, expectDealt));
-        check(label + ": hit dealt to a zombie = DMZ formula (normal fighting unchanged)", same(zombieDealt, expectDealt));
-        check(label + ": hit dealt to the Popo spar shadow = half of PvP", same(popoDealt, pvpDealt * 0.5));
-        check(label + ": hit dealt to a summoned player shadow = half of PvP", same(shadowDealt, pvpDealt * 0.5));
-        check(label + ": hit dealt to a quest SPAR partner = half of PvP", same(questDealt, pvpDealt * 0.5));
+        check(label + ": hits dealt unchanged (player, zombie, Popo spar, player shadow, quest spar = DMZ formula)",
+                expectDealt > 0 && same(pvpDealt, expectDealt) && same(zombieDealt, expectDealt)
+                        && same(popoDealt, expectDealt) && same(shadowDealt, expectDealt) && same(questDealt, expectDealt));
     }
 
     /** One {@code gainMastery} with DMZ's inputs for a small hit (damage scale 1), outside any hit event. */
@@ -192,7 +192,7 @@ public final class NpcSparMasteryProbe {
         CompoundTag nbt = PersistentDataAccess.get(dummy);
         nbt.m_128359_("dmz_quest_owner", owner.m_20149_());
         nbt.m_128379_(tag, true);
-        check("shadow dummy " + tag + " is a sparring NPC", NpcSparMastery.isSparNpc(dummy));
+        check("shadow dummy " + tag + " is a sparring NPC", HitTakenMastery.isSparNpc(dummy));
         return dummy;
     }
 
@@ -224,12 +224,12 @@ public final class NpcSparMasteryProbe {
         if (!ok) {
             failed++;
         }
-        AdaptiveDifficultyMod.LOGGER.info("[{}] npc spar mastery probe check {}: {}", AdaptiveDifficultyMod.MOD_ID, what,
+        AdaptiveDifficultyMod.LOGGER.info("[{}] hit taken mastery probe check {}: {}", AdaptiveDifficultyMod.MOD_ID, what,
                 ok ? "OK" : "WRONG");
     }
 
     private static void log(String step, double formula, double pvp, double popo, double shadow, double quest, double zombie) {
-        AdaptiveDifficultyMod.LOGGER.info("[{}] npc spar mastery probe {}: DMZ formula {}, player {}, popo spar {}, "
+        AdaptiveDifficultyMod.LOGGER.info("[{}] hit taken mastery probe {}: DMZ formula {}, player {}, popo spar {}, "
                         + "player shadow {}, quest spar {}, zombie {}", AdaptiveDifficultyMod.MOD_ID, step, formula, pvp, popo,
                 shadow, quest, zombie);
     }

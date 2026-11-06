@@ -1879,41 +1879,41 @@ def main() -> int:
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
     print("\n--- § lm 4.7.40 ---")
-    p40_core = read(SRC / "progression/NpcSparMastery.java")
-    p40_hit = read(SRC / "mixin/StatsEventsNpcSparMasteryMixin.java")
-    p40_base = read(SRC / "mixin/PotionEffectHelperNpcSparMasteryMixin.java")
+    p40_core = read(SRC / "progression/HitTakenMastery.java")
+    p40_hit = read(SRC / "mixin/StatsEventsHitTakenMasteryMixin.java")
+    p40_ret = read(SRC / "mixin/PotionEffectHelperHitTakenMasteryMixin.java")
     p40_json = read(SRC.parents[3] / "resources/legacymechanics.mixins.json")
     p40_ev = read(SRC / "event/DifficultyEvents.java")
     p40_build = read(MOD / "build.sh")
-    check("manifest lm-4740-npc-spar-mastery row", "lm-4740-npc-spar-mastery" in manifest)
-    check("NPC spar factor is 0.5; sparring NPC = DMZ shadow dummy or quest SPAR partner, never a player",
-          "public static final double NPC_SPAR_FACTOR = 0.5;" in p40_core
+    check("manifest lm-4740-hit-taken-mastery row", "lm-4740-hit-taken-mastery" in manifest)
+    check("hit-taken factor 0.25; sparring NPC (shadow dummy / quest SPAR partner) x 0.5 more = 0.125",
+          "public static final double HIT_TAKEN_FACTOR = 0.25;" in p40_core
+          and "public static final double NPC_SPAR_FACTOR = 0.5;" in p40_core
+          and "return isSparNpc(attacker) ? HIT_TAKEN_FACTOR * NPC_SPAR_FACTOR : HIT_TAKEN_FACTOR;" in p40_core
           and "if (entity == null || entity instanceof ServerPlayer) {" in p40_core
           and "if (entity instanceof ShadowDummyEntity) {" in p40_core
-          and "return QuestService.isSparPartner(entity);" in p40_core
-          and "if (attacker instanceof ServerPlayer && isSparNpc(victim)) {" in p40_core
-          and "if (victim instanceof ServerPlayer && isSparNpc(attacker)) {" in p40_core)
-    check("only the marked hit is scaled: thread-local set in begin, cleared in end, identity otherwise",
-          "private static final ThreadLocal<Double> ACTIVE = new ThreadLocal<>();" in p40_core
-          and "return factor == null ? base : base * factor;" in p40_core
+          and "return QuestService.isSparPartner(entity);" in p40_core)
+    check("only the hit victim (a player) is scaled; the attacker's dealt grant is untouched",
+          "if (event == null || !(event.getEntity() instanceof ServerPlayer victim)) {" in p40_core
+          and "return mark != null && entity != null && entity == mark.victim() ? value * mark.factor() : value;" in p40_core
           and p40_core.count("ACTIVE.remove();") == 2)
     check("hook: StatsEvents.onEntityHit HEAD begin / RETURN end (DMZ's per-hit mastery grant)",
           "@Mixin(value = StatsEvents.class, remap = false)" in p40_hit
           and '@Inject(method = "onEntityHit", at = @At("HEAD"), remap = false)' in p40_hit
           and '@Inject(method = "onEntityHit", at = @At("RETURN"), remap = false)' in p40_hit
-          and "NpcSparMastery.begin(event);" in p40_hit and "NpcSparMastery.end();" in p40_hit)
-    check("hook: base of applyMasteryGainMultiplier scaled at HEAD, so Mastery Gain / mutant / racial stay on top",
-          "@Mixin(value = PotionEffectHelper.class, remap = false)" in p40_base
-          and '@ModifyVariable(method = "applyMasteryGainMultiplier", at = @At("HEAD"), argsOnly = true, ordinal = 0, remap = false)' in p40_base
-          and "return NpcSparMastery.scaleBase(baseValue);" in p40_base)
-    check("both mixins registered", '"PotionEffectHelperNpcSparMasteryMixin"' in p40_json
-          and '"StatsEventsNpcSparMasteryMixin"' in p40_json)
-    check("npc spar mastery probe is test-only: src/probe, found by name, never in the production jar",
-          not (SRC / "progression/NpcSparMasteryProbe.java").exists()
-          and (MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/NpcSparMasteryProbe.java").exists()
-          and '"lm.probe.npcSparMastery"' in p40_ev
-          and '"com.dbzlegacy.adaptivedifficulty.progression.NpcSparMasteryProbe"' in p40_ev
-          and "|NpcSparMasteryProbe)'" in p40_build)
+          and "HitTakenMastery.begin(event);" in p40_hit and "HitTakenMastery.end();" in p40_hit)
+    check("hook: applyMasteryGainMultiplier result scaled per entity (all factors multiply, boosts stay on top)",
+          "@Mixin(value = PotionEffectHelper.class, remap = false)" in p40_ret
+          and '@Inject(method = "applyMasteryGainMultiplier", at = @At("RETURN"), cancellable = true, remap = false)' in p40_ret
+          and "double scaled = HitTakenMastery.scale(entity, value);" in p40_ret)
+    check("both mixins registered", '"PotionEffectHelperHitTakenMasteryMixin"' in p40_json
+          and '"StatsEventsHitTakenMasteryMixin"' in p40_json and "NpcSpar" not in p40_json)
+    check("hit taken mastery probe is test-only: src/probe, found by name, never in the production jar",
+          not (SRC / "progression/HitTakenMasteryProbe.java").exists()
+          and (MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/HitTakenMasteryProbe.java").exists()
+          and '"lm.probe.hitTakenMastery"' in p40_ev
+          and '"com.dbzlegacy.adaptivedifficulty.progression.HitTakenMasteryProbe"' in p40_ev
+          and "|HitTakenMasteryProbe)'" in p40_build)
 
     print("\n--- § lm 4.7.38 ---")
     import json as _json38
