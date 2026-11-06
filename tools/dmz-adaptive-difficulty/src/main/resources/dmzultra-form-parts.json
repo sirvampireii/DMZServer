@@ -3,6 +3,7 @@
   "ultraVersion": "0.4.0",
   "catalog": "assets/dmzultra/form_parts/forms.json + every set table (sets.json order, then unlisted tables)",
   "generator": "tools/dmz-adaptive-difficulty/sim/gen_dmzultra_form_parts.py",
+  "serverAliases": "tools/dmz-adaptive-difficulty/sim/form-parts-server-aliases.json",
   "note": "Generated; do not hand-edit. Form key is race/group/form, the same key DMZUltra FormParts.of builds (variant keys such as #slim are left out). Piece ids are FormParts ids; 'pieces' is forms.json's piece list, the ids every client can draw, and the Body Parts Shop list. 'designs' carries the per-form FormParts Design colors (own/trim/horn/light from the upstream a/b/c/g keys) so a dedicated server can send explicit colors in GuiModelSyncPacket without the client mod.",
   "pieces": [
     "ankle_fins",
@@ -1605,6 +1606,22 @@
       "demongod_greaves",
       "demongod_tassets_true",
       "demongod_wings"
+    ],
+    "glind/godforms/demongodawakened": [
+      "demongod_crown",
+      "demongod_pauldrons",
+      "demongod_breastplate",
+      "demongod_vambraces",
+      "demongod_tassets"
+    ],
+    "glind/godforms/demongodtrue": [
+      "demongod_crown_true",
+      "demongod_pauldrons_true",
+      "demongod_breastplate",
+      "demongod_gauntlets",
+      "demongod_greaves",
+      "demongod_tassets_true",
+      "demongod_wings"
     ]
   },
   "designs": {
@@ -2908,6 +2925,18 @@
       "light": 12482275
     },
     "glind/demongodforms/demongodtrue": {
+      "own": 4915330,
+      "trim": 13151080,
+      "horn": 4077125,
+      "light": 12482275
+    },
+    "glind/godforms/demongodawakened": {
+      "own": 4915330,
+      "trim": 13151080,
+      "horn": 4077125,
+      "light": 12482275
+    },
+    "glind/godforms/demongodtrue": {
       "own": 4915330,
       "trim": 13151080,
       "horn": 4077125,

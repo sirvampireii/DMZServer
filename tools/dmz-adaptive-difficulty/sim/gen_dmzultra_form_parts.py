@@ -10,6 +10,8 @@ Reads the jar directly (nothing is extracted):
   - every other table in assets/dmzultra/form_parts/: Ultra reads a table that sets.json does not list
     after the listed ones.
   - each table's 'formKeyAliases' (an old key that draws as a current one).
+Also reads sim/form-parts-server-aliases.json: LM-side aliases (alias -> target) for form groups this server
+renamed (4.7.38: Glind kishinforms -> godforms). They are applied after Ultra's aliases, the same way.
 
 Rules, matching Ultra's FormParts reader:
   - A set wins over forms.json, and the set named first wins; a key defined twice is reported.
@@ -29,6 +31,7 @@ import zipfile
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parent.parent / "src" / "main" / "resources" / "dmzultra-form-parts.json"
+SERVER_ALIASES = Path(__file__).resolve().parent / "form-parts-server-aliases.json"
 BASE = "assets/dmzultra/form_parts/"
 KEY = re.compile(r"^[a-z0-9_]+/[a-z0-9_]+/[a-z0-9_]+$")
 COLORS = (("a", "own"), ("b", "trim"), ("c", "horn"), ("g", "light"))
@@ -71,6 +74,25 @@ def design(entry):
     return out
 
 
+def server_aliases():
+    """LM-side alias -> target pairs (lowercased); none when the file is missing."""
+    if not SERVER_ALIASES.exists():
+        return {}
+    raw = json.loads(SERVER_ALIASES.read_text(encoding="utf-8")).get("aliases") or {}
+    return {a.strip().lower(): t.strip().lower() for a, t in raw.items()}
+
+
+def apply_aliases(aliases, forms, designs, owner, missing):
+    for alias, target in aliases.items():
+        if alias not in forms and target in forms and KEY.match(alias):
+            forms[alias] = forms[target]
+            if target in designs:
+                designs[alias] = designs[target]
+            owner[alias] = "alias of " + target
+        elif missing is not None and alias not in forms:
+            missing.append((alias, target))
+
+
 def build(jar_path):
     with zipfile.ZipFile(jar_path) as jar:
         main = load(jar, BASE + "forms.json")
@@ -96,18 +118,18 @@ def build(jar_path):
                 colors = design(entry)
                 if colors:
                     designs[key] = colors
-        for alias, target in aliases.items():
-            if alias not in forms and target in forms and KEY.match(alias):
-                forms[alias] = forms[target]
-                if target in designs:
-                    designs[alias] = designs[target]
-                owner[alias] = "alias of " + target
+        apply_aliases(aliases, forms, designs, owner, None)
+        missing = []
+        apply_aliases(server_aliases(), forms, designs, owner, missing)
+        for alias, target in missing:
+            print(f"WARN server alias {alias}: target {target} is not in the catalog; skipped")
         version = ultra_version(jar)
     catalog = {
         "source": "dmzultra",
         "ultraVersion": version,
         "catalog": "assets/dmzultra/form_parts/forms.json + every set table (sets.json order, then unlisted tables)",
         "generator": "tools/dmz-adaptive-difficulty/sim/gen_dmzultra_form_parts.py",
+        "serverAliases": "tools/dmz-adaptive-difficulty/sim/form-parts-server-aliases.json",
         "note": "Generated; do not hand-edit. Form key is race/group/form, the same key DMZUltra FormParts.of "
                 "builds (variant keys such as #slim are left out). Piece ids are FormParts ids; 'pieces' is "
                 "forms.json's piece list, the ids every client can draw, and the Body Parts Shop list. "
