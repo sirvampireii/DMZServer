@@ -35,6 +35,23 @@ in `mods/` has no probe classes, so the flag does nothing there except log one w
 - **Test server needs:** DragonMineZ (for `dragonminez:master_popo`) and Ultra 0.4.x.
 - **Output:** `chamber cap probe check <name>: OK|WRONG`, then `chamber cap probe OK` or `FAILED: <n>`.
 
+## NPC spar mastery probe (`-Dlm.probe.npcSparMastery`)
+
+- **Source:** `src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/NpcSparMasteryProbe.java` (4.7.40).
+- **Build and hook:** as the God forms probe (testprobe jar, one run at server start).
+- **What it does:** a fake player in a form with per-hit mastery takes, then deals, one small hit
+  (1 damage, so DMZ's damage scale is 1) through DMZ's own `StatsEvents.onEntityHit`. The opponents
+  are another player, a master / Popo spar shadow, a summoned player shadow, a quest SPAR partner and
+  a zombie. Mastery is reset before every hit. It checks:
+  - Player vs player and the zombie pay exactly DMZ's formula (a direct `gainMastery` with the same
+    inputs), so PvP and normal fighting are unchanged.
+  - Each sparring NPC pays half the player-vs-player figure, for hits taken and hits dealt.
+  - With a Mastery Gain effect the boost still multiplies on top and the half still holds.
+  - Nothing is left marked after the hits.
+- **Test server needs:** DragonMineZ 2.2.1.x (shadow dummy, quest registry with a SPAR quest).
+- **Output:** `npc spar mastery probe check <name>: OK|WRONG`, per-hit figures, then `npc spar mastery
+  probe OK` or `FAILED: <n>`.
+
 ## Dragon ball probe (`-Dlm.probe.dragonBalls`)
 
 - **Source:** `src/probe/java/com/dbzlegacy/adaptivedifficulty/event/DragonBallProbe.java`

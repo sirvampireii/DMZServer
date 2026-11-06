@@ -173,6 +173,8 @@ public final class DifficultyEvents {
                 "com.dbzlegacy.adaptivedifficulty.progression.GodFormsGateProbe");
         runStartProbe(event.getServer(), "lm.probe.chamberCap",
                 "com.dbzlegacy.adaptivedifficulty.progression.ChamberWaveCapProbe");
+        runStartProbe(event.getServer(), "lm.probe.npcSparMastery",
+                "com.dbzlegacy.adaptivedifficulty.progression.NpcSparMasteryProbe");
         try {
             com.dbzlegacy.adaptivedifficulty.data.CnpcDataMigrator.migrateWorldIfNeeded(event.getServer());
         } catch (Throwable t) {

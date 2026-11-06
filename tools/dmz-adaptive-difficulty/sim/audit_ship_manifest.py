@@ -1878,6 +1878,43 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.40 ---")
+    p40_core = read(SRC / "progression/NpcSparMastery.java")
+    p40_hit = read(SRC / "mixin/StatsEventsNpcSparMasteryMixin.java")
+    p40_base = read(SRC / "mixin/PotionEffectHelperNpcSparMasteryMixin.java")
+    p40_json = read(SRC.parents[3] / "resources/legacymechanics.mixins.json")
+    p40_ev = read(SRC / "event/DifficultyEvents.java")
+    p40_build = read(MOD / "build.sh")
+    check("manifest lm-4740-npc-spar-mastery row", "lm-4740-npc-spar-mastery" in manifest)
+    check("NPC spar factor is 0.5; sparring NPC = DMZ shadow dummy or quest SPAR partner, never a player",
+          "public static final double NPC_SPAR_FACTOR = 0.5;" in p40_core
+          and "if (entity == null || entity instanceof ServerPlayer) {" in p40_core
+          and "if (entity instanceof ShadowDummyEntity) {" in p40_core
+          and "return QuestService.isSparPartner(entity);" in p40_core
+          and "if (attacker instanceof ServerPlayer && isSparNpc(victim)) {" in p40_core
+          and "if (victim instanceof ServerPlayer && isSparNpc(attacker)) {" in p40_core)
+    check("only the marked hit is scaled: thread-local set in begin, cleared in end, identity otherwise",
+          "private static final ThreadLocal<Double> ACTIVE = new ThreadLocal<>();" in p40_core
+          and "return factor == null ? base : base * factor;" in p40_core
+          and p40_core.count("ACTIVE.remove();") == 2)
+    check("hook: StatsEvents.onEntityHit HEAD begin / RETURN end (DMZ's per-hit mastery grant)",
+          "@Mixin(value = StatsEvents.class, remap = false)" in p40_hit
+          and '@Inject(method = "onEntityHit", at = @At("HEAD"), remap = false)' in p40_hit
+          and '@Inject(method = "onEntityHit", at = @At("RETURN"), remap = false)' in p40_hit
+          and "NpcSparMastery.begin(event);" in p40_hit and "NpcSparMastery.end();" in p40_hit)
+    check("hook: base of applyMasteryGainMultiplier scaled at HEAD, so Mastery Gain / mutant / racial stay on top",
+          "@Mixin(value = PotionEffectHelper.class, remap = false)" in p40_base
+          and '@ModifyVariable(method = "applyMasteryGainMultiplier", at = @At("HEAD"), argsOnly = true, ordinal = 0, remap = false)' in p40_base
+          and "return NpcSparMastery.scaleBase(baseValue);" in p40_base)
+    check("both mixins registered", '"PotionEffectHelperNpcSparMasteryMixin"' in p40_json
+          and '"StatsEventsNpcSparMasteryMixin"' in p40_json)
+    check("npc spar mastery probe is test-only: src/probe, found by name, never in the production jar",
+          not (SRC / "progression/NpcSparMasteryProbe.java").exists()
+          and (MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/NpcSparMasteryProbe.java").exists()
+          and '"lm.probe.npcSparMastery"' in p40_ev
+          and '"com.dbzlegacy.adaptivedifficulty.progression.NpcSparMasteryProbe"' in p40_ev
+          and "|NpcSparMasteryProbe)'" in p40_build)
+
     print("\n--- § lm 4.7.38 ---")
     import json as _json38
     p38_cat = _json38.loads(read(SRC.parents[3] / "resources" / "dmzultra-form-parts.json"))
@@ -1929,7 +1966,7 @@ def main() -> int:
           and '"com.dbzlegacy.adaptivedifficulty.progression.GodFormsGateProbe"' in p37_ev
           and '"lm.probe.godForms"' in p37_ev
           and "Class.forName(probeClass)" in p37_ev
-          and "grep -Eq 'progression/(GodFormsGateProbe|ChamberWaveCapProbe)'" in p37_build)
+          and "grep -Eq 'progression/(GodFormsGateProbe|ChamberWaveCapProbe" in p37_build)
     p37_cap = read(SRC / "progression/ChamberWaveCap.java")
     p37_mix = read(SRC / "mixin/dmzultra/DmzultraChamberWaveCooldownMixin.java")
     check("manifest lm-4737-chamber-wave-cap row", "lm-4737-chamber-wave-cap" in manifest)

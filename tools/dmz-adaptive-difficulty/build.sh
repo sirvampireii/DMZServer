@@ -643,8 +643,8 @@ if jar tf "$JAR" | grep -q 'event/DragonBallProbe'; then
   echo "ERROR: $JAR contains the test-only DragonBallProbe (it belongs in src/probe/java)" >&2
   exit 1
 fi
-if jar tf "$JAR" | grep -Eq 'progression/(GodFormsGateProbe|ChamberWaveCapProbe)'; then
-  echo "ERROR: $JAR contains a test-only 4.7.37 probe (they belong in src/probe/java)" >&2
+if jar tf "$JAR" | grep -Eq 'progression/(GodFormsGateProbe|ChamberWaveCapProbe|NpcSparMasteryProbe)'; then
+  echo "ERROR: $JAR contains a test-only 4.7.37+ probe (they belong in src/probe/java)" >&2
   exit 1
 fi
 if jar tf "$JAR" | grep -Eq 'StatsDataHudPoolMaxMixin|StatsDataOverhaulCombatScaleMixin'; then

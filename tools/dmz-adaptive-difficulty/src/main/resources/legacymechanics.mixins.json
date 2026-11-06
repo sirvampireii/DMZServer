@@ -22,6 +22,8 @@
     "StatsDataStatScalingMixin",
     "StatsDataDeathTpPenaltyMixin",
     "PotionEffectHelperTpBonusMixin",
+    "PotionEffectHelperNpcSparMasteryMixin",
+    "StatsEventsNpcSparMasteryMixin",
     "ResourcesEnergyDrainGuardMixin",
     "ResourcesDeathTpPenaltyMixin",
     "DojoWarSenseMixin",
