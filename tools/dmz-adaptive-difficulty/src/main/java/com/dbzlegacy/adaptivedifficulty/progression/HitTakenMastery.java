@@ -7,8 +7,14 @@ import net.minecraft.world.entity.Entity;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 
 /**
- * 4.7.40: form mastery from getting hit is 25% of DMZ's rate, and 12.5% when the hit comes from a
- * sparring NPC (half the player-vs-player figure). Mastery from dealing hits is unchanged.
+ * Form mastery from getting hit, by attacker (4.7.40; non-PvP split 4.7.42). Of DMZ's rate:
+ * <ul>
+ *   <li>a player (PvP): 0.25;</li>
+ *   <li>any other living attacker (mobs, bosses, God Chamber wave and Whis trial foes, quest kill targets):
+ *       0.0625, a quarter of the PvP rate;</li>
+ *   <li>a sparring NPC: 0.03125, half of that again.</li>
+ * </ul>
+ * Mastery from dealing hits is unchanged.
  * <p>
  * DMZ grants form and stack-form mastery per hit in {@code StatsEvents.onEntityHit}, in two branches of
  * the same handler: the attacker gets {@code masteryPerHitDealt}, the victim {@code masteryPerHitReceived}.
@@ -27,9 +33,11 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
  * on both grants (DMZ passes the same player to both).
  */
 public final class HitTakenMastery {
-    /** Mastery per hit taken, as a share of DMZ's rate. */
+    /** Mastery per hit taken from a player, as a share of DMZ's rate. */
     public static final double HIT_TAKEN_FACTOR = 0.25;
-    /** Extra factor on a hit taken from a sparring NPC: half the player-vs-player figure. */
+    /** Extra factor on a hit taken from anything that is not a player: a quarter of the PvP figure. */
+    public static final double NON_PVP_FACTOR = 0.25;
+    /** Extra factor on a hit taken from a sparring NPC: half the other non-player figure. */
     public static final double NPC_SPAR_FACTOR = 0.5;
 
     private static final ThreadLocal<Mark> ACTIVE = new ThreadLocal<>();
@@ -57,9 +65,18 @@ public final class HitTakenMastery {
         return mark != null && entity != null && entity == mark.victim() ? value * mark.factor() : value;
     }
 
-    /** Hit-taken factor for a hit from {@code attacker}: 0.25, or 0.125 from a sparring NPC. */
+    /**
+     * Hit-taken factor for a hit from {@code attacker}: 0.25 from a player, 0.03125 from a sparring NPC, 0.0625
+     * from anything else. No attacker never reaches DMZ's grant; it still gets the non-player figure, never PvP's.
+     */
     public static double factor(Entity attacker) {
-        return isSparNpc(attacker) ? HIT_TAKEN_FACTOR * NPC_SPAR_FACTOR : HIT_TAKEN_FACTOR;
+        if (attacker instanceof ServerPlayer) {
+            return HIT_TAKEN_FACTOR;
+        }
+        if (isSparNpc(attacker)) {
+            return HIT_TAKEN_FACTOR * NON_PVP_FACTOR * NPC_SPAR_FACTOR;
+        }
+        return HIT_TAKEN_FACTOR * NON_PVP_FACTOR;
     }
 
     public static boolean isSparNpc(Entity entity) {
