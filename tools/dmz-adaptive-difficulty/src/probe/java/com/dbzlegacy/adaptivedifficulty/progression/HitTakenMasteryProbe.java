@@ -32,13 +32,14 @@ import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 
 /**
- * Test-only probe (4.7.40; ships only in the testprobe jar, {@code -Dlm.probe.hitTakenMastery}): real
- * {@code LivingHurtEvent}s through DMZ's own {@code StatsEvents.onEntityHit}, the per-hit form mastery
+ * Test-only probe (4.7.40, ladder 4.7.42; ships only in the testprobe jar, {@code -Dlm.probe.hitTakenMastery}):
+ * real {@code LivingHurtEvent}s through DMZ's own {@code StatsEvents.onEntityHit}, the per-hit form mastery
  * grant. A fake player in a form takes and deals one small hit at a time against another player, a
- * master / Popo spar shadow, a summoned player shadow, a quest SPAR partner, and a zombie. "DMZ formula" is
- * a direct gainMastery with the same inputs (the pre-4.7.40 rate). Hits taken: zombie and player 0.25x,
- * sparring NPCs 0.125x (half of PvP). Hits dealt: all unchanged. Repeated with a Mastery Gain effect: the
- * boost still multiplies on top. Logs "hit taken mastery probe check ...: OK|WRONG" and a final OK /
+ * master / Popo spar shadow, a summoned player shadow, a quest SPAR partner, a zombie, and two Ultra
+ * God Chamber / Whis trial foes (DMZ saga Saibaman and Vegeta, tagged {@code dmzultra_chamber_enemy} as Ultra
+ * spawns them). "DMZ formula" is a direct gainMastery with the same inputs (the pre-4.7.40 rate). Hits
+ * taken: player 0.25x; zombie and chamber / trial foes 0.0625x (a quarter of PvP); sparring NPCs 0.03125x.
+ * Hits dealt: all unchanged. Repeated with a Mastery Gain effect: the boost still multiplies on top. Logs "hit taken mastery probe check ...: OK|WRONG" and a final OK /
  * FAILED line.
  */
 public final class HitTakenMasteryProbe {
@@ -80,12 +81,17 @@ public final class HitTakenMasteryProbe {
             check("quest SPAR partner recognised by DMZ (quest " + sparQuest + ")",
                     sparQuest != null && QuestService.isSparPartner(questPartner));
             LivingEntity zombie = EntityType.f_20501_.m_20615_(level);
+            LivingEntity chamberFoe = chamberFoe(level, "saga_saibaman1");
+            LivingEntity trialFoe = chamberFoe(level, "saga_vegeta");
+            check("God Chamber / Whis trial foes created (dragonminez:saga_saibaman1, saga_vegeta)",
+                    chamberFoe != null && trialFoe != null);
+            LivingEntity[] foes = {zombie, chamberFoe, trialFoe};
 
-            pass(level, fp, opponent, popoSpar, playerShadow, questPartner, zombie, form, "no boost");
+            pass(level, fp, opponent, popoSpar, playerShadow, questPartner, foes, form, "no boost");
             fp.m_7292_(new MobEffectInstance(MainEffects.MASTERY_GAIN.get(), 20 * 60, 1));
             double boost = PotionEffectHelper.applyMasteryGainMultiplier(fp, 1.0);
             check("Mastery Gain effect active (multiplier " + boost + ")", boost > 1.0 + EPS);
-            pass(level, fp, opponent, popoSpar, playerShadow, questPartner, zombie, form, "Mastery Gain x" + boost);
+            pass(level, fp, opponent, popoSpar, playerShadow, questPartner, foes, form, "Mastery Gain x" + boost);
             fp.m_21219_();
 
             check("nothing left marked after the hits", HitTakenMastery.scale(fp, 1.0) == 1.0);
@@ -100,7 +106,8 @@ public final class HitTakenMasteryProbe {
     }
 
     private static void pass(ServerLevel level, FakePlayer fp, FakePlayer opponent, LivingEntity popoSpar,
-            LivingEntity playerShadow, LivingEntity questPartner, LivingEntity zombie, String[] form, String label) {
+            LivingEntity playerShadow, LivingEntity questPartner, LivingEntity[] foes, String[] form, String label) {
+        LivingEntity zombie = foes[0];
         Character character = DmzProgression.character(fp);
         FormConfig.FormData data = character.getActiveFormData();
 
@@ -114,23 +121,43 @@ public final class HitTakenMasteryProbe {
         double questTaken = taken(fp, form, level.m_269111_().m_269333_(questPartner));
         double zombieTaken = taken(fp, form, level.m_269111_().m_269333_(zombie));
         log(label + ", per hit taken", expectTaken, pvpTaken, popoTaken, shadowTaken, questTaken, zombieTaken);
-        check(label + ": hit taken from a zombie (not sparring) = 0.25 x DMZ formula",
-                expectTaken > 0 && same(zombieTaken, expectTaken * 0.25));
-        check(label + ": hit taken from a player (PvP spar) = 0.25 x DMZ formula", same(pvpTaken, expectTaken * 0.25));
-        check(label + ": hit taken from the Popo spar shadow = 0.125 x DMZ formula (half of PvP)",
-                same(popoTaken, expectTaken * 0.125) && same(popoTaken, pvpTaken * 0.5));
-        check(label + ": hit taken from a summoned player shadow = 0.125 x DMZ formula", same(shadowTaken, expectTaken * 0.125));
-        check(label + ": hit taken from a quest SPAR partner = 0.125 x DMZ formula", same(questTaken, expectTaken * 0.125));
+        double chamberTaken = taken(fp, form, level.m_269111_().m_269333_(foes[1]));
+        double trialTaken = taken(fp, form, level.m_269111_().m_269333_(foes[2]));
+        AdaptiveDifficultyMod.LOGGER.info("[{}] hit taken mastery probe {}, per hit taken: chamber foe (saibaman) {}, "
+                + "trial foe (vegeta) {}", AdaptiveDifficultyMod.MOD_ID, label, chamberTaken, trialTaken);
+        check(label + ": hit taken from a player (PvP) = 0.25 x DMZ formula",
+                expectTaken > 0 && same(pvpTaken, expectTaken * 0.25));
+        check(label + ": hit taken from a zombie (non-PvP) = 0.0625 x DMZ formula (a quarter of PvP)",
+                same(zombieTaken, expectTaken * 0.0625) && same(zombieTaken, pvpTaken * 0.25));
+        check(label + ": hit taken from a God Chamber wave foe = 0.0625 x DMZ formula", same(chamberTaken, expectTaken * 0.0625));
+        check(label + ": hit taken from a Whis trial foe = 0.0625 x DMZ formula", same(trialTaken, expectTaken * 0.0625));
+        check(label + ": hit taken from the Popo spar shadow = 0.03125 x DMZ formula (half the non-PvP figure)",
+                same(popoTaken, expectTaken * 0.03125) && same(popoTaken, zombieTaken * 0.5));
+        check(label + ": hit taken from a summoned player shadow = 0.03125 x DMZ formula", same(shadowTaken, expectTaken * 0.03125));
+        check(label + ": hit taken from a quest SPAR partner = 0.03125 x DMZ formula", same(questTaken, expectTaken * 0.03125));
 
         double pvpDealt = dealt(fp, form, opponent);
         double popoDealt = dealt(fp, form, popoSpar);
         double shadowDealt = dealt(fp, form, playerShadow);
         double questDealt = dealt(fp, form, questPartner);
         double zombieDealt = dealt(fp, form, zombie);
+        double chamberDealt = dealt(fp, form, foes[1]);
+        double trialDealt = dealt(fp, form, foes[2]);
         log(label + ", per hit dealt", expectDealt, pvpDealt, popoDealt, shadowDealt, questDealt, zombieDealt);
-        check(label + ": hits dealt unchanged (player, zombie, Popo spar, player shadow, quest spar = DMZ formula)",
-                expectDealt > 0 && same(pvpDealt, expectDealt) && same(zombieDealt, expectDealt)
-                        && same(popoDealt, expectDealt) && same(shadowDealt, expectDealt) && same(questDealt, expectDealt));
+        check(label + ": hits dealt unchanged (player, zombie, chamber and trial foes, Popo spar, player shadow, "
+                + "quest spar = DMZ formula)", expectDealt > 0 && same(pvpDealt, expectDealt) && same(zombieDealt, expectDealt)
+                && same(chamberDealt, expectDealt) && same(trialDealt, expectDealt)
+                && same(popoDealt, expectDealt) && same(shadowDealt, expectDealt) && same(questDealt, expectDealt));
+    }
+
+    /** A DMZ saga foe as Ultra's God Chamber waves spawn one (same entity id, same tag); null if unknown. */
+    private static LivingEntity chamberFoe(ServerLevel level, String id) {
+        EntityType<?> type = ForgeRegistries.ENTITY_TYPES.getValue(new ResourceLocation("dragonminez", id));
+        if (type == null || !(type.m_20615_(level) instanceof LivingEntity foe)) {
+            return null;
+        }
+        foe.m_20049_("dmzultra_chamber_enemy");
+        return foe;
     }
 
     /** One {@code gainMastery} with DMZ's inputs for a small hit (damage scale 1), outside any hit event. */

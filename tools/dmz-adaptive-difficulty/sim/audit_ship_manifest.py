@@ -1878,6 +1878,26 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.42 ---")
+    p42_core = read(SRC / "progression/HitTakenMastery.java")
+    p42_probe = read(MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/HitTakenMasteryProbe.java")
+    p42_factor = p42_core.split("public static double factor(Entity attacker) {", 1)[-1].split("public static boolean isSparNpc", 1)[0]
+    check("manifest lm-4742-non-pvp-hit-taken-mastery row", "lm-4742-non-pvp-hit-taken-mastery" in manifest)
+    check("NON_PVP_FACTOR 0.25 beside HIT_TAKEN_FACTOR 0.25 and NPC_SPAR_FACTOR 0.5",
+          "public static final double NON_PVP_FACTOR = 0.25;" in p42_core
+          and "public static final double HIT_TAKEN_FACTOR = 0.25;" in p42_core
+          and "public static final double NPC_SPAR_FACTOR = 0.5;" in p42_core)
+    check("factor: player 0.25, sparring NPC 0.03125, anything else (null included) 0.0625 - never PvP's by default",
+          p42_factor.index("if (attacker instanceof ServerPlayer) {") < p42_factor.index("return HIT_TAKEN_FACTOR;")
+          < p42_factor.index("if (isSparNpc(attacker)) {")
+          < p42_factor.index("return HIT_TAKEN_FACTOR * NON_PVP_FACTOR * NPC_SPAR_FACTOR;")
+          < p42_factor.index("return HIT_TAKEN_FACTOR * NON_PVP_FACTOR;")
+          and p42_factor.count("return ") == 3)
+    check("probe expects the 4.7.42 ladder, chamber and trial foes included",
+          "expectTaken * 0.0625" in p42_probe and "expectTaken * 0.03125" in p42_probe
+          and 'chamberFoe(level, "saga_saibaman1")' in p42_probe and 'chamberFoe(level, "saga_vegeta")' in p42_probe
+          and "expectTaken * 0.125" not in p42_probe)
+
     print("\n--- § lm 4.7.41 ---")
     p41_pc = read(SRC / "progression/shop/PrestigeCharacter.java")
     p41_melee = read(SRC / "progression/shop/PrestigeCharacterMelee.java")
@@ -1921,7 +1941,6 @@ def main() -> int:
     check("hit-taken factor 0.25; sparring NPC (shadow dummy / quest SPAR partner) x 0.5 more = 0.125",
           "public static final double HIT_TAKEN_FACTOR = 0.25;" in p40_core
           and "public static final double NPC_SPAR_FACTOR = 0.5;" in p40_core
-          and "return isSparNpc(attacker) ? HIT_TAKEN_FACTOR * NPC_SPAR_FACTOR : HIT_TAKEN_FACTOR;" in p40_core
           and "if (entity == null || entity instanceof ServerPlayer) {" in p40_core
           and "if (entity instanceof ShadowDummyEntity) {" in p40_core
           and "return QuestService.isSparPartner(entity);" in p40_core)

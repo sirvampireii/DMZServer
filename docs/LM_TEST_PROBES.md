@@ -60,10 +60,12 @@ in `mods/` has no probe classes, so the flag does nothing there except log one w
 - **What it does:** a fake player in a form with per-hit mastery takes, then deals, one small hit
   (1 damage, so DMZ's damage scale is 1) through DMZ's own `StatsEvents.onEntityHit`. The opponents
   are another player, a master / Popo spar shadow, a summoned player shadow, a quest SPAR partner and
-  a zombie. Mastery is reset before every hit. "DMZ formula" is a direct `gainMastery` with the same
+  a zombie, plus a God Chamber and a Whis trial foe. Mastery is reset before every hit. "DMZ formula" is a direct `gainMastery` with the same
   inputs, the rate before 4.7.40. It checks:
-  - Hits taken from the zombie (not sparring) and from a player (PvP spar): 0.25 x the DMZ formula.
-  - Hits taken from each sparring NPC: 0.125 x the DMZ formula, half the PvP figure.
+  - Hits taken from a player (PvP): 0.25 x the DMZ formula.
+  - Hits taken from a zombie and from Ultra God Chamber / Whis trial foes (DMZ saga Saibaman and Vegeta,
+    tagged as Ultra spawns them): 0.0625 x, a quarter of the PvP figure (4.7.42).
+  - Hits taken from each sparring NPC: 0.03125 x, half the non-PvP figure.
   - Hits dealt to every opponent: exactly the DMZ formula (unchanged).
   - With a Mastery Gain effect the boost still multiplies on top and the same shares hold.
   - Nothing is left marked after the hits.
