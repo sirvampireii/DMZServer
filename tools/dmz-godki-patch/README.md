@@ -1,6 +1,6 @@
-# DMZ 2.2.1 God Ki copy / Divine Ki patch (v3 = 2.2.1.1)
+# DMZ 2.2.1 God Ki copy / Divine Ki patch (v3 = 2.2.1.1, instant-key fix = 2.2.1.2)
 
-Builds `dragonminez-<PATCH_VERSION>.jar` (now `dragonminez-2.2.1.1.jar`) from the stock
+Builds `dragonminez-<PATCH_VERSION>.jar` (now `dragonminez-2.2.1.2.jar`; live runs `2.2.1.1`) from the stock
 `dragonminez-2.2.1.jar` (sha256 `039ce269…8181`). Live ran stock 2.2.1, then rev 3 as
 `dragonminez-2.2.1-godki.jar`. Not an LM change. KaiPath and DMZUltra are untouched.
 
@@ -13,7 +13,7 @@ DMZ_JAR=/path/to/dragonminez-2.2.1.jar [PATCH_VERSION=2.2.1.N] bash tools/dmz-go
 
 Each patch build stamps its own version on the one `version="2.2.1"` line of `META-INF/mods.toml`
 (the only DMZ version that matters; there is no version constant in code). `PATCH_VERSION` defaults to
-`2.2.1.1` in `build.sh`. **The next patch build is 2.2.1.2**: bump the default (or set the env var); no
+`2.2.1.2` in `build.sh`. **The next patch build is 2.2.1.3**: bump the default (or set the env var); no
 code change is needed. The jar is named after it, `dragonminez-<PATCH_VERSION>.jar`. `repack.py`
 accepts only `2.2.1.N` and checks that the mods.toml change is exactly that line. `MANIFEST.MF` keeps
 stock `2.2.1`.
@@ -37,6 +37,7 @@ key (`ExecuteActionC2S`).
 | v3: Divine Ki on a **god form** multiplies the combined total by `1 + 0.01 + 0.09 * min(mastery, 10000) / 10000` (×1.01 at mastery 0 to ×1.10 at 10,000), after the add-or-multiply step. Its own stack term is 1.0 there, so the factor is the whole boost. `DIVINEKI_FULL_MASTERY` (10000) must match Divine Ki's `maxMastery` in godki.json. | `getTotalMultiplier` (`getDivineKiFactor`), `getStackFormMultiplier` |
 | v3: Divine Ki on a **normal form** (any active form that isn't a DMZ / Ultra god form, KaiPath Kai / Destroyer forms included) is an ordinary stack form: its config multipliers (STR / SKP / PWR 3.6, DEF 2.4, VIT 2.0, SPD 1.1), mastery-adjusted like any stack form, and no factor. | `getStackFormMultiplier` falls through to the stock path |
 | v3: Divine Ki activates in any form (god or normal) and is refused in base form and while God Ki is copying. The refusal uses the existing `message.dragonminez.form.not_stackable`. | `canActivateDivineKi`; `StackFormModeHandler.canCharge` / `attemptTransform`; `ExecuteActionC2S.instantTransformStackForm` |
+| 2.2.1.2: the instant key refuses a non-stackable stack form (`formStackable` false: God Ki, Ultimate) only while a form is active, as the manual path does (`StackFormModeHandler.attemptTransform` checks it inside `hasActiveForm()`). Stock refused it first, so instant God Ki / Ultimate never worked, even from base. The `instantTransformOnMastery` threshold still applies (God Ki: live config 20.0; Ultimate 500). godki.json / ultimate.json keep `formStackable` false. | `ExecuteActionC2S.instantTransformStackForm` |
 | v3: the instant-transform key carries the same gates: Divine Ki as above, God Ki base-only, and no form transform while God Ki is copying. Stock's instant path skips both action-mode handlers, so before v3 it bypassed them. | `ExecuteActionC2S.instantTransformStackForm` / `instantTransformForm` |
 | v2: for players with a god form to copy, God Ki activates from base form only (no active form, or form `base`). It never stacks on any form, so the rule is code, not an `incompatibleWith` list (a finite list can't say "any form"; God Ki's list stays `[]`). Refused with `not_stackable`. | `StackFormModeHandler.canCharge` / `attemptTransform` (`canActivateGodKi`) |
 | v2: while God Ki is copying, transforming into any form is refused with `not_stackable`, and God Ki stays on. Stock DMZ would instead drop an incompatible stack form (`stack_removed`). Reverting to base keeps God Ki, since base contributes 1.0. | `FormModeHandler.canCharge` / `attemptTransform` |
@@ -173,3 +174,20 @@ First run on the v3 classes before version stamping (sha256 `f1a0ef49…dec2c`),
 LM's own God Ki gate (`StackFormModeHandlerGodKiGateMixin`, "God forms need God Ki") refused the
 action-mode Divine charge on SSG for the probe player, who has no God Ki wallet level. That gate is LM's,
 sits on the action-mode path only, and is unchanged here.
+
+## Bytecode check, 2.2.1.2 (2026-11-06)
+
+`dragonminez-2.2.1.2.jar` (sha256 `d2ec13a9…76e4a`) against the live `dragonminez-2.2.1.1.jar`
+(sha256 `dd5dfd8a…63bb1`, the same bytes as this tool's 2.2.1.1 build):
+
+| Check | Result |
+|---|---|
+| Jar entries | 9,127 of 9,129 identical; `ExecuteActionC2S.class` and the `mods.toml` version line differ |
+| Methods (javap, constant-pool indices ignored) | only `instantTransformStackForm` differs |
+| Non-stackable refusal | now behind `Character.hasActiveForm()`: with no active form it falls through; with one, `not_stackable` as before |
+| Active-form path | unchanged: active form stackable, `areFormsCompatible`, both `stackOnMastery` checks |
+| God Ki base-only / Divine Ki gates | unchanged, still first (`canActivateGodKi`, `canActivateDivineKi`) |
+| Mastery threshold | `getStackFormChargeMastery` < `getInstantTransformOnMastery` still returns false (creative excepted, as stock) |
+| Fidelity vs stock 2.2.1 | gate passes; 4 classes swapped, 9,124 identical |
+
+Clients need 2.2.1.2 too (`MATCH_VERSION`).
