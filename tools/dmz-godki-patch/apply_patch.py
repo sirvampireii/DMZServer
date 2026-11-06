@@ -327,7 +327,10 @@ e = rep(e, """      FormData nextForm = TransformationsHelper.getNextAvailableSt
          || StatsData.isGodKiForm(nextForm) && !data.canActivateGodKi()) {
          player.m_5661_(Component.m_237115_("message.dragonminez.form.not_stackable"), true);
          return false;
-      } else if (!nextForm.getFormStackable()) {""")
+      } else if (data.getCharacter().hasActiveForm() && !nextForm.getFormStackable()) {""")
+# 2.2.1.2: formStackable is refused only over an active form, as in the manual path
+# (StackFormModeHandler.attemptTransform), so the instant key reaches God Ki / Ultimate from base.
+# The instantTransformOnMastery threshold below still applies.
 e = rep(e, """      FormData nextForm = TransformationsHelper.getNextAvailableForm(data);
       if (nextForm == null) {
          return false;
