@@ -1,0 +1,7 @@
+{
+  "note": "LM-side form key aliases for gen_dmzultra_form_parts.py, applied after Ultra's own formKeyAliases and in the same way: the alias gets the target's pieces and design colors. Use it when this server renames a DMZ form group that Ultra's tables still know by the old name. 4.7.38: the all-races godforms conversion renamed Glind's kishinforms group to godforms.",
+  "aliases": {
+    "glind/godforms/demongodawakened": "glind/kishinforms/demongodawakened",
+    "glind/godforms/demongodtrue": "glind/kishinforms/demongodtrue"
+  }
+}

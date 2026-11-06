@@ -45,6 +45,25 @@ public final class BodyPartCatalogSelfTest {
         if (demon.stream().noneMatch(p -> "mkl_pinions".equals(p.id()))) {
             fail("makaijin demongod should name its 0.4.0 set pieces, got " + demon);
         }
+        // 4.7.38: this server renamed Glind's kishinforms group to godforms; the LM-side alias
+        // (sim/form-parts-server-aliases.json) gives the godforms key the kishinforms pieces and colors.
+        List<BodyPartCatalog.Part> glind =
+                BodyPartCatalog.resolve("glind", "godforms", "demongodawakened", "", "");
+        List<String> glindIds = glind.stream().map(BodyPartCatalog.Part::id).toList();
+        if (!glindIds.equals(List.of("demongod_crown", "demongod_pauldrons", "demongod_breastplate",
+                "demongod_vambraces", "demongod_tassets"))) {
+            fail("glind/godforms/demongodawakened should name the 5 demon god pieces, got " + glindIds);
+        }
+        if (BodyPartCatalog.resolve("glind", "godforms", "demongodtrue", "", "").size() != 7) {
+            fail("glind/godforms/demongodtrue should name 7 pieces");
+        }
+        BodyPartCatalog.Design glindColors = BodyPartCatalog.design("glind", "godforms", "demongodawakened", "", "");
+        if (!new BodyPartCatalog.Design(4915330, 13151080, 4077125, 12482275).equals(glindColors)) {
+            fail("glind/godforms/demongodawakened colors should match kishinforms, got " + glindColors);
+        }
+        if (BodyPartCatalog.resolve("glind", "kishinforms", "demongodawakened", "", "").size() != 5) {
+            fail("the kishinforms key must still resolve");
+        }
         // DMZUltra 0.4.0 Soul Reaper forms use pieces every client can draw.
         List<BodyPartCatalog.Part> bankai =
                 BodyPartCatalog.resolve("soulreaper", "zanpakutoforms", "bankai", "", "");

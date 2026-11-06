@@ -432,6 +432,11 @@ are unchanged.
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.30.jar`; javap
 diff checked. The other 24 are unchanged.
 
+## Re-baseline (2026-11-05, 4.7.38 Glind godforms body parts)
+
+`AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.38.jar`; javap diff checked
+(the `4.7.37` -> `4.7.38` constant is the only change). The other 24 are unchanged.
+
 ## Re-baseline (2026-11-05, 4.7.37 godforms natural mastery + chamber wave cap)
 
 `AdaptiveDifficultyMod` (version string) and `GodKiEnhancementShop` re-baselined for `LegacyMechanics-4.7.37.jar`;

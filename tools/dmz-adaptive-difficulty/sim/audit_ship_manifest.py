@@ -1878,6 +1878,31 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.38 ---")
+    import json as _json38
+    p38_cat = _json38.loads(read(SRC.parents[3] / "resources" / "dmzultra-form-parts.json"))
+    p38_alias = _json38.loads(read(MOD / "sim" / "form-parts-server-aliases.json"))
+    p38_gen = read(MOD / "sim" / "gen_dmzultra_form_parts.py")
+    p38_test = read(SRC / "gui/ultra/BodyPartCatalogSelfTest.java")
+    _g = "glind/{}/{}"
+    check("manifest lm-4738-glind-godforms-parts row", "lm-4738-glind-godforms-parts" in manifest)
+    check("generator applies the LM-side alias file after Ultra's aliases",
+          'SERVER_ALIASES = Path(__file__).resolve().parent / "form-parts-server-aliases.json"' in p38_gen
+          and "apply_aliases(server_aliases(), forms, designs, owner, missing)" in p38_gen
+          and p38_alias["aliases"] == {_g.format("godforms", "demongodawakened"): _g.format("kishinforms", "demongodawakened"),
+                                       _g.format("godforms", "demongodtrue"): _g.format("kishinforms", "demongodtrue")})
+    check("catalog: 220 forms / 220 designs; glind godforms keys copy kishinforms pieces and colors",
+          len(p38_cat["forms"]) == 220 and len(p38_cat["designs"]) == 220
+          and all(p38_cat["forms"][_g.format("godforms", f)] == p38_cat["forms"][_g.format("kishinforms", f)]
+                  and p38_cat["designs"][_g.format("godforms", f)] == p38_cat["designs"][_g.format("kishinforms", f)]
+                  for f in ("demongodawakened", "demongodtrue"))
+          and len(p38_cat["forms"][_g.format("godforms", "demongodawakened")]) == 5
+          and len(p38_cat["forms"][_g.format("godforms", "demongodtrue")]) == 7
+          and _g.format("demongodforms", "demongodtrue") in p38_cat["forms"])
+    check("self-test resolves glind/godforms pieces and colors",
+          'BodyPartCatalog.resolve("glind", "godforms", "demongodawakened", "", "")' in p38_test
+          and "new BodyPartCatalog.Design(4915330, 13151080, 4077125, 12482275)" in p38_test)
+
     print("\n--- § lm 4.7.37 ---")
     p37_shop = read(SRC / "progression/shop/GodKiEnhancementShop.java")
     p37_ev = read(SRC / "event/DifficultyEvents.java")
