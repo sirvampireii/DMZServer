@@ -1878,6 +1878,38 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.41 ---")
+    p41_pc = read(SRC / "progression/shop/PrestigeCharacter.java")
+    p41_melee = read(SRC / "progression/shop/PrestigeCharacterMelee.java")
+    p41_ultra = read(SRC / "progression/shop/PrestigeCharacterUltra.java")
+    p41_ev = read(SRC / "event/DifficultyEvents.java")
+    p41_build = read(MOD / "build.sh")
+    p41_fresh = p41_pc.split("static void freshStats(ServerPlayer player) {", 1)[-1].split("static List<String> keptStats", 1)[0]
+    check("manifest lm-4741-born-fresh-stats row", "lm-4741-born-fresh-stats" in manifest)
+    check("melee fix bridge: forceZeroSnapshot / adoptCurrent, loaded only when PrimaryStatRepair exists",
+          "PrimaryStatRepair.forceZeroSnapshot(player);" in p41_melee
+          and "PrimaryStatRepair.adoptCurrent(player);" in p41_melee
+          and 'Class.forName("com.dbzlegacy.mohistmelee.PrimaryStatRepair", false,' in p41_pc
+          and "PrestigeCharacterMelee.zero(player);" in p41_pc and "PrestigeCharacterMelee.adopt(player);" in p41_pc)
+    check("freshStats clears the saved copy after the bases are 0 and before any read",
+          p41_fresh.index("stats.copyFrom(new StatsData((Player) player));")
+          < p41_fresh.index("live.m_22100_(stat.get().m_22082_());")
+          < p41_fresh.index("meleeSnapshot(player, true);")
+          < p41_fresh.index("StatsEvents.applyHealthBonus(player);")
+          < p41_fresh.index("List<String> kept = keptStats(player);")
+          and p41_fresh.count("meleeSnapshot(player, true);") == 1)
+    check("freshStats warns when any of the six stats is still above 0",
+          "new character still has stats after the reset" in p41_fresh)
+    check("switch into a played character adopts its own stats as the saved copy",
+          "if (player != null && !blank) {" in p41_ultra
+          and "PrestigeCharacter.meleeSnapshot(player, false);" in p41_ultra)
+    check("born fresh stats probe is test-only: src/probe, found by name, never in the production jar",
+          not (SRC / "progression/shop/BornFreshStatsProbe.java").exists()
+          and (MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/shop/BornFreshStatsProbe.java").exists()
+          and '"lm.probe.bornFreshStats"' in p41_ev
+          and '"com.dbzlegacy.adaptivedifficulty.progression.shop.BornFreshStatsProbe"' in p41_ev
+          and "|shop/BornFreshStatsProbe|" in p41_build)
+
     print("\n--- § lm 4.7.40 ---")
     p40_core = read(SRC / "progression/HitTakenMastery.java")
     p40_hit = read(SRC / "mixin/StatsEventsHitTakenMasteryMixin.java")

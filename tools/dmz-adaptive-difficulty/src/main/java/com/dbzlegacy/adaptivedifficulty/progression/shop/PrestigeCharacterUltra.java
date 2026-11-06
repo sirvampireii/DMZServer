@@ -38,6 +38,11 @@ final class PrestigeCharacterUltra {
         SlotKey to = event.to();
         boolean blank = player != null && to != null && Slots.enabled()
                 && blankRecord(player.m_20194_(), to);
+        if (player != null && !blank) {
+            // 4.7.41: the melee fix's saved stats become the incoming character's, so they are never written
+            // back over the next character. A blank one is cleared by the reset instead.
+            PrestigeCharacter.meleeSnapshot(player, false);
+        }
         PrestigeCharacter.switchedIn(player, from == null ? null : Slots.characterId(from),
                 to == null ? null : Slots.characterId(to), to == null ? -1 : to.slot(), blank);
     }

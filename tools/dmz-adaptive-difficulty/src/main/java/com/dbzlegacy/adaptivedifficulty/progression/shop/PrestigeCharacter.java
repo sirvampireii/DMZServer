@@ -41,6 +41,11 @@ import net.minecraftforge.registries.RegistryObject;
  * Switching into a character whose stored record is still blank resets it the same way (4.7.4): Ultra
  * skips loading an empty DragonMineZ part, so without it the player would keep the stats of the
  * character they switched from.
+ * <p>
+ * 4.7.41: the DMZ Mohist melee fix saves each account's last six stats and writes them back over a stat
+ * it reads as 0. A reset character's stats are all 0, so the first read put the previous character's
+ * stats back (BrevinM's new Frost Demon started with his Saiyan's). The reset now clears that saved copy
+ * first, and every switch into a played character makes it that character's own.
  */
 public final class PrestigeCharacter {
     /** Character file: its prestige record was started (at zero). */
@@ -53,6 +58,8 @@ public final class PrestigeCharacter {
     /** Account to the character files opened for it this session (flushed and unloaded with the account). */
     private static final Map<UUID, Set<UUID>> OPEN = new ConcurrentHashMap<>();
     private static volatile boolean slots;
+    /** The DMZ Mohist melee fix (its stat snapshot) is installed; checked once. */
+    private static volatile Boolean melee;
 
     private PrestigeCharacter() {}
 
@@ -304,8 +311,14 @@ public final class PrestigeCharacter {
         LmPlayerStore.flush(character);
     }
 
-    /** Fresh DragonMineZ stats, the way DMZ Ultra clears a character: new StatsData, base attributes. */
-    private static void freshStats(ServerPlayer player) {
+    /**
+     * Fresh DragonMineZ stats, the way DMZ Ultra clears a character: new StatsData, base attributes. Then the
+     * melee fix's saved copy of the account's stats is cleared, so no read can write the previous character's
+     * stats back; afterwards each of the six must read 0 (DMZ then applies the race's base stats when the
+     * player creates the character). The copy is cleared after the bases are 0, not before: {@code new
+     * StatsData(player)} reads the player's live (old) stats and its setters record them again.
+     */
+    static void freshStats(ServerPlayer player) {
         StatsData stats = DmzProgression.stats(player);
         if (stats == null) {
             AdaptiveDifficultyMod.LOGGER.warn(
@@ -337,12 +350,75 @@ public final class PrestigeCharacter {
                         AdaptiveDifficultyMod.MOD_ID, player.m_36316_().getName(), stat.getId(), t.toString());
             }
         }
+        meleeSnapshot(player, true);
         player.m_6210_();
         try {
             StatsEvents.applyHealthBonus(player);
         } catch (Throwable ignored) {
         }
+        List<String> kept = keptStats(player);
+        if (!kept.isEmpty()) {
+            AdaptiveDifficultyMod.LOGGER.warn(
+                    "[{}] {}'s new character still has stats after the reset: {}",
+                    AdaptiveDifficultyMod.MOD_ID, player.m_36316_().getName(), String.join(", ", kept));
+        }
         NetworkHandler.sendToTrackingEntityAndSelf(new StatsSyncS2C(player), player);
+    }
+
+    /** Each of the six stats the active character has above 0, as {@code id=value}; empty after a clean reset. */
+    static List<String> keptStats(ServerPlayer player) {
+        List<String> kept = new ArrayList<>();
+        StatsData stats = DmzProgression.stats(player);
+        if (stats == null) {
+            return kept;
+        }
+        int[] values = {stats.getStats().getStrength(), stats.getStats().getStrikePower(),
+                stats.getStats().getResistance(), stats.getStats().getVitality(), stats.getStats().getKiPower(),
+                stats.getStats().getEnergy()};
+        String[] ids = {"STR", "SKP", "RES", "VIT", "PWR", "ENE"};
+        for (int i = 0; i < ids.length; i++) {
+            if (values[i] > 0) {
+                kept.add(ids[i] + "=" + values[i]);
+            }
+        }
+        return kept;
+    }
+
+    /**
+     * The melee fix's saved copy of the account's six stats: cleared ({@code zero}) before a reset, or made
+     * the active character's own after a switch. Nothing when the melee fix is not installed.
+     */
+    static void meleeSnapshot(ServerPlayer player, boolean zero) {
+        if (player == null || !meleeInstalled()) {
+            return;
+        }
+        try {
+            if (zero) {
+                PrestigeCharacterMelee.zero(player);
+            } else {
+                PrestigeCharacterMelee.adopt(player);
+            }
+        } catch (Throwable t) {
+            AdaptiveDifficultyMod.LOGGER.warn(
+                    "[{}] the melee fix's saved stats for {} could not be {}: {}", AdaptiveDifficultyMod.MOD_ID,
+                    player.m_36316_().getName(), zero ? "cleared" : "updated", t.toString());
+        }
+    }
+
+    private static boolean meleeInstalled() {
+        Boolean known = melee;
+        if (known == null) {
+            boolean present;
+            try {
+                Class.forName("com.dbzlegacy.mohistmelee.PrimaryStatRepair", false,
+                        PrestigeCharacter.class.getClassLoader());
+                present = true;
+            } catch (Throwable absent) {
+                present = false;
+            }
+            melee = known = present;
+        }
+        return known;
     }
 
     /**

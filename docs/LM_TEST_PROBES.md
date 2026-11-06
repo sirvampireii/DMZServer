@@ -35,6 +35,24 @@ in `mods/` has no probe classes, so the flag does nothing there except log one w
 - **Test server needs:** DragonMineZ (for `dragonminez:master_popo`) and Ultra 0.4.x.
 - **Output:** `chamber cap probe check <name>: OK|WRONG`, then `chamber cap probe OK` or `FAILED: <n>`.
 
+## Born fresh stats probe (`-Dlm.probe.bornFreshStats`)
+
+- **Source:** `src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/shop/BornFreshStatsProbe.java` (4.7.41).
+- **Build and hook:** as the God forms probe (testprobe jar, one run at server start).
+- **What it does:** a fake player holds BrevinM's live main stats and the DMZ Mohist melee fix saves them
+  (its 1-second snapshot). It checks:
+  - Control: the pre-4.7.41 reset (new `StatsData`, attribute bases set to 0 directly) is undone by the
+    first stat read. This is the live bug.
+  - `PrestigeCharacter.freshStats`: all six stats read 0, also after the melee fix's 5-second check, and
+    its saved copy is 0.
+  - DMZ creation as a Frost Demon warrior then applies that race's base stats.
+  - Switching into a played character makes the saved copy that character's own stats.
+- **Test server needs:** DragonMineZ 2.2.1.x and the melee fix. On plain Forge its Mohist-only
+  `ServerPlayerChangeDimensionMixin` does not apply, so use a test copy of the jar with that one entry
+  removed from `dmz_mohist_melee_fix.mixins.json`; the stat snapshot code is unchanged.
+- **Output:** `born fresh stats probe check <name>: OK|WRONG`, then `born fresh stats probe OK` or
+  `FAILED: <n>`.
+
 ## Hit taken mastery probe (`-Dlm.probe.hitTakenMastery`)
 
 - **Source:** `src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/HitTakenMasteryProbe.java` (4.7.40).
