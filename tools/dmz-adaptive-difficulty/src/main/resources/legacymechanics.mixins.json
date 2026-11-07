@@ -34,6 +34,7 @@
     "dmzultra.DmzultraChamberWaveCooldownMixin",
     "dmzultra.DmzultraTimeChamberTpPreviewMixin",
     "dmzultra.DmzultraGodChamberTpPreviewMixin",
+    "dmzultra.DmzultraSlotCaptureMixin",
     "simplymore.VipersCallUnendingVenomMixin",
     "FusionBonusReadGateMixin",
     "StrikeTechniqueReadGateMixin",

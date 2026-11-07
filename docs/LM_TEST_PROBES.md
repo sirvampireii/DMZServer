@@ -53,6 +53,22 @@ in `mods/` has no probe classes, so the flag does nothing there except log one w
 - **Output:** `born fresh stats probe check <name>: OK|WRONG`, then `born fresh stats probe OK` or
   `FAILED: <n>`.
 
+## Slot capture probe (`-Dlm.probe.slotCapture`)
+
+- **Source:** `src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/shop/SlotCaptureProbe.java` (4.7.43).
+- **Build and hook:** as the God forms probe (testprobe jar, one run at server start).
+- **What it does:** a real (non-fake) ServerPlayer runs DMZ Ultra 0.4.0's own login, create, switch, logout
+  and stop handlers. It checks:
+  - The main, with Kokopeli0007's record stats, creates an alt and switches back; after training to his live
+    stats the main's record still holds the old ones (the live bug).
+  - Logout writes the record: trained stats, savedAt advanced, gen = the index's, the same keys and parts as
+    the switch path's record, equal to a fresh `SlotService.record(player, 0, gen, false)` apart from
+    savedAt; the live form and stats are untouched (no toBase).
+  - Login, then main to alt to main: the main keeps the trained stats.
+  - Server stop with the player still listed writes the newest stats.
+- **Test server needs:** DragonMineZ 2.2.1.x and DMZ Ultra 0.4.0 (character slots on).
+- **Output:** `slot capture probe check <name>: OK|WRONG`, then `slot capture probe OK` or `FAILED: <n>`.
+
 ## Hit taken mastery probe (`-Dlm.probe.hitTakenMastery`)
 
 - **Source:** `src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/HitTakenMasteryProbe.java` (4.7.40).
