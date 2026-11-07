@@ -68,6 +68,9 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
                 || mixinClassName.endsWith("DmzultraGodChamberTpPreviewMixin"))) {
             return dedicatedServer() && dmzultraChamberPresent();
         }
+        if (mixinClassName != null && mixinClassName.endsWith("DmzultraSlotCaptureMixin")) {
+            return dedicatedServer() && dmzultraSlotsPresent();
+        }
         return dedicatedServer();
     }
 
@@ -178,6 +181,24 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
                     && loader.getResource("com/dmzultra/divine/GodChamberWaves.class") != null
                     && loader.getResource("com/dmzultra/divine/TimeChamber.class") != null
                     && loader.getResource("com/dmzultra/divine/GodChamber.class") != null;
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * dmzultra 0.4 character slots (4.7.43 slot capture at logout / stop): {@code SlotService} and the
+     * {@code SlotStore} / {@code SlotIndex} / {@code StandAside} it is used with. Resource lookup only, so
+     * the target is not loaded early. Absent on a server without Ultra 0.4.
+     */
+    private static boolean dmzultraSlotsPresent() {
+        try {
+            ClassLoader loader = LegacyMechanicsMixinPlugin.class.getClassLoader();
+            return loader != null
+                    && loader.getResource("com/dmzultra/slots/SlotService.class") != null
+                    && loader.getResource("com/dmzultra/slots/SlotStore.class") != null
+                    && loader.getResource("com/dmzultra/slots/SlotIndex.class") != null
+                    && loader.getResource("com/dmzultra/slots/StandAside.class") != null;
         } catch (Throwable ignored) {
             return false;
         }

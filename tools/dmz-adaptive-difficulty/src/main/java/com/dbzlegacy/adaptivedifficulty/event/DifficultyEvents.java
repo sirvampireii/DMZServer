@@ -177,6 +177,8 @@ public final class DifficultyEvents {
                 "com.dbzlegacy.adaptivedifficulty.progression.HitTakenMasteryProbe");
         runStartProbe(event.getServer(), "lm.probe.bornFreshStats",
                 "com.dbzlegacy.adaptivedifficulty.progression.shop.BornFreshStatsProbe");
+        runStartProbe(event.getServer(), "lm.probe.slotCapture",
+                "com.dbzlegacy.adaptivedifficulty.progression.shop.SlotCaptureProbe");
         try {
             com.dbzlegacy.adaptivedifficulty.data.CnpcDataMigrator.migrateWorldIfNeeded(event.getServer());
         } catch (Throwable t) {

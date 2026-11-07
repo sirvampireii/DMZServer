@@ -1449,9 +1449,12 @@ def main() -> int:
           and "return character == null ? account : character;" in pc
           and 'Class.forName("com.dmzultra.slots.api.Slots", false' in pc
           and "PrestigeCharacter.register();" in pc_mod)
-    check("only PrestigeCharacterUltra names the Ultra slots API",
+    # 4.7.43: SlotRecordCapture and its mixin also name it; they load only when the plugin finds Ultra's slots.
+    check("only PrestigeCharacterUltra (and the 4.7.43 slot capture) names the Ultra slots API",
           not any("com.dmzultra.slots" in read(f) for f in SRC.rglob("*.java")
-                  if f.name not in ("PrestigeCharacterUltra.java", "PrestigeCharacter.java"))
+                  if f.name not in ("PrestigeCharacterUltra.java", "PrestigeCharacter.java",
+                                    "SlotRecordCapture.java", "DmzultraSlotCaptureMixin.java",
+                                    "LegacyMechanicsMixinPlugin.java"))
           and "import com.dmzultra" not in pc)
     check("every prestige record goes through the character: held, lifetime, override, confirm, favor",
           "LmPlayerStore" not in pc_ps and pc_ps.count("PrestigeCharacter.root(player)") == 10
@@ -1877,6 +1880,39 @@ def main() -> int:
           and "GOD_KI.formMastery(player) >= (double) max * masteryPerLevel()" in gw_kt)
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
+
+    print("\n--- § lm 4.7.43 ---")
+    p43_cap = read(SRC / "progression/shop/SlotRecordCapture.java")
+    p43_mix = read(SRC / "mixin/dmzultra/DmzultraSlotCaptureMixin.java")
+    p43_plugin = read(SRC / "mixin/LegacyMechanicsMixinPlugin.java")
+    p43_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
+    p43_ev = read(SRC / "event/DifficultyEvents.java")
+    p43_build = read(MOD / "build.sh")
+    p43_capture = p43_cap.split("static void capture(ServerPlayer player, SlotIndex index, String when) {", 1)[-1].split("private static synchronized Method recordMethod", 1)[0]
+    check("manifest lm-4743-slot-capture-on-logout row", "lm-4743-slot-capture-on-logout" in manifest)
+    check("slot capture mixin registered and gated on Ultra's slots classes",
+          '"dmzultra.DmzultraSlotCaptureMixin"' in p43_json
+          and 'endsWith("DmzultraSlotCaptureMixin")' in p43_plugin
+          and 'loader.getResource("com/dmzultra/slots/SlotService.class") != null' in p43_plugin)
+    check("mixin: logout HEAD + RETURN and stopped HEAD on SlotService, require 0, all wrapped",
+          '@Mixin(targets = "com.dmzultra.slots.SlotService", remap = false)' in p43_mix
+          and p43_mix.count('@Inject(method = "logout", at = @At("HEAD"), require = 0, remap = false)') == 1
+          and p43_mix.count('@Inject(method = "logout", at = @At("RETURN"), require = 0, remap = false)') == 1
+          and p43_mix.count('@Inject(method = "stopped", at = @At("HEAD"), require = 0, remap = false)') == 1
+          and p43_mix.count("catch (Throwable ignored)") == 3)
+    check("capture mirrors the switch path: record(player, slot, index.gen, false) then SlotStore.writeRecord",
+          'getDeclaredMethod("record", ServerPlayer.class, int.class, long.class,' in p43_cap
+          and "m.invoke(null, player, slot, gen, false);" in p43_capture
+          and "SlotStore.writeRecord(server, account, slot, out);" in p43_capture
+          and "long gen = index.gen;" in p43_capture
+          and "index.entry(slot) == null" in p43_capture)
+    check("capture never ends the form (no toBase) and never throws",
+          "toBase(" not in p43_capture and "DmzPart" not in p43_cap.split("public final class", 1)[1]
+          and "} catch (Throwable t) {" in p43_capture)
+    check("slot capture probe is test-only: src/probe, found by name, never in the production jar",
+          not (SRC / "progression/shop/SlotCaptureProbe.java").exists()
+          and (MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/shop/SlotCaptureProbe.java").exists()
+          and '"lm.probe.slotCapture"' in p43_ev and "|shop/SlotCaptureProbe|" in p43_build)
 
     print("\n--- § lm 4.7.42 ---")
     p42_core = read(SRC / "progression/HitTakenMastery.java")
