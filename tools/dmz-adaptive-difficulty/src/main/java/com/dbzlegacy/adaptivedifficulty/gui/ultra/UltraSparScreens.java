@@ -80,6 +80,8 @@ public final class UltraSparScreens {
             case "dojo", "roster" -> openDojo(player, "home");
             case "dojo_members", "dojo_members_own" -> openDojo(player, "members_own");
             case "dojo_members_joined" -> openDojo(player, "members_joined");
+            case "dojo_previous_members", "dojo_previous_members_own" -> openDojo(player, "previous_own");
+            case "dojo_previous_members_joined" -> openDojo(player, "previous_joined");
             case "dojo_hof", "chosen", "hall_of_chosen", "dojo_war_hof" -> openHallOfChosen(player);
             case "mentor", "actions" -> openMentor(player);
             case "pending", "invites" -> openPending(player, pickPage);
@@ -321,6 +323,11 @@ public final class UltraSparScreens {
             openDojoMembers(player, key);
             return;
         }
+        // Previous members: the same toggle, listing who left (4.7.44).
+        if ("previous_own".equals(key) || "previous_joined".equals(key)) {
+            openDojoMembers(player, key);
+            return;
+        }
         Map<String, String> ph = SparGuiApi.placeholders(player);
         UltraScreenSpec spec = base("dojo", "dojo");
         if (!"true".equalsIgnoreCase(ph.get("system_enabled"))) {
@@ -339,18 +346,22 @@ public final class UltraSparScreens {
         UltraPickHelper.placePageButtons(
                 spec,
                 "dojo_members|Dojo members",
+                "dojo_previous_members|Previous members",
                 "mentor|Actions");
         spec.footerBackToMain();
         spec.send(player);
     }
 
     /**
-     * Dojo members sub-page. The toggle is always available, including when the player
-     * owns neither dojo. Recruit and request stay on the Dojo tab.
+     * Dojo members sub-page (the current roster) and, for {@code previous_*} keys, the Previous members
+     * sub-page (who left this season). The toggle is always available, including when the player owns
+     * neither dojo. Recruit and request stay on the Dojo tab.
      */
     private static void openDojoMembers(ServerPlayer player, String key) {
-        boolean own = "members_own".equals(key);
-        String page = own ? "dojo_members_own" : "dojo_members_joined";
+        boolean previous = key != null && key.startsWith("previous");
+        boolean own = "members_own".equals(key) || "previous_own".equals(key);
+        String prefix = previous ? "dojo_previous_members" : "dojo_members";
+        String page = prefix + (own ? "_own" : "_joined");
         Map<String, String> ph = SparGuiApi.placeholders(player);
         UltraScreenSpec spec = sub(page);
         if (!"true".equalsIgnoreCase(ph.get("system_enabled"))) {
@@ -360,9 +371,10 @@ public final class UltraSparScreens {
             spec.send(player);
             return;
         }
-        List<String> lines = own
-                ? SparGuiApi.ownedDojoMemberLines(player)
-                : SparGuiApi.joinedDojoMemberLines(player);
+        List<String> lines = previous
+                ? (own ? SparGuiApi.ownedDojoPreviousMemberLines(player)
+                        : SparGuiApi.joinedDojoPreviousMemberLines(player))
+                : (own ? SparGuiApi.ownedDojoMemberLines(player) : SparGuiApi.joinedDojoMemberLines(player));
         if (lines != null) {
             for (String line : lines) {
                 if (line != null && !line.isBlank()) {
@@ -372,11 +384,11 @@ public final class UltraSparScreens {
         }
         spec.buttonsAfterLines();
         spec.buttonLeft(
-                        "page:dojo_members_own",
+                        "page:" + prefix + "_own",
                         own ? UltraStyle.confirm("Your dojo") : UltraStyle.dim("Your dojo"),
                         own ? "confirm" : "dim")
                 .buttonRight(
-                        "page:dojo_members_joined",
+                        "page:" + prefix + "_joined",
                         own ? UltraStyle.dim("Your mentor's dojo") : UltraStyle.confirm("Your mentor's dojo"),
                         own ? "dim" : "confirm")
                 .rowGap();

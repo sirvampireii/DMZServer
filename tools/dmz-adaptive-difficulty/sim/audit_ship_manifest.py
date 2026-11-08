@@ -1881,6 +1881,51 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.44 ---")
+    p44_dr = read(SRC / "sparring/DojoRankings.java")
+    p44_ui = read(SRC / "gui/ultra/UltraSparScreens.java")
+    p44_api = read(SRC / "gui/SparGuiApi.java")
+    p44_cmd = read(SRC / "command/SparCommands.java")
+    p44_ensure = p44_dr.split("public static void ensureSeason() {", 1)[-1].split("public static void advanceSeasonNow()", 1)[0]
+    p44_prev = p44_dr.split("private static List<String> previousMemberLinesForKey(", 1)[-1].split("private static Set<String> rosterUuids", 1)[0]
+    check("manifest lm-4744-dojo-roster-previous-members row", "lm-4744-dojo-roster-previous-members" in manifest)
+    check("members pages render the live roster (apprenticeCards / membershipDojoCards), not the whole board",
+          "return ownedRosterLines(player, \"Your dojo\");" in p44_dr
+          and "return joinedRosterLines(player, \"Your mentor's dojo\");" in p44_dr
+          and "SparringSystem.apprenticeCards(player)" in p44_dr
+          and "SparringSystem.membershipDojoCards(player)" in p44_dr
+          and "memberLinesForKey" not in p44_dr)
+    check("previous members = board rows not in the roster, ranked by RP, with the empty state",
+          "!roster.contains(m.uuid.trim().toLowerCase(Locale.ROOT))" in p44_prev
+          and "m.rpContributed).reversed()" in p44_prev
+          and "No previous members this season." in p44_prev
+          and ".remove(" not in p44_prev)
+    check("Dojo tab offers Previous members with the your-dojo / mentor's-dojo toggle pages",
+          '"dojo_previous_members|Previous members"' in p44_ui
+          and 'case "dojo_previous_members", "dojo_previous_members_own" -> openDojo(player, "previous_own");' in p44_ui
+          and 'case "dojo_previous_members_joined" -> openDojo(player, "previous_joined");' in p44_ui
+          and "SparGuiApi.ownedDojoPreviousMemberLines(player)" in p44_ui
+          and "SparGuiApi.joinedDojoPreviousMemberLines(player)" in p44_ui
+          and '"page:" + prefix + "_own"' in p44_ui and '"page:" + prefix + "_joined"' in p44_ui
+          and "ownedDojoPreviousMemberLines" in p44_api and "joinedDojoPreviousMemberLines" in p44_api)
+    check("/spar dojo previous-members and staff-only /spar dojo season advance [confirm]",
+          'Commands.m_82127_("previous-members")' in p44_cmd
+          and 'CommandAccess.staffLiteral("season")' in p44_cmd
+          and "dojoSeasonAdvance(ctx.getSource(), false)" in p44_cmd
+          and "dojoSeasonAdvance(ctx.getSource(), true)" in p44_cmd
+          and "StaffAccess.denyUnlessStaff(source) == 0" in p44_cmd.split("private static int dojoSeasonAdvance", 1)[-1][:400])
+    check("one rollover path: ensureSeason expiry and the staff advance both call advanceSeasonNow",
+          "advanceSeasonNow();" in p44_ensure and "archiveSeason(" not in p44_ensure
+          and p44_dr.count("archiveSeason(store.dojoSeason);") == 1
+          and "advanceSeasonNow();" in p44_dr.split("public static List<String> advanceSeasonByStaff()", 1)[-1][:900]
+          and "broadcast(" not in p44_dr.split("public static void advanceSeasonNow()", 1)[-1].split("private static SparStore.DojoSeason freshSeason", 1)[0])
+    p44_ev = read(SRC / "event/DifficultyEvents.java")
+    p44_build = read(MOD / "build.sh")
+    check("dojo roster probe is test-only: src/probe, found by name, never in the production jar",
+          not (SRC / "sparring/DojoRosterProbe.java").exists()
+          and (MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/sparring/DojoRosterProbe.java").exists()
+          and '"lm.probe.dojoRoster"' in p44_ev and "grep -Eq 'sparring/DojoRosterProbe'" in p44_build)
+
     print("\n--- § lm 4.7.43 ---")
     p43_cap = read(SRC / "progression/shop/SlotRecordCapture.java")
     p43_mix = read(SRC / "mixin/dmzultra/DmzultraSlotCaptureMixin.java")

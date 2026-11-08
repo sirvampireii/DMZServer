@@ -1,6 +1,6 @@
 # Ship manifest audit
 
-- **OK:** 685
+- **OK:** 692
 - **Errors:** 0
 
 ## Result

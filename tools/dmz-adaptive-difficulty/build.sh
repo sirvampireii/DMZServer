@@ -647,6 +647,10 @@ if jar tf "$JAR" | grep -Eq 'progression/(GodFormsGateProbe|ChamberWaveCapProbe|
   echo "ERROR: $JAR contains a test-only 4.7.37+ probe (they belong in src/probe/java)" >&2
   exit 1
 fi
+if jar tf "$JAR" | grep -Eq 'sparring/DojoRosterProbe'; then
+  echo "ERROR: $JAR contains the test-only 4.7.44 DojoRosterProbe (it belongs in src/probe/java)" >&2
+  exit 1
+fi
 if jar tf "$JAR" | grep -Eq 'StatsDataHudPoolMaxMixin|StatsDataOverhaulCombatScaleMixin'; then
   echo "ERROR: shipped jar still contains unregistered prestige scale mixin classes" >&2
   exit 1
