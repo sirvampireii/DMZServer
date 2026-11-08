@@ -53,6 +53,21 @@ in `mods/` has no probe classes, so the flag does nothing there except log one w
 - **Output:** `born fresh stats probe check <name>: OK|WRONG`, then `born fresh stats probe OK` or
   `FAILED: <n>`.
 
+## Chamber kill probe (`-Dlm.probe.chamberKill`)
+
+- **Source:** `src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/ChamberKillMasteryProbe.java` (4.7.45).
+- **Build and hook:** as the God forms probe (testprobe jar, one run at server start).
+- **What it does:** a real (non-fake) ServerPlayer in a real 0.04/hit form of their race, power release 0 so
+  DMZ's per-hit grant stays out, kills zombies marked the way DMZ Ultra marks chamber wave foes. It checks:
+  - melee, ki blast (owner as the cause) and arrow (owner through the projectile) kills each grant 1.0 before
+    boosts (times the racial factor `gainMastery` applies, measured first);
+  - a form at another per-hit rate grants 25 x that rate (0.05 is set on the form for the probe if the race
+    has no other rate);
+  - Mastery Gain multiplies the kill grant by `applyMasteryGainMultiplier`'s factor;
+  - a vanished foe, a generic-damage death, a fake player's kill, an unmarked mob and a kill with no active
+    form grant nothing; a kill at the cap stops at the form's max mastery.
+- **Output:** `chamber kill probe check <name>: OK|WRONG`, then `chamber kill probe OK` or `FAILED: <n>`.
+
 ## Dojo roster probe (`-Dlm.probe.dojoRoster`)
 
 - **Source:** `src/probe/java/com/dbzlegacy/adaptivedifficulty/sparring/DojoRosterProbe.java` (4.7.44).
