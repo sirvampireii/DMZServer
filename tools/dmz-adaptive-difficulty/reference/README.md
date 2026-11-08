@@ -548,3 +548,8 @@ files; re-extract from an audited jar when the baseline changes. Keep the `CLASS
 
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.44.jar`; javap diff checked
 (the `4.7.43` -> `4.7.44` constant is the only change). The other 24 are unchanged.
+
+## Re-baseline (2026-11-08, 4.7.45 chamber kill mastery)
+
+`AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.45.jar`; javap diff checked
+(the `4.7.44` -> `4.7.45` constant is the only change). The other 24 are unchanged.

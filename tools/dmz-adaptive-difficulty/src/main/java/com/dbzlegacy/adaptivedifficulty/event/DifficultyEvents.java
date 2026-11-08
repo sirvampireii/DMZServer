@@ -181,6 +181,8 @@ public final class DifficultyEvents {
                 "com.dbzlegacy.adaptivedifficulty.progression.shop.SlotCaptureProbe");
         runStartProbe(event.getServer(), "lm.probe.dojoRoster",
                 "com.dbzlegacy.adaptivedifficulty.sparring.DojoRosterProbe");
+        runStartProbe(event.getServer(), "lm.probe.chamberKill",
+                "com.dbzlegacy.adaptivedifficulty.progression.ChamberKillMasteryProbe");
         try {
             com.dbzlegacy.adaptivedifficulty.data.CnpcDataMigrator.migrateWorldIfNeeded(event.getServer());
         } catch (Throwable t) {
@@ -1122,6 +1124,16 @@ public final class DifficultyEvents {
             }
         }
         PlayerStatChecker.onEntityInteract(event);
+    }
+
+    /**
+     * 4.7.45: form mastery per kill of a DMZ Ultra chamber wave foe ({@link
+     * com.dbzlegacy.adaptivedifficulty.progression.ChamberKillMastery}). Lowest priority and uncancelled, so only
+     * a death that really happens counts; not behind the AD master gate.
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onChamberWaveKill(LivingDeathEvent event) {
+        com.dbzlegacy.adaptivedifficulty.progression.ChamberKillMastery.onDeath(event);
     }
 
     /**

@@ -1881,6 +1881,33 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.45 ---")
+    p45 = read(SRC / "progression/ChamberKillMastery.java")
+    p45_ev = read(SRC / "event/DifficultyEvents.java")
+    p45_grant = p45.split("public static double grant(ServerPlayer killer) {", 1)[-1]
+    check("manifest lm-4745-chamber-kill-mastery row", "lm-4745-chamber-kill-mastery" in manifest)
+    check("wave foe = Ultra's persistent-data uuid; lowest-priority death hook",
+          'WAVE_FOE = "dmzultra_chamber_enemy"' in p45 and "PersistentDataAccess.get(dead).m_128403_(WAVE_FOE)" in p45
+          and re.search(r"@SubscribeEvent\(priority = EventPriority\.LOWEST\)\s+public void onChamberWaveKill\("
+                        r"LivingDeathEvent event\)", p45_ev) is not None)
+    check("kill = 25 hits of masteryPerHitDealt through applyMasteryGainMultiplier then gainMastery, synced",
+          "KILL_HITS = 25.0;" in p45
+          and "PotionEffectHelper.applyMasteryGainMultiplier(killer, perHit * KILL_HITS)" in p45_grant
+          and "character.gainMastery(group, form, value);" in p45_grant
+          and "new StatsSyncS2C(killer)" in p45_grant)
+    check("no LM factor, no own clamp or write: gainMastery owns the cap",
+          "HitTakenMastery." not in p45 and "setMastery" not in p45 and "addMastery" not in p45
+          and "Math.min" not in p45)
+    check("player killers only (projectile / summon owners), never fake players; active-form guard",
+          "source.m_7639_()" in p45 and "projectile.m_19749_()" in p45 and "ownable.m_269323_()" in p45
+          and "instanceof FakePlayer ? null" in p45
+          and "group == null || group.isEmpty() || form == null || form.isEmpty() || formData == null" in p45_grant)
+    p45_build = read(MOD / "build.sh")
+    check("chamber kill probe is test-only: src/probe, found by name, never in the production jar",
+          not (SRC / "progression/ChamberKillMasteryProbe.java").exists()
+          and (MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/ChamberKillMasteryProbe.java").exists()
+          and '"lm.probe.chamberKill"' in p45_ev and "grep -Eq 'progression/ChamberKillMasteryProbe'" in p45_build)
+
     print("\n--- § lm 4.7.44 ---")
     p44_dr = read(SRC / "sparring/DojoRankings.java")
     p44_ui = read(SRC / "gui/ultra/UltraSparScreens.java")
