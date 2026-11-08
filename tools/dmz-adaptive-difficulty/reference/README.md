@@ -543,3 +543,8 @@ REF="tools/dmz-adaptive-difficulty/reference/prestige-shop-228.1"
 will trip the gate; re-baseline in the same commit as the version bump. Do not hand-edit `.class`
 files; re-extract from an audited jar when the baseline changes. Keep the `CLASS_PATHS` list in
 `sim/audit_prestige_shop_classes.py` in sync with the committed files.
+
+## Re-baseline (2026-11-08, 4.7.44 dojo roster / previous members)
+
+`AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.44.jar`; javap diff checked
+(the `4.7.43` -> `4.7.44` constant is the only change). The other 24 are unchanged.

@@ -1464,6 +1464,10 @@ public final class SparringSystem {
         return DojoRankings.memberLines(player);
     }
 
+    public static List<String> dojoPreviousMemberLines(ServerPlayer player) {
+        return DojoRankings.previousMemberLines(player);
+    }
+
     public static List<String> dojoMemberCards(ServerPlayer player) {
         return DojoRankings.memberContributionCards(player);
     }

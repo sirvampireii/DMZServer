@@ -5,10 +5,12 @@ import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.LmChat;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.server.MinecraftServer;
@@ -24,6 +26,7 @@ public final class DojoRankings {
     private DojoRankings() {}
 
     public static final long SEASON_MS = 75L * 24L * 60L * 60L * 1000L;
+    private static final long DAY_MS = 24L * 60L * 60L * 1000L;
     public static final long CHALLENGE_TTL_MS = 24L * 60L * 60L * 1000L;
     public static final double BASE_RP_PER_WIN = 12.0;
     public static final double CHALLENGE_RP_MULT = 2.0;
@@ -153,10 +156,63 @@ public final class DojoRankings {
             return;
         }
         if (now - season.startedAt >= SEASON_MS) {
-            archiveSeason(season);
-            store.dojoSeason = freshSeason(now);
-            store.markDirty();
+            advanceSeasonNow();
         }
+    }
+
+    /**
+     * Ends the current season now: archives its top 3 to the Hall of Chosen (with the end-of-season broadcast)
+     * and starts the next one. The one rollover path, used by the 75-day expiry and the staff advance.
+     */
+    public static void advanceSeasonNow() {
+        SparStore store = SparStore.get();
+        archiveSeason(store.dojoSeason);
+        store.dojoSeason = freshSeason(System.currentTimeMillis());
+        store.markDirty();
+    }
+
+    /** {@code /spar dojo season advance}: what a confirmed advance would do. Changes nothing. */
+    public static List<String> seasonAdvancePreviewLines() {
+        ensureSeason();
+        SparStore.DojoSeason season = SparStore.get().dojoSeason;
+        List<String> lines = new ArrayList<>();
+        lines.add(UltraStyle.GOLD + "Advance the dojo season");
+        long days = Math.max(0L, (System.currentTimeMillis() - season.startedAt) / DAY_MS);
+        lines.add(UltraStyle.LABEL + "Season " + UltraStyle.VALUE + "#" + season.seasonId + " " + UltraStyle.DIM
+                + "| " + UltraStyle.LABEL + days + " of " + (SEASON_MS / DAY_MS) + " days gone");
+        List<Map.Entry<String, SparStore.DojoEntry>> top = season.leaderboard == null
+                ? List.of() : sortedEntries(season.leaderboard, "rp", 1);
+        if (top.isEmpty() || top.get(0).getValue() == null) {
+            lines.add(UltraStyle.LABEL + "No dojo has ranking points yet, so nothing goes to the Hall of Chosen.");
+        } else {
+            lines.add(UltraStyle.LABEL + "Leading: " + UltraStyle.VALUE + dojoDisplayName(top.get(0).getKey()) + " "
+                    + UltraStyle.LABEL + (int) top.get(0).getValue().seasonRp + " RP");
+        }
+        lines.add(UltraStyle.YELLOW + "Confirming ends season #" + season.seasonId + " now for everyone: the top 3 "
+                + "dojos go to the Hall of Chosen, all season points and member boards reset, and season #"
+                + (season.seasonId + 1) + " starts. This cannot be undone.");
+        lines.add(UltraStyle.LABEL + "To do it, run " + UltraStyle.VALUE + "/spar dojo season advance confirm");
+        return lines;
+    }
+
+    /** {@code /spar dojo season advance confirm}: ends the season now (staff). */
+    public static List<String> advanceSeasonByStaff() {
+        SparStore store = SparStore.get();
+        SparStore.DojoSeason before = store.dojoSeason;
+        ensureSeason();
+        int ended;
+        if (before != null && store.dojoSeason != before) {
+            // It had already run out; ensureSeason just ended it the normal way.
+            ended = before.seasonId;
+        } else {
+            ended = store.dojoSeason.seasonId;
+            advanceSeasonNow();
+        }
+        List<String> lines = new ArrayList<>();
+        lines.add(UltraStyle.GOLD + "Dojo season " + UltraStyle.VALUE + "#" + ended + UltraStyle.GOLD + " ended. "
+                + UltraStyle.LABEL + "Season " + UltraStyle.VALUE + "#" + store.dojoSeason.seasonId
+                + UltraStyle.LABEL + " has started.");
+        return lines;
     }
 
     private static SparStore.DojoSeason freshSeason(long now) {
@@ -672,43 +728,85 @@ public final class DojoRankings {
         return lines;
     }
 
+    /**
+     * {@code /spar dojo members}: the current roster of the player's home dojo (the mentor's dojo they joined,
+     * else the dojo they own), as the GUI's Dojo members page shows it.
+     */
     public static List<String> memberLines(ServerPlayer player) {
-        return memberLinesForKey(homeDojoKey(player), "Dojo members");
+        String key = homeDojoKey(player);
+        if (key == null) {
+            return guidance("Dojo members", "Join a dojo to see its members.", "Request a master from Actions.");
+        }
+        return key.equals(selfKey(player)) ? ownedRosterLines(player, "Dojo members")
+                : joinedRosterLines(player, "Dojo members");
     }
 
-    /** Contribution lines for the dojo the player owns (master), or empty guidance. */
+    /** Current roster of the dojo the player owns (master), each with their season contribution. */
     public static List<String> ownedDojoMemberLines(ServerPlayer player) {
-        if (player == null || !isDojoMaster(player)) {
-            List<String> lines = new ArrayList<>();
-            lines.add(UltraStyle.GOLD + "Your dojo");
-            lines.add(UltraStyle.LABEL + "You do not own a dojo yet.");
-            lines.add(UltraStyle.DIM + "Recruit apprentices from Actions to start one.");
-            return lines;
-        }
-        String key = player.m_20148_().toString().toLowerCase(Locale.ROOT);
-        return memberLinesForKey(key, "Your dojo");
+        return ownedRosterLines(player, "Your dojo");
     }
 
-    /** Contribution / roster lines for the dojo the player joined (has a mentor). */
+    /** Current roster of the dojo the player joined (has a mentor), each with their season contribution. */
     public static List<String> joinedDojoMemberLines(ServerPlayer player) {
-        if (player == null) {
-            List<String> lines = new ArrayList<>();
-            lines.add(UltraStyle.GOLD + "Your mentor's dojo");
-            lines.add(UltraStyle.LABEL + "You are not in a mentor's dojo.");
-            lines.add(UltraStyle.DIM + "Request a master from Actions.");
-            return lines;
+        return joinedRosterLines(player, "Your mentor's dojo");
+    }
+
+    /**
+     * {@code /spar dojo previous-members}: players on the home dojo's season board who are no longer in its roster.
+     */
+    public static List<String> previousMemberLines(ServerPlayer player) {
+        String key = homeDojoKey(player);
+        if (key == null) {
+            key = selfKey(player);
+            if (key == null || entry(key) == null) {
+                return guidance("Previous members", "Join a dojo to see who left it.", "Request a master from Actions.");
+            }
         }
-        SparStore.MentorBond bond = SparStore.get().bond(player.m_20148_());
-        if (bond == null || bond.mentorUuid == null || bond.mentorUuid.isBlank()) {
-            List<String> lines = new ArrayList<>();
-            lines.add(UltraStyle.GOLD + "Your mentor's dojo");
-            lines.add(UltraStyle.LABEL + "You are not in a mentor's dojo.");
-            lines.add(UltraStyle.DIM + "Request a master from Actions.");
-            return lines;
+        return previousMemberLinesForKey(key, "Previous members");
+    }
+
+    /** Players who left the dojo the player owns, with their season contribution. */
+    public static List<String> ownedDojoPreviousMemberLines(ServerPlayer player) {
+        String key = selfKey(player);
+        // A master who released everyone still has a season board to look back on.
+        if (key == null || (!isDojoMaster(player) && entry(key) == null)) {
+            return notOwned("Your dojo");
         }
-        String key = bond.mentorUuid.trim().toLowerCase(Locale.ROOT);
-        List<String> lines = memberLinesForKey(key, "Your mentor's dojo");
-        // Roster roles from membership cards (mentor + peers).
+        return previousMemberLinesForKey(key, "Your dojo");
+    }
+
+    /** Players who left the mentor's dojo the player joined, with their season contribution. */
+    public static List<String> joinedDojoPreviousMemberLines(ServerPlayer player) {
+        String key = mentorKey(player);
+        if (key == null) {
+            return notJoined("Your mentor's dojo");
+        }
+        return previousMemberLinesForKey(key, "Your mentor's dojo");
+    }
+
+    private static List<String> ownedRosterLines(ServerPlayer player, String heading) {
+        if (player == null || !isDojoMaster(player)) {
+            return notOwned(heading);
+        }
+        String key = selfKey(player);
+        List<String[]> roster = new ArrayList<>();
+        roster.add(new String[] {"Master", key, player.m_7755_().getString()});
+        for (String card : SparringSystem.apprenticeCards(player)) {
+            String[] p = card == null ? new String[0] : card.split("\t", -1);
+            if (p.length < 2 || p[0].isBlank()) {
+                continue;
+            }
+            roster.add(new String[] {"Apprentice", p[0].trim(), p[1].trim()});
+        }
+        return rosterLines(key, heading, roster);
+    }
+
+    private static List<String> joinedRosterLines(ServerPlayer player, String heading) {
+        String key = mentorKey(player);
+        if (key == null) {
+            return notJoined(heading);
+        }
+        List<String[]> roster = new ArrayList<>();
         for (String card : SparringSystem.membershipDojoCards(player)) {
             if (card == null || card.isBlank()) {
                 continue;
@@ -724,40 +822,133 @@ public final class DojoRankings {
                 case "you" -> "You";
                 default -> "Apprentice";
             };
-            lines.add(UltraStyle.DIM + "  - " + UltraStyle.LABEL + roleLabel + " " + UltraStyle.VALUE + blank(name, "-"));
+            roster.add(new String[] {roleLabel, p[1] == null ? "" : p[1].trim(), name});
+        }
+        return rosterLines(key, heading, roster);
+    }
+
+    /** Roster rows ({@code role, uuid, name}) in roster order, each with its season board row where one exists. */
+    private static List<String> rosterLines(String key, String heading, List<String[]> roster) {
+        List<String> lines = new ArrayList<>();
+        lines.add(UltraStyle.GOLD + heading);
+        lines.add(UltraStyle.LABEL + "Dojo " + UltraStyle.VALUE + dojoDisplayName(key));
+        SparStore.DojoEntry e = entry(key);
+        for (String[] m : roster) {
+            lines.add(UltraStyle.DIM + "  - " + UltraStyle.LABEL + m[0] + " " + UltraStyle.VALUE + blank(m[2], "-"));
+            SparStore.DojoMemberStats s = boardRow(e, m[1]);
+            if (s != null) {
+                lines.add(UltraStyle.DIM + "    " + contribution(s));
+            }
+        }
+        if (e == null || e.members == null || e.members.isEmpty()) {
+            lines.add(UltraStyle.DIM + "No rival-dojo spars logged this season.");
         }
         return lines;
     }
 
-    private static List<String> memberLinesForKey(String key, String heading) {
+    /**
+     * Season board rows for players who are neither the master nor in the current roster, ranked by RP. A filtered
+     * view: the board itself is never pruned, and it resets with the season.
+     */
+    private static List<String> previousMemberLinesForKey(String key, String heading) {
         List<String> lines = new ArrayList<>();
-        lines.add(UltraStyle.GOLD + (heading == null || heading.isBlank() ? "Dojo members" : heading));
-        if (key == null || key.isBlank()) {
-            lines.add(UltraStyle.LABEL + "Join a dojo to see contributions.");
-            return lines;
-        }
+        lines.add(UltraStyle.GOLD + heading);
         lines.add(UltraStyle.LABEL + "Dojo " + UltraStyle.VALUE + dojoDisplayName(key));
+        lines.add(UltraStyle.DIM + "Players who left this dojo, with what they earned for it this season.");
+        Set<String> roster = rosterUuids(key);
         SparStore.DojoEntry e = entry(key);
-        if (e == null || e.members == null || e.members.isEmpty()) {
-            lines.add(UltraStyle.LABEL + "No rival-dojo spars logged this season.");
+        List<SparStore.DojoMemberStats> gone = new ArrayList<>();
+        if (e != null && e.members != null) {
+            for (SparStore.DojoMemberStats m : e.members.values()) {
+                if (m != null && m.uuid != null && !m.uuid.isBlank()
+                        && !roster.contains(m.uuid.trim().toLowerCase(Locale.ROOT))) {
+                    gone.add(m);
+                }
+            }
+        }
+        if (gone.isEmpty()) {
+            lines.add(UltraStyle.LABEL + "No previous members this season.");
             return lines;
         }
-        List<SparStore.DojoMemberStats> sorted = new ArrayList<>(e.members.values());
-        sorted.sort(Comparator.comparingDouble((SparStore.DojoMemberStats m) -> m.rpContributed).reversed());
+        gone.sort(Comparator.comparingDouble((SparStore.DojoMemberStats m) -> m.rpContributed).reversed());
         int rank = 1;
-        for (SparStore.DojoMemberStats m : sorted) {
-            if (m == null) {
-                continue;
-            }
-            lines.add(UltraStyle.YELLOW + "#" + rank + " " + UltraStyle.VALUE + blank(m.name, "-")
-                    + " " + UltraStyle.LABEL + (int) m.rpContributed + " RP"
-                    + " " + UltraStyle.DIM + "| " + UltraStyle.GREEN + m.wins + "W " + UltraStyle.DANGER + m.losses + "L"
-                    + " " + UltraStyle.DIM + "| " + UltraStyle.VALUE + DmzRewards.formatWhole(m.tp) + " TP");
+        for (SparStore.DojoMemberStats m : gone) {
+            lines.add(UltraStyle.YELLOW + "#" + rank + " " + UltraStyle.VALUE + blank(m.name, "-") + " " + contribution(m));
             rank++;
             if (rank > 10) {
                 break;
             }
         }
+        return lines;
+    }
+
+    /** The master and every apprentice in the live bond roster, as lowercase uuids. */
+    private static Set<String> rosterUuids(String key) {
+        Set<String> out = new HashSet<>();
+        out.add(key.trim().toLowerCase(Locale.ROOT));
+        SparStore.MentorBond bond = SparStore.get().bondsByPlayer.get(key);
+        if (bond != null) {
+            bond.normalizeApprentices();
+            for (SparStore.ApprenticeRef r : bond.apprentices) {
+                if (r != null && r.uuid != null && !r.uuid.isBlank()) {
+                    out.add(r.uuid.trim().toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+        return out;
+    }
+
+    private static SparStore.DojoMemberStats boardRow(SparStore.DojoEntry e, String uuid) {
+        if (e == null || e.members == null || uuid == null || uuid.isBlank()) {
+            return null;
+        }
+        String id = uuid.trim().toLowerCase(Locale.ROOT);
+        SparStore.DojoMemberStats s = e.members.get(id);
+        if (s != null) {
+            return s;
+        }
+        for (SparStore.DojoMemberStats m : e.members.values()) {
+            if (m != null && m.uuid != null && id.equalsIgnoreCase(m.uuid.trim())) {
+                return m;
+            }
+        }
+        return null;
+    }
+
+    private static String contribution(SparStore.DojoMemberStats m) {
+        return UltraStyle.LABEL + (int) m.rpContributed + " RP"
+                + " " + UltraStyle.DIM + "| " + UltraStyle.VALUE + DmzRewards.formatWhole(m.tp) + " TP"
+                + " " + UltraStyle.DIM + "| " + UltraStyle.GREEN + m.wins + "W " + UltraStyle.DANGER + m.losses + "L";
+    }
+
+    private static String selfKey(ServerPlayer player) {
+        return player == null ? null : player.m_20148_().toString().toLowerCase(Locale.ROOT);
+    }
+
+    private static String mentorKey(ServerPlayer player) {
+        if (player == null) {
+            return null;
+        }
+        SparStore.MentorBond bond = SparStore.get().bond(player.m_20148_());
+        if (bond == null || bond.mentorUuid == null || bond.mentorUuid.isBlank()) {
+            return null;
+        }
+        return bond.mentorUuid.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static List<String> notOwned(String heading) {
+        return guidance(heading, "You do not own a dojo yet.", "Recruit apprentices from Actions to start one.");
+    }
+
+    private static List<String> notJoined(String heading) {
+        return guidance(heading, "You are not in a mentor's dojo.", "Request a master from Actions.");
+    }
+
+    private static List<String> guidance(String heading, String what, String hint) {
+        List<String> lines = new ArrayList<>();
+        lines.add(UltraStyle.GOLD + heading);
+        lines.add(UltraStyle.LABEL + what);
+        lines.add(UltraStyle.DIM + hint);
         return lines;
     }
 

@@ -245,6 +245,27 @@ public final class SparGuiApi {
         return DojoRankings.joinedDojoMemberLines(player);
     }
 
+    public static List<String> dojoPreviousMemberLines(ServerPlayer player) {
+        if (player == null || !DifficultyConfig.get().enableSparringSystem) {
+            return List.of(UltraStyle.DANGER + "Sparring system is disabled.");
+        }
+        return SparringSystem.dojoPreviousMemberLines(player);
+    }
+
+    public static List<String> ownedDojoPreviousMemberLines(ServerPlayer player) {
+        if (player == null || !DifficultyConfig.get().enableSparringSystem) {
+            return List.of(UltraStyle.DANGER + "Sparring system is disabled.");
+        }
+        return DojoRankings.ownedDojoPreviousMemberLines(player);
+    }
+
+    public static List<String> joinedDojoPreviousMemberLines(ServerPlayer player) {
+        if (player == null || !DifficultyConfig.get().enableSparringSystem) {
+            return List.of(UltraStyle.DANGER + "Sparring system is disabled.");
+        }
+        return DojoRankings.joinedDojoPreviousMemberLines(player);
+    }
+
     public static boolean ownsDojo(ServerPlayer player) {
         return player != null && DojoRankings.isDojoMaster(player);
     }
@@ -436,6 +457,7 @@ public final class SparGuiApi {
             case "dojo_war" -> dojoWarLines(player);
             case "dojo_hof", "dojo_hall", "dojo_hall_of_fame" -> dojoHallOfFameLines(player);
             case "dojo_members", "dojo_contributions" -> dojoMemberLines(player);
+            case "dojo_previous_members" -> dojoPreviousMemberLines(player);
             case "mentor", "actions", "dojo", "roster", "apprentices" -> mentorLines(player);
             case "pending", "invites", "pendinginvites" -> pendingMentorLines(player);
             case "help" -> List.of(

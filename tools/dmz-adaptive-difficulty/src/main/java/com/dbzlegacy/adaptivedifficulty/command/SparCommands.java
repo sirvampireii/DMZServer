@@ -3,6 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.command;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.rival.RivalSystem;
+import com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings;
 import com.dbzlegacy.adaptivedifficulty.sparring.SparStore;
 import com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem;
 import com.dbzlegacy.adaptivedifficulty.gui.SparGuiApi;
@@ -12,6 +13,7 @@ import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import java.util.List;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -60,6 +62,13 @@ public final class SparCommands {
                         .then(CommandAccess.staffLiteral("decline").executes(ctx -> dojoDecline(ctx.getSource())))
                         .then(Commands.m_82127_("hof").executes(ctx -> dojoHof(ctx.getSource())))
                         .then(Commands.m_82127_("members").executes(ctx -> dojoMembers(ctx.getSource())))
+                        .then(Commands.m_82127_("previous-members")
+                                .executes(ctx -> dojoPreviousMembers(ctx.getSource())))
+                        .then(CommandAccess.staffLiteral("season")
+                                .then(Commands.m_82127_("advance")
+                                        .executes(ctx -> dojoSeasonAdvance(ctx.getSource(), false))
+                                        .then(Commands.m_82127_("confirm")
+                                                .executes(ctx -> dojoSeasonAdvance(ctx.getSource(), true)))))
                         .then(Commands.m_82127_("name")
                                 .then(Commands.m_82129_("display", StringArgumentType.greedyString())
                                         .executes(ctx -> dojoName(
@@ -302,6 +311,35 @@ public final class SparCommands {
         }
         for (String line : SparringSystem.dojoMemberLines(player)) {
             DmzRewards.msg(player, line);
+        }
+        return 1;
+    }
+
+    private static int dojoPreviousMembers(CommandSourceStack source) {
+        ServerPlayer player = playerOrNull(source);
+        if (player == null || !enabled(player)) {
+            return 0;
+        }
+        for (String line : SparringSystem.dojoPreviousMemberLines(player)) {
+            DmzRewards.msg(player, line);
+        }
+        return 1;
+    }
+
+    /** Staff, console or in game: the bare form previews; {@code confirm} ends the season now. */
+    private static int dojoSeasonAdvance(CommandSourceStack source, boolean confirm) {
+        if (StaffAccess.denyUnlessStaff(source) == 0) {
+            return 0;
+        }
+        List<String> lines = confirm ? DojoRankings.advanceSeasonByStaff() : DojoRankings.seasonAdvancePreviewLines();
+        // One message per line, so the console gets readable lines too.
+        for (String line : lines) {
+            source.m_288197_(() -> Component.m_237113_(line), false);
+        }
+        if (confirm) {
+            ServerPlayer who = source.m_230896_();
+            AdaptiveDifficultyMod.LOGGER.info("[{}] dojo season advanced by {}", AdaptiveDifficultyMod.MOD_ID,
+                    who == null ? "console" : who.m_7755_().getString());
         }
         return 1;
     }
