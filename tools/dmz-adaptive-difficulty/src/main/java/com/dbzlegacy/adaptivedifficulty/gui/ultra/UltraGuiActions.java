@@ -547,7 +547,18 @@ public final class UltraGuiActions {
                 }
                 case "prestige" ->
                         nullToEmpty(ProgressionGuiApi.handlePrestigeDo(data, act, arg, page));
-                case "character", "saga" -> characterDo(viewer, data, act, arg, page);
+                case "character", "saga" -> {
+                    // 4.7.46 (P-03): the find box's typed value rides args.value (buttonBound).
+                    if ("bodypart_find".equals(act)) {
+                        yield nullToEmpty(com.dbzlegacy.adaptivedifficulty.character.CosmeticBodyPartService
+                                .executeFind(data, stringArg(args, "value")));
+                    }
+                    if ("bodypart_find_recent".equals(act)) {
+                        yield nullToEmpty(com.dbzlegacy.adaptivedifficulty.character.CosmeticBodyPartService
+                                .executeFindRecent(data, arg));
+                    }
+                    yield characterDo(viewer, data, act, arg, page);
+                }
                 case "progression" -> nullToEmpty(ProgressionGuiApi.handleDo(data, act, arg, page));
                 case "config" ->
                         nullToEmpty(UltraConfigScreens.handleAction(viewer, act, arg, page, args));

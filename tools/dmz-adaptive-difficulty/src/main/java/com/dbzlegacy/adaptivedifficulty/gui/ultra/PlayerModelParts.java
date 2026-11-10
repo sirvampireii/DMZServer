@@ -57,6 +57,26 @@ public final class PlayerModelParts {
     }
 
     /**
+     * Confirm-page preview (4.7.46, P-05): {@link #snapshot} with one candidate applied, so the
+     * player sees it on their character before paying. {@code candidatePart} is a Body Parts Shop
+     * piece added to the worn set (same order and single-tail rule as after the purchase);
+     * {@code candidateHeadToken} replaces the worn head-bone token. Either may be null. Nothing
+     * is stored. Ids come from the active catalog, so the preview is gated by Ultra version too.
+     */
+    public static JsonObject previewSnapshot(ServerPlayer player, String candidatePart, String candidateHeadToken) {
+        ServerPlayer target = renderTarget(player);
+        if (target == null) {
+            return null;
+        }
+        boolean other = previewsOtherPlayer(target);
+        JsonObject parts = build(target, other, candidatePart, candidateHeadToken);
+        if (parts == null && !other) {
+            return null;
+        }
+        return parts;
+    }
+
+    /**
      * Authoritative snapshot for the world-sync message ({@code GuiModelSyncPacket}) —
      * always non-null, always {@code subject uuid:<owner-uuid>} (so every receiving client
      * binds the parts to the owner, not to itself), no inspect redirect, and always carries
@@ -82,12 +102,16 @@ public final class PlayerModelParts {
 
     /** Core parts object for {@code target}. Null when nothing applies and not {@code other}. */
     private static JsonObject build(ServerPlayer target, boolean other) {
+        return build(target, other, null, null);
+    }
+
+    private static JsonObject build(ServerPlayer target, boolean other, String candidatePart, String candidateHeadToken) {
         JsonObject parts = new JsonObject();
         parts.addProperty("schema", SCHEMA);
         parts.addProperty("subject", other ? "uuid:" + target.m_20148_() : "local");
 
         boolean any = false;
-        JsonObject head = headBones(target);
+        JsonObject head = headBones(target, candidateHeadToken);
         if (head != null) {
             parts.add("headBones", head);
             any = true;
@@ -97,7 +121,7 @@ public final class PlayerModelParts {
             parts.add("form", form);
             any = true;
         }
-        JsonArray body = bodyParts(target);
+        JsonArray body = bodyParts(target, candidatePart);
         if (body != null && !body.isEmpty()) {
             parts.add("bodyParts", body);
             any = true;
@@ -260,10 +284,10 @@ public final class PlayerModelParts {
                 && !viewer.m_20148_().equals(target.m_20148_());
     }
 
-    private static JsonObject headBones(ServerPlayer player) {
+    private static JsonObject headBones(ServerPlayer player, String overrideToken) {
         String token = "";
         try {
-            token = CosmeticHeadBoneService.activeBone(player);
+            token = overrideToken != null ? overrideToken : CosmeticHeadBoneService.activeBone(player);
         } catch (Throwable ignored) {
         }
         if (token == null) {
@@ -305,7 +329,7 @@ public final class PlayerModelParts {
      * tail to other players. Single-tail rule: the array never carries two {@code SLOT_TAIL}
      * entries — a form tail beats a shop tail. Empty when nothing applies. Never throws.
      */
-    private static JsonArray bodyParts(ServerPlayer player) {
+    private static JsonArray bodyParts(ServerPlayer player, String candidatePart) {
         JsonArray out = new JsonArray();
         try {
             Character ch = null;
@@ -332,6 +356,13 @@ public final class PlayerModelParts {
             }
             // Custom Body Parts Shop pieces the player turned on.
             List<String> custom = CosmeticBodyPartService.equippedParts(player);
+            if (candidatePart != null && CosmeticBodyPartService.isPartKnown(candidatePart)) {
+                String id = candidatePart.trim().toLowerCase(Locale.ROOT);
+                if (!custom.contains(id)) {
+                    custom = new java.util.ArrayList<>(custom);
+                    custom.add(id);
+                }
+            }
             Set<String> seen = new java.util.LinkedHashSet<>();
             boolean tailOccupied = false;
             for (BodyPartCatalog.Part part :

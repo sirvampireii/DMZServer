@@ -3244,7 +3244,7 @@ def main() -> int:
         / "src"
         / "main"
         / "resources"
-        / "dmzultra-form-parts.json"
+        / "dmzultra-form-parts-0.4.0.json"
     )
     check(
         "Ultra Body Parts Shop service mirrors the head-bone shop",
@@ -3280,7 +3280,8 @@ def main() -> int:
         "Ultra model customize opens Body parts page (bodyparts: routing)",
         '"bodyparts:"' in char_screens_bp
         and "openBodyParts" in char_screens_bp
-        and 'sub(player, "bodyparts:" + pg, true)' in char_screens_bp
+        and '"bodyparts:" + pg' in char_screens_bp
+        and 'sub(player, self, true)' in char_screens_bp
         and '"page:bodyparts:0"' in char_screens_bp,
     )
     check(

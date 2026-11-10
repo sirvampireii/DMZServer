@@ -50,6 +50,9 @@ KNOWN_DO: dict[str, set[str]] = {
         "bodypart_clear",
         "bodypart_color",
         "bodypart_color_reset",
+        # 4.7.46: Find a body part (P-03).
+        "bodypart_find",
+        "bodypart_find_recent",
         "saga_confirm",
         "saga_reset",
         "android_remove",

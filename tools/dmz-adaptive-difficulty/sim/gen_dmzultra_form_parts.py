@@ -2,7 +2,12 @@
 """Regenerate src/main/resources/dmzultra-form-parts.json from a DMZ Ultra jar.
 
 Usage:
-    PYTHONUTF8=1 python sim/gen_dmzultra_form_parts.py <dmzultra-X.Y.Z.jar> [--check]
+    PYTHONUTF8=1 python sim/gen_dmzultra_form_parts.py <dmzultra-X.Y.Z.jar> [--check] [--out FILE]
+
+Default output: src/main/resources/dmzultra-form-parts-<ultra version>.json (one shipped catalog per Ultra
+version; BodyPartCatalog picks the newest one the installed Ultra can draw). LM's UltraFormPartsGenerator is the
+Java port of this script, used at boot when the installed Ultra is newer than every shipped catalog; keep the two
+in step.
 
 Reads the jar directly (nothing is extracted):
   - assets/dmzultra/form_parts/forms.json: the client's piece list ('pieces') and its forms.
@@ -30,7 +35,7 @@ import sys
 import zipfile
 from pathlib import Path
 
-OUT = Path(__file__).resolve().parent.parent / "src" / "main" / "resources" / "dmzultra-form-parts.json"
+RESOURCES = Path(__file__).resolve().parent.parent / "src" / "main" / "resources"
 SERVER_ALIASES = Path(__file__).resolve().parent / "form-parts-server-aliases.json"
 BASE = "assets/dmzultra/form_parts/"
 KEY = re.compile(r"^[a-z0-9_]+/[a-z0-9_]+/[a-z0-9_]+$")
@@ -148,17 +153,19 @@ def main(argv):
         print(__doc__)
         return 2
     catalog, owner, dupes = build(argv[1])
+    out = (Path(argv[argv.index("--out") + 1]) if "--out" in argv
+           else RESOURCES / f"dmzultra-form-parts-{catalog['ultraVersion']}.json")
     text = json.dumps(catalog, indent=2, ensure_ascii=False) + "\n"
     for key, first, second in dupes:
         print(f"WARN {key} is in {first} and {second}; kept {first}")
     if "--check" in argv:
-        same = OUT.exists() and OUT.read_text(encoding="utf-8").replace("\r\n", "\n") == text
-        print(("OK" if same else "STALE") + f" {OUT.name} vs dmzultra {catalog['ultraVersion']}")
+        same = out.exists() and out.read_text(encoding="utf-8").replace("\r\n", "\n") == text
+        print(("OK" if same else "STALE") + f" {out.name} vs dmzultra {catalog['ultraVersion']}")
         return 0 if same else 1
-    OUT.write_text(text, encoding="utf-8", newline="\n")
+    out.write_text(text, encoding="utf-8", newline="\n")
     tables_used = sorted(set(v for v in owner.values() if not v.startswith("alias")))
     print(f"dmzultra {catalog['ultraVersion']}: {len(catalog['pieces'])} shop pieces, {len(catalog['forms'])} forms "
-          f"from {len(tables_used)} tables, {len(catalog['designs'])} designs -> {OUT}")
+          f"from {len(tables_used)} tables, {len(catalog['designs'])} designs -> {out}")
     return 0
 
 

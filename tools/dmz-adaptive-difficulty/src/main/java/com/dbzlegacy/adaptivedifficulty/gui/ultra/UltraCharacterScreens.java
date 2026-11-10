@@ -56,7 +56,11 @@ public final class UltraCharacterScreens {
             return;
         }
         if (lower.startsWith("bodyparts:") || "bodyparts".equals(lower)) {
-            openBodyParts(player, parseBodyPartPage(lower));
+            openBodyParts(player, parseBodyPartPage(lower), parseBodyPartFilter(lower));
+            return;
+        }
+        if (lower.startsWith(PAGE_FIND)) {
+            openBodyPartFind(player, parseFindPage(lower));
             return;
         }
         if (lower.startsWith("bodycolors") || "bodycolors".equals(lower)) {
@@ -261,6 +265,26 @@ public final class UltraCharacterScreens {
         if (!"an".equals(article("Android")) || !"a".equals(article("Saiyan"))) {
             broken.add("Character Home: race article should read 'an Android' / 'a Saiyan'");
         }
+        // 4.7.46 (P-02/P-03): a priced card always fits its button and keeps the whole price;
+        // filter buttons keep the 80px minimum and stay on the panel; confirm pages return to
+        // the page (and filter, or find screen) they were opened from.
+        for (String name : List.of("Wings feather", "Spirit orbs buffed", "Demongod breastplate extra long")) {
+            String label = priced(name, "12 Emerald");
+            if (!UltraStyle.fitsButton(label) || !label.endsWith(" 12 Emerald")) {
+                broken.add("Body parts: priced card '" + label + "' must fit and end with its price");
+            }
+        }
+        int lastX = UltraStyle.COL_L + 2 * (FILTER_W + UltraStyle.BTN_PAD);
+        if (FILTER_W < UltraStyle.BTN_MIN_W || lastX + FILTER_W > UltraStyle.PANEL_W - UltraStyle.PANEL_MARGIN) {
+            broken.add("Body parts: filter buttons must be at least " + UltraStyle.BTN_MIN_W + "px and fit the panel");
+        }
+        if (!"bodyparts:3:tail".equals(askReturn("part_ask:3~tail:tail_fur"))
+                || !"bodyparts:2".equals(askReturn("part_ask:2:wings_feather"))
+                || !PAGE_FIND.equals(askReturn("part_ask:find:horns_vasto"))
+                || !"bones:1".equals(askReturn("bone_ask:1:horns1"))) {
+            broken.add("Body parts: confirm pages must return to their shop page, filter or find screen");
+        }
+        PurchaseState.selfTest(broken);
     }
 
     /** "a" or "an" for a race name ("an Android", "a Saiyan"). */
@@ -678,17 +702,46 @@ public final class UltraCharacterScreens {
         if (!part && !p.startsWith("bone_ask:")) {
             return null;
         }
-        return (part ? "bodyparts:" : "bones:") + askPage(p.substring(p.indexOf(':') + 1));
+        return shopPageFor(part, askToken(p.substring(p.indexOf(':') + 1)));
     }
 
-    /** Shop page index in {@code <page>:<id>}; 0 when missing. */
-    private static int askPage(String rest) {
+    /**
+     * Shop token in {@code <token>:<id>}: the page index, {@code <page>~<filter>} for a filtered
+     * Body parts page, or {@code find} for the find screen (4.7.46).
+     */
+    private static String askToken(String rest) {
         int cut = rest.indexOf(':');
-        try {
-            return Math.max(0, Integer.parseInt(cut < 0 ? "0" : rest.substring(0, cut).trim()));
-        } catch (NumberFormatException e) {
-            return 0;
+        return cut < 0 ? "0" : rest.substring(0, cut).trim();
+    }
+
+    /** Page a confirm page returns to for {@code token}. */
+    private static String shopPageFor(boolean part, String token) {
+        if (part && "find".equals(token)) {
+            return PAGE_FIND;
         }
+        String pg = token;
+        String filter = "all";
+        int tilde = token.indexOf('~');
+        if (tilde >= 0) {
+            pg = token.substring(0, tilde);
+            filter = CosmeticBodyPartService.filter(token.substring(tilde + 1));
+        }
+        int page;
+        try {
+            page = Math.max(0, Integer.parseInt(pg.trim()));
+        } catch (NumberFormatException e) {
+            page = 0;
+        }
+        if (!part) {
+            return "bones:" + page;
+        }
+        return "all".equals(filter) ? "bodyparts:" + page : "bodyparts:" + page + ":" + filter;
+    }
+
+    /** Token a shop card puts in {@code part_ask:<token>:<id>}. */
+    private static String shopToken(int page, String filter) {
+        String f = CosmeticBodyPartService.filter(filter);
+        return "all".equals(f) ? String.valueOf(page) : page + "~" + f;
     }
 
     /**
@@ -697,11 +750,11 @@ public final class UltraCharacterScreens {
      * runs {@code do:bodypart_unlock} / {@code do:bone_unlock}; Back returns to the shop page.
      */
     private static void openUnlockAsk(ServerPlayer player, boolean part, String rest) {
-        int pg = askPage(rest);
+        String token = askToken(rest);
         int cut = rest.indexOf(':');
         String id = (cut < 0 ? rest : rest.substring(cut + 1)).trim().toLowerCase(Locale.ROOT);
-        String back = (part ? "bodyparts:" : "bones:") + pg;
-        String backLabel = part ? "Body parts" : "Model customization";
+        String back = shopPageFor(part, token);
+        String backLabel = part ? (PAGE_FIND.equals(back) ? "Find parts" : "Body parts") : "Model customization";
         boolean known = part ? CosmeticBodyPartService.isPartKnown(id)
                 : com.dbzlegacy.adaptivedifficulty.character.CosmeticHeadBoneCatalog.isKnown(id);
         if (id.isBlank() || !known) {
@@ -712,13 +765,21 @@ public final class UltraCharacterScreens {
         boolean owned = part ? CosmeticBodyPartService.hasUnlock(player, id) : CosmeticHeadBoneService.hasUnlock(player, id);
         boolean free = CharacterServicesAccess.bypassCost(player);
         long cost = free ? 0L : (part ? CosmeticBodyPartService.unlockCost(player, id) : CosmeticHeadBoneService.unlockCost(player, id));
-        UltraScreenSpec spec = sub(player, (part ? "part_ask:" : "bone_ask:") + pg + ":" + id, false)
-                .line(UltraStyle.LABEL + (part ? "Confirm body part unlock" : "Confirm look unlock"))
+        UltraScreenSpec spec = sub(player, (part ? "part_ask:" : "bone_ask:") + token + ":" + id, false);
+        // P-05 (4.7.46): the candidate on the player's model before paying. Nothing is stored.
+        com.google.gson.JsonObject preview = PlayerModelParts.previewSnapshot(player,
+                part ? id : null, part ? null : CosmeticHeadBoneService.tokenWith(player, id));
+        spec.playerModel(248, 60, 86, 120, 0.9f, true, preview);
+        // Single-tail rule: a tail you already wear (form or shop) keeps the slot, so say so.
+        boolean shown = !part || (preview != null && preview.toString().contains("\"" + id + "\""));
+        spec.line(UltraStyle.LABEL + (part ? "Confirm body part unlock" : "Confirm look unlock"))
                 .labelValue(part ? "Part" : "Look", name)
                 .labelValue("Cost", cost <= 0L ? (free ? "Free for staff" : "Free") : CharacterServicesSystem.formatCost(cost))
                 .labelValue("Ancient Coins", com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.inventoryBreakdown(player))
                 .line(UltraStyle.LABEL + "Unlocks " + name + " for good and turns it on. You can turn it off any time.")
-                .line(UltraStyle.dim("Unlocks survive race changes. Coins spent are not refunded."));
+                .line(UltraStyle.dim("Unlocks survive race changes. Coins spent are not refunded."))
+                .line(UltraStyle.dim(shown ? "The model shows " + name + " on you."
+                        : name + " is not on the model: a tail you already wear keeps the tail slot."));
         String block = null;
         if (owned) {
             block = "You already own " + name + ". Tap it on the shop page to turn it on or off.";
@@ -759,8 +820,10 @@ public final class UltraCharacterScreens {
             return 0;
         }
         if (page.startsWith("bodyparts:")) {
+            String rest = page.substring("bodyparts:".length());
+            int cut = rest.indexOf(':');
             try {
-                return Integer.parseInt(page.substring("bodyparts:".length()).trim());
+                return Integer.parseInt((cut < 0 ? rest : rest.substring(0, cut)).trim());
             } catch (NumberFormatException ignored) {
                 return 0;
             }
@@ -768,12 +831,30 @@ public final class UltraCharacterScreens {
         return 0;
     }
 
+    /** {@code bodyparts:<page>:<filter>} filter; {@code all} when absent. */
+    private static String parseBodyPartFilter(String page) {
+        String[] bits = page == null ? new String[0] : page.split(":", -1);
+        return CosmeticBodyPartService.filter(bits.length > 2 ? bits[2] : "all");
+    }
+
+    /** Body parts find screen (P-03): {@code bodypart_find[:<page>]}. */
+    public static final String PAGE_FIND = "bodypart_find";
+
+    private static int parseFindPage(String page) {
+        int cut = page.indexOf(':');
+        try {
+            return cut < 0 ? 0 : Math.max(0, Integer.parseInt(page.substring(cut + 1).trim()));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     /**
      * Body Parts Shop - custom DMZUltra FormParts pieces the player wears on the KaiPath
      * model preview. Reached from model customize; pieces ride {@code playerModel.parts.bodyParts}
      * (KaiPath 1.3.29 attaches them via BodyPartPreview).
      */
-    private static void openBodyParts(ServerPlayer player, int page) {
+    private static void openBodyParts(ServerPlayer player, int page, String filterRaw) {
         if (CosmeticHeadBoneService.isFormModelRace(player)) {
             UltraScreenSpec spec = sub(player, "bodyparts:0", true)
                     .line(UltraStyle.LABEL + "Model customization")
@@ -784,14 +865,75 @@ public final class UltraCharacterScreens {
             spec.send(player);
             return;
         }
-        int pages = CosmeticBodyPartService.pageCount();
+        String filter = CosmeticBodyPartService.filter(filterRaw);
+        int pages = CosmeticBodyPartService.pageCount(filter);
         int pg = Math.min(pages - 1, Math.max(0, page));
-        UltraScreenSpec spec = sub(player, "bodyparts:" + pg, true)
-                .labelValue(CosmeticBodyPartService.pageTitle(pg),
+        String self = "all".equals(filter) ? "bodyparts:" + pg : "bodyparts:" + pg + ":" + filter;
+        UltraScreenSpec spec = sub(player, self, true)
+                .labelValue(CosmeticBodyPartService.pageTitle(pg, filter),
                         "On: " + UltraStyle.plain(CosmeticBodyPartService.wornLabel(player)));
         appendCompactLines(spec, CharacterServicesGuiApi.linesForPage(player, "bodyparts:" + pg));
+        spec.line(UltraStyle.LABEL + "Locked pieces show their price. Tap one to see it on you before you pay.");
         spec.buttonsAfterLines();
-        List<String> cards = CharacterServicesGuiApi.bodyPartCards(player, pg);
+        placeFilterRow(spec, filter);
+        placePartCards(spec, CosmeticBodyPartService.cards(player, pg, filter), shopToken(pg, filter));
+        spec.buttonLeft(
+                        "do:bodypart_clear",
+                        UltraStyle.danger("Clear parts"),
+                        UltraStyle.STYLE_DANGER);
+        spec.buttonRight(
+                        "page:bodycolors", UltraStyle.LABEL + "Part colors", UltraStyle.STYLE_NORMAL);
+        spec.rowGap();
+        spec.buttonLeft("page:" + PAGE_FIND, UltraStyle.LABEL + "Find a part", UltraStyle.STYLE_NORMAL);
+        spec.rowGap();
+        String base = "page:bodyparts:";
+        String tail = "all".equals(filter) ? "" : ":" + filter;
+        if (pg > 0) {
+            spec.buttonLeft(base + (pg - 1) + tail, UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
+        }
+        if (pg + 1 < pages) {
+            if (pg > 0) {
+                spec.buttonRight(base + (pg + 1) + tail, UltraStyle.LABEL + "Next", UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.buttonLeft(base + (pg + 1) + tail, UltraStyle.LABEL + "Next", UltraStyle.STYLE_NORMAL);
+            }
+            spec.rowGap();
+        } else if (pg > 0) {
+            spec.rowGap();
+        }
+        spec.footerBackHome("Character Home");
+        spec.send(player);
+    }
+
+    /** Filter width: three 98px buttons in a row (at least 80px, 8px apart). */
+    private static final int FILTER_W = 98;
+
+    /**
+     * Slot filters (P-02), three per row; the current one is green. Each re-renders the list from
+     * page 1.
+     */
+    private static void placeFilterRow(UltraScreenSpec spec, String current) {
+        List<String> filters = CosmeticBodyPartService.FILTERS;
+        for (int i = 0; i < filters.size(); i++) {
+            String f = filters.get(i);
+            boolean on = f.equals(current);
+            int x = UltraStyle.COL_L + (i % 3) * (FILTER_W + UltraStyle.BTN_PAD);
+            String label = CosmeticBodyPartService.filterLabel(f);
+            spec.button("all".equals(f) ? "page:bodyparts:0" : "page:bodyparts:0:" + f,
+                    on ? UltraStyle.confirm(label) : UltraStyle.LABEL + label,
+                    on ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL,
+                    x, spec.row(), FILTER_W);
+            if (i % 3 == 2 || i == filters.size() - 1) {
+                spec.rowGap();
+            }
+        }
+    }
+
+    /**
+     * Two-up piece cards. On: green, tap turns it off. Owned: tap turns it on. Locked: gray with
+     * its price on the button (P-02), tap opens the confirm page under {@code token}.
+     */
+    private static void placePartCards(UltraScreenSpec spec, List<String> cards, String token) {
         int placed = 0;
         for (String card : cards) {
             if (card == null || card.isBlank()) {
@@ -801,6 +943,7 @@ public final class UltraCharacterScreens {
             String id = p.length > 0 ? p[0].trim() : "";
             String name = p.length > 1 ? p[1].trim() : id;
             String state = p.length > 2 ? p[2].trim() : "";
+            String price = p.length > 4 ? p[4].trim() : "";
             if (id.isBlank()) {
                 continue;
             }
@@ -812,10 +955,9 @@ public final class UltraCharacterScreens {
                 label = UltraStyle.confirm(UltraStyle.fitsButton(on) ? on : UltraStyle.buttonText(name));
                 style = UltraStyle.STYLE_CONFIRM;
             } else if ("L".equals(state)) {
-                String locked = name + " lock";
-                label = UltraStyle.dim(UltraStyle.fitsButton(locked) ? locked : UltraStyle.buttonText(name));
+                label = UltraStyle.dim(priced(name, price.isEmpty() ? "lock" : price));
                 style = UltraStyle.STYLE_DIM;
-                action = "page:part_ask:" + pg + ":" + id;
+                action = "page:part_ask:" + token + ":" + id;
             } else {
                 label = UltraStyle.LABEL + UltraStyle.buttonText(name);
                 style = UltraStyle.STYLE_NORMAL;
@@ -831,30 +973,93 @@ public final class UltraCharacterScreens {
         if (placed % 2 == 1) {
             spec.rowGap();
         }
-        spec.buttonLeft(
-                        "do:bodypart_clear",
-                        UltraStyle.danger("Clear parts"),
-                        UltraStyle.STYLE_DANGER);
-        spec.buttonRight(
-                        "page:bodycolors", UltraStyle.LABEL + "Part colors", UltraStyle.STYLE_NORMAL);
-        spec.rowGap();
+    }
+
+    /** {@code Wings feather 5 Iron}; the name is cut short so the price always fits the button. */
+    static String priced(String name, String price) {
+        String suffix = " " + price;
+        String full = name + suffix;
+        if (UltraStyle.fitsButton(full)) {
+            return full;
+        }
+        String cut = name;
+        while (cut.length() > 1 && !UltraStyle.fitsButton(cut + ".." + suffix)) {
+            cut = cut.substring(0, cut.length() - 1).trim();
+        }
+        return cut + ".." + suffix;
+    }
+
+    /**
+     * Find a body part (P-03): search box, the 5 recent searches, and matches, at most
+     * {@link CosmeticBodyPartService#FIND_CAP}, 8 per page. Filtering runs on the server. A client
+     * without text input gets the slot filters instead of a box it cannot type in.
+     */
+    private static void openBodyPartFind(ServerPlayer player, int page) {
+        UltraScreenSpec spec = sub(player, page > 0 ? PAGE_FIND + ":" + page : PAGE_FIND, false)
+                .line(UltraStyle.LABEL + "Find a body part");
+        boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player);
+        String query = CosmeticBodyPartService.lastQuery(player);
+        if (!typing) {
+            spec.line(UltraStyle.LABEL + "Typing a search needs a newer KaiPath client. Pick a group instead:");
+            spec.buttonsAfterLines();
+            placeFilterRow(spec, "");
+            spec.footerBack("page:bodyparts:0", "Body parts");
+            spec.send(player);
+            return;
+        }
+        List<String> matches = CosmeticBodyPartService.find(query);
+        int total = matches.size();
+        List<String> shown = matches.subList(0, Math.min(total, CosmeticBodyPartService.FIND_CAP));
+        int pages = Math.max(1, (shown.size() + CosmeticBodyPartService.CARDS_PER_PAGE - 1)
+                / CosmeticBodyPartService.CARDS_PER_PAGE);
+        int pg = Math.min(pages - 1, Math.max(0, page));
+        if (query.isEmpty()) {
+            spec.line(UltraStyle.LABEL + "Type part of a name, like wings or tail, then tap Search.");
+        } else if (total == 0) {
+            spec.line(UltraStyle.LABEL + "No parts matching '" + query + "'. Try a shorter word.");
+        } else {
+            spec.labelValue("Results for '" + query + "'", total > shown.size()
+                    ? "first " + shown.size() + " of " + total + " - type more to narrow it"
+                    : total + (total == 1 ? " part" : " parts") + (pages > 1 ? ", page " + (pg + 1) + "/" + pages : ""));
+        }
+        spec.buttonsAfterLines();
+        String input = "input:bodypart_query";
+        spec.textField(input, query, "e.g. horns", UltraStyle.COL_L, spec.row(),
+                        UltraStyle.PANEL_W - UltraStyle.COL_L * 2, UltraStyle.BTN_H, 32)
+                .rowGap();
+        spec.buttonBound("do:bodypart_find", UltraStyle.confirm("Search"), UltraStyle.STYLE_CONFIRM, input).rowGap();
+        List<String> recent = CosmeticBodyPartService.recentSearches(player);
+        for (int i = 0; i < recent.size(); i++) {
+            String r = "Recent: " + recent.get(i);
+            String label = UltraStyle.LABEL + (UltraStyle.fitsButton(r) ? r : UltraStyle.buttonText(recent.get(i)));
+            if (i % 2 == 0) {
+                spec.buttonLeft("do:bodypart_find_recent:" + i, label, UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.buttonRight("do:bodypart_find_recent:" + i, label, UltraStyle.STYLE_NORMAL);
+                spec.rowGap();
+            }
+        }
+        if (recent.size() % 2 == 1) {
+            spec.rowGap();
+        }
+        int from = pg * CosmeticBodyPartService.CARDS_PER_PAGE;
+        int to = Math.min(shown.size(), from + CosmeticBodyPartService.CARDS_PER_PAGE);
+        placePartCards(spec, CosmeticBodyPartService.cards(player, shown.subList(Math.min(from, to), to)), "find");
         if (pg > 0) {
-            spec.buttonLeft(
-                    "page:bodyparts:" + (pg - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
+            spec.buttonLeft("page:" + PAGE_FIND + ":" + (pg - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
         }
         if (pg + 1 < pages) {
+            String next = "page:" + PAGE_FIND + ":" + (pg + 1);
             if (pg > 0) {
-                spec.buttonRight(
-                        "page:bodyparts:" + (pg + 1), UltraStyle.LABEL + "Next", UltraStyle.STYLE_NORMAL);
+                spec.buttonRight(next, UltraStyle.LABEL + "Next", UltraStyle.STYLE_NORMAL);
             } else {
-                spec.buttonLeft(
-                        "page:bodyparts:" + (pg + 1), UltraStyle.LABEL + "Next", UltraStyle.STYLE_NORMAL);
+                spec.buttonLeft(next, UltraStyle.LABEL + "Next", UltraStyle.STYLE_NORMAL);
             }
             spec.rowGap();
         } else if (pg > 0) {
             spec.rowGap();
         }
-        spec.footerBackHome("Character Home");
+        spec.footerBack("page:bodyparts:0", "Body parts");
         spec.send(player);
     }
 

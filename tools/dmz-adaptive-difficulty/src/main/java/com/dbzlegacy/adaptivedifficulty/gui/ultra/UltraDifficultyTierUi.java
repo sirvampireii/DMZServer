@@ -1,6 +1,7 @@
 package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
 import com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy;
+import com.dbzlegacy.adaptivedifficulty.progression.bridge.RevampEffectiveCaps;
 import com.dbzlegacy.adaptivedifficulty.tier.UnlockSystem;
 import com.dbzlegacy.adaptivedifficulty.tier.UnlockTier;
 import com.dbzlegacy.adaptivedifficulty.util.PaidFeatureAccess;
@@ -104,6 +105,54 @@ public final class UltraDifficultyTierUi {
             return eligible;
         }
         return true;
+    }
+
+    /**
+     * Tier {@code t} as a {@link PurchaseState} (4.7.46): ACTIVE, OWNED (free switch down),
+     * BUYABLE, SHORT (cannot pay yet) or LOCKED, each with the reason the Tiers page shows. Only
+     * tappable states get a button. A LOCKED reason quotes dmzrevamp's effective level cap
+     * ({@link RevampEffectiveCaps}) when the tier's level gate is above it.
+     */
+    public static PurchaseState.View tierView(
+            ServerPlayer player, int t, int activeTier, boolean unlocked, boolean eligible) {
+        UnlockTier tier = UnlockTier.byId(t);
+        if (tier == null) {
+            return new PurchaseState.View(PurchaseState.State.UNSOLD, "this tier does not exist");
+        }
+        boolean usable = unlocked || eligible;
+        boolean owned = t == activeTier || (activeTier > 0 && t < activeTier && usable);
+        long price = PaidFeatureAccess.bypassAncientCoinCost(player)
+                ? 0L
+                : AncientCoinEconomy.activationCost(tier, player, activeTier);
+        long funds = AncientCoinEconomy.balance(player);
+        PurchaseState.State state = PurchaseState.state(
+                new PurchaseState.Inputs(owned, t == activeTier, true, false, false, !usable, price, funds));
+        String reason = switch (state) {
+            case ACTIVE -> "your current tier";
+            case OWNED -> "switch down for free";
+            case BUYABLE -> price <= 0L ? "activate for free" : "activate for " + AncientCoinEconomy.formatExactCost(price);
+            case SHORT -> "need " + AncientCoinEconomy.formatExactCost(price - funds) + " more (costs "
+                    + AncientCoinEconomy.formatExactCost(price) + ")";
+            case LOCKED -> lockedReason(player, tier);
+            default -> "not available";
+        };
+        return new PurchaseState.View(state, reason);
+    }
+
+    /** {@code reach level 5,000 (you: 3,200) or prestige 4}; prestige only when the level is past the cap. */
+    static String lockedReason(ServerPlayer player, UnlockTier tier) {
+        long need = tier.requiredDmzLevel();
+        int cap = RevampEffectiveCaps.levelMaximum();
+        if (cap > 0 && need > cap) {
+            return "reach prestige " + tier.requiredPrestige() + " - level " + num(need)
+                    + " is above this server's level cap of " + num(cap);
+        }
+        long you = player == null ? 0L : UnlockSystem.gateLevelForEligibility(player);
+        return "reach level " + num(need) + " (you: " + num(you) + ") or prestige " + tier.requiredPrestige();
+    }
+
+    private static String num(long n) {
+        return String.format(java.util.Locale.ROOT, "%,d", n);
     }
 
     public static boolean isEligible(ServerPlayer player, UnlockTier tier) {

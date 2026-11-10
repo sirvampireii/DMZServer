@@ -968,7 +968,8 @@ public final class UltraScreenSelfTest {
 
     /**
      * Config editor requests a panel larger than the GUI (so KaiPath 1.3.20 clamps the
-     * chrome to the window) and lays controls out in a 426x240 design box — the grid the
+     * chrome to the window) and lays controls out in its design box (426x240 today, read from
+     * {@code UltraConfigScreens}) — the grid the
      * widget coordinates use. KaiPath 1.3.31 scales {@code panel / design}, so a design
      * box equal to the panel request would render the 426-grid widgets tiny in the
      * top-left. A stack of rows must not grow the request toward the compact menu cap.
@@ -1538,8 +1539,12 @@ public final class UltraScreenSelfTest {
     }
 
     private static void checkConfigFullscreen(List<String> broken) {
+        // The design box comes from the screen definition (4.7.46): a hardcoded 426x240 here made
+        // every design-box change a guaranteed startup crash.
+        int wantW = UltraConfigScreens.CONFIG_DESIGN_W;
+        int wantH = UltraConfigScreens.CONFIG_DESIGN_H;
         UltraScreenSpec grown =
-                UltraScreenSpec.of("config").panel(1920, 1080).lockPanel().fillScreen(426, 240).setRow(50);
+                UltraScreenSpec.of("config").panel(1920, 1080).lockPanel().fillScreen(wantW, wantH).setRow(50);
         for (int i = 0; i < 30; i++) {
             grown.button("do:refresh", "Row " + i, "dim").rowGap();
         }
@@ -1553,8 +1558,8 @@ public final class UltraScreenSelfTest {
         }
         JsonObject grownLay = JsonParser.parseString(grownPkt.layoutJson()).getAsJsonObject();
         if (!grownLay.has("designWidth")
-                || grownLay.get("designWidth").getAsInt() != 426
-                || grownLay.get("designHeight").getAsInt() != 240) {
+                || grownLay.get("designWidth").getAsInt() != wantW
+                || grownLay.get("designHeight").getAsInt() != wantH) {
             broken.add("lockPanel changed the fillScreen design box");
         }
         GuiOpenPacket cfg = UltraConfigScreens.layoutProbe();
@@ -1571,10 +1576,10 @@ public final class UltraScreenSelfTest {
         }
         if (!lay.has("designWidth")
                 || !lay.has("designHeight")
-                || lay.get("designWidth").getAsInt() != 426
-                || lay.get("designHeight").getAsInt() != 240) {
+                || lay.get("designWidth").getAsInt() != wantW
+                || lay.get("designHeight").getAsInt() != wantH) {
             broken.add(
-                    "config fillScreen design size must be 426x240 (the widget grid;"
+                    "config fillScreen design size must be " + wantW + "x" + wantH + " (the widget grid;"
                             + " scale = panel / design on KaiPath 1.3.31), got "
                             + lay.get("designWidth")
                             + "x"
