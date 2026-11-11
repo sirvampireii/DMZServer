@@ -127,7 +127,7 @@ public final class UltraCharacterScreens {
                 .bodyPad(4);
         // Preview only on Home (and model customize via sub) — not on Saga/Android dumps.
         if (preview) {
-            spec.playerModel(player, 248, 60, 86, 120, 0.9f, ModelPreview.rotate(player));
+            standardModel(spec, player);
         }
         return spec;
     }
@@ -141,9 +141,20 @@ public final class UltraCharacterScreens {
                 .bodyPad(4);
         // Preview only on model customize (bones). Race/class/reskin stay text-only.
         if (preview) {
-            spec.playerModel(player, 248, 60, 86, 120, 0.9f, ModelPreview.rotate(player));
+            standardModel(spec, player);
         }
         return spec;
+    }
+
+    /**
+     * The player's model in the standard box (248, 60, 86, 120). Scale 0.9, or smaller when the
+     * worn form is drawn bigger than the box (4.7.49, {@link ModelPreview#fitScale}).
+     */
+    private static void standardModel(UltraScreenSpec spec, ServerPlayer player) {
+        ModelPreview.Box box = ModelPreview.STANDARD;
+        spec.playerModel(player, box.x(), box.y(), box.w(), box.h(),
+                ModelPreview.wornScale(PlayerModelParts.renderTarget(player), box, ModelPreview.BASE_SCALE),
+                ModelPreview.rotate(player));
     }
 
 
@@ -206,6 +217,7 @@ public final class UltraCharacterScreens {
                         "See your race in each of its forms on the model. Nothing changes on you.",
                         formsBlock));
         spec.buttonsAfterLines();
+        ModelPreview.rotateButton(spec, player, "main");
 
         indexButton(spec, true, "page:race:0", "Change race", raceBlock);
         indexButton(spec, false, "page:class:0", "Change class", classBlock);
@@ -217,7 +229,6 @@ public final class UltraCharacterScreens {
         indexButton(spec, false, "page:" + PAGE_FORM_PREVIEW + ":0", "Preview forms", formsBlock);
         spec.rowGap();
 
-        ModelPreview.rotateButton(spec, player, "main");
         spec.footerBackToMain();
         spec.send(player);
     }
@@ -292,8 +303,12 @@ public final class UltraCharacterScreens {
         ModelPreview.Form form = forms.get(i);
         ModelPreview.pick(player, form);
         String page = PAGE_FORM_PREVIEW + ":" + i;
+        // 4.7.49: the form page's own, bigger box (the panel's right side), and a scale fit to the
+        // form, so giant forms (Oozaru, Golden Oozaru) are drawn whole instead of cut off.
+        ModelPreview.Box box = ModelPreview.FORMS;
         UltraScreenSpec spec = sub(player, page, false)
-                .playerModel(248, 60, 86, 120, 0.9f, ModelPreview.rotate(player),
+                .playerModel(box.x(), box.y(), box.w(), box.h(),
+                        ModelPreview.formScale(form, box, ModelPreview.BASE_SCALE), ModelPreview.rotate(player),
                         ModelPreview.formFigure(player, form))
                 .line(UltraStyle.LABEL + "Preview forms")
                 .labelValue("Form", form.label() + " (" + (i + 1) + " of " + n + ")")
@@ -301,17 +316,22 @@ public final class UltraCharacterScreens {
                         + " and nothing is unlocked.")
                 .line(UltraStyle.dim("The model uses the race's default colors, not your own."));
         spec.buttonsAfterLines();
+        ModelPreview.rotateButton(spec, player, page, box, false);
         if (n > 1) {
-            spec.buttonLeft("page:" + PAGE_FORM_PREVIEW + ":" + Math.floorMod(i - 1, n),
-                    UltraStyle.LABEL + "Previous form", UltraStyle.STYLE_NORMAL);
-            spec.buttonRight("page:" + PAGE_FORM_PREVIEW + ":" + Math.floorMod(i + 1, n),
-                    UltraStyle.LABEL + "Next form", UltraStyle.STYLE_NORMAL);
+            // Two narrow buttons left of the model box (16..96 and 100..180, the box starts at 190).
+            spec.button("page:" + PAGE_FORM_PREVIEW + ":" + Math.floorMod(i - 1, n),
+                    UltraStyle.LABEL + "Previous", UltraStyle.STYLE_NORMAL, UltraStyle.COL_L, spec.row(), FORM_STEP_W);
+            spec.button("page:" + PAGE_FORM_PREVIEW + ":" + Math.floorMod(i + 1, n),
+                    UltraStyle.LABEL + "Next", UltraStyle.STYLE_NORMAL,
+                    UltraStyle.COL_L + FORM_STEP_W + 4, spec.row(), FORM_STEP_W);
             spec.rowGap();
         }
-        ModelPreview.rotateButton(spec, player, page);
         spec.footerBackHome("Character Home");
         spec.send(player);
     }
+
+    /** Previous / Next width on Preview forms: the 80px minimum, both left of the model box. */
+    private static final int FORM_STEP_W = 80;
 
     /** The one Android forms warning every Android page shows (4.7.31). */
     static final String ANDROID_FORMS_LINE = "Converting to Android deletes Super and Legendary forms."
@@ -690,6 +710,7 @@ public final class UltraCharacterScreens {
                 .labelValue(HeadPartPieces.pageTitle(pg), "On: " + UltraStyle.plain(worn));
         appendCompactLines(spec, CharacterServicesGuiApi.linesForPage(player, "bones:" + pg));
         spec.buttonsAfterLines();
+        ModelPreview.rotateButton(spec, player, "bones:" + pg);
         // The catalog page is the render page (6 head / 8 horn parts): draw every card it owns,
         // like the Body Parts Shop, so no part is ever dropped off the end.
         List<String> cards = CharacterServicesGuiApi.headBoneCards(player, pg);
@@ -758,7 +779,6 @@ public final class UltraCharacterScreens {
         } else if (pg > 0) {
             spec.rowGap();
         }
-        ModelPreview.rotateButton(spec, player, "bones:" + pg);
         spec.footerBackHome("Character Home");
         spec.send(player);
     }
@@ -840,7 +860,10 @@ public final class UltraCharacterScreens {
         // P-05 (4.7.46): the candidate on the player's model before paying. Nothing is stored.
         com.google.gson.JsonObject preview = PlayerModelParts.previewSnapshot(player,
                 part ? id : null, part ? null : CosmeticHeadBoneService.tokenWith(player, id));
-        spec.playerModel(248, 60, 86, 120, 0.9f, ModelPreview.rotate(player), preview);
+        ModelPreview.Box box = ModelPreview.STANDARD;
+        spec.playerModel(box.x(), box.y(), box.w(), box.h(),
+                ModelPreview.wornScale(PlayerModelParts.renderTarget(player), box, ModelPreview.BASE_SCALE),
+                ModelPreview.rotate(player), preview);
         // Single-tail rule: a tail you already wear (form or shop) keeps the slot, so say so.
         boolean shown = !part || (preview != null && preview.toString().contains("\"" + id + "\""));
         spec.line(UltraStyle.LABEL + (part ? "Confirm body part unlock" : "Confirm look unlock"))
@@ -861,6 +884,7 @@ public final class UltraCharacterScreens {
             spec.line(UltraStyle.danger(block));
         }
         spec.buttonsAfterLines();
+        ModelPreview.rotateButton(spec, player, (part ? "part_ask:" : "bone_ask:") + token + ":" + id);
         if (block == null) {
             String pay = cost <= 0L ? "Unlock " + name : "Pay " + com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.compactCost(cost);
             spec.button((part ? "do:bodypart_unlock:" : "do:bone_unlock:") + id,
@@ -868,7 +892,6 @@ public final class UltraCharacterScreens {
                             UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
-        ModelPreview.rotateButton(spec, player, (part ? "part_ask:" : "bone_ask:") + token + ":" + id);
         spec.footerBack("page:" + back, backLabel);
         spec.send(player);
     }
@@ -948,17 +971,13 @@ public final class UltraCharacterScreens {
         appendCompactLines(spec, CharacterServicesGuiApi.linesForPage(player, "bodyparts:" + pg));
         spec.line(UltraStyle.LABEL + "Locked pieces show their price. Tap one to see it on you before you pay.");
         spec.buttonsAfterLines();
+        ModelPreview.rotateButton(spec, player, self);
+        // 4.7.49: shop tools together at the top (filters, then Find), then the cards with their
+        // pages right under them, then one action row, then Back.
         placeFilterRow(spec, filter);
-        placePartCards(spec, CosmeticBodyPartService.cards(player, pg, filter), shopToken(pg, filter));
-        spec.buttonLeft(
-                        "do:bodypart_clear",
-                        UltraStyle.danger("Clear parts"),
-                        UltraStyle.STYLE_DANGER);
-        spec.buttonRight(
-                        "page:bodycolors", UltraStyle.LABEL + "Part colors", UltraStyle.STYLE_NORMAL);
-        spec.rowGap();
         spec.buttonLeft("page:" + PAGE_FIND, UltraStyle.LABEL + "Find a part", UltraStyle.STYLE_NORMAL);
         spec.rowGap();
+        placePartCards(spec, CosmeticBodyPartService.cards(player, pg, filter), shopToken(pg, filter));
         String base = "page:bodyparts:";
         String tail = "all".equals(filter) ? "" : ":" + filter;
         if (pg > 0) {
@@ -974,7 +993,13 @@ public final class UltraCharacterScreens {
         } else if (pg > 0) {
             spec.rowGap();
         }
-        ModelPreview.rotateButton(spec, player, self);
+        spec.buttonLeft(
+                        "do:bodypart_clear",
+                        UltraStyle.danger("Clear parts"),
+                        UltraStyle.STYLE_DANGER);
+        spec.buttonRight(
+                        "page:bodycolors", UltraStyle.LABEL + "Part colors", UltraStyle.STYLE_NORMAL);
+        spec.rowGap();
         spec.footerBackHome("Character Home");
         spec.send(player);
     }
@@ -1159,6 +1184,7 @@ public final class UltraCharacterScreens {
         UltraScreenSpec spec = sub(player, "bodycolors", true);
         appendCompactLines(spec, CharacterServicesGuiApi.linesForPage(player, "bodycolors"));
         spec.buttonsAfterLines();
+        ModelPreview.rotateButton(spec, player, "bodycolors");
         for (String channel : CosmeticBodyPartService.COLOR_CHANNELS) {
             String value = CosmeticBodyPartService.partColorValue(player, channel);
             String action = "page:bodycolors:" + channel + ":0";
@@ -1173,7 +1199,6 @@ public final class UltraCharacterScreens {
                     "Default".equals(value) ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_NORMAL);
             spec.rowGap();
         }
-        ModelPreview.rotateButton(spec, player, "bodycolors");
         spec.footerBack("page:bodyparts:0", "Body parts");
         spec.send(player);
     }
@@ -1189,6 +1214,7 @@ public final class UltraCharacterScreens {
                                 CosmeticBodyPartService.partColorValue(player, channel));
         spec.line(UltraStyle.LABEL + "Pick a swatch. It saves immediately.");
         spec.buttonsAfterLines();
+        ModelPreview.rotateButton(spec, player, "bodycolors:" + channel + ":" + pg);
         int placed = 0;
         for (CosmeticBodyPartService.Preset preset : CosmeticBodyPartService.colorPresets(pg)) {
             String action =
@@ -1232,7 +1258,6 @@ public final class UltraCharacterScreens {
         } else if (pg > 0) {
             spec.rowGap();
         }
-        ModelPreview.rotateButton(spec, player, "bodycolors:" + channel + ":" + pg);
         spec.footerBack("page:bodycolors", "Part colors");
         spec.send(player);
     }

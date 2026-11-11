@@ -297,20 +297,19 @@ public final class LmGuiNetwork {
         // 4.7.46: detect the installed DMZ Ultra and pick the body-parts catalog before any
         // screen or model sync reads it; one boot line names both.
         com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraVersion.logAtBoot();
-        UltraScreenSelfTest.runAtStartup();
-        UltraScreenSelfTest.verifyTabStaysOnScreen();
-        UltraScreenSelfTest.verifyHubShim();
-        UltraScreenSelfTest.verifyMenuLinks();
-        UltraScreenSelfTest.verifyStaffGate();
-        UltraScreenSelfTest.verifyBodyCap();
-        UltraScreenSelfTest.verifyConfigActionRow();
-        UltraScreenSelfTest.verifyConfigFieldHints();
-        UltraScreenSelfTest.verifyConfigNumberRanges();
-        UltraScreenSelfTest.verifyConfigFieldBudget();
-        UltraScreenSelfTest.verifyDojoWarExpiry();
-        UltraScreenSelfTest.verifyFirstSuperformChoice();
-        UltraScreenSelfTest.verifyPickerPaging();
-        UltraScreenSelfTest.verifyTitlesSurvivePrestige();
+        // 4.7.49 (M-P1-11): a menu layout self-test failure no longer stops the server (a layout
+        // change once crashed live at startup). It logs a loud ERROR and the server keeps starting.
+        // Test servers start with -Dlm.selftest.strict=true to keep failing fast.
+        try {
+            UltraScreenSelfTest.runAll();
+        } catch (RuntimeException e) {
+            if (Boolean.getBoolean("lm.selftest.strict")) {
+                throw e;
+            }
+            AdaptiveDifficultyMod.LOGGER.error(
+                    "[{}] Ultra GUI self-test FAILED at boot; menus may look wrong, the server keeps running: {}",
+                    AdaptiveDifficultyMod.MOD_ID, e.getMessage(), e);
+        }
         runPacketRoundTripSelfTest();
         AdaptiveDifficultyMod.LOGGER.info(
                 "[{}] Ultra GUI bridge ready channel={} protocol={} — KaiPath {}+ dynamic UI "

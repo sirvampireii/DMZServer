@@ -14,8 +14,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /**
  * Resources writes: ignore a non-positive energy drain, clamp current pools
  * on every write, and reclamp after a copy that happens outside stats NBT load.
+ *
+ * <p>Priority 900 (4.7.49, M-P1-8): {@code setCurrentEnergy} is also hooked at HEAD by dmzrevamp's
+ * {@code ResourcesMaxEnergyCapMixin} (default 1000), which clamps to {@code getMaxEnergy()}, stores
+ * the field and cancels. At equal priority the order was config load order; a lower priority puts
+ * this mixin's HEAD code first (checked in the exported class). So LM's clamp rewrites the value and
+ * revamp then stores it under its own cap: both caps apply and the tighter one wins. Revamp is
+ * the only other mod on Resources, so nothing else moves.
  */
-@Mixin(value = Resources.class, remap = false)
+@Mixin(value = Resources.class, remap = false, priority = 900)
 public abstract class ResourcesEnergyDrainGuardMixin {
 
     /**

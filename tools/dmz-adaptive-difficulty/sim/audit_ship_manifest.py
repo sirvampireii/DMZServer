@@ -52,6 +52,15 @@ def check(label: str, cond: bool, detail: str = "", retired: bool = False) -> No
         print(f" FAIL {label}" + (f" — {detail}" if detail else ""))
 
 
+def boot_self_test(name: str) -> bool:
+    """True when the startup self-test {name} runs at boot: LmGuiNetwork calls it directly, or
+    calls UltraScreenSelfTest.runAll() and runAll() calls it (4.7.49)."""
+    net = read(SRC / "net/gui/LmGuiNetwork.java")
+    st = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    run_all = st.split("public static void runAll() {", 1)[-1].split("\n    }\n", 1)[0]
+    return (name + "();") in net or ("UltraScreenSelfTest.runAll();" in net and (name + "();") in run_all)
+
+
 def run_py(script: str) -> bool:
     path = SIM / script
     if not path.is_file():
@@ -1547,7 +1556,7 @@ def main() -> int:
     check("Ultra patch: FormsChecks.overhaulScale no longer expects scaled values",
           'patchClass(data, "overhaulScale", "()V", NoScalePatch::logOff)' in ns_patch)
     check("Ultra patch: Build-Time stamped noscale, mod version stays the stock one",
-          'STAMP = " noscale"' in ns_patch and "mod version stays the stock one (0.4.0, 0.5.3)" in ns_verify
+          'STAMP = " noscale"' in ns_patch and "mod version stays the stock one (0.4.0, 0.5.3, 0.5.5)" in ns_verify
           and "stock.read(\"META-INF/mods.toml\") == patched.read(\"META-INF/mods.toml\")" in ns_verify)
     check("Ultra patch 0.5.3 (not live): sha-gated, FormsChecks kept as shipped (dev-only; never runs in production)",
           'STOCK_SHA_053="0a84d1729e13cec17a9b4bc30bd50ca65b923253a67ec37c2862569b884f8afa"' in ns_build
@@ -1877,6 +1886,50 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.49 ---")
+    p49_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p49_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
+    p49_prev = read(SRC / "gui/ultra/ModelPreview.java")
+    p49_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p49_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
+    p49_net = read(SRC / "net/gui/LmGuiNetwork.java")
+    p49_sd = read(SRC / "mixin/StatsDataMixin.java")
+    p49_res = read(SRC / "mixin/ResourcesEnergyDrainGuardMixin.java")
+    p49_toml = read(MOD / "src/main/resources/META-INF/mods.toml")
+    p49_shop = p49_char.split("private static void openBodyParts(", 1)[-1].split("\n    /** Filter width", 1)[0]
+    p49_shop = p49_shop.split("String filter = CosmeticBodyPartService.filter(filterRaw);", 1)[-1]
+    check("manifest row for lm 4.7.49", "lm-4749-layout-forms-audit" in manifest)
+    check("main hub keeps system tiles only (no Find)", "PAGE_FIND" not in p49_hub)
+    check("spin toggle is a fixed button under the model; page buttons start below it",
+          "public UltraScreenSpec fixedButton(" in p49_spec and "appendButtonJson(btnArr, b, 0, height);" in p49_spec
+          and "spec.fixedButton(" in p49_prev and "spec.setRow(Math.max(spec.row(), y + UltraStyle.BTN_H + UltraStyle.BTN_GAP));" in p49_prev)
+    check("every standard model page calls the toggle right after buttonsAfterLines",
+          p49_char.count("buttonsAfterLines();\n        ModelPreview.rotateButton(") + p49_char.count("buttonsAfterLines();\n            ModelPreview.rotateButton(") >= 8
+          and "buttonsAfterLines();\n        ModelPreview.rotateButton(" in p49_rival)
+    check("body parts shop: filters, Find, cards, pages, one action row, Back",
+          p49_shop.index("placeFilterRow(spec, filter);") < p49_shop.index('"page:" + PAGE_FIND')
+          < p49_shop.index("placePartCards(") < p49_shop.index('base + (pg + 1) + tail')
+          < p49_shop.index('"do:bodypart_clear"') < p49_shop.index('"page:bodycolors"') < p49_shop.index("footerBackHome"))
+    check("preview forms: bigger box, scale fit to the form; standard box unchanged",
+          "FORMS = new Box(190, 46, 144, 186)" in p49_prev and "STANDARD = new Box(248, 60, 86, 120)" in p49_prev
+          and "ModelPreview.formScale(form, box, ModelPreview.BASE_SCALE)" in p49_char
+          and "getModelScaling()" in p49_prev and "assets/dragonminez/geo/entity/races/" in p49_prev
+          and "Math.min(base, Math.min(heightFit, widthFit))" in p49_prev)
+    check("worn and rival forms are fit too",
+          "ModelPreview.wornScale(PlayerModelParts.renderTarget(player), box, ModelPreview.BASE_SCALE)" in p49_char
+          and "ModelPreview.wornScale(rival, box, ModelPreview.BASE_SCALE)" in p49_rival
+          and "ModelPreview.formScale(yours, box, ModelPreview.BASE_SCALE)" in p49_rival)
+    check("menu self-test failure logs at boot instead of stopping the server (strict on test servers)",
+          "UltraScreenSelfTest.runAll();" in p49_net and 'Boolean.getBoolean("lm.selftest.strict")' in p49_net
+          and "Ultra GUI self-test FAILED at boot" in p49_net)
+    check("dead StatsData cap handlers removed; energy clamp runs before revamp's store",
+          "lm$personalMaxValue" not in p49_sd and "lm$clampStatBuy" not in p49_sd
+          and "@Mixin(value = Resources.class, remap = false, priority = 900)" in p49_res)
+    check("mods.toml: optional version ranges for every hard-hooked mod",
+          all(('modId = "' + m + '"') in p49_toml for m in
+              ("dmzultra", "dmzrevamp", "dmz_mohist_melee_fix", "simplymore", "curios", "customnpcs",
+               "dmzlivingworld", "architectury", "attributeslib")))
+
     print("\n--- § lm 4.7.48 ---")
     p48_prev = read(SRC / "gui/ultra/ModelPreview.java")
     p48_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
@@ -1893,7 +1946,8 @@ def main() -> int:
     check("every character model page spins by the viewer's choice and has the toggle",
           "0.9f, true" not in p48_char
           and p48_char.count("ModelPreview.rotateButton(spec, player,") >= 9
-          and p48_char.count("248, 60, 86, 120, 0.9f, ModelPreview.rotate(player)") >= 4)
+          # 4.7.49: the standard box goes through standardModel / ModelPreview.STANDARD.
+          and p48_char.count("ModelPreview.rotate(player)") >= 3)
     check("form figures are made-up uuid subjects with no colors, never subject local",
           '"subject", "uuid:" + UUID.nameUUIDFromBytes' in p48_figure
           and '"local"' not in p48_prev and '"colors"' not in p48_figure
@@ -1942,7 +1996,7 @@ def main() -> int:
     check("Ultra version from the mod list; unknown = 0.4.0; one boot line before the screen self-test",
           'getModContainerById(MOD_ID)' in p46_ver and 'BASELINE = "0.4.0"' in p46_ver
           and "UltraVersion.logAtBoot();" in p46_net
-          and p46_net.index("UltraVersion.logAtBoot();") < p46_net.index("UltraScreenSelfTest.runAtStartup();"))
+          and p46_net.index("UltraVersion.logAtBoot();") < p46_net.index("UltraScreenSelfTest.runAll();"))
     check("0.5.3 catalog: generated from stock 0.5.3, 115 / 410 / 408, glind alias keys, 6 buffed pieces",
           p46_053.get("ultraVersion") == "0.5.3" and len(p46_053["pieces"]) == 115
           and len(p46_053["forms"]) == 410 and len(p46_053["designs"]) == 408
@@ -2001,11 +2055,12 @@ def main() -> int:
           "priced(name, price.isEmpty() ? \"lock\" : price)" in p46_char
           and 'FILTERS = List.of("all", "body", "tail", "ears", "wings", "horns")' in p46_svc
           and '"page:" + PAGE_FIND' in p46_char)
-    check("find: server-side match, cap 40, 5 recents, empty-state echo, textinput fallback, hub entry",
+    check("find: server-side match, cap 40, 5 recents, empty-state echo, textinput fallback, shop entry only",
           "FIND_CAP = 40" in p46_svc and "RECENT_MAX = 5" in p46_svc
           and "No parts matching '\" + query + \"'" in p46_char
           and "UltraClientFeatures.hasTextInput(player)" in p46_char
-          and '"@character:page:" + UltraCharacterScreens.PAGE_FIND' in p46_hub)
+          # 4.7.49: Find left the main hub; the Body parts shop keeps its Find button.
+          and "PAGE_FIND" not in p46_hub and '"page:" + PAGE_FIND' in p46_char)
     check("confirm pages preview the candidate on the model",
           "PlayerModelParts.previewSnapshot(player," in p46_char
           and "public static JsonObject previewSnapshot(" in p46_parts)
@@ -3037,9 +3092,10 @@ def main() -> int:
           "return LmOverhaulCapMath.prestigeRequirement(overhaulCount(data));" in lc_cap
           and "if (data == null || !revampPresent()) {" in lc_cap
           and "public static int levelCap(StatsData data) {\n        return com.dbzlegacy.adaptivedifficulty.progression.bridge.DmzRevampPrestigeBridge.levelCap(data);" in lc_math)
-    check("the cap applies to level gains: stat buys, max total, Overhaul's maxAssignableTotal, TP soft-lock",
-          "LmOverhaulCapMath.maxAssignableTotal(self, LmOverhaulCapMath.levelCap(self))" in lc_stats
-          and "cir.setReturnValue(LmOverhaulCapMath.maxAssignableTotal(self));" in lc_stats
+    # 4.7.49 (M-P1-7): the StatsData cap handlers were dead (revamp's HEAD cancellers win) and are
+    # gone; the max total still reaches LM through Overhaul's maxAssignableTotal hook.
+    check("the cap applies to level gains: max total via Overhaul's maxAssignableTotal, TP soft-lock",
+          "getMaxAllowedIncreaseForStat" not in lc_stats.split("*/", 2)[-1]
           and "cir.setReturnValue(LmOverhaulCapMath.maxAssignableTotal(data));" in lc_mix
           and "return maxAssignableTotal(data, overhaulLevelCap(data));" in lc_math
           and "LmOverhaulCapMath.levelCap(data);\n                    if (raw >= cap) {" in lc_events)
@@ -3237,7 +3293,7 @@ def main() -> int:
           and 'tag.m_128425_("scoreMilestones", 9)' in title_prog
           and 'tag.m_128425_("mutationsSeen", 9)' in title_prog)
     check("title persistence self-test runs at startup",
-          "verifyTitlesSurvivePrestige()" in read(SRC / "net/gui/LmGuiNetwork.java"))
+          boot_self_test("verifyTitlesSurvivePrestige"))
 
     print("\n--- § body parts ---")
     catalog = read(SRC / "gui/ultra/BodyPartCatalog.java")
@@ -3281,7 +3337,7 @@ def main() -> int:
           '"page:pick_confirm:" + action + "|" + here + "|" + name' in spar_ui
           and 'case "pick_apprentice", "pick_mentor" -> "Players"' in spar_ui)
     check("picker paging self-test runs at startup",
-          "verifyPickerPaging()" in read(SRC / "net/gui/LmGuiNetwork.java"))
+          boot_self_test("verifyPickerPaging"))
     pend = spar_ui.split("private static void openPending(", 1)[-1].split("\n    }\n", 1)[0]
     check("bond invites: lines and buttons share one page slice (4.6.233)",
           pend.count("for (String card : pageCards)") == 2
