@@ -1,5 +1,39 @@
 # Mohist M1: animation but no damage
 
+## Fix v3.0.2 — saga enemy cap, idle despawn, kill-gated top-up (Nov 2026)
+
+`mods/dmz_mohist_melee_fix-3.0.2.jar`
+
+DragonMineZ has no spawn cap: accepting a kill quest spawns its whole remaining count at once, so 50
+accepted Technique Training quests put 50 Gokus on one player (a god ki mastery farm). `SagaEnemyCap`
+runs once a second on the server tick (no per-player tick work): one pass over each level's entities
+for living mobs tagged `dmz_quest_key`, grouped by owner party, counting only mobs within 64 blocks of
+their owner (DMZ's own wave leash).
+
+- **Cap.** A party keeps at most 20 kill-quest enemies near its owners; the farthest extras are
+  discarded (`Entity.discard`: no death event, no drops, no quest credit, no TP or mastery), even ones
+  being fought.
+- **Idle despawn.** An enemy older than 60 s that no player hit in the last 10 s is discarded. Only the
+  player's hits count (melee and DMZ ki blasts both set vanilla `lastHurtByMob`; the sweep remembers
+  them for 10 s). A hit the enemy dodges (zanzoken) does not land and does not count. Bosses are not
+  exempt: an unfought boss goes after 60 s and comes back with the quest's re-summon.
+- **Top-up.** Each kill the party scored since the last sweep, including one that completed its quest,
+  buys one replacement through DMZ's own `spawnKillObjectives` (`QuestServiceInvoker`), never past
+  the cap and at most once per quest per sweep. No kills, no refill: an idle pit stays empty until
+  the player re-summons.
+- **Untouched.** Wave mobs (`dmz_quest_session`), escorts (`dmz_quest_escort`), mobs whose objective is
+  not a kill (spar partners), mobs of offline owners, and mobs over 64 blocks from their owner
+  (DMZ's own leash handles those).
+
+Verified on a Forge test server with DragonMineZ 2.2.1.2 (using a copy of the jar without the
+Mohist-only `ServerPlayerChangeDimensionMixin`, see `docs/LM_TEST_PROBES.md`): 30 accepted one-kill
+quests cap at 20; kills refill to `min(20, remaining)`; discards fire no death or loot event; unfought
+enemies go at tick 1201; melee- and ki-hit enemies stay and go 10 s after the last hit; no refill
+without kills; re-summon works; wave, escort and non-kill mobs stay. Sweep ticks cost no more than
+other ticks (6.9 ms vs 7.5 ms average).
+
+Server-only; requires a full server restart.
+
 ## Fix v3.0.1 — manifest names only shipped mixin configs (Oct 2026)
 
 `mods/dmz_mohist_melee_fix-3.0.1.jar`

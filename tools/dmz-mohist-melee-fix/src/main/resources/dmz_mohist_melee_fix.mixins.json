@@ -24,7 +24,8 @@
     "PartyManagerSyncQuestMixin",
     "LeavePartyC2SGhostHealMixin",
     "QuestProgressMergeMixin",
-    "PlayerQuestDataResetMixin"
+    "PlayerQuestDataResetMixin",
+    "QuestServiceInvoker"
   ],
   "client": [],
   "server": [],
