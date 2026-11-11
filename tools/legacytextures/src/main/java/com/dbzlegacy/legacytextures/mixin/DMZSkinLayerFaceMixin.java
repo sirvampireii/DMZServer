@@ -16,7 +16,8 @@ import software.bernie.geckolib.cache.object.BakedGeoModel;
  * Face animation point (DMZ Face Anim 0.2.0, absorbed in 0.2.3), checked against DragonMineZ 2.2.1.1
  * DMZSkinLayer. renderFace marks the face being drawn; each face layer's path goes through
  * {@link FaceAnimator#route} and a swapped frame is drawn by DMZ's own 11-argument renderColoredLayer,
- * so tint, light, HD sets and binding stay DMZ's. Fail-soft: require = 0 on every hook.
+ * so tint, light, HD sets and binding stay DMZ's. Fail-soft: require = 0 on every hook. Since 0.2.5
+ * {@link FaceAnimator#route} only swaps a layer this viewer draws from an HD set; a DMZ-file face stays still.
  */
 @Mixin(targets = "com.dragonminez.client.render.layer.DMZSkinLayer", remap = false)
 public abstract class DMZSkinLayerFaceMixin {

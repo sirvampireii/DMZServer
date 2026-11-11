@@ -52,6 +52,7 @@ def main() -> int:
         toml = zf.read("META-INF/mods.toml").decode("utf-8")
         sets = {n.rsplit("/", 1)[1]: json.loads(zf.read(n)) for n in names
                 if n.startswith("legacytextures/texture_sets/") and n.endswith(".json")}
+        aliases = json.loads(zf.read("legacytextures/aliases.json")) if "legacytextures/aliases.json" in names else None
 
     print("--- identity")
     check("modId legacytextures, version " + version, 'modId = "legacytextures"' in toml
@@ -147,6 +148,30 @@ def main() -> int:
           hd is not None and sorted(hd.get("categories", [])) == ["armor", "gui", "players", "world"])
 
     print("--- sources")
+    print("--- cross-race aliases (0.2.5)")
+    check("aliases.json shipped in the jar with an 'aliases' list", aliases is not None
+          and isinstance(aliases.get("aliases"), list))
+    bad_alias = [a for a in (aliases or {}).get("aliases", [])
+                 if not all(str(a.get(k, "")).startswith("dragonminez:textures/entity/") and str(a.get(k, "")).endswith("/")
+                            and "/faces/" not in str(a.get(k, "")) for k in ("from", "to"))]
+    check("every shipped alias maps dragonminez: player textures, never faces, geo or dmzultra:"
+          + (f" {bad_alias}" if bad_alias else ""), aliases is not None and not bad_alias)
+    resolver = (SRC / "resolve" / "Resolver.java").read_text(encoding="utf-8")
+    check("Resolver: aliases come after every exact HD lookup and before the mod's own file, players only",
+          re.search(r"return candidate;\s*}\s*}\s*ResourceLocation borrowed = borrow\(loc, c, chain\);", resolver) is not None
+          and "if (c != Category.PLAYERS)" in resolver and "!exists(loc)" in resolver)
+
+    print("--- face animation only on HD faces (0.2.5)")
+    anim = (SRC / "faceanim" / "FaceAnimator.java").read_text(encoding="utf-8")
+    check("FaceAnimator.route: a swapped frame (blink, scream, skip) only when the layer resolves to HD",
+          "return routed == path || isHd(path) ? routed : path;" in anim
+          and "!ClientState.RESOLVER.variant(loc).equals(loc)" in anim)
+    check("FaceAnimator HD check is fail-soft (a throw leaves the face still)",
+          re.search(r"catch \(Throwable t\) \{.*?return false;", anim, re.S) is not None)
+    face_mixin = re.sub(r"/\*.*?\*/|//[^\n]*", "",
+                        (SRC / "mixin" / "DMZSkinLayerFaceMixin.java").read_text(encoding="utf-8"), flags=re.S)
+    check("face mixin: every hook require = 0", face_mixin.count("@Inject(") == face_mixin.count("require = 0") == 5)
+
     java = list(SRC.rglob("*.java"))
     check("no raw section sign in Java sources", not any("§" in p.read_text(encoding="utf-8") for p in java))
     bad = []

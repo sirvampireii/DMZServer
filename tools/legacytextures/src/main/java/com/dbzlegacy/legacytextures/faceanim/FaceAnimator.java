@@ -1,6 +1,7 @@
 package com.dbzlegacy.legacytextures.faceanim;
 
 import com.dbzlegacy.legacytextures.LegacyTextures;
+import com.dbzlegacy.legacytextures.client.ClientState;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.character.Status;
 import com.dragonminez.common.stats.extras.ActionMode;
@@ -9,11 +10,16 @@ import java.util.WeakHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * Picks the face frame for the player DMZSkinLayer is drawing (DMZ Face Anim 0.2.0, absorbed). Between
  * {@link #begin} and {@link #end} (DMZSkinLayer.renderFace) {@link #route} swaps an eye or mouth layer
  * path for its blink or scream frame; outside a face, or when nothing is animating, paths pass through.
+ *
+ * <p>Only HD faces animate (0.2.5). DragonMineZ 2.2.1.2 has no blinking of its own, so a face layer this
+ * viewer draws from the mod's own file stays still, as DMZ draws it. A layer whose file resolves to an
+ * HD set (in HD mode, or an HD-only file in vanilla mode) blinks and shouts as before.
  */
 public final class FaceAnimator {
     /** Draw nothing for this layer (an overlay that has no closed-eye frame). */
@@ -36,6 +42,7 @@ public final class FaceAnimator {
     private static int eyes;
     private static int mouthFrame;
     private static boolean loggedHook;
+    private static boolean loggedGate;
 
     private FaceAnimator() {
     }
@@ -100,8 +107,11 @@ public final class FaceAnimator {
         if (!face.matches()) {
             return path;
         }
-        String folder = face.group(1);
-        String stem = face.group(2);
+        String routed = frame(path, face.group(1), face.group(2));
+        return routed == path || isHd(path) ? routed : path;
+    }
+
+    private static String frame(String path, String folder, String stem) {
         if (eyes != EYES_OPEN) {
             if (stem.startsWith("ssj4_eyes_") || stem.startsWith("shiyoken_eye")) {
                 return SKIP;
@@ -111,6 +121,20 @@ public final class FaceAnimator {
             }
         }
         return mouthFrame != 0 && MOUTH.matcher(stem).matches() ? folder + SCREAM + mouthFrame + ".png" : path;
+    }
+
+    /** Whether this viewer draws {@code dragonminez:<path>} from an HD set; a failure leaves the face still. */
+    private static boolean isHd(String path) {
+        try {
+            ResourceLocation loc = ResourceLocation.m_214293_("dragonminez", path);
+            return !ClientState.RESOLVER.variant(loc).equals(loc);
+        } catch (Throwable t) {
+            if (!loggedGate) {
+                loggedGate = true;
+                LegacyTextures.LOG.warn("face animation HD check failed; faces stay still: {}", t.toString());
+            }
+            return false;
+        }
     }
 
     public static boolean hideShadow(String featurePath) {

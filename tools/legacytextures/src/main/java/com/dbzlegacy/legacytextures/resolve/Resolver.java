@@ -1,8 +1,11 @@
 package com.dbzlegacy.legacytextures.resolve;
 
 import com.dbzlegacy.legacytextures.TextureMode;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import net.minecraft.resources.ResourceLocation;
 
@@ -12,6 +15,9 @@ import net.minecraft.resources.ResourceLocation;
  * <p>For a handled resource the active set for its category is tried first, then each fallback set,
  * and the mod's own file last. The answer for each resource is cached until {@link #configure} or
  * {@link #clear} (mode change or resource reload), which is the only thing that makes it stale.
+ *
+ * <p>Cross-race aliases (0.2.5, {@link Aliases}) come after every exact HD lookup misses and before the
+ * mod's own file: a player texture the race ships but no set has may draw a donor race's HD file.
  */
 public final class Resolver {
     private final Predicate<ResourceLocation> rawExists;
@@ -23,6 +29,10 @@ public final class Resolver {
     private volatile TextureSet players;
     private volatile TextureSet armor;
     private volatile TextureSet world;
+    private volatile Aliases aliases = Aliases.NONE;
+    /** Alias misses already logged; kept across clears so each is logged once per game. */
+    private final Set<ResourceLocation> loggedMisses = ConcurrentHashMap.newKeySet();
+    private volatile Consumer<String> log = s -> { };
 
     /** {@code rawExists} must answer from the loaded packs without going back through the hooks. */
     public Resolver(Predicate<ResourceLocation> rawExists) {
@@ -43,6 +53,17 @@ public final class Resolver {
         armor = mode.nbArmor ? hd : registry.vanilla();
         world = worldHd ? registry.hdOrFallback(worldSet) : registry.vanilla();
         clear();
+    }
+
+    /** Takes effect at once: cached answers are dropped. */
+    public void aliases(Aliases next, Consumer<String> missLog) {
+        aliases = next;
+        log = missLog;
+        clear();
+    }
+
+    public int aliasCount() {
+        return aliases.entries().size();
     }
 
     public void clear() {
@@ -89,9 +110,10 @@ public final class Resolver {
     }
 
     private ResourceLocation walk(ResourceLocation loc, Category c, TextureSet start) {
-        for (TextureSet s : sets.chain(start)) {
+        List<TextureSet> chain = sets.chain(start);
+        for (TextureSet s : chain) {
             if (s.isVanilla()) {
-                return loc;
+                break;
             }
             if (!s.covers(c)) {
                 continue;
@@ -101,7 +123,35 @@ public final class Resolver {
                 return candidate;
             }
         }
-        return loc;
+        ResourceLocation borrowed = borrow(loc, c, chain);
+        return borrowed != null ? borrowed : loc;
+    }
+
+    /**
+     * A donor race's HD file for a player texture. Only for a file the race ships itself, so an alias
+     * never adds a creator option; vanilla mode never gets here for such a file.
+     */
+    private ResourceLocation borrow(ResourceLocation loc, Category c, List<TextureSet> chain) {
+        if (c != Category.PLAYERS) {
+            return null;
+        }
+        ResourceLocation donor = aliases.donor(loc);
+        if (donor == null || !exists(loc)) {
+            return null;
+        }
+        for (TextureSet s : chain) {
+            if (s.isVanilla()) {
+                break;
+            }
+            ResourceLocation candidate = s.covers(c) ? s.map(donor) : null;
+            if (candidate != null && exists(candidate)) {
+                return candidate;
+            }
+        }
+        if (loggedMisses.add(loc)) {
+            log.accept("alias: no HD donor " + donor + " for " + loc + "; drawing its own file");
+        }
+        return null;
     }
 
     public boolean exists(ResourceLocation loc) {

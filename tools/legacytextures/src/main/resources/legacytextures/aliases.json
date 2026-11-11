@@ -1,0 +1,16 @@
+{
+  "_comment": [
+    "Cross-race HD aliases (Legacy Textures 0.2.5). A race with no HD files of its own borrows a donor",
+    "race's HD file at the same relative path, in HD mode, for files the race itself ships.",
+    "Entry: {\"from\": \"dragonminez:textures/entity/races/<race>/\", \"to\": \"dragonminez:textures/entity/races/<donor>/\"}.",
+    "Player textures only, never faces; a donor file missing from the HD set leaves the race's own file.",
+    "Add or remove entries here, then press F3+T or restart. No code change."
+  ],
+  "_not_shipped": [
+    "taimujin -> humansaiyan and angel -> humansaiyan were proposed and dropped in 0.2.5: their body",
+    "files are named <race>[_<form>]_<gender>_<n>_layer1..3 while the humansaiyan HD files are",
+    "bodytype_<gender>_<n>[_layer1], so not one of the 153 taimujin or 121 angel body files (DMZ Ultra",
+    "0.5.5) has a donor file at the same path. An alias for them would borrow nothing."
+  ],
+  "aliases": []
+}
