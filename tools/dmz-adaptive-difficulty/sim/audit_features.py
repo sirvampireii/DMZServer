@@ -2400,18 +2400,10 @@ def main() -> int:
           and '"challenge_pick".equals(action) ? "pick_challenge"' in rival_records)
 
     print("\n=== Noea corpse drops (4.6.27) ===")
-    corpse_fix = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/noea/NoeaTravelSafetyCorpseFixMixin.java")
-    check("noea drop suppression stops before it clears items",
-          'at = @At("HEAD")' in corpse_fix
-          and "cancellable = true" in corpse_fix
-          and "ci.cancel()" in corpse_fix
-          and "setCanceled" not in corpse_fix
-          and "suppressConfirmedDrops" in corpse_fix
-          and "Death.processDrops" in corpse_fix
-          and "captureInventory" in corpse_fix
-          and "does not snapshot" in corpse_fix
-          and "require = 0" in corpse_fix
-          and "private static void lm$disableDropSuppression" in corpse_fix)
+    # 4.7.47: Noea is no longer used (DMZ Ultra replaced it); its corpse-drop patch is gone.
+    check("Noea corpse-drop patch removed with Noea",
+          not (ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/noea/NoeaTravelSafetyCorpseFixMixin.java").is_file()
+          and "NoeaTravelSafetyCorpseFixMixin" not in read(ROOT / "tools/dmz-adaptive-difficulty/src/main/resources/legacymechanics.mixins.json"))
 
     print("\n=== Player stat reset and race change (4.6.38) ===")
     reset_block = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/DmzStatsResetPlayerBlockMixin.java")
@@ -2446,7 +2438,7 @@ def main() -> int:
           and "MeleeStatsResetPlayerBlockMixin" in mixins_json
           and "MeleeStatsResetPlayerBlockMixin" in mixin_plugin
           and "meleeResetCommandsPresent()" in mixin_plugin
-          and "Class.forName" not in mixin_plugin.split("meleeResetCommandsPresent()", 1)[-1].split("absorptionServicePresent", 1)[0]
+          and "Class.forName" not in mixin_plugin.split("meleeResetCommandsPresent()", 1)[-1].split("private static boolean dmzRevampClassPresent", 1)[0]
           and "AdaptiveDifficultyMod.LOGGER" in read(
               ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/noea/AbsorptionWipeHelper.java")
           and "System.out.println" not in read(
@@ -2475,7 +2467,6 @@ def main() -> int:
           and "DragonBallPickupMixin" not in dball_mixins)
 
     print("\n=== Majin absorption bonus (4.6.33) ===")
-    absorb_gate = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/noea/NoeaAbsorptionBonusGateMixin.java")
     absorb_store = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/noea/MajinAbsorptionStore.java")
     absorb_reset = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/StatsDataGuardsMixin.java")
     absorb_cmd = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/DmzStatsResetPlayerBlockMixin.java")
@@ -2485,12 +2476,9 @@ def main() -> int:
     absorb_services = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/character/CharacterServicesSystem.java")
     absorb_log = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/noea/AbsorptionClearLog.java")
     absorb_helper = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/noea/AbsorptionWipeHelper.java")
-    check("absorption bonus follows power and limit release",
-          "absorptionPower" in absorb_gate
-          and "isActive" not in absorb_gate
-          and "getPowerRelease()" in absorb_gate
-          and "priority = 1001" in absorb_gate
-          and "current - absorbed + scaledBonus" in absorb_gate
+    check("Noea absorption gate removed (4.7.47); the wipe helpers stay",
+          not (ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/noea/NoeaAbsorptionBonusGateMixin.java").is_file()
+          and "NoeaAbsorptionBonusGateMixin" not in read(ROOT / "tools/dmz-adaptive-difficulty/src/main/resources/legacymechanics.mixins.json")
           and "package com.dbzlegacy.adaptivedifficulty.noea;" in absorb_store
           and "com.butterjaffa" not in absorb_store
           and "public static void clear(Player player)" in absorb_store
@@ -2671,28 +2659,11 @@ def main() -> int:
     hakai_gate = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/noea/HakaiDestroyerGateMixin.java")
     mixin_plugin = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/LegacyMechanicsMixinPlugin.java")
     hakai_mixins = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/resources/legacymechanics.mixins.json")
-    check("hakai name match requires destroyer energy",
-          hakai_gate.count("isHakai(Ljava/lang/String;Ljava/lang/String;)Z") >= 2
-          and "\"hasDestructionEnergy\"" in hakai_gate
-          and "lm$gateSourceSaysHakai" in hakai_gate
-          and "sourceSaysHakai" in hakai_gate
-          and "techniqueId" in hakai_gate
-          and "noea_hakai_sphere" in hakai_gate
-          and "isHakaiTechnique" in hakai_gate
-          and "messageId" in hakai_gate
-          and "ci.cancel()" in hakai_gate
-          and "cir.setReturnValue(false)" in hakai_gate
-          and "require = 0" in hakai_gate
-          and "remap = false" in hakai_gate)
-    # 4.7.1: Noea is off live and this mixin had no presence check, so its target class was missing
-    # from a required mixin config. It is unregistered; the source stays for when Noea returns
-    # (register it again only behind a plugin presence gate).
-    check("hakai mixin unregistered while Noea is not installed",
-          '@Mixin(targets = "com.butterjaffa.noeabosses.DivineImmortalityEvents", remap = false)' in hakai_gate
-          and "require = 0" in hakai_gate
-          and "DestroyerRoleService\"" in hakai_gate
-          and "import com.butterjaffa.noeabosses.DestroyerRoleService" not in hakai_gate
-          and "HakaiDestroyerGateMixin" not in hakai_mixins)
+    # 4.7.47: Noea is no longer used; the Hakai gate on Noea's DivineImmortalityEvents is gone.
+    check("Noea Hakai gate removed with Noea",
+          not (ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/noea/HakaiDestroyerGateMixin.java").is_file()
+          and "HakaiDestroyerGateMixin" not in hakai_mixins
+          and "butterjaffa" not in mixin_plugin)
 
     print("\n=== Destroyer story auto-assign handed to KaiPath (4.6.219) ===")
     # LM's story-progress block was removed: KaiPath's guard is the defense now.
@@ -2706,9 +2677,8 @@ def main() -> int:
           and "destroyerRoleServicePresent" not in mixin_plugin
           and "initiateFromStoryProgress" not in mixin_plugin
           and "import com.butterjaffa.noeabosses.DestroyerRoleService" not in mixin_plugin)
-    check("hakai gate source and prestige role warn survive the story-assign removal",
-          (ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/mixin/noea/HakaiDestroyerGateMixin.java").is_file()
-          and "DivineImmortalityEvents" not in mixin_plugin
+    check("prestige role warn survives the story-assign removal",
+          "DivineImmortalityEvents" not in mixin_plugin
           and (ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeUniverseRoleWarn.java").is_file())
 
     print("\n=== Fusion cooldown reset (4.6.43) ===")
@@ -2733,13 +2703,11 @@ def main() -> int:
           and "setAccessible(true)" in lm_revive
           and "dmzrevive" not in lm_revive.split("*/", 1)[-1].lower().replace("/dmzrevive", "")
           and "performPrefixedCommand" not in lm_revive and ".execute(" not in lm_revive)
-    check("fusion reset clears both cooldown stores and the validation error",
-          "FusionLifecycleService.resetCooldown" in fusion_reset
-          and "fusionCooldownEnd = 0L" in fusion_reset
-          and 'fusionValidationError = ""' in fusion_reset
-          and "V090Data.save" in fusion_reset
-          and "V090Network.sync" in fusion_reset
-          and "clearPersistentCopies" in fusion_reset)
+    check("fusion reset clears DMZ's FusionCooldown and old Noea keys, never calls Noea (4.7.47)",
+          "removeCooldown(Cooldowns.FUSION_CD)" in fusion_reset
+          and "new StatsSyncS2C(player)" in fusion_reset
+          and "clearPersistentCopies" in fusion_reset
+          and "butterjaffa" not in fusion_reset and "V090Data" not in fusion_reset.split("*/", 1)[-1])
     check("fusion reset class is copied into the forge jar",
           "FusionCooldownReset" in read(ROOT / "tools/dmz-adaptive-difficulty/build.sh"))
 

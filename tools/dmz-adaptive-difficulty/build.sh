@@ -81,25 +81,7 @@ $NETTY:\
 $CNPC:\
 $DMZ"
 
-NOEA="${NOEA_JAR:-}"
-if [[ -z "$NOEA" ]]; then
-  for candidate in \
-    /tmp/noea-1.2.0.jar \
-    /tmp/noea.jar \
-    "$ROOT"/mods/Noea-1.2*.jar \
-    "$ROOT"/mods/Noea*.jar
-  do
-    if [[ -f "$candidate" ]]; then
-      NOEA="$candidate"
-      break
-    fi
-  done
-fi
-if [[ ! -f "$NOEA" ]]; then
-  echo "Missing Noea jar for absorption mixin compile (set NOEA_JAR)." >&2
-  exit 1
-fi
-echo "Using Noea jar for compile: $NOEA"
+# Noea is no longer used (4.7.47): DMZ Ultra replaced it, and nothing compiles against it.
 MELEE="$(ls -1 "$ROOT"/mods/dmz_mohist_melee_fix-*.jar 2>/dev/null | sort -V | tail -1 || true)"
 if [[ -z "${MELEE:-}" || ! -f "$MELEE" ]]; then
   echo "Missing dmz_mohist_melee_fix jar for the reset wipe mixin." >&2
@@ -136,7 +118,7 @@ if ! unzip -l "$DMZULTRA_SLOTS" 2>/dev/null | grep -c 'com/dmzultra/slots/api/Ch
   exit 1
 fi
 echo "Using dmzultra slots jar for compile: $DMZULTRA_SLOTS"
-CP="$CP:$NOEA:$MELEE:$DMZULTRA:$DMZULTRA_SLOTS"
+CP="$CP:$MELEE:$DMZULTRA:$DMZULTRA_SLOTS"
 
 echo "Cleaning compile output before packaging"
 rm -rf "$OUT"
@@ -502,11 +484,8 @@ merge_onto_base_jar() {
           "$merge/com/dbzlegacy/adaptivedifficulty/mixin/${mixin_cls}.class"
       fi
     done
-    if [[ -d "$OUT/com/dbzlegacy/adaptivedifficulty/mixin/noea" ]]; then
-      mkdir -p "$merge/com/dbzlegacy/adaptivedifficulty/mixin/noea"
-      cp -a "$OUT/com/dbzlegacy/adaptivedifficulty/mixin/noea/." \
-        "$merge/com/dbzlegacy/adaptivedifficulty/mixin/noea/"
-    fi
+    # Noea patch mixins are gone (4.7.47); a base jar may still carry them.
+    rm -rf "$merge/com/dbzlegacy/adaptivedifficulty/mixin/noea"
     if [[ -d "$OUT/com/dbzlegacy/adaptivedifficulty/mixin/dmzultra" ]]; then
       mkdir -p "$merge/com/dbzlegacy/adaptivedifficulty/mixin/dmzultra"
       cp -a "$OUT/com/dbzlegacy/adaptivedifficulty/mixin/dmzultra/." \

@@ -1104,9 +1104,11 @@ def main() -> int:
         ROOT
         / "src/main/java/com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeUniverseRoleWarn.java"
     ).read_text(encoding="utf-8")
-    if "DestroyerRoleService" not in role_warn or '"DESTROYER"' not in role_warn:
+    # 4.7.47: Noea is gone and DMZ Ultra keeps its Destroyer seat through prestige, so the
+    # God of Destruction warning is off and nothing may reach for Noea again.
+    if "butterjaffa" in role_warn or "public static boolean isGodOfDestruction(ServerPlayer player) {\n        return false;" not in role_warn:
         errors.append(
-            "PrestigeUniverseRoleWarn must reflect Noea DestroyerRoleService and match DESTROYER"
+            "PrestigeUniverseRoleWarn: no Noea lookup; isGodOfDestruction stays false (Ultra keeps the seat)"
         )
     if "KaiApi" not in role_warn or "isSupremeKai" not in role_warn:
         errors.append("PrestigeUniverseRoleWarn must reflect KaiApi.isSupremeKai")

@@ -1370,9 +1370,9 @@ def main() -> int:
     og_build = read(MOD / "build.sh")
     og_mf = read(MOD / "src/main/resources/META-INF/MANIFEST.MF")
     check("manifest optional-mod-mixin-gate row", "optional-mod-mixin-gate" in manifest)
-    check("Hakai gate unregistered (Noea off live); source kept",
+    check("Hakai gate gone with Noea (4.7.47)",
           "HakaiDestroyerGateMixin" not in og_json
-          and (SRC / "mixin/noea/HakaiDestroyerGateMixin.java").is_file())
+          and not (SRC / "mixin/noea/HakaiDestroyerGateMixin.java").is_file())
     check("dmzrevamp mixins gated on their target class file",
           'endsWith("PrestigeServiceIntegrationMixin")' in og_plugin
           and 'endsWith("DmzRevampPrestigeCapMixin")' in og_plugin
@@ -1880,6 +1880,24 @@ def main() -> int:
           and "GOD_KI.formMastery(player) >= (double) max * masteryPerLevel()" in gw_kt)
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
+
+    print("\n--- § lm 4.7.47 ---")
+    p47_build = read(MOD / "build.sh")
+    p47_sense = read(SRC / "mixin/DojoWarSenseMixin.java")
+    p47_plugin = read(SRC / "mixin/LegacyMechanicsMixinPlugin.java")
+    p47_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
+    check("manifest lm-4747-noea-removed row", "lm-4747-noea-removed" in manifest)
+    check("build needs no Noea jar; no LM source references Noea classes",
+          "NOEA_JAR" not in p47_build and "$NOEA" not in p47_build
+          and not any("com.butterjaffa" in f.read_text(encoding="utf-8") for f in SRC.rglob("*.java"))
+          and not (SRC / "mixin/noea").exists()
+          and '"noea.' not in p47_json)
+    check("dojo war sense hooks DMZ Ultra's SenseService.gather, gated on Ultra's class file",
+          '@Mixin(targets = "com.dmzultra.sense.SenseService"' in p47_sense
+          and 'method = "gather"' in p47_sense and "SenseOptions.maxSignatures()" in p47_sense
+          and '"com/dmzultra/sense/SenseService.class"' in p47_plugin)
+    check("Noea-gated wipe mixins stay off as on live",
+          'mixinClassName.endsWith("MeleeStatsResetAbsorptionWipeMixin"))) {\n            return false;' in p47_plugin)
 
     print("\n--- § lm 4.7.46 ---")
     import json as _json46
