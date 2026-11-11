@@ -524,18 +524,50 @@ public final class LtClientProbe {
                 wait = 10;
             }
             case 28 -> {
-                line("== face animation (absorbed DMZ Face Anim, 0.2.3)");
+                if (!faceVanillaDone) {
+                    line("== face animation only on HD faces (0.2.5): players vanilla first");
+                    faceStats = StatsProvider.get(StatsCapability.INSTANCE, mc.f_91074_).orElse(null);
+                    check("DMZ stats for the player", faceStats != null && faceStats.getStatus() != null);
+                    check("players are vanilla for the static-face checks", !ClientState.mode().players);
+                    int closed = closedTick(mc.f_91074_);
+                    boolean still = true;
+                    for (int t = closed - 6; t <= closed + 6; t++) {
+                        still &= routeAt(mc, t, EYE).equals(EYE);
+                    }
+                    check("ALL_VANILLA: a vanilla face stays still, eyes open through the whole blink window", still
+                            && bound(rl("dragonminez", EYE)).equals(rl("dragonminez", EYE)));
+                    String hdOnly = routeAt(mc, closed, EYE_HD_ONLY);
+                    check("ALL_VANILLA: an HD-only face (eye 13, HD as last resort) still blinks",
+                            hdOnly.equals(EYE_HD_ONLY_CLOSED) && raw(rl("dragonminez", hdOnly)));
+                    faceStats.getStatus().setChargingKi(true);
+                    String mouth = MOUTH;
+                    for (int i = 1; i <= 5; i++) {
+                        mouth = routeAt(mc, 20000 + i, MOUTH);
+                    }
+                    faceStats.getStatus().setChargingKi(false);
+                    for (int i = 6; i <= 12; i++) {
+                        routeAt(mc, 20000 + i, MOUTH);
+                    }
+                    check("ALL_VANILLA: charging ki keeps the vanilla mouth (no scream frame)", mouth.equals(MOUTH));
+                    String angel = routeAt(mc, closed, ANGEL_EYE);
+                    check("ALL_VANILLA: Angel eyes stay still (no HD Angel face exists)", angel.equals(ANGEL_EYE));
+                    faceVanillaDone = true;
+                    mc.f_91074_.f_108617_.m_246623_("legacytextures players hd");
+                    step = 28;
+                    wait = 40;
+                    return;
+                }
+                line("== face animation (absorbed DMZ Face Anim, 0.2.3), players HD");
+                check("players are HD for the blink checks (stored by the server)", ClientState.mode().players);
                 check("face animation mixin applied", logHas("hook applied: DMZSkinLayerFaceMixin"));
                 check("face animation hook ran while the player was drawn", logHas("face animation hook active in DMZSkinLayer"));
-                faceStats = StatsProvider.get(StatsCapability.INSTANCE, mc.f_91074_).orElse(null);
-                check("DMZ stats for the player", faceStats != null && faceStats.getStatus() != null);
                 int closed = closedTick(mc.f_91074_);
                 String blink = routeAt(mc, closed, EYE);
                 check("blink: at a closed-eye tick the eye layer draws its closed frame, and that frame is a file",
                         blink.equals(EYE_CLOSED) && raw(rl("dragonminez", blink)));
                 String angel = routeAt(mc, closed, ANGEL_EYE);
-                check("blink: Angel eyes close too (angel/ frames, base eyes shipped)", angel.equals(ANGEL_CLOSED)
-                        && raw(rl("dragonminez", angel)) && raw(rl("dragonminez", ANGEL_EYE)));
+                check("HD: Angel eyes stay still (no HD Angel face; 0.2.5 animates HD faces only)",
+                        angel.equals(ANGEL_EYE) && raw(rl("dragonminez", ANGEL_CLOSED)));
                 int blinks = 0;
                 boolean was = false;
                 for (int t = 0; t < 900; t++) {
@@ -729,6 +761,9 @@ public final class LtClientProbe {
     private static final String EYE_CLOSED = "textures/entity/races/humansaiyan/faces/anim/humansaiyan_eye_0_0_closed.png";
     private static final String ANGEL_EYE = "textures/entity/races/angel/faces/angel_eye_0_0.png";
     private static final String ANGEL_CLOSED = "textures/entity/races/angel/faces/anim/angel_eye_0_0_closed.png";
+    private static final String EYE_HD_ONLY = "textures/entity/races/humansaiyan/faces/humansaiyan_eye_13_0.png";
+    private static final String EYE_HD_ONLY_CLOSED = "textures/entity/races/humansaiyan/faces/anim/humansaiyan_eye_13_0_closed.png";
+    private boolean faceVanillaDone;
     private static final String MOUTH = "textures/entity/races/humansaiyan/faces/humansaiyan_mouth_0.png";
     private static final List<ResourceLocation> SHADED_BODIES = List.of(
             rl("dragonminez", "textures/entity/races/majin/bodytype_female_0_layer1.png"),
@@ -786,6 +821,7 @@ public final class LtClientProbe {
         java.lang.reflect.Method build = sgp.getDeclaredMethod("shadedLayer", ResourceLocation.class);
         build.setAccessible(true);
         String race = body.m_135815_().split("/")[3];
+        TextureMode before = ClientState.mode();
         ClientState.onServerSync(ClientState.mode().withPlayers(true), false);
         ResourceLocation[] hd = (ResourceLocation[]) build.invoke(null, body);
         long hdHash = shadedHash(hd);
@@ -805,6 +841,7 @@ public final class LtClientProbe {
         boolean stale = build.invoke(null, body) == hd2;
         check(race + ": negative control - an uncleared shaded layer keeps the HD body after the switch", stale);
         map.remove(body);
+        ClientState.onServerSync(before, false);
     }
 
     private static int shadedLeft() throws Exception {

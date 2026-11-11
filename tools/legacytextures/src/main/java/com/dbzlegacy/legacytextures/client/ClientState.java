@@ -3,6 +3,7 @@ package com.dbzlegacy.legacytextures.client;
 import com.dbzlegacy.legacytextures.LegacyTextures;
 import com.dbzlegacy.legacytextures.TextureMode;
 import com.dbzlegacy.legacytextures.net.LtNetwork;
+import com.dbzlegacy.legacytextures.resolve.Aliases;
 import com.dbzlegacy.legacytextures.resolve.Resolver;
 import com.dbzlegacy.legacytextures.resolve.SetRegistry;
 import java.io.InputStream;
@@ -101,6 +102,12 @@ public final class ClientState {
             LegacyTextures.LOG.warn("texture sets: {}", w);
         }
         registry = next;
+        Path aliasFile = FMLPaths.CONFIGDIR.get().resolve(LegacyTextures.MODID).resolve(Aliases.FILE);
+        Aliases aliases = Aliases.load(aliasFile, file -> ClientState.class.getResourceAsStream("/legacytextures/" + file));
+        for (String w : aliases.warnings()) {
+            LegacyTextures.LOG.warn("texture aliases: {}", w);
+        }
+        RESOLVER.aliases(aliases, LegacyTextures.LOG::info);
         worldHdLoaded = mode.world;
         worldSetLoaded = mode.set;
         RESOLVER.configure(registry, mode, worldHdLoaded, worldSetLoaded);
@@ -109,7 +116,8 @@ public final class ClientState {
     /** After every resource reload, on the main thread. */
     static void afterReload() {
         refresh();
-        LegacyTextures.LOG.info("texture sets loaded: {} (view: {})", registry.all().keySet(), mode);
+        LegacyTextures.LOG.info("texture sets loaded: {} (view: {}, {} alias(es))", registry.all().keySet(), mode,
+                RESOLVER.aliasCount());
     }
 
     private static InputStream defaultSet(String file) {

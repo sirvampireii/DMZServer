@@ -4,8 +4,8 @@ A Forge 1.20.1 mod that carries the HD textures for DragonMineZ and NB Armors, a
 switch between HD and the standard look for their own game. It is a new mod, separate from
 LegacyMechanics. Source: `tools/legacytextures/`.
 
-- **Identity:** modId `legacytextures`, version 0.2.4, `displayTest = MATCH_VERSION`.
-- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.4). See
+- **Identity:** modId `legacytextures`, version 0.2.5, `displayTest = MATCH_VERSION`.
+- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.5). See
   [NB Armors inside Legacy Textures](#nb-armors-inside-legacy-textures). The separate
   `nbarmors-0.1.0.jar` must not be installed next to it, because two copies of a mod id will not load.
 - **Dependencies:**
@@ -134,6 +134,19 @@ The code is identifiable in `faceanim/` (`FaceAnimator`, `FaceFlags`, `FaceAnimC
 - **How:** `DMZSkinLayer.renderFace` marks the face being drawn; each face layer path (eyes, mouth)
   is swapped for its frame and drawn by DMZ's own 11-argument `renderColoredLayer`, so tint, light and
   the HD switch stay DMZ's. Nothing binds a texture or keeps a GL id. Every hook is `require = 0`.
+- **Only HD faces animate (0.2.5).** DragonMineZ 2.2.1.2 has no blinking of its own (no `faces/anim`
+  files, no blink animation), so a face drawn from DMZ's own file now stays still, as DMZ draws it.
+  Before each eye or mouth layer is swapped, `FaceAnimator.route` asks the resolver what this viewer
+  draws for that layer. If the answer is DMZ's own file, the layer is drawn as is: no blink frame, no
+  shout mouth, no skipped SSJ4 or shiyoken overlay. If it is an HD file, nothing changed. This holds in
+  every preset:
+  - All HD and Players HD only: faces with an HD file animate.
+  - All vanilla: faces stay still, except HD-only faces (for example humansaiyan eyes 13+), which a
+    vanilla viewer draws from the HD set as the last resort, so they still animate.
+  - Races with no HD face files never animate: Angel (the four LT base eyes and the Angel frames are now
+    unused) and most BioAndroid eyes (only 8 BioAndroid face files are HD).
+  - `/faceanim`, `enableBlink`/`enableScream`, the 90-tick cycle and the per-player offset are unchanged.
+  - If the check throws, the face stays still and one warning is logged.
 - **Frames:** 479 files under `dragonminez:textures/entity/races/<race>/faces/anim/` plus the four base
   Angel eyes `angel/faces/angel_eye_0_0..3.png`. They stay in the `dragonminez:` namespace because DMZ
   draws faces by that path; none of them exists in DragonMineZ (the audit checks), so no DMZ file is
@@ -222,6 +235,34 @@ has no JSON yet:
 3. Press F3+T or restart. The set appears in the menu's HD set picker.
 
 A JSON can also point at files another mod or pack already provides.
+
+### Cross-race aliases (0.2.5)
+
+`config/legacytextures/aliases.json` lets a race with no HD files of its own borrow a donor race's HD
+file. The file is written from the jar's copy when it is missing; adding or removing an entry needs
+F3+T or a restart, no code change.
+
+```json
+{ "aliases": [ { "from": "dragonminez:textures/entity/races/<race>/",
+                 "to":   "dragonminez:textures/entity/races/<donor>/" } ] }
+```
+
+- **When it applies:** in HD mode, after every set in the chain misses the exact file and before the
+  mod's own file. The donor file is the one at the same relative path under `to`, looked up in the same
+  sets. Vanilla mode never aliases.
+- **Only files the race ships.** A race texture that does not exist at all is not borrowed, so an alias
+  never adds an option to the character creator, and vanilla and HD viewers still agree on what exists.
+- **Only player textures.** `from` and `to` must be `dragonminez:textures/...` player paths. Faces
+  (`/faces/`), geo, `dmzultra:` and other namespaces are refused with a log warning; eyes stay as the
+  race ships them (and, per the face animation rule, stay still).
+- **Misses:** when the donor has no HD file, the race's own file is drawn and the miss is logged once
+  per file per game (`alias: no HD donor ...`).
+- **Shipped table: empty.** The proposed taimujin → humansaiyan and angel → humansaiyan entries were
+  dropped. DMZ Ultra names those races' bodies `<race>[_<form>]_<gender>_<n>_layer1..3` (+ emissive),
+  while the humansaiyan HD files are `bodytype_<gender>_<n>[_layer1].png`. Not one of the 153 taimujin
+  or 121 angel body files (Ultra 0.5.5) has a humansaiyan HD file at the same path, so the entries
+  would borrow nothing. A usable alias needs a donor whose files share the race's names and layer
+  layout. A Frost Demon geometry gap or a `dmzultra:` race is not an alias case.
 
 ## How it draws (client)
 
@@ -347,6 +388,14 @@ screenshot in each mode:
 - The NB textures drawn standard, then HD with no reload.
 - `/legacytextures status`.
 - `/legacytextures world hd`: its chat warning and exactly one reload.
+- Face animation (0.2.5): with players vanilla, a vanilla face stays open through the whole blink
+  window, the mouth does not shout and Angel eyes stay still, while an HD-only face (humansaiyan eye 13)
+  still blinks. Then `/legacytextures players hd` (stored by the server, so the relogin keeps it) and
+  the blink, shout, `/faceanim` and menu checks from 0.2.3/0.2.4 run on HD faces.
+
+`ResolverTest` (run by `build.sh`) also covers the alias rules: the shipped table is empty and valid;
+face, geo and `dmzultra:` entries are refused; a shipped file borrows the donor's HD file in HD mode
+only; a missing donor draws the race's own file and is logged once; a file the race lacks is not borrowed.
 
 ## Deploy notes
 

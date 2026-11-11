@@ -1,11 +1,14 @@
 import com.dbzlegacy.legacytextures.TextureMode;
+import com.dbzlegacy.legacytextures.resolve.Aliases;
 import com.dbzlegacy.legacytextures.resolve.Category;
 import com.dbzlegacy.legacytextures.resolve.Resolver;
 import com.dbzlegacy.legacytextures.resolve.SetRegistry;
 import com.dbzlegacy.legacytextures.resolve.TextureSet;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import net.minecraft.resources.ResourceLocation;
 
@@ -108,11 +111,65 @@ public final class ResolverTest {
         check("fallback loop stops at vanilla", reg3.chain(reg3.get("hd2")).get(reg3.chain(reg3.get("hd2")).size() - 1)
                 .isVanilla());
 
+        aliasRules(reg, files);
+
         if (failures > 0) {
             System.err.println("ResolverTest: " + failures + " failure(s)");
             System.exit(1);
         }
         System.out.println("ResolverTest OK");
+    }
+
+    /** Cross-race HD aliases (0.2.5): a synthetic race borrows humansaiyan's HD body file. */
+    private static void aliasRules(SetRegistry reg, Set<ResourceLocation> files) throws Exception {
+        Path cfg = Files.createTempDirectory("lt-alias").resolve("aliases.json");
+        Aliases shipped = Aliases.load(cfg,
+                name -> ResolverTest.class.getResourceAsStream("/legacytextures/" + name));
+        check("aliases: default file written, valid, and empty (both proposed entries dropped)",
+                Files.exists(cfg) && shipped.entries().isEmpty() && shipped.warnings().isEmpty());
+
+        ResourceLocation own = rl("dragonminez", "textures/entity/races/testrace/bodytype_male_3_layer1.png");
+        ResourceLocation ownOnly = rl("dragonminez", "textures/entity/races/testrace/testrace_0_layer2.png");
+        ResourceLocation notShipped = rl("dragonminez", "textures/entity/races/testrace/bodytype_male_4_layer1.png");
+        ResourceLocation face = rl("dragonminez", "textures/entity/races/testrace/faces/humansaiyan_eye_0_0.png");
+        ResourceLocation donorHd = rl("legacytextures", "textures/hd/dragonminez/entity/races/humansaiyan/bodytype_male_3_layer1.png");
+        ResourceLocation donor4Hd = rl("legacytextures", "textures/hd/dragonminez/entity/races/humansaiyan/bodytype_male_4_layer1.png");
+        ResourceLocation donorFaceHd = rl("legacytextures", "textures/hd/dragonminez/entity/races/humansaiyan/faces/humansaiyan_eye_0_0.png");
+        files.add(own);
+        files.add(ownOnly);
+        files.add(face);
+        files.add(donor4Hd);
+        files.add(donorFaceHd);
+        Files.writeString(cfg, "{\"aliases\":["
+                + "{\"from\":\"dragonminez:textures/entity/races/testrace/\",\"to\":\"dragonminez:textures/entity/races/humansaiyan/\"},"
+                + "{\"from\":\"dragonminez:textures/entity/races/x/faces/\",\"to\":\"dragonminez:textures/entity/races/humansaiyan/faces/\"},"
+                + "{\"from\":\"dmzultra:textures/entity/races/alien/\",\"to\":\"dmzultra:textures/entity/races/humansaiyan/\"},"
+                + "{\"from\":\"dragonminez:geo/entity/races/\",\"to\":\"dragonminez:geo/entity/x/\"}]}");
+        Aliases a = Aliases.load(cfg, name -> null);
+        check("aliases: a face, a dmzultra: and a geo entry are refused with warnings",
+                a.entries().size() == 1 && a.warnings().size() == 3);
+
+        List<String> logged = new ArrayList<>();
+        Resolver r = new Resolver(files::contains);
+        r.configure(reg, mode(TextureMode.Preset.PLAYERS_HD_ONLY), false, "hd");
+        r.aliases(a, logged::add);
+        check("aliases HD: a file the race ships borrows the donor's HD file", donorHd.equals(r.variant(own)));
+        check("aliases HD: no donor HD file -> the race's own file, miss logged once",
+                r.variant(ownOnly) == ownOnly && logged.size() == 1);
+        r.clear();
+        r.variant(ownOnly);
+        check("aliases HD: the miss is not logged again after a clear", logged.size() == 1);
+        check("aliases HD: faces never alias (eyes stay as the race ships them)", r.variant(face) == face);
+        check("aliases HD: a file the race does not ship stays missing (no new creator option)",
+                r.variant(notShipped) == notShipped);
+
+        r.configure(reg, mode(TextureMode.Preset.ALL_VANILLA), false, "hd");
+        check("aliases ALL_VANILLA: the race's own file, no alias", r.variant(own) == own);
+        check("aliases ALL_VANILLA: a missing file does not borrow either", r.variant(notShipped) == notShipped);
+
+        r.configure(reg, mode(TextureMode.Preset.PLAYERS_HD_ONLY), false, "hd");
+        r.aliases(Aliases.NONE, logged::add);
+        check("aliases removed: the race draws its own file again", r.variant(own) == own);
     }
 
     private static TextureMode mode(TextureMode.Preset p) {
