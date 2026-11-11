@@ -31,24 +31,19 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
             return false;
         }
         if (mixinClassName != null && mixinClassName.endsWith("DojoWarSenseMixin")) {
-            return senseNetworkPresent();
+            return ultraSensePresent();
         }
-        if (mixinClassName != null && mixinClassName.endsWith("NoeaAbsorptionBonusGateMixin")) {
-            return absorptionServicePresent();
-        }
+        // 4.7.47: these wipes were gated on Noea's absorption service. Noea is gone (DMZ Ultra
+        // replaced it), so they stay off exactly as they already were on live; turning on the
+        // God Ki wipe for character creation, Dende and /dmzstats reset is an owner decision.
         if (mixinClassName != null && (
                 mixinClassName.endsWith("DendeResetAbsorptionWipeMixin")
-                        || mixinClassName.endsWith("CreateCharacterAbsorptionWipeMixin"))) {
-            return absorptionServicePresent();
+                        || mixinClassName.endsWith("CreateCharacterAbsorptionWipeMixin")
+                        || mixinClassName.endsWith("MeleeStatsResetAbsorptionWipeMixin"))) {
+            return false;
         }
         if (mixinClassName != null && mixinClassName.endsWith("MeleeStatsResetPlayerBlockMixin")) {
             return meleeResetCommandsPresent();
-        }
-        if (mixinClassName != null && mixinClassName.endsWith("MeleeStatsResetAbsorptionWipeMixin")) {
-            return absorptionServicePresent() && meleeResetCommandsPresent();
-        }
-        if (mixinClassName != null && mixinClassName.endsWith("NoeaTravelSafetyCorpseFixMixin")) {
-            return travelSafetyPresent();
         }
         if (mixinClassName != null && mixinClassName.endsWith("VipersCallUnendingVenomMixin")) {
             return vipersCallPresent();
@@ -89,19 +84,6 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
         }
     }
 
-    /** Noea absorption service. Absent on a server that does not run Noea. */
-    private static boolean absorptionServicePresent() {
-        try {
-            Class.forName(
-                    "com.butterjaffa.noeabosses.MajinAbsorptionService",
-                    false,
-                    LegacyMechanicsMixinPlugin.class.getClassLoader());
-            return true;
-        } catch (Throwable ignored) {
-            return false;
-        }
-    }
-
     /**
      * Simply More's Viper's Call. Look the class file up (it is the mixin target, so it must not
      * be loaded here). Absent on a server without Simply More.
@@ -126,27 +108,14 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
         }
     }
 
-    /** Noea off-world inventory. Absent on a server that does not run Noea. */
-    private static boolean travelSafetyPresent() {
+    /**
+     * DMZ Ultra's ki sense service (the dojo war sense target). Looked up as a class file so the
+     * mixin config does not load the target early. Absent on a server without DMZ Ultra.
+     */
+    private static boolean ultraSensePresent() {
         try {
-            Class.forName(
-                    "com.butterjaffa.noeabosses.TravelSafetyService",
-                    false,
-                    LegacyMechanicsMixinPlugin.class.getClassLoader());
-            return true;
-        } catch (Throwable ignored) {
-            return false;
-        }
-    }
-
-    /** Noea's tracking channel. Absent on a server that does not run Noea. */
-    private static boolean senseNetworkPresent() {
-        try {
-            Class.forName(
-                    "com.butterjaffa.noeabosses.sense.SenseNetwork",
-                    false,
-                    LegacyMechanicsMixinPlugin.class.getClassLoader());
-            return true;
+            ClassLoader loader = LegacyMechanicsMixinPlugin.class.getClassLoader();
+            return loader != null && loader.getResource("com/dmzultra/sense/SenseService.class") != null;
         } catch (Throwable ignored) {
             return false;
         }

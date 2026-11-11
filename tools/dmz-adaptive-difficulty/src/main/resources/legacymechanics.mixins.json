@@ -27,8 +27,6 @@
     "ResourcesEnergyDrainGuardMixin",
     "ResourcesDeathTpPenaltyMixin",
     "DojoWarSenseMixin",
-    "noea.NoeaAbsorptionBonusGateMixin",
-    "noea.NoeaTravelSafetyCorpseFixMixin",
     "dmzultra.DmzultraNemesisSpawnGateMixin",
     "dmzultra.DmzultraChamberWaveTpMixin",
     "dmzultra.DmzultraChamberWaveCooldownMixin",

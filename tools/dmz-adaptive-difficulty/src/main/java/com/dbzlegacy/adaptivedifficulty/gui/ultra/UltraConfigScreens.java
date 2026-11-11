@@ -29,10 +29,11 @@ public final class UltraConfigScreens {
     /**
      * Coordinate space that fits the smallest auto GUI (1440p / 4K, about 426x240).
      * 1080p auto scale is about 480x270; the live client clamps the panel request to
-     * that window and draws these coordinates unscaled.
+     * that window and draws these coordinates unscaled. Package-private: the startup self-test
+     * reads the box from here, so changing it here never fails boot (4.7.46).
      */
-    private static final int CONFIG_DESIGN_W = 426;
-    private static final int CONFIG_DESIGN_H = 240;
+    static final int CONFIG_DESIGN_W = 426;
+    static final int CONFIG_DESIGN_H = 240;
     /**
      * Larger than an auto GUI (and under the 2000px packet cap). KaiPath 1.3.20 clamps
      * this down to {@code screen - margin * 2}. Margin 0 makes the clamp equal the window.

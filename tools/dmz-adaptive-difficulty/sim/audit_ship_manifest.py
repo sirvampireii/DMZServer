@@ -1370,9 +1370,9 @@ def main() -> int:
     og_build = read(MOD / "build.sh")
     og_mf = read(MOD / "src/main/resources/META-INF/MANIFEST.MF")
     check("manifest optional-mod-mixin-gate row", "optional-mod-mixin-gate" in manifest)
-    check("Hakai gate unregistered (Noea off live); source kept",
+    check("Hakai gate gone with Noea (4.7.47)",
           "HakaiDestroyerGateMixin" not in og_json
-          and (SRC / "mixin/noea/HakaiDestroyerGateMixin.java").is_file())
+          and not (SRC / "mixin/noea/HakaiDestroyerGateMixin.java").is_file())
     check("dmzrevamp mixins gated on their target class file",
           'endsWith("PrestigeServiceIntegrationMixin")' in og_plugin
           and 'endsWith("DmzRevampPrestigeCapMixin")' in og_plugin
@@ -1570,7 +1570,7 @@ def main() -> int:
 
     print("\n--- § body parts catalog 0.4.0 ---")
     import json as _json
-    bp_json = _json.loads(read(SRC.parents[3] / "resources" / "dmzultra-form-parts.json"))
+    bp_json = _json.loads(read(SRC.parents[3] / "resources" / "dmzultra-form-parts-0.4.0.json"))
     bp_cat = read(SRC / "gui/ultra/BodyPartCatalog.java")
     bp_test = read(SRC / "gui/ultra/BodyPartCatalogSelfTest.java")
     bp_gen = read(MOD / "sim" / "gen_dmzultra_form_parts.py")
@@ -1599,7 +1599,7 @@ def main() -> int:
           and '"ystr_tail"' in bp_test and '"mua_sash_tails"' in bp_test)
     check("BodyPartCatalogSelfTest covers Soul Reaper, a renamed key and the 0.4.0 shop size",
           '"bankai_coat"' in bp_test and '"demon", "abyssforms", "demongod"' in bp_test
-          and "shop.size() < 109" in bp_test)
+          and 'new Expect("0.4.0", 109, 220, 220' in bp_test)
 
     print("\n--- § gui bridge 4.7.8 ---")
     gb_feat = read(SRC / "net/gui/UltraClientFeatures.java")
@@ -1703,8 +1703,10 @@ def main() -> int:
           and "tab:saga" not in ch_home and "tab:android" not in ch_home and "saga_reset" not in ch_home
           and ch_home.index('"page:race:0"') < ch_home.index('"page:class:0"') < ch_home.index('"page:bones:0"')
               < ch_home.index('"page:bodyparts:0"') < ch_home.index('"page:reskin"'))
+    # 4.7.48: Preview forms is the sixth destination.
     check("each Home entry has a plain line with its state; blocked entries stay listed, dimmed, with a reason",
-          ch_home.count(".line(indexLine(") == 5
+          ch_home.count(".line(indexLine(") == 6
+          and ch_home.index('"page:reskin"') < ch_home.index('"page:" + PAGE_FORM_PREVIEW + ":0"')
           and "CosmeticBodyPartService.equippedParts(player).size()" in ch_home
           and 'return "Turned off on this server right now.";' in ch_scr
           and 'return "Not available for your rank.";' in ch_scr
@@ -1885,6 +1887,142 @@ def main() -> int:
           and "GOD_KI.formMastery(player) >= (double) max * masteryPerLevel()" in gw_kt)
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
+
+    print("\n--- § lm 4.7.48 ---")
+    p48_prev = read(SRC / "gui/ultra/ModelPreview.java")
+    p48_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
+    p48_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
+    p48_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    p48_parts = read(SRC / "gui/ultra/PlayerModelParts.java")
+    p48_figure = p48_prev.split("public static JsonObject formFigure", 1)[-1].split("public static JsonObject rivalFigure", 1)[0]
+    # Labels avoid the word the CNPC-retired filter skips, so these run.
+    check("manifest row for lm 4.7.48 model screens", "lm-4748-model-previews" in manifest)
+    check("one spin action flips the viewer and resends the page",
+          'ROTATE_ACTION = "model_rotate"' in p48_prev
+          and "ModelPreview.ROTATE_ACTION.equals(parts.action)" in p48_act
+          and "ModelPreview.flipRotate(viewer)" in p48_act)
+    check("every character model page spins by the viewer's choice and has the toggle",
+          "0.9f, true" not in p48_char
+          and p48_char.count("ModelPreview.rotateButton(spec, player,") >= 9
+          and p48_char.count("248, 60, 86, 120, 0.9f, ModelPreview.rotate(player)") >= 4)
+    check("form figures are made-up uuid subjects with no colors, never subject local",
+          '"subject", "uuid:" + UUID.nameUUIDFromBytes' in p48_figure
+          and '"local"' not in p48_prev and '"colors"' not in p48_figure
+          and "ConfigManager.getAllFormsForRace(race)" in p48_prev)
+    check("Character Home forms page steps the race's forms",
+          'PAGE_FORM_PREVIEW = "form_preview"' in p48_char and "openFormPreview" in p48_char
+          and '"Preview forms", formsBlock' in p48_char and "ModelPreview.pick(player, form)" in p48_char)
+    check("rival profile shows the rival via the inspect builder, with a you/rival switch",
+          "return target == null ? null : build(target, true);" in p48_parts
+          and "PlayerModelParts.otherPlayerSnapshot(rival)" in p48_prev
+          and "ModelPreview.rivalFigure(player, rival)" in p48_rival
+          and 'VIEW_YOU = "|you"' in p48_rival and '"Show you"' in p48_rival
+          and 'ModelPreview.rotateButton(spec, player, "list_detail:" + payload)' in p48_rival)
+
+    print("\n--- § lm 4.7.47 ---")
+    p47_build = read(MOD / "build.sh")
+    p47_sense = read(SRC / "mixin/DojoWarSenseMixin.java")
+    p47_plugin = read(SRC / "mixin/LegacyMechanicsMixinPlugin.java")
+    p47_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
+    check("manifest lm-4747-noea-removed row", "lm-4747-noea-removed" in manifest)
+    check("build needs no Noea jar; no LM source references Noea classes",
+          "NOEA_JAR" not in p47_build and "$NOEA" not in p47_build
+          and not any("com.butterjaffa" in f.read_text(encoding="utf-8") for f in SRC.rglob("*.java"))
+          and not (SRC / "mixin/noea").exists()
+          and '"noea.' not in p47_json)
+    check("dojo war sense hooks DMZ Ultra's SenseService.gather, gated on Ultra's class file",
+          '@Mixin(targets = "com.dmzultra.sense.SenseService"' in p47_sense
+          and 'method = "gather"' in p47_sense and "SenseOptions.maxSignatures()" in p47_sense
+          and '"com/dmzultra/sense/SenseService.class"' in p47_plugin)
+    check("Noea-gated wipe mixins stay off as on live",
+          'mixinClassName.endsWith("MeleeStatsResetAbsorptionWipeMixin"))) {\n            return false;' in p47_plugin)
+
+    print("\n--- § lm 4.7.46 ---")
+    import json as _json46
+    p46_ver = read(SRC / "gui/ultra/UltraVersion.java")
+    p46_cat = read(SRC / "gui/ultra/BodyPartCatalog.java")
+    p46_gen = read(SRC / "gui/ultra/UltraFormPartsGenerator.java")
+    p46_test = read(SRC / "gui/ultra/BodyPartCatalogSelfTest.java")
+    p46_net = read(SRC / "net/gui/LmGuiNetwork.java")
+    p46_build = read(MOD / "build.sh")
+    p46_053 = _json46.loads(read(SRC.parents[3] / "resources" / "dmzultra-form-parts-0.5.3.json"))
+    p46_040 = _json46.loads(read(SRC.parents[3] / "resources" / "dmzultra-form-parts-0.4.0.json"))
+    check("manifest lm-4746 rows", all(r in manifest for r in (
+        "lm-4746-ultra-version-catalogs", "lm-4746-tier-state-machine", "lm-4746-body-parts-shop-ui",
+        "lm-4746-config-design-box-selftest")))
+    check("Ultra version from the mod list; unknown = 0.4.0; one boot line before the screen self-test",
+          'getModContainerById(MOD_ID)' in p46_ver and 'BASELINE = "0.4.0"' in p46_ver
+          and "UltraVersion.logAtBoot();" in p46_net
+          and p46_net.index("UltraVersion.logAtBoot();") < p46_net.index("UltraScreenSelfTest.runAtStartup();"))
+    check("0.5.3 catalog: generated from stock 0.5.3, 115 / 410 / 408, glind alias keys, 6 buffed pieces",
+          p46_053.get("ultraVersion") == "0.5.3" and len(p46_053["pieces"]) == 115
+          and len(p46_053["forms"]) == 410 and len(p46_053["designs"]) == 408
+          and all("glind/%s/%s" % (g, f) in p46_053["forms"] for g in ("godforms", "demongodforms")
+                  for f in ("demongodawakened", "demongodtrue"))
+          and sum(p.endswith("_buffed") for p in p46_053["pieces"]) == 6
+          and not any(k.startswith("heeter/part/") for k in p46_053["forms"]))
+    check("0.4.0 catalog unchanged: 109 / 220 / 220",
+          p46_040.get("ultraVersion") == "0.4.0" and len(p46_040["pieces"]) == 109
+          and len(p46_040["forms"]) == 220 and len(p46_040["designs"]) == 220)
+    check("selection: highest shipped <= detected, never newer; newer Ultra generates and must pass the self-test",
+          'SHIPPED = List.of("0.4.0", "0.5.3")' in p46_cat
+          and "UltraVersion.compare(v, detected) <= 0" in p46_cat
+          and "BodyPartCatalogSelfTest.check(generated, BodyPartCatalogSelfTest.Expect.newerThan(fallback))" in p46_cat
+          and "LOG.error(" in p46_cat and "return fallback;" in p46_cat)
+    check("every part path reads the active catalog",
+          "return active().resolve(" in p46_cat and "return active().shopPieces();" in p46_cat
+          and "return active().design(" in p46_cat)
+    check("Java generator mirrors the Python one (sets order, 3-segment keys, both alias passes, forms.json pieces)",
+          'KEY = Pattern.compile("^[a-z0-9_]+/[a-z0-9_]+/[a-z0-9_]+$")' in p46_gen
+          and "applyAliases(aliases, forms, designs);" in p46_gen
+          and "applyAliases(serverAliases, forms, designs);" in p46_gen
+          and 'out.add(BASE + "forms.json");' in p46_gen)
+    check("self-test: both catalogs with their own counts, selection by version, generator parity",
+          'new Expect("0.5.3", 115, 410, 408' in p46_test and 'new Expect("0.4.0", 109, 220, 220' in p46_test
+          and 'selects(fails, "0.4.0", "0.4.0", "shipped")' in p46_test
+          and 'selects(fails, "0.5.3", "0.5.3", "shipped")' in p46_test
+          and 'selects(fails, "0.6.0", "0.5.3", "generated")' in p46_test
+          and '"demon", "abyssforms", "demongod"' in p46_test)
+    check("build ships both catalogs, the old name as the 0.4.0 alias, and the server aliases",
+          'cp "$RES"/dmzultra-form-parts-*.json "$merge/"' in p46_build
+          and 'cp "$RES/dmzultra-form-parts-0.4.0.json" "$merge/dmzultra-form-parts.json"' in p46_build
+          and 'dmzultra-form-parts-server-aliases.json' in p46_build
+          and '-C "$EXTRA" dmzultra-form-parts.json' in p46_build
+          and '-C "$EXTRA" dmzultra-form-parts-server-aliases.json' in p46_build)
+    check("Cerealian Tail hairstyle pieces never take the tail slot",
+          'HAIR_TAIL_PREFIX = "cereal_tail_"' in p46_cat)
+    p46_state = read(SRC / "gui/ultra/PurchaseState.java")
+    p46_tier = read(SRC / "gui/ultra/UltraDifficultyTierUi.java")
+    p46_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    p46_caps = read(SRC / "progression/bridge/RevampEffectiveCaps.java")
+    check("PurchaseState: Ultra's 10 states in FormsRules order; only OWNED / BUYABLE are tappable",
+          "ACTIVE,\n" in p46_state and "LATER;\n" in p46_state
+          and "return this == OWNED || this == BUYABLE;" in p46_state)
+    check("tier lines quote revamp's effective level cap, never LmOverhaulCapMath or OverhaulScale",
+          "RevampEffectiveCaps.levelMaximum()" in p46_tier and '"configuredLevelMaximum"' in p46_caps
+          and "LmOverhaulCapMath" not in p46_tier and "OverhaulScale" not in p46_tier)
+    check("Tiers page: a state line per tier, buttons only for tappable tiers",
+          "spec.labelValue(\"T\" + t + \" \" + ut.display, view.line());" in p46_diff
+          and "if (view.state().tappable()) {" in p46_diff)
+    p46_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
+    p46_svc = read(SRC / "character/CosmeticBodyPartService.java")
+    p46_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p46_parts = read(SRC / "gui/ultra/PlayerModelParts.java")
+    check("shop: priced locked cards, six slot filters, Find button",
+          "priced(name, price.isEmpty() ? \"lock\" : price)" in p46_char
+          and 'FILTERS = List.of("all", "body", "tail", "ears", "wings", "horns")' in p46_svc
+          and '"page:" + PAGE_FIND' in p46_char)
+    check("find: server-side match, cap 40, 5 recents, empty-state echo, textinput fallback, hub entry",
+          "FIND_CAP = 40" in p46_svc and "RECENT_MAX = 5" in p46_svc
+          and "No parts matching '\" + query + \"'" in p46_char
+          and "UltraClientFeatures.hasTextInput(player)" in p46_char
+          and '"@character:page:" + UltraCharacterScreens.PAGE_FIND' in p46_hub)
+    check("confirm pages preview the candidate on the model",
+          "PlayerModelParts.previewSnapshot(player," in p46_char
+          and "public static JsonObject previewSnapshot(" in p46_parts)
+    p46_st = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    check("config design box comes from UltraConfigScreens, not a literal",
+          "int wantW = UltraConfigScreens.CONFIG_DESIGN_W;" in p46_st and "!= 426" not in p46_st)
 
     print("\n--- § lm 4.7.45 ---")
     p45 = read(SRC / "progression/ChamberKillMastery.java")
@@ -2081,7 +2219,7 @@ def main() -> int:
 
     print("\n--- § lm 4.7.38 ---")
     import json as _json38
-    p38_cat = _json38.loads(read(SRC.parents[3] / "resources" / "dmzultra-form-parts.json"))
+    p38_cat = _json38.loads(read(SRC.parents[3] / "resources" / "dmzultra-form-parts-0.4.0.json"))
     p38_alias = _json38.loads(read(MOD / "sim" / "form-parts-server-aliases.json"))
     p38_gen = read(MOD / "sim" / "gen_dmzultra_form_parts.py")
     p38_test = read(SRC / "gui/ultra/BodyPartCatalogSelfTest.java")
@@ -2101,7 +2239,7 @@ def main() -> int:
           and len(p38_cat["forms"][_g.format("godforms", "demongodtrue")]) == 7
           and _g.format("demongodforms", "demongodtrue") in p38_cat["forms"])
     check("self-test resolves glind/godforms pieces and colors",
-          'BodyPartCatalog.resolve("glind", "godforms", "demongodawakened", "", "")' in p38_test
+          'c.resolve("glind", "godforms", "demongodawakened", "", "")' in p38_test
           and "new BodyPartCatalog.Design(4915330, 13151080, 4077125, 12482275)" in p38_test)
 
     print("\n--- § lm 4.7.37 ---")
@@ -2751,7 +2889,7 @@ def main() -> int:
           and '"do:activate:" + t' in sc_diff_ask and '"do:summon_end_dragon"' in sc_diff_ask
           and '"do:summon_wither"' in sc_diff_ask and '"do:summon_warden"' in sc_diff_ask and '.labelValue("Cost"' in sc_diff_ask)
     check("Character: Ancient Coin unlocks -> part_ask / bone_ask confirm pages",
-          '"page:bone_ask:" + pg + ":" + id' in sc_char_src and '"page:part_ask:" + pg + ":" + id' in sc_char_src
+          '"page:bone_ask:" + pg + ":" + id' in sc_char_src and '"page:part_ask:" + token + ":" + id' in sc_char_src
           and '"do:bone_unlock:' not in sc_char_src and '"do:bodypart_unlock:' not in sc_char_src
           and '"do:bodypart_unlock:" : "do:bone_unlock:"' in sc_char_ask and '.labelValue("Cost"' in sc_char_ask)
     check("Confirm lands back on the source page (confirmReturn before the page echo)",

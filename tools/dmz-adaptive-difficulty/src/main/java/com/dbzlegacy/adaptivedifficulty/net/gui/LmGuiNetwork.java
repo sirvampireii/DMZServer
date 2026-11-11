@@ -294,6 +294,9 @@ public final class LmGuiNetwork {
                 .consumerMainThread(GuiModelSyncPacket::handle)
                 .add();
         validateBuilderScreenIdsAtStartup();
+        // 4.7.46: detect the installed DMZ Ultra and pick the body-parts catalog before any
+        // screen or model sync reads it; one boot line names both.
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraVersion.logAtBoot();
         UltraScreenSelfTest.runAtStartup();
         UltraScreenSelfTest.verifyTabStaysOnScreen();
         UltraScreenSelfTest.verifyHubShim();

@@ -81,25 +81,7 @@ $NETTY:\
 $CNPC:\
 $DMZ"
 
-NOEA="${NOEA_JAR:-}"
-if [[ -z "$NOEA" ]]; then
-  for candidate in \
-    /tmp/noea-1.2.0.jar \
-    /tmp/noea.jar \
-    "$ROOT"/mods/Noea-1.2*.jar \
-    "$ROOT"/mods/Noea*.jar
-  do
-    if [[ -f "$candidate" ]]; then
-      NOEA="$candidate"
-      break
-    fi
-  done
-fi
-if [[ ! -f "$NOEA" ]]; then
-  echo "Missing Noea jar for absorption mixin compile (set NOEA_JAR)." >&2
-  exit 1
-fi
-echo "Using Noea jar for compile: $NOEA"
+# Noea is no longer used (4.7.47): DMZ Ultra replaced it, and nothing compiles against it.
 MELEE="$(ls -1 "$ROOT"/mods/dmz_mohist_melee_fix-*.jar 2>/dev/null | sort -V | tail -1 || true)"
 if [[ -z "${MELEE:-}" || ! -f "$MELEE" ]]; then
   echo "Missing dmz_mohist_melee_fix jar for the reset wipe mixin." >&2
@@ -136,7 +118,7 @@ if ! unzip -l "$DMZULTRA_SLOTS" 2>/dev/null | grep -c 'com/dmzultra/slots/api/Ch
   exit 1
 fi
 echo "Using dmzultra slots jar for compile: $DMZULTRA_SLOTS"
-CP="$CP:$NOEA:$MELEE:$DMZULTRA:$DMZULTRA_SLOTS"
+CP="$CP:$MELEE:$DMZULTRA:$DMZULTRA_SLOTS"
 
 echo "Cleaning compile output before packaging"
 rm -rf "$OUT"
@@ -502,11 +484,8 @@ merge_onto_base_jar() {
           "$merge/com/dbzlegacy/adaptivedifficulty/mixin/${mixin_cls}.class"
       fi
     done
-    if [[ -d "$OUT/com/dbzlegacy/adaptivedifficulty/mixin/noea" ]]; then
-      mkdir -p "$merge/com/dbzlegacy/adaptivedifficulty/mixin/noea"
-      cp -a "$OUT/com/dbzlegacy/adaptivedifficulty/mixin/noea/." \
-        "$merge/com/dbzlegacy/adaptivedifficulty/mixin/noea/"
-    fi
+    # Noea patch mixins are gone (4.7.47); a base jar may still carry them.
+    rm -rf "$merge/com/dbzlegacy/adaptivedifficulty/mixin/noea"
     if [[ -d "$OUT/com/dbzlegacy/adaptivedifficulty/mixin/dmzultra" ]]; then
       mkdir -p "$merge/com/dbzlegacy/adaptivedifficulty/mixin/dmzultra"
       cp -a "$OUT/com/dbzlegacy/adaptivedifficulty/mixin/dmzultra/." \
@@ -598,9 +577,12 @@ merge_onto_base_jar() {
   if [[ -f "$RES/character-services.default.json" ]]; then
     cp "$RES/character-services.default.json" "$merge/character-services.default.json"
   fi
-  if [[ -f "$RES/dmzultra-form-parts.json" ]]; then
-    cp "$RES/dmzultra-form-parts.json" "$merge/dmzultra-form-parts.json"
-  fi
+  # Versioned body-parts catalogs (4.7.46; BodyPartCatalog picks one by the installed Ultra version),
+  # the old single name as an alias of 0.4.0, and the server aliases the boot-time generator applies.
+  rm -f "$merge"/dmzultra-form-parts*.json
+  cp "$RES"/dmzultra-form-parts-*.json "$merge/"
+  cp "$RES/dmzultra-form-parts-0.4.0.json" "$merge/dmzultra-form-parts.json"
+  cp "$HERE/sim/form-parts-server-aliases.json" "$merge/dmzultra-form-parts-server-aliases.json"
   if [[ ! -f "$merge/legacymechanics.mixins.json" ]]; then
     cp "$RES/legacymechanics.mixins.json" "$merge/legacymechanics.mixins.json"
   fi
@@ -617,6 +599,11 @@ if [[ -f "$BASE_JAR" ]]; then
   merge_onto_base_jar "$BASE_JAR" "$JAR"
 else
   echo "WARN: Base jar missing ($BASE_JAR) — full compile jar (no live ki/stamina base)" >&2
+  # Same extras as the merge path: the old catalog name as the 0.4.0 alias, and the server aliases.
+  EXTRA="$HERE/build/res-extra"
+  rm -rf "$EXTRA" && mkdir -p "$EXTRA"
+  cp "$RES/dmzultra-form-parts-0.4.0.json" "$EXTRA/dmzultra-form-parts.json"
+  cp "$HERE/sim/form-parts-server-aliases.json" "$EXTRA/dmzultra-form-parts-server-aliases.json"
   (
     cd "$OUT"
     # Pass the com/ dir itself: recursive, and avoids the Windows 32K argv limit
@@ -629,7 +616,10 @@ else
       -C "$RES" legacymechanics.refmap.json \
       -C "$RES" data \
       -C "$RES" character-services.default.json \
-      -C "$RES" dmzultra-form-parts.json
+      -C "$RES" dmzultra-form-parts-0.4.0.json \
+      -C "$RES" dmzultra-form-parts-0.5.3.json \
+      -C "$EXTRA" dmzultra-form-parts.json \
+      -C "$EXTRA" dmzultra-form-parts-server-aliases.json
   )
 fi
 

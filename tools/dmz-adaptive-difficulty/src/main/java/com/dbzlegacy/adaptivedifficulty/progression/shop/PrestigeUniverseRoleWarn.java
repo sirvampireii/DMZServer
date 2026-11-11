@@ -6,9 +6,8 @@ import net.minecraft.server.level.ServerPlayer;
 /**
  * Soft warnings when prestiging would strip a universe role (God of Destruction / Supreme Kai).
  *
- * <p>Noea and KaiPath are optional at compile time — resolve via reflection, same pattern as
- * {@code HakaiDestroyerGateMixin}. A missing mod or any reflection failure returns false so
- * prestige is never blocked by a failed check.
+ * <p>KaiPath is optional at compile time, so it is resolved by reflection. A missing mod or any
+ * reflection failure returns false so prestige is never blocked by a failed check.
  */
 public final class PrestigeUniverseRoleWarn {
     /** Player-facing GoD warning (plain ASCII). */
@@ -19,51 +18,19 @@ public final class PrestigeUniverseRoleWarn {
     public static final String SUPREME_KAI =
             "You are a Supreme Kai - prestiging will remove you from your universe role.";
 
-    /** Cached {@code DestroyerRoleService.assignment(ServerPlayer)}. Misses are not cached. */
-    private static volatile Method NOEA_ASSIGNMENT;
-    /** Cached {@code Assignment.rank()}. Misses are not cached. */
-    private static volatile Method NOEA_RANK;
     /** Cached {@code KaiApi.isSupremeKai(ServerPlayer)}. Misses are not cached. */
     private static volatile Method KAI_IS_SUPREME;
 
     private PrestigeUniverseRoleWarn() {}
 
     /**
-     * True when Noea reports this player as a God of Destruction ({@code DestroyerRank.DESTROYER}).
-     * False when Noea is absent or the check fails.
+     * Always false since 4.7.47. The God of Destruction role this warned about was Noea's; Noea
+     * is gone. DMZ Ultra has its own Destroyer path ({@code Hosts.destroyer().rank}), but nothing
+     * in Ultra reacts to prestige, so prestiging does not take that seat away and there is
+     * nothing to warn about. The method stays so its callers keep compiling unchanged.
      */
     public static boolean isGodOfDestruction(ServerPlayer player) {
-        if (player == null) {
-            return false;
-        }
-        try {
-            Method assignmentMethod = NOEA_ASSIGNMENT;
-            if (assignmentMethod == null) {
-                Class<?> service = Class.forName(
-                        "com.butterjaffa.noeabosses.DestroyerRoleService",
-                        false,
-                        PrestigeUniverseRoleWarn.class.getClassLoader());
-                assignmentMethod = service.getMethod("assignment", ServerPlayer.class);
-                NOEA_ASSIGNMENT = assignmentMethod;
-            }
-            Object assignment = assignmentMethod.invoke(null, player);
-            if (assignment == null) {
-                return false;
-            }
-            Method rankMethod = NOEA_RANK;
-            if (rankMethod == null) {
-                rankMethod = assignment.getClass().getMethod("rank");
-                NOEA_RANK = rankMethod;
-            }
-            Object rank = rankMethod.invoke(assignment);
-            if (rank == null) {
-                return false;
-            }
-            // Compare via toString so we never reference DestroyerRank at compile time.
-            return "DESTROYER".equals(rank.toString());
-        } catch (Throwable ignored) {
-            return false;
-        }
+        return false;
     }
 
     /**

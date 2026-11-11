@@ -192,24 +192,33 @@ public final class UltraDifficultyScreens {
         spec.labelValue("Unlocked up to", "T" + max)
                 .labelValue("Ancient Coins", AncientCoinEconomy.inventoryBreakdown(player))
                 .line(UltraStyle.LABEL + "Scaled mobs can hurt other players nearby.")
-                .line(UltraStyle.LABEL + "Upgrades cost Ancient Coins - downgrades are free")
-                .line(UltraStyle.LABEL + "An upgrade shows its price on a confirm page first")
-                .line(UltraStyle.LABEL + "A downgrade: click again within 10 seconds");
-        if (!PaidFeatureAccess.bypassAncientCoinCost(player)) {
-            spec.line(UltraStyle.LABEL + "Upgrade cost scales with your level");
-        }
-        UnlockTier nextLocked = UnlockTier.byId(max + 1);
-        if (nextLocked != null) {
-            spec.labelValue("Next tier", "T" + nextLocked.id + " - " + UltraStyle.plain(UltraDifficultyTierUi.humanRequirement(nextLocked)))
-                    .labelValue(
-                            "Cost to activate",
-                            UltraStyle.plain(UltraDifficultyTierUi.formatActivationCost(player, nextLocked)));
+                .line(UltraStyle.LABEL + "Each tier below says what it needs. Only tiers you can"
+                        + " take right now have a button.")
+                .line(UltraStyle.LABEL + "An upgrade shows its price on a confirm page first."
+                        + " A switch down: click again within 10 seconds.");
+        // 4.7.46 (P-01): one state line per tier (PurchaseState), computed here; no tier that
+        // cannot succeed gets a button.
+        java.util.List<Integer> tappable = new java.util.ArrayList<>();
+        for (int t = 1; t <= 7; t++) {
+            UnlockTier ut = UnlockTier.byId(t);
+            if (ut == null) {
+                continue;
+            }
+            boolean unlocked = data.hasUnlockedTier(t) || t <= max;
+            PurchaseState.View view = UltraDifficultyTierUi.tierView(
+                    player, t, active, unlocked, UltraDifficultyTierUi.isEligible(player, ut));
+            spec.labelValue("T" + t + " " + ut.display, view.line());
+            if (view.state().tappable()) {
+                tappable.add(t);
+            }
         }
         spec.buttonsAfterLines();
-        for (int t = 1; t <= 7; t += 2) {
-            placeTierButton(spec, player, data, max, active, t, true);
-            placeTierButton(spec, player, data, max, active, t + 1, false);
-            spec.rowGap();
+        for (int i = 0; i < tappable.size(); i++) {
+            int t = tappable.get(i);
+            placeTierButton(spec, player, active, t, i % 2 == 0);
+            if (i % 2 == 1 || i == tappable.size() - 1) {
+                spec.rowGap();
+            }
         }
         spec.buttonLeft("page:clear_tier_ask", UltraStyle.danger("Clear active tier"), "danger");
         placeDifficultyToggle(spec, data.isPersonalEnabled());
@@ -218,40 +227,18 @@ public final class UltraDifficultyScreens {
         spec.send(player);
     }
 
-    private static void placeTierButton(
-            UltraScreenSpec spec,
-            ServerPlayer player,
-            PlayerDifficultyData data,
-            int max,
-            int active,
-            int t,
-            boolean left) {
-        UnlockTier ut = UnlockTier.byId(t);
-        if (ut == null) {
-            return;
-        }
-        boolean unlocked = data.hasUnlockedTier(t) || t <= max;
-        boolean eligible = UltraDifficultyTierUi.isEligible(player, ut);
-        String rawLabel = UltraDifficultyTierUi.tierActionLabel(player, t, active, unlocked, eligible);
-        String label = UltraStyle.plain(rawLabel);
-        boolean enabled = UltraDifficultyTierUi.tierButtonEnabled(t, active, unlocked, eligible);
-        String style;
-        // An upgrade spends coins: it opens the confirm page. Same tier and free downgrades act here.
+    /**
+     * Button for a tappable tier. An upgrade spends coins, so it opens the confirm page; a free
+     * switch down acts here.
+     */
+    private static void placeTierButton(UltraScreenSpec spec, ServerPlayer player, int active, int t, boolean left) {
         String action = t > active ? "page:tier_ask:" + t : "do:activate:" + t;
-        if (active == t) {
-            style = "confirm";
-            label = UltraStyle.confirm(label);
-        } else if (enabled) {
-            style = "confirm";
-            label = UltraStyle.confirm(label);
-        } else {
-            style = "dim";
-            label = UltraStyle.dim(label.isBlank() ? ("T" + t + " - locked") : label);
-        }
+        String label = UltraStyle.confirm(UltraStyle.plain(
+                UltraDifficultyTierUi.tierActionLabel(player, t, active, true, true)));
         if (left) {
-            spec.buttonLeft(action, label, style);
+            spec.buttonLeft(action, label, UltraStyle.STYLE_CONFIRM);
         } else {
-            spec.buttonRight(action, label, style);
+            spec.buttonRight(action, label, UltraStyle.STYLE_CONFIRM);
         }
     }
 

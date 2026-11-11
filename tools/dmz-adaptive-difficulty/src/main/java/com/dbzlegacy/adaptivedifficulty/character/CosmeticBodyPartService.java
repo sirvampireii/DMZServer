@@ -338,19 +338,80 @@ public final class CosmeticBodyPartService {
         return sb.toString();
     }
 
+    /**
+     * Shop list filters (4.7.46, P-02), from {@link BodyPartCatalog#slot}. {@code body} also holds
+     * the two extra-arm pieces so every piece sits under a filter besides All.
+     */
+    public static final List<String> FILTERS = List.of("all", "body", "tail", "ears", "wings", "horns");
+
+    /** Most results the find screen lists (P-03). */
+    public static final int FIND_CAP = 40;
+    /** Recent searches kept per player (memory only, cleared on restart). */
+    public static final int RECENT_MAX = 5;
+
+    private static final java.util.Map<java.util.UUID, java.util.LinkedList<String>> RECENT =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
+    public static String filter(String raw) {
+        String f = raw == null ? "" : raw.trim().toLowerCase(Locale.ROOT);
+        return FILTERS.contains(f) ? f : "all";
+    }
+
+    public static String filterLabel(String filter) {
+        String f = filter(filter);
+        return Character.toUpperCase(f.charAt(0)) + f.substring(1);
+    }
+
+    /** True when {@code id} belongs under {@code filter}. */
+    public static boolean inFilter(String id, String filter) {
+        String f = filter(filter);
+        if ("all".equals(f)) {
+            return true;
+        }
+        String slot = BodyPartCatalog.slot(id);
+        if ("body".equals(f)) {
+            return BodyPartCatalog.SLOT_BODY.equals(slot) || BodyPartCatalog.SLOT_EXTRA_ARMS.equals(slot);
+        }
+        return f.equals(slot);
+    }
+
+    /** Shop pieces under {@code filter}, in catalog order (the active catalog: gated by Ultra version). */
+    public static List<String> filteredIds(String filter) {
+        List<String> out = new ArrayList<>();
+        for (String id : BodyPartCatalog.shopPieceIds()) {
+            if (inFilter(id, filter)) {
+                out.add(id);
+            }
+        }
+        return out;
+    }
+
     public static int pageCount() {
-        int size = BodyPartCatalog.shopPieceIds().size();
+        return pageCount("all");
+    }
+
+    public static int pageCount(String filter) {
+        int size = filteredIds(filter).size();
         return Math.max(1, (size + CARDS_PER_PAGE - 1) / CARDS_PER_PAGE);
     }
 
     public static String pageTitle(int page) {
-        return "Body parts " + (page + 1) + "/" + pageCount();
+        return pageTitle(page, "all");
+    }
+
+    public static String pageTitle(int page, String filter) {
+        String f = filter(filter);
+        return ("all".equals(f) ? "Body parts " : filterLabel(f) + " parts ") + (page + 1) + "/" + pageCount(f);
     }
 
     /** Shop-list ids on one page, in catalog order. */
     public static List<String> pageIds(int page) {
-        List<String> all = BodyPartCatalog.shopPieceIds();
-        int pages = pageCount();
+        return pageIds(page, "all");
+    }
+
+    public static List<String> pageIds(int page, String filter) {
+        List<String> all = filteredIds(filter);
+        int pages = pageCount(filter);
         int p = Math.max(0, Math.min(page, pages - 1));
         int from = p * CARDS_PER_PAGE;
         int to = Math.min(all.size(), from + CARDS_PER_PAGE);
@@ -361,16 +422,26 @@ public final class CosmeticBodyPartService {
     }
 
     /**
-     * GUI rows: {@code partId\tdisplay\tstate\tcostText}.
-     * State is {@code E} on, {@code U} unlocked, {@code L} locked.
+     * GUI rows: {@code partId\tdisplay\tstate\tcostText\tcompactCost}.
+     * State is {@code E} on, {@code U} unlocked, {@code L} locked. Both cost columns are blank
+     * unless the piece is locked; the compact one fits on a list button (P-02).
      */
     public static List<String> cards(ServerPlayer player, int page) {
+        return cards(player, pageIds(page, "all"));
+    }
+
+    public static List<String> cards(ServerPlayer player, int page, String filter) {
+        return cards(player, pageIds(page, filter));
+    }
+
+    public static List<String> cards(ServerPlayer player, List<String> ids) {
         List<String> out = new ArrayList<>();
         if (player == null) {
             return out;
         }
         Set<String> worn = new LinkedHashSet<>(equippedParts(player));
-        for (String id : pageIds(page)) {
+        boolean free = CharacterServicesAccess.bypassCost(player);
+        for (String id : ids) {
             String state;
             if (worn.contains(id)) {
                 state = "E";
@@ -379,12 +450,106 @@ public final class CosmeticBodyPartService {
             } else {
                 state = "L";
             }
-            String cost = "L".equals(state)
-                    ? CharacterServicesSystem.formatCost(unlockCost(player, id))
+            long price = "L".equals(state) && !free ? unlockCost(player, id) : 0L;
+            String cost = "L".equals(state) ? CharacterServicesSystem.formatCost(price) : "";
+            String compact = "L".equals(state)
+                    ? (price <= 0L ? "free" : com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.compactCost(price))
                     : "";
-            out.add(id + "\t" + displayName(id) + "\t" + state + "\t" + cost);
+            out.add(id + "\t" + displayName(id) + "\t" + state + "\t" + cost + "\t" + compact);
         }
         return out;
+    }
+
+    /** Matches for {@code query}: shop pieces whose id or name contains it, catalog order. */
+    public static List<String> find(String query) {
+        String q = normalizeQuery(query);
+        List<String> out = new ArrayList<>();
+        if (q.isEmpty()) {
+            return out;
+        }
+        String qId = q.replace(' ', '_');
+        for (String id : BodyPartCatalog.shopPieceIds()) {
+            if (CharacterServicesConfig.get().bodyPartShop.isExcluded(id)) {
+                continue;
+            }
+            if (id.contains(qId) || displayName(id).toLowerCase(Locale.ROOT).contains(q)) {
+                out.add(id);
+            }
+        }
+        return out;
+    }
+
+    /** Trimmed, lower-cased, at most 32 printable characters. */
+    public static String normalizeQuery(String query) {
+        if (query == null) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (char c : query.trim().toLowerCase(Locale.ROOT).toCharArray()) {
+            if (c >= ' ' && c != 0xA7 /* section sign */ && sb.length() < 32) {
+                sb.append(c);
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    /** The player's last search, or blank. */
+    public static String lastQuery(ServerPlayer player) {
+        List<String> recent = recentSearches(player);
+        return recent.isEmpty() ? "" : recent.get(0);
+    }
+
+    /** Newest first, at most {@link #RECENT_MAX}. */
+    public static List<String> recentSearches(ServerPlayer player) {
+        if (player == null) {
+            return List.of();
+        }
+        java.util.LinkedList<String> list = RECENT.get(player.m_20148_());
+        if (list == null) {
+            return List.of();
+        }
+        synchronized (list) {
+            return List.copyOf(list);
+        }
+    }
+
+    /** Find: remember {@code query} as the newest recent search; the find page reads it back. */
+    public static String executeFind(ServerPlayer player, String query) {
+        if (!canUse(player)) {
+            return UltraStyle.DANGER + "Model customization is unavailable right now. Try again later or ask staff.";
+        }
+        String q = normalizeQuery(query);
+        if (q.isEmpty()) {
+            return UltraStyle.DANGER + "Type part of a piece name first, like wings or tail.";
+        }
+        rememberSearch(player, q);
+        return "";
+    }
+
+    /** Re-run recent search {@code index} (0 = newest). */
+    public static String executeFindRecent(ServerPlayer player, String index) {
+        List<String> recent = recentSearches(player);
+        int i;
+        try {
+            i = Integer.parseInt(index == null ? "" : index.trim());
+        } catch (NumberFormatException e) {
+            i = -1;
+        }
+        if (i < 0 || i >= recent.size()) {
+            return UltraStyle.DANGER + "That recent search is gone. Type a new one.";
+        }
+        return executeFind(player, recent.get(i));
+    }
+
+    static void rememberSearch(ServerPlayer player, String q) {
+        java.util.LinkedList<String> list = RECENT.computeIfAbsent(player.m_20148_(), k -> new java.util.LinkedList<>());
+        synchronized (list) {
+            list.remove(q);
+            list.addFirst(q);
+            while (list.size() > RECENT_MAX) {
+                list.removeLast();
+            }
+        }
     }
 
     public static String executeUnlock(ServerPlayer player, String partId) {

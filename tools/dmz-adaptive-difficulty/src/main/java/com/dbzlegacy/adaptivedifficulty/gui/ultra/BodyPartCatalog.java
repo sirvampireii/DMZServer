@@ -7,12 +7,15 @@ import com.google.gson.JsonParser;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Maps a worn form onto explicit {@code playerModel.parts.bodyParts} entries.
@@ -23,6 +26,11 @@ import java.util.Map;
  * DMZ draws it from the character's tail flag through the client's own race layer, so naming
  * it here as well put a second tail on other players' screens. A tail piece is only sent for a
  * form that names one, or a shop tail the player equipped.
+ *
+ * <p>4.7.46: one catalog per Ultra version ({@link #SHIPPED}). {@link #active()} picks the newest
+ * one that is not newer than the installed Ultra ({@link UltraVersion}), so the same LM jar sends
+ * only ids the installed Ultra can draw. Every part path (shop list, equip checks, form resolve,
+ * design colors, model sync) reads the active catalog through the static methods here.
  */
 public final class BodyPartCatalog {
     /** Wire {@code source} for pieces that live in DMZUltra's form-parts model. */
@@ -49,16 +57,84 @@ public final class BodyPartCatalog {
     /** Piece that is not one of the standard anchors. Clients still attach it by id. */
     public static final String SLOT_BODY = "body";
 
-    private static final String RESOURCE = "dmzultra-form-parts.json";
+    /** Shipped catalogs, oldest first: {@code dmzultra-form-parts-<version>.json}. */
+    static final List<String> SHIPPED = List.of("0.4.0", "0.5.3");
+    /** Pre-4.7.46 single resource name: an alias of the 0.4.0 catalog, read only as a fallback. */
+    static final String LEGACY_RESOURCE = "dmzultra-form-parts.json";
+    /**
+     * DMZ Ultra 0.5.3's Cerealian "Tail" hairstyle names its pieces {@code cereal_tail_*}. They sit
+     * on the head; the name is the hairstyle, not a tail, so they never take the tail slot (the
+     * single-tail rule would otherwise drop a shop tail and hide the race tail).
+     */
+    private static final String HAIR_TAIL_PREFIX = "cereal_tail_";
 
-    private static volatile Map<String, List<String>> forms = Map.of();
-    private static volatile Map<String, Design> designs = Map.of();
-    private static volatile List<String> shopPieces = List.of();
-    private static volatile boolean loaded;
+    private static final Logger LOG = LogManager.getLogger("legacymechanics");
+    private static final Map<String, Catalog> SHIPPED_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile Catalog active;
+    /** Test hook: the jar a newer-than-shipped Ultra is read from (null: the installed mod file). */
+    static volatile Path installedJarOverride;
 
     private BodyPartCatalog() {}
 
     public record Part(String id, String source, String slot) {}
+
+    /**
+     * One loaded catalog: form key → piece ids, per-form colors, and the shop piece list.
+     * {@code version} is the Ultra version it was generated from; {@code origin} says where it
+     * came from ({@code shipped}, {@code generated}, {@code missing}).
+     */
+    public record Catalog(
+            String version,
+            String origin,
+            Map<String, List<String>> forms,
+            Map<String, Design> designs,
+            List<String> shopPieces) {
+        /** Form pieces for the active form and the stack form. Never throws. */
+        public List<Part> resolve(String race, String group, String form, String stackGroup, String stackForm) {
+            LinkedHashMap<String, Part> out = new LinkedHashMap<>();
+            try {
+                addForm(out, race, group, form);
+                addForm(out, race, stackGroup, stackForm);
+            } catch (Throwable ignored) {
+                return List.of();
+            }
+            return List.copyOf(out.values());
+        }
+
+        /** Design colors for the form, else the stack form, else null. Never throws. */
+        public Design design(String race, String group, String form, String stackGroup, String stackForm) {
+            try {
+                String key = formKey(race, group, form);
+                Design d = key == null ? null : designs.get(key);
+                if (d != null) {
+                    return d;
+                }
+                key = formKey(race, stackGroup, stackForm);
+                return key == null ? null : designs.get(key);
+            } catch (Throwable ignored) {
+                return null;
+            }
+        }
+
+        private void addForm(Map<String, Part> out, String race, String group, String form) {
+            String key = formKey(race, group, form);
+            List<String> pieces = key == null ? null : forms.get(key);
+            if (pieces == null) {
+                return;
+            }
+            for (String piece : pieces) {
+                if (piece == null || piece.isBlank()) {
+                    continue;
+                }
+                String id = piece.trim().toLowerCase(Locale.ROOT);
+                out.putIfAbsent(id, new Part(id, SOURCE_DMZULTRA, slot(id)));
+            }
+        }
+
+        public String describe() {
+            return version + " (" + origin + ", " + shopPieces.size() + " shop pieces, " + forms.size() + " forms)";
+        }
+    }
 
     /**
      * Form pieces for the active form and the stack form. The race tail is never added here -
@@ -71,14 +147,7 @@ public final class BodyPartCatalog {
             String form,
             String stackGroup,
             String stackForm) {
-        LinkedHashMap<String, Part> out = new LinkedHashMap<>();
-        try {
-            addForm(out, race, group, form);
-            addForm(out, race, stackGroup, stackForm);
-        } catch (Throwable ignored) {
-            return List.of();
-        }
-        return List.copyOf(out.values());
+        return active().resolve(race, group, form, stackGroup, stackForm);
     }
 
     /**
@@ -88,6 +157,9 @@ public final class BodyPartCatalog {
      */
     public static String slot(String id) {
         String s = id == null ? "" : id.trim().toLowerCase(Locale.ROOT);
+        if (s.startsWith(HAIR_TAIL_PREFIX)) {
+            return SLOT_BODY;
+        }
         if (s.equals(SAIYAN_TAIL) || s.startsWith("tail_") || s.endsWith("_tail") || s.contains("_tail_")) {
             return SLOT_TAIL;
         }
@@ -106,40 +178,38 @@ public final class BodyPartCatalog {
         return SLOT_BODY;
     }
 
-    /** How many form keys the catalog loaded. Zero when the resource is missing. */
+    /** How many form keys the active catalog loaded. Zero when the resource is missing. */
     public static int formCount() {
-        ensureLoaded();
-        return forms.size();
+        return active().forms().size();
     }
 
     /**
      * Piece ids the Body Parts Shop may offer — the DMZUltra FormParts piece list from the
-     * resource's top-level {@code pieces} array (mirrors the client's known meshes). Falls
+     * active catalog's top-level {@code pieces} array (mirrors the client's known meshes). Falls
      * back to the sorted union of every form's pieces when the array is absent. Empty when
      * the resource is missing.
      */
     public static List<String> shopPieceIds() {
-        ensureLoaded();
-        return shopPieces;
+        return active().shopPieces();
     }
 
-    private static void addForm(Map<String, Part> out, String race, String group, String form) {
-        String key = formKey(race, group, form);
-        if (key == null) {
-            return;
-        }
-        ensureLoaded();
-        List<String> pieces = forms.get(key);
-        if (pieces == null) {
-            return;
-        }
-        for (String piece : pieces) {
-            if (piece == null || piece.isBlank()) {
-                continue;
-            }
-            String id = piece.trim().toLowerCase(Locale.ROOT);
-            out.putIfAbsent(id, new Part(id, SOURCE_DMZULTRA, slot(id)));
-        }
+    /**
+     * Per-form {@link Design} colors for {@code race/group/form} (same normalization as
+     * {@link #resolve}), else the stack form, else {@code null} when unknown. Form-constant —
+     * identical for every player wearing the form.
+     */
+    public static Design design(
+            String race,
+            String group,
+            String form,
+            String stackGroup,
+            String stackForm) {
+        return active().design(race, group, form, stackGroup, stackForm);
+    }
+
+    /** How many form color entries the active catalog loaded. Zero when the resource is missing. */
+    public static int designCount() {
+        return active().designs().size();
     }
 
     static String formKey(String race, String group, String form) {
@@ -156,51 +226,126 @@ public final class BodyPartCatalog {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
-    private static void ensureLoaded() {
-        if (loaded) {
-            return;
-        }
-        synchronized (BodyPartCatalog.class) {
-            if (loaded) {
-                return;
+    /** The catalog every part path uses: chosen once from the detected Ultra version. */
+    public static Catalog active() {
+        Catalog c = active;
+        if (c == null) {
+            synchronized (BodyPartCatalog.class) {
+                if (active == null) {
+                    active = select(UltraVersion.detectedVersion());
+                }
+                c = active;
             }
-            forms = read();
-            loaded = true;
+        }
+        return c;
+    }
+
+    /** Version, origin and size of the active catalog, for the boot line. */
+    public static String activeDescription() {
+        return active().describe();
+    }
+
+    /** Test hook: forget the active catalog so the next call selects again. */
+    static void reselect() {
+        synchronized (BodyPartCatalog.class) {
+            active = null;
         }
     }
 
-    private static Map<String, List<String>> read() {
-        try (InputStream in = BodyPartCatalog.class.getClassLoader().getResourceAsStream(RESOURCE)) {
+    /**
+     * Highest shipped catalog version that is {@code <=} {@code detected}; the 0.4.0 catalog when
+     * none is. Never a catalog newer than the installed Ultra: a 0.4.0 client cannot draw 0.5.3
+     * piece ids.
+     */
+    static String shippedVersionFor(String detected) {
+        String best = SHIPPED.get(0);
+        for (String v : SHIPPED) {
+            if (UltraVersion.compare(v, detected) <= 0 && UltraVersion.compare(v, best) > 0) {
+                best = v;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Catalog for an installed Ultra {@code detected}. Newer than every shipped catalog: generate
+     * one from the installed jar and adopt it only when it passes every
+     * {@link BodyPartCatalogSelfTest} assertion; otherwise (or on any error) log an error and use
+     * the newest shipped catalog, which is still older than the installed Ultra.
+     */
+    static Catalog select(String detected) {
+        String newest = SHIPPED.get(SHIPPED.size() - 1);
+        Catalog fallback = shipped(shippedVersionFor(detected));
+        if (UltraVersion.compare(detected, newest) <= 0) {
+            return fallback;
+        }
+        Path jar = installedJarOverride != null ? installedJarOverride : UltraVersion.installedJar();
+        try {
+            if (jar == null) {
+                throw new IllegalStateException("the installed DMZ Ultra jar could not be found");
+            }
+            Catalog generated = UltraFormPartsGenerator.generate(jar, "generated");
+            List<String> failures =
+                    BodyPartCatalogSelfTest.check(generated, BodyPartCatalogSelfTest.Expect.newerThan(fallback));
+            if (!failures.isEmpty()) {
+                throw new IllegalStateException(failures.size() + " self-test assertion(s) failed: " + failures);
+            }
+            LOG.info("[legacymechanics] DMZ Ultra {} is newer than LM's newest catalog ({}); generated the body parts "
+                    + "catalog from {}: {}", detected, newest, jar.getFileName(), generated.describe());
+            return generated;
+        } catch (Throwable t) {
+            LOG.error("[legacymechanics] DMZ Ultra {} is newer than LM's newest catalog ({}), and generating one from "
+                    + "the installed jar FAILED: {}. Using the shipped {} catalog: new Ultra pieces will not show until "
+                    + "LM ships a catalog for this version.", detected, newest, t.getMessage(), fallback.version());
+            return fallback;
+        }
+    }
+
+    /** A shipped catalog by version (cached). The 0.4.0 catalog also answers to the old resource name. */
+    static Catalog shipped(String version) {
+        return SHIPPED_CACHE.computeIfAbsent(version, v -> {
+            Catalog c = readResource("dmzultra-form-parts-" + v + ".json", v);
+            if (c == null && SHIPPED.get(0).equals(v)) {
+                c = readResource(LEGACY_RESOURCE, v);
+            }
+            return c != null ? c : new Catalog(v, "missing", Map.of(), Map.of(), List.of());
+        });
+    }
+
+    private static Catalog readResource(String resource, String version) {
+        try (InputStream in = BodyPartCatalog.class.getClassLoader().getResourceAsStream(resource)) {
             if (in == null) {
-                return Map.of();
+                return null;
             }
             try (InputStreamReader reader = new InputStreamReader(in, StandardCharsets.UTF_8)) {
                 JsonObject root = JsonParser.parseReader(reader).getAsJsonObject();
-                List<String> pieces = readShopPieces(root);
-                shopPieces = List.copyOf(pieces);
-                designs = readDesigns(root);
-                if (!root.has("forms") || !root.get("forms").isJsonObject()) {
-                    return Map.of();
-                }
-                LinkedHashMap<String, List<String>> map = new LinkedHashMap<>();
-                for (Map.Entry<String, JsonElement> entry : root.getAsJsonObject("forms").entrySet()) {
-                    if (entry.getKey() == null || !entry.getValue().isJsonArray()) {
-                        continue;
-                    }
-                    JsonArray arr = entry.getValue().getAsJsonArray();
-                    List<String> formPieces = new ArrayList<>();
-                    for (JsonElement el : arr) {
-                        if (el != null && el.isJsonPrimitive()) {
-                            formPieces.add(el.getAsString());
-                        }
-                    }
-                    map.put(entry.getKey().trim().toLowerCase(Locale.ROOT), List.copyOf(formPieces));
-                }
-                return Map.copyOf(map);
+                return new Catalog(
+                        version, "shipped", readForms(root), readDesigns(root), List.copyOf(readShopPieces(root)));
             }
         } catch (Throwable ignored) {
+            return null;
+        }
+    }
+
+    private static Map<String, List<String>> readForms(JsonObject root) {
+        if (!root.has("forms") || !root.get("forms").isJsonObject()) {
             return Map.of();
         }
+        LinkedHashMap<String, List<String>> map = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> entry : root.getAsJsonObject("forms").entrySet()) {
+            if (entry.getKey() == null || !entry.getValue().isJsonArray()) {
+                continue;
+            }
+            JsonArray arr = entry.getValue().getAsJsonArray();
+            List<String> formPieces = new ArrayList<>();
+            for (JsonElement el : arr) {
+                if (el != null && el.isJsonPrimitive()) {
+                    formPieces.add(el.getAsString());
+                }
+            }
+            map.put(entry.getKey().trim().toLowerCase(Locale.ROOT), List.copyOf(formPieces));
+        }
+        return Map.copyOf(map);
     }
 
     /** Top-level {@code pieces} array, else the sorted union of every form's pieces. */
@@ -276,36 +421,5 @@ public final class BodyPartCatalog {
         } catch (Throwable ignored) {
         }
         return 0xFFFFFF;
-    }
-
-    /**
-     * Per-form {@link Design} colors for {@code race/group/form} (same normalization as
-     * {@link #resolve}), else the stack form, else {@code null} when unknown. Form-constant —
-     * identical for every player wearing the form.
-     */
-    public static Design design(
-            String race,
-            String group,
-            String form,
-            String stackGroup,
-            String stackForm) {
-        try {
-            ensureLoaded();
-            String key = formKey(race, group, form);
-            Design d = key == null ? null : designs.get(key);
-            if (d != null) {
-                return d;
-            }
-            key = formKey(race, stackGroup, stackForm);
-            return key == null ? null : designs.get(key);
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    /** How many form color entries the catalog loaded. Zero when the resource is missing. */
-    public static int designCount() {
-        ensureLoaded();
-        return designs.size();
     }
 }

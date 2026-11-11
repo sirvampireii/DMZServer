@@ -86,6 +86,12 @@ public final class UltraHubScreens {
         }
 
         placeTiles(spec, ph, tiles);
+        // 4.7.46 (P-03): QuickFind, starting with the Body Parts Shop.
+        if (com.dbzlegacy.adaptivedifficulty.character.CosmeticBodyPartService.canUse(player)) {
+            spec.buttonLeft("@character:page:" + UltraCharacterScreens.PAGE_FIND, "Find body parts",
+                    UltraStyle.STYLE_NORMAL, UltraStyle.hubTileAccentCode("character"));
+            spec.rowGap();
+        }
         spec.send(player);
     }
 

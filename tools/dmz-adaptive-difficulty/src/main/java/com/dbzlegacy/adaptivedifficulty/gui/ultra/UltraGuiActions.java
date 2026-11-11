@@ -306,6 +306,13 @@ public final class UltraGuiActions {
         } else if (!args.has("arg") || args.get("arg") == null || args.get("arg").isJsonNull()) {
             args.addProperty("arg", "");
         }
+        // Spin toggle (4.7.48): one action on every model screen; the arg is the page to send again.
+        if (ModelPreview.ROTATE_ACTION.equals(parts.action)) {
+            ModelPreview.flipRotate(viewer);
+            String back = stringArg(args, "arg");
+            UltraGui.open(viewer, safeScreen, back.isBlank() ? homePage(safeScreen) : back);
+            return;
+        }
 
         String msg = runDo(viewer, data, safeScreen, parts.action, args, rawActionId);
         // Race full-wipe / free class picker opens the DMZ editor - do not fight it with Ultra.
@@ -547,7 +554,18 @@ public final class UltraGuiActions {
                 }
                 case "prestige" ->
                         nullToEmpty(ProgressionGuiApi.handlePrestigeDo(data, act, arg, page));
-                case "character", "saga" -> characterDo(viewer, data, act, arg, page);
+                case "character", "saga" -> {
+                    // 4.7.46 (P-03): the find box's typed value rides args.value (buttonBound).
+                    if ("bodypart_find".equals(act)) {
+                        yield nullToEmpty(com.dbzlegacy.adaptivedifficulty.character.CosmeticBodyPartService
+                                .executeFind(data, stringArg(args, "value")));
+                    }
+                    if ("bodypart_find_recent".equals(act)) {
+                        yield nullToEmpty(com.dbzlegacy.adaptivedifficulty.character.CosmeticBodyPartService
+                                .executeFindRecent(data, arg));
+                    }
+                    yield characterDo(viewer, data, act, arg, page);
+                }
                 case "progression" -> nullToEmpty(ProgressionGuiApi.handleDo(data, act, arg, page));
                 case "config" ->
                         nullToEmpty(UltraConfigScreens.handleAction(viewer, act, arg, page, args));

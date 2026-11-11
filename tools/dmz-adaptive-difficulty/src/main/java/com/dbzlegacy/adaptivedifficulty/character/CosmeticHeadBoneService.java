@@ -713,6 +713,26 @@ public final class CosmeticHeadBoneService {
         return applyJoined(player, HeadPartPieces.join(next), "§aTurned on §f" + label + "§a.");
     }
 
+    /**
+     * Head-bone token the player would wear after turning {@code boneId} on: the same group rule
+     * as {@link #executeEquip}. Used for the confirm-page preview (4.7.46); stores nothing.
+     */
+    public static String tokenWith(ServerPlayer player, String boneId) {
+        String bone = boneId == null ? "" : boneId.trim().toLowerCase(Locale.ROOT);
+        List<String> next = new ArrayList<>(HeadPartPieces.fragments(activeBone(player)));
+        if (bone.isEmpty()) {
+            return HeadPartPieces.join(next);
+        }
+        String group = HeadPartPieces.raceGroup(bone);
+        if (!HeadPartPieces.allowsMultipleInGroup(group)) {
+            next.removeIf(part -> group.equals(HeadPartPieces.raceGroup(part)));
+        }
+        if (!next.contains(bone)) {
+            next.add(bone);
+        }
+        return HeadPartPieces.join(next);
+    }
+
     /** Turn one atomic part on (paying if it is locked) or off. Other worn parts stay. */
     public static String executeToggle(ServerPlayer player, String boneId) {
         if (!canUse(player)) {
