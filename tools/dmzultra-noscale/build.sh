@@ -19,6 +19,9 @@ ASM="$ROOT/libraries/org/ow2/asm/asm/9.6/asm-9.6.jar"
 ASM_TREE="$ROOT/libraries/org/ow2/asm/asm-tree/9.6/asm-tree-9.6.jar"
 
 got="$(sha256sum "$STOCK" | cut -d' ' -f1)"
+# Git Bash's sha256sum escapes its output when the path has a backslash (C:\...): the hash then
+# starts with "\" and never matches a pinned SHA. Strip it.
+got="${got#\\}"
 case "$got" in
   "$STOCK_SHA") VERSION="0.4.0"; CHECKS="log" ;;
   "$STOCK_SHA_053") VERSION="0.5.3"; CHECKS="keep" ;;
@@ -42,4 +45,6 @@ javac --release 17 -encoding UTF-8 -cp "$CP" -d "$CLASSES" "$HERE/NoScalePatch.j
 mkdir -p "$OUT_DIR"
 java -cp "$CLASSES$SEP$CP" NoScalePatch "$STOCK" "$OUT" "$VERSION" "$CHECKS"
 python "$HERE/verify.py" "$STOCK" "$OUT" "$CHECKS"
-sha256sum "$OUT"
+out_sha="$(sha256sum "$OUT" | cut -d' ' -f1)"
+out_sha="${out_sha#\\}"  # same Git Bash escape as above
+echo "$out_sha  $OUT"
