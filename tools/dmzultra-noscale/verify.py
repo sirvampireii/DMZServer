@@ -3,7 +3,7 @@
 
     python tools/dmzultra-noscale/verify.py <stock dmzultra-<v>.jar> <dmzultra-<v>-noscale.jar> [log|keep]
 
-The third argument says what the build did to FormsChecks: "log" (0.4.0, the default) or "keep" (0.5.3).
+The third argument says what the build did to FormsChecks: "log" (0.4.0, the default) or "keep" (0.5.3, 0.5.5).
 
 Exits 1 on any failure. Checks:
   - every entry except the patched ones is byte-identical, and the only missing entry is
@@ -13,7 +13,7 @@ Exits 1 on any failure. Checks:
   - OverhaulScale is still there and active() is `iconst_0; ireturn`; its other methods are unchanged;
   - log: FormsChecks.overhaulScale() only logs, with no expectScaled call left in the jar's call graph;
     keep: FormsChecks is byte-identical to the stock class;
-  - the manifest Build-Time ends in " noscale", the mod version stays the stock one (0.4.0, 0.5.3).
+  - the manifest Build-Time ends in " noscale", the mod version stays the stock one (0.4.0, 0.5.3, 0.5.5).
 """
 import json
 import re
@@ -104,8 +104,8 @@ def main(stock_path, patched_path, checks="log"):
           re.search(r"^Build-Time: .+ noscale\r?$", mf, re.M) is not None
           and re.sub(r" noscale(?=\r?\n)", "", mf) == smf)
     version = re.search(r'^version="([^"]+)"', stock.read("META-INF/mods.toml").decode("utf-8"), re.M)
-    check("mod version stays the stock one (0.4.0, 0.5.3)",
-          version is not None and version.group(1) in ("0.4.0", "0.5.3")
+    check("mod version stays the stock one (0.4.0, 0.5.3, 0.5.5)",
+          version is not None and version.group(1) in ("0.4.0", "0.5.3", "0.5.5")
           and stock.read("META-INF/mods.toml") == patched.read("META-INF/mods.toml"),
           version.group(1) if version else "no version line")
     print("PASS" if not failures else f"FAIL ({len(failures)})")
