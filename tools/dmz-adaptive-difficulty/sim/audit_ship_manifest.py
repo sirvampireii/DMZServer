@@ -1557,8 +1557,13 @@ def main() -> int:
           and "Opcodes.ICONST_0" in ns_patch)
     check("Ultra patch: FormsChecks.overhaulScale no longer expects scaled values",
           'patchClass(data, "overhaulScale", "()V", NoScalePatch::logOff)' in ns_patch)
-    check("Ultra patch: Build-Time stamped noscale, mod version stays 0.4.0",
-          'STAMP = " noscale"' in ns_patch and "mod version stays 0.4.0" in ns_verify)
+    check("Ultra patch: Build-Time stamped noscale, mod version stays the stock one",
+          'STAMP = " noscale"' in ns_patch and "mod version stays the stock one (0.4.0, 0.5.3)" in ns_verify
+          and "stock.read(\"META-INF/mods.toml\") == patched.read(\"META-INF/mods.toml\")" in ns_verify)
+    check("Ultra patch 0.5.3 (not live): sha-gated, FormsChecks kept as shipped (dev-only; never runs in production)",
+          'STOCK_SHA_053="0a84d1729e13cec17a9b4bc30bd50ca65b923253a67ec37c2862569b884f8afa"' in ns_build
+          and '"$STOCK_SHA_053") VERSION="0.5.3"; CHECKS="keep" ;;' in ns_build
+          and 'check("FormsChecks kept as shipped", stock.read(CHECKS) == patched.read(CHECKS))' in ns_verify)
     check("Ultra patch build checks the stock jar's sha256 and runs the verifier",
           'STOCK_SHA="ea63963c59e55ad6cab8ff28967380432c8ee94d7b95a6ee2d58c9ae1b9feacf"' in ns_build
           and 'verify.py" "$STOCK" "$OUT"' in ns_build)

@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
-"""Verify dmzultra-0.4.0-noscale.jar against the stock jar it was built from.
+"""Verify dmzultra-<v>-noscale.jar against the stock jar it was built from.
 
-    python tools/dmzultra-noscale/verify.py <stock dmzultra-0.4.0.jar> <dmzultra-0.4.0-noscale.jar>
+    python tools/dmzultra-noscale/verify.py <stock dmzultra-<v>.jar> <dmzultra-<v>-noscale.jar> [log|keep]
+
+The third argument says what the build did to FormsChecks: "log" (0.4.0, the default) or "keep" (0.5.3).
 
 Exits 1 on any failure. Checks:
-  - every entry except the five patched ones is byte-identical, and the only missing entry is
+  - every entry except the patched ones is byte-identical, and the only missing entry is
     FormDataScaleMixin.class;
   - dmzultra.mixins.json still parses, lost exactly FormDataScaleMixin from "mixins", and its other
     lists and keys are unchanged; no other mixin config or class names the mixin;
   - OverhaulScale is still there and active() is `iconst_0; ireturn`; its other methods are unchanged;
-  - FormsChecks.overhaulScale() only logs, with no expectScaled call left in the jar's call graph;
-  - the manifest Build-Time ends in " noscale", the mod version stays 0.4.0.
+  - log: FormsChecks.overhaulScale() only logs, with no expectScaled call left in the jar's call graph;
+    keep: FormsChecks is byte-identical to the stock class;
+  - the manifest Build-Time ends in " noscale", the mod version stays the stock one (0.4.0, 0.5.3).
 """
 import json
 import re
@@ -22,8 +25,8 @@ from pathlib import Path
 
 MIXIN = "FormDataScaleMixin"
 MIXIN_CLASS = "com/dmzultra/mixin/FormDataScaleMixin.class"
-PATCHED = {"dmzultra.mixins.json", "com/dmzultra/form/OverhaulScale.class",
-           "com/dmzultra/dev/FormsChecks.class", "META-INF/MANIFEST.MF"}
+CHECKS = "com/dmzultra/dev/FormsChecks.class"
+PATCHED = {"dmzultra.mixins.json", "com/dmzultra/form/OverhaulScale.class", CHECKS, "META-INF/MANIFEST.MF"}
 failures = []
 
 
@@ -61,13 +64,14 @@ def strip_methods(dump, skip):
     return re.sub(r"#\d+", "#", out)
 
 
-def main(stock_path, patched_path):
+def main(stock_path, patched_path, checks="log"):
+    patched_entries = PATCHED if checks == "log" else PATCHED - {CHECKS}
     stock = zipfile.ZipFile(stock_path)
     patched = zipfile.ZipFile(patched_path)
     s_names, p_names = set(stock.namelist()), set(patched.namelist())
     check("only FormDataScaleMixin.class is missing", s_names - p_names == {MIXIN_CLASS} and p_names <= s_names,
           f"missing={sorted(s_names - p_names)[:5]} extra={sorted(p_names - s_names)[:5]}")
-    changed = [n for n in p_names if n not in PATCHED and stock.read(n) != patched.read(n)]
+    changed = [n for n in p_names if n not in patched_entries and stock.read(n) != patched.read(n)]
     check("every other entry is byte-identical", not changed, str(changed[:5]))
 
     s_mix = json.loads(stock.read("dmzultra.mixins.json"))
@@ -89,30 +93,44 @@ def main(stock_path, patched_path):
         check("OverhaulScale's other methods unchanged",
               strip_methods(s_os, ["public static boolean active();"])
               == strip_methods(p_os, ["public static boolean active();"]))
-        s_fc = javap(stock.read("com/dmzultra/dev/FormsChecks.class"), tmp, "s_FormsChecks.class")
-        p_fc = javap(patched.read("com/dmzultra/dev/FormsChecks.class"), tmp, "p_FormsChecks.class")
-        body = method(p_fc, "public static void overhaulScale();") or ""
-        check("FormsChecks.overhaulScale() only logs that the scale is off",
-              "Logger.info" in body and "off in this build" in body and "expectScaled" not in body
-              and "simulate" not in body, body[:300])
-        callers = [ln for ln in p_fc.splitlines() if "Method expectScaled" in ln]
-        check("no expectScaled call left", not callers, str(callers[:3]))
-        check("FormsChecks' other methods unchanged",
-              strip_methods(s_fc, ["public static void overhaulScale();"])
-              == strip_methods(p_fc, ["public static void overhaulScale();"]))
+        if checks == "keep":
+            check("FormsChecks kept as shipped", stock.read(CHECKS) == patched.read(CHECKS))
+        else:
+            check_forms_checks(stock, patched, tmp)
 
     mf = patched.read("META-INF/MANIFEST.MF").decode("utf-8")
     smf = stock.read("META-INF/MANIFEST.MF").decode("utf-8")
     check("manifest Build-Time ends in ' noscale', nothing else changed",
           re.search(r"^Build-Time: .+ noscale\r?$", mf, re.M) is not None
           and re.sub(r" noscale(?=\r?\n)", "", mf) == smf)
-    check("mod version stays 0.4.0", 'version="0.4.0"' in patched.read("META-INF/mods.toml").decode("utf-8"))
+    version = re.search(r'^version="([^"]+)"', stock.read("META-INF/mods.toml").decode("utf-8"), re.M)
+    check("mod version stays the stock one (0.4.0, 0.5.3)",
+          version is not None and version.group(1) in ("0.4.0", "0.5.3")
+          and stock.read("META-INF/mods.toml") == patched.read("META-INF/mods.toml"),
+          version.group(1) if version else "no version line")
+    print("PASS" if not failures else f"FAIL ({len(failures)})")
+    return 0 if not failures else 1
+
+
+def check_forms_checks(stock, patched, tmp):
+    """0.4.0 ("log"): FormsChecks.overhaulScale() was rewritten to log that the scale is off."""
+    s_fc = javap(stock.read(CHECKS), tmp, "s_FormsChecks.class")
+    p_fc = javap(patched.read(CHECKS), tmp, "p_FormsChecks.class")
+    body = method(p_fc, "public static void overhaulScale();") or ""
+    check("FormsChecks.overhaulScale() only logs that the scale is off",
+          "Logger.info" in body and "off in this build" in body and "expectScaled" not in body
+          and "simulate" not in body, body[:300])
+    callers = [ln for ln in p_fc.splitlines() if "Method expectScaled" in ln]
+    check("no expectScaled call left", not callers, str(callers[:3]))
+    check("FormsChecks' other methods unchanged",
+          strip_methods(s_fc, ["public static void overhaulScale();"])
+          == strip_methods(p_fc, ["public static void overhaulScale();"]))
     print("PASS" if not failures else f"FAIL ({len(failures)})")
     return 0 if not failures else 1
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("log", "keep")):
         print(__doc__)
         sys.exit(2)
-    sys.exit(main(sys.argv[1], sys.argv[2]))
+    sys.exit(main(*sys.argv[1:]))

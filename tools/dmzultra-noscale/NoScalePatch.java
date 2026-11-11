@@ -20,20 +20,24 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
 /**
- * Builds dmzultra-0.4.0-noscale.jar from the stock DMZ Ultra 0.4.0 jar: no Overhaul form scaling on
- * either side (server combat or client screens).
+ * Builds dmzultra-&lt;version&gt;-noscale.jar from a stock DMZ Ultra jar (0.4.0 or 0.5.3; build.sh picks the
+ * version from the stock jar's sha256): no Overhaul form scaling on either side (server combat or client screens).
  *
  * <ol>
  *   <li>{@code dmzultra.mixins.json}: {@code FormDataScaleMixin} leaves the common {@code mixins} list.
  *   <li>{@code com/dmzultra/mixin/FormDataScaleMixin.class} is deleted.
  *   <li>{@code OverhaulScale.active()} returns false. The class stays (FormsChecks, RealisticProgression,
- *       RealismService and TaimujinRaceMixin call it); {@code scaled} then returns the configured value and
- *       {@code factor}/{@code factorOf} return 1.0. Without this, {@code RealisticProgression.ownerForm}
- *       (on by default) still divides the now-unscaled multiplier by the race factor.
- *   <li>{@code FormsChecks.overhaulScale()} (dev self-test, only with -Ddmzultra.selftest) logs that the
- *       scale is off instead of expecting scaled values.
+ *       RealismService and TaimujinRaceMixin call it; 0.5.3 adds RealismForms, RealismChecks, CerealianEyes,
+ *       FormsRules, and NamekHealing, NamekServices and BattleMemory, which only read active()); {@code scaled}
+ *       then returns the configured value and {@code factor}/{@code factorOf} return 1.0. Without this,
+ *       {@code RealisticProgression.ownerForm} (on by default) still divides the now-unscaled multiplier by the
+ *       race factor.
+ *   <li>0.4.0 only ({@code log} mode): {@code FormsChecks.overhaulScale()} (dev self-test) logs that the scale
+ *       is off instead of expecting scaled values. 0.5.3 keeps FormsChecks as shipped ({@code keep} mode): it
+ *       runs only when {@code !FMLEnvironment.production} (UltraChecks.run), never on a production server, and
+ *       only records failures in a log line.
  *   <li>{@code META-INF/MANIFEST.MF} Build-Time gains " noscale", so Ultra's own boot line reads
- *       "DMZ Ultra 0.4.0 (built ... noscale) is loading." The mod version stays 0.4.0.
+ *       "DMZ Ultra &lt;version&gt; (built ... noscale) is loading." The mod version is unchanged.
  * </ol>
  * Every other entry is copied byte for byte. The stock jar is only read.
  */
@@ -44,22 +48,26 @@ public final class NoScalePatch {
     static final String SCALE = "com/dmzultra/form/OverhaulScale.class";
     static final String CHECKS = "com/dmzultra/dev/FormsChecks.class";
     static final String MANIFEST = "META-INF/MANIFEST.MF";
+    static final String MODS_TOML = "META-INF/mods.toml";
     static final String STAMP = " noscale";
     static final String CHECK_LINE =
             "[SelfTest] Forms on Overhaul's scale: off in this build (noscale); forms keep their configured multipliers.";
 
     public static void main(String[] args) throws IOException {
-        if (args.length != 2) {
-            System.err.println("usage: NoScalePatch <stock dmzultra-0.4.0.jar> <out dmzultra-0.4.0-noscale.jar>");
+        if (args.length != 4 || !(args[3].equals("log") || args[3].equals("keep"))) {
+            System.err.println("usage: NoScalePatch <stock dmzultra-<v>.jar> <out dmzultra-<v>-noscale.jar> <v> <log|keep>");
             System.exit(2);
         }
         Path in = Path.of(args[0]);
         Path out = Path.of(args[1]);
+        String version = args[2];
+        boolean logChecks = args[3].equals("log");
         if (in.toAbsolutePath().normalize().equals(out.toAbsolutePath().normalize())) {
             throw new IllegalArgumentException("refusing to overwrite the stock jar");
         }
         int copied = 0;
-        boolean mixins = false, scale = false, checks = false, manifest = false, removed = false;
+        boolean mixins = false, scale = false, checks = !logChecks, manifest = false, removed = false;
+        boolean versioned = false;
         try (ZipFile zip = new ZipFile(in.toFile());
                 ZipOutputStream zout = new ZipOutputStream(Files.newOutputStream(out))) {
             Enumeration<? extends ZipEntry> entries = zip.entries();
@@ -81,14 +89,23 @@ public final class NoScalePatch {
                         scale = true;
                     }
                     case CHECKS -> {
-                        data = patchClass(data, "overhaulScale", "()V", NoScalePatch::logOff);
-                        checks = true;
+                        if (logChecks) {
+                            data = patchClass(data, "overhaulScale", "()V", NoScalePatch::logOff);
+                            checks = true;
+                        } else {
+                            copied++;
+                        }
                     }
                     case MANIFEST -> {
                         data = stamp(new String(data, StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8);
                         manifest = true;
                     }
-                    default -> copied++;
+                    default -> {
+                        if (name.equals(MODS_TOML)) {
+                            versioned = new String(data, StandardCharsets.UTF_8).contains("version=\"" + version + "\"");
+                        }
+                        copied++;
+                    }
                 }
                 ZipEntry copy = new ZipEntry(name);
                 copy.setTime(e.getTime());
@@ -97,12 +114,13 @@ public final class NoScalePatch {
                 zout.closeEntry();
             }
         }
-        if (!(mixins && scale && checks && manifest && removed)) {
+        if (!(mixins && scale && checks && manifest && removed && versioned)) {
             Files.deleteIfExists(out);
-            throw new IllegalStateException("stock jar is not the expected 0.4.0 layout: mixins=" + mixins
-                    + " scale=" + scale + " checks=" + checks + " manifest=" + manifest + " mixinClass=" + removed);
+            throw new IllegalStateException("stock jar is not the expected " + version + " layout: mixins=" + mixins
+                    + " scale=" + scale + " checks=" + checks + " manifest=" + manifest + " mixinClass=" + removed
+                    + " version=" + versioned);
         }
-        System.out.println("patched 5 changes, " + copied + " entries copied unchanged -> " + out);
+        System.out.println("patched " + (logChecks ? 5 : 4) + " changes, " + copied + " entries copied unchanged -> " + out);
     }
 
     /** Remove the mixin name from the "mixins" array, keeping the file's own layout. */
