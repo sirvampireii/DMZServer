@@ -1,4 +1,5 @@
 {
+  "_comment": "INTENTIONALLY DORMANT (3.0.3, M-P2-24). Noea is not installed on live and no Noea jar exists anywhere to build or test against, so these three targets (GrabService, GrabActionC2SPacket, FlowShockwaveService) are unverified. OptionalNoeaMixinPlugin applies each mixin only when its target class file is present, so today nothing applies. If Noea ever returns, these would apply to untested targets: re-verify them against that Noea jar first. Removing this config is a separate decision.",
   "required": false,
   "minVersion": "0.8",
   "package": "com.dbzlegacy.mohistmelee.mixin",

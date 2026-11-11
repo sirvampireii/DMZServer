@@ -12,6 +12,10 @@ import org.apache.logging.log4j.Logger;
 /**
  * Keeps Dragon Block Noea experimental grab off server-wide (even if an op runs
  * {@code /noea experimental grab on}).
+ *
+ * <p>Intentionally dormant (3.0.3, M-P2-24): it does nothing unless Noea's {@code GrabService} class is
+ * present, and Noea is not installed on live. Its reflective target is unverified (no Noea jar to test
+ * against); re-check it before Noea ever returns.
  */
 @Mod.EventBusSubscriber(modid = DmzMohistMeleeFix.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public final class NoeaGrabDisable {

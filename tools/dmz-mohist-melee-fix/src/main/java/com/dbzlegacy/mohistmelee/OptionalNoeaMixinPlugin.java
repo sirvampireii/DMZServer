@@ -8,6 +8,11 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 /**
  * Apply a Noea grab mixin only when that target's class file is on the classpath.
+ *
+ * <p>Intentionally dormant (3.0.3, M-P2-24): Noea is not on live and there is no Noea jar to build or
+ * test against, so the three targets in {@code dmz_mohist_melee_fix.noea.mixins.json} are unverified
+ * and nothing here applies today. If Noea returns, this gate would turn them back on against those
+ * untested targets: re-verify them against that jar first. Removing the config is a separate call.
  * {@code Class.forName} here defines {@code GrabService} before Mixin can transform
  * it, and the grab mixin is then skipped as loaded too early.
  */
