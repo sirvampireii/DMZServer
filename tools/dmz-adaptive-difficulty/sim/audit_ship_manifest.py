@@ -36,21 +36,10 @@ CNPC_RETIRED = not (
 ).is_dir()
 
 
-def check(label: str, cond: bool, detail: str = "") -> None:
-    key = str(label).lower()
-    if CNPC_RETIRED and any(
-        t in key
-        for t in (
-            "cnpc",
-            "gui scale",
-            "320x240",
-            "menus fit minecraft",
-            "declare vs challenge",
-            "training bonds",
-            "preview",
-            "flash",
-        )
-    ):
+def check(label: str, cond: bool, detail: str = "", retired: bool = False) -> None:
+    # retired=True only on checks of code that no longer exists (the deleted CNPC GUI); each
+    # one is flagged at its call. Never retire by label: a matching word hid live checks.
+    if retired:
         ok.append(label + " [retired]")
         print(f"  OK  {label} [retired]")
         return
@@ -3599,7 +3588,7 @@ def main() -> int:
           "one Skills tab" in cnpc_sk
           and "Natural skills" in cnpc_sk
           and "§dSaga skills" not in cnpc_sk
-          and "navSubmenu" not in cnpc_sk)
+          and "navSubmenu" not in cnpc_sk, retired=True)
     unlock = read(SRC / "progression/shop/SkillUnlockService.java")
     check("skill lines show level and locked unlocked or max",
           "§8· §cLocked" in unlock
@@ -3620,7 +3609,7 @@ def main() -> int:
     check("pendingRequestCards backend", "pendingRequestCards" in rival_mgr)
     check("chest challenge_pending page", "challenge_pending" in rival_chest)
     check("CMI challenge_pending page", "challenge_pending" in cmi_rival)
-    check("CNPC challenge pending paint", "pendingChallengeCards" in cnpc_rival)
+    check("CNPC challenge pending paint", "pendingChallengeCards" in cnpc_rival, retired=True)
     check("rival declare pending_decide", "pending_decide:" in rival_chest and "pending_decide:" in cmi_rival)
     rival_store = read(SRC / "rival/RivalStore.java")
     check("rival duel requests persist in RivalStore", "challengeRequests" in rival_store and "upsertChallengeRequest" in rival_store)
@@ -3628,9 +3617,9 @@ def main() -> int:
     cleanup = rival_mgr.split("void cleanupPlayer", 1)[1].split("void ", 2)[0] if "void cleanupPlayer" in rival_mgr else ""
     check("rival duel not cleared on logout", "getRequestInvolving" not in cleanup)
     cnpc_rival = read(SRC / "gui/cnpc/CnpcLmRivalGui.java")
-    check("rival CNPC reopen duel pending after send", '"challenge_send"' in cnpc_rival and '"challenge_pending"' in cnpc_rival)
-    check("rival declare vs challenge labels", "Declare invite" in cnpc_rival and "Challenge request" in cnpc_rival)
-    check("rival CNPC TP toggle label", 'toggleOn("TP")' in cnpc_rival and "Teleport msgs" not in cnpc_rival)
+    check("rival CNPC reopen duel pending after send", '"challenge_send"' in cnpc_rival and '"challenge_pending"' in cnpc_rival, retired=True)
+    check("rival declare vs challenge labels", "Declare invite" in cnpc_rival and "Challenge request" in cnpc_rival, retired=True)
+    check("rival CNPC TP toggle label", 'toggleOn("TP")' in cnpc_rival and "Teleport msgs" not in cnpc_rival, retired=True)
     check("rival chest TP toggle label", '"&aTP ON"' in rival_chest and "TP Msg ON" not in rival_chest)
     nemesis_mode = read(SRC / "rival/NemesisSpawnMode.java")
     ultra_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
@@ -3666,7 +3655,7 @@ def main() -> int:
     spar_chest = read(BUKKIT / "SparChestGui.java")
     cnpc_spar = read(SRC / "gui/cnpc/CnpcLmSparGui.java")
     check("spar chest TP toggle label", '"&aTP ON"' in spar_chest and "TP Msg ON" not in spar_chest)
-    check("spar CNPC TP toggle label", 'toggleOn("TP")' in cnpc_spar and "teleport" not in cnpc_spar.lower())
+    check("spar CNPC TP toggle label", 'toggleOn("TP")' in cnpc_spar and "teleport" not in cnpc_spar.lower(), retired=True)
 
     print("\n--- § spar ---")
     spar_chest = read(BUKKIT / "SparChestGui.java")
@@ -3680,7 +3669,7 @@ def main() -> int:
           and "uuid:" in spar_api.split("dojo_challenge", 1)[1].split("dojo_accept", 1)[0])
     dojo_war_cnpc = cnpc_spar.split("paintDojoWar", 1)[1].split("paintDojoWarPending", 1)[0] if "paintDojoWar" in cnpc_spar else ""
     check("CNPC dojo war hub no accept/decline", "dojo_accept" not in dojo_war_cnpc)
-    check("spar Training bonds wording", "Training bonds" in cnpc_spar and "Training bonds" in spar_chest)
+    check("spar Training bonds wording", "Training bonds" in cnpc_spar and "Training bonds" in spar_chest, retired=True)
     spar_main = spar_chest.split("private Inventory main", 1)[1].split("private Inventory top", 1)[0] if "private Inventory main" in spar_chest else ""
     check("spar main no End Session button", "spar.main.end_session" not in spar_main)
     spar_combat = read(SRC / "sparring/SparCombat.java")
@@ -3692,16 +3681,16 @@ def main() -> int:
     cnpc_diff = read(SRC / "gui/cnpc/CnpcLmDifficultyGui.java")
     check("CNPC tiers locked when personal OFF", "paintFeatureLocked" in cnpc_diff
           and "Personal difficulty" in cnpc_diff
-          and "main Difficulty page" in cnpc_diff)
+          and "main Difficulty page" in cnpc_diff, retired=True)
     check("CNPC team scaling locked like tiers", "Teams locked" in cnpc_diff
-          and "before using team scaling" in cnpc_diff)
+          and "before using team scaling" in cnpc_diff, retired=True)
     check("Difficulty team action gated when personal OFF", "ACT_TEAM.equals(act)" in read(SRC / "service/DifficultyActions.java"))
-    check("CNPC difficulty uses handleArgNoReopen", "handleArgNoReopen" in cnpc_diff)
+    check("CNPC difficulty uses handleArgNoReopen", "handleArgNoReopen" in cnpc_diff, retired=True)
 
     print("\n--- § cnpc ---")
     cnpc_support = read(SRC / "gui/cnpc/CnpcGuiSupport.java")
-    check("CNPC afterGuiClosed defer reopen", "afterGuiClosed" in cnpc_support)
-    check("CNPC flash notice separate widget ids", "ID_FLASH_LABEL_BASE" in cnpc_support)
+    check("CNPC afterGuiClosed defer reopen", "afterGuiClosed" in cnpc_support, retired=True)
+    check("CNPC flash notice separate widget ids", "ID_FLASH_LABEL_BASE" in cnpc_support, retired=True)
     cnpc_feedback = read(SRC / "gui/cnpc/CnpcMenuFeedback.java")
     gui_notice = read(SRC / "gui/GuiNotice.java")
     check("CNPC flash notice readable",
@@ -3712,20 +3701,20 @@ def main() -> int:
           and "CnpcMenuFeedback.NOTICE_HEADER" in cnpc_support
           and "brightenNoticeLine" in cnpc_support
           and "noticeBody" in cnpc_support
-          and "public static String noticeBody" in gui_notice)
+          and "public static String noticeBody" in gui_notice, retired=True)
     check("CNPC info blocks readable (readableInfoLine)", "readableInfoLine" in cnpc_support
-          and "readableInfoLine" in read(SRC / "gui/cnpc/CnpcGuiStyle.java"))
+          and "readableInfoLine" in read(SRC / "gui/cnpc/CnpcGuiStyle.java"), retired=True)
     check("CNPC difficulty clear tier avoids flash ids", "ID_GRID_BASE" in cnpc_diff
-          and 'button(gui, 50, "§cClear active tier"' not in cnpc_diff)
+          and 'button(gui, 50, "§cClear active tier"' not in cnpc_diff, retired=True)
     cnpc_preview = read(SRC / "gui/cnpc/CnpcPlayerPreview.java")
     check("CNPC preview live player sync (inventory-style)", "tryBindLivePlayer" in cnpc_preview
-          and "setEntitySyncedById" in cnpc_preview)
+          and "setEntitySyncedById" in cnpc_preview, retired=True)
     cnpc_prestige = read(SRC / "gui/cnpc/CnpcLmPrestigeGui.java")
     check("CNPC prestige section tags avoid info label ids",
           "ID_INLINE_NOTE" in cnpc_prestige and 'paintSectionTag(gui, 11,' not in cnpc_prestige
-          and 'paintSectionTag(gui, 12,' not in cnpc_prestige)
+          and 'paintSectionTag(gui, 12,' not in cnpc_prestige, retired=True)
     check("Prestige CNPC tier grid avoids flash widget ids",
-          "ID_PRESTIGE_TIER_GRID" in cnpc_prestige and "paintTwoColumnButtonGrid(player, gui, row, 50," not in cnpc_prestige)
+          "ID_PRESTIGE_TIER_GRID" in cnpc_prestige and "paintTwoColumnButtonGrid(player, gui, row, 50," not in cnpc_prestige, retired=True)
     build_sh = read(MOD / "build.sh")
     check("build overlays RivalStore + dojo backend", "rival/RivalStore.class" in build_sh and "sparring/DojoRankings.class" in build_sh)
     check(
@@ -3764,17 +3753,17 @@ def main() -> int:
           and "subject != null && subject != viewer" in gui_act)
     cnpc_rival = read(SRC / "gui/cnpc/CnpcLmRivalGui.java")
     check("CNPC rival empty labels avoid flash ids", "ID_EMPTY_PLACEHOLDER" in cnpc_rival
-          and "addLabel(50," not in cnpc_rival)
+          and "addLabel(50," not in cnpc_rival, retired=True)
     check("CNPC rival challenge duration grid avoids flash ids", "ID_GRID_BASE" in cnpc_rival
-          and "paintTwoColumnButtonGrid(pl, gui, row, 30," not in cnpc_rival)
-    check("CNPC rival act defers menu reopen", "runDeferred(player, reopen)" in read(SRC / "gui/cnpc/CnpcGuiSupport.java"))
+          and "paintTwoColumnButtonGrid(pl, gui, row, 30," not in cnpc_rival, retired=True)
+    check("CNPC rival act defers menu reopen", "runDeferred(player, reopen)" in read(SRC / "gui/cnpc/CnpcGuiSupport.java"), retired=True)
     check("Rival challenge request window >= 5 min", "CH_REQUEST_EXPIRE_MS = 300_000" in read(SRC / "rival/RivalConstants.java"))
     rival_mgr = read(SRC / "rival/RivalChallengeManager.java")
     check("Rival accept not blocked by distance at accept", "blocks to accept" not in rival_mgr)
     cnpc_prog = read(SRC / "gui/cnpc/CnpcLmProgressionGui.java")
     check("CNPC TP boost presets avoid flash ids", "ID_BOOST_PRESET_BASE" in cnpc_prog
-          and "boostPreset(gui, player, row, 50," not in cnpc_prog)
-    check("Progression CNPC staff flag toggles", "HINT_TOGGLE_STAFF" in cnpc_prog and "paintAllFlags" in cnpc_prog)
+          and "boostPreset(gui, player, row, 50," not in cnpc_prog, retired=True)
+    check("Progression CNPC staff flag toggles", "HINT_TOGGLE_STAFF" in cnpc_prog and "paintAllFlags" in cnpc_prog, retired=True)
     prog_chest = read(BUKKIT / "ProgressionChestGui.java")
     check("Progression chest staff section toggles", "allFlags" in prog_chest and "SlotAction.act(\"flag\"" in prog_chest)
     check("ProgressionChatMenu retired (4.7.31: dead code, zero referrers)",
@@ -3788,7 +3777,7 @@ def main() -> int:
     tooltips = read(GUI / "src/main/resources/gui-tooltips.json")
     check("Android GUI copy lists Saiyan eligible", "Saiyan excluded" not in chest_prog and "Saiyan excluded" not in tooltips)
     preview_tex = read(SRC / "gui/cnpc/DmzPreviewTexture.java")
-    check("CNPC preview race textures (namekian/bio)", "namekian" in preview_tex and "bioandroid" in preview_tex)
+    check("CNPC preview race textures (namekian/bio)", "namekian" in preview_tex and "bioandroid" in preview_tex, retired=True)
     check("PrestigeSystem has no need-floor handling", "shrinkNeedFloor" not in prestige and "NeedFloor" not in prestige)
 
     print("\n--- § ui scale ---")
@@ -3804,16 +3793,16 @@ def main() -> int:
 
     check("CNPC menus read the player screen size",
           "getScreenSize" in ui_fit and "compressToWindow" in ui_fit
-          and "CnpcUiFit.fit" in cnpc_support and "compressToWindow" in cnpc_support)
+          and "CnpcUiFit.fit" in cnpc_support and "compressToWindow" in cnpc_support, retired=True)
     check("menus fit Minecraft's real GUI scale without a second font shrink",
           "guiScale(fb[0], fb[1])" in ui_fit
           and "Math.min(sx, sy)" in ui_fit
           and "tightScale" not in ui_fit
           and "label.setScale" not in ui_fit
-          and "new int[] {4, 5}" not in ui_fit)
+          and "new int[] {4, 5}" not in ui_fit, retired=True)
     check("GUI scale uses Minecraft's 320x240 floor",
           "MIN_SCALED_WIDTH = 320" in ui_fit and "MIN_SCALED_HEIGHT = 240" in ui_fit
-          and "framebufferWidth / (scale + 1)" in ui_fit)
+          and "framebufferWidth / (scale + 1)" in ui_fit, retired=True)
     check("1080p Auto GUI scale is 4 (480x270)",
           mc_gui_scale(1920, 1080) == 4)
     check("1440p Auto GUI scale is 6 (shorter than the design window)",
@@ -3867,7 +3856,7 @@ def main() -> int:
                 "shipped CnpcPlayerPreview live sync helper",
                 r2.returncode == 0 and "tryBindLivePlayer" in preview_abi,
                 "rebuild overlay — CNPC preview must ship from gui/cnpc overlay",
-            )
+            retired=True)
             r3 = subprocess.run(
                 ["javap", "-classpath", str(forge_jar), "-private",
                  "com.dbzlegacy.adaptivedifficulty.progression.race.AndroidConversion"],
@@ -3938,7 +3927,8 @@ def main() -> int:
         for e in errors:
             print(f"  - {e}")
         return 1
-    print(f"PASS — ship manifest OK ({len(ok)} checks)")
+    retired_n = sum(1 for x in ok if x.endswith(" [retired]"))
+    print(f"PASS — ship manifest OK ({len(ok) - retired_n} checks run, {retired_n} retired)")
     return 0
 
 
