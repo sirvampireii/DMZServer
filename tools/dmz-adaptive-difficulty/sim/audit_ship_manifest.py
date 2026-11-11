@@ -1698,8 +1698,10 @@ def main() -> int:
           and "tab:saga" not in ch_home and "tab:android" not in ch_home and "saga_reset" not in ch_home
           and ch_home.index('"page:race:0"') < ch_home.index('"page:class:0"') < ch_home.index('"page:bones:0"')
               < ch_home.index('"page:bodyparts:0"') < ch_home.index('"page:reskin"'))
+    # 4.7.48: Preview forms is the sixth destination.
     check("each Home entry has a plain line with its state; blocked entries stay listed, dimmed, with a reason",
-          ch_home.count(".line(indexLine(") == 5
+          ch_home.count(".line(indexLine(") == 6
+          and ch_home.index('"page:reskin"') < ch_home.index('"page:" + PAGE_FORM_PREVIEW + ":0"')
           and "CosmeticBodyPartService.equippedParts(player).size()" in ch_home
           and 'return "Turned off on this server right now.";' in ch_scr
           and 'return "Not available for your rank.";' in ch_scr
@@ -1880,6 +1882,37 @@ def main() -> int:
           and "GOD_KI.formMastery(player) >= (double) max * masteryPerLevel()" in gw_kt)
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
+
+    print("\n--- § lm 4.7.48 ---")
+    p48_prev = read(SRC / "gui/ultra/ModelPreview.java")
+    p48_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
+    p48_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
+    p48_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    p48_parts = read(SRC / "gui/ultra/PlayerModelParts.java")
+    p48_figure = p48_prev.split("public static JsonObject formFigure", 1)[-1].split("public static JsonObject rivalFigure", 1)[0]
+    # Labels avoid the word the CNPC-retired filter skips, so these run.
+    check("manifest row for lm 4.7.48 model screens", "lm-4748-model-previews" in manifest)
+    check("one spin action flips the viewer and resends the page",
+          'ROTATE_ACTION = "model_rotate"' in p48_prev
+          and "ModelPreview.ROTATE_ACTION.equals(parts.action)" in p48_act
+          and "ModelPreview.flipRotate(viewer)" in p48_act)
+    check("every character model page spins by the viewer's choice and has the toggle",
+          "0.9f, true" not in p48_char
+          and p48_char.count("ModelPreview.rotateButton(spec, player,") >= 9
+          and p48_char.count("248, 60, 86, 120, 0.9f, ModelPreview.rotate(player)") >= 4)
+    check("form figures are made-up uuid subjects with no colors, never subject local",
+          '"subject", "uuid:" + UUID.nameUUIDFromBytes' in p48_figure
+          and '"local"' not in p48_prev and '"colors"' not in p48_figure
+          and "ConfigManager.getAllFormsForRace(race)" in p48_prev)
+    check("Character Home forms page steps the race's forms",
+          'PAGE_FORM_PREVIEW = "form_preview"' in p48_char and "openFormPreview" in p48_char
+          and '"Preview forms", formsBlock' in p48_char and "ModelPreview.pick(player, form)" in p48_char)
+    check("rival profile shows the rival via the inspect builder, with a you/rival switch",
+          "return target == null ? null : build(target, true);" in p48_parts
+          and "PlayerModelParts.otherPlayerSnapshot(rival)" in p48_prev
+          and "ModelPreview.rivalFigure(player, rival)" in p48_rival
+          and 'VIEW_YOU = "|you"' in p48_rival and '"Show you"' in p48_rival
+          and 'ModelPreview.rotateButton(spec, player, "list_detail:" + payload)' in p48_rival)
 
     print("\n--- § lm 4.7.47 ---")
     p47_build = read(MOD / "build.sh")

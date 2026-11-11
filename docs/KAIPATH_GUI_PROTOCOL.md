@@ -750,6 +750,22 @@ With KaiPath **1.3.1+** dynamic-any screen ids, hub wire shim is off
 
 Smoke: `/lm admin guitest` → reports client features → click **Ping server**.
 
+### Made-up preview figures (LM 4.7.48)
+
+LM's **Preview forms** page (Character Services) and the rival profile's "you" view send
+`subject uuid:<id>` for a made-up player (one fixed id per viewer) plus a schema-1 `form`, so
+KaiPath draws a stand-in of that race and form. No new wire fields. Spin on/off is the existing
+`rotate` boolean, flipped by `do:model_rotate:<page>`. Seen on KaiPath 1.5.3 (Ultra 0.4.0), all
+client-side and outside LM's reach:
+
+- Only race and form are copied onto the stand-in, so colors are the race defaults.
+- Races whose DragonMineZ body comes from the Minecraft skin (Saiyan, Human) show a default
+  vanilla skin under the DragonMineZ hair and form pieces.
+- A "player" name tag can show above the stand-in.
+- `subject local` with a `form` the player is not wearing keeps the base form in the preview and
+  turns the HUD portrait to that form while the screen is open. LM never sends that combination.
+- With `rotate:false`, a `local` model follows the player's facing in the world; a stand-in holds still.
+
 ---
 
 ## Packaging checklist (LM jar)

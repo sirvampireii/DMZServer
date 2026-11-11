@@ -77,6 +77,15 @@ public final class PlayerModelParts {
     }
 
     /**
+     * Another player on a screen the viewer opened (4.7.48, the rival preview): the same
+     * builder {@link #snapshot} uses while staff inspect someone, so {@code subject} is
+     * {@code uuid:<target>}. Null for a null target.
+     */
+    public static JsonObject otherPlayerSnapshot(ServerPlayer target) {
+        return target == null ? null : build(target, true);
+    }
+
+    /**
      * Authoritative snapshot for the world-sync message ({@code GuiModelSyncPacket}) —
      * always non-null, always {@code subject uuid:<owner-uuid>} (so every receiving client
      * binds the parts to the owner, not to itself), no inspect redirect, and always carries

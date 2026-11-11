@@ -444,8 +444,16 @@ public final class UltraRivalScreens {
         return page > 0 ? arg + "|" + page : arg;
     }
 
+    /** Profile payload suffix for the "you" model view (4.7.48): {@code list_detail:<arg>[|<page>]|you}. */
+    private static final String VIEW_YOU = "|you";
+
     private static void openListDetail(ServerPlayer player, String payload) {
         String arg = payload == null ? "" : payload;
+        boolean showYou = arg.endsWith(VIEW_YOU);
+        if (showYou) {
+            arg = arg.substring(0, arg.length() - VIEW_YOU.length());
+        }
+        String profile = arg;
         int returnPage = 0;
         int bar = arg.lastIndexOf('|');
         if (bar > 0) {
@@ -464,9 +472,24 @@ public final class UltraRivalScreens {
                 }
             }
         }
-        UltraScreenSpec spec = sub("list_detail:" + payload)
-                .line(UltraStyle.LABEL + "Rival profile")
+        UltraScreenSpec spec = sub("list_detail:" + payload);
+        // Model (4.7.48): the rival when they are online, else (or on "Show you") you, as your
+        // race in the form picked on Preview forms.
+        ServerPlayer rival = arg == null || arg.isBlank() ? null : RivalGuiApi.resolveOnline(player, arg);
+        boolean rivalShown = rival != null && !showYou;
+        ModelPreview.Form yours = rivalShown ? null : ModelPreview.selectedForm(player);
+        spec.playerModel(248, 60, 86, 120, 0.9f, ModelPreview.rotate(player),
+                rivalShown ? ModelPreview.rivalFigure(player, rival) : ModelPreview.formFigure(player, yours));
+        spec.line(UltraStyle.LABEL + "Rival profile")
                 .labelValue("Target", who == null || who.isBlank() ? "-" : who);
+        if (rivalShown) {
+            spec.labelValue("Model", UltraStyle.plain(rival.m_7755_().getString()));
+        } else if (yours != null) {
+            spec.labelValue("Model", "You, " + yours.label());
+            if (rival == null && !showYou) {
+                spec.line(UltraStyle.dim("They are offline, so the model shows you."));
+            }
+        }
         if (stillRival) {
             profileStatus(spec, RivalGuiApi.rivalLinkFor(player, arg));
         }
@@ -494,6 +517,12 @@ public final class UltraRivalScreens {
         } else if (arg != null && !arg.isBlank()) {
             spec.line(UltraStyle.dim("Not on your rival list."));
         }
+        if (rival != null) {
+            spec.button("page:list_detail:" + profile + (showYou ? "" : VIEW_YOU),
+                            showYou ? "Show your rival" : "Show you", "normal")
+                    .rowGap();
+        }
+        ModelPreview.rotateButton(spec, player, "list_detail:" + payload);
         spec.footerBack("page:" + UltraPickHelper.pageArg("actions", returnPage), "Rival");
         spec.send(player);
     }

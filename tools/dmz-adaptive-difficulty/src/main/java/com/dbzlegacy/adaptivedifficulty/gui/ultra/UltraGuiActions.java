@@ -306,6 +306,13 @@ public final class UltraGuiActions {
         } else if (!args.has("arg") || args.get("arg") == null || args.get("arg").isJsonNull()) {
             args.addProperty("arg", "");
         }
+        // Spin toggle (4.7.48): one action on every model screen; the arg is the page to send again.
+        if (ModelPreview.ROTATE_ACTION.equals(parts.action)) {
+            ModelPreview.flipRotate(viewer);
+            String back = stringArg(args, "arg");
+            UltraGui.open(viewer, safeScreen, back.isBlank() ? homePage(safeScreen) : back);
+            return;
+        }
 
         String msg = runDo(viewer, data, safeScreen, parts.action, args, rawActionId);
         // Race full-wipe / free class picker opens the DMZ editor - do not fight it with Ultra.

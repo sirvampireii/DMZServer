@@ -563,3 +563,8 @@ files; re-extract from an audited jar when the baseline changes. Keep the `CLASS
 
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.47.jar`; javap diff checked
 (the `4.7.46` -> `4.7.47` constant is the only change). The other 24 are unchanged.
+
+## Re-baseline (2026-11-10, 4.7.48 model previews)
+
+`AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.48.jar`; javap diff checked
+(the `4.7.47` -> `4.7.48` constant is the only change). The other 24 are unchanged.

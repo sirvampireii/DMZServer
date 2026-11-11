@@ -59,6 +59,10 @@ public final class UltraCharacterScreens {
             openBodyParts(player, parseBodyPartPage(lower), parseBodyPartFilter(lower));
             return;
         }
+        if (lower.startsWith(PAGE_FORM_PREVIEW)) {
+            openFormPreview(player, parseFormPreviewIndex(lower));
+            return;
+        }
         if (lower.startsWith(PAGE_FIND)) {
             openBodyPartFind(player, parseFindPage(lower));
             return;
@@ -123,7 +127,7 @@ public final class UltraCharacterScreens {
                 .bodyPad(4);
         // Preview only on Home (and model customize via sub) — not on Saga/Android dumps.
         if (preview) {
-            spec.playerModel(player, 248, 60, 86, 120, 0.9f, true);
+            spec.playerModel(player, 248, 60, 86, 120, 0.9f, ModelPreview.rotate(player));
         }
         return spec;
     }
@@ -137,7 +141,7 @@ public final class UltraCharacterScreens {
                 .bodyPad(4);
         // Preview only on model customize (bones). Race/class/reskin stay text-only.
         if (preview) {
-            spec.playerModel(player, 248, 60, 86, 120, 0.9f, true);
+            spec.playerModel(player, 248, 60, 86, 120, 0.9f, ModelPreview.rotate(player));
         }
         return spec;
     }
@@ -172,6 +176,8 @@ public final class UltraCharacterScreens {
                 "true".equals(ph.get("can_reskin")),
                 CharacterServicesSystem.cooldownWait(player, "reskin"));
 
+        String formsBlock = ModelPreview.raceForms(player).isEmpty() ? "Make your character first." : "";
+
         String bone = ph.getOrDefault("active_head_bone", "");
         int worn = CosmeticBodyPartService.equippedParts(player).size();
         UltraScreenSpec spec = base(player, "main", "home", true)
@@ -195,7 +201,10 @@ public final class UltraCharacterScreens {
                         partsBlock))
                 .line(indexLine("Reskin",
                         "Change your hair, eyes and colors. Race, class and stats stay.",
-                        reskinBlock));
+                        reskinBlock))
+                .line(indexLine("Preview forms",
+                        "See your race in each of its forms on the model. Nothing changes on you.",
+                        formsBlock));
         spec.buttonsAfterLines();
 
         indexButton(spec, true, "page:race:0", "Change race", raceBlock);
@@ -205,8 +214,10 @@ public final class UltraCharacterScreens {
         indexButton(spec, false, "page:bodyparts:0", "Body parts", partsBlock);
         spec.rowGap();
         indexButton(spec, true, "page:reskin", "Reskin", reskinBlock);
+        indexButton(spec, false, "page:" + PAGE_FORM_PREVIEW + ":0", "Preview forms", formsBlock);
         spec.rowGap();
 
+        ModelPreview.rotateButton(spec, player, "main");
         spec.footerBackToMain();
         spec.send(player);
     }
@@ -242,6 +253,64 @@ public final class UltraCharacterScreens {
         } else {
             spec.buttonRight(action, text, style);
         }
+    }
+
+    /** Form preview page ({@code form_preview:<index>}), 4.7.48. */
+    static final String PAGE_FORM_PREVIEW = "form_preview";
+
+    private static int parseFormPreviewIndex(String lower) {
+        int colon = lower.indexOf(':');
+        if (colon < 0) {
+            return 0;
+        }
+        try {
+            return Integer.parseInt(lower.substring(colon + 1).trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Form preview (4.7.48): the player's race in one of its forms on the model, stepped with
+     * Previous / Next. Each form is a made-up figure ({@link ModelPreview#formFigure}), so the
+     * player's own character is never touched. The rival screen's "you" view shows the form
+     * picked here.
+     */
+    private static void openFormPreview(ServerPlayer player, int index) {
+        List<ModelPreview.Form> forms = ModelPreview.raceForms(player);
+        if (forms.isEmpty()) {
+            UltraScreenSpec spec = sub(player, PAGE_FORM_PREVIEW + ":0", false)
+                    .line(UltraStyle.LABEL + "Preview forms")
+                    .line(UltraStyle.LABEL + "Make your character first, then come back to see your race's forms.")
+                    .buttonsAfterLines();
+            spec.footerBackHome("Character Home");
+            spec.send(player);
+            return;
+        }
+        int n = forms.size();
+        int i = Math.floorMod(index, n);
+        ModelPreview.Form form = forms.get(i);
+        ModelPreview.pick(player, form);
+        String page = PAGE_FORM_PREVIEW + ":" + i;
+        UltraScreenSpec spec = sub(player, page, false)
+                .playerModel(248, 60, 86, 120, 0.9f, ModelPreview.rotate(player),
+                        ModelPreview.formFigure(player, form))
+                .line(UltraStyle.LABEL + "Preview forms")
+                .labelValue("Form", form.label() + " (" + (i + 1) + " of " + n + ")")
+                .line(UltraStyle.LABEL + "Previous and Next step through your race's forms. Nothing changes on you"
+                        + " and nothing is unlocked.")
+                .line(UltraStyle.dim("The model uses the race's default colors, not your own."));
+        spec.buttonsAfterLines();
+        if (n > 1) {
+            spec.buttonLeft("page:" + PAGE_FORM_PREVIEW + ":" + Math.floorMod(i - 1, n),
+                    UltraStyle.LABEL + "Previous form", UltraStyle.STYLE_NORMAL);
+            spec.buttonRight("page:" + PAGE_FORM_PREVIEW + ":" + Math.floorMod(i + 1, n),
+                    UltraStyle.LABEL + "Next form", UltraStyle.STYLE_NORMAL);
+            spec.rowGap();
+        }
+        ModelPreview.rotateButton(spec, player, page);
+        spec.footerBackHome("Character Home");
+        spec.send(player);
     }
 
     /** The one Android forms warning every Android page shows (4.7.31). */
@@ -605,6 +674,7 @@ public final class UltraCharacterScreens {
                     .line(UltraStyle.LABEL
                             + "Not available for Monkey - this race uses a form model.")
                     .buttonsAfterLines();
+            ModelPreview.rotateButton(spec, player, "bones:0");
             spec.footerBackHome("Character Home");
             spec.send(player);
             return;
@@ -688,6 +758,7 @@ public final class UltraCharacterScreens {
         } else if (pg > 0) {
             spec.rowGap();
         }
+        ModelPreview.rotateButton(spec, player, "bones:" + pg);
         spec.footerBackHome("Character Home");
         spec.send(player);
     }
@@ -769,7 +840,7 @@ public final class UltraCharacterScreens {
         // P-05 (4.7.46): the candidate on the player's model before paying. Nothing is stored.
         com.google.gson.JsonObject preview = PlayerModelParts.previewSnapshot(player,
                 part ? id : null, part ? null : CosmeticHeadBoneService.tokenWith(player, id));
-        spec.playerModel(248, 60, 86, 120, 0.9f, true, preview);
+        spec.playerModel(248, 60, 86, 120, 0.9f, ModelPreview.rotate(player), preview);
         // Single-tail rule: a tail you already wear (form or shop) keeps the slot, so say so.
         boolean shown = !part || (preview != null && preview.toString().contains("\"" + id + "\""));
         spec.line(UltraStyle.LABEL + (part ? "Confirm body part unlock" : "Confirm look unlock"))
@@ -797,6 +868,7 @@ public final class UltraCharacterScreens {
                             UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
+        ModelPreview.rotateButton(spec, player, (part ? "part_ask:" : "bone_ask:") + token + ":" + id);
         spec.footerBack("page:" + back, backLabel);
         spec.send(player);
     }
@@ -861,6 +933,7 @@ public final class UltraCharacterScreens {
                     .line(UltraStyle.LABEL
                             + "Not available for Monkey - this race uses a form model.")
                     .buttonsAfterLines();
+            ModelPreview.rotateButton(spec, player, "bodyparts:0");
             spec.footerBackHome("Character Home");
             spec.send(player);
             return;
@@ -901,6 +974,7 @@ public final class UltraCharacterScreens {
         } else if (pg > 0) {
             spec.rowGap();
         }
+        ModelPreview.rotateButton(spec, player, self);
         spec.footerBackHome("Character Home");
         spec.send(player);
     }
@@ -1099,6 +1173,7 @@ public final class UltraCharacterScreens {
                     "Default".equals(value) ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_NORMAL);
             spec.rowGap();
         }
+        ModelPreview.rotateButton(spec, player, "bodycolors");
         spec.footerBack("page:bodyparts:0", "Body parts");
         spec.send(player);
     }
@@ -1157,6 +1232,7 @@ public final class UltraCharacterScreens {
         } else if (pg > 0) {
             spec.rowGap();
         }
+        ModelPreview.rotateButton(spec, player, "bodycolors:" + channel + ":" + pg);
         spec.footerBack("page:bodycolors", "Part colors");
         spec.send(player);
     }
