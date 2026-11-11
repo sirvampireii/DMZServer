@@ -71,77 +71,13 @@ def main() -> int:
 
     CNPC_RETIRED = not (SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc").is_dir()
 
-    def check(label: str, cond: bool, detail: str = "") -> None:
-        key = str(label).lower()
-        # CNPC GUI package deleted — retire CNPC-only feature checks; keep Ultra/shared ones.
-        if CNPC_RETIRED:
-            ultra_keep = (
-                "ultra",
-                "kaipath",
-                "guiopen",
-                "utf-8",
-                "utf8",
-                "gui backend",
-                "guibackend",
-                "forge",
-                "mixin",
-                "prestige need",
-                "heldcount",
-                "staffaccess",
-                "death-tp",
-                "class stamina",
-                "android convert",  # no - this was failing for cnpc
-            )
-            cnpc_markers = (
-                "cnpc",
-                "customnpc",
-                "paint",
-                "scroll",
-                "preview",
-                "gecko",
-                "dmzpreview",
-                "flash",
-                "button width",
-                "pick list",
-                "hub drops",
-                "hub header",
-                "hub from a menu",
-                "accent",
-                "module tab",
-                "forms stay",
-                "dojo tab",
-                "notice",
-                "compressed menu",
-                "pending notice",
-                "inline on",
-                "shared color",
-                "system color",
-                "test menu color",
-                "head part",
-                "status block",
-                "keep percent",
-                "hosts remove",
-                "raw action",
-                "saga reset lists",
-                "boost preset id",
-                "progression title",
-                "submenu",
-                "challenge",
-                "bond invite",
-                "view-only",
-                "android convert names",
-                "long menu notice",
-                "head bone",
-                "coin message",
-                "testgui",
-                "config editor",
-                "styled cnpc",
-                "lists fields",
-            )
-            if any(t in key for t in cnpc_markers) and not any(t in key for t in ("ultra", "kaipath")):
-                ok.append(label + " [retired]")
-                print(f"  OK  {label} [retired]")
-                return
+    def check(label: str, cond: bool, detail: str = "", retired: bool = False) -> None:
+        # retired=True only on checks of code that no longer exists (the deleted CNPC GUI);
+        # each one is flagged at its call. Never retire by label: a matching word hid live checks.
+        if retired:
+            ok.append(label + " [retired]")
+            print(f"  OK  {label} [retired]")
+            return
         if cond:
             ok.append(label)
             print(f"  OK  {label}" + (f" — {detail}" if detail else ""))
@@ -769,7 +705,7 @@ def main() -> int:
     cnpc_rival = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmRivalGui.java")
     check("CNPC rival remove only from list detail",
           "list_detail:" in cnpc_rival and "openListDetail" in cnpc_rival
-          and 'case "pick_remove" -> open(pl, "list")' in cnpc_rival)
+          and 'case "pick_remove" -> open(pl, "list")' in cnpc_rival, retired=True)
     check("Rival displayPickerArg resolves uuid links",
           "displayPickerArg" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/RivalGuiApi.java")
           and "rivalLinkDisplayName" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/RivalGuiApi.java"))
@@ -799,12 +735,12 @@ def main() -> int:
           "challenge_pending" in rival_cnpc and "challenge_decide:" in rival_cnpc
           and "pendingChallengeCards" in rival_api
           and "challenge_pending" in rival_chest and "challengeDecide" in rival_chest
-          and "challenge_pending" in cmi_rival and "openChallengeDecide" in cmi_rival)
+          and "challenge_pending" in cmi_rival and "openChallengeDecide" in cmi_rival, retired=True)
     check("challenge hub Send + Pending (not inline accept)",
           "pick_challenge" in rival_cnpc and "void paintRequests" in rival_cnpc
           and "Send challenge" in rival_cnpc
           and "Pending requests" not in rival_cnpc
-          and 'SlotAction.act("challenge", "accept"' not in rival_chest.split("private Inventory challenge(")[1].split("private Inventory challengePending")[0])
+          and 'SlotAction.act("challenge", "accept"' not in rival_chest.split("private Inventory challenge(")[1].split("private Inventory challengePending")[0], retired=True)
     check("acceptedMutualOffer flag", "acceptedMutualOffer" in rival_link)
     check("needsMutualConfirm helper", "needsMutualConfirm" in rival_link)
     check("promoteDeclared sets inviteReceived both",
@@ -929,12 +865,14 @@ def main() -> int:
           and "reskinPrecheck(player, staffGrant)" in reskin_body
           and 0 <= reskin_body.find("reskinPrecheck") < reskin_body.find("reskinAmountDue"))
     check("CNPC reskin confirm step like class",
-          "paintReskinConfirm" in cnpc_char and "reskin_confirm" in cnpc_char)
+          "paintReskinConfirm" in cnpc_char and "reskin_confirm" in cnpc_char, retired=True)
     snapshot = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcPlayerSnapshot.java")
     check("CNPC hub snapshot includes difficulty + spar streak",
-          "appendDifficulty" in snapshot and "Training streak" in snapshot)
-    check("empty rival list guide for CNPC",
-          "emptyRivalListGuide" in rival_sys and "Actions" in rival_sys.split("emptyRivalListGuide")[1][:800])
+          "appendDifficulty" in snapshot and "Training streak" in snapshot, retired=True)
+    # The Actions tab became the Rival tab.
+    check("empty rival list guide points to the Rival tab",
+          "emptyRivalListGuide" in rival_sys
+          and "tab and pick a player." in rival_sys.split("emptyRivalListGuide")[1][:800])
     check("Hub Remove Android button", 'SlotAction.open("android_remove")' in hub)
     check("CMI Hub Remove Android", '"android_remove"' in cmi_hub and "Remove Android" in cmi_hub)
     plugin = read(gui_root / "AdaptiveDifficultyGuiPlugin.java")
@@ -1487,7 +1425,7 @@ def main() -> int:
     check("ProgressionMenu allows android_remove", "isAndroidRemovePage" in prog_menu)
     cnpc_prog = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmProgressionGui.java")
     check("CNPC progression staff-only except android_remove",
-          '!"android_remove".equals(page)' in cnpc_prog or "android_remove\" -> false" in cnpc_prog)
+          '!"android_remove".equals(page)' in cnpc_prog or "android_remove\" -> false" in cnpc_prog, retired=True)
     remove_block = ""
     if cnpc_prog:
         after = safe_split(cnpc_prog, "private static void paintAndroidRemove")
@@ -1503,7 +1441,7 @@ def main() -> int:
         and 'open(player, "main")' in android_remove_ui
         and "CnpcLmHubGui.open" not in android_remove_ui
         and "CnpcLmCharacterGui.open(player, p)" in cnpc_prog,
-    )
+    retired=True)
     check(
         "CNPC android tools stay staff-only",
         '!"android_panel".equals(page)' not in cnpc_prog
@@ -2023,7 +1961,7 @@ def main() -> int:
     check("End Dragon submenu page",
           "end_dragon" in chest and "endDragon" in chest
           and "openEndDragon" in cmi_diff
-          and "paintSummons" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmDifficultyGui.java"))
+          and "paintSummons" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmDifficultyGui.java"), retired=True)
     cnpc_diff = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmDifficultyGui.java")
     team_block = ""
     if cnpc_diff:
@@ -2038,7 +1976,7 @@ def main() -> int:
     check("StaffAccess uses Bukkit entity for permissions", "getBukkitEntity" in staff_access)
     prog_api = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ProgressionGuiApi.java")
     check("Progression staff flags when master off", "staffMaintenance" in prog_api)
-    check("CNPC difficulty staff admin page", "paintStaffAdmin" in cnpc_diff)
+    check("CNPC difficulty staff admin page", "paintStaffAdmin" in cnpc_diff, retired=True)
     check("natural spawn default off", "enableEndNaturalDragonSpawn = false" in
           read(SRC / "com/dbzlegacy/adaptivedifficulty/config/DifficultyConfig.java"))
     check("reject unauthorized dragon join", "rejectUnauthorizedDragonJoin" in end_str)
@@ -2079,9 +2017,9 @@ def main() -> int:
     check("outgoing bond invite can be withdrawn",
           "Withdraw invite" in cnpc_spar_menu
           and "pick_confirm:mentor|mentor|leave" in cnpc_spar_menu
-          and "Decline / revoke" not in cnpc_spar_menu)
+          and "Decline / revoke" not in cnpc_spar_menu, retired=True)
     check("view-only hint",
-          "nothing to change here" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcGuiStyle.java"))
+          "nothing to change here" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcGuiStyle.java"), retired=True)
 
     print("\n=== Dojo war: wins gated on active war, expired challenges unblock (4.6.218) ===")
     # War wins must only be recorded while a war is actually active. RP + activity stay
@@ -2199,14 +2137,14 @@ def main() -> int:
           and "PREVIEW_STASH" in bones
           and "bone_toggle" in bone_gui
           and "paintLivePlayerPreview" in bone_gui
-          and "horns1+antennas2" not in bone_gui)
+          and "horns1+antennas2" not in bone_gui, retired=True)
     preview_src = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcPlayerPreview.java")
     live_preview = (preview_src.split("void paintLive", 1)[1] if "void paintLive" in preview_src else "").split("void paint(", 1)[0]
     check("head bone menu shows the player's own model",
           "tryBindLivePlayer" in live_preview
           and "setEntitySyncedById" in preview_src
           and "CnpcGeckoPreviewBridge" not in live_preview
-          and "paintLivePlayerPreview" in bone_gui)
+          and "paintLivePlayerPreview" in bone_gui, retired=True)
     pieces = read(SRC / "com/dbzlegacy/adaptivedifficulty/character/HeadPartPieces.java")
     check("body accessories are not a shop page",
           "PAGE_BODY" not in bone_gui
@@ -2221,15 +2159,16 @@ def main() -> int:
     prog_gui = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmProgressionGui.java")
     # rival/spar chat-menu humanization pins removed in 4.6.222 with the dead menus;
     # deletion is gated by "dead chat menus stay deleted (4.6.222)" in the hub section.
-    check("0% wipe copy keeps head parts and coins",
-          "head-part unlocks and coins kept" in char_api
+    # Race change copy (97b850f1): purchased looks carry over; coins are no longer named here.
+    check("race change copy says purchased looks carry over",
+          "Purchased looks carry over." in char_api
           and "nothing carried over" not in char_api)
     check("android convert names the target and warns about forms",
           "Convert " in prog_gui
           and "deletes Super forms and Legendary forms" in read(
-              SRC / "com/dbzlegacy/adaptivedifficulty/gui/ProgressionGuiApi.java"))
+              SRC / "com/dbzlegacy/adaptivedifficulty/gui/ProgressionGuiApi.java"), retired=True)
     check("rival confirm does not show the raw action id",
-          "Action §7" not in rival_gui and "Declare rival" in rival_gui)
+          "Action §7" not in rival_gui and "Declare rival" in rival_gui, retired=True)
     check("tier buy asks before it charges",
           "diff-tier:" in read(SRC / "com/dbzlegacy/adaptivedifficulty/service/DifficultyActions.java"))
     build_sh = read(ROOT / "tools/dmz-adaptive-difficulty/build.sh")
@@ -2245,7 +2184,7 @@ def main() -> int:
     check("long menu notices are also sent to chat",
           "feedbackChat(player, noticeChat(msg))" in support
           and "private static String noticeChat" in support
-          and 'split("\\n", -1).length > CnpcGuiStyle.INFO_INLINE_MAX - 1' in support)
+          and 'split("\\n", -1).length > CnpcGuiStyle.INFO_INLINE_MAX - 1' in support, retired=True)
     check("packaging cleans compile output before javac",
           'rm -rf "$OUT"' in build_sh
           and build_sh.find('rm -rf "$OUT"') < build_sh.find("javac --release 17"))
@@ -2254,7 +2193,7 @@ def main() -> int:
           and "Outer$Inner" in read(ROOT / "tools/dmz-adaptive-difficulty/sim/audit_jar_inner_classes.py"))
     check("boost preset ids do not share the grid base",
           "ID_BOOST_PRESET_BASE = 210" in support
-          and "ID_BOOST_PRESET_BASE = 120" not in support)
+          and "ID_BOOST_PRESET_BASE = 120" not in support, retired=True)
 
     print("\n=== CNPC screen colors (4.6.21) — package retired ===")
     cnpc_dir = SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc"
@@ -2273,18 +2212,18 @@ def main() -> int:
           and '"coins|Coins"' in prog
           and 'subPage(CnpcUltraStyle.ACCENT, "Progression", "End")' in prog
           and 'CnpcUltraStyle.INFO + "2× · 30m"' in prog
-          and 'CnpcUltraStyle.INFO + "2× · 60m"' in prog)
+          and 'CnpcUltraStyle.INFO + "2× · 60m"' in prog, retired=True)
     check("inline on and off match the toggle colors",
-          'return on ? CnpcUltraStyle.CONFIRM_BOLD + "ON" : CnpcUltraStyle.DIM + CnpcUltraStyle.BOLD + "OFF";' in support)
+          'return on ? CnpcUltraStyle.CONFIRM_BOLD + "ON" : CnpcUltraStyle.DIM + CnpcUltraStyle.BOLD + "OFF";' in support, retired=True)
     check("difficulty confirm and inactive modes use the shared colors",
           'CnpcUltraStyle.CONFIRM + "Confirm summon"' in diff
           and 'CnpcUltraStyle.CONFIRM + "End Dragon"' in diff
           and 'CnpcUltraStyle.SUBTITLE + "Threshold"' in diff
-          and 'CnpcUltraStyle.SUBTITLE + "Full team"' in diff)
+          and 'CnpcUltraStyle.SUBTITLE + "Full team"' in diff, retired=True)
     check("spar dojo home and prestige forms use their system colors",
           'CnpcUltraStyle.ACCENT + "Dojo home"' in read(cnpc_dir / "CnpcLmSparGui.java")
           and 'CnpcUltraStyle.ACCENT + "Forms"' in read(cnpc_dir / "CnpcLmPrestigeGui.java")
-          and 'CnpcUltraStyle.ACCENT_PROGRESSION + "Progression panel"' in read(cnpc_dir / "CnpcLmAdminGui.java"))
+          and 'CnpcUltraStyle.ACCENT_PROGRESSION + "Progression panel"' in read(cnpc_dir / "CnpcLmAdminGui.java"), retired=True)
 
     print("\n=== CNPC rival records (4.6.22) ===")
     rival_records = read(cnpc_dir / "CnpcLmRivalGui.java")
@@ -2299,7 +2238,7 @@ def main() -> int:
           and 'open(player, "progress")' not in rival_records
           and 'open(player, "stats")' not in rival_records
           and "Challenge request" in rival_records
-          and "Declare invite" in rival_records)
+          and "Declare invite" in rival_records, retired=True)
 
     print("\n=== CNPC layout fit (4.6.25) ===")
     preview = read(cnpc_dir / "CnpcPlayerPreview.java")
@@ -2317,7 +2256,7 @@ def main() -> int:
           and "previewAnchor()" in preview
           and "previewAnchor()" in layout_support
           and "PREVIEW_GAP = 12" in layout_support
-          and "CONTENT_TOP = 48" in layout_support)
+          and "CONTENT_TOP = 48" in layout_support, retired=True)
     check("pending notice reserves window height",
           "FLASH_MAX_H = 56" in layout_support
           and "flashReserve" in layout_support
@@ -2328,9 +2267,9 @@ def main() -> int:
           and "window(" in read(cnpc_dir / "CnpcLmDifficultyGui.java")
           and "window(" in read(cnpc_dir / "CnpcLmRivalGui.java")
           and "window(" in read(cnpc_dir / "CnpcLmSparGui.java")
-          and "window(" in read(cnpc_dir / "CnpcLmCharacterGui.java"))
+          and "window(" in read(cnpc_dir / "CnpcLmCharacterGui.java"), retired=True)
     check("compressed menus are logged",
-          "compressed to" in ui_fit and "0.9f" in ui_fit)
+          "compressed to" in ui_fit and "0.9f" in ui_fit, retired=True)
 
     print("\n=== CNPC list scroll (4.6.24) ===")
     support = read(cnpc_dir / "CnpcGuiSupport.java")
@@ -2344,7 +2283,7 @@ def main() -> int:
           and "one scroll region" in support
           and "scrollPickList" in read(cnpc_dir / "CnpcLmCharacterGui.java")
           and "scrollPickList" in read(cnpc_dir / "CnpcLmRivalGui.java")
-          and "scrollPickList" in read(cnpc_dir / "CnpcLmSparGui.java"))
+          and "scrollPickList" in read(cnpc_dir / "CnpcLmSparGui.java"), retired=True)
 
     print("\n=== CNPC menu flatten (4.6.23) ===")
     hub_gui = read(cnpc_dir / "CnpcLmHubGui.java")
@@ -2358,30 +2297,30 @@ def main() -> int:
           "Welcome back" not in snapshot
           and "Combat & progression" not in hub_gui
           and "Remove Android" not in hub_gui
-          and 'CnpcUltraStyle.ACCENT_ADMIN + "Skill Check"' in hub_gui)
+          and 'CnpcUltraStyle.ACCENT_ADMIN + "Skill Check"' in hub_gui, retired=True)
     check("character hosts remove android and race keep percent",
           'CnpcUltraStyle.DANGER + "Remove Android' in char_gui
           and "Keep " in char_gui
-          and "race_confirm:" in char_gui)
+          and "race_confirm:" in char_gui, retired=True)
     check("spar dojo tabs keep war and training bonds separate",
           "Dojo · " in spar_gui
           and "Chat settings" in spar_gui
           and "Training bonds" in spar_gui
           and "void paintDojoWar" in spar_gui
-          and 'toggleOn("TP")' in spar_gui)
+          and 'toggleOn("TP")' in spar_gui, retired=True)
     check("rival challenges and prestige forms stay their own pages",
           "void paintChallenges" in rival_records
           and "void paintSettings" in rival_records
           and "void paintEffects" in prestige_gui
-          and 'CnpcUltraStyle.ACCENT + "Forms"' in prestige_gui)
+          and 'CnpcUltraStyle.ACCENT + "Forms"' in prestige_gui, retired=True)
     check("progression sections are module tabs",
           'CnpcUltraStyle.ACCENT + "Modules"' in prog_menu
           and "moduleIds" in prog_menu
-          and '!"android_remove".equals(page)' in prog_menu)
+          and '!"android_remove".equals(page)' in prog_menu, retired=True)
     check("difficulty coin messages live on settings",
           "Coin messages" in diff_gui
           and "§6Rival system" not in diff_gui
-          and 'CnpcUltraStyle.CONFIRM + "End Dragon"' in diff_gui)
+          and 'CnpcUltraStyle.CONFIRM + "End Dragon"' in diff_gui, retired=True)
 
     print("\n=== CNPC scroll selection (4.6.26) ===")
     check("scroll lists use a selection button instead of setOnClick",
@@ -2397,7 +2336,7 @@ def main() -> int:
           and "Choose this class" in char_gui
           and "wireScrollDoublePick" in diff_gui
           and "setOnDoubleClick" in prog_menu
-          and '"challenge_pick".equals(action) ? "pick_challenge"' in rival_records)
+          and '"challenge_pick".equals(action) ? "pick_challenge"' in rival_records, retired=True)
 
     print("\n=== Noea corpse drops (4.6.27) ===")
     # 4.7.47: Noea is no longer used (DMZ Ultra replaced it); its corpse-drop patch is gone.
@@ -2608,16 +2547,19 @@ def main() -> int:
           and "CnpcMenuFeedback.NOTICE_HEADER" in notice_support
           and "noticeBody(line)" in bright
           and "readableInfoLine" not in bright
-          and "public static String noticeBody" in gui_notice)
+          and "public static String noticeBody" in gui_notice, retired=True)
+    # Yellow is the raw code or UltraStyle.YELLOW (Ultra style rule); green is neither.
+    def _yellow(src, text):
+        return ('"§e' + text) in src or ('UltraStyle.YELLOW + "' + text) in src
+
+    def _green(src, text):
+        return ('"§a' + text) in src or ('UltraStyle.GREEN + "' + text) in src
+
     check("spar and rival chat toggles use the yellow notice body",
-          "§eSpar TP chat " in spar_sys
-          and "§aSpar TP chat" not in spar_sys
-          and "§eMentor TP chat " in spar_sys
-          and "§aMentor TP chat" not in spar_sys
-          and "§eRival TP chat " in rival_sys
-          and "§aRival TP chat" not in rival_sys
-          and "§eRival Instinct " in rival_api
-          and "§aRival Instinct" not in rival_api)
+          _yellow(spar_sys, "Spar TP chat ") and not _green(spar_sys, "Spar TP chat")
+          and _yellow(spar_sys, "Mentor TP chat ") and not _green(spar_sys, "Mentor TP chat")
+          and _yellow(rival_sys, "Rival TP chat ") and not _green(rival_sys, "Rival TP chat")
+          and _yellow(rival_api, "Rival Instinct ") and not _green(rival_api, "Rival Instinct"))
     check("other screen notices use the yellow body",
           "NOTICE_BODY + \"Staff only.\"" in read(cnpc_dir / "CnpcLmRivalGui.java")
           and "NOTICE_BODY + \"Staff only.\"" in diff_gui
@@ -2628,13 +2570,13 @@ def main() -> int:
           and "§aEvent log ON" not in mech_api
           and "§eProgression " in prog_api
           and "§aProgression " not in prog_api
-          and "NOTICE_BODY" in hub_gui)
+          and "NOTICE_BODY" in hub_gui, retired=True)
     check("difficulty status block stays its own info text",
           'CnpcUltraStyle.INFO + "Your personal difficulty is off."' in diff_main
           and 'CnpcUltraStyle.INFO + "This account cannot use personal difficulty."' in diff_main
           and 'CnpcUltraStyle.ACCENT + "Ancient Coins "' in diff_main
           and 'CnpcUltraStyle.DIM + "Scaled mobs can hurt other players nearby."' in diff_main
-          and "noticeBody" not in diff_main)
+          and "noticeBody" not in diff_main, retired=True)
 
     def _notice_body(line):
         plain = re.sub(r"§[0-9A-FK-ORa-fk-or]", "", line or "").strip()
@@ -2875,19 +2817,19 @@ def main() -> int:
           "CnpcGuiStyle.toggleOn" in bone_gui
           and "CnpcGuiStyle.toggleOff" in bone_gui
           and "ultraPartCaption" not in bone_gui
-          and "\" Body \"" not in bone_gui)
+          and "\" Body \"" not in bone_gui, retired=True)
     style_support = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcGuiSupport.java")
     check("hub from a menu opens the main hub",
           "CnpcStyledTestHub" not in style_support
           and "CnpcUltraPreview.active" not in style_support
-          and "CnpcLmHubGui.open(player, \"main\")" in style_support)
+          and "CnpcLmHubGui.open(player, \"main\")" in style_support, retired=True)
     check("production menus use the gold CNPC style",
           "CnpcUltraStyle.header(title)" in style_support
           and "CnpcUltraStyle.subtitle(subtitle)" in style_support
           and "CnpcUltraStyle.DIVIDER" in style_support
           and "CnpcUltraStyle.section(caption)" in style_support
           and "paintingUltra()" not in style_support
-          and "CnpcUltraPreview.active" not in bone_gui)
+          and "CnpcUltraPreview.active" not in bone_gui, retired=True)
 
     print("\n=== In-game config editor (4.6.65) ===")
     config_editor = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/config/editor/ConfigEditor.java")
@@ -2943,7 +2885,7 @@ def main() -> int:
           and "ConfigRegistry" in build_sh
           and "CharacterServicesConfig" in build_sh
           and "public static boolean save()" in read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/character/CharacterServicesConfig.java")
-          and "public static boolean save()" in read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/quest/SagaResetConfig.java"))
+          and "public static boolean save()" in read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/quest/SagaResetConfig.java"), retired=True)
 
     print("\n=== Config editor paging row + field hints (4.6.217) ===")
     ultra_config = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraConfigScreens.java")
@@ -3131,7 +3073,7 @@ def main() -> int:
           and "ACCENT_PROGRESSION + \"Progression panel\"" in admin_gui
           and "ACCENT_CONFIG + \"Config editor\"" in admin_gui
           and "ACCENT_RIVAL" in test_hub
-          and "ACCENT_SAGA" in test_hub)
+          and "ACCENT_SAGA" in test_hub, retired=True)
 
     skill_gui = read(cnpc_dir / "CnpcLmSkillCheckGui.java")
     check("hub header stays gold and each menu uses its accent",
@@ -3139,7 +3081,7 @@ def main() -> int:
           and "withAccent(CnpcUltraStyle.ACCENT_ADMIN" in admin_gui
           and "withAccent(CnpcUltraStyle.ACCENT_CHARACTER" not in admin_gui
           and "withAccent(CnpcUltraStyle.ACCENT_CONFIG" in test_hub
-          and "withAccent(CnpcUltraStyle.ACCENT_ADMIN" in skill_gui)
+          and "withAccent(CnpcUltraStyle.ACCENT_ADMIN" in skill_gui, retired=True)
 
     print("\n=== Saga reset uses loaded sagas (4.6.69) ===")
     saga_service = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/quest/SagaResetService.java")
@@ -3172,7 +3114,7 @@ def main() -> int:
           and "services|Services" not in character_gui
           and "CnpcLmSagaGui.open" in read(cnpc_dir / "CnpcLmGui.java")
           and "SagaResetConfig" in build_sh
-          and "SagaResetService" in build_sh)
+          and "SagaResetService" in build_sh, retired=True)
 
     print("\n=== Ultra custom body parts shop (KaiPath 1.3.29) ===")
     body_svc_bp = read(
@@ -3609,7 +3551,8 @@ def main() -> int:
             print(f"FAIL: {e}")
         print(f"{len(errors)} error(s), {len(warns)} warning(s), {len(ok)} ok")
         return 1
-    print(f"PASS — intended features intact ({len(ok)} checks, {len(warns)} warning(s))")
+    retired_n = sum(1 for x in ok if x.endswith(" [retired]"))
+    print(f"PASS — intended features intact ({len(ok) - retired_n} checks run, {retired_n} retired, {len(warns)} warning(s))")
     return 0
 
 
