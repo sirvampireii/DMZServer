@@ -478,7 +478,12 @@ public final class UltraRivalScreens {
         ServerPlayer rival = arg == null || arg.isBlank() ? null : RivalGuiApi.resolveOnline(player, arg);
         boolean rivalShown = rival != null && !showYou;
         ModelPreview.Form yours = rivalShown ? null : ModelPreview.selectedForm(player);
-        spec.playerModel(248, 60, 86, 120, 0.9f, ModelPreview.rotate(player),
+        ModelPreview.Box box = ModelPreview.STANDARD;
+        // 4.7.49: scale fit to the form shown, so a rival or "you" in a giant form fits the box.
+        float scale = rivalShown
+                ? ModelPreview.wornScale(rival, box, ModelPreview.BASE_SCALE)
+                : ModelPreview.formScale(yours, box, ModelPreview.BASE_SCALE);
+        spec.playerModel(box.x(), box.y(), box.w(), box.h(), scale, ModelPreview.rotate(player),
                 rivalShown ? ModelPreview.rivalFigure(player, rival) : ModelPreview.formFigure(player, yours));
         spec.line(UltraStyle.LABEL + "Rival profile")
                 .labelValue("Target", who == null || who.isBlank() ? "-" : who);
@@ -495,6 +500,7 @@ public final class UltraRivalScreens {
         }
         spec.notice("Removing a rival moves them to History. You can declare again any time.")
                 .buttonsAfterLines();
+        ModelPreview.rotateButton(spec, player, "list_detail:" + payload);
         if (stillRival) {
             // Silent can be upgraded from the profile. Declared and above already sent that step.
             if ("silent".equalsIgnoreCase(RivalGuiApi.rivalStatusLabel(player, arg))) {
@@ -522,7 +528,6 @@ public final class UltraRivalScreens {
                             showYou ? "Show your rival" : "Show you", "normal")
                     .rowGap();
         }
-        ModelPreview.rotateButton(spec, player, "list_detail:" + payload);
         spec.footerBack("page:" + UltraPickHelper.pageArg("actions", returnPage), "Rival");
         spec.send(player);
     }

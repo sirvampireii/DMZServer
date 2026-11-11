@@ -60,6 +60,15 @@ def field_default(src: str, name: str) -> str | None:
     return m.group(1).strip() if m else None
 
 
+
+def boot_self_test(name: str) -> bool:
+    """True when the startup self-test {name} runs at boot: LmGuiNetwork calls it directly, or
+    calls UltraScreenSelfTest.runAll() and runAll() calls it (4.7.49)."""
+    net = read(SRC / "com/dbzlegacy/adaptivedifficulty/net/gui/LmGuiNetwork.java")
+    st = read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraScreenSelfTest.java")
+    run_all = st.split("public static void runAll() {", 1)[-1].split("\n    }\n", 1)[0]
+    return (name + "();") in net or ("UltraScreenSelfTest.runAll();" in net and (name + "();") in run_all)
+
 def has(src: str, *needles: str) -> bool:
     return all(n in src for n in needles)
 
@@ -1194,7 +1203,7 @@ def main() -> int:
     prestige_sys = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/shop/PrestigeSystem.java")
     unlock_sys = read(SRC / "com/dbzlegacy/adaptivedifficulty/tier/UnlockSystem.java")
     check("titles survive prestige: self-test registered, prestige paths never touch titles",
-          "verifyTitlesSurvivePrestige()" in read(SRC / "com/dbzlegacy/adaptivedifficulty/net/gui/LmGuiNetwork.java")
+          boot_self_test("verifyTitlesSurvivePrestige")
           and "titles" not in prestige_sys and "Title" not in prestige_sys
           and "unlockTitle" not in unlock_sys and "setActiveTitle" not in unlock_sys
           and "copyLmPersistentData(oldTag, neuTag);" in events
@@ -1719,12 +1728,16 @@ def main() -> int:
     check("LM tips config flag", "enableLmTips" in read(CFG) and "lmTipFrequentGroups" in read(CFG))
     check("breakthroughs removed (4.7.2): no costs, no max, no per-player cap",
           "breakthroughCost" not in pp and "MAX_BREAKTHROUGHS" not in pp and "BREAKTHROUGH_STEP" not in pp)
-    check("StatsDataMixin cap is the Overhaul cap",
-          "getConfiguredMaxValue" in mixin and "LmOverhaulCapMath.levelCap(self)" in mixin
-          and "personalLevelCap" not in mixin)
+    # 4.7.49 (M-P1-7): revamp's HEAD cancellers (priority 1000, their HEAD code runs first) always
+    # won the three cap methods, so LM's six handlers were dead and are gone; caps are revamp's.
+    check("StatsDataMixin no longer hooks the three cap methods (revamp's HEAD cancellers win)",
+          "getConfiguredMaxValue" not in mixin.split("*/", 2)[-1]
+          and "getConfiguredMaxTotalStats" not in mixin.split("*/", 2)[-1]
+          and "getMaxAllowedIncreaseForStat" not in mixin.split("*/", 2)[-1]
+          and "lm$rememberFusionOwnerOnRead" in mixin and "lm$rememberStrikeOwnerOnRead" in mixin)
     check("StatsDataMixin remap false",
           'remap = false' in mixin and "StatsData.class, remap = false" in mixin)
-    check("StatsDataMixin applies personal cap", "lm$personalMaxValue" in mixin)
+    check("StatsDataMixin personal cap handlers removed", "lm$personalMaxValue" not in mixin)
     revamp_cap = read(SRC / "com/dbzlegacy/adaptivedifficulty/mixin/DmzRevampPrestigeCapMixin.java")
     check("no LM levelCap override; LM hooks use Overhaul's flat cap (dmzrevamp 2.2.4)",
           '@Inject(method = "levelCap"' not in revamp_cap
@@ -1766,10 +1779,7 @@ def main() -> int:
           "ABSOLUTE_LEVEL_CAP" in dmz_prog and "configuredMaxDmzLevel" in dmz_prog
           and "LmOverhaulCapMath.levelCap(data)" in dmz_prog and "effectiveMaxLevel" not in dmz_prog)
     check("Overhaul rebirth blocked", "canPrestige" in revamp_cap)
-    check("StatsDataMixin gated on dmzrevamp", "isLoaded(\"dmzrevamp\")" in mixin)
-    check("StatsDataMixin beats dmzrevamp cap mixin", "priority = 5000" in mixin)
-    check("StatsDataMixin max total + stat buy", "getConfiguredMaxTotalStats" in mixin
-          and "getMaxAllowedIncreaseForStat" in mixin)
+    check("max total stays LM's through PrestigeSystem.maxAssignableTotal", "maxAssignableTotal" in revamp_cap)
     bridge = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/bridge/DmzRevampPrestigeBridge.java")
     check("Overhaul prestige sync bridge", "syncFromLegacy" in bridge and "setCount" in bridge)
     check("Overhaul prestige count syncs from held wallet",
@@ -1808,9 +1818,8 @@ def main() -> int:
     check("Personal level cap is server Forge (no KubeJS client shim)",
           not (ROOT / "kubejs/client_scripts/overhaul_level_cap.js").exists()
           and not (ROOT / "kubejs/server_scripts/overhaul_level_cap.js").exists())
-    check("StatsDataMixin wins Overhaul max (priority 5000)",
-          "priority = 5000" in mixin_sd
-          and "getConfiguredMaxValue" in mixin_sd)
+    check("StatsDataMixin documents why it no longer hooks Overhaul's max (4.7.49)",
+          "M-P1-7" in mixin_sd and "RevampEffectiveCaps" in mixin_sd)
     mirror = read(SRC / "com/dbzlegacy/adaptivedifficulty/progression/PersonalLevelCapMirror.java")
     check("Cap publish pushes StatsSyncS2C to client",
           "DmzSkillUtil.sync(player)" in mirror)
@@ -2702,7 +2711,7 @@ def main() -> int:
           and "unlockLevel == 0" not in mastery_choice
           and "unlockLevel != 0" not in mastery_choice
           and "verifyFirstSuperformChoice" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraScreenSelfTest.java")
-          and "verifyFirstSuperformChoice" in read(SRC / "com/dbzlegacy/adaptivedifficulty/net/gui/LmGuiNetwork.java"))
+          and boot_self_test("verifyFirstSuperformChoice"))
     command_java = list((ROOT / "tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/command").glob("*.java"))
     custom_arg_types = [
         str(p.relative_to(ROOT))
@@ -2934,7 +2943,7 @@ def main() -> int:
           and re.search(r"case NUMBER -> \{[^}]*isPercentField", config_editor, re.S) is not None
           and "0 to 100" in config_editor
           and "verifyConfigNumberRanges" in self_test
-          and "verifyConfigNumberRanges()" in gui_net)
+          and boot_self_test("verifyConfigNumberRanges"))
 
     # One guidance row per field: the accepted-values line, or the inline hint right after a
     # rejected entry. Two rows is what pushed a field past the review row and put Prev / Review /
@@ -2958,7 +2967,7 @@ def main() -> int:
           "configFieldBudget" in ultra_config
           and "innerFieldHeights" in ultra_config
           and "verifyConfigFieldBudget" in self_test
-          and "verifyConfigFieldBudget();" in gui_net)
+          and boot_self_test("verifyConfigFieldBudget"))
 
     # Descriptions stay whole sentences: truncation cuts on a word boundary, and no help line
     # leaks a raw config id. Only the help text block is scanned; deliberate "#key"

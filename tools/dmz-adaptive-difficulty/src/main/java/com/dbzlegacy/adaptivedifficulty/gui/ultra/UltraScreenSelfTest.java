@@ -867,6 +867,27 @@ public final class UltraScreenSelfTest {
      * Body copy must end at or above the first content button. A minimum body height that
      * ignores that boundary paints text through the buttons; leftover lines scroll.
      */
+    /**
+     * Every menu layout self-test, in boot order. Throws {@link IllegalStateException} on the
+     * first failing group. Boot catches it and logs (LmGuiNetwork) unless strict.
+     */
+    public static void runAll() {
+        runAtStartup();
+        verifyTabStaysOnScreen();
+        verifyHubShim();
+        verifyMenuLinks();
+        verifyStaffGate();
+        verifyBodyCap();
+        verifyConfigActionRow();
+        verifyConfigFieldHints();
+        verifyConfigNumberRanges();
+        verifyConfigFieldBudget();
+        verifyDojoWarExpiry();
+        verifyFirstSuperformChoice();
+        verifyPickerPaging();
+        verifyTitlesSurvivePrestige();
+    }
+
     public static void verifyBodyCap() {
         List<String> broken = new ArrayList<>();
         checkBodyCap(

@@ -71,6 +71,8 @@ public final class UltraScreenSpec {
     private int firstButtonY = -1;
     /** Pinned footer buttons ({@code footer:true}) — placed at panel bottom in {@link #toPacket}. */
     private final List<Button> footerButtons = new ArrayList<>();
+    /** Controls pinned to a design position: never shifted with the body (see {@link #fixedButton}). */
+    private final List<Button> fixedButtons = new ArrayList<>();
     /** Optional tighter body line gap (null = {@link UltraStyle#LINE_GAP}). */
     private Integer lineGapOverride;
     /** Optional tighter body pad (null = {@link UltraStyle#BODY_PAD}). */
@@ -409,6 +411,20 @@ public final class UltraScreenSpec {
     public UltraScreenSpec chromeButton(
             String actionId, String label, String style, int x, int y, int w) {
         return addButton(actionId, label, style, x, y, w, null, null, false);
+    }
+
+    /**
+     * A control fixed at its design position (4.7.49, the model spin toggle under the preview):
+     * like {@link #chromeButton} it does not clamp the body text, and unlike every other
+     * non-footer button it is not moved down when the body text needs room, so it stays under
+     * the model, which never moves. The panel still grows to hold it.
+     */
+    public UltraScreenSpec fixedButton(
+            String actionId, String label, String style, int x, int y, int w) {
+        int before = buttons.size();
+        addButton(actionId, label, style, x, y, w, null, null, false);
+        fixedButtons.add(buttons.remove(before));
+        return this;
     }
 
     private UltraScreenSpec addButton(
@@ -755,6 +771,9 @@ public final class UltraScreenSpec {
                         + (buttons.isEmpty() ? 0 : buttonHeight)
                         + UltraStyle.PANEL_MARGIN
                         + footerReserve;
+        for (Button b : fixedButtons) {
+            contentBottom = Math.max(contentBottom, b.y + b.h + UltraStyle.PANEL_MARGIN + footerReserve);
+        }
         int bodyTop = tabs.isEmpty() ? UltraStyle.BODY_TOP : UltraStyle.BODY_TOP_TABS;
         int lineGap = lineGapOverride != null ? lineGapOverride : UltraStyle.LINE_GAP;
         int bodyPad = bodyPadOverride != null ? bodyPadOverride : UltraStyle.BODY_PAD;
@@ -858,6 +877,9 @@ public final class UltraScreenSpec {
         appendTabButtons(btnArr);
         for (Button b : buttons) {
             appendButtonJson(btnArr, b, buttonShift, height);
+        }
+        for (Button b : fixedButtons) {
+            appendButtonJson(btnArr, b, 0, height);
         }
         // Pinned footer last — client honors footer:true at panel bottom.
         // Fullscreen design coordinates stay inside the design box. The live client

@@ -9,7 +9,11 @@ import com.dragonminez.common.config.SkillsConfig;
 import com.dragonminez.common.stats.character.Character;
 import com.dragonminez.common.util.TransformationsHelper;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,6 +33,11 @@ import net.minecraft.server.level.ServerPlayer;
  * {@code subject local} with a form: the client then keeps the base form and the override
  * reaches the player's own HUD portrait. KaiPath copies race and form only, so a form figure
  * has the race's default colors, and a "player" name tag can show above it.
+ *
+ * <p>4.7.49: every model screen draws its spin toggle in one spot, right under the model
+ * ({@link #rotateButton}), and the model's scale is fit to the form shown ({@link #fitScale}):
+ * KaiPath sizes the preview from the entity's hitbox, which never grows, so a giant form such as
+ * Oozaru (form {@code modelScaling} 3.8) would be drawn far past the box and cut off.
  */
 public final class ModelPreview {
     /** One action id for every model screen: {@code do:model_rotate:<page to reopen>}. */
@@ -45,6 +54,23 @@ public final class ModelPreview {
             return group.isEmpty() && form.isEmpty();
         }
     }
+
+    /** A model preview box in design pixels. */
+    public record Box(int x, int y, int w, int h) {}
+
+    /** The character screen box. UltraScreenSelfTest pins y=60 and scale 0.9. */
+    public static final Box STANDARD = new Box(248, 60, 86, 120);
+    /** Preview forms: the panel's right side, from under the title down to the toggle. */
+    public static final Box FORMS = new Box(190, 46, 144, 186);
+    /** Scale for a normal-sized model in either box. */
+    public static final float BASE_SCALE = 0.9f;
+    /** Spin toggle width: the model box width, at least the 80px button minimum. */
+    static final int TOGGLE_W = 86;
+    /** DMZ's default model scale (Character's 0.9375); form modelScaling is in the same units. */
+    private static final float DMZ_BASE_MODEL_SCALE = 0.9375f;
+    /** Player model height and width in geo pixels, for forms without a custom model. */
+    private static final float[] PLAYER_GEO = {32f, 16f};
+    private static final Map<String, float[]> GEO_SIZE = new ConcurrentHashMap<>();
 
     private ModelPreview() {}
 
@@ -66,13 +92,158 @@ public final class ModelPreview {
         }
     }
 
-    /** The spin toggle under a page's buttons. {@code page} is the page it reopens. */
+    /**
+     * The spin toggle, right under the {@link #STANDARD} model. Call it right after
+     * {@code buttonsAfterLines()}: the page's own buttons then start below the toggle, so none of
+     * them sits under the model or on top of the toggle. {@code page} is the page it reopens.
+     */
     public static void rotateButton(UltraScreenSpec spec, ServerPlayer player, String page) {
+        rotateButton(spec, player, page, STANDARD, true);
+    }
+
+    /**
+     * The spin toggle under {@code box}, fixed there (it does not move down with the body text).
+     * With {@code clearFlow} the next button row starts below it; leave it off when the page's
+     * buttons stay left of the box.
+     */
+    public static void rotateButton(UltraScreenSpec spec, ServerPlayer player, String page, Box box, boolean clearFlow) {
         boolean on = rotate(player);
-        spec.button("do:" + ROTATE_ACTION + ":" + page,
-                        on ? "Stop the spin" : "Spin the model",
-                        "normal")
-                .rowGap();
+        int y = box.y() + box.h() + 4;
+        spec.fixedButton("do:" + ROTATE_ACTION + ":" + page, on ? "Stop spin" : "Spin model", "normal",
+                box.x() + (box.w() - TOGGLE_W) / 2, y, TOGGLE_W);
+        if (clearFlow) {
+            spec.setRow(Math.max(spec.row(), y + UltraStyle.BTN_H + UltraStyle.BTN_GAP));
+        }
+    }
+
+    /**
+     * Preview scale that keeps the shown form inside {@code box}: {@code base} for a normal-sized
+     * model, smaller for a form whose model is drawn taller or wider than the box. KaiPath fits the
+     * hitbox (0.6 x 1.8 blocks) with {@code min(w/0.6, h/1.8) x 0.85 x scale} pixels per block,
+     * but DMZ draws the form's geo model times its {@code modelScaling}, and the hitbox never
+     * changes. Both come from the server's form config (stack form included, larger axis wins)
+     * and the model's geo file, so every giant or wide form is covered, Oozaru and Golden Oozaru
+     * first; a form that already fits keeps {@code base}.
+     */
+    public static float fitScale(Box box, float base, String race, String group, String form,
+                                 String stackGroup, String stackForm) {
+        FormConfig.FormData fd = null;
+        FormConfig.FormData sd = null;
+        try {
+            if (!lower(group).isEmpty() && !lower(form).isEmpty()) {
+                fd = ConfigManager.getForm(lower(race), lower(group), lower(form));
+            }
+            if (!lower(stackGroup).isEmpty() && !lower(stackForm).isEmpty()) {
+                sd = ConfigManager.getStackForm(lower(stackGroup), lower(stackForm));
+            }
+        } catch (Throwable ignored) {
+        }
+        if (fd == null && sd == null) {
+            return base;
+        }
+        float sx = Math.max(axis(fd, 0), axis(sd, 0));
+        float sy = Math.max(axis(fd, 1), axis(sd, 1));
+        float[] geo = geoSize(customModel(fd, sd));
+        double perBlock = Math.min(box.w() / 0.6, box.h() / 1.8) * 0.85;
+        double heightFit = (box.h() - 6) / (geo[0] / 16.0 * sy * perBlock);
+        double widthFit = (box.w() - 4) / (geo[1] / 16.0 * sx * perBlock);
+        return (float) Math.max(0.1, Math.min(base, Math.min(heightFit, widthFit)));
+    }
+
+    /** {@link #fitScale} for the form {@code player} wears now (base when none). */
+    public static float wornScale(ServerPlayer player, Box box, float base) {
+        try {
+            Character ch = DmzProgression.character(player);
+            if (ch == null) {
+                return base;
+            }
+            boolean form = ch.hasActiveForm();
+            boolean stack = ch.hasActiveStackForm();
+            return fitScale(box, base, DmzProgression.race(player),
+                    form ? ch.getActiveFormGroup() : "", form ? ch.getActiveForm() : "",
+                    stack ? ch.getActiveStackFormGroup() : "", stack ? ch.getActiveStackForm() : "");
+        } catch (Throwable ignored) {
+            return base;
+        }
+    }
+
+    /** {@link #fitScale} for a {@link Form}. */
+    public static float formScale(Form form, Box box, float base) {
+        return form == null ? base : fitScale(box, base, form.race(), form.group(), form.form(), "", "");
+    }
+
+    private static float axis(FormConfig.FormData data, int i) {
+        try {
+            Float[] scaling = data == null ? null : data.getModelScaling();
+            if (scaling != null && scaling.length > i && scaling[i] != null && scaling[i] > 0f) {
+                return scaling[i];
+            }
+        } catch (Throwable ignored) {
+        }
+        return DMZ_BASE_MODEL_SCALE;
+    }
+
+    private static String customModel(FormConfig.FormData fd, FormConfig.FormData sd) {
+        for (FormConfig.FormData d : new FormConfig.FormData[] {fd, sd}) {
+            try {
+                if (d != null && Boolean.TRUE.equals(d.hasCustomModel()) && d.getCustomModel() != null
+                        && !d.getCustomModel().isBlank()) {
+                    return d.getCustomModel().trim().toLowerCase(Locale.ROOT);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return "";
+    }
+
+    /**
+     * Height and width in geo pixels of a DMZ race model (assets/dragonminez/geo/entity/races/
+     * MODEL.geo.json, read from the DMZ jar on the server). The player model when unknown.
+     */
+    static float[] geoSize(String model) {
+        if (model == null || model.isEmpty()) {
+            return PLAYER_GEO;
+        }
+        return GEO_SIZE.computeIfAbsent(model, ModelPreview::readGeoSize);
+    }
+
+    private static float[] readGeoSize(String model) {
+        String path = "assets/dragonminez/geo/entity/races/" + model + ".geo.json";
+        for (ClassLoader loader : new ClassLoader[] {ConfigManager.class.getClassLoader(),
+                Thread.currentThread().getContextClassLoader()}) {
+            if (loader == null) {
+                continue;
+            }
+            try (InputStream in = loader.getResourceAsStream(path)) {
+                if (in == null) {
+                    continue;
+                }
+                float lowY = Float.MAX_VALUE;
+                float highY = -Float.MAX_VALUE;
+                float lowX = Float.MAX_VALUE;
+                float highX = -Float.MAX_VALUE;
+                JsonObject root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
+                for (JsonElement g : root.getAsJsonArray("minecraft:geometry")) {
+                    JsonArray bones = g.getAsJsonObject().getAsJsonArray("bones");
+                    for (JsonElement b : bones == null ? new JsonArray() : bones) {
+                        JsonArray cubes = b.getAsJsonObject().getAsJsonArray("cubes");
+                        for (JsonElement c : cubes == null ? new JsonArray() : cubes) {
+                            JsonArray o = c.getAsJsonObject().getAsJsonArray("origin");
+                            JsonArray sz = c.getAsJsonObject().getAsJsonArray("size");
+                            lowX = Math.min(lowX, o.get(0).getAsFloat());
+                            highX = Math.max(highX, o.get(0).getAsFloat() + sz.get(0).getAsFloat());
+                            lowY = Math.min(lowY, o.get(1).getAsFloat());
+                            highY = Math.max(highY, o.get(1).getAsFloat() + sz.get(1).getAsFloat());
+                        }
+                    }
+                }
+                if (highY > lowY && highX > lowX) {
+                    return new float[] {Math.max(PLAYER_GEO[0], highY - lowY), Math.max(PLAYER_GEO[1], highX - lowX)};
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        return PLAYER_GEO;
     }
 
     private static ServerPlayer viewer(ServerPlayer player) {
