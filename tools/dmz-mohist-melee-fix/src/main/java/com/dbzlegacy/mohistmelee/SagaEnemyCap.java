@@ -240,8 +240,16 @@ public final class SagaEnemyCap {
                     continue;
                 }
                 int partySize = Math.max(1, QuestParty.participants(requester, questKey).size());
+                int allowed = Math.min(missing, Math.min(budget, free));
+                // DMZ's spawn adds the quest's whole shortfall (remaining - alive). When that is more
+                // than the kills earned or the cap's room (a multi-count quest), the extras it adds
+                // are discarded in the same tick, farthest first, before any client tracks them
+                // (3.0.3). A one-kill quest is never over, so it takes the plain path.
+                Set<Entity> before = missing > allowed ? questMobs(requester.m_284548_(), questKey) : null;
                 QuestServiceInvoker.callSpawnKillObjectives(requester, resolved, partySize, pqd.getQuestDifficulty(questKey));
-                int n = Math.min(missing, free);
+                int n = before == null ? missing : keepNewest(requester, questKey, before, allowed);
+                MeleeDebug.log("[{}] saga top-up {}: budget={} room={} missing={} allowed={} kept={}",
+                        DmzMohistMeleeFix.MOD_ID, questKey, budget, free, missing, allowed, n);
                 budget -= n;
                 free -= n;
                 spawned += n;
@@ -250,6 +258,32 @@ public final class SagaEnemyCap {
         // Every spawn and top-up resets the baseline: only later kills earn replacements.
         killSnapshot = progressNow;
         return spawned;
+    }
+
+    /** Living mobs in {@code level} tagged with {@code questKey}. */
+    private static Set<Entity> questMobs(ServerLevel level, String questKey) {
+        Set<Entity> out = new HashSet<>();
+        for (Entity e : level.m_8583_()) {
+            if (e instanceof LivingEntity living && living.m_6084_()
+                    && questKey.equals(PersistentDataAccess.get(e).m_128461_(KEY_TAG))) {
+                out.add(e);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Keep {@code allowed} of the mobs DMZ's spawn just added for {@code questKey} (nearest to the
+     * requester) and discard the rest. Returns how many were kept.
+     */
+    private static int keepNewest(ServerPlayer requester, String questKey, Set<Entity> before, int allowed) {
+        List<Entity> added = new ArrayList<>(questMobs(requester.m_284548_(), questKey));
+        added.removeAll(before);
+        added.sort(Comparator.comparingDouble(e -> e.m_20280_(requester)));
+        for (int i = allowed; i < added.size(); i++) {
+            added.get(i).m_146870_();
+        }
+        return Math.min(allowed, added.size());
     }
 
     /** Kill progress summed over the quest's kill objectives. */

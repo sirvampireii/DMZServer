@@ -1,5 +1,23 @@
 # Mohist M1: animation but no damage
 
+## Fix v3.0.3 — saga top-up clamp, Noea surface documented dormant (Nov 2026)
+
+`mods/dmz_mohist_melee_fix-3.0.3.jar`
+
+- **Top-up clamp (M-P2-3).** DMZ's `spawnKillObjectives` spawns a quest's whole shortfall. For a
+  multi-count quest that is more than one kill earns, so 3.0.2 could briefly put a count-34 quest
+  past 20 until the next sweep. The top-up now keeps only `min(shortfall, kills earned, room)` of the
+  mobs that call added (nearest to the player) and discards the rest in the same tick, before any
+  client tracks them. One-kill quests (Technique Training) take the unchanged path. Verified: a
+  count-34 quest capped at 20, one kill, top-up kept 1, at most 20 alive on every tick; the 3.0.2
+  test set still passes.
+- **Noea surface documented dormant (M-P2-24).** `dmz_mohist_melee_fix.noea.mixins.json` (`_comment`),
+  `OptionalNoeaMixinPlugin` and `NoeaGrabDisable` now say why they stay: they only act when Noea's
+  classes are present (not on live), and their targets are unverified because no Noea jar exists to
+  test against. Re-verify before Noea ever returns. Not removed in this version.
+
+Server-only; requires a full server restart.
+
 ## Fix v3.0.2 — saga enemy cap, idle despawn, kill-gated top-up (Nov 2026)
 
 `mods/dmz_mohist_melee_fix-3.0.2.jar`
