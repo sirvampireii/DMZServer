@@ -19,13 +19,15 @@ public final class DmzMohistMeleeFix {
 
     public DmzMohistMeleeFix() {
         LOGGER.info(
-                "[{}] v3.0.1 for DragonMineZ 2.2: party guard on the 2.2 party API, melee keeps DMZ windup, no Shurui/SDU mixins;"
+                "[{}] v3.0.2 for DragonMineZ 2.2: party guard on the 2.2 party API, melee keeps DMZ windup, no Shurui/SDU mixins,"
+                        + " saga enemies capped at 20 near a party with a 60 s idle despawn;"
                         + " per-event logs need debugLogging=true in config/dmz_mohist_melee_fix-debug.properties",
                 MOD_ID
         );
         MeleeDebug.register();
         ReachRepairEvents.register();
         PersonalSagaEvents.register();
+        SagaEnemyCap.register();
         StatsResetCommands.register();
         MeleeFixSelfTest.registerIfEnabled();
     }
