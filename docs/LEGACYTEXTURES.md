@@ -404,7 +404,12 @@ only; a missing donor draws the race's own file and is logged once; a file the r
   The separate jar was never deployed, so no player holds its items.
 - Live `mods/` should have exactly one Legacy Textures file. 0.2.0 replaces the
   `legacytextures-0.1.0.jar.pending` staged there; that one is never renamed.
-- `MATCH_VERSION`: clients need the same jar as the server.
+- A client with a different Legacy Textures version can still join. `displayTest = MATCH_VERSION` only
+  marks the server red in the server list; Forge's join check compares the network channel version
+  (`LtNetwork.PROTOCOL`, "3" since 0.2.4) and the synced registries (the NB Armors items). While
+  those stay the same, the modpack can update after the server. 0.2.4 clients join a 0.2.5 server and
+  keep their own client behaviour (every face blinks). Bumping `PROTOCOL` or adding or removing
+  items locks out older clients, so that release needs the modpack and server to switch together.
 - Curios is a hard dependency (`[5.14.1,)`, NB Armors' vanity slot): keep Curios 5.14.1 in the server
   `mods/` and in the client modpack.
 - Do not ship 0.2.x until the owner decides the NB Armors license question.
