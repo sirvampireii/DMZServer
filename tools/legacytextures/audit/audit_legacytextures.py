@@ -62,6 +62,9 @@ def main() -> int:
           versions == [version, version] and 'modId = "nbarmors"' in toml)
     check("displayTest MATCH_VERSION on both mods", toml.count('displayTest = "MATCH_VERSION"') == 2)
     mod_java = (SRC / "LegacyTextures.java").read_text(encoding="utf-8")
+    check("channel version is the mod version, so only the server's exact version can join (0.2.6)",
+          re.search(r'PROTOCOL = LegacyTextures\.VERSION;',
+                    (SRC / "net" / "LtNetwork.java").read_text(encoding="utf-8")) is not None)
     check(f"VERSION constant {version} and the boot banner 'Legacy Textures {{}} loaded' prints it",
           f'VERSION = "{version}"' in mod_java and 'LOG.info("Legacy Textures {} loaded", VERSION)' in mod_java)
     want = {

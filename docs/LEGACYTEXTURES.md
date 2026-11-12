@@ -4,8 +4,8 @@ A Forge 1.20.1 mod that carries the HD textures for DragonMineZ and NB Armors, a
 switch between HD and the standard look for their own game. It is a new mod, separate from
 LegacyMechanics. Source: `tools/legacytextures/`.
 
-- **Identity:** modId `legacytextures`, version 0.2.5, `displayTest = MATCH_VERSION`.
-- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.5). See
+- **Identity:** modId `legacytextures`, version 0.2.6, `displayTest = MATCH_VERSION`.
+- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.6). See
   [NB Armors inside Legacy Textures](#nb-armors-inside-legacy-textures). The separate
   `nbarmors-0.1.0.jar` must not be installed next to it, because two copies of a mod id will not load.
 - **Dependencies:**
@@ -155,7 +155,7 @@ The code is identifiable in `faceanim/` (`FaceAnimator`, `FaceFlags`, `FaceAnimC
 - **Each player's own switch:** `/faceanim on|off|toggle` (no argument shows the setting). It changes
   that player's face for every viewer, is stored in their persisted data on the server (default on),
   and is sent on login, when a player comes into view and on every change (packet `FaceAnimFlag` on
-  the Legacy Textures channel, protocol 3). This needs the server to run this jar.
+  the Legacy Textures channel). This needs the server to run this jar.
 - **What a viewer sees:** `config/legacytextures-client.toml`, section `[faceanim]`: `enableBlink`
   and `enableScream` (both default `true`). Turning one off changes only that game.
 - **In the menu (0.2.4):** the bottom row of the texture menu holds both. "My face" shows the switch
@@ -404,12 +404,12 @@ only; a missing donor draws the race's own file and is logged once; a file the r
   The separate jar was never deployed, so no player holds its items.
 - Live `mods/` should have exactly one Legacy Textures file. 0.2.0 replaces the
   `legacytextures-0.1.0.jar.pending` staged there; that one is never renamed.
-- A client with a different Legacy Textures version can still join. `displayTest = MATCH_VERSION` only
-  marks the server red in the server list; Forge's join check compares the network channel version
-  (`LtNetwork.PROTOCOL`, "3" since 0.2.4) and the synced registries (the NB Armors items). While
-  those stay the same, the modpack can update after the server. 0.2.4 clients join a 0.2.5 server and
-  keep their own client behaviour (every face blinks). Bumping `PROTOCOL` or adding or removing
-  items locks out older clients, so that release needs the modpack and server to switch together.
+- **Clients must run exactly the server's version (0.2.6).** `displayTest = MATCH_VERSION` alone only
+  marks the server red in the server list; Forge's join check compares the network channel version.
+  Up to 0.2.5 that was a fixed "3", so a 0.2.4 client could join a 0.2.5 server. Since 0.2.6
+  `LtNetwork.PROTOCOL` is `LegacyTextures.VERSION`, so every release refuses clients on any other
+  version (and clients without the mod). Ship each release to the modpack and the server together;
+  the audit fails if `PROTOCOL` stops being the mod version.
 - Curios is a hard dependency (`[5.14.1,)`, NB Armors' vanity slot): keep Curios 5.14.1 in the server
   `mods/` and in the client modpack.
 - Do not ship 0.2.x until the owner decides the NB Armors license question.

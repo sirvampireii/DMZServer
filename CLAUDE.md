@@ -33,6 +33,13 @@ the short list that every session must follow.
 - A behavior change the owner approves gets a row in `docs/LM_SHIP_MANIFEST.md` and a matching
   check in `sim/audit_ship_manifest.py` in the same change.
 
+## Legacy Textures releases
+
+- Every Legacy Textures update forces every client onto the server's exact version. `LtNetwork.PROTOCOL`
+  stays `LegacyTextures.VERSION` (the audit fails otherwise), so each change to the jar bumps the
+  version in `LegacyTextures.VERSION`, both `mods.toml` entries and `MANIFEST.MF`, and ships to the
+  server `mods/` and the client modpack together. Details: `docs/LEGACYTEXTURES.md` deploy notes.
+
 ## Code and player-facing text
 
 - No raw `§` in LM Java sources; use `UltraStyle` (`docs/ULTRA_STYLE_RULE.md`).

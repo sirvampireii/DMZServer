@@ -21,9 +21,13 @@ import net.minecraftforge.network.simple.SimpleChannel;
  * Four small packets. The server owns the stored choice: the client asks for a change
  * ({@link SetMode}) and the server answers with the stored result ({@link SyncMode}), also on login. {@link AskHealth} asks the client for its health report.
  * {@link FaceAnimFlag} (0.2.3) tells clients one player's own face animation switch ({@code /faceanim}).
+ *
+ * <p>The channel version is the mod version (0.2.6). Forge refuses the join when a client's channel
+ * version differs from the server's, so a client must run exactly the server's Legacy Textures;
+ * {@code displayTest = MATCH_VERSION} alone only marks the server list.
  */
 public final class LtNetwork {
-    public static final String PROTOCOL = "3";
+    public static final String PROTOCOL = LegacyTextures.VERSION;
     public static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(LegacyTextures.MODID, "main"), () -> PROTOCOL, PROTOCOL::equals, PROTOCOL::equals);
 
