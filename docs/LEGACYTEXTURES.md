@@ -4,8 +4,8 @@ A Forge 1.20.1 mod that carries the HD textures for DragonMineZ and NB Armors, a
 switch between HD and the standard look for their own game. It is a new mod, separate from
 LegacyMechanics. Source: `tools/legacytextures/`.
 
-- **Identity:** modId `legacytextures`, version 0.2.6, `displayTest = MATCH_VERSION`.
-- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.6). See
+- **Identity:** modId `legacytextures`, version 0.2.7, `displayTest = MATCH_VERSION`.
+- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.7). See
   [NB Armors inside Legacy Textures](#nb-armors-inside-legacy-textures). The separate
   `nbarmors-0.1.0.jar` must not be installed next to it, because two copies of a mod id will not load.
 - **Dependencies:**
@@ -218,6 +218,13 @@ has no JSON yet:
   viewer only a floating head: DMZ's `getSafeTexture` fell back to `bodytype_male_0_layer1.png`, which
   exists nowhere, and the bind hook drew it transparent. A file missing from both still draws
   transparent.
+- **One set per character (0.2.7).** The HD body from the fallback above came with a vanilla face, which
+  looked wrong. Now, when a human or Saiyan's body type exists only in HD (male 3-7, female 3), a vanilla
+  viewer draws that player's face (eyes, nose, mouth, brows and their shadows) from HD too, so the
+  character is one set. Body type 0 (the player's own skin), body types vanilla ships, other races and HD
+  viewers are unchanged. `HdFace` marks the player while `DMZSkinLayer.renderFace` runs and
+  `DMZFaceHdMixin` hands the face layers their HD key (`Resolver.hdVariant`); such a face blinks and
+  shouts like any HD face. Hair is a separate layer and is not touched.
 - `categories`:
   - `players`: `dragonminez:textures/entity|armor`, `geo`, `animations`.
   - `armor`: everything in `nbarmors:textures`.
@@ -266,13 +273,16 @@ F3+T or a restart, no code change.
 
 ## How it draws (client)
 
-Three hooks, all fail-soft (`require = 0`, try/catch, one log line if a hook ever throws):
+Six hooks, all fail-soft (`require = 0`, try/catch, one log line if a hook ever throws). The face
+animation one is described under Face animation:
 
 | Hook | Target (checked against) | What it does |
 |---|---|---|
 | `TextureManagerMixin` | `TextureManager.getTexture(RL)`, `getTexture(RL, AbstractTexture)`, `bindForSetup` (MC 1.20.1, SRG) | Binds the active set's file. HD and vanilla are different keys, so both stay loaded and a switch is instant. A DMZ or NB texture missing from every set draws transparent instead of the purple-black checkerboard. |
 | `ReloadableResourceManagerMixin` | `ReloadableResourceManager.getResource` (MC 1.20.1, SRG), client manager only | Answers "does this file exist / read it" from the active set. See the list below. |
-| `GeoModelMixin` | GeckoLib `GeoModel.getBakedModel(RL)` (geckolib-forge-1.20.1-4.8.4; skipped if GeckoLib is absent) | Uses the HD model when GeckoLib baked one. GeckoLib bakes every `geo/` file of every namespace at each resource reload, the 11 HD geos included, so both variants are always in its cache and switching is instant. `DMZPlayerModel` overrides `getBakedModel` but calls `super` for every steady-state model, so it goes through this hook. Only DMZ's transformation blends (`ModelMorph`, a few frames during a transform) read GeckoLib's cache directly and use the standard geometry. The client probe checks the drawn geometry (cube counts) of `master_roshi` and `frostdemon_fifth` in each mode and across three toggles. |
+| `GeoModelMixin` | GeckoLib `GeoModel.getBakedModel(RL)` (geckolib-forge-1.20.1-4.8.4; skipped if GeckoLib is absent) | Uses the HD model when GeckoLib baked one. GeckoLib bakes every `geo/` file of every namespace at each resource reload, the 11 HD geos included, so both variants are always in its cache and switching is instant. `DMZPlayerModel` overrides `getBakedModel` but calls `super` for every steady-state model, so it goes through this hook. DMZ's transformation blend (`ModelMorph`) reads GeckoLib's cache directly; since 0.2.7 `ModelMorphMixin` routes it through the same choice. The client probe checks the drawn geometry (cube counts) of `master_roshi` and `frostdemon_fifth` in each mode and across three toggles. |
+| `ModelMorphMixin` (0.2.7) | DMZ `ModelMorph.baked(RL)`, both `Map.get` reads of `GeckoLibCache.getBakedModels()` (DragonMineZ 2.2.1.2) | The transform blend takes its from and to models through `LtHooks.modelTarget`, like the steady-state hook. Before 0.2.7 an HD viewer saw the blend use the vanilla model shape under the HD texture. Of the HD models compared (Frost Demon base, third, fifth), `frostdemon_fifth` differs most (19 cubes with other UVs, 15 more or fewer, mostly the head; third differs by one cube), so it showed while charging out of a fifth-form-model form into another model. |
+| `DMZFaceHdMixin` (0.2.7) | DMZ `ModRenderTypes.skinOverlayCutout` / `skinOverlayTranslucent(RL)` (DragonMineZ 2.2.1.2) | Inside a face marked by `HdFace` (see One set per character), the face layer's texture key becomes its HD file. Outside such a face the key passes through. |
 
 The resource-manager hook covers every place DMZ 2.2.1.1 checks or reads a file before drawing:
 
@@ -289,9 +299,11 @@ viewer's game can draw the HD-only options too (through the fallback above), so 
 counts and offers them in vanilla mode as well: the creator shows the same option counts in both
 modes.
 
-There are **no mixins into DMZ or NB Armors classes**. DMZ builds its paths as hardcoded
-`dragonminez:` strings and has no resolver hook to use. Redirecting at the two vanilla lookup
-points covers all of those strings without depending on DMZ method names.
+Texture choice itself needs **no mixin into DMZ or NB Armors classes**: DMZ builds its paths as
+hardcoded `dragonminez:` strings and has no resolver hook to use, and redirecting at the two vanilla
+lookup points covers all of them without depending on DMZ method names. The DMZ mixins (face
+animation, `ModelMorphMixin`, `DMZFaceHdMixin`) are for things a path redirect cannot do: picking a
+frame per player, a model read that bypasses GeckoLib's hook, and one player's face from another set.
 
 **Every texture key holds its own file.** Texture reloads read through a separate per-reload
 manager. While `TextureManager.loadTexture` runs, the lookup hook stands aside. So

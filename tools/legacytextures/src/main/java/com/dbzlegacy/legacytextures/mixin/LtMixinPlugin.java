@@ -9,8 +9,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * All four mixins are client-only (listed under "client"). The GeckoLib one is skipped when
- * GeckoLib is not installed, the face animation one when DragonMineZ (or GeckoLib) is not. Each applied mixin is logged once at startup so a log shows which
+ * All six mixins are client-only (listed under "client"). The GeckoLib one is skipped when
+ * GeckoLib is not installed, the face animation one and the transform blend one (0.2.7) when DragonMineZ
+ * (or GeckoLib) is not, and the HD face key one (0.2.7) when DragonMineZ is not. Each applied mixin is logged once at startup so a log shows which
  * hooks are live; a hook whose target changed simply does not apply (require = 0) and the game
  * keeps drawing the mods' own textures.
  */
@@ -30,6 +31,13 @@ public final class LtMixinPlugin implements IMixinConfigPlugin {
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
         if (mixinClassName != null && mixinClassName.endsWith("GeoModelMixin")) {
             return classPresent("software/bernie/geckolib/model/GeoModel.class");
+        }
+        if (mixinClassName != null && mixinClassName.endsWith("ModelMorphMixin")) {
+            return classPresent("com/dragonminez/client/model/ModelMorph.class")
+                    && classPresent("software/bernie/geckolib/model/GeoModel.class");
+        }
+        if (mixinClassName != null && mixinClassName.endsWith("DMZFaceHdMixin")) {
+            return classPresent("com/dragonminez/client/render/util/ModRenderTypes.class");
         }
         if (mixinClassName != null && mixinClassName.endsWith("DMZSkinLayerFaceMixin")) {
             return classPresent("com/dragonminez/client/render/layer/DMZSkinLayer.class")

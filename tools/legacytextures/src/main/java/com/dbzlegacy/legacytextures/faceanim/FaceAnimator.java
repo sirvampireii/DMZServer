@@ -2,6 +2,7 @@ package com.dbzlegacy.legacytextures.faceanim;
 
 import com.dbzlegacy.legacytextures.LegacyTextures;
 import com.dbzlegacy.legacytextures.client.ClientState;
+import com.dbzlegacy.legacytextures.client.HdFace;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.character.Status;
 import com.dragonminez.common.stats.extras.ActionMode;
@@ -19,7 +20,8 @@ import net.minecraft.resources.ResourceLocation;
  *
  * <p>Only HD faces animate (0.2.5). DragonMineZ 2.2.1.2 has no blinking of its own, so a face layer this
  * viewer draws from the mod's own file stays still, as DMZ draws it. A layer whose file resolves to an
- * HD set (in HD mode, or an HD-only file in vanilla mode) blinks and shouts as before.
+ * HD set (in HD mode, or an HD-only file in vanilla mode) blinks and shouts as before, and so does the
+ * face of a player whose body exists only in HD, which a vanilla viewer draws from HD too (0.2.7).
  */
 public final class FaceAnimator {
     /** Draw nothing for this layer (an overlay that has no closed-eye frame). */
@@ -127,7 +129,9 @@ public final class FaceAnimator {
     private static boolean isHd(String path) {
         try {
             ResourceLocation loc = ResourceLocation.m_214293_("dragonminez", path);
-            return !ClientState.RESOLVER.variant(loc).equals(loc);
+            // 0.2.7: a face drawn from HD because the player's body is HD-only animates like any HD face
+            ResourceLocation drawn = HdFace.active() ? HdFace.key(loc) : ClientState.RESOLVER.variant(loc);
+            return !drawn.equals(loc);
         } catch (Throwable t) {
             if (!loggedGate) {
                 loggedGate = true;

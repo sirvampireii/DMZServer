@@ -68,6 +68,13 @@ public final class ResolverTest {
                 body6Hd.equals(r.variant(body6)));
         check("ALL_VANILLA: a file missing from both sets stays itself (bind draws blank)",
                 r.variant(missing) == missing);
+        // 0.2.7: an HD-only body's face is drawn from HD for a vanilla viewer (HdFace)
+        check("ALL_VANILLA hdVariant: a file both sets have gives the HD file, while variant stays the mod's",
+                bodyHd.equals(r.hdVariant(body)) && r.variant(body) == body);
+        check("ALL_VANILLA hdVariant: HD-only body type 6 gives its HD file", body6Hd.equals(r.hdVariant(body6)));
+        check("ALL_VANILLA hdVariant: no HD file -> the same instance; outside any category -> unchanged",
+                r.hdVariant(missing) == missing && r.hdVariant(stone) == stone
+                        && r.hdVariant(rl("othermod", "textures/x.png")).equals(rl("othermod", "textures/x.png")));
 
         r.configure(reg, mode(TextureMode.Preset.PLAYERS_HD_ONLY), false, "hd");
         check("PLAYERS_HD_ONLY: body -> HD", bodyHd.equals(r.variant(body)));
