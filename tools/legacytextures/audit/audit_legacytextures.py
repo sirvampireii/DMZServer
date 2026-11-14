@@ -168,12 +168,33 @@ def main() -> int:
     anim = (SRC / "faceanim" / "FaceAnimator.java").read_text(encoding="utf-8")
     check("FaceAnimator.route: a swapped frame (blink, scream, skip) only when the layer resolves to HD",
           "return routed == path || isHd(path) ? routed : path;" in anim
-          and "!ClientState.RESOLVER.variant(loc).equals(loc)" in anim)
+          and "HdFace.active() ? HdFace.key(loc) : ClientState.RESOLVER.variant(loc)" in anim
+          and "return !drawn.equals(loc);" in anim)
     check("FaceAnimator HD check is fail-soft (a throw leaves the face still)",
           re.search(r"catch \(Throwable t\) \{.*?return false;", anim, re.S) is not None)
     face_mixin = re.sub(r"/\*.*?\*/|//[^\n]*", "",
                         (SRC / "mixin" / "DMZSkinLayerFaceMixin.java").read_text(encoding="utf-8"), flags=re.S)
     check("face mixin: every hook require = 0", face_mixin.count("@Inject(") == face_mixin.count("require = 0") == 5)
+
+    print("--- one set per character, transform blend on the same models (0.2.7)")
+    hdface = (SRC / "client" / "HdFace.java").read_text(encoding="utf-8")
+    check("HdFace: only a vanilla-players viewer, only a humanoid body type the mod lacks and HD has",
+          "!ClientState.mode().players && hdOnlyBody(" in hdface and "SkinGathererProvider.isHumanoidKey(" in hdface
+          and "!ClientState.RESOLVER.exists(body) && !ClientState.RESOLVER.hdVariant(body).equals(body)" in hdface
+          and "if (bodyType == 0)" in hdface)
+    check("HdFace is scoped to DMZSkinLayer.renderFace (set at HEAD, cleared at RETURN)",
+          re.search(r'"renderFace", at = @At\("HEAD"\).*?HdFace\.begin\(stats\);', face_mixin, re.S) is not None
+          and re.search(r'"renderFace", at = @At\("RETURN"\).*?HdFace\.end\(\);', face_mixin, re.S) is not None)
+    check("Resolver.hdVariant looks up the viewer's HD set whatever the mode, cleared with the rest",
+          "public ResourceLocation hdVariant(ResourceLocation loc)" in resolver and "hdVariants.clear();" in resolver)
+    face_hd = re.sub(r"/\*.*?\*/|//[^\n]*", "", (SRC / "mixin" / "DMZFaceHdMixin.java").read_text(encoding="utf-8"), flags=re.S)
+    check("DMZFaceHdMixin: both skin overlay render types take HdFace.key, require = 0",
+          '"skinOverlayCutout", "skinOverlayTranslucent"' in face_hd and "HdFace.key(loc)" in face_hd
+          and "require = 0" in face_hd)
+    morph = re.sub(r"/\*.*?\*/|//[^\n]*", "", (SRC / "mixin" / "ModelMorphMixin.java").read_text(encoding="utf-8"), flags=re.S)
+    check("ModelMorphMixin: the blend's baked-model lookups take LtHooks.modelTarget, require = 0",
+          'method = "baked"' in morph and "Ljava/util/Map;get(Ljava/lang/Object;)Ljava/lang/Object;" in morph
+          and "LtHooks.modelTarget(loc)" in morph and "require = 0" in morph)
 
     java = list(SRC.rglob("*.java"))
     check("no raw section sign in Java sources", not any("§" in p.read_text(encoding="utf-8") for p in java))
@@ -183,7 +204,7 @@ def main() -> int:
         for m in re.finditer(r"((?:@\w+(?:\((?:[^()]|\([^()]*\))*\))?\s*)*)((?:public|protected|private|static|final|"
                              r"abstract|\s)*)[\w<>\[\],.?]+\s+(\w+)\s*\([^)]*\)\s*\{", code):
             annos, mods, name = m.group(1), m.group(2), m.group(3)
-            if "private" not in mods and not re.search(r"@(Inject|ModifyVariable|Redirect|Shadow|Overwrite)", annos):
+            if "private" not in mods and not re.search(r"@(Inject|ModifyVariable|ModifyArg|Redirect|Shadow|Overwrite)", annos):
                 bad.append(f"{p.stem}.{name}")
     check("mixin classes: every non-handler method is private" + (f" ({bad})" if bad else ""), not bad)
     screen = (SRC / "client" / "TextureScreen.java").read_text(encoding="utf-8")
@@ -246,6 +267,19 @@ def main() -> int:
           and f"void renderFeatureShadow({geo_t}, {pose}, T, {buf}, java.lang.String, float[], float, int, int, float);" in skin)
     mixins = json.loads((LT / "src/main/resources/legacytextures.mixins.json").read_text(encoding="utf-8"))
     check("face animation mixin registered (client)", "DMZSkinLayerFaceMixin" in mixins["client"])
+    check("HD face key and transform blend mixins registered (client, 0.2.7)",
+          "DMZFaceHdMixin" in mixins["client"] and "ModelMorphMixin" in mixins["client"])
+    rtypes = subprocess.run(["javap", "-cp", dmz, "com.dragonminez.client.render.util.ModRenderTypes"],
+                            capture_output=True, text=True).stdout
+    check("ModRenderTypes.skinOverlayCutout / skinOverlayTranslucent(ResourceLocation) (DMZFaceHdMixin)",
+          all(f"public static net.minecraft.client.renderer.RenderType {m}(net.minecraft.resources.ResourceLocation);" in rtypes
+              for m in ("skinOverlayCutout", "skinOverlayTranslucent")))
+    baked = subprocess.run(["javap", "-c", "-cp", dmz + os.pathsep + gecko, "com.dragonminez.client.model.ModelMorph"],
+                           capture_output=True, text=True).stdout
+    body = re.search(r"BakedGeoModel baked\(net\.minecraft\.resources\.ResourceLocation\);(.*?)\n\n", baked, re.S)
+    gets = body.group(1).count("java/util/Map.get:(Ljava/lang/Object;)Ljava/lang/Object;") if body else -1
+    check(f"ModelMorph.baked reads GeckoLibCache.getBakedModels() twice with Map.get (ModelMorphMixin; found {gets})",
+          body is not None and gets == 2 and body.group(1).count("GeckoLibCache.getBakedModels") == 2)
 
     print("--- DragonMineZ caches CacheFlush clears")
     flush = (SRC / "client" / "CacheFlush.java").read_text(encoding="utf-8")

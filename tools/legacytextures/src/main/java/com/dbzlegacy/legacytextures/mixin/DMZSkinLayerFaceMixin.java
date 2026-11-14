@@ -1,5 +1,6 @@
 package com.dbzlegacy.legacytextures.mixin;
 
+import com.dbzlegacy.legacytextures.client.HdFace;
 import com.dbzlegacy.legacytextures.faceanim.FaceAnimator;
 import com.dragonminez.common.stats.StatsData;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -18,6 +19,8 @@ import software.bernie.geckolib.cache.object.BakedGeoModel;
  * {@link FaceAnimator#route} and a swapped frame is drawn by DMZ's own 11-argument renderColoredLayer,
  * so tint, light, HD sets and binding stay DMZ's. Fail-soft: require = 0 on every hook. Since 0.2.5
  * {@link FaceAnimator#route} only swaps a layer this viewer draws from an HD set; a DMZ-file face stays still.
+ * Since 0.2.7 renderFace also marks a player whose body exists only in HD ({@link HdFace}), whose face
+ * layers then draw from HD too (DMZFaceHdMixin).
  */
 @Mixin(targets = "com.dragonminez.client.render.layer.DMZSkinLayer", remap = false)
 public abstract class DMZSkinLayerFaceMixin {
@@ -32,6 +35,7 @@ public abstract class DMZSkinLayerFaceMixin {
     private void legacytextures$faceBegin(PoseStack poseStack, AbstractClientPlayer animatable, BakedGeoModel model,
             MultiBufferSource bufferSource, AbstractClientPlayer player, StatsData stats, float partialTick,
             int packedLight, int packedOverlay, float alpha, CallbackInfo ci) {
+        HdFace.begin(stats);
         try {
             FaceAnimator.begin(player, stats, partialTick);
         } catch (Throwable t) {
@@ -44,6 +48,7 @@ public abstract class DMZSkinLayerFaceMixin {
             MultiBufferSource bufferSource, AbstractClientPlayer player, StatsData stats, float partialTick,
             int packedLight, int packedOverlay, float alpha, CallbackInfo ci) {
         FaceAnimator.end();
+        HdFace.end();
     }
 
     // the 11-argument overload (the trailing boolean); one literal, so the mixin target audit can read it

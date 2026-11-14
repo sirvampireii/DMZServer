@@ -8,7 +8,9 @@
     "TextureManagerMixin",
     "ReloadableResourceManagerMixin",
     "GeoModelMixin",
-    "DMZSkinLayerFaceMixin"
+    "DMZSkinLayerFaceMixin",
+    "DMZFaceHdMixin",
+    "ModelMorphMixin"
   ],
   "injectors": {
     "defaultRequire": 0

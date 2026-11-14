@@ -22,6 +22,8 @@ import net.minecraft.resources.ResourceLocation;
 public final class Resolver {
     private final Predicate<ResourceLocation> rawExists;
     private final Map<ResourceLocation, ResourceLocation> variants = new ConcurrentHashMap<>();
+    /** {@link #hdVariant} answers: the HD set's file whatever the mode (0.2.7). */
+    private final Map<ResourceLocation, ResourceLocation> hdVariants = new ConcurrentHashMap<>();
     /** The viewer's HD set (or its fallback): vanilla mode's last resort for files the mod lacks. */
     private volatile TextureSet hd;
     private final Map<ResourceLocation, Boolean> exists = new ConcurrentHashMap<>();
@@ -68,6 +70,7 @@ public final class Resolver {
 
     public void clear() {
         variants.clear();
+        hdVariants.clear();
         exists.clear();
     }
 
@@ -105,6 +108,25 @@ public final class Resolver {
         if (hit == null) {
             hit = walk(loc, c, start);
             variants.put(loc, hit);
+        }
+        return hit;
+    }
+
+    /**
+     * The viewer's HD set file for {@code loc} whatever the mode, or {@code loc} itself (same instance)
+     * when no HD set has one (0.2.7). Lets a vanilla viewer draw one player's face from HD when that
+     * player's body exists only in HD, so the character stays one set.
+     */
+    public ResourceLocation hdVariant(ResourceLocation loc) {
+        Category c = Category.of(loc);
+        TextureSet start = hd;
+        if (c == null || start.isVanilla()) {
+            return loc;
+        }
+        ResourceLocation hit = hdVariants.get(loc);
+        if (hit == null) {
+            hit = walk(loc, c, start);
+            hdVariants.put(loc, hit);
         }
         return hit;
     }
