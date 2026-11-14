@@ -182,6 +182,12 @@ def main() -> int:
           "!ClientState.mode().players && hdOnlyBody(" in hdface and "SkinGathererProvider.isHumanoidKey(" in hdface
           and "!ClientState.RESOLVER.exists(body) && !ClientState.RESOLVER.hdVariant(body).equals(body)" in hdface
           and "if (bodyType == 0)" in hdface)
+    check("HdFace (0.2.8): model key as DMZ derives it - stack form, then form, then race, then race name or human; "
+          "a partner model uses the race's key",
+          re.search(r"c\.hasActiveStackForm\(\).*?getActiveStackFormData\(\).*?else if \(c\.hasActiveForm\(\).*?getActiveFormData\(\)",
+                    hdface, re.S) is not None
+          and "fused.usesPartnerModel(c)" in hdface and 'SkinGathererProvider.isBuiltInRace(race) ? race : "human"' in hdface
+          and '"human_slim"' in hdface and 'key.equals("trascended")' in hdface)
     check("HdFace is scoped to DMZSkinLayer.renderFace (set at HEAD, cleared at RETURN)",
           re.search(r'"renderFace", at = @At\("HEAD"\).*?HdFace\.begin\(stats\);', face_mixin, re.S) is not None
           and re.search(r'"renderFace", at = @At\("RETURN"\).*?HdFace\.end\(\);', face_mixin, re.S) is not None)
@@ -269,6 +275,14 @@ def main() -> int:
     check("face animation mixin registered (client)", "DMZSkinLayerFaceMixin" in mixins["client"])
     check("HD face key and transform blend mixins registered (client, 0.2.7)",
           "DMZFaceHdMixin" in mixins["client"] and "ModelMorphMixin" in mixins["client"])
+    sgp = subprocess.run(["javap", "-p", "-cp", dmz + os.pathsep + gecko, "com.dragonminez.client.util.SkinGathererProvider"],
+                         capture_output=True, text=True).stdout
+    check("SkinGathererProvider.activeLogicKey / isHumanoidKey / isBuiltInRace / resolveBodyHumanSaiyan / "
+          "resolveBodyGlindTranscended (HdFace mirrors them; re-check HdFace if these move)",
+          "private static java.lang.String activeLogicKey(com.dragonminez.common.stats.character.Character, java.lang.String, "
+          "com.dragonminez.common.config.RaceCharacterConfig);" in sgp
+          and "public static boolean isHumanoidKey(java.lang.String);" in sgp and "public static boolean isBuiltInRace(java.lang.String);" in sgp
+          and "resolveBodyHumanSaiyan(" in sgp and "resolveBodyGlindTranscended(" in sgp)
     rtypes = subprocess.run(["javap", "-cp", dmz, "com.dragonminez.client.render.util.ModRenderTypes"],
                             capture_output=True, text=True).stdout
     check("ModRenderTypes.skinOverlayCutout / skinOverlayTranslucent(ResourceLocation) (DMZFaceHdMixin)",
