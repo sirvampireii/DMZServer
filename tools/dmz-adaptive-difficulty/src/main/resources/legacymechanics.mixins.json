@@ -39,7 +39,8 @@
     "FusionUnfuseBonusClearMixin",
     "KaiPathLmConsumerBootstrapMixin",
     "FormModeHandlerGodKiGateMixin",
-    "StackFormModeHandlerGodKiGateMixin"
+    "StackFormModeHandlerGodKiGateMixin",
+    "BioAndroidDrainTpMixin"
   ],
   "injectors": {
     "defaultRequire": 1

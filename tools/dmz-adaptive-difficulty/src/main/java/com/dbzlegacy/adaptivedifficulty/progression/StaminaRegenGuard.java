@@ -10,13 +10,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * DMZ stamina/ki regen is skipped while {@link Cooldowns#STAMINA_PAUSE} or drain cooldowns are active.
+ * DMZ stamina/ki regen is skipped while {@link Cooldowns#STAMINA_PAUSE} is active. Bio Android drain cooldowns
+ * (Drain, DrainActive) are only sampled so a stalled cooldown clock still ticks; they are never cleared (4.7.50).
  * On Mohist, cooldown decay often stalls until relog.
  */
 public final class StaminaRegenGuard {
     /** Dash sets pause to ~20 ticks — clear once dash is over. */
     private static final int STALE_PAUSE_TICKS = 40;
-    private static final int STALE_DRAIN_TICKS = 80;
     private static final int STALL_TICKS_BEFORE_NUDGE = 30;
     private static final int NUDGE_INTERVAL_TICKS = 10;
 
@@ -59,27 +59,16 @@ public final class StaminaRegenGuard {
         } catch (Throwable ignored) {
         }
         boolean belowMaxStamina = maxSPreview > 1f && curSPreview < maxSPreview - 0.5f;
+        // 4.7.50: Drain and DrainActive are left alone. In DragonMineZ 2.2 they are Bio Android's Vital
+        // Drain (the 6 s channel and the 180 s cooldown), and no regen code reads them. Clearing them every
+        // tick cut every drain before it healed or gave Ki and erased its cooldown, so a Bio could start
+        // drain after drain (each paying LM's old absorb TP).
         if (belowMaxStamina && !dashing) {
             cds.removeCooldown(Cooldowns.STAMINA_PAUSE);
-            cds.removeCooldown(Cooldowns.DRAIN);
-            cds.removeCooldown(Cooldowns.DRAIN_ACTIVE);
         } else if (!dashing && cds.hasCooldown(Cooldowns.STAMINA_PAUSE)) {
             int pause = cds.getCooldown(Cooldowns.STAMINA_PAUSE);
             if (pause > STALE_PAUSE_TICKS || pause > 0) {
                 cds.removeCooldown(Cooldowns.STAMINA_PAUSE);
-            }
-        }
-
-        if (cds.hasCooldown(Cooldowns.DRAIN_ACTIVE)) {
-            int drain = cds.getCooldown(Cooldowns.DRAIN_ACTIVE);
-            if (drain > STALE_DRAIN_TICKS) {
-                cds.removeCooldown(Cooldowns.DRAIN_ACTIVE);
-            }
-        }
-        if (cds.hasCooldown(Cooldowns.DRAIN)) {
-            int drain = cds.getCooldown(Cooldowns.DRAIN);
-            if (drain > STALE_DRAIN_TICKS * 3) {
-                cds.removeCooldown(Cooldowns.DRAIN);
             }
         }
 
@@ -92,14 +81,6 @@ public final class StaminaRegenGuard {
                     res.setCurrentStamina(Math.min(maxS, maxS * 0.02f));
                 } else {
                     nudgeIfStalled(id, curS, maxS, res, cds, dashing);
-                }
-                // Mohist often skips stamina regen while drain flags linger after prestige.
-                if (cds.hasCooldown(Cooldowns.DRAIN) || cds.hasCooldown(Cooldowns.DRAIN_ACTIVE)) {
-                    int d = Math.max(cds.getCooldown(Cooldowns.DRAIN), cds.getCooldown(Cooldowns.DRAIN_ACTIVE));
-                    if (d > 0 && d < STALE_DRAIN_TICKS * 4 && curS < maxS - 0.5f) {
-                        cds.removeCooldown(Cooldowns.DRAIN);
-                        cds.removeCooldown(Cooldowns.DRAIN_ACTIVE);
-                    }
                 }
             } else {
                 clearStall(id);

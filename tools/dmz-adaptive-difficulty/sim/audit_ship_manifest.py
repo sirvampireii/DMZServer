@@ -1886,6 +1886,33 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.50 ---")
+    p50_mx = read(SRC / "mixin/BioAndroidDrainTpMixin.java")
+    p50_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
+    p50_build = read(MOD / "build.sh")
+    check("manifest row for lm 4.7.50", "lm-4750-bio-drain-no-tp" in manifest)
+    check("Bio Android drain-kill TP: grantDrainTp cancelled at HEAD by its full descriptor, required",
+          '@Mixin(targets = "com.dragonminez.common.racial.impl.BioAndroidEvolution", remap = false)' in p50_mx
+          and '"grantDrainTp"' in p50_mx
+          and "Lcom/dragonminez/common/config/GeneralServerConfig$BioAndroidRacialConfig;)V" in p50_mx
+          and '@At("HEAD")' in p50_mx and "cancellable = true" in p50_mx and "require = 1" in p50_mx
+          and "ci.cancel();" in p50_mx)
+    check("drain mixin touches only grantDrainTp (heal, Ki, stun, kill, Majin absorb, Cell Jr untouched)",
+          p50_mx.count("@Inject(") == 1 and p50_mx.count("method = ") == 1
+          and "@ModifyArg" not in p50_mx and "@Redirect" not in p50_mx and "@Overwrite" not in p50_mx)
+    check("drain mixin registered and packed",
+          '"BioAndroidDrainTpMixin"' in p50_json and "BioAndroidDrainTpMixin \\" in p50_build)
+    p50_abs = read(SRC / "progression/tp/BioAndroidAbsorb.java")
+    check("LM absorb pays no TP (no NPC max-HP award, no player TP steal, no max-HP bonus)",
+          "awardTp" not in p50_abs and "addTrainingPoints" not in p50_abs
+          and "removeTrainingPoints" not in p50_abs and "getTrainingPoints" not in p50_abs)
+    p50_guard = read(SRC / "progression/StaminaRegenGuard.java")
+    check("stamina guard never clears the Bio drain cooldowns (Drain, DrainActive)",
+          "removeCooldown(Cooldowns.DRAIN)" not in p50_guard and "removeCooldown(Cooldowns.DRAIN_ACTIVE)" not in p50_guard
+          and "removeCooldown(Cooldowns.STAMINA_PAUSE)" in p50_guard)
+    check("LM absorb still copies a player's skill",
+          "learnableSkills(bioSkills, targetSkills)" in p50_abs and "DmzSkillUtil.setLevel(bioSkills, picked, newLevel);" in p50_abs)
+
     print("\n--- § lm 4.7.49 ---")
     p49_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
     p49_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")

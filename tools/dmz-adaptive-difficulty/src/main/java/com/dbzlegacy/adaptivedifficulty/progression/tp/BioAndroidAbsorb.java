@@ -11,7 +11,7 @@ import com.dragonminez.common.config.SkillsConfig;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.character.Character;
 import com.dragonminez.common.stats.character.Cooldowns;
-import com.dragonminez.common.stats.character.Resources;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dragonminez.common.stats.character.Status;
 import com.dragonminez.common.stats.skills.Skills;
 import java.util.ArrayList;
@@ -73,41 +73,16 @@ public final class BioAndroidAbsorb {
             if (!(target instanceof LivingEntity living)) {
                 return;
             }
-            Resources bioResources = bioData.getResources();
-            if (bioResources == null) {
-                return;
-            }
-
+            // 4.7.50: absorbing pays no TP. Until then an NPC paid 10% of its max HP (a 15B-HP target
+            // paid 1.5B), a player lost 10% of their TP to the Bio, and a player with nothing to learn
+            // paid 5% of their max HP. Only the skill copy below is left.
             if (!(living instanceof ServerPlayer targetPlayer)) {
-                int npcBonus = (int) Math.floor(living.m_21233_() * 0.10);
-                if (npcBonus > 0) {
-                    DmzRewards.awardTp(player, npcBonus, "bio absorb npc", true, "§a[Absorb] ");
-                    SystemTelemetry.log("progression", "bio_absorb_npc", player, null,
-                            Map.of("tp", npcBonus));
-                }
                 return;
             }
-
             StatsData targetData = DmzProgression.stats(targetPlayer);
             if (targetData == null) {
                 return;
             }
-            Resources targetResources = targetData.getResources();
-            if (targetResources == null) {
-                return;
-            }
-            int stolen = (int) Math.floor(targetResources.getTrainingPoints() * 0.10f);
-            if (stolen > 0) {
-                try {
-                    targetResources.removeTrainingPoints(stolen);
-                } catch (Throwable ignored) {
-                }
-                bioResources.addTrainingPoints(stolen);
-                DmzSkillUtil.sync(player);
-                DmzSkillUtil.sync(targetPlayer);
-                DmzRewards.msg(player, "§a[Absorb] Absorbed §e" + stolen + " TP§a from player.");
-            }
-
             Skills bioSkills = bioData.getSkills();
             Skills targetSkills = targetData.getSkills();
             if (bioSkills == null || targetSkills == null) {
@@ -115,14 +90,6 @@ public final class BioAndroidAbsorb {
             }
             List<String> possible = learnableSkills(bioSkills, targetSkills);
             if (possible.isEmpty()) {
-                int bonus = (int) Math.floor(targetPlayer.m_21233_() * 0.05);
-                if (bonus > 0) {
-                    bioResources.addTrainingPoints(bonus);
-                    DmzSkillUtil.sync(player);
-                    DmzRewards.msg(player,
-                            "§a[Absorb] Target had no learnable skills. Gained §e" + bonus
-                                    + " TP§a from max health.");
-                }
                 return;
             }
             int bioLvl = bioData.getLevel();
@@ -142,11 +109,28 @@ public final class BioAndroidAbsorb {
             );
             DmzSkillUtil.setLevel(bioSkills, picked, newLevel);
             DmzSkillUtil.sync(player);
-            DmzRewards.msg(player, "§d[Absorb] Learned §b" + picked + " §dlevel " + newLevel + "§d.");
+            DmzRewards.msg(player, UltraStyle.LIGHT_PURPLE + "[Absorb] You learned " + UltraStyle.AQUA
+                    + skillName(picked) + UltraStyle.LIGHT_PURPLE + " level " + newLevel + " from "
+                    + targetPlayer.m_7755_().getString() + ".");
             SystemTelemetry.log("progression", "bio_absorb_skill", player, targetPlayer,
                     Map.of("skill", picked, "level", newLevel));
         } catch (Throwable ignored) {
         }
+    }
+
+    /** A skill id as players read it: "ki_control" becomes "Ki Control". */
+    private static String skillName(String id) {
+        StringBuilder out = new StringBuilder();
+        for (String word : id.replace('_', ' ').replace('-', ' ').trim().split("\\s+")) {
+            if (word.isEmpty()) {
+                continue;
+            }
+            if (out.length() > 0) {
+                out.append(' ');
+            }
+            out.append(java.lang.Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return out.length() == 0 ? id : out.toString();
     }
 
     private static List<String> learnableSkills(Skills bioSkills, Skills targetSkills) {

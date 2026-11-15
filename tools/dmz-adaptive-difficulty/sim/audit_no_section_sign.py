@@ -40,6 +40,8 @@ MUST_STAY_CLEAN = [
     SRC / "progression" / "shop" / "GodKiEnhancementShop.java",
     # Cleaned 4.6.233: config editor strings routed through UltraStyle - stay clean.
     SRC / "config" / "editor" / "ConfigEditor.java",
+    # Cleaned 4.7.50: Bio absorb copy routed through UltraStyle - stay clean.
+    SRC / "progression" / "tp" / "BioAndroidAbsorb.java",
 ]
 ALLOW_MARK = {(ULTRA / "UltraStyle.java").resolve()}
 
