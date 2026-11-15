@@ -4,8 +4,8 @@ A Forge 1.20.1 mod that carries the HD textures for DragonMineZ and NB Armors, a
 switch between HD and the standard look for their own game. It is a new mod, separate from
 LegacyMechanics. Source: `tools/legacytextures/`.
 
-- **Identity:** modId `legacytextures`, version 0.2.7, `displayTest = MATCH_VERSION`.
-- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.7). See
+- **Identity:** modId `legacytextures`, version 0.2.8, `displayTest = MATCH_VERSION`.
+- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.8). See
   [NB Armors inside Legacy Textures](#nb-armors-inside-legacy-textures). The separate
   `nbarmors-0.1.0.jar` must not be installed next to it, because two copies of a mod id will not load.
 - **Dependencies:**
@@ -225,6 +225,14 @@ has no JSON yet:
   viewers are unchanged. `HdFace` marks the player while `DMZSkinLayer.renderFace` runs and
   `DMZFaceHdMixin` hands the face layers their HD key (`Resolver.hdVariant`); such a face blinks and
   shouts like any HD face. Hair is a separate layer and is not touched.
+  - **Which body counts (0.2.8).** HdFace finds the body the way DragonMineZ 2.2.1.2 does: the model
+    key is the active stack form's custom model, else the form's, else the race's, else the race name
+    (built-in races) or `human`, and a fused player with the partner model uses the race's key. 0.2.7
+    read only the race's custom model, which was wrong both ways: a Makaijin in a pestilence form
+    (`festering_monarch` is `4arms`, `plague_master` `buffed`, `sovereign_of_rot` `buffedg3`) draws a
+    humansaiyan body but kept a vanilla face, and a Majin (race model `human`) in one of the 16 forms
+    with a `majin_`/`janemba_` model draws a Majin body but got an HD face. Glind's transcended form
+    (a humansaiyan body, female body type at least 1) is covered; Glind's true form is not humansaiyan.
 - `categories`:
   - `players`: `dragonminez:textures/entity|armor`, `geo`, `animations`.
   - `armor`: everything in `nbarmors:textures`.
