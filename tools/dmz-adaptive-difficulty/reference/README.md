@@ -573,3 +573,8 @@ files; re-extract from an audited jar when the baseline changes. Keep the `CLASS
 
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.49.jar`; javap diff checked
 (the `4.7.48` -> `4.7.49` constant is the only change). The other 24 are unchanged.
+
+## Re-baseline (2026-11-15, 4.7.50 Bio Android drain TP)
+
+`AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.50.jar`; javap diff checked
+(the `4.7.49` -> `4.7.50` constant is the only change). The other 24 are unchanged.
