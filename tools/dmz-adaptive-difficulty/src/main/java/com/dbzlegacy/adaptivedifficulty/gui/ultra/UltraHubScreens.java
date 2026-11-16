@@ -60,6 +60,7 @@ public final class UltraHubScreens {
         }
         boolean staff = StaffAccess.isStaff(player);
         UltraScreenSpec spec = UltraScreenSpec.of("hub")
+                .fitMenu()
                 .title("Legacy Mechanics")
                 .page("main")
                 .activeTab("home");
@@ -115,6 +116,7 @@ public final class UltraHubScreens {
         bookPages.add(page2);
 
         UltraScreenSpec spec = UltraScreenSpec.of("admin")
+                .fitMenu()
                 .title("Staff Admin")
                 .page("admin")
                 .activeTab("home")

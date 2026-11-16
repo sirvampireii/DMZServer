@@ -1886,6 +1886,41 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.52 ---")
+    p52_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p52_style = read(SRC / "gui/ultra/UltraStyle.java")
+    p52_prev = read(SRC / "gui/ultra/ModelPreview.java")
+    p52_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    p52_doc = read(ROOT / "docs" / "KAIPATH_GUI_PROTOCOL.md")
+    p52_builders = {n: read(SRC / ("gui/ultra/Ultra%sScreens.java" % n)) for n in (
+        "Hub", "Difficulty", "Rival", "Spar", "Prestige", "Character", "Progression", "SkillCheck", "WeightShop")}
+    check("manifest row for lm 4.7.52", "lm-4752-menu-fit" in manifest)
+    check("menu design box is 426x240 (16:9), footer band and content bottom derived from it",
+          "MENU_DESIGN_W = 426;" in p52_style and "MENU_DESIGN_H = 240;" in p52_style
+          and "MENU_FOOTER_Y = MENU_DESIGN_H - (MENU_CLOSE_BAND + MENU_BTN_H);" in p52_style
+          and "MENU_CONTENT_BOTTOM = MENU_FOOTER_Y - MENU_GAP;" in p52_style)
+    check("fitMenu: fillScreen over the menu box, locked, not centered, margin 0; packet asks 1920x1080",
+          "public UltraScreenSpec fitMenu()" in p52_spec and "this.designWidth = UltraStyle.MENU_DESIGN_W;" in p52_spec
+          and "this.centerPanel = false;" in p52_spec and "this.panelMargin = 0;" in p52_spec
+          and "static final int MENU_PANEL_W = 1920;" in p52_spec and "static final int MENU_PANEL_H = 1080;" in p52_spec
+          and "if (menuFit) {\n            return toMenuPacket();" in p52_spec)
+    check("every menu builder frame calls fitMenu (config editor keeps its own box)",
+          all(b.count(".fitMenu()") >= (1 if n in ("SkillCheck", "WeightShop") else 2) for n, b in p52_builders.items())
+          and ".fitMenu()" not in read(SRC / "gui/ultra/UltraConfigScreens.java"))
+    check("reflow: rows packed under the body, regrouped into 2-4 columns of at least 80px when they do not fit",
+          "for (int cols = 2; cols <= Math.min(4, maxCols); cols++)" in p52_spec
+          and "(UltraStyle.BTN_MIN_W + gap)" in p52_spec and "Widening pushed two controls together" in p52_spec)
+    check("model boxes for the menu; scales fit against the box KaiPath draws; uniform-scale note",
+          "MENU_STANDARD = new Box(" in p52_prev and "MENU_FORMS = new Box(" in p52_prev
+          and "public static Box menuBox(Box legacy)" in p52_prev and "This assumes the box is scaled the same in" in p52_prev)
+    check("boot self-test: every builder and the densest page fit the box, template from UltraStyle",
+          "verifyMenuFit();" in p52_test and "public static void verifyMenuFit()" in p52_test
+          and "UltraStyle.MENU_DESIGN_W" in p52_test and "GuiOpenPacket.LAYOUT_JSON_MAX" in p52_test
+          and "ModelPreview.MENU_STANDARD" in p52_test and "UltraConfigScreens.CONFIG_DESIGN_W" in p52_test)
+    check("protocol doc: menu design box and the 16:9 rule; wire unchanged",
+          "every LM menu sets `fillScreen`" in p52_doc and "**The box is 16:9.**" in p52_doc
+          and "protocol `\"1\"`" in p52_doc)
+
     print("\n--- § lm 4.7.51 ---")
     import json as _json51
     p51_cat = read(SRC / "gui/ultra/BodyPartCatalog.java")
@@ -1967,13 +2002,13 @@ def main() -> int:
           < p49_shop.index('"do:bodypart_clear"') < p49_shop.index('"page:bodycolors"') < p49_shop.index("footerBackHome"))
     check("preview forms: bigger box, scale fit to the form; standard box unchanged",
           "FORMS = new Box(190, 46, 144, 186)" in p49_prev and "STANDARD = new Box(248, 60, 86, 120)" in p49_prev
-          and "ModelPreview.formScale(form, box, ModelPreview.BASE_SCALE)" in p49_char
+          and "ModelPreview.formScale(form, ModelPreview.menuBox(box), ModelPreview.BASE_SCALE)" in p49_char
           and "getModelScaling()" in p49_prev and "assets/dragonminez/geo/entity/races/" in p49_prev
           and "Math.min(base, Math.min(heightFit, widthFit))" in p49_prev)
     check("worn and rival forms are fit too",
-          "ModelPreview.wornScale(PlayerModelParts.renderTarget(player), box, ModelPreview.BASE_SCALE)" in p49_char
-          and "ModelPreview.wornScale(rival, box, ModelPreview.BASE_SCALE)" in p49_rival
-          and "ModelPreview.formScale(yours, box, ModelPreview.BASE_SCALE)" in p49_rival)
+          "ModelPreview.wornScale(PlayerModelParts.renderTarget(player), ModelPreview.menuBox(box), ModelPreview.BASE_SCALE)" in p49_char
+          and "ModelPreview.wornScale(rival, ModelPreview.menuBox(box), ModelPreview.BASE_SCALE)" in p49_rival
+          and "ModelPreview.formScale(yours, ModelPreview.menuBox(box), ModelPreview.BASE_SCALE)" in p49_rival)
     check("menu self-test failure logs at boot instead of stopping the server (strict on test servers)",
           "UltraScreenSelfTest.runAll();" in p49_net and 'Boolean.getBoolean("lm.selftest.strict")' in p49_net
           and "Ultra GUI self-test FAILED at boot" in p49_net)

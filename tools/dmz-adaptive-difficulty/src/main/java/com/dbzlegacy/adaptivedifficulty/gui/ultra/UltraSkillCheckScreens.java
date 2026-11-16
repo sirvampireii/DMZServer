@@ -52,6 +52,7 @@ public final class UltraSkillCheckScreens {
         // Compact skills-only list (no DMZ level / Ki / Energy header).
         List<String> lines = ProgressionGuiApi.skillsLines(player, "skillcheck");
         UltraScreenSpec spec = UltraScreenSpec.of(screenId)
+                .fitMenu()
                 .title(title)
                 .page("main")
                 .activeTab("home")

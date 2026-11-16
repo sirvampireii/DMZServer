@@ -102,6 +102,7 @@ public final class UltraDifficultyScreens {
 
     private static UltraScreenSpec base(ServerPlayer player, String page, String tab) {
         UltraScreenSpec spec = UltraScreenSpec.of("difficulty")
+                .fitMenu()
                 .title("Difficulty")
                 .page(page)
                 .activeTab(tab);
@@ -118,6 +119,7 @@ public final class UltraDifficultyScreens {
     /** Subpage: no tab row — dual footer (Back + Main menu). */
     private static UltraScreenSpec sub(String page) {
         return UltraScreenSpec.of("difficulty")
+                .fitMenu()
                 .title("Difficulty")
                 .page(page);
     }

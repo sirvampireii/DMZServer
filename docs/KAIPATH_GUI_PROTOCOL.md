@@ -448,17 +448,40 @@ honor `margin`. Button `x`/`y` are panel-relative.
 
 #### Fullscreen design box
 
-The config editor sets `fillScreen` so the panel uses the whole GUI instead of the
-compact 350x300 dialog. `designWidth` and `designHeight` are the coordinate space the
-server laid out (currently **426x240**, the smallest auto GUI). Scale every button and
-input `x`/`y`/`w`/`h`, and the header/body metrics, from that box onto the panel after
-it has been inset by `margin`.
+Since LM **4.7.52** every LM menu sets `fillScreen` (Hub, Staff Admin, Difficulty, Rival,
+Sparring and the Weights shop, Prestige, Character Services, Progression, Skill Check);
+before that only the staff config editor did. `designWidth` and `designHeight` are the
+coordinate space the server laid out, **426x240** for every screen. Scale every button
+and input `x`/`y`/`w`/`h`, the `playerModel` rectangle, and the header/body metrics from
+that box onto the panel after it has been inset by `margin`.
 
-`panelWidth` and `panelHeight` are a separate clamp request (currently **1920x1080**),
-with `margin` **0** and `center` **false**. Clients that do not know `fillScreen` keep
-that rectangle and clamp it down to the window, which fills the GUI. Controls stay
-inside the 426x240 design box so a 240-tall GUI does not clip them. The category rail
-is **148** px wide inside that box.
+`panelWidth` and `panelHeight` are a separate clamp request (**1920x1080**), with
+`margin` **0** and `center` **false**. Clients that do not know `fillScreen` keep that
+rectangle and clamp it down to the window, which fills the GUI.
+
+Rules LM keeps, so the box can be scaled with no further layout on the client:
+
+- **The box is 16:9.** KaiPath scales x by `window / designWidth` and y by
+  `window / designHeight`. On a 16:9 window the two are equal, so buttons, the model
+  rectangle and the model inside it keep their shape. A box of another shape would stretch
+  them, and the model's fit (`min(w / 0.6, h / 1.8)`) could flip axis and cut a giant form.
+- **426x240 is the smallest auto GUI** (1440p and 4K; 1080p auto is 480x270), so the scale
+  is never below 1. Text is drawn at its normal size, not scaled; a bigger box would shrink
+  buttons under their labels on small windows.
+- **Every control is inside the box**, and every control that is not a footer ends above the
+  footer band: the footer pins at `240 - (28 + 14) = 198` on a 240-tall GUI, so content ends
+  at **195**. KaiPath clamps neither buttons nor inputs.
+- Menu metrics: buttons **14** tall, **3** px apart; body lines **11 + 1**, pad **3**; tabs at
+  y **28**; content from y **46** with tabs, **42** without; content **10** px from each side;
+  the footer's Main menu ends on the box's right edge (`x + 150 = 426`).
+- The model preview sits on the right (`ModelPreview.MENU_STANDARD` 330,46 86x120;
+  `MENU_FORMS` 317,46 99x128), its spin toggle under it; the body text stops 8 px left of it.
+
+LM builders still lay out on the legacy 350-wide grid; `UltraScreenSpec.fitMenu()` reflows that
+into the box when the packet is built (columns widened to the box, rows packed under the body,
+and regrouped into up to four equal columns when they would not fit). The wire is unchanged:
+no new keys, protocol `"1"`. The staff config editor keeps its own 426x240 layout with a
+**148** px category rail.
 
 ```json
 "fillScreen": true,

@@ -583,3 +583,9 @@ files; re-extract from an audited jar when the baseline changes. Keep the `CLASS
 
 `AdaptiveDifficultyMod` (version string only) re-baselined for `LegacyMechanics-4.7.51.jar`; javap diff checked
 (the `4.7.50` -> `4.7.51` constant is the only change). The other 24 are unchanged.
+
+## Re-baseline (2026-11-16, 4.7.52 menu fit)
+
+`AdaptiveDifficultyMod` (version string only) and `gui/ultra/UltraPrestigeScreens` (the two new
+`UltraScreenSpec.fitMenu()` calls in `base`/`sub`, nothing else) re-baselined for
+`LegacyMechanics-4.7.52.jar`; javap diffs checked. The other 23 are unchanged.

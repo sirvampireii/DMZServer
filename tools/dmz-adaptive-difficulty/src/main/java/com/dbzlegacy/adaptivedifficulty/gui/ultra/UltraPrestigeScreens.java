@@ -121,6 +121,7 @@ public final class UltraPrestigeScreens {
 
     private static UltraScreenSpec base(String page, String tab) {
         return UltraScreenSpec.of("prestige")
+                .fitMenu()
                 .title("Prestige")
                 .page(page)
                 .activeTab(tab)
@@ -130,6 +131,7 @@ public final class UltraPrestigeScreens {
     /** Subpage: no tab row - dual footer (Back + Main menu). */
     private static UltraScreenSpec sub(String page) {
         return UltraScreenSpec.of("prestige")
+                .fitMenu()
                 .title("Prestige")
                 .page(page);
     }

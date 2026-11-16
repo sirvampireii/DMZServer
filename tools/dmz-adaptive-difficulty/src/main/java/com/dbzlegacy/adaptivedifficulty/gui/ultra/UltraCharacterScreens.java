@@ -117,6 +117,7 @@ public final class UltraCharacterScreens {
     private static UltraScreenSpec base(ServerPlayer player, String page, String tab, boolean preview) {
         // y=60 sits below the tab button row (TAB_ROW_Y + BTN_H); y=36 clipped the head.
         UltraScreenSpec spec = UltraScreenSpec.of("character")
+                .fitMenu()
                 .title("Character Services")
                 .page(page)
                 .activeTab(tab)
@@ -135,6 +136,7 @@ public final class UltraCharacterScreens {
     /** Subpage: no tab row — dual footer (Back + Main menu). */
     private static UltraScreenSpec sub(ServerPlayer player, String page, boolean preview) {
         UltraScreenSpec spec = UltraScreenSpec.of("character")
+                .fitMenu()
                 .title("Character Services")
                 .page(page)
                 .lineGap(2)
@@ -153,7 +155,7 @@ public final class UltraCharacterScreens {
     private static void standardModel(UltraScreenSpec spec, ServerPlayer player) {
         ModelPreview.Box box = ModelPreview.STANDARD;
         spec.playerModel(player, box.x(), box.y(), box.w(), box.h(),
-                ModelPreview.wornScale(PlayerModelParts.renderTarget(player), box, ModelPreview.BASE_SCALE),
+                ModelPreview.wornScale(PlayerModelParts.renderTarget(player), ModelPreview.menuBox(box), ModelPreview.BASE_SCALE),
                 ModelPreview.rotate(player));
     }
 
@@ -308,7 +310,7 @@ public final class UltraCharacterScreens {
         ModelPreview.Box box = ModelPreview.FORMS;
         UltraScreenSpec spec = sub(player, page, false)
                 .playerModel(box.x(), box.y(), box.w(), box.h(),
-                        ModelPreview.formScale(form, box, ModelPreview.BASE_SCALE), ModelPreview.rotate(player),
+                        ModelPreview.formScale(form, ModelPreview.menuBox(box), ModelPreview.BASE_SCALE), ModelPreview.rotate(player),
                         ModelPreview.formFigure(player, form))
                 .line(UltraStyle.LABEL + "Preview forms")
                 .labelValue("Form", form.label() + " (" + (i + 1) + " of " + n + ")")
@@ -862,7 +864,7 @@ public final class UltraCharacterScreens {
                 part ? id : null, part ? null : CosmeticHeadBoneService.tokenWith(player, id));
         ModelPreview.Box box = ModelPreview.STANDARD;
         spec.playerModel(box.x(), box.y(), box.w(), box.h(),
-                ModelPreview.wornScale(PlayerModelParts.renderTarget(player), box, ModelPreview.BASE_SCALE),
+                ModelPreview.wornScale(PlayerModelParts.renderTarget(player), ModelPreview.menuBox(box), ModelPreview.BASE_SCALE),
                 ModelPreview.rotate(player), preview);
         // Single-tail rule: a tail you already wear (form or shop) keeps the slot, so say so.
         boolean shown = !part || (preview != null && preview.toString().contains("\"" + id + "\""));
