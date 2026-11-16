@@ -97,6 +97,7 @@ public final class UltraScreenSelfTest {
         UltraScreenSpec spec =
                 switch (id) {
                     case "hub" -> UltraScreenSpec.of("hub")
+                            .fitMenu()
                             .title("Legacy Mechanics")
                             .page("main")
                             .activeTab("home")
@@ -111,6 +112,7 @@ public final class UltraScreenSelfTest {
                             .buttonLeft("open:skillcheck", "Skill Check", "confirm")
                             .buttonRight("open:character", "Character", "confirm");
                     case "admin" -> UltraScreenSpec.of("admin")
+                            .fitMenu()
                             .title("Staff Admin")
                             .page("admin")
                             .activeTab("home")
@@ -121,6 +123,7 @@ public final class UltraScreenSelfTest {
                             .buttonRight("open:config", "Config", "normal")
                             .footerBackToMain();
                     case "difficulty" -> UltraScreenSpec.of("difficulty")
+                            .fitMenu()
                             .title("Difficulty")
                             .page("main")
                             .activeTab("home")
@@ -129,6 +132,7 @@ public final class UltraScreenSelfTest {
                             .buttonLeft("tab:tiers", "Tiers", "normal")
                             .footerBackToMain();
                     case "rival" -> UltraScreenSpec.of("rival")
+                            .fitMenu()
                             .title("Rival")
                             .page("home")
                             .activeTab("home")
@@ -136,6 +140,7 @@ public final class UltraScreenSelfTest {
                             .line("self-test")
                             .footerBackToMain();
                     case "spar" -> UltraScreenSpec.of("spar")
+                            .fitMenu()
                             .title("Sparring")
                             .page("main")
                             .activeTab("home")
@@ -143,6 +148,7 @@ public final class UltraScreenSelfTest {
                             .line("self-test")
                             .footerBackToMain();
                     case "prestige" -> UltraScreenSpec.of("prestige")
+                            .fitMenu()
                             .title("Prestige")
                             .page("shop")
                             .activeTab("shop")
@@ -153,6 +159,7 @@ public final class UltraScreenSelfTest {
                             .line("self-test")
                             .footerBackToMain();
                     case "character" -> UltraScreenSpec.of("character")
+                            .fitMenu()
                             .title("Character Services")
                             .page("main")
                             .activeTab("home")
@@ -161,18 +168,21 @@ public final class UltraScreenSelfTest {
                             .playerModel(248, 60, 86, 120, 0.9f, true)
                             .footerBackToMain();
                     case "skillcheck" -> UltraScreenSpec.of("skillcheck")
+                            .fitMenu()
                             .title("Skill Check")
                             .page("main")
                             .activeTab("home")
                             .line("self-test")
                             .footerBackToMain();
                     case "skills" -> UltraScreenSpec.of("skills")
+                            .fitMenu()
                             .title("Skills")
                             .page("main")
                             .activeTab("home")
                             .line("self-test")
                             .footerBackToMain();
                     case "progression" -> UltraScreenSpec.of("progression")
+                            .fitMenu()
                             .title("Progression")
                             .page("main")
                             .activeTab("home")
@@ -722,8 +732,14 @@ public final class UltraScreenSelfTest {
             if (!layout.contains("playerModel")) {
                 broken.add("character: layoutJson missing playerModel");
             }
-            if (!layout.contains("\"y\":60") && !layout.contains("\"y\": 60")) {
-                broken.add("character: playerModel y must be 60 (was 36 - head clipped)");
+            // 4.7.52: menus are fit to the design box; the standard model is drawn at its menu box.
+            JsonObject pm = JsonParser.parseString(layout).getAsJsonObject().has("playerModel")
+                    ? JsonParser.parseString(layout).getAsJsonObject().getAsJsonObject("playerModel")
+                    : new JsonObject();
+            ModelPreview.Box want = ModelPreview.MENU_STANDARD;
+            if (!pm.has("y") || pm.get("x").getAsInt() != want.x() || pm.get("y").getAsInt() != want.y()
+                    || pm.get("width").getAsInt() != want.w() || pm.get("height").getAsInt() != want.h()) {
+                broken.add("character: playerModel must be drawn at ModelPreview.MENU_STANDARD " + want + ", got " + pm);
             }
             if (layout.contains("\"scale\":1.5") || layout.contains("\"scale\": 1.5")) {
                 broken.add("character: playerModel scale 1.5 overshoots panel - use 0.9");
@@ -886,6 +902,151 @@ public final class UltraScreenSelfTest {
         verifyFirstSuperformChoice();
         verifyPickerPaging();
         verifyTitlesSurvivePrestige();
+        verifyMenuFit();
+    }
+
+    /**
+     * Every menu is fit to the window (4.7.52), the template {@link #checkConfigFullscreen} set for
+     * the config editor: a 1920x1080 clamp request, fillScreen over a 16:9 design box, margin 0,
+     * not centered, and every control inside the box. KaiPath clamps neither buttons nor inputs, so
+     * one outside the box would be drawn off the window. The box comes from {@link UltraStyle}, not
+     * from numbers here.
+     */
+    public static void verifyMenuFit() {
+        List<String> broken = new ArrayList<>();
+        int boxW = UltraStyle.MENU_DESIGN_W;
+        int boxH = UltraStyle.MENU_DESIGN_H;
+        // 16:9 to the pixel: the width is the height's 16:9 width rounded (240 tall -> 426.67 -> 426).
+        if (Math.abs(boxW - boxH * 16 / 9.0) >= 1.0) {
+            broken.add("menu design box " + boxW + "x" + boxH + " must be 16:9 or KaiPath stretches buttons");
+        }
+        for (String id : UltraScreenIds.BUILDER_IDS) {
+            if (id == null || id.isBlank() || "config".equals(id)) {
+                continue;
+            }
+            for (GuiOpenPacket pkt : UltraScreenSpec.captureSends(() -> probeBuilder(id))) {
+                checkMenuPacket(broken, id, pkt, true);
+            }
+        }
+        // The densest real page shape: tabs, a model with its spin toggle, body text, a search
+        // field with its button, and 19 controls (the Body Parts shop).
+        UltraScreenSpec dense = UltraScreenSpec.of("character")
+                .fitMenu()
+                .title("Character Services")
+                .page("bodyparts:0")
+                .playerModel(ModelPreview.STANDARD.x(), ModelPreview.STANDARD.y(), ModelPreview.STANDARD.w(),
+                        ModelPreview.STANDARD.h(), 0.9f, true)
+                .line("Body parts 1/14 On: none")
+                .line("Extra pieces for your model. A locked piece charges Ancient Coins when you turn it on.")
+                .line("Shown on model previews; unlocked pieces stay in your list.")
+                .buttonsAfterLines();
+        dense.fixedButton("do:model_rotate:bodyparts:0", "Stop spin", "normal",
+                ModelPreview.STANDARD.x(), ModelPreview.STANDARD.y() + ModelPreview.STANDARD.h() + 4, 86);
+        for (int i = 0; i < 18; i++) {
+            if (i % 2 == 0) {
+                dense.buttonLeft("page:bodyparts:" + i, "Part " + i, "normal");
+            } else {
+                dense.buttonRight("page:bodyparts:" + i, "Part " + i, "normal").rowGap();
+            }
+        }
+        dense.textField("input:bodypart_query", "", "e.g. horns", UltraStyle.COL_L, dense.row(), 200,
+                UltraStyle.BTN_H, 32);
+        dense.buttonBound("page:bodyparts_find", "Find", "normal", 222, dense.row(), 90, "input:bodypart_query");
+        dense.footerBackHome("Character Home");
+        checkMenuPacket(broken, "dense", dense.toPacket(), true);
+
+        if (broken.isEmpty()) {
+            LmLog.event("[{}] Ultra menu fit self-check OK", AdaptiveDifficultyMod.MOD_ID);
+        } else {
+            AdaptiveDifficultyMod.LOGGER.error(
+                    "[{}] Ultra menu fit self-check FAILED: {}", AdaptiveDifficultyMod.MOD_ID, broken);
+            throw new IllegalStateException("LegacyMechanics Ultra menu fit self-check failed: " + broken);
+        }
+    }
+
+    /** The fit template on one menu packet: clamp request, design box, and every control inside it. */
+    private static void checkMenuPacket(List<String> broken, String tag, GuiOpenPacket pkt, boolean footer) {
+        int boxW = UltraStyle.MENU_DESIGN_W;
+        int boxH = UltraStyle.MENU_DESIGN_H;
+        if (pkt.panelWidth() != 1920 || pkt.panelHeight() != 1080) {
+            broken.add(tag + ": menu must request 1920x1080, got " + pkt.panelWidth() + "x" + pkt.panelHeight());
+        }
+        JsonObject lay = JsonParser.parseString(pkt.layoutJson()).getAsJsonObject();
+        if (!lay.has("fillScreen") || !lay.get("fillScreen").getAsBoolean()) {
+            broken.add(tag + ": menu must set fillScreen");
+            return;
+        }
+        if (lay.get("designWidth").getAsInt() != boxW || lay.get("designHeight").getAsInt() != boxH) {
+            broken.add(tag + ": design box must be " + boxW + "x" + boxH + ", got "
+                    + lay.get("designWidth") + "x" + lay.get("designHeight"));
+        }
+        if (!lay.has("margin") || lay.get("margin").getAsInt() != 0) {
+            broken.add(tag + ": menu must set margin 0");
+        }
+        if (!lay.has("center") || lay.get("center").getAsBoolean()) {
+            broken.add(tag + ": menu must set center false");
+        }
+        if (pkt.layoutJson().length() > GuiOpenPacket.LAYOUT_JSON_MAX) {
+            broken.add(tag + ": layoutJson " + pkt.layoutJson().length() + " chars is over the "
+                    + GuiOpenPacket.LAYOUT_JSON_MAX + " cap; fillScreen would be dropped");
+        }
+        List<int[]> rects = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        int mainX = -1;
+        for (String json : new String[] {pkt.buttonsJson(), pkt.inputsJson()}) {
+            if (json == null || json.isBlank()) {
+                continue;
+            }
+            for (JsonElement el : JsonParser.parseString(json).getAsJsonArray()) {
+                JsonObject o = el.getAsJsonObject();
+                int x = o.get("x").getAsInt();
+                int y = o.get("y").getAsInt();
+                int w = o.get("w").getAsInt();
+                int h = o.get("h").getAsInt();
+                String name = o.has("label") ? UltraStyle.plain(o.get("label").getAsString()) : o.get("id").getAsString();
+                boolean isFooter = o.has("footer") && o.get("footer").getAsBoolean();
+                if (x < 0 || y < 0 || x + w > boxW || y + h > boxH) {
+                    broken.add(tag + ": '" + name + "' at " + x + "," + y + " " + w + "x" + h + " is outside the "
+                            + boxW + "x" + boxH + " design box");
+                }
+                if (!isFooter && y + h > UltraStyle.MENU_CONTENT_BOTTOM) {
+                    broken.add(tag + ": '" + name + "' ends at y=" + (y + h) + ", into the footer band (content ends at "
+                            + UltraStyle.MENU_CONTENT_BOTTOM + ")");
+                }
+                if (isFooter && "Main menu".equals(name)) {
+                    mainX = x;
+                }
+                if (o.has("label") && w < UltraStyle.BTN_MIN_W) {
+                    broken.add(tag + ": '" + name + "' is " + w + "px wide, under the " + UltraStyle.BTN_MIN_W + "px minimum");
+                }
+                rects.add(new int[] {x, y, w, h});
+                names.add(name);
+            }
+        }
+        if (lay.has("playerModel")) {
+            JsonObject pm = lay.getAsJsonObject("playerModel");
+            int x = pm.get("x").getAsInt();
+            int y = pm.get("y").getAsInt();
+            int w = pm.get("width").getAsInt();
+            int h = pm.get("height").getAsInt();
+            if (x < 0 || y < 0 || x + w > boxW || y + h > UltraStyle.MENU_CONTENT_BOTTOM) {
+                broken.add(tag + ": model preview " + x + "," + y + " " + w + "x" + h + " is outside the design box");
+            }
+            rects.add(new int[] {x, y, w, h});
+            names.add("model preview");
+        }
+        for (int a = 0; a < rects.size(); a++) {
+            for (int b = a + 1; b < rects.size(); b++) {
+                int[] p = rects.get(a);
+                int[] q = rects.get(b);
+                if (p[0] < q[0] + q[2] && q[0] < p[0] + p[2] && p[1] < q[1] + q[3] && q[1] < p[1] + p[3]) {
+                    broken.add(tag + ": '" + names.get(a) + "' overlaps '" + names.get(b) + "'");
+                }
+            }
+        }
+        if (footer && mainX >= 0 && mainX + UltraStyle.BTN_W != boxW) {
+            broken.add(tag + ": Main menu must sit on the design-box right edge, x=" + mainX);
+        }
     }
 
     public static void verifyBodyCap() {

@@ -102,6 +102,7 @@ public final class UltraRivalScreens {
 
     private static UltraScreenSpec base(String page, String tab) {
         return UltraScreenSpec.of("rival")
+                .fitMenu()
                 .title("Rivals")
                 .page(page)
                 .activeTab(tab)
@@ -111,6 +112,7 @@ public final class UltraRivalScreens {
     /** Subpage: no tab row — dual footer (Back + Main menu). */
     private static UltraScreenSpec sub(String page) {
         return UltraScreenSpec.of("rival")
+                .fitMenu()
                 .title("Rivals")
                 .page(page);
     }
@@ -481,8 +483,8 @@ public final class UltraRivalScreens {
         ModelPreview.Box box = ModelPreview.STANDARD;
         // 4.7.49: scale fit to the form shown, so a rival or "you" in a giant form fits the box.
         float scale = rivalShown
-                ? ModelPreview.wornScale(rival, box, ModelPreview.BASE_SCALE)
-                : ModelPreview.formScale(yours, box, ModelPreview.BASE_SCALE);
+                ? ModelPreview.wornScale(rival, ModelPreview.menuBox(box), ModelPreview.BASE_SCALE)
+                : ModelPreview.formScale(yours, ModelPreview.menuBox(box), ModelPreview.BASE_SCALE);
         spec.playerModel(box.x(), box.y(), box.w(), box.h(), scale, ModelPreview.rotate(player),
                 rivalShown ? ModelPreview.rivalFigure(player, rival) : ModelPreview.formFigure(player, yours));
         spec.line(UltraStyle.LABEL + "Rival profile")

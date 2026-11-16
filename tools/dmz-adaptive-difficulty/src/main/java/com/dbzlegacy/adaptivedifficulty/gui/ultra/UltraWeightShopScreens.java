@@ -517,6 +517,7 @@ public final class UltraWeightShopScreens {
     /** Weights shop / confirm — Sparring subpages without the system tab row. */
     private static UltraScreenSpec sub(String page) {
         return UltraScreenSpec.of("spar")
+                .fitMenu()
                 .title("Sparring")
                 .page(page);
     }

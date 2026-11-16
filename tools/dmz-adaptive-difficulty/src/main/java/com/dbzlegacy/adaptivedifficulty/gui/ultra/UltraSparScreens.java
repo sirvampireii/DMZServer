@@ -121,6 +121,7 @@ public final class UltraSparScreens {
 
     private static UltraScreenSpec base(String page, String tab) {
         return UltraScreenSpec.of("spar")
+                .fitMenu()
                 .title("Sparring")
                 .page(page)
                 .activeTab(tab)
@@ -130,6 +131,7 @@ public final class UltraSparScreens {
     /** Subpage: no tab row — dual footer (Back + Main menu). */
     private static UltraScreenSpec sub(String page) {
         return UltraScreenSpec.of("spar")
+                .fitMenu()
                 .title("Sparring")
                 .page(page);
     }

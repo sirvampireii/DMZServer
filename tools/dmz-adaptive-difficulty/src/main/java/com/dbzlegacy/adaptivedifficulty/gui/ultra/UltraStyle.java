@@ -130,6 +130,43 @@ public final class UltraStyle {
     public static final int CONTENT_ROW = 50;
     /** Default content row after title + tab button row (tab bottom + 8px). */
     public static final int CONTENT_ROW_TABS = TAB_ROW_Y + BTN_H + 8;
+
+    /*
+     * Menu design box (4.7.52). Every LM menu is sent with fillScreen: KaiPath scales this box
+     * onto the whole window (x by window/MENU_DESIGN_W, y by window/MENU_DESIGN_H), the way the
+     * staff config editor already works. Builders still lay out on the legacy 350-wide grid
+     * above; UltraScreenSpec reflows that into this box when it builds the packet.
+     *
+     * 426x240 is 16:9 (so x and y scale alike on a 16:9 window and buttons are not stretched)
+     * and is the smallest GUI Minecraft's auto scale gives (1440p and 4K); 1080p auto is 480x270.
+     * KaiPath scales geometry but draws text at its normal size, so a bigger box would shrink
+     * buttons below their labels on small windows; at 426x240 the scale is never below 1.
+     */
+    public static final int MENU_DESIGN_W = 426;
+    public static final int MENU_DESIGN_H = 240;
+    /** Left and right inset of menu content inside the design box. */
+    public static final int MENU_EDGE = 10;
+    /** Menu button height: tighter than BTN_H so more rows fit (font is 9px). */
+    public static final int MENU_BTN_H = 14;
+    /** Gap between menu button rows and between buttons on one row. */
+    public static final int MENU_GAP = 3;
+    /** Body line height and gap in menus (top-to-top 12px). */
+    public static final int MENU_LINE_H = 11;
+    public static final int MENU_LINE_GAP = 1;
+    public static final int MENU_BODY_PAD = 3;
+    /** Tab row Y in menus; the title and divider end above it. */
+    public static final int MENU_TAB_Y = TAB_ROW_Y;
+    /** Header bottom in menus without tabs. */
+    public static final int MENU_HEADER_BOTTOM = BODY_TOP;
+    /** KaiPath keeps this band under the footer for its own Close button (screen pixels, not scaled). */
+    public static final int MENU_CLOSE_BAND = 28;
+    /**
+     * Footer Y in the design box: KaiPath pins the footer at {@code panel - (close band + button)},
+     * which on the smallest (240-tall) GUI is this design Y. On bigger windows it is lower, never higher.
+     */
+    public static final int MENU_FOOTER_Y = MENU_DESIGN_H - (MENU_CLOSE_BAND + MENU_BTN_H);
+    /** Lowest Y menu content may reach: one gap above the footer. */
+    public static final int MENU_CONTENT_BOTTOM = MENU_FOOTER_Y - MENU_GAP;
     /** Title alignment in layoutJson: {@code center} or {@code left}. */
     public static final String TITLE_ALIGN = "center";
 

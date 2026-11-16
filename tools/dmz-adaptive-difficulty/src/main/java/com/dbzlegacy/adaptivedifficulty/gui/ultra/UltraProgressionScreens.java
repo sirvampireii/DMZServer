@@ -36,6 +36,7 @@ public final class UltraProgressionScreens {
 
     private static UltraScreenSpec base(String page, String tab) {
         return UltraScreenSpec.of("progression")
+                .fitMenu()
                 .title("Progression")
                 .page(page)
                 .activeTab(tab)
@@ -45,6 +46,7 @@ public final class UltraProgressionScreens {
     /** Subpage: no tab row — dual footer (Back + Main menu). */
     private static UltraScreenSpec sub(String page) {
         return UltraScreenSpec.of("progression")
+                .fitMenu()
                 .title("Progression")
                 .page(page);
     }

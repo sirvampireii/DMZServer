@@ -28,6 +28,9 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public final class UltraScreenSpec {
     private static final Gson GSON = new Gson();
+    /** Clamp request of a {@link #fitMenu} screen: larger than any GUI, so it fills the window. */
+    static final int MENU_PANEL_W = 1920;
+    static final int MENU_PANEL_H = 1080;
 
     /** When set, {@link #send} captures packets instead of transmitting (startup self-test). */
     private static final ThreadLocal<List<GuiOpenPacket>> PROBE = new ThreadLocal<>();
@@ -66,6 +69,12 @@ public final class UltraScreenSpec {
      */
     private int designWidth;
     private int designHeight;
+    /**
+     * Menu fit (4.7.52, {@link #fitMenu}): the packet is the 1920x1080 clamp request with
+     * fillScreen and the {@link UltraStyle#MENU_DESIGN_W}x{@link UltraStyle#MENU_DESIGN_H} design
+     * box, and {@link #toPacket} reflows the legacy 350-grid layout into that box.
+     */
+    private boolean menuFit;
     private PlayerModel playerModel;
     /** Lowest button top Y seen so far; used to size the body scroll region. */
     private int firstButtonY = -1;
@@ -227,6 +236,35 @@ public final class UltraScreenSpec {
     }
 
     /**
+     * Fit this menu to the window like the staff config editor (4.7.52): the packet asks for a
+     * {@code 1920x1080} panel, locked, with {@code fillScreen} over the
+     * {@link UltraStyle#MENU_DESIGN_W}x{@link UltraStyle#MENU_DESIGN_H} design box, not centered,
+     * margin 0. KaiPath then scales the box onto the whole window, and a client that ignores
+     * {@code fillScreen} clamps the 1920x1080 request to the window.
+     *
+     * <p>Builders keep laying out on the legacy 350-wide grid ({@link UltraStyle#COL_L},
+     * {@link UltraStyle#COL_R}, {@link #rowGap}); {@link #toPacket} reflows it into the design box:
+     * columns are widened to the box, rows are packed under the body text and, when they would
+     * not fit above the footer, regrouped into up to four columns. Call it before any
+     * {@link #line} so body text wraps to the wider box.
+     */
+    public UltraScreenSpec fitMenu() {
+        this.menuFit = true;
+        this.fillScreen = true;
+        this.designWidth = UltraStyle.MENU_DESIGN_W;
+        this.designHeight = UltraStyle.MENU_DESIGN_H;
+        this.lockPanel = true;
+        this.centerPanel = false;
+        this.panelMargin = 0;
+        return this;
+    }
+
+    /** Whether {@link #fitMenu} was called. */
+    public boolean menuFit() {
+        return menuFit;
+    }
+
+    /**
      * Optional client-rendered player model preview. Unknown clients ignore this field;
      * layout and buttons still work. JLDK draws the entity; LM only declares bounds.
      */
@@ -324,6 +362,11 @@ public final class UltraScreenSpec {
 
     /** Pixel width of the body text box for the panel and player model set so far. */
     private int bodyFitPx() {
+        if (menuFit) {
+            // Wrap to the body KaiPath draws in the design box: left of the menu model box.
+            int modelX = playerModel == null ? -1 : menuModelBox().x();
+            return UltraStyle.bodyTextFitPx(UltraStyle.MENU_DESIGN_W, modelX);
+        }
         int modelX = playerModel == null ? -1 : playerModel.x;
         return UltraStyle.bodyTextFitPx(panelWidth, modelX);
     }
@@ -477,7 +520,8 @@ public final class UltraScreenSpec {
                 false,
                 UltraStyle.SOUND_CONFIRM,
                 UltraStyle.BUTTON_SKIN,
-                ""));
+                "",
+                label));
         return this;
     }
 
@@ -511,7 +555,8 @@ public final class UltraScreenSpec {
                         b.footer,
                         b.sound,
                         b.buttonSkin,
-                        norm));
+                        norm,
+                        b.raw));
         return this;
     }
 
@@ -661,7 +706,8 @@ public final class UltraScreenSpec {
                         true,
                         UltraStyle.SOUND_CONFIRM,
                         UltraStyle.BUTTON_SKIN,
-                        ""));
+                        "",
+                        label));
     }
 
     /**
@@ -761,6 +807,9 @@ public final class UltraScreenSpec {
 
     /** Build the wire packet without sending. */
     public GuiOpenPacket toPacket() {
+        if (menuFit) {
+            return toMenuPacket();
+        }
         // Pinned footer band (left/right Back + Main menu) reserved under scrollable body.
         int footerReserve =
                 footerButtons.isEmpty()
@@ -908,7 +957,8 @@ public final class UltraScreenSpec {
                             true,
                             b.sound,
                             b.buttonSkin,
-                            b.icon),
+                            b.icon,
+                            b.raw),
                     0,
                     height);
         }
@@ -1025,6 +1075,362 @@ public final class UltraScreenSpec {
                 GSON.toJson(inputArr));
     }
 
+    /** The menu design box the player model is drawn in ({@link ModelPreview#menuBox}). */
+    private ModelPreview.Box menuModelBox() {
+        return ModelPreview.menuBox(
+                new ModelPreview.Box(playerModel.x, playerModel.y, playerModel.width, playerModel.height));
+    }
+
+    /** One control of the menu reflow: a button or an input, with its legacy rectangle. */
+    private record Cell(Button button, Input input, int x, int y, int w, int h) {
+        boolean isButton() {
+            return button != null;
+        }
+    }
+
+    /** One row of the menu reflow: its cells, its design-box height, and whether it is a regrouped grid row. */
+    private record Row(List<Cell> cells, int h, boolean grid) {}
+
+    /** Design-box height of a legacy control in a menu row. */
+    private static int menuCellH(Cell c) {
+        if (c.isButton()) {
+            return UltraStyle.MENU_BTN_H;
+        }
+        if ("paged_book".equalsIgnoreCase(c.input().type)) {
+            return Math.max(40, Math.round(c.h() * 0.75f));
+        }
+        return UltraStyle.MENU_BTN_H + 2;
+    }
+
+    /** Rows sharing a legacy Y, top to bottom, cells left to right. */
+    private static List<Row> menuRows(List<Cell> cells) {
+        java.util.TreeMap<Integer, List<Cell>> byY = new java.util.TreeMap<>();
+        for (Cell c : cells) {
+            byY.computeIfAbsent(c.y(), k -> new ArrayList<>()).add(c);
+        }
+        List<Row> rows = new ArrayList<>();
+        for (List<Cell> row : byY.values()) {
+            row.sort(java.util.Comparator.comparingInt(Cell::x));
+            int h = 0;
+            for (Cell c : row) {
+                h = Math.max(h, menuCellH(c));
+            }
+            rows.add(new Row(row, h, false));
+        }
+        return rows;
+    }
+
+    /**
+     * The same controls in {@code cols} equal columns, in reading order. A row holding an input
+     * keeps its own line, so a search field and its button stay together.
+     */
+    private static List<Row> menuGrid(List<Row> rows, int cols) {
+        List<Row> out = new ArrayList<>();
+        List<Cell> pending = new ArrayList<>();
+        for (Row r : rows) {
+            if (r.cells().stream().allMatch(Cell::isButton)) {
+                pending.addAll(r.cells());
+                continue;
+            }
+            flushGrid(out, pending, cols);
+            out.add(r);
+        }
+        flushGrid(out, pending, cols);
+        return out;
+    }
+
+    private static void flushGrid(List<Row> out, List<Cell> pending, int cols) {
+        for (int i = 0; i < pending.size(); i += cols) {
+            out.add(new Row(new ArrayList<>(pending.subList(i, Math.min(pending.size(), i + cols))),
+                    UltraStyle.MENU_BTN_H, true));
+        }
+        pending.clear();
+    }
+
+    private static int menuRowsHeight(List<Row> rows) {
+        int h = 0;
+        for (Row r : rows) {
+            h += r.h();
+        }
+        return h + Math.max(0, rows.size() - 1) * UltraStyle.MENU_GAP;
+    }
+
+    /** Column count of the regrouped grid: its widest row. */
+    private static int gridCols(List<Row> rows) {
+        int cols = 1;
+        for (Row r : rows) {
+            if (r.grid()) {
+                cols = Math.max(cols, r.cells().size());
+            }
+        }
+        return cols;
+    }
+
+    /** Button label fitted to {@code w}, with this button's ink (same rules as {@link #addButton}). */
+    private String menuLabel(Button b, int w) {
+        String raw = b.raw == null ? UltraStyle.plain(b.label) : b.raw;
+        int px = UltraStyle.labelMaxWidth(w);
+        String plain = UltraStyle.plain(raw);
+        String fitted = b.footer && UltraStyle.textWidthPx(plain) <= px
+                ? plain
+                : UltraStyle.fitAsciiLabel(UltraStyle.clipPlain(raw, px), px);
+        return plainWireLabel(fitted, b.accent);
+    }
+
+    private Button menuButton(Button b, int x, int y, int w, int h) {
+        return new Button(b.actionId, menuLabel(b, w), b.style, x, y, w, h, b.pad, b.bindInput, b.accent,
+                b.footer, b.sound, b.buttonSkin, b.icon, b.raw);
+    }
+
+    /**
+     * {@link #toPacket} for a {@link #fitMenu} screen: every control inside the
+     * {@link UltraStyle#MENU_DESIGN_W}x{@link UltraStyle#MENU_DESIGN_H} design box.
+     *
+     * <ul>
+     *   <li>Title band, then the tabs at {@link UltraStyle#MENU_TAB_Y} across the box.
+     *   <li>Player model at its {@link ModelPreview#menuBox} on the right, its spin toggle under it.
+     *   <li>Body text from the content top, as tall as the room the controls leave (it scrolls).
+     *   <li>Controls in their legacy rows, widened from the 350 grid to the content width and packed
+     *       under the body. When they would not fit above the footer with two body lines left, they
+     *       are regrouped into the fewest equal columns (2 to 4, each at least
+     *       {@link UltraStyle#BTN_MIN_W} wide) that fit.
+     *   <li>Footer at {@link UltraStyle#MENU_FOOTER_Y}: Back on the left, Main menu flush right.
+     * </ul>
+     */
+    private GuiOpenPacket toMenuPacket() {
+        final int boxW = UltraStyle.MENU_DESIGN_W;
+        final int boxH = UltraStyle.MENU_DESIGN_H;
+        final int edge = UltraStyle.MENU_EDGE;
+        final int gap = UltraStyle.MENU_GAP;
+        final int bh = UltraStyle.MENU_BTN_H;
+        boolean hasTabs = !tabs.isEmpty();
+        int headerBottom = hasTabs ? UltraStyle.MENU_TAB_Y : UltraStyle.MENU_HEADER_BOTTOM;
+        int contentTop = hasTabs ? UltraStyle.MENU_TAB_Y + bh + 4 : UltraStyle.MENU_HEADER_BOTTOM;
+        int contentBottom = footerButtons.isEmpty()
+                ? boxH - UltraStyle.MENU_CLOSE_BAND - gap
+                : UltraStyle.MENU_CONTENT_BOTTOM;
+
+        ModelPreview.Box model = playerModel == null ? null : menuModelBox();
+        int left = edge;
+        int right = model == null ? boxW - edge : model.x() - 8;
+        int legacyLeft = UltraStyle.COL_L;
+        int legacyRight = playerModel == null
+                ? UltraStyle.COL_R + UltraStyle.BTN_W
+                : Math.max(legacyLeft + UltraStyle.BTN_W, playerModel.x - 8);
+
+        List<Cell> cells = new ArrayList<>();
+        for (Button b : buttons) {
+            cells.add(new Cell(b, null, b.x, b.y, b.w, b.h));
+        }
+        if (model == null) {
+            for (Button b : fixedButtons) {
+                cells.add(new Cell(b, null, b.x, b.y, b.w, b.h));
+            }
+        }
+        for (Input in : inputs) {
+            if (in != null && in.id != null && !in.id.isBlank()) {
+                cells.add(new Cell(null, in, in.x, in.y, in.w, in.h));
+            }
+        }
+        List<Row> rows = menuRows(cells);
+
+        int lineStep = UltraStyle.MENU_LINE_H + UltraStyle.MENU_LINE_GAP;
+        int pad = UltraStyle.MENU_BODY_PAD;
+        int naturalBody = lines.isEmpty() ? 0 : pad * 2 + lines.size() * lineStep;
+        int minBody = lines.isEmpty() ? 0 : pad * 2 + Math.min(2, lines.size()) * lineStep;
+        int avail = contentBottom - contentTop;
+        int bodyReserve = minBody > 0 ? minBody + gap : 0;
+        if (!rows.isEmpty() && menuRowsHeight(rows) + bodyReserve > avail) {
+            int maxCols = Math.max(1, (right - left + gap) / (UltraStyle.BTN_MIN_W + gap));
+            List<Row> best = rows;
+            for (int cols = 2; cols <= Math.min(4, maxCols); cols++) {
+                best = menuGrid(rows, cols);
+                if (menuRowsHeight(best) + bodyReserve <= avail) {
+                    break;
+                }
+            }
+            if (menuRowsHeight(best) < menuRowsHeight(rows)) {
+                rows = best;
+            }
+        }
+        int rowsH = rows.isEmpty() ? 0 : menuRowsHeight(rows);
+        int bodyH = naturalBody <= 0
+                ? 0
+                : Math.max(minBody, Math.min(naturalBody, avail - rowsH - (rowsH > 0 ? gap : 0)));
+        boolean scrollBody = naturalBody > bodyH;
+
+        JsonArray btnArr = new JsonArray();
+        appendTabButtons(btnArr, edge, boxW - edge * 2, UltraStyle.MENU_TAB_Y, bh, gap);
+        JsonArray inputArr = new JsonArray();
+        double fx = (right - left) / (double) Math.max(1, legacyRight - legacyLeft);
+        int cols = gridCols(rows);
+        int gridW = (right - left - gap * (cols - 1)) / cols;
+        int fullRight = UltraStyle.COL_R + UltraStyle.BTN_W;
+        int y = contentTop + (bodyH > 0 ? bodyH + gap : 0);
+        for (Row row : rows) {
+            int n = row.cells().size();
+            int[] xs = new int[n];
+            int[] ws = new int[n];
+            // A legacy row that ran under the model (past its left edge) spanned the full grid.
+            int rowRight = 0;
+            for (Cell c : row.cells()) {
+                rowRight = Math.max(rowRight, c.x() + c.w());
+            }
+            double rowFx = playerModel != null && rowRight > legacyRight
+                    ? (right - left) / (double) Math.max(1, fullRight - legacyLeft)
+                    : fx;
+            boolean clean = true;
+            for (int i = 0; i < n; i++) {
+                Cell c = row.cells().get(i);
+                if (row.grid()) {
+                    ws[i] = gridW;
+                    xs[i] = left + i * (gridW + gap);
+                    continue;
+                }
+                int w = (int) Math.round(c.w() * rowFx);
+                if (c.isButton()) {
+                    w = Math.max(UltraStyle.BTN_MIN_W, w);
+                }
+                w = Math.min(w, right - left);
+                int x = left + (int) Math.round((c.x() - legacyLeft) * rowFx);
+                xs[i] = Math.max(left, Math.min(x, right - w));
+                ws[i] = w;
+                if (i > 0 && xs[i] < xs[i - 1] + ws[i - 1] + gap) {
+                    clean = false;
+                }
+            }
+            if (!clean) {
+                // Widening pushed two controls together: give the row equal columns instead.
+                int w = (right - left - gap * (n - 1)) / n;
+                for (int i = 0; i < n; i++) {
+                    ws[i] = w;
+                    xs[i] = left + i * (w + gap);
+                }
+            }
+            for (int i = 0; i < n; i++) {
+                Cell c = row.cells().get(i);
+                int x = xs[i];
+                int w = ws[i];
+                if (c.isButton()) {
+                    appendButtonJson(btnArr, menuButton(c.button(), x, y, w, bh), 0, boxH);
+                } else {
+                    inputArr.add(menuInputJson(c.input(), x, y, w, menuCellH(c)));
+                }
+            }
+            y += row.h() + gap;
+        }
+        if (model != null) {
+            int ty = model.y() + model.h() + gap;
+            for (Button b : fixedButtons) {
+                int w = Math.max(UltraStyle.BTN_MIN_W, Math.min(b.w, model.w()));
+                int x = Math.min(boxW - edge - w, model.x() + (model.w() - w) / 2);
+                appendButtonJson(btnArr, menuButton(b, x, ty, w, bh), 0, boxH);
+                ty += bh + gap;
+            }
+        }
+        for (Button b : footerButtons) {
+            if (b == null) {
+                continue;
+            }
+            // Back on the left; Main menu flush right, so its right edge is the design box edge.
+            int x = b.x == UltraStyle.COL_L ? edge : boxW - UltraStyle.BTN_W;
+            appendButtonJson(btnArr, menuButton(b, x, UltraStyle.MENU_FOOTER_Y, UltraStyle.BTN_W, bh), 0, boxH);
+        }
+
+        JsonArray lineArr = new JsonArray();
+        for (String line : lines) {
+            if (line != null) {
+                lineArr.add(line);
+            }
+        }
+        JsonObject layout = new JsonObject();
+        layout.addProperty("panelWidth", MENU_PANEL_W);
+        layout.addProperty("panelHeight", MENU_PANEL_H);
+        layout.addProperty("width", MENU_PANEL_W);
+        layout.addProperty("height", MENU_PANEL_H);
+        layout.addProperty("center", false);
+        layout.addProperty("margin", 0);
+        layout.addProperty("fillScreen", true);
+        layout.addProperty("designWidth", boxW);
+        layout.addProperty("designHeight", boxH);
+        layout.addProperty("titleAlign", UltraStyle.TITLE_ALIGN);
+        layout.addProperty("tabsUnderTitle", hasTabs);
+        layout.addProperty("headerBottom", headerBottom);
+        String accentCode = UltraStyle.systemAccentCode(screenId);
+        if (accentCode != null && !accentCode.isBlank()) {
+            layout.addProperty("accent", accentCode);
+        }
+        String paletteName = UltraStyle.systemPaletteName(screenId);
+        if (paletteName != null && !paletteName.isBlank()) {
+            layout.addProperty("palette", paletteName);
+        }
+        layout.addProperty("frame", UltraStyle.PANEL_FRAME);
+        layout.addProperty("lineHeight", UltraStyle.MENU_LINE_H);
+        layout.addProperty("lineGap", UltraStyle.MENU_LINE_GAP);
+        layout.addProperty("bodyTop", contentTop);
+        layout.addProperty("bodyPad", pad);
+        layout.addProperty("bodyMaxHeight", bodyH);
+        layout.addProperty("scrollBody", scrollBody);
+        layout.addProperty("buttonPad", UltraStyle.BTN_PAD);
+        layout.addProperty("buttonGap", gap);
+        layout.addProperty("buttonMinWidth", UltraStyle.BTN_MIN_W);
+        layout.addProperty("buttonHeight", bh);
+        layout.addProperty(UltraScreenIds.META_SYSTEM, screenId);
+        layout.addProperty("screen", screenId);
+        if (model != null) {
+            JsonObject pm = new JsonObject();
+            pm.addProperty("x", model.x());
+            pm.addProperty("y", model.y());
+            pm.addProperty("width", model.w());
+            pm.addProperty("height", model.h());
+            pm.addProperty("scale", playerModel.scale);
+            pm.addProperty("rotate", playerModel.rotate);
+            if (playerModel.parts != null && !playerModel.parts.entrySet().isEmpty()) {
+                pm.add("parts", playerModel.parts);
+                if (playerModel.parts.has("subject")) {
+                    pm.add("subject", playerModel.parts.get("subject"));
+                }
+            }
+            layout.add("playerModel", pm);
+        }
+        return new GuiOpenPacket(
+                screenId,
+                title,
+                pageId,
+                GSON.toJson(new JsonArray()),
+                activeTab,
+                GSON.toJson(lineArr),
+                GSON.toJson(btnArr),
+                MENU_PANEL_W,
+                MENU_PANEL_H,
+                GSON.toJson(layout),
+                GSON.toJson(inputArr));
+    }
+
+    private JsonObject menuInputJson(Input in, int x, int y, int w, int h) {
+        JsonObject o = new JsonObject();
+        o.addProperty("id", in.id);
+        o.addProperty("type", in.type);
+        o.addProperty("x", x);
+        o.addProperty("y", y);
+        o.addProperty("w", w);
+        o.addProperty("h", h);
+        if ("paged_book".equalsIgnoreCase(in.type)) {
+            o.add("pages", in.pages == null ? new JsonArray() : in.pages);
+            o.addProperty("page", Math.max(0, in.page));
+        } else {
+            o.addProperty("value", UltraStyle.wireText(in.value == null ? "" : in.value));
+            o.addProperty("placeholder", UltraStyle.wireText(in.placeholder == null ? "" : in.placeholder));
+            o.addProperty("maxLength", in.maxLength);
+        }
+        JsonObject args = new JsonObject();
+        args.addProperty("screen", screenId);
+        args.addProperty(UltraScreenIds.META_SYSTEM, screenId);
+        args.addProperty("page", pageId);
+        o.add("args", args);
+        return o;
+    }
+
     public void send(ServerPlayer player) {
         ServerPlayer viewer = inspectViewer();
         ServerPlayer dest = viewer != null ? viewer : player;
@@ -1095,6 +1501,12 @@ public final class UltraScreenSpec {
      * so body packing still sits below content buttons, not the tab chrome.
      */
     private void appendTabButtons(JsonArray btnArr) {
+        appendTabButtons(btnArr, UltraStyle.COL_L, Math.max(1, panelWidth - UltraStyle.COL_L * 2),
+                UltraStyle.TAB_ROW_Y, UltraStyle.BTN_H, UltraStyle.BTN_GAP);
+    }
+
+    /** Tab buttons across {@code inner} px from {@code left} at {@code y}, {@code h} tall. */
+    private void appendTabButtons(JsonArray btnArr, int left, int inner, int y, int h, int gap) {
         if (btnArr == null || tabs.isEmpty()) {
             return;
         }
@@ -1107,14 +1519,11 @@ public final class UltraScreenSpec {
         if (count == 0) {
             return;
         }
-        int gap = UltraStyle.BTN_GAP;
-        int inner = Math.max(1, panelWidth - UltraStyle.COL_L * 2);
         int tabW = Math.max(UltraStyle.BTN_MIN_W, (inner - gap * Math.max(0, count - 1)) / count);
         if (tabW * count + gap * Math.max(0, count - 1) > inner) {
             tabW = Math.max(40, (inner - gap * Math.max(0, count - 1)) / count);
         }
-        int x = UltraStyle.COL_L;
-        int y = UltraStyle.TAB_ROW_Y;
+        int x = left;
         for (Tab tab : tabs) {
             if (tab == null || tab.id == null || tab.id.isBlank()) {
                 continue;
@@ -1135,7 +1544,7 @@ public final class UltraScreenSpec {
             o.addProperty("x", x);
             o.addProperty("y", y);
             o.addProperty("w", tabW);
-            o.addProperty("h", UltraStyle.BTN_H);
+            o.addProperty("h", h);
             o.addProperty("pad", UltraStyle.BTN_PAD);
             String icon = tab.icon == null || tab.icon.isBlank()
                     ? UltraStyle.systemIcon(screenId)
@@ -1303,7 +1712,9 @@ public final class UltraScreenSpec {
             boolean footer,
             String sound,
             String buttonSkin,
-            String icon) {}
+            String icon,
+            /** Label as the builder passed it, so a menu reflow can fit it to the new width. */
+            String raw) {}
 
     private record Input(
             String id,
