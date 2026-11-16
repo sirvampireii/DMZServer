@@ -618,7 +618,7 @@ else
       -C "$RES" data \
       -C "$RES" character-services.default.json \
       -C "$RES" dmzultra-form-parts-0.4.0.json \
-      -C "$RES" dmzultra-form-parts-0.5.3.json \
+      -C "$RES" dmzultra-form-parts-0.5.3.json       -C "$RES" dmzultra-form-parts-0.5.7.json \
       -C "$EXTRA" dmzultra-form-parts.json \
       -C "$EXTRA" dmzultra-form-parts-server-aliases.json
   )

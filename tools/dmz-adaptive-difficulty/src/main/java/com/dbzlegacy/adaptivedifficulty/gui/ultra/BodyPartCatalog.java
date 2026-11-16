@@ -58,7 +58,7 @@ public final class BodyPartCatalog {
     public static final String SLOT_BODY = "body";
 
     /** Shipped catalogs, oldest first: {@code dmzultra-form-parts-<version>.json}. */
-    static final List<String> SHIPPED = List.of("0.4.0", "0.5.3");
+    static final List<String> SHIPPED = List.of("0.4.0", "0.5.3", "0.5.7");
     /** Pre-4.7.46 single resource name: an alias of the 0.4.0 catalog, read only as a fallback. */
     static final String LEGACY_RESOURCE = "dmzultra-form-parts.json";
     /**
