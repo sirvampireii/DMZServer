@@ -111,11 +111,13 @@ for line in lines:
         configs = [part.strip() for part in line.split(":", 1)[1].split(",") if part.strip()]
         if "kaipath-bodyparts.mixins.json" not in configs:
             configs.append("kaipath-bodyparts.mixins.json")
+        if "kaipath-ultra-bridge.mixins.json" not in configs:
+            configs.append("kaipath-ultra-bridge.mixins.json")
         rewritten.append("MixinConfigs: " + ",".join(configs))
     else:
         rewritten.append(line)
 if not any(line.startswith("MixinConfigs:") for line in rewritten):
-    rewritten.append("MixinConfigs: kaipath.mixins.json,kaipath-bodyparts.mixins.json")
+    rewritten.append("MixinConfigs: kaipath.mixins.json,kaipath-bodyparts.mixins.json,kaipath-ultra-bridge.mixins.json")
 lines = rewritten
 if not lines or lines[-1] != "":
     lines.append("")
@@ -142,6 +144,8 @@ jar uf "$OUT_JAR" -C "$CLASSES" com/dmzlegacy/kaipath/mixin/FormPartsPreviewMixi
 jar uf "$OUT_JAR" -C "$CLASSES" com/dmzlegacy/kaipath/mixin/RaceTailSuppressMixin.class
 jar uf "$OUT_JAR" -C "$CLASSES" com/dmzlegacy/kaipath/mixin/BodyPartMixinPlugin.class
 jar uf "$OUT_JAR" -C "$HERE" kaipath-bodyparts.mixins.json
+jar uf "$OUT_JAR" -C "$CLASSES" com/dmzlegacy/kaipath/mixin/UltraRawPayloadMixin.class
+jar uf "$OUT_JAR" -C "$HERE" kaipath-ultra-bridge.mixins.json
 
 # Fix stock fitLabel mojibake ellipsis (â€¦ → ...) that shows as weird A/E glyphs.
 FIT_CLASS_DIR="$OUT_DIR/fitlabel-patch"

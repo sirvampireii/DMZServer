@@ -714,8 +714,9 @@ public class LmDynamicScreen extends UltraScreen {
         UltraUiAccess.themed(theme(), () -> {
             String title = stripSection(packet.title());
             int maxTitleW = Math.max(8, panelW - 16);
-            var titleComp = this.f_96547_.m_92834_(title, maxTitleW);
-            int titleW = this.f_96547_.m_92852_(titleComp);
+            // Font.plainSubstrByWidth / width(String): the real 1.20.1 signatures (String in, String out).
+            String titleComp = this.f_96547_.m_92834_(title, maxTitleW);
+            int titleW = this.f_96547_.m_92895_(titleComp);
             int titleX = "center".equalsIgnoreCase(titleAlign)
                     ? panelX + Math.max(8, (panelW - titleW) / 2)
                     : panelX + 8;

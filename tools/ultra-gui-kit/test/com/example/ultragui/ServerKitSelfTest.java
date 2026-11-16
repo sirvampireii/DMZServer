@@ -17,7 +17,27 @@ public final class ServerKitSelfTest {
         featuresRoundTrip();
         modelSyncRoundTrip();
         sketchAndFixture();
+        announceAndLink();
         System.out.println("ServerKitSelfTest OK");
+    }
+
+    /** kaipath:partners payload is writeUtf(modId); the link degrades to false without KaiPath. */
+    private static void announceAndLink() {
+        byte[] p = UltraGuiAnnounce.payload("MyShop");
+        if (p.length != 7 || p[0] != 6 || !new String(p, 1, 6, java.nio.charset.StandardCharsets.UTF_8).equals("myshop")) {
+            throw new AssertionError("announce payload must be VarInt length + lowercase UTF-8 id");
+        }
+        byte[] longId = UltraGuiAnnounce.payload("a".repeat(200));
+        if ((longId[0] & 0xFF) != (0x80 | (200 & 0x7F)) || longId[1] != 1 || longId.length != 202) {
+            throw new AssertionError("announce payload VarInt must use two bytes for a 200-byte id");
+        }
+        // KaiPath is not on this classpath: every call reports false, nothing throws.
+        if (UltraGuiLink.kaiPathPresent()
+                || UltraGuiLink.link("myshop", (pl, a) -> {}, null)
+                || UltraGuiLink.sendOpen("myshop", new Object(), new byte[0])
+                || UltraGuiLink.sendModelSync("myshop", new Object(), new byte[0])) {
+            throw new AssertionError("UltraGuiLink must report false when KaiPath is absent");
+        }
     }
 
     private static void roundTripOpen() {

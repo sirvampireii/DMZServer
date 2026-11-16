@@ -11,12 +11,22 @@ package com.example.ultragui;
  * {@code y}, {@code w}, {@code h}, {@code pad}, optional {@code footer}, optional {@code icon},
  * {@code args}. {@code icon} is an item id ({@code minecraft:emerald}) or a texture path
  * ({@code minecraft:textures/item/emerald.png}). KaiPath 1.3.22 resolves either.
- * Panel {@code palette} and {@code frame} stay on {@code layoutJson}. Do not put a
+ * Panel {@code palette} and {@code frame} stay on {@code layoutJson}. {@code frame} only switches the
+ * framed chrome on (KaiPath binds no texture from it): use your own namespace, never another mod's. Do not put a
  * palette, click sound, or skin on a button, and do not set a portrait frame on
  * {@code playerModel} (a non-empty id paints a border around the preview).
  *
  * <pre>
- * // Registration (Forge) — channel = YOUR_MOD_ID:gui
+ * // 1. Link first. In a game that also runs KaiPath (singleplayer, LAN host, your mod installed on
+ * //    clients) KaiPath owns MOD_ID:gui: registering it too crashes the game at startup.
+ * boolean linked = UltraGuiLink.link(MOD_ID,
+ *     (player, a) -> onClick((ServerPlayer) player, a[1]),
+ *     (player, featuresJson) -> FEATURES.put(((ServerPlayer) player).getUUID(), featuresJson));
+ * if (linked) return;   // send opens with UltraGuiLink.sendOpen (see UltraGuiLink)
+ *
+ * // 2. Otherwise register your own channel (dedicated server, or a game without KaiPath).
+ * //    Accept clients WITHOUT the channel (remote -> true / acceptMissingOr): a strict predicate
+ * //    kicks every player who does not run KaiPath.
  * SimpleChannel ch = NetworkRegistry.newSimpleChannel(
  *     new ResourceLocation(MOD_ID, UltraGuiChannel.PATH),
  *     () -> UltraGuiChannel.PROTOCOL_VERSION,
@@ -34,7 +44,10 @@ package com.example.ultragui;
  *   }).add();
  * ch.messageBuilder(UltraGuiFeaturesPacket.class, 2, NetworkDirection.PLAY_TO_SERVER)
  *   .encoder(UltraGuiFeaturesPacket::encode).decoder(UltraGuiFeaturesPacket::decode)
- *   .consumerMainThread((m, ctx) -> ctx.get().setPacketHandled(true)).add();
+ *   .consumerMainThread((m, ctx) -> {
+ *       FEATURES.put(ctx.get().getSender().getUUID(), m.featuresJson());   // this player runs KaiPath
+ *       ctx.get().setPacketHandled(true);
+ *   }).add();
  * ch.messageBuilder(UltraGuiModelSyncPacket.class, 3, NetworkDirection.PLAY_TO_CLIENT)
  *   .encoder(UltraGuiModelSyncPacket::encode).decoder(UltraGuiModelSyncPacket::decode)
  *   .consumerMainThread((m, ctx) -> ctx.get().setPacketHandled(true)).add();
@@ -49,7 +62,22 @@ package com.example.ultragui;
  *         new UltraGuiModelSyncPacket(partsJson, UltraGuiModelSyncPacket.REASON_LOGIN));
  * }
  *
- * // KaiPath client: UltraGuiPartners.register("myshop");
+ * // 3. Server-only mods: announce at login so KaiPath reads your channel without a KaiPath release
+ * //    or player config (harmless for clients without KaiPath, and for mods on both sides).
+ * void onLogin(PlayerEvent.PlayerLoggedInEvent e) {
+ *     if (e.getEntity() instanceof ServerPlayer p) {
+ *         p.connection.send(new ClientboundCustomPayloadPacket(
+ *             new ResourceLocation(UltraGuiAnnounce.NAMESPACE, UltraGuiAnnounce.PATH),
+ *             new FriendlyByteBuf(Unpooled.wrappedBuffer(UltraGuiAnnounce.payload(MOD_ID)))));
+ *     }
+ * }
+ *
+ * // 4. Open only for players whose client advertised (message 2). Anyone else has no Ultra renderer:
+ * //    tell them in chat instead of sending a packet that is silently dropped.
+ * if (!FEATURES.containsKey(player.getUUID())) {
+ *     player.sendSystemMessage(Component.literal("Install KaiPath to open this menu."));
+ *     return;
+ * }
  *
  * // Open — plain ASCII. Button objects are style + geometry + args only.
  * String buttons = "["
@@ -69,7 +97,7 @@ package com.example.ultragui;
  *     + "]";
  * String layout = "{"
  *     + "\"center\":true,\"margin\":10,\"titleAlign\":\"center\","
- *     + "\"headerBottom\":42,\"palette\":\"gold\",\"frame\":\"legacymechanics:panel\","
+ *     + "\"headerBottom\":42,\"palette\":\"gold\",\"frame\":\"myshop:panel\","
  *     + "\"playerModel\":{\"x\":248,\"y\":60,\"width\":86,\"height\":120,"
  *     + "\"scale\":1.0,\"rotate\":true,"
  *     + "\"parts\":{\"schema\":1,\"subject\":\"local\",\"bodyParts\":["

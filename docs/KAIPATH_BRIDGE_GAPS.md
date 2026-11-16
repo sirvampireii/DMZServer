@@ -20,6 +20,31 @@ combined.forms.v1, icon, bodyParts, bodyPartsSync
 | **Partner auto-discovery** | **JLDK** (kit done) | Ships `META-INF/kaipath-ultra.txt` | Manual list today | Seed `legacymechanics`, then marker jars under `mods/` and `config/kaipath-ultra-partners.txt`. A new mod does not need a KaiPath release. |
 | **`slider` / `toggle`** | Later | Not on the wire | Reserved | Booleans stay styled buttons; numbers stay text + steppers. |
 
+## Multi-mod audit: can any mod use the bridge? (2026-11-16, kit on KaiPath 1.5.3)
+
+The bridge was built around LegacyMechanics: a server-only mod, seeded into KaiPath, never run in
+singleplayer. Checked from the side of any other mod. Kit fixes are in `tools/ultra-gui-kit` (merge list
+item 11); they were exercised on a test server with a real client (Forge 47.4.10, the kit overlaid on
+KaiPath 1.5.3) using a partner built from `server/` only.
+
+| # | Gap or pitfall | Who | Status |
+|---|----------------|-----|--------|
+| 1 | **Startup crash when a partner runs in the same game as KaiPath** (installed on both sides, singleplayer, LAN host): both register `<modid>:gui`, Forge throws on the duplicate; whoever registers first owns the click handler, so clicks never reach the partner | Kit + partners | **Fixed in kit.** KaiPath logs and skips a channel another mod owns; partners link (`UltraGuiLink.link`, reflection, no compile dependency) and only register their own channel when that returns false. Link refuses on a dedicated server (KaiPath is installed there for `kaipath:main` but owns no partner channels). Tested: partner on both sides links on the client, no crash, menu and click work. Integrated-server forwarding not tested (no singleplayer run) |
+| 2 | **Server-only partners cannot be found**: the client scans its own `mods/`, where a server-only mod has no jar; only the seed (`legacymechanics`) or every player editing `config/kaipath-ultra-partners.txt` worked, and Forge cannot register channels after startup | Kit + partners | **Fixed in kit.** Fixed channel `kaipath:partners`: the server announces its id at login (`UltraGuiAnnounce.payload`), KaiPath reads that `<modid>:gui` raw for the session (`UltraRawPayloadMixin`, announced namespaces only) and sends clicks and advertises back raw; the partner's Forge channel is unchanged. Tested end to end: announce, advertise, open, click |
+| 3 | Marker scan read only top-level `mods/*.jar`: jar-in-jar mods and dev workspaces were missed | Kit | **Fixed in kit**: Forge's mod list first, folder scan as fallback |
+| 4 | **Kit compile stubs did not match the game**, so the kit's own overlay build failed at runtime: `MinecraftForge.EVENT_BUS` typed `EventBus` (session hooks never registered: no advertise on login, no cleanup on logout), `Font.m_92834_` returning `FormattedCharSequence` (crash drawing any title), `FriendlyByteBuf.readBytes/writeBytes` returning `FriendlyByteBuf` (every open decoded as an empty menu, error swallowed) | Kit | **Fixed in kit.** A reference check of the compiled kit against the real 1.20.1 client, Forge and netty jars now finds 0 problems in 71 references. KaiPath's own release compiles against the real game and is not affected |
+| 5 | A server channel whose client predicate requires the channel kicks every player without KaiPath | Partners | Documented (kit README step 3, sketch) |
+| 6 | Opens sent to players without KaiPath are dropped silently | Partners | Documented: open only after the msg 2 advertise; tell others in chat |
+| 7 | Sketch and fixture taught `frame: legacymechanics:panel` (another mod's namespace) | Kit | **Fixed**: `myshop:panel`; README says chrome tokens only switch chrome on, use your own namespace |
+| 8 | Channel name is fixed at `<modid>:gui`: a mod already using that name for something else cannot be a partner under its id | Protocol | Open (limitation). A marker field naming the channel path would need a protocol note on both sides |
+| 9 | Body-part pieces render only from `dmzultra` (FormParts); other `source` ids need a client catalog and pieces FormParts can draw | KaiPath | Documented (pitfall 10 in the kit README); open if other mods need their own meshes |
+| 10 | Text is server-side only (no translation keys); non-ASCII labels risk the fitLabel path | Protocol | Documented; open if translated partners appear |
+| 11 | The raw path depends on Forge `SimpleChannel` framing (one unsigned byte message index, then the body) | Kit | Verified for Forge 47.4.10 (`IndexedMessageCodec`); recheck on a Forge major update |
+
+Rig note: of four runs with the partner on both sides, two stalled at login before the client received
+Forge's first handshake packet (no error on either side, server timed the login out after 30 s); the other
+two passed with no change. Not attributed to the bridge; watch for it.
+
 ## Open bridge gaps — JLDK 1.3.31 bytecode audit vs LM 4.6.216 (2026-10-18)
 
 LM verified holding its end: the live 4.6.216 jar's sync JSON (`subject uuid:…`, `bodyParts`, `suppressNaturalTail`, `colors` with `{skin, second, hair, own, trim, horn, light}`, `extras`) and the `fillScreen` design box are bytecode-correct. Every open item below is **KaiPath-side**.

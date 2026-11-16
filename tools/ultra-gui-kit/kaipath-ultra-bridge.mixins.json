@@ -1,0 +1,12 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.dmzlegacy.kaipath.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "UltraRawPayloadMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
