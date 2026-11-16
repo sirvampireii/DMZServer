@@ -77,6 +77,7 @@ if [[ -d "$TEST_SRC" ]]; then
     com.dmzlegacy.kaipath.ultra.consumers.legacymechanics.GuiOpenPacketRoundTripTest
   java -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$CLASSES")$CP_SEP$CP" \
     com.dmzlegacy.kaipath.ultra.consumers.legacymechanics.InspectPreviewSubjectTest
+  java -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$CLASSES")$CP_SEP$CP"     com.dmzlegacy.kaipath.ultra.consumers.legacymechanics.UltraBridgeFitTest
   java -Dultragui.fixture="$HERE/server/BridgeFutureFieldsFixture.json" \
     -Dultragui.sketch="$HERE/server/HelloWorldServerSketch.java" \
     -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$SERVER_CLASSES")$CP_SEP$(abs "$STUB_CLASSES")$CP_SEP$(abs "$GSON")" \

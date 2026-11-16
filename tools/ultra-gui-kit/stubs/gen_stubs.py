@@ -38,6 +38,16 @@ public class GuiGraphics {
   public void m_280488_(Font font, FormattedCharSequence text, int x, int y, int color) {}
   public void m_280588_(int x1, int y1, int x2, int y2) {}
   public void m_280618_() {}
+  public com.mojang.blaze3d.vertex.PoseStack m_280168_() { return new com.mojang.blaze3d.vertex.PoseStack(); }
+}
+""",
+    "com/mojang/blaze3d/vertex/PoseStack.java": """
+package com.mojang.blaze3d.vertex;
+public class PoseStack {
+  public void m_85836_() {}
+  public void m_85849_() {}
+  public void m_252880_(float x, float y, float z) {}
+  public void m_85841_(float x, float y, float z) {}
 }
 """,
     "net/minecraft/client/gui/components/events/GuiEventListener.java": """

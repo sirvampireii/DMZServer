@@ -640,16 +640,18 @@ public class LmDynamicScreen extends UltraScreen {
         layoutScaleX = 1f;
         layoutScaleY = 1f;
         if (fillScreen) {
-            int availW = Math.max(64, this.f_96543_ - margin * 2);
-            int availH = Math.max(64, this.f_96544_ - margin * 2);
             int dw = designW > 0 ? designW : Math.max(1, panelW);
             int dh = designH > 0 ? designH : Math.max(1, panelH);
-            panelW = availW;
-            panelH = availH;
-            panelX = margin;
-            panelY = margin;
-            layoutScaleX = panelW / (float) dw;
-            layoutScaleY = panelH / (float) dh;
+            // One scale for x and y, box centered: a non-matching window letterboxes instead of
+            // stretching buttons and the model rectangle (UltraBridgeFit, FILLSCREEN_FIT.md).
+            UltraBridgeFit.Placement fit =
+                    UltraBridgeFit.fit(this.f_96543_, this.f_96544_, margin, dw, dh);
+            panelW = fit.w();
+            panelH = fit.h();
+            panelX = fit.x();
+            panelY = fit.y();
+            layoutScaleX = fit.scale();
+            layoutScaleY = fit.scale();
             headerBottom = Math.max(12, scaleY(headerBottom));
             bodyTop = Math.max(0, scaleY(bodyTop));
             bodyMaxHeight = Math.max(8, scaleY(bodyMaxHeight));
@@ -721,7 +723,24 @@ public class LmDynamicScreen extends UltraScreen {
             int bandH = Math.max(fontH, headerBottom - 2);
             int titleY = panelY + Math.max(2, (bandH - fontH) / 2);
             int titleColor = UltraBridgeChrome.resolveTintArgb(layoutPalette, layoutAccent);
-            g.m_280488_(this.f_96547_, titleComp, titleX, titleY, titleColor);
+            // fillScreen: the header band is scaled, so the title is too (UltraBridgeFit.titleScale).
+            float ts = fillScreen
+                    ? UltraBridgeFit.titleScale(layoutScaleY, titleW, fontH, bandH, maxTitleW)
+                    : 1f;
+            if (ts > 1f) {
+                int scaledW = Math.round(titleW * ts);
+                int sx = "center".equalsIgnoreCase(titleAlign)
+                        ? panelX + Math.max(8, (panelW - scaledW) / 2)
+                        : panelX + 8;
+                int sy = panelY + Math.max(2, Math.round((bandH - fontH * ts) / 2f));
+                g.m_280168_().m_85836_();
+                g.m_280168_().m_252880_(sx, sy, 0f);
+                g.m_280168_().m_85841_(ts, ts, 1f);
+                g.m_280488_(this.f_96547_, titleComp, 0, 0, titleColor);
+                g.m_280168_().m_85849_();
+            } else {
+                g.m_280488_(this.f_96547_, titleComp, titleX, titleY, titleColor);
+            }
             super.m_88315_(g, mouseX, mouseY, tick);
         });
     }
