@@ -26,8 +26,9 @@ public interface FormattedCharSequence {}
 package net.minecraft.client.gui;
 import net.minecraft.util.FormattedCharSequence;
 public class Font {
-  public FormattedCharSequence m_92834_(String text, int width) { return new FormattedCharSequence() {}; }
-  public int m_92852_(FormattedCharSequence text) { return 0; }
+  public String m_92834_(String text, int width) { return text; }
+  public int m_92895_(String text) { return 0; }
+  public int m_92724_(FormattedCharSequence text) { return 0; }
 }
 """,
     "net/minecraft/client/gui/GuiGraphics.java": """
@@ -35,9 +36,19 @@ package net.minecraft.client.gui;
 import net.minecraft.util.FormattedCharSequence;
 public class GuiGraphics {
   public void m_280509_(int x1, int y1, int x2, int y2, int color) {}
-  public void m_280488_(Font font, FormattedCharSequence text, int x, int y, int color) {}
+  public int m_280488_(Font font, String text, int x, int y, int color) { return 0; }
   public void m_280588_(int x1, int y1, int x2, int y2) {}
   public void m_280618_() {}
+  public com.mojang.blaze3d.vertex.PoseStack m_280168_() { return new com.mojang.blaze3d.vertex.PoseStack(); }
+}
+""",
+    "com/mojang/blaze3d/vertex/PoseStack.java": """
+package com.mojang.blaze3d.vertex;
+public class PoseStack {
+  public void m_85836_() {}
+  public void m_85849_() {}
+  public void m_252880_(float x, float y, float z) {}
+  public void m_85841_(float x, float y, float z) {}
 }
 """,
     "net/minecraft/client/gui/components/events/GuiEventListener.java": """
@@ -183,6 +194,8 @@ package net.minecraft.client.multiplayer;
 import net.minecraft.network.Connection;
 public class ClientPacketListener {
   public Connection m_104910_() { return new Connection(); }
+  public void m_104955_(net.minecraft.network.protocol.Packet<?> packet) {}
+  public void m_7413_(net.minecraft.network.protocol.game.ClientboundCustomPayloadPacket packet) {}
 }
 """,
     "net/minecraft/network/Connection.java": """
@@ -200,6 +213,77 @@ public class Minecraft {
   public static Minecraft m_91087_() { return INSTANCE; }
   public ClientPacketListener m_91403_() { return new ClientPacketListener(); }
   public void m_91152_(Screen screen) {}
+  public void execute(Runnable r) { r.run(); }
+}
+""",
+    "io/netty/buffer/ByteBuf.java": """
+package io.netty.buffer;
+public class ByteBuf {
+  public int readableBytes() { return 0; }
+  public ByteBuf readBytes(byte[] out) { return this; }
+  public ByteBuf writeBytes(byte[] in) { return this; }
+  public short readUnsignedByte() { return 0; }
+  public ByteBuf writeByte(int b) { return this; }
+  public ByteBuf copy() { return this; }
+  public int readerIndex() { return 0; }
+  public ByteBuf getBytes(int index, byte[] out) { return this; }
+}
+""",
+    "io/netty/buffer/Unpooled.java": """
+package io.netty.buffer;
+public final class Unpooled {
+  public static ByteBuf buffer() { return new ByteBuf(); }
+  public static ByteBuf wrappedBuffer(byte[] b) { return new ByteBuf(); }
+}
+""",
+    "net/minecraft/server/level/ServerPlayer.java": """
+package net.minecraft.server.level;
+public class ServerPlayer {}
+""",
+    "net/minecraftforge/fml/LogicalSide.java": """
+package net.minecraftforge.fml;
+public enum LogicalSide {
+  CLIENT, SERVER;
+  public boolean isServer() { return this == SERVER; }
+}
+""",
+    "net/minecraftforge/network/PacketDistributor.java": """
+package net.minecraftforge.network;
+import java.util.function.Supplier;
+public class PacketDistributor<T> {
+  public static final PacketDistributor<net.minecraft.server.level.ServerPlayer> PLAYER = new PacketDistributor<>();
+  public PacketTarget with(Supplier<T> input) { return new PacketTarget(); }
+  public static class PacketTarget {}
+}
+""",
+    "net/minecraftforge/network/event/EventNetworkChannel.java": """
+package net.minecraftforge.network.event;
+import java.util.function.Consumer;
+import net.minecraftforge.network.NetworkEvent;
+public class EventNetworkChannel {
+  public <T extends NetworkEvent> void addListener(Consumer<T> listener) {}
+}
+""",
+    "net/minecraft/network/protocol/Packet.java": """
+package net.minecraft.network.protocol;
+public interface Packet<T> {}
+""",
+    "net/minecraft/network/protocol/game/ClientboundCustomPayloadPacket.java": """
+package net.minecraft.network.protocol.game;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+public class ClientboundCustomPayloadPacket implements net.minecraft.network.protocol.Packet<Object> {
+  public ClientboundCustomPayloadPacket(ResourceLocation id, FriendlyByteBuf data) {}
+  public ResourceLocation m_132042_() { return null; }
+  public FriendlyByteBuf m_132045_() { return null; }
+}
+""",
+    "net/minecraft/network/protocol/game/ServerboundCustomPayloadPacket.java": """
+package net.minecraft.network.protocol.game;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+public class ServerboundCustomPayloadPacket implements net.minecraft.network.protocol.Packet<Object> {
+  public ServerboundCustomPayloadPacket(ResourceLocation id, FriendlyByteBuf data) {}
 }
 """,
     "net/minecraft/network/FriendlyByteBuf.java": """
@@ -207,9 +291,11 @@ package net.minecraft.network;
 import java.util.ArrayList;
 import java.util.List;
 /** Minimal in-memory buffer for compile stubs + encode/decode self-tests. */
-public class FriendlyByteBuf {
+public class FriendlyByteBuf extends io.netty.buffer.ByteBuf {
   private final List<Object> values = new ArrayList<>();
   private int idx = 0;
+  public FriendlyByteBuf() {}
+  public FriendlyByteBuf(io.netty.buffer.ByteBuf parent) {}
   public FriendlyByteBuf m_130070_(String s) { values.add(s == null ? "" : s); return this; }
   public FriendlyByteBuf m_130072_(String s, int max) { return m_130070_(s); }
   public String m_130277_() {
@@ -223,15 +309,18 @@ public class FriendlyByteBuf {
     if (idx >= values.size()) throw new IndexOutOfBoundsException("varint");
     return ((Number) values.get(idx++)).intValue();
   }
-  public FriendlyByteBuf writeBytes(byte[] b) {
+  @Override
+  public io.netty.buffer.ByteBuf writeBytes(byte[] b) {
     values.add(b == null ? new byte[0] : b);
     return this;
   }
-  public void readBytes(byte[] out) {
+  @Override
+  public io.netty.buffer.ByteBuf readBytes(byte[] out) {
     if (idx >= values.size()) throw new IndexOutOfBoundsException("bytes");
     Object v = values.get(idx++);
     byte[] src = v instanceof byte[] ? (byte[]) v : String.valueOf(v).getBytes(java.nio.charset.StandardCharsets.UTF_8);
     System.arraycopy(src, 0, out, 0, Math.min(src.length, out.length));
+    return this;
   }
   public boolean isReadable() { return idx < values.size(); }
   /** Approximate remaining payload size (bytes), not entry count. */
@@ -251,7 +340,11 @@ public class FriendlyByteBuf {
     "net/minecraft/resources/ResourceLocation.java": """
 package net.minecraft.resources;
 public class ResourceLocation {
-  public ResourceLocation(String ns, String path) {}
+  private final String ns;
+  private final String path;
+  public ResourceLocation(String ns, String path) { this.ns = ns; this.path = path; }
+  public String m_135827_() { return ns; }
+  public String m_135815_() { return path; }
 }
 """,
     "net/minecraftforge/api/distmarker/Dist.java": """
@@ -268,16 +361,25 @@ public class Event {}
     "net/minecraftforge/eventbus/api/EventBus.java": """
 package net.minecraftforge.eventbus.api;
 import java.util.function.Consumer;
-public class EventBus {
+public class EventBus implements IEventBus {
   public <T extends Event> void addListener(Consumer<T> consumer) {}
   public boolean post(Event event) { return false; }
+}
+""",
+    "net/minecraftforge/eventbus/api/IEventBus.java": """
+package net.minecraftforge.eventbus.api;
+import java.util.function.Consumer;
+public interface IEventBus {
+  <T extends Event> void addListener(Consumer<T> consumer);
+  boolean post(Event event);
 }
 """,
     "net/minecraftforge/common/MinecraftForge.java": """
 package net.minecraftforge.common;
 import net.minecraftforge.eventbus.api.EventBus;
+import net.minecraftforge.eventbus.api.IEventBus;
 public class MinecraftForge {
-  public static final EventBus EVENT_BUS = new EventBus();
+  public static final IEventBus EVENT_BUS = new EventBus();
 }
 """,
     "net/minecraftforge/client/event/ClientPlayerNetworkEvent.java": """
@@ -297,13 +399,23 @@ public class FMLEnvironment {
 """,
     "net/minecraftforge/network/NetworkDirection.java": """
 package net.minecraftforge.network;
-public enum NetworkDirection { PLAY_TO_CLIENT, PLAY_TO_SERVER }
+public enum NetworkDirection {
+  PLAY_TO_CLIENT, PLAY_TO_SERVER;
+  public net.minecraftforge.fml.LogicalSide getReceptionSide() {
+    return this == PLAY_TO_SERVER ? net.minecraftforge.fml.LogicalSide.SERVER : net.minecraftforge.fml.LogicalSide.CLIENT;
+  }
+}
 """,
     "net/minecraftforge/network/NetworkEvent.java": """
 package net.minecraftforge.network;
 import java.util.concurrent.CompletableFuture;
 public class NetworkEvent {
+  public java.util.function.Supplier<Context> getSource() { return Context::new; }
+  public net.minecraft.network.FriendlyByteBuf getPayload() { return new net.minecraft.network.FriendlyByteBuf(); }
+  public static class ServerCustomPayloadEvent extends NetworkEvent {}
   public static class Context {
+    public NetworkDirection getDirection() { return NetworkDirection.PLAY_TO_CLIENT; }
+    public net.minecraft.server.level.ServerPlayer getSender() { return null; }
     public void setPacketHandled(boolean v) {}
     public CompletableFuture<Void> enqueueWork(Runnable r) { r.run(); return CompletableFuture.completedFuture(null); }
   }
@@ -320,6 +432,10 @@ public class NetworkRegistry {
   public static SimpleChannel newSimpleChannel(ResourceLocation name, Supplier<String> protocol,
       Predicate<String> clientAcceptedVersions, Predicate<String> serverAcceptedVersions) {
     return new SimpleChannel();
+  }
+  public static net.minecraftforge.network.event.EventNetworkChannel newEventChannel(ResourceLocation name,
+      Supplier<String> protocol, Predicate<String> clientAcceptedVersions, Predicate<String> serverAcceptedVersions) {
+    return new net.minecraftforge.network.event.EventNetworkChannel();
   }
 }
 """,
@@ -338,6 +454,7 @@ public class SimpleChannel {
   }
   public boolean isRemotePresent(Connection c) { return true; }
   public void sendToServer(Object msg) {}
+  public void send(net.minecraftforge.network.PacketDistributor.PacketTarget target, Object msg) {}
   public static class MessageBuilder<MSG> {
     public MessageBuilder<MSG> encoder(BiConsumer<MSG, FriendlyByteBuf> enc) { return this; }
     public MessageBuilder<MSG> decoder(Function<FriendlyByteBuf, MSG> dec) { return this; }

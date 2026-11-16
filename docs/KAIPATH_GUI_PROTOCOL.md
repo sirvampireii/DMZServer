@@ -327,10 +327,26 @@ Protocol `"1"`. Message 0 open, 1 action, 2 features (optional).
 
 KaiPath discovers partner mods. It always seeds `legacymechanics`, then:
 
-1. Every jar under `mods/` that contains `META-INF/kaipath-ultra.txt`. The first non-comment line is the Forge mod id. An empty marker falls back to `modId` in `META-INF/mods.toml`.
+1. Every mod Forge loaded on the client that contains `META-INF/kaipath-ultra.txt` (jar-in-jar and dev mods included; `mods/` is also scanned). The first non-comment line is the Forge mod id. An empty marker falls back to `modId` in `META-INF/mods.toml`.
 2. Extra ids in `config/kaipath-ultra-partners.txt` (one id per line, `#` comments).
+3. **Announced by the server** (kit, not yet in an official KaiPath): a server-only mod has no jar on the
+   client, so it sends one custom payload on the fixed channel `kaipath:partners` at login. The payload is
+   `FriendlyByteBuf.writeUtf(modId)` (VarInt byte length, UTF-8), one per mod id
+   (`UltraGuiAnnounce.payload`). KaiPath then reads that mod's `<modid>:gui` packets directly for the
+   session (one unsigned byte `SimpleChannel` message index, then the message, exactly what the partner's
+   Forge channel sends) and sends clicks and the features advertise back the same way. The partner's
+   channel needs no change, but its client-acceptance predicate must accept a client without it
+   (`remote -> true`). Clients without KaiPath drop the unknown payload.
 
-A new server mod does not need a KaiPath release. Copy [`tools/ultra-gui-kit/server/META-INF/kaipath-ultra.txt.example`](../tools/ultra-gui-kit/server/META-INF/kaipath-ultra.txt.example) into your jar as `META-INF/kaipath-ultra.txt`.
+A new server mod does not need a KaiPath release. Copy [`tools/ultra-gui-kit/server/META-INF/kaipath-ultra.txt.example`](../tools/ultra-gui-kit/server/META-INF/kaipath-ultra.txt.example) into your jar as `META-INF/kaipath-ultra.txt`
+when your mod is also installed on clients, and send the announce when it is server-only.
+
+**One channel per name per game.** Where KaiPath runs (any game with a client: singleplayer, a LAN host, a
+client with your mod installed), KaiPath owns `<modid>:gui`. Registering it there too crashes the game at
+startup. Link instead (kit `UltraGuiLink`, reflection, no compile dependency): `link(modId, onAction,
+onFeatures)` returns true when KaiPath owns the channel, and you send with `sendOpen(modId, player, bytes)`
+(your codec's bytes). It returns false on a dedicated server (KaiPath is installed there for `kaipath:main`
+but owns no partner channels): register your own channel then.
 
 ### 2. GuiOpenPacket (S→C) — 11 fields
 
@@ -760,6 +776,8 @@ implemented.
 | Registry key | Full channel id |
 | Multi-mod | Clicks return on the channel that opened the screen |
 | Protocol | `"1"` |
+| Discovery | Seed, jar marker, client config, or the server's `kaipath:partners` announce |
+| Same game | KaiPath owns the channel; partners link (`UltraGuiLink`) instead of registering it |
 
 ---
 

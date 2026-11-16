@@ -62,7 +62,7 @@
       "tabsUnderTitle": false,
       "headerBottom": 42,
       "palette": "gold",
-      "frame": "legacymechanics:panel",
+      "frame": "myshop:panel",
       "lineHeight": 16,
       "lineGap": 8,
       "bodyTop": 48,

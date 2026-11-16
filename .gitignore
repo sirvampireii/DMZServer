@@ -42,6 +42,7 @@ tools/ultra-gui-kit/build/
 tools/ultra-gui-kit/stubs/net/
 tools/ultra-gui-kit/stubs/org/
 tools/ultra-gui-kit/stubs/com/
+tools/ultra-gui-kit/stubs/io/
 /mods/kaipath-*-lm-ultra.jar
 
 # LM / KaiPath build & vendored client artifacts (not source)

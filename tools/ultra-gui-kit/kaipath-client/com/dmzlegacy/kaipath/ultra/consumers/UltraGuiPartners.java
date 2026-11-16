@@ -27,6 +27,14 @@ import java.util.zip.ZipFile;
  * </ol>
  *
  * {@link #DEFAULT_PARTNERS} is only the built-in seed ({@code legacymechanics}).
+ *
+ * <p>Server-only partners (no jar on the client) need neither: the server announces them on
+ * {@code kaipath:partners} at login ({@link UltraGuiAnnounce}).
+ *
+ * <p>A partner that is <b>also loaded in this game</b> (installed on both sides, or played in
+ * singleplayer) is not registered here eagerly: its own code may own {@code <modid>:gui} in this JVM.
+ * It links ({@code UltraGuiLink} in the server kit), or {@link #registerLocalPartners()} registers
+ * it at client setup if nothing else did.
  */
 public final class UltraGuiPartners {
     /** Marker inside a partner jar. First non-comment line is the mod id. */
@@ -55,11 +63,80 @@ public final class UltraGuiPartners {
      */
     public static List<String> discoverAndRegister() {
         Path game = gameDir();
-        List<String> ids = discoverIds(
+        LinkedHashSet<String> found = new LinkedHashSet<>(discoverIds(
                 game.resolve("config").resolve(CONFIG_FILE_NAME),
-                game.resolve("mods"));
-        register(ids.toArray(String[]::new));
+                game.resolve("mods")));
+        scanLoadedMods(found);
+        List<String> ids = List.copyOf(found);
+        for (String id : ids) {
+            if (isLoadedLocally(id)) {
+                LOCAL.add(id);
+            } else {
+                register(id);
+            }
+        }
+        UltraGuiAnnounce.register();
         return ids;
+    }
+
+    /** Partners loaded in this game that did not link: registered once mods have registered theirs. */
+    private static final Set<String> LOCAL = new LinkedHashSet<>();
+
+    /**
+     * Call from {@code FMLClientSetupEvent}: registers {@code <modid>:gui} for discovered partners
+     * that are loaded in this game and did not link. Runs after every mod constructor and common
+     * setup, so a partner that registered its own channel keeps it (KaiPath logs and skips) instead
+     * of crashing the game.
+     */
+    public static void registerLocalPartners() {
+        for (String id : List.copyOf(LOCAL)) {
+            if (!UltraGuiConsumerRegistry.isRegistered(id + ":" + UltraGuiConsumerRegistry.CHANNEL_PATH)) {
+                register(id);
+            }
+        }
+    }
+
+    /** Whether Forge loaded a mod with this id in this game (reflection: no Forge compile dependency). */
+    static boolean isLoadedLocally(String modId) {
+        try {
+            Class<?> modList = Class.forName("net.minecraftforge.fml.ModList");
+            Object list = modList.getMethod("get").invoke(null);
+            return list != null && (Boolean) modList.getMethod("isLoaded", String.class).invoke(list, modId);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    /**
+     * Markers in every mod file Forge loaded, including jar-in-jar mods and dev workspaces that a
+     * scan of {@code mods/} misses. Reflection: no Forge compile dependency.
+     */
+    static void scanLoadedMods(Set<String> ids) {
+        try {
+            Class<?> modList = Class.forName("net.minecraftforge.fml.ModList");
+            Object list = modList.getMethod("get").invoke(null);
+            if (list == null) {
+                return;
+            }
+            for (Object info : (List<?>) modList.getMethod("getModFiles").invoke(list)) {
+                Object file = info.getClass().getMethod("getFile").invoke(info);
+                Object res = file.getClass().getMethod("findResource", String[].class)
+                        .invoke(file, (Object) new String[] {"META-INF", "kaipath-ultra.txt"});
+                if (!(res instanceof Path marker) || !Files.isRegularFile(marker)) {
+                    continue;
+                }
+                String id = firstModIdLine(Files.readString(marker, StandardCharsets.UTF_8));
+                if (id.isEmpty()) {
+                    List<?> mods = (List<?>) info.getClass().getMethod("getMods").invoke(info);
+                    if (!mods.isEmpty()) {
+                        id = sanitizeModId(String.valueOf(mods.get(0).getClass().getMethod("getModId").invoke(mods.get(0))));
+                    }
+                }
+                addId(ids, id);
+            }
+        } catch (Throwable ignored) {
+            // Forge absent or API changed: the mods/ scan above still ran.
+        }
     }
 
     /**
