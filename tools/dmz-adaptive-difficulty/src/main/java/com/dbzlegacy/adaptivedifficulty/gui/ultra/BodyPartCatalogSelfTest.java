@@ -27,6 +27,11 @@ public final class BodyPartCatalogSelfTest {
         static final List<String> CLIENT_MESHES = List.of("wings_feather", "tail_fur", "horns_vasto");
 
         static Expect forShipped(String version) {
+            // DMZ Ultra 0.5.7 deleted the GT SSJ4 Oozaru parts set (canon_ssj4gt): 4 forms and their
+            // designs are gone, so this catalog is smaller than 0.5.3's. The shop is unchanged.
+            if ("0.5.7".equals(version)) {
+                return new Expect("0.5.7", 115, 406, 404, true, true, CLIENT_MESHES);
+            }
             return "0.5.3".equals(version)
                     ? new Expect("0.5.3", 115, 410, 408, true, true, CLIENT_MESHES)
                     : new Expect("0.4.0", 109, 220, 220, true, false, CLIENT_MESHES);
@@ -191,11 +196,13 @@ public final class BodyPartCatalogSelfTest {
         selects(fails, "0.5.2", "0.4.0", "shipped");
         selects(fails, "0.5.3", "0.5.3", "shipped");
         selects(fails, "0.5.3-beta.2", "0.5.3", "shipped");
+        selects(fails, "0.5.5", "0.5.3", "shipped");
+        selects(fails, "0.5.7", "0.5.7", "shipped");
         selects(fails, "not-a-version", "0.4.0", "shipped");
         selects(fails, "0.3.9", "0.4.0", "shipped");
         // Newer Ultra with no jar to read (no Forge here): falls back to the newest shipped <= it.
         BodyPartCatalog.installedJarOverride = null;
-        selects(fails, "0.6.0", "0.5.3", "shipped");
+        selects(fails, "0.6.0", "0.5.7", "shipped");
         UltraVersion.simulate("0.4.0");
         BodyPartCatalog.reselect();
         if (!BodyPartCatalog.resolve("cerealian", "hair", "crop", "", "").isEmpty()
@@ -211,6 +218,23 @@ public final class BodyPartCatalogSelfTest {
         }
         int forms053 = BodyPartCatalog.formCount();
         int shop053 = BodyPartCatalog.shopPieceIds().size();
+        if (BodyPartCatalog.resolve("saiyan", "oozaru", "supersaiyan4", "", "").isEmpty()) {
+            fails.add("Ultra 0.5.3 still draws the GT SSJ4 Oozaru set: saiyan/oozaru/supersaiyan4 should resolve");
+        }
+        UltraVersion.simulate("0.5.7");
+        BodyPartCatalog.reselect();
+        if (BodyPartCatalog.shopPieceIds().size() != 115 || BodyPartCatalog.formCount() != 406
+                || !"shipped".equals(BodyPartCatalog.active().origin())) {
+            fails.add("Ultra 0.5.7 must select the shipped 0.5.7 catalog: 115 shop pieces, 406 forms, got "
+                    + BodyPartCatalog.active().describe());
+        }
+        // 0.5.7 deleted the GT SSJ4 Oozaru set: its gt4_* ids would name pieces the client cannot draw.
+        for (String form : List.of("supersaiyan4", "supersaiyan4fp", "supersaiyan4lb", "supersaiyan5")) {
+            List<BodyPartCatalog.Part> gt4 = BodyPartCatalog.resolve("saiyan", "oozaru", form, "", "");
+            if (!gt4.isEmpty()) {
+                fails.add("Ultra 0.5.7: saiyan/oozaru/" + form + " should send no pieces, got " + gt4);
+            }
+        }
         // Given Ultra jars: the Java generator reproduces the shipped catalog, and a newer Ultra
         // adopts a generated catalog that passes every assertion.
         for (String arg : args) {
@@ -227,6 +251,11 @@ public final class BodyPartCatalogSelfTest {
             if ("0.5.3".equals(gen.version())) {
                 BodyPartCatalog.installedJarOverride = jar;
                 selects(fails, "0.6.0", "0.5.3", "generated");
+                BodyPartCatalog.installedJarOverride = null;
+            }
+            if ("0.5.7".equals(gen.version())) {
+                BodyPartCatalog.installedJarOverride = jar;
+                selects(fails, "0.6.0", "0.5.7", "generated");
                 BodyPartCatalog.installedJarOverride = null;
             }
         }

@@ -1886,6 +1886,34 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.51 ---")
+    import json as _json51
+    p51_cat = read(SRC / "gui/ultra/BodyPartCatalog.java")
+    p51_test = read(SRC / "gui/ultra/BodyPartCatalogSelfTest.java")
+    p51_build = read(MOD / "build.sh")
+    p51_057 = _json51.loads(read(SRC.parents[3] / "resources" / "dmzultra-form-parts-0.5.7.json"))
+    p51_053 = _json51.loads(read(SRC.parents[3] / "resources" / "dmzultra-form-parts-0.5.3.json"))
+    p51_gt4 = ["saiyan/oozaru/" + f for f in ("supersaiyan4", "supersaiyan4fp", "supersaiyan4lb", "supersaiyan5")]
+    check("manifest row for lm 4.7.51", "lm-4751-ultra-057-catalog" in manifest)
+    check("0.5.7 catalog: generated from stock 0.5.7, 115 / 406 / 404, same shop as 0.5.3",
+          p51_057.get("ultraVersion") == "0.5.7" and len(p51_057["pieces"]) == 115
+          and len(p51_057["forms"]) == 406 and len(p51_057["designs"]) == 404
+          and p51_057["pieces"] == p51_053["pieces"])
+    check("0.5.7 catalog drops exactly the 4 GT SSJ4 Oozaru forms; no gt4_* piece anywhere",
+          sorted(set(p51_053["forms"]) - set(p51_057["forms"])) == sorted(p51_gt4)
+          and not set(p51_057["forms"]) - set(p51_053["forms"])
+          and all(p51_053["forms"][k] == v for k, v in p51_057["forms"].items())
+          and not any(p.startswith("gt4_") for v in p51_057["forms"].values() for p in v))
+    check("0.5.7 catalog shipped and selected for Ultra 0.5.7",
+          'SHIPPED = List.of("0.4.0", "0.5.3", "0.5.7")' in p51_cat
+          and 'new Expect("0.5.7", 115, 406, 404, true, true, CLIENT_MESHES)' in p51_test
+          and 'selects(fails, "0.5.7", "0.5.7", "shipped")' in p51_test
+          and 'selects(fails, "0.6.0", "0.5.7", "shipped")' in p51_test
+          and '-C "$RES" dmzultra-form-parts-0.5.7.json' in p51_build)
+    check("generated-catalog gate unchanged (minimums are the newest shipped catalog's)",
+          "BodyPartCatalogSelfTest.check(generated, BodyPartCatalogSelfTest.Expect.newerThan(fallback))" in p51_cat
+          and "base.forms().size(), base.designs().size(), false," in p51_test)
+
     print("\n--- § lm 4.7.50 ---")
     p50_mx = read(SRC / "mixin/BioAndroidDrainTpMixin.java")
     p50_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
@@ -2035,7 +2063,7 @@ def main() -> int:
           p46_040.get("ultraVersion") == "0.4.0" and len(p46_040["pieces"]) == 109
           and len(p46_040["forms"]) == 220 and len(p46_040["designs"]) == 220)
     check("selection: highest shipped <= detected, never newer; newer Ultra generates and must pass the self-test",
-          'SHIPPED = List.of("0.4.0", "0.5.3")' in p46_cat
+          'SHIPPED = List.of("0.4.0", "0.5.3"' in p46_cat
           and "UltraVersion.compare(v, detected) <= 0" in p46_cat
           and "BodyPartCatalogSelfTest.check(generated, BodyPartCatalogSelfTest.Expect.newerThan(fallback))" in p46_cat
           and "LOG.error(" in p46_cat and "return fallback;" in p46_cat)
