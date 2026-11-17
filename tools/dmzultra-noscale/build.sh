@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build dmzultra-<version>-noscale.jar from a stock DMZ Ultra jar (see NoScalePatch.java).
-#   bash tools/dmzultra-noscale/build.sh <stock dmzultra-0.4.0.jar | dmzultra-0.5.3.jar | dmzultra-0.5.5.jar> [out dir]
+#   bash tools/dmzultra-noscale/build.sh <stock dmzultra-0.4.0.jar | dmzultra-0.5.3.jar | dmzultra-0.5.5.jar | dmzultra-0.5.7.jar> [out dir]
 # The version comes from the stock jar's sha256; any other jar is refused.
 # Output: <out dir>/dmzultra-<version>-noscale.jar (default out dir: mods/). The stock jar is only read.
 set -euo pipefail
@@ -15,6 +15,9 @@ STOCK_SHA_053="0a84d1729e13cec17a9b4bc30bd50ca65b923253a67ec37c2862569b884f8afa"
 # 0.5.5 (CurseForge file 9549358, Main File, uploaded 2026-11-10): same as 0.5.3 ("keep") —
 # FormsChecks/UltraChecks gating verified identical to 0.5.3 (dev self-test only, FMLEnvironment.production).
 STOCK_SHA_055="3cd0ec76cf3627ca0316dec12113b00e6f2c5611768520457c115ebc1ed16007"
+# 0.5.7 (CurseForge file 9594539, Main File and the only 0.5.7 listing, uploaded 2026-11-13): same as 0.5.5
+# ("keep") — OverhaulScale, FormDataScaleMixin, FormsChecks and UltraChecks are byte-identical to 0.5.5.
+STOCK_SHA_057="ca3cbbf1f1e97ac36fe5fbaa77374b3d41868cb93f304a6317bd67259960992a"
 ASM="$ROOT/libraries/org/ow2/asm/asm/9.6/asm-9.6.jar"
 ASM_TREE="$ROOT/libraries/org/ow2/asm/asm-tree/9.6/asm-tree-9.6.jar"
 
@@ -26,8 +29,9 @@ case "$got" in
   "$STOCK_SHA") VERSION="0.4.0"; CHECKS="log" ;;
   "$STOCK_SHA_053") VERSION="0.5.3"; CHECKS="keep" ;;
   "$STOCK_SHA_055") VERSION="0.5.5"; CHECKS="keep" ;;
+  "$STOCK_SHA_057") VERSION="0.5.7"; CHECKS="keep" ;;
   *)
-    echo "ERROR: $STOCK is not a known stock DMZ Ultra jar (sha256 $got; want 0.4.0 $STOCK_SHA, 0.5.3 $STOCK_SHA_053 or 0.5.5 $STOCK_SHA_055)" >&2
+    echo "ERROR: $STOCK is not a known stock DMZ Ultra jar (sha256 $got; want 0.4.0 $STOCK_SHA, 0.5.3 $STOCK_SHA_053, 0.5.5 $STOCK_SHA_055 or 0.5.7 $STOCK_SHA_057)" >&2
     exit 1 ;;
 esac
 OUT="$OUT_DIR/dmzultra-$VERSION-noscale.jar"
