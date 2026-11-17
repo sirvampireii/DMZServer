@@ -1944,6 +1944,22 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.54 ---")
+    p54_pick = read(SRC / "event/DragonBallRadarPickup.java")
+    p54_hold = read(SRC / "event/DragonBallSetHold.java")
+    p54_hold_set = p54_hold.split("public static String setOf(", 1)[0]
+    p54_resp = read(SRC / "event/DragonBallRespawn.java")
+    check("manifest row for lm 4.7.54", "lm-4754-biradar-demon" in manifest)
+    check("Bi-Dimensional Radar takes Demon Realm balls (DMZ has no demon radar); exact-match radars unchanged",
+          'return definition.supportsBallSet(set)\n                || (FUSED_RADAR.equals(definition.getId()) && ("earth".equals(set) || "namek".equals(set) || "demon".equals(set)));' in p54_pick)
+    check("demon ball hit without the biradar names only the Bi-Dimensional Radar; set called Demon Realm",
+          'String radar = "demon".equals(setId) ? "the Bi-Dimensional Radar"' in p54_hold
+          and 'if ("demon".equals(setId)) {\n            return "Demon Realm";' in p54_hold)
+    check("one set per player and the respawn stay set-generic (no earth/namek literal on the demon path)",
+          "DragonBallDefinitions.getBallSet(setId)" in p54_hold_set
+          and '"earth"' not in p54_hold_set and '"namek"' not in p54_hold_set
+          and '"earth"' not in p54_resp and '"namek"' not in p54_resp)
+
     print("\n--- § lm 4.7.53 ---")
     p53_spirit = read(SRC / "progression/race/SpiritualistKiControl.java")
     p53_yard = read(SRC / "progression/race/YardratProgression.java")
@@ -2574,7 +2590,7 @@ def main() -> int:
           and db_break.index("event.setCanceled(true);") < db_break.index("event.setCanceled(false);"))
     check("biradar takes Earth and Namek balls",
           'FUSED_RADAR = "fused_radar"' in db_pick
-          and '(FUSED_RADAR.equals(definition.getId()) && ("earth".equals(set) || "namek".equals(set)))' in db_pick)
+          and '(FUSED_RADAR.equals(definition.getId()) && ("earth".equals(set) || "namek".equals(set)' in db_pick)
 
     print("\n--- § text fixes 4.7.33 ---")
     tf_w = read(SRC / "gui/ultra/UltraWeightShopScreens.java")
