@@ -1556,7 +1556,7 @@ def main() -> int:
     check("Ultra patch: FormsChecks.overhaulScale no longer expects scaled values",
           'patchClass(data, "overhaulScale", "()V", NoScalePatch::logOff)' in ns_patch)
     check("Ultra patch: Build-Time stamped noscale, mod version stays the stock one",
-          'STAMP = " noscale"' in ns_patch and "mod version stays the stock one (0.4.0, 0.5.3, 0.5.5)" in ns_verify
+          'STAMP = " noscale"' in ns_patch and "mod version stays the stock one (0.4.0, 0.5.3, 0.5.5, 0.5.7)" in ns_verify
           and "stock.read(\"META-INF/mods.toml\") == patched.read(\"META-INF/mods.toml\")" in ns_verify)
     check("Ultra patch 0.5.3 (not live): sha-gated, FormsChecks kept as shipped (dev-only; never runs in production)",
           'STOCK_SHA_053="0a84d1729e13cec17a9b4bc30bd50ca65b923253a67ec37c2862569b884f8afa"' in ns_build
@@ -1565,6 +1565,41 @@ def main() -> int:
     check("Ultra patch build checks the stock jar's sha256 and runs the verifier",
           'STOCK_SHA="ea63963c59e55ad6cab8ff28967380432c8ee94d7b95a6ee2d58c9ae1b9feacf"' in ns_build
           and 'verify.py" "$STOCK" "$OUT"' in ns_build)
+
+    check("Ultra patch 0.5.7: sha-gated, FormsChecks kept as shipped",
+          'STOCK_SHA_057="ca3cbbf1f1e97ac36fe5fbaa77374b3d41868cb93f304a6317bd67259960992a"' in ns_build
+          and '"$STOCK_SHA_057") VERSION="0.5.7"; CHECKS="keep" ;;' in ns_build)
+
+    print("\n--- § ultra 0.5.7 placefix (Karakura Town finds ground) ---")
+    pf_dir = ROOT / "tools" / "dmzultra-placefix"
+    pf_patch = read(pf_dir / "PlaceFixPatch.java")
+    pf_fix = read(pf_dir / "PlaceGroundFix.java")
+    pf_build = read(pf_dir / "build.sh")
+    pf_verify = read(pf_dir / "verify.py")
+    check("manifest ultra-057-placefix row", "| ultra-057-placefix |" in manifest)
+    check("placefix: built on the noscale build of the sha-pinned stock 0.5.7, then verified",
+          'STOCK_SHA_057="ca3cbbf1f1e97ac36fe5fbaa77374b3d41868cb93f304a6317bd67259960992a"' in pf_build
+          and 'tools/dmzultra-noscale/build.sh" "$STOCK"' in pf_build
+          and 'verify.py" "$NOSCALE" "$OUT"' in pf_build
+          and "dmzultra-0.5.7-noscale-placefix.jar" in pf_build)
+    check("placefix: PlaceGround.vegetation/natural start with PlaceGroundFix.plant/ground, rest unchanged",
+          'prefix(node, "vegetation", "plant");' in pf_patch and 'prefix(node, "natural", "ground");' in pf_patch
+          and "is otherwise unchanged" in pf_verify)
+    check("placefix: a spot is refused as built after 8 built columns (stock 3); forced path keeps its built check",
+          "static final int BUILT_MAX = 8;" in pf_patch and "static final int STOCK_BUILT_MAX = 3;" in pf_patch
+          and '("iconst_3", "bipush 8")' in pf_verify)
+    check("placefix: plants = non-persistent leaves, bushes/crops/vines, Pam's fruit, DMZ might trees; never a block entity or fluid",
+          "block instanceof LeavesBlock" in pf_fix and "BlockStateProperties.f_61447_" in pf_fix
+          and "block instanceof BushBlock" in pf_fix and "block instanceof IPlantable" in pf_fix
+          and 'ns.equals("pamhc2trees") && path.startsWith("pam")' in pf_fix
+          and 'ns.equals("dragonminez") && path.startsWith("might_tree_")' in pf_fix
+          and pf_fix.count("state.m_155947_() || !state.m_60819_().m_76178_()") == 2)
+    check("placefix: ground = SnowyDirtBlock (grass, slime grass) and Tinkers' slime dirt / congealed slime",
+          "block instanceof SnowyDirtBlock" in pf_fix
+          and 'path.endsWith("_slime_dirt") || path.endsWith("_congealed_slime")' in pf_fix)
+    check("placefix: Build-Time stamped placefix, mod version stays 0.5.7",
+          'STAMP = " placefix"' in pf_patch and "mods.toml still says version 0.5.7" in pf_verify)
+
 
     print("\n--- § body parts catalog 0.4.0 ---")
     import json as _json
