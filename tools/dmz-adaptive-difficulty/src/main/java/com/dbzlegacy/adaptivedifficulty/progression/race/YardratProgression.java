@@ -4,6 +4,7 @@ import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dbzlegacy.adaptivedifficulty.progression.DmzSkillUtil;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionConfig;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionData;
+import com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter;
 import com.dragonminez.common.config.ConfigManager;
 import com.dragonminez.common.config.FormConfig;
 import com.dragonminez.common.stats.StatsData;
@@ -106,6 +107,16 @@ public final class YardratProgression {
         }
     }
 
+    /**
+     * 4.7.53: the "starting Ki skills granted" mark is per character ({@link PrestigeCharacter#id}). It was per
+     * account for the session, so after granting on a Yardrat slot, switching to another race's slot set that
+     * slot's Ki Manipulation and Ki Control to 0. Now only the character that got them loses them, when its
+     * race stops being Yardrat.
+     */
+    static String grantedKey(ServerPlayer player) {
+        return "yardrat_starting_ki_skills_granted:" + PrestigeCharacter.id(player);
+    }
+
     private static void skillsTick(ServerPlayer player) {
         StatsData data = DmzProgression.stats(player);
         Character ch = data == null ? null : data.getCharacter();
@@ -125,10 +136,10 @@ public final class YardratProgression {
                 changed = true;
             }
             if (changed) {
-                ProgressionData.tempPut(player, "yardrat_starting_ki_skills_granted", "1");
+                ProgressionData.tempPut(player, grantedKey(player), "1");
                 DmzSkillUtil.sync(player);
             }
-        } else if (ProgressionData.tempHas(player, "yardrat_starting_ki_skills_granted")) {
+        } else if (ProgressionData.tempHas(player, grantedKey(player))) {
             if (DmzSkillUtil.level(skills, SKILL_ONE) > 0) {
                 DmzSkillUtil.setLevel(skills, SKILL_ONE, 0);
                 changed = true;
@@ -137,7 +148,7 @@ public final class YardratProgression {
                 DmzSkillUtil.setLevel(skills, SKILL_TWO, 0);
                 changed = true;
             }
-            ProgressionData.tempRemove(player, "yardrat_starting_ki_skills_granted");
+            ProgressionData.tempRemove(player, grantedKey(player));
             if (changed) {
                 DmzSkillUtil.sync(player);
             }
