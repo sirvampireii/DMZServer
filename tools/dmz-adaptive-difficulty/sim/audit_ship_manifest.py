@@ -1944,6 +1944,27 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.53 ---")
+    p53_spirit = read(SRC / "progression/race/SpiritualistKiControl.java")
+    p53_yard = read(SRC / "progression/race/YardratProgression.java")
+    check("manifest row for lm 4.7.53", "lm-4753-ki-control-per-character" in manifest)
+    check("Spiritualist Ki Control mark is per character; only that character can lose it",
+          'KEY_GRANTED_PREFIX = KEY_GRANTED + ":";' in p53_spirit
+          and "return KEY_GRANTED_PREFIX + PrestigeCharacter.id(player);" in p53_spirit
+          and "ProgressionData.storedPutBool(player, grantedKey(player), true);" in p53_spirit
+          and "String key = grantedKey(player);\n        if (!ProgressionData.storedGetBool(player, key)) {" in p53_spirit
+          and "ProgressionData.storedRemove(player, key);" in p53_spirit)
+    check("old account mark never strips: a confirmed Spiritualist with Ki Control adopts it, then it is dropped",
+          "adoptAccountMark(player, skills);\n                if (grant(player, skills)) {" in p53_spirit
+          and "ProgressionData.storedRemove(player, KEY_GRANTED);" in p53_spirit
+          and p53_spirit.count("storedGetBool(player, KEY_GRANTED)") == 1)
+    check("Spiritualist grant unchanged: 10 s confirm, level 1",
+          "CLASS_CONFIRM_MS = 10_000L;" in p53_spirit and "DmzSkillUtil.setLevel(skills, KI_CONTROL, 1);" in p53_spirit)
+    check("Yardrat starting Ki skills mark is per character; grant levels stay 5",
+          'return "yardrat_starting_ki_skills_granted:" + PrestigeCharacter.id(player);' in p53_yard
+          and p53_yard.count("grantedKey(player)") == 3 and '"yardrat_starting_ki_skills_granted"' not in p53_yard
+          and "DmzSkillUtil.setLevel(skills, SKILL_ONE, 5);" in p53_yard and "DmzSkillUtil.setLevel(skills, SKILL_TWO, 5);" in p53_yard)
+
     print("\n--- § lm 4.7.52 ---")
     p52_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     p52_style = read(SRC / "gui/ultra/UltraStyle.java")
