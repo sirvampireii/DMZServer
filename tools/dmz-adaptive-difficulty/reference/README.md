@@ -594,3 +594,8 @@ files; re-extract from an audited jar when the baseline changes. Keep the `CLASS
 
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified) from
 `LegacyMechanics-4.7.53.jar`. The other 24 are unchanged.
+
+## Re-baseline (2026-11-17, 4.7.54 Bi-Dimensional Radar takes demon balls)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified) from
+`LegacyMechanics-4.7.54.jar`. The other 24 are unchanged.

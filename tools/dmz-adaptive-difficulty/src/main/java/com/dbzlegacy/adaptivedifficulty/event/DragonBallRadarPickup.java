@@ -25,7 +25,8 @@ import net.minecraftforge.eventbus.api.Event;
 /**
  * One left-click with the radar for that ball set takes the ball into the
  * inventory. The Earth radar takes Earth balls. The Namek radar takes Namek
- * balls. The Bi-Dimensional Radar takes both. A different radar leaves the ball
+ * balls. The Bi-Dimensional Radar takes both, and Demon Realm balls (4.7.54).
+ * A different radar leaves the ball
  * where it is.
  *
  * <p>4.7.35: nothing else breaks a dragon ball (no tool, no fist), a player who
@@ -233,8 +234,9 @@ public final class DragonBallRadarPickup {
         }
         String set = ball.getBallSetId();
         // DMZ registers the Bi-Dimensional Radar with ballSetId "earth" only; it covers Namek too.
+        // 4.7.54: and Demon Realm balls, which have no radar of their own in DMZ.
         return definition.supportsBallSet(set)
-                || (FUSED_RADAR.equals(definition.getId()) && ("earth".equals(set) || "namek".equals(set)));
+                || (FUSED_RADAR.equals(definition.getId()) && ("earth".equals(set) || "namek".equals(set) || "demon".equals(set)));
     }
 
     /**

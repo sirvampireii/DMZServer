@@ -94,9 +94,10 @@ public final class DragonBallSetHold {
             return;
         }
         LAST_MESSAGE.put(player.m_20148_(), now);
-        String radar = "namek".equals(setId) ? "a Namek Dragon Radar" : "a Dragon Radar";
+        String radar = "demon".equals(setId) ? "the Bi-Dimensional Radar"
+                : ("namek".equals(setId) ? "a Namek Dragon Radar" : "a Dragon Radar") + " or the Bi-Dimensional Radar";
         player.m_5661_(Component.m_237113_("Dragon Balls can't be broken. Left-click it with " + radar
-                        + " or the Bi-Dimensional Radar to take it.")
+                        + " to take it.")
                 .m_130940_(ChatFormatting.YELLOW), true);
     }
 
@@ -106,6 +107,9 @@ public final class DragonBallSetHold {
         }
         if ("namek".equals(setId)) {
             return "Namek";
+        }
+        if ("demon".equals(setId)) {
+            return "Demon Realm";
         }
         return setId == null || setId.isEmpty() ? "" : Character.toUpperCase(setId.charAt(0)) + setId.substring(1);
     }
