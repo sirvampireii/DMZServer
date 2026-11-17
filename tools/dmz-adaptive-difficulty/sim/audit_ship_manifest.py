@@ -1600,6 +1600,29 @@ def main() -> int:
     check("placefix: Build-Time stamped placefix, mod version stays 0.5.7",
           'STAMP = " placefix"' in pf_patch and "mods.toml still says version 0.5.7" in pf_verify)
 
+    print("\n--- § ultra 0.5.7 podfix (port voyages survive leaving the pod) ---")
+    pv_dir = ROOT / "tools" / "dmzultra-podfix"
+    pv_patch = read(pv_dir / "PodFixPatch.java")
+    pv_stub = read(pv_dir / "stub" / "com" / "dmzultra" / "multiverse" / "PodVoyage.java")
+    pv_build = read(pv_dir / "build.sh")
+    pv_verify = read(pv_dir / "verify.py")
+    check("manifest ultra-057-podfix row", "| ultra-057-podfix |" in manifest)
+    check("podfix: built on placefix (so on noscale), then verified",
+          'tools/dmzultra-placefix/build.sh" "$STOCK"' in pv_build and 'verify.py" "$BASE" "$OUT"' in pv_build
+          and "dmzultra-0.5.7-noscale-placefix-podfix.jar" in pv_build)
+    check("podfix: advance's left-the-pod cancel calls podfixLeftPod(player, voyage, now); nothing else in PodVoyage changes",
+          'static final String WHY = "they left the pod";' in pv_patch and 'HOOK = "podfixLeftPod"' in pv_patch
+          and "every other PodVoyage method is unchanged" in pv_verify)
+    check("podfix: only port voyages go on (alive, same world); every other case is the stock cancel",
+          'if (voyage.port == null || !player.m_6084_() || !player.m_9236_().m_46472_().equals(voyage.from)) {\n            cancel(player, "they left the pod");' in pv_stub)
+    check("podfix: the flight still runs out (or a skip ends it) before the trip; the pod left behind is removed on landing",
+          "launchTicks(voyage.mode) + flightTicks(voyage.mode, voyage.far)) || voyage.skippedFlight" in pv_stub
+          and "source.m_146870_();" in pv_stub)
+    check("podfix: a port voyage's landing ticket loads full chunks out to 4 (stock 2), what the ready check reads",
+          "static final int PORT_TICKET = 4;" in pv_patch
+          and '("iconst_2", "iconst_4")' in pv_verify)
+    check("podfix: Build-Time stamped podfix, mod version stays 0.5.7",
+          'STAMP = " podfix"' in pv_patch and "mods.toml still says version 0.5.7" in pv_verify)
 
     print("\n--- § body parts catalog 0.4.0 ---")
     import json as _json
