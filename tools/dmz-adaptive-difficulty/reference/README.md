@@ -613,4 +613,5 @@ diff showed only the intended copy changes: `AdaptiveDifficultyMod` (version), `
 names, Bulk line, tier status words, staff perk line), `ProgressionGuiApi` (turn-in usage and
 legacy lore wording), `PrestigePointsSystem` (shared "Not enough favor" sentence, public
 turnInAmountsText), and `PrestigeCustomShop` with its `StatWant` / `PotionWant` inner classes
-(lock reasons, readable stat names). The other 17 are unchanged.
+(lock reasons, readable stat names). The other 17 are unchanged. `UltraPrestigeScreens` was
+re-extracted once more for the "N favor" unit on prestige tier buttons.

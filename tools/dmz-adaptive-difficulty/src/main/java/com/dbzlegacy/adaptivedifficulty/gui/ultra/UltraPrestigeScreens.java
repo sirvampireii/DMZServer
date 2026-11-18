@@ -756,7 +756,7 @@ public final class UltraPrestigeScreens {
             boolean owned = "true".equalsIgnoreCase(ph.get("tier_" + t + "_owned"));
             boolean canBuy = "true".equalsIgnoreCase(ph.get("tier_" + t + "_can_buy"));
             String action = "page:ask:tier:" + t;
-            String tail = owned ? "Owned" : (!shop.forSale(t) ? "Not for sale" : (canBuy ? cost : "Locked"));
+            String tail = owned ? "Owned" : (!shop.forSale(t) ? "Not for sale" : (canBuy ? cost + " favor" : "Locked"));
             String withName = "T" + t + " " + label + " - " + tail;
             String caption = UltraStyle.fitsButton(withName) ? withName : ("T" + t + " - " + tail);
             if (owned || !canBuy) {
