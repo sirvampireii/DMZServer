@@ -1230,10 +1230,12 @@ def main() -> int:
         errors.append("Event log toggles must use the state pattern, not verb labels (Turn ON/OFF, Log ON/OFF)")
     if '"Event log - ON"' not in diff_screens or '"Event log - OFF"' not in diff_screens:
         errors.append("Event log toggles must say Event log - ON/OFF")
-    if 'dim("Staff details")' in diff_screens:
-        errors.append("Staff details must be danger/red, not dim")
-    if 'danger("Staff details")' not in diff_screens:
-        errors.append("Difficulty menus must offer Staff details in danger/red")
+    # 4.7.56 (LM54-A10/C6): navigation and read-only buttons use the normal style; danger is
+    # only for destructive actions. Staff details is navigation.
+    if 'dim("Staff details")' in diff_screens or 'danger("Staff details")' in diff_screens:
+        errors.append("Staff details is navigation: normal style, not dim or danger")
+    if 'UltraStyle.LABEL + "Staff details", UltraStyle.STYLE_NORMAL' not in diff_screens:
+        errors.append("Difficulty menus must offer Staff details in the normal style")
     chat_menu = (ULTRA.parent / "DifficultyChatMenu.java").read_text(encoding="utf-8")
     if 'dim("[Staff details]")' in chat_menu or "danger(\"[Staff details]\")" not in chat_menu:
         errors.append("Difficulty chat Staff details must be danger/red")

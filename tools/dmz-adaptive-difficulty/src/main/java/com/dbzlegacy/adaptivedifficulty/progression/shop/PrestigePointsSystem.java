@@ -221,6 +221,11 @@ public final class PrestigePointsSystem {
         return n;
     }
 
+    /** 4.7.56: the one favor-shortfall sentence every shop page and chat reply uses. */
+    public static String notEnoughFavor(long cost, long have) {
+        return "Not enough favor: this costs " + cost + " favor and you have " + have + ".";
+    }
+
     public static void setPoints(ServerPlayer player, int points) {
         if (player == null) {
             return;
@@ -333,7 +338,7 @@ public final class PrestigePointsSystem {
     }
 
     /** "§f1§7, §f2§7, ... or §f9" for the turn-in usage message. */
-    private static String turnInAmountsText() {
+    public static String turnInAmountsText() {
         List<Integer> amounts = PrestigeShopConfig.get().exchange.amounts;
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < amounts.size(); i++) {
@@ -526,7 +531,7 @@ public final class PrestigePointsSystem {
         }
         int points = getPoints(player);
         if (points < cost) {
-            return "§cNeed §e" + cost + " §cfavor (have §e" + points + "§c).";
+            return UltraStyle.dangerLine(notEnoughFavor(cost, points));
         }
         int levelsPerPoint = levelsPerPoint(offer.id);
         int room = Math.max(0, floorMax - purchased);
@@ -794,8 +799,7 @@ public final class PrestigePointsSystem {
         int cost = tierPointCost(tierId);
         int points = getPoints(player);
         if (points < cost) {
-            return "§cNeed §e" + cost + " §cfavor"
-                    + " (have §e" + points + "§c).";
+            return UltraStyle.dangerLine(notEnoughFavor(cost, points));
         }
         setPoints(player, points - cost);
         ProgressionData.storedPutBool(player, KEY_TIER_PREFIX + tierId, true);
@@ -1112,8 +1116,7 @@ public final class PrestigePointsSystem {
         int cost = offer.cost;
         int points = getPoints(player);
         if (points < cost) {
-            return UltraStyle.dangerLine(
-                    "Need " + cost + " favor (have " + points + ").");
+            return UltraStyle.dangerLine(notEnoughFavor(cost, points));
         }
         setPoints(player, points - cost);
         ProgressionData.storedPutBool(player, KEY_ULTIMATE, true);
@@ -1146,7 +1149,7 @@ public final class PrestigePointsSystem {
         }
         int points = getPoints(player);
         if (points < offer.cost) {
-            return "§cNeed §e" + offer.cost + " §cfavor (have §e" + points + "§c).";
+            return UltraStyle.dangerLine(notEnoughFavor(offer.cost, points));
         }
         if (forms.majinMutantExclusive && majin && hasMutant(player)) {
             return "§cYou have §fPermanent Mutant§c."

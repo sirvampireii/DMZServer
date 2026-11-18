@@ -1079,9 +1079,7 @@ public final class RivalGuiApi {
             int players = RivalStore.get().players.size();
             return UltraStyle.GOLD + "Rival admin status\n"
                     + UltraStyle.LABEL + "enabled " + UltraStyle.VALUE + (on ? "ON" : "OFF") + "\n"
-                    + UltraStyle.LABEL + "players " + UltraStyle.VALUE + players + "\n"
-                    + UltraStyle.DIM + RivalStore.path() + "\n"
-                    + UltraStyle.DIM + RivalProgression.path();
+                    + UltraStyle.LABEL + "players " + UltraStyle.VALUE + players;
         }
         return UltraStyle.HEADER + "/rival admin\n"
                 + UltraStyle.YELLOW + "/rival admin save " + UltraStyle.LABEL + "- save rivalry and progress data to disk\n"
@@ -1094,7 +1092,7 @@ public final class RivalGuiApi {
     /** Detail lore for a tab-encoded {@link com.dbzlegacy.adaptivedifficulty.rival.RivalSystem#currentRivalCards} row. */
     public static List<String> rivalCardDetailLines(String card) {
         if (card == null || card.isBlank()) {
-            return List.of(UltraStyle.LABEL + "Unknown rival.");
+            return List.of(UltraStyle.LABEL + "That rival is no longer on your list. Go back and pick another.");
         }
         String[] p = card.split("\t", -1);
         String name = p.length > 1 && p[1] != null && !p[1].isBlank() ? p[1] : "?";
@@ -1106,20 +1104,20 @@ public final class RivalGuiApi {
         String draws = p.length > 7 ? p[7] : "0";
         boolean online = p.length > 10 && "1".equals(p[10]);
         List<String> lines = new ArrayList<>();
-        lines.add(UltraStyle.VALUE + name + (online ? " " + UltraStyle.GREEN + "* online" : " " + UltraStyle.DIM + "? offline"));
+        lines.add(UltraStyle.VALUE + name + (online ? " " + UltraStyle.GREEN + "- Online" : " " + UltraStyle.DIM + "- Offline"));
         lines.add(UltraStyle.LABEL + "Status " + UltraStyle.VALUE + status + "  " + UltraStyle.DIM + "-  " + UltraStyle.LABEL + "Tier " + UltraStyle.GOLD + tier);
-        lines.add(UltraStyle.LABEL + "RP " + UltraStyle.VALUE + rp + "  " + UltraStyle.DIM + "-  " + UltraStyle.LABEL + "W/L/D " + UltraStyle.VALUE + wins + "/" + losses + "/" + draws);
+        lines.add(UltraStyle.LABEL + "RP " + UltraStyle.VALUE + rp + "  " + UltraStyle.DIM + "-  " + UltraStyle.LABEL + "Record " + UltraStyle.VALUE + wins + " wins, " + losses + " losses, " + draws + " draws");
         if (p.length > 8) {
             lines.add(UltraStyle.LABEL + "Challenge deaths " + UltraStyle.VALUE + "you " + p[8] + " " + UltraStyle.DIM + "/ them " + (p.length > 9 ? p[9] : "0"));
         }
-        lines.add(UltraStyle.DIM + "Tap Remove to end this rivalry.");
+        lines.add(UltraStyle.DIM + "Use Remove on this page to end the rivalry.");
         return lines;
     }
 
     /** Detail for a tab-encoded {@link com.dbzlegacy.adaptivedifficulty.rival.RivalSystem#pendingInviteCards} row. */
     public static List<String> pendingInviteDetailLines(String card) {
         if (card == null || card.isBlank()) {
-            return List.of(UltraStyle.LABEL + "Unknown invite.");
+            return List.of(UltraStyle.LABEL + "That invite has ended. Go back to see the current invites.");
         }
         String[] p = card.split("\t", -1);
         String name = p.length > 1 && p[1] != null && !p[1].isBlank() ? p[1] : "?";
@@ -1170,11 +1168,11 @@ public final class RivalGuiApi {
             String[] p = card == null ? new String[0] : card.split("\t", -1);
             String name = p.length > 1 && p[1] != null && !p[1].isBlank() ? p[1].trim() : "?";
             if (pendingInviteCardOutgoing(card)) {
-                out[i] = UltraStyle.GOLD + "? " + UltraStyle.VALUE + name;
+                out[i] = UltraStyle.GOLD + "Sent: " + UltraStyle.VALUE + name;
             } else if (pendingInviteCardMutualConfirm(card)) {
-                out[i] = UltraStyle.YELLOW + "? " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "- mutual";
+                out[i] = UltraStyle.YELLOW + "From: " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "- Mutual request";
             } else {
-                out[i] = UltraStyle.GREEN + "? " + UltraStyle.VALUE + name;
+                out[i] = UltraStyle.GREEN + "From: " + UltraStyle.VALUE + name;
             }
         }
         return out;
@@ -1190,7 +1188,7 @@ public final class RivalGuiApi {
 
     public static List<String> pendingChallengeDetailLines(String card) {
         if (card == null || card.isBlank()) {
-            return List.of(UltraStyle.LABEL + "Unknown challenge request.");
+            return List.of(UltraStyle.LABEL + "That challenge request has ended. Go back to see the current ones.");
         }
         String[] p = card.split("\t", -1);
         String name = p.length > 1 && p[1] != null && !p[1].isBlank() ? p[1] : "?";
@@ -1198,7 +1196,7 @@ public final class RivalGuiApi {
         boolean online = p.length > 4 && "1".equals(p[4]);
         String mins = p.length > 5 ? p[5] : "?";
         List<String> lines = new ArrayList<>();
-        lines.add(UltraStyle.VALUE + name + (online ? " " + UltraStyle.GREEN + "* online" : " " + UltraStyle.DIM + "? offline"));
+        lines.add(UltraStyle.VALUE + name + (online ? " " + UltraStyle.GREEN + "- Online" : " " + UltraStyle.DIM + "- Offline"));
         if ("IN".equalsIgnoreCase(dir)) {
             lines.add(UltraStyle.GREEN + "Incoming challenge");
             lines.add(UltraStyle.LABEL + "Length " + UltraStyle.VALUE + mins + " min");
@@ -1252,9 +1250,9 @@ public final class RivalGuiApi {
             String name = p.length > 1 && p[1] != null && !p[1].isBlank() ? p[1].trim() : "?";
             String mins = p.length > 5 ? p[5] : "?";
             if (pendingChallengeCardOutgoing(card)) {
-                out[i] = UltraStyle.GOLD + "? " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "- " + mins + "m";
+                out[i] = UltraStyle.GOLD + "Sent: " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "- " + mins + " min";
             } else {
-                out[i] = UltraStyle.DANGER + "? " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "- " + mins + "m";
+                out[i] = UltraStyle.DANGER + "From: " + UltraStyle.VALUE + name + " " + UltraStyle.DIM + "- " + mins + " min";
             }
         }
         return out;

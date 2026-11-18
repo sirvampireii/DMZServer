@@ -2,6 +2,7 @@ package com.dbzlegacy.adaptivedifficulty.gui;
 
 import com.dbzlegacy.adaptivedifficulty.calc.LmOverhaulScaledCombat;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.SkillCheckService;
 import com.dbzlegacy.adaptivedifficulty.telemetry.SystemTelemetry;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
@@ -57,8 +58,7 @@ public final class MechanicsGuiApi {
                 List<String> lines = new ArrayList<>();
                 lines.add("§7Event log §f" + (on ? "ON" : "OFF"));
                 lines.add("§8" + SystemTelemetry.statusLine());
-                lines.add("§7Folder §f" + SystemTelemetry.telemetryDir());
-                lines.add("§8Buttons: on - off - flush");
+                lines.add(UltraStyle.DIM + "Use the buttons below to turn the log on or off, see its status, or flush it.");
                 lines.add("§8/lm admin syslog on|off|status|flush");
                 yield lines;
             }
@@ -129,7 +129,7 @@ public final class MechanicsGuiApi {
             }
             return DifficultyConfig.reload()
                     ? "§eLegacy Mechanics config reloaded."
-                    : "§eConfig reload failed.";
+                    : UltraStyle.dangerLine("Config reload failed - check the server log. Previous live values kept.");
         }
         if ("migrate-cnpc".equals(act) || "migratecnpc".equals(act) || "cnpcmigrate".equals(act)) {
             if (!StaffAccess.isStaff(player)) {

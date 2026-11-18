@@ -249,7 +249,8 @@ public final class DifficultyActions {
         }
         if (ACT_CLEAR_TITLE.equals(act) || "unequip_title".equals(act)) {
             String titlePage = page == null || page.isBlank() ? "titles" : page;
-            if (!GuiClickConfirm.confirmed(player.m_20148_(), "clear-title")) {
+            // The Unequip title ask page is the confirm (4.7.56); no second click there.
+            if (!"title_unequip_ask".equals(page) && !GuiClickConfirm.confirmed(player.m_20148_(), "clear-title")) {
                 openGui(player, titlePage);
                 return Result.ok(UltraStyle.YELLOW + "Unequip your title? " + UltraStyle.LABEL
                         + "You can re-equip it any time. "
@@ -384,6 +385,10 @@ public final class DifficultyActions {
 
     private static Result togglePersonal(ServerPlayer player, String page) {
         PlayerDifficultyData data = DifficultyCache.data(player);
+        if ("difficulty_off_ask".equals(page) && !data.isPersonalEnabled()) {
+            // A stale "Turn Difficulty off" click must never turn it back on.
+            return Result.ok("Difficulty is already off.");
+        }
         boolean on = data.togglePersonalEnabled();
         DifficultyCache.save(player);
         DifficultyCache.refresh(player);
@@ -553,7 +558,7 @@ public final class DifficultyActions {
                 return Result.ok(
                         UltraStyle.YELLOW + "Downgrade to " + UltraStyle.VALUE + tier.display
                                 + UltraStyle.YELLOW + " (Tier " + tier.id
-                                + ") — Free? Click again within 10 seconds.");
+                                + ") — free. Click again within 10 seconds to confirm.");
             }
             applyTier(data, player, tier);
             openGui(player, returnPage);
@@ -653,7 +658,8 @@ public final class DifficultyActions {
     }
 
     private static Result resetActive(ServerPlayer player, String page) {
-        if (!GuiClickConfirm.confirmed(player.m_20148_(), "clear-active-tier")) {
+        // The Clear active tier ask page is the confirm (4.7.56); no second click there.
+        if (!"clear_tier_ask".equals(page) && !GuiClickConfirm.confirmed(player.m_20148_(), "clear-active-tier")) {
             openGui(player, page);
             return Result.ok(
                     UltraStyle.YELLOW + "Clear active tier? " + UltraStyle.LABEL

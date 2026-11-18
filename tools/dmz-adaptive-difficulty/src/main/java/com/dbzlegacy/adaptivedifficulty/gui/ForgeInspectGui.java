@@ -41,7 +41,7 @@ public final class ForgeInspectGui {
             case "admin" -> UltraGui.open(admin, "admin", "admin");
             default -> {
                 admin.m_213846_(Component.m_237113_(
-                        UltraStyle.dangerLine("Unknown inspect system: " + sys)));
+                        UltraStyle.dangerLine("That menu cannot be inspected. Try /lm admin inspect hub.")));
                 return false;
             }
         }

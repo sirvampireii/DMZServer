@@ -584,7 +584,7 @@ public final class UltraSparScreens {
         boolean destructive = isDestructiveConfirm(action);
         spec.button(
                         "do:" + action + ":" + targetArg,
-                        destructive ? UltraStyle.danger("Confirm") : UltraStyle.confirm("Confirm"),
+                        destructive ? UltraStyle.danger(confirmVerb(action, plain)) : UltraStyle.confirm(confirmVerb(action, plain)),
                         destructive ? UltraStyle.STYLE_DANGER : UltraStyle.STYLE_CONFIRM)
                 .rowGap();
         // Pickers pass their own page (with its index) as the return page, so Back lands on
@@ -600,6 +600,25 @@ public final class UltraSparScreens {
                 };
         spec.footerBack("page:" + returnPage, backLabel);
         spec.send(player);
+    }
+
+    /** The confirm button names its action (4.7.56); a long name falls back to the verb alone. */
+    private static String confirmVerb(String action, String who) {
+        String full = switch (action == null ? "" : action) {
+            case "mentor_invite" -> "Invite " + who;
+            case "apprentice_invite" -> "Ask " + who;
+            case "mentor_release" -> "Release " + who;
+            case "mentor" -> "Leave mentor";
+            case "mentor_accept" -> "Accept invite";
+            case "mentor_decline" -> "Decline invite";
+            case "dojo_challenge" -> "Challenge dojo";
+            default -> "Confirm";
+        };
+        if (UltraStyle.fitsButton(full)) {
+            return full;
+        }
+        int sp = full.indexOf(' ');
+        return sp > 0 ? full.substring(0, sp) : "Confirm";
     }
 
     /** Leave / release / decline are irreversible or dismissive - wire danger, not confirm. */
@@ -635,7 +654,7 @@ public final class UltraSparScreens {
             case "mentor_accept" -> new String[] {"Accept mentor invite", "Accept to form this training bond."};
             case "mentor_decline" -> new String[] {"Decline mentor invite", "Decline to dismiss the invite."};
             case "dojo_challenge" -> new String[] {"Challenge rival dojo", "Challenge this dojo to a war."};
-            default -> new String[] {"Confirm action", "Confirm to continue."};
+            default -> new String[] {"Sparring action", "Check the target above, then confirm."};
         };
     }
 
@@ -770,7 +789,7 @@ public final class UltraSparScreens {
         boolean outgoing = "OUT".equalsIgnoreCase(dir);
         String who = RivalGuiApi.displayPickerArg(player, picker);
         if (who == null || who.isBlank()) {
-            who = "Unknown dojo";
+            who = "Unknown dojo - that war request may have ended. Go back and pick another.";
         }
         UltraScreenSpec spec = sub("dojo_war_pending_decide:"
                         + withReturnPage((outgoing ? "OUT|" : "IN|") + picker, returnPage))
@@ -922,7 +941,7 @@ public final class UltraSparScreens {
                 .labelValue("Partner", partner == null || partner.isBlank() ? "none" : partner)
                 .buttonsAfterLines();
         spec.buttonLeft("do:admin:save", UltraStyle.confirm("Save data"), "confirm")
-                .buttonRight("do:admin:status", UltraStyle.danger("Show status"), "danger")
+                .buttonRight("do:admin:status", UltraStyle.LABEL + "Show status", UltraStyle.STYLE_NORMAL)
                 .rowGap();
         spec.footerBackHome("Spar Home");
         spec.send(player);

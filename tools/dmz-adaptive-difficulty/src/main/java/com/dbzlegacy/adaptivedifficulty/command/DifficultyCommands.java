@@ -4,7 +4,6 @@ import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache;
 import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
-import com.dbzlegacy.adaptivedifficulty.gui.DifficultyChatMenu;
 import com.dbzlegacy.adaptivedifficulty.gui.DifficultyMenu;
 import com.dbzlegacy.adaptivedifficulty.service.DifficultyActions;
 import com.dbzlegacy.adaptivedifficulty.calc.DifficultySnapshot;
@@ -646,7 +645,7 @@ public final class DifficultyCommands {
             return 0;
         }
         if (!VanillaDifficultyGuard.set(source.m_81377_(), difficulty)) {
-            source.m_81352_(Component.m_237113_("Failed to set vanilla difficulty."));
+            source.m_81352_(Component.m_237113_("The vanilla difficulty could not be changed. Check the server log."));
             return 0;
         }
         if (difficulty == Difficulty.PEACEFUL) {
@@ -668,7 +667,8 @@ public final class DifficultyCommands {
         if (player == null) {
             return adminHelp(source);
         }
-        DifficultyChatMenu.open(player, "settings");
+        // 4.7.56: the Ultra config editor, not the retired chat settings page.
+        com.dbzlegacy.adaptivedifficulty.gui.DifficultyMenu.open(player, "settings");
         return 1;
     }
 
@@ -1012,7 +1012,8 @@ public final class DifficultyCommands {
                 case "adminpermission" -> {
                     // Privilege escalation risk — change only in config JSON + reload.
                     source.m_81352_(Component.m_237113_(
-                            "adminPermission cannot be set live. Edit config/adaptivedifficulty.json and /difficulty admin reload."
+                            "The staff permission setting cannot be changed from chat. Ask the server owner to change it"
+                                    + " in the config file, then reload."
                     ));
                     return 0;
                 }
@@ -1091,9 +1092,7 @@ public final class DifficultyCommands {
                      "specializationdamagetax", "spectax",
                      "racecountermult", "racemult" -> {
                     source.m_81352_(Component.m_237113_(
-                            "§c" + key + " §7is unused (combat uses soft STR/SKP/PWR + VIT hit cap; "
-                                    + "class + top-2 counters only). "
-                                    + "Edit JSON only if you need the legacy field."
+                            "§c" + key + " §7no longer changes combat, so it cannot be set here."
                     ));
                     return 0;
                 }
@@ -1174,7 +1173,8 @@ public final class DifficultyCommands {
                         cfg.bossMechanicsMinUnlockTier = Math.max(0, Integer.parseInt(value));
 
                 default -> {
-                    source.m_81352_(Component.m_237113_("Unknown key: " + key));
+                    source.m_81352_(Component.m_237113_("Unknown setting: " + key + ". Press Tab after"
+                            + " /difficulty admin set to list the settings, or use the Config editor in Staff Admin."));
                     return 0;
                 }
             }
@@ -1184,7 +1184,8 @@ public final class DifficultyCommands {
             source.m_288197_(() -> Component.m_237113_("§aSet §f" + key + " §a= §f" + value), true);
             return 1;
         } catch (Exception e) {
-            source.m_81352_(Component.m_237113_("Invalid value: " + e.getMessage()));
+            source.m_81352_(Component.m_237113_("That value doesn't fit " + key
+                    + ". Use a number for number settings, or true / false for switches."));
             return 0;
         }
     }

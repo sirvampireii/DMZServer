@@ -259,7 +259,7 @@ public final class UltraGuiActions {
                     AdaptiveDifficultyMod.MOD_ID,
                     safeScreen,
                     payload);
-            deliverFeedback(viewer, UltraStyle.dangerLine("That text field is not available."));
+            deliverFeedback(viewer, UltraStyle.dangerLine("That field isn't available on this page. Go back and try again."));
             UltraGui.open(viewer, safeScreen, homePage(safeScreen));
             return;
         }

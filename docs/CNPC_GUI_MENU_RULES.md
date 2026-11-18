@@ -45,3 +45,24 @@ Automated checks: `python3 tools/dmz-adaptive-difficulty/sim/audit_cnpc_gui_styl
 ## Build
 
 - CNPC Java overlays merge onto `base/LegacyMechanics-4.5.49-consolidated.jar`; ki/stamina mixin wiring stays on the base jar (see `base/README.md`).
+
+## Ultra menus: button counts, Back wording, styles (owner rulings, LM 4.7.56)
+
+- **Six action buttons per page.** A page shows at most six action buttons. Two kinds of rows
+  are exempt by design and do not count:
+  - **List rows / cards**: one button per entry of a list (the Tiers list, Titles, race, class,
+    rival and name pickers, the staff Hub tiles). Long lists page with Prev / Next instead.
+  - **Navigation rows**: a row of section links that acts like a tab bar (the Rival Records row:
+    History, Stats, Season, Quests, Achievements, Hall of fame, Journal, Title).
+- **Back wording.** Footers read `Back to <page>` on the left and `Main menu` on the right. The
+  live `Back to ...` wording is the rule (CLAUDE.md); menus never use `<< Back` or `Hub`.
+- **Status words on list buttons** read `Name - Status` with a capitalised word (`T4 Frost -
+  Locked`, `Classic - Done`, `Ultra Instinct - Equipped`), like the `Label - ON/OFF` toggles. When
+  that does not fit, the button shows the name alone; it never abbreviates the status.
+- **Danger (red) style** is for destructive or irreversible actions only (Flush, Clear parts,
+  Discard all, demote, remove). Navigation and read-only status buttons use the normal style.
+- **Ask pages act on the first Confirm.** An ask page is the confirmation; its Confirm button
+  never needs a second click elsewhere.
+- **Staff config editor exception.** The editor keeps its dense 15 px row step (13 px buttons,
+  2 px apart) in its own full-screen 426x240 frame so a category fits on one page. Player menus
+  keep the normal row gap.

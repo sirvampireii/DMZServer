@@ -593,7 +593,7 @@ public final class SparringSystem {
             }
             bond.streakLastDay = today;
             bond.streakBest = Math.max(bond.streakBest, bond.streakCurrent);
-            DmzRewards.msg(player, LmChat.ok("Spar", "Daily training secured! " + UltraStyle.YELLOW + "Streak "
+            DmzRewards.msg(player, LmChat.ok("Spar", "Daily training secured. " + UltraStyle.YELLOW + "Streak "
                     + bond.streakCurrent + " day" + (bond.streakCurrent == 1 ? "" : "s")));
         }
     }
@@ -1559,7 +1559,7 @@ public final class SparringSystem {
             return UltraStyle.DANGER + "Player not online.";
         }
         if (player.m_20148_().equals(target.m_20148_())) {
-            return UltraStyle.DANGER + "Invalid target.";
+            return UltraStyle.DANGER + "You cannot pick yourself. Pick another player.";
         }
         SparStore.MentorBond mine = SparStore.get().bond(player.m_20148_());
         long now = System.currentTimeMillis();

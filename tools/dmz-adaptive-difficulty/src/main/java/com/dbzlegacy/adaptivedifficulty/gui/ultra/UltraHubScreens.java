@@ -135,7 +135,7 @@ public final class UltraHubScreens {
                 .buttonRight("open:config", "Config editor", UltraStyle.STYLE_NORMAL)
                 .rowGap();
         // 4.7.31: moved off the Prestige shop hub so that page keeps six buttons.
-        spec.button("page:" + PAGE_PRESTIGE_SHOP_EDIT, UltraStyle.danger("Edit prestige shop"), UltraStyle.STYLE_DANGER)
+        spec.button("page:" + PAGE_PRESTIGE_SHOP_EDIT, UltraStyle.LABEL + "Edit prestige shop", UltraStyle.STYLE_NORMAL)
                 .rowGap();
         // Sub-page of the hub: one exit back to it (nav:home would reopen this page).
         spec.footerBackToMain();

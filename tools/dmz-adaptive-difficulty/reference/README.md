@@ -604,3 +604,13 @@ Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-veri
 
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified) from
 `LegacyMechanics-4.7.55.jar`. The other 24 are unchanged.
+
+## Re-baseline (2026-11-18, 4.7.56 GUI humanization)
+
+Eight classes were re-extracted from `LegacyMechanics-4.7.56.jar` after a javap string-constant
+diff showed only the intended copy changes: `AdaptiveDifficultyMod` (version), `ConfigEditor`
+(the Prestige shop editor category), `UltraPrestigeScreens` (prestige confirm wording, full skill
+names, Bulk line, tier status words, staff perk line), `ProgressionGuiApi` (turn-in usage and
+legacy lore wording), `PrestigePointsSystem` (shared "Not enough favor" sentence, public
+turnInAmountsText), and `PrestigeCustomShop` with its `StatWant` / `PotionWant` inner classes
+(lock reasons, readable stat names). The other 17 are unchanged.

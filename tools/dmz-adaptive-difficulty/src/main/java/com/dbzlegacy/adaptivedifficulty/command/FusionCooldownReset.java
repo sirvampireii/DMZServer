@@ -54,7 +54,8 @@ public final class FusionCooldownReset {
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.error(
                     "[{}] fusion reset failed for {}", AdaptiveDifficultyMod.MOD_ID, name, t);
-            return "§cFusion reset failed for §f" + name + "§c. Check the server log.";
+            return "§cFusion reset failed for §f" + name + "§c: their fusion data could not be"
+                    + " changed. Ask them to relog, then try again; the server log has the details.";
         }
     }
 

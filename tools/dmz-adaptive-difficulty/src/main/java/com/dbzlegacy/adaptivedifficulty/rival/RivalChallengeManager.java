@@ -178,7 +178,7 @@ public final class RivalChallengeManager {
 
     public String sendChallenge(ServerPlayer from, ServerPlayer to, int minutes) {
         if (from == null || to == null) {
-            return "§cInvalid players.";
+            return "§cThat player is not online. Pick a player who is online now.";
         }
         if (from.m_20148_().equals(to.m_20148_())) {
             return "§cYou cannot challenge yourself.";
@@ -228,7 +228,7 @@ public final class RivalChallengeManager {
         storeRequest(req);
         RivalStore.get().saveIfNeeded(now);
         DmzRewards.msg(to, LmChat.note("Challenge", "§e" + req.fromName
-                + " §7challenged you for §f" + mins + "§7 min!"));
+                + " §7challenged you for §f" + mins + "§7 min."));
         DmzRewards.msg(to, LmChat.tip("/rival", "→ Rival"));
         return "§aChallenge sent to §f" + req.toName + "§a (" + mins + " min).";
     }
@@ -294,9 +294,9 @@ public final class RivalChallengeManager {
         activeByPlayer.put(ch.a, ch.id);
         activeByPlayer.put(ch.b, ch.id);
         broadcast(server, "§e" + ch.nameA + " §7vs §e" + ch.nameB
-                + " §8— challenge starts in 5s!");
-        DmzRewards.msg(challenger, LmChat.ok("Challenge", "Challenge accepted! Countdown started."));
-        return "§aChallenge accepted! Countdown started.";
+                + " §8— challenge starts in 5s.");
+        DmzRewards.msg(challenger, LmChat.ok("Challenge", "Challenge accepted. Countdown started."));
+        return "§aChallenge accepted. Countdown started.";
     }
 
     public String declineChallenge(ServerPlayer player) {
@@ -345,6 +345,12 @@ public final class RivalChallengeManager {
         UUID other = live ? ch.other(player.m_20148_()) : null;
         String them = live ? nameOf(ch, other) : "";
         if (!named) {
+            ChallengeRequest pending = findOutgoing(player.m_20148_());
+            if (pending != null) {
+                return UltraStyle.DANGER + "You have a pending challenge to " + UltraStyle.WHITE + pending.toName
+                        + UltraStyle.DANGER + ". To cancel it, type " + UltraStyle.WHITE
+                        + "/rival do challenge cancel " + pending.toName;
+            }
             if (live) {
                 return UltraStyle.DANGER + "You are in a live challenge with " + UltraStyle.WHITE + them
                         + UltraStyle.DANGER + ". To forfeit it, type " + UltraStyle.WHITE
@@ -482,7 +488,7 @@ public final class RivalChallengeManager {
                     ch.status = RivalChallenge.Phase.ACTIVE;
                     ch.startAt = now;
                     ch.endsAt = now + ch.durationMs;
-                    broadcast(server, "§6FIGHT! §e" + ch.nameA + " §7vs §e" + ch.nameB
+                    broadcast(server, "§6Fight: §e" + ch.nameA + " §7vs §e" + ch.nameB
                             + " §8(" + (ch.durationMs / 1000L) + "s)");
                     Grounds startPg = pairGroundsOf(ch.a, ch.b);
                     ProvingGrounds.underdogNotice(a, startPg);
@@ -495,8 +501,8 @@ public final class RivalChallengeManager {
                     // Script: warn only — fight continues (do not force-end as draw).
                     if (now - ch.lastBroadcastAt >= 3_000L) {
                         ch.lastBroadcastAt = now;
-                        DmzRewards.msg(a, LmChat.fail("Challenge", "Too far apart! Return within range!"));
-                        DmzRewards.msg(b, LmChat.fail("Challenge", "Too far apart! Return within range!"));
+                        DmzRewards.msg(a, LmChat.fail("Challenge", "Too far apart. Return within range."));
+                        DmzRewards.msg(b, LmChat.fail("Challenge", "Too far apart. Return within range."));
                     }
                 }
                 if (now >= ch.endsAt) {
@@ -767,13 +773,13 @@ public final class RivalChallengeManager {
         if (!draw) {
             if (pA != null) {
                 DmzRewards.msg(pA, pA.m_20148_().equals(winner)
-                        ? LmChat.ok("Challenge", "Victory!")
-                        : LmChat.fail("Challenge", "Defeat!"));
+                        ? LmChat.ok("Challenge", "Victory.")
+                        : LmChat.fail("Challenge", "Defeat."));
             }
             if (pB != null) {
                 DmzRewards.msg(pB, pB.m_20148_().equals(winner)
-                        ? LmChat.ok("Challenge", "Victory!")
-                        : LmChat.fail("Challenge", "Defeat!"));
+                        ? LmChat.ok("Challenge", "Victory.")
+                        : LmChat.fail("Challenge", "Defeat."));
             }
         }
     }
@@ -1095,7 +1101,8 @@ public final class RivalChallengeManager {
         }
         UUID self = player.m_20148_();
         if (counterpartyPicker == null || counterpartyPicker.isBlank()) {
-            return findOutgoing(self);
+            // 4.7.56: a bare cancel names the request instead of dropping the first one.
+            return null;
         }
         ChallengeRequest req = findPendingRequestForViewer(player, counterpartyPicker);
         if (req != null && self.equals(req.from)) {

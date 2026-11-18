@@ -298,16 +298,9 @@ public final class UltraRivalScreens {
         if (UltraStyle.fitsButton(full)) {
             return full;
         }
-        String tag = switch (status.toLowerCase(java.util.Locale.ROOT)) {
-            case "nemesis" -> "Nem";
-            case "mutual" -> "Mut";
-            case "declared" -> "Dec";
-            case "silent" -> "Sil";
-            case "pending" -> "Pen";
-            case "past" -> "Past";
-            default -> status.length() <= 4 ? status : status.substring(0, 3);
-        };
-        String compact = name + " " + tag;
+        // 4.7.56: full status words only; a name too long for both drops the status, never
+        // abbreviates it to three letters. The profile page always shows the full status.
+        String compact = name + " - " + status;
         return UltraStyle.fitsButton(compact) ? compact : UltraStyle.buttonText(name);
     }
 
@@ -500,8 +493,7 @@ public final class UltraRivalScreens {
         if (stillRival) {
             profileStatus(spec, RivalGuiApi.rivalLinkFor(player, arg));
         }
-        spec.notice("Removing a rival moves them to History. You can declare again any time.")
-                .buttonsAfterLines();
+        spec.buttonsAfterLines();
         ModelPreview.rotateButton(spec, player, "list_detail:" + payload);
         if (stillRival) {
             // Silent can be upgraded from the profile. Declared and above already sent that step.
@@ -952,13 +944,18 @@ public final class UltraRivalScreens {
                 .line(UltraStyle.LABEL + "Confirm Mutual demotion")
                 .labelValue("Accept", pendingPlain)
                 .labelValue("Demote", dropPlain)
-                .notice("This will demote " + dropPlain + " from Mutual to Declared. Continue?")
+                .notice("This demotes " + dropPlain + " from Mutual to Declared so you can accept " + pendingPlain + ".")
                 .buttonsAfterLines();
-        // Stack Continue above Cancel — side-by-side is a misclick demotion risk.
+        // Stack the action above Back - side-by-side is a misclick demotion risk. The button
+        // names the demotion (4.7.56); a long pair of names falls back to "Demote X".
         if (dropArg != null && !dropArg.isBlank()) {
+            String act = "Demote " + dropPlain + " and accept " + pendingPlain;
+            if (!UltraStyle.fitsButton(act)) {
+                act = "Demote " + dropPlain;
+            }
             spec.button(
                             "do:accept_replace:" + dropArg,
-                            UltraStyle.danger("Continue"),
+                            UltraStyle.danger(act),
                             "danger")
                     .rowGap();
         }
@@ -989,7 +986,7 @@ public final class UltraRivalScreens {
         spec.buttonLeft("do:admin:save", UltraStyle.confirm("Save data"), "confirm")
                 .buttonRight("do:admin:refresh", UltraStyle.confirm("Reload data"), "confirm")
                 .rowGap();
-        spec.button("do:admin:status", UltraStyle.danger("Status"), "danger").rowGap();
+        spec.button("do:admin:status", UltraStyle.LABEL + "Status", UltraStyle.STYLE_NORMAL).rowGap();
         spec.footerBackHome("Rival Home");
         spec.send(player);
     }

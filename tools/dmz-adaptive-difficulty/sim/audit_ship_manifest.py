@@ -1087,7 +1087,7 @@ def main() -> int:
           and "cfg.masteryWallet.enabled || MasteryWallet.balance(player) > 0" in mw_scr
           and '"masteryWallet.enabled"' in mw_hooks)
     check("buy: standard favor wording, confirm page (no double click), favor taken then points added",
-          '"Need " + favor + " favor (have " + have + ")."' in mw_buy
+          "PrestigePointsSystem.notEnoughFavor(favor, have)" in mw_buy  # 4.7.56 shared favor sentence
           and "GuiClickConfirm" not in mw
           and mw_buy.index("PrestigePointsSystem.setPoints(player, have - favor);") < mw_buy.index("setBalance(player, balance + gained);")
           and "not refunded" in mw.split("public static String buyPrompt(", 1)[-1].split("}", 1)[0])
@@ -1765,7 +1765,7 @@ def main() -> int:
           and ch_home.index('"page:reskin"') < ch_home.index('"page:" + PAGE_FORM_PREVIEW + ":0"')
           and "CosmeticBodyPartService.equippedParts(player).size()" in ch_home
           and 'return "Turned off on this server right now.";' in ch_scr
-          and 'return "Not available for your rank.";' in ch_scr
+          and 'return "Not available for your rank. Ask staff which rank unlocks this.";' in ch_scr
           and 'return "Available again in " + cooldownWait + ".";' in ch_scr
           and "UltraStyle.STYLE_DIM" in ch_scr.split("private static void indexButton(", 1)[-1][:600])
     check("Body parts reached only from Home; its Back returns to Character Home; Home footer Back to main menu",
@@ -1819,7 +1819,7 @@ def main() -> int:
           and "if (!packsMigrated || !godKiMigrated) {" in xp_cfg)
     check("Bulk line and lore list every bonus pack; reply bonus is gained minus amount",
           "bulkLine(amounts, PrestigePointsSystem::pointsForTurnIn)" in xp_scr
-          and "Bulk: 3 for 4 favor, 6 for 8, 9 for 13, 12 for 18, 15 for 23, or 18 for 28." in xp_scr
+          and "Bulk: 3 for 4 favor, 6 for 8 favor, 9 for 13 favor, 12 for 18 favor, 15 for 23 favor," in xp_scr
           and "§f15§7, or §f18 §7at a time." in xp_api
           and "(gained - want)" in xp_pts)
     check("every exchange button shows its favor gain in a label that fits",
@@ -1943,6 +1943,64 @@ def main() -> int:
           and "GOD_KI.formMastery(player) >= (double) max * masteryPerLevel()" in gw_kt)
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
+
+    print("\n--- § lm 4.7.56 ---")
+    g = lambda rel: read(SRC / rel)
+    p56_pres = g("gui/ultra/UltraPrestigeScreens.java")
+    p56_psys = g("progression/shop/PrestigeSystem.java")
+    p56_diff = g("gui/ultra/UltraDifficultyScreens.java")
+    p56_act = g("service/DifficultyActions.java")
+    p56_rival = g("gui/ultra/UltraRivalScreens.java")
+    p56_rapi = g("gui/RivalGuiApi.java")
+    p56_spar = g("gui/ultra/UltraSparScreens.java")
+    p56_char = g("gui/ultra/UltraCharacterScreens.java")
+    p56_cfg = g("gui/ultra/UltraConfigScreens.java")
+    p56_ed = g("config/editor/ConfigEditor.java")
+    p56_coin = g("currency/AncientCoinEconomy.java")
+    p56_pps = g("progression/shop/PrestigePointsSystem.java")
+    p56_chal = g("rival/RivalChallengeManager.java")
+    p56_cmd = g("command/DifficultyCommands.java")
+    p56_chat = g("gui/DifficultyChatMenu.java")
+    check("manifest row for lm 4.7.56", "lm-4756-gui-humanize" in manifest)
+    check("B1/B3 prestige confirm names skills, techniques and quests; chat says level, not power",
+          p56_pres.count("This resets your stats, skills, techniques and quest progress") == 1
+          and "This resets your stats, skills, techniques and quest progress" in p56_psys
+          and " power for the next one" not in p56_psys and " power earns your next prestige" not in p56_psys)
+    check("A6 replace confirm button names the demotion",
+          '"Demote " + dropPlain + " and accept " + pendingPlain' in p56_rival and 'UltraStyle.danger("Continue")' not in p56_rival)
+    check("C2 Edit prestige shop opens the Prestige shop editor category",
+          'addTab(tabs, "prestige-shop", "Prestige shop");' in p56_ed and '{"prestige-shop", "Prestige shop"}' in p56_cfg)
+    check("C3 clear-tier / unequip-title ask pages act on the first Confirm",
+          '!"clear_tier_ask".equals(page) && !GuiClickConfirm.confirmed' in p56_act
+          and '!"title_unequip_ask".equals(page) && !GuiClickConfirm.confirmed' in p56_act
+          and "Team mode resets to Personal. You will need Ancient Coins" in p56_diff)
+    check("C1 tier rows show the reason only (no PurchaseState enum names)",
+          "state.name() + \" - \"" not in g("gui/ultra/PurchaseState.java"))
+    check("B2/C13 one favor sentence; coin shortfall without pay-up jargon",
+          "Not enough favor: this costs " in p56_pps and "favor (have " not in p56_pres
+          and "pay-up OK" not in p56_coin and "Overpaying is fine; change is returned." in p56_coin)
+    check("LM-P1-12 chat settings menu retired: /difficulty admin settings opens the Ultra editor",
+          "DifficultyMenu.open(player, page);" in p56_chat and "DifficultyChatMenu.open" not in p56_cmd)
+    check("C7/C9 Flush and Difficulty off ask first; C4 no dead-end Summon locked button",
+          '"page:flush_ask"' in p56_diff and '"page:difficulty_off_ask"' in p56_diff
+          and 'UltraStyle.dim("Summon locked")' not in p56_diff and "Select End Dragon first" not in p56_diff)
+    check("C8 Discard all / Reload disk confirm before dropping unsaved changes",
+          '"config-discard-all"' in p56_cfg and '"config-reload:" + module' in p56_cfg and "change(s)" not in p56_cfg)
+    check("B6/B13 free changes say Confirm; Clear parts and Race default ask first",
+          'UltraStyle.confirm("Confirm & pay")' not in p56_char and '"page:clear_ask:bones:bones:" + pg' in p56_char
+          and '"page:clear_ask:body:" + self' in p56_char)
+    check("A3 spar confirm buttons name the action; no 'Confirm action' fallback",
+          "confirmVerb(action, plain)" in p56_spar and '"Confirm action"' not in p56_spar)
+    check("A4 bare challenge cancel names the request instead of dropping it",
+          "a bare cancel names the request instead of dropping the first one" in p56_chal)
+    check("A5 no exclamation marks on challenge chat",
+          "Too far apart!" not in p56_chal and '"Victory!"' not in p56_chal and "Challenge accepted!" not in p56_chal)
+    check("A9 full words: no Nem/Mut abbreviations, no W/L/D, no '?' markers",
+          '"Nem"' not in p56_rival and "W/L/D" not in p56_rapi and '"? offline"' not in p56_rapi)
+    check("item 52 pickers 20 a page: android, race, class",
+          "ANDROID_PICK_PER_PAGE = 20;" in p56_char and "RACES_PER_PAGE = 20;" in p56_char and "CLASSES_PER_PAGE = 20;" in p56_char)
+    check("C17 staff command text: no raw exception text, no JSON path",
+          '"Invalid value: " + e.getMessage()' not in p56_cmd and "config/adaptivedifficulty.json" not in p56_cmd)
 
     print("\n--- § lm 4.7.55 ---")
     p55_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
@@ -2156,7 +2214,7 @@ def main() -> int:
     check("body parts shop: filters, Find, cards, pages, one action row, Back",
           p49_shop.index("placeFilterRow(spec, filter);") < p49_shop.index('"page:" + PAGE_FIND')
           < p49_shop.index("placePartCards(") < p49_shop.index('base + (pg + 1) + tail')
-          < p49_shop.index('"do:bodypart_clear"') < p49_shop.index('"page:bodycolors"') < p49_shop.index("footerBackHome"))
+          < p49_shop.index('"page:clear_ask:body:" + self') < p49_shop.index('"page:bodycolors"') < p49_shop.index("footerBackHome"))
     check("preview forms: bigger box, scale fit to the form; standard box unchanged",
           "FORMS = new Box(190, 46, 144, 186)" in p49_prev and "STANDARD = new Box(248, 60, 86, 120)" in p49_prev
           and "ModelPreview.formScale(form, ModelPreview.menuBox(box), ModelPreview.BASE_SCALE)" in p49_char
@@ -2299,7 +2357,7 @@ def main() -> int:
     p46_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
     p46_parts = read(SRC / "gui/ultra/PlayerModelParts.java")
     check("shop: priced locked cards, six slot filters, Find button",
-          "priced(name, price.isEmpty() ? \"lock\" : price)" in p46_char
+          "priced(name, price.isEmpty() ? \"Locked\" : price)" in p46_char
           and 'FILTERS = List.of("all", "body", "tail", "ears", "wings", "horns")' in p46_svc
           and '"page:" + PAGE_FIND' in p46_char)
     check("find: server-side match, cap 40, 5 recents, empty-state echo, textinput fallback, shop entry only",

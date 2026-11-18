@@ -34,6 +34,14 @@ public final class DifficultyChatMenu {
     private DifficultyChatMenu() {}
 
     public static void open(ServerPlayer player, String page) {
+        // Retired in 4.7.56: /difficulty admin settings and the old GUI-plugin bridge land on the
+        // Ultra menus (staff settings: the config editor), the same path DifficultyMenu uses.
+        DifficultyMenu.open(player, page);
+    }
+
+    /** The retired chat pages (4.7.55 and older); kept for reference, no caller opens them. */
+    @Deprecated
+    static void openRetiredChatPages(ServerPlayer player, String page) {
         // Chat pages open without DifficultyMenu sometimes — still re-sample DMZ level.
         int sampled = DmzProgression.sampleLevelOnGuiOpen(player);
         if (DmzProgression.hasReliableUnlockGateSample(player)
@@ -385,8 +393,8 @@ public final class DifficultyChatMenu {
         send(player, Component.m_237113_(
                 UltraStyle.DIM + "/difficulty admin off|on · whitelist on|off|add|remove|list"));
         send(player, Component.m_237113_(
-                UltraStyle.LABEL + "Staff Ancient Coin pricing " + UltraStyle.DIM + "→ "
-                        + UltraStyle.VALUE + "/lm " + UltraStyle.LABEL + "→ Progression → Ancient Coins"));
+                UltraStyle.LABEL + "Staff Ancient Coin pricing: " + UltraStyle.VALUE + "/lm "
+                        + UltraStyle.LABEL + "→ Staff Admin → Progression panel → Ancient Coins"));
         send(player, Component.m_237113_(
                 UltraStyle.LABEL + "Tier cost anchor " + UltraStyle.VALUE + (long) cfg.tierCostLevelAnchor
                         + " " + UltraStyle.DIM + UltraStyle.SEP + " T7 target " + UltraStyle.VALUE

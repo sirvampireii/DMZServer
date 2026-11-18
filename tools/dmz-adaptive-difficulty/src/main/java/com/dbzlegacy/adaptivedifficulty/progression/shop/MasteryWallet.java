@@ -483,7 +483,7 @@ public final class MasteryWallet {
         }
         int have = PrestigePointsSystem.getPoints(player);
         if (have < favor) {
-            return UltraStyle.dangerLine("Need " + favor + " favor (have " + have + ").");
+            return UltraStyle.dangerLine(PrestigePointsSystem.notEnoughFavor(favor, have));
         }
         if (!ProgressionData.storedWritable(player)) {
             return UltraStyle.dangerLine("Could not save prestige data - try relogging, then buy again.");
