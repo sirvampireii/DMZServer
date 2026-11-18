@@ -21,7 +21,7 @@ public final class CnpcStaffTestGui {
         }
         if (!DifficultyConfig.get().enableStaffCnpcTestGui) {
             player.m_213846_(Component.m_237113_(
-                    UltraStyle.noticeLine("Staff test GUI is disabled in config.")));
+                    UltraStyle.noticeLine("The staff test menu is turned off. Ask an admin to enable it in the config.")));
             return false;
         }
         player.m_213846_(Component.m_237113_(UltraStyle.YELLOW + "Test menu."));

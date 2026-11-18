@@ -732,7 +732,8 @@ public final class UltraScreenSelfTest {
             if (!layout.contains("playerModel")) {
                 broken.add("character: layoutJson missing playerModel");
             }
-            // 4.7.52: menus are fit to the design box; the standard model is drawn at its menu box.
+            // Character home keeps its model for every player (4.7.55: only Preview forms is staff-only);
+            // the standard model is drawn at its menu box, the right edge of a 426-wide menu.
             JsonObject pm = JsonParser.parseString(layout).getAsJsonObject().has("playerModel")
                     ? JsonParser.parseString(layout).getAsJsonObject().getAsJsonObject("playerModel")
                     : new JsonObject();
@@ -906,19 +907,25 @@ public final class UltraScreenSelfTest {
     }
 
     /**
-     * Every menu is fit to the window (4.7.52), the template {@link #checkConfigFullscreen} set for
-     * the config editor: a 1920x1080 clamp request, fillScreen over a 16:9 design box, margin 0,
-     * not centered, and every control inside the box. KaiPath clamps neither buttons nor inputs, so
-     * one outside the box would be drawn off the window. The box comes from {@link UltraStyle}, not
-     * from numbers here.
+     * Every player menu is a centered panel sized to its page (4.7.55): no fillScreen and no design
+     * box, centered with the standard margin, as wide as the menu needs (never over
+     * {@link UltraStyle#MENU_MAX_W}) and exactly as tall as its content plus KaiPath's Close band.
+     * Nothing is pinned with {@code footer:true}: when KaiPath caps the panel at the window, the
+     * whole page scrolls (body, rows and footer together), so the footer is always reachable at
+     * GUI scale 3 and 4. The numbers come from {@link UltraStyle}, not from this test.
      */
     public static void verifyMenuFit() {
         List<String> broken = new ArrayList<>();
-        int boxW = UltraStyle.MENU_DESIGN_W;
-        int boxH = UltraStyle.MENU_DESIGN_H;
-        // 16:9 to the pixel: the width is the height's 16:9 width rounded (240 tall -> 426.67 -> 426).
-        if (Math.abs(boxW - boxH * 16 / 9.0) >= 1.0) {
-            broken.add("menu design box " + boxW + "x" + boxH + " must be 16:9 or KaiPath stretches buttons");
+        if (UltraStyle.MENU_MAX_W > 480 - 2 * UltraStyle.PANEL_MARGIN) {
+            broken.add("MENU_MAX_W " + UltraStyle.MENU_MAX_W + " is wider than 1080p at GUI scale 4 allows");
+        }
+        if (UltraStyle.MENU_MODEL_BOTTOM > UltraStyle.MENU_SMALL_H - UltraStyle.MENU_CLOSE_BAND) {
+            broken.add("model column ends at " + UltraStyle.MENU_MODEL_BOTTOM + ", below the scroll area of the"
+                    + " smallest panel (" + (UltraStyle.MENU_SMALL_H - UltraStyle.MENU_CLOSE_BAND) + ")");
+        }
+        if (UltraStyle.MENU_W < UltraStyle.PANEL_MIN_W || UltraStyle.MENU_MODEL_W > UltraStyle.MENU_MAX_W) {
+            broken.add("menu widths " + UltraStyle.MENU_W + "/" + UltraStyle.MENU_MODEL_W + " are outside "
+                    + UltraStyle.PANEL_MIN_W + ".." + UltraStyle.MENU_MAX_W);
         }
         for (String id : UltraScreenIds.BUILDER_IDS) {
             if (id == null || id.isBlank() || "config".equals(id)) {
@@ -953,7 +960,23 @@ public final class UltraScreenSelfTest {
                 UltraStyle.BTN_H, 32);
         dense.buttonBound("page:bodyparts_find", "Find", "normal", 222, dense.row(), 90, "input:bodypart_query");
         dense.footerBackHome("Character Home");
-        checkMenuPacket(broken, "dense", dense.toPacket(), true);
+        GuiOpenPacket densePkt = dense.toPacket();
+        checkMenuPacket(broken, "dense", densePkt, true);
+        // Content-sized: a short page gets a small panel, the long one a tall panel (taller than
+        // 1080p at GUI scale 4, so there the whole page scrolls).
+        List<GuiOpenPacket> shortPkts = UltraScreenSpec.captureSends(() -> probeBuilder("skillcheck"));
+        if (shortPkts.isEmpty()) {
+            broken.add("skillcheck probe sent nothing");
+        } else if (shortPkts.get(0).panelHeight() >= densePkt.panelHeight()
+                || densePkt.panelHeight() <= UltraStyle.MENU_SMALL_H) {
+            broken.add("menus must be sized to their content: short page " + shortPkts.get(0).panelHeight()
+                    + " tall, dense page " + densePkt.panelHeight() + " (want short < dense, dense > "
+                    + UltraStyle.MENU_SMALL_H + ")");
+        }
+        // Preview forms is staff-only (4.7.55): with no staff viewer the gate refuses.
+        if (UltraCharacterScreens.staffMayPreviewForms(null)) {
+            broken.add("Preview forms must be staff-only: the gate let a non-staff viewer in");
+        }
 
         if (broken.isEmpty()) {
             LmLog.event("[{}] Ultra menu fit self-check OK", AdaptiveDifficultyMod.MOD_ID);
@@ -964,35 +987,51 @@ public final class UltraScreenSelfTest {
         }
     }
 
-    /** The fit template on one menu packet: clamp request, design box, and every control inside it. */
+    /**
+     * The centered-menu template on one packet: no fillScreen, centered with the standard margin,
+     * width inside {@link UltraStyle#MENU_W}..{@link UltraStyle#MENU_MAX_W}, height equal to the
+     * content plus the Close band, every control inside the panel above that band, nothing pinned,
+     * the footer row last, and the model column whole on the smallest panel.
+     */
     private static void checkMenuPacket(List<String> broken, String tag, GuiOpenPacket pkt, boolean footer) {
-        int boxW = UltraStyle.MENU_DESIGN_W;
-        int boxH = UltraStyle.MENU_DESIGN_H;
-        if (pkt.panelWidth() != 1920 || pkt.panelHeight() != 1080) {
-            broken.add(tag + ": menu must request 1920x1080, got " + pkt.panelWidth() + "x" + pkt.panelHeight());
-        }
         JsonObject lay = JsonParser.parseString(pkt.layoutJson()).getAsJsonObject();
-        if (!lay.has("fillScreen") || !lay.get("fillScreen").getAsBoolean()) {
-            broken.add(tag + ": menu must set fillScreen");
-            return;
+        for (String old : new String[] {"fillScreen", "designWidth", "designHeight"}) {
+            if (lay.has(old)) {
+                broken.add(tag + ": menu must not send " + old + " (menus are centered panels since 4.7.55)");
+            }
         }
-        if (lay.get("designWidth").getAsInt() != boxW || lay.get("designHeight").getAsInt() != boxH) {
-            broken.add(tag + ": design box must be " + boxW + "x" + boxH + ", got "
-                    + lay.get("designWidth") + "x" + lay.get("designHeight"));
+        if (!lay.has("center") || !lay.get("center").getAsBoolean()) {
+            broken.add(tag + ": menu must set center true");
         }
-        if (!lay.has("margin") || lay.get("margin").getAsInt() != 0) {
-            broken.add(tag + ": menu must set margin 0");
+        if (!lay.has("margin") || lay.get("margin").getAsInt() != UltraStyle.PANEL_MARGIN) {
+            broken.add(tag + ": menu margin must be " + UltraStyle.PANEL_MARGIN);
         }
-        if (!lay.has("center") || lay.get("center").getAsBoolean()) {
-            broken.add(tag + ": menu must set center false");
+        int panelW = pkt.panelWidth();
+        int panelH = pkt.panelHeight();
+        if (!lay.has("panelWidth") || lay.get("panelWidth").getAsInt() != panelW
+                || !lay.has("panelHeight") || lay.get("panelHeight").getAsInt() != panelH
+                || !lay.has("width") || lay.get("width").getAsInt() != panelW
+                || !lay.has("height") || lay.get("height").getAsInt() != panelH) {
+            broken.add(tag + ": layoutJson panel size must match the packet " + panelW + "x" + panelH);
+        }
+        if (panelW < UltraStyle.MENU_W || panelW > UltraStyle.MENU_MAX_W) {
+            broken.add(tag + ": menu width " + panelW + " is outside " + UltraStyle.MENU_W + ".." + UltraStyle.MENU_MAX_W);
+        }
+        if (!lay.has("scrollBody") || lay.get("scrollBody").getAsBoolean()) {
+            broken.add(tag + ": scrollBody must be false (the whole page scrolls, not the body)");
         }
         if (pkt.layoutJson().length() > GuiOpenPacket.LAYOUT_JSON_MAX) {
             broken.add(tag + ": layoutJson " + pkt.layoutJson().length() + " chars is over the "
-                    + GuiOpenPacket.LAYOUT_JSON_MAX + " cap; fillScreen would be dropped");
+                    + GuiOpenPacket.LAYOUT_JSON_MAX + " cap; the layout would be dropped");
         }
+        int scrollEnd = panelH - UltraStyle.MENU_CLOSE_BAND;
+        int lowest = lay.has("bodyTop") && lay.has("bodyMaxHeight")
+                ? lay.get("bodyTop").getAsInt() + lay.get("bodyMaxHeight").getAsInt()
+                : 0;
         List<int[]> rects = new ArrayList<>();
         List<String> names = new ArrayList<>();
         int mainX = -1;
+        int footerBottom = -1;
         for (String json : new String[] {pkt.buttonsJson(), pkt.inputsJson()}) {
             if (json == null || json.isBlank()) {
                 continue;
@@ -1004,21 +1043,23 @@ public final class UltraScreenSelfTest {
                 int w = o.get("w").getAsInt();
                 int h = o.get("h").getAsInt();
                 String name = o.has("label") ? UltraStyle.plain(o.get("label").getAsString()) : o.get("id").getAsString();
-                boolean isFooter = o.has("footer") && o.get("footer").getAsBoolean();
-                if (x < 0 || y < 0 || x + w > boxW || y + h > boxH) {
+                if (o.has("footer") && o.get("footer").getAsBoolean()) {
+                    broken.add(tag + ": '" + name + "' is pinned with footer:true; menus scroll as one page");
+                }
+                if (x < 0 || y < 0 || x + w > panelW || y + h > scrollEnd) {
                     broken.add(tag + ": '" + name + "' at " + x + "," + y + " " + w + "x" + h + " is outside the "
-                            + boxW + "x" + boxH + " design box");
+                            + panelW + "x" + scrollEnd + " page (panel less the Close band)");
                 }
-                if (!isFooter && y + h > UltraStyle.MENU_CONTENT_BOTTOM) {
-                    broken.add(tag + ": '" + name + "' ends at y=" + (y + h) + ", into the footer band (content ends at "
-                            + UltraStyle.MENU_CONTENT_BOTTOM + ")");
-                }
-                if (isFooter && "Main menu".equals(name)) {
+                if ("Main menu".equals(name)) {
                     mainX = x;
+                }
+                if ("Main menu".equals(name) || name.startsWith("Back to")) {
+                    footerBottom = Math.max(footerBottom, y + h);
                 }
                 if (o.has("label") && w < UltraStyle.BTN_MIN_W) {
                     broken.add(tag + ": '" + name + "' is " + w + "px wide, under the " + UltraStyle.BTN_MIN_W + "px minimum");
                 }
+                lowest = Math.max(lowest, y + h);
                 rects.add(new int[] {x, y, w, h});
                 names.add(name);
             }
@@ -1029,11 +1070,32 @@ public final class UltraScreenSelfTest {
             int y = pm.get("y").getAsInt();
             int w = pm.get("width").getAsInt();
             int h = pm.get("height").getAsInt();
-            if (x < 0 || y < 0 || x + w > boxW || y + h > UltraStyle.MENU_CONTENT_BOTTOM) {
-                broken.add(tag + ": model preview " + x + "," + y + " " + w + "x" + h + " is outside the design box");
+            if (x < 0 || y < 0 || x + w > panelW - UltraStyle.MENU_EDGE || y + h > UltraStyle.MENU_MODEL_BOTTOM) {
+                broken.add(tag + ": model preview " + x + "," + y + " " + w + "x" + h + " must sit inside the panel and end by "
+                        + UltraStyle.MENU_MODEL_BOTTOM + " (KaiPath pins it while the page scrolls)");
             }
+            lowest = Math.max(lowest, y + h);
             rects.add(new int[] {x, y, w, h});
             names.add("model preview");
+        }
+        if (lay.has("playerModel") && panelH > UltraStyle.MENU_SMALL_H) {
+            // The page scrolls at GUI scale 4 while KaiPath pins the model: only the footer row
+            // (below the model column at any scroll) may sit in the model's columns.
+            int modelX = lay.getAsJsonObject("playerModel").get("x").getAsInt();
+            for (int k = 0; k < rects.size(); k++) {
+                int[] r = rects.get(k);
+                String n = names.get(k);
+                boolean footerRow = "Main menu".equals(n) || n.startsWith("Back to");
+                if (!"model preview".equals(n) && !footerRow && r[1] >= UltraStyle.MENU_TAB_Y + UltraStyle.MENU_BTN_H
+                        && r[0] + r[2] > modelX) {
+                    broken.add(tag + ": '" + n + "' is in the model column of a page that scrolls; it would pass behind the model");
+                }
+            }
+        }
+        int want = Math.min(UltraScreenSpec.MENU_MAX_REQUEST_H,
+                lowest + UltraStyle.MENU_END_PAD + UltraStyle.MENU_CLOSE_BAND);
+        if (panelH != want) {
+            broken.add(tag + ": panel height " + panelH + " is not sized to its content (want " + want + ")");
         }
         for (int a = 0; a < rects.size(); a++) {
             for (int b = a + 1; b < rects.size(); b++) {
@@ -1044,8 +1106,11 @@ public final class UltraScreenSelfTest {
                 }
             }
         }
-        if (footer && mainX >= 0 && mainX + UltraStyle.BTN_W != boxW) {
-            broken.add(tag + ": Main menu must sit on the design-box right edge, x=" + mainX);
+        if (footer && footerBottom >= 0 && footerBottom != lowest) {
+            broken.add(tag + ": the footer row must follow the content (ends at " + footerBottom + ", content at " + lowest + ")");
+        }
+        if (footer && mainX >= 0 && mainX + UltraStyle.BTN_W != panelW - UltraStyle.MENU_EDGE) {
+            broken.add(tag + ": Main menu must sit on the right content edge, x=" + mainX);
         }
     }
 

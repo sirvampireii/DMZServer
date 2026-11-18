@@ -213,7 +213,7 @@ public final class UltraPrestigeScreens {
                 .labelValue("Current prestige amount",
                         ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", String.valueOf(com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE)))
                 .labelValue("Level cap", ph.getOrDefault("required_fmt", "0"))
-                .notice("This resets your stats and adds one to your current prestige amount.");
+                .notice("This resets your stats, skills, techniques and quest progress, and adds one to your current prestige amount. Kept skill levels and permanent shop purchases survive.");
         if (PrestigeUniverseRoleWarn.isGodOfDestruction(player)) {
             spec.line(UltraStyle.danger(PrestigeUniverseRoleWarn.GOD_OF_DESTRUCTION));
         }
@@ -589,13 +589,13 @@ public final class UltraPrestigeScreens {
         spec.send(player);
     }
 
-    /** "Bulk: 3 for 4 favor, 6 for 8, or 9 for 13." from the packs that pay a bonus; empty if none. */
+    /** "Bulk: 3 for 4 favor, 6 for 8 favor, or 9 for 13 favor." from the bonus packs; empty if none. */
     static String bulkLine(int[] amounts, java.util.function.IntUnaryOperator payout) {
         List<String> parts = new ArrayList<>();
         for (int a : amounts) {
             int gain = payout.applyAsInt(a);
             if (gain > a) {
-                parts.add(a + " for " + gain + (parts.isEmpty() ? " favor" : ""));
+                parts.add(a + " for " + gain + " favor");
             }
         }
         if (parts.isEmpty()) {
@@ -637,7 +637,8 @@ public final class UltraPrestigeScreens {
             broken.add("Prestige exchange: only an untouched 1, 2, 3, 6, 9 list should gain 12, 15, 18, once");
         }
         String bulk = bulkLine(packs, fresh::payout);
-        if (!bulk.equals("Bulk: 3 for 4 favor, 6 for 8, 9 for 13, 12 for 18, 15 for 23, or 18 for 28.")) {
+        if (!bulk.equals("Bulk: 3 for 4 favor, 6 for 8 favor, 9 for 13 favor, 12 for 18 favor, 15 for 23 favor,"
+                + " or 18 for 28 favor.")) {
             broken.add("Prestige exchange: Bulk line reads '" + bulk + "'");
         }
     }
@@ -652,9 +653,9 @@ public final class UltraPrestigeScreens {
         int gain = PrestigePointsSystem.pointsForTurnIn(amount);
         String raw = held >= amount
                 ? exchangeLabel(amount, gain)
-                : "Exchange " + amount + " - need " + amount;
+                : "Exchange " + amount + " - hold " + amount + " first";
         if (!UltraStyle.fitsButton(raw)) {
-            raw = held >= amount ? "Exchange " + amount : "Need " + amount;
+            raw = "Exchange " + amount;
         }
         String label = held >= amount ? UltraStyle.confirm(raw) : UltraStyle.dim(raw);
         String style = held >= amount ? "confirm" : "dim";
@@ -755,9 +756,9 @@ public final class UltraPrestigeScreens {
             boolean owned = "true".equalsIgnoreCase(ph.get("tier_" + t + "_owned"));
             boolean canBuy = "true".equalsIgnoreCase(ph.get("tier_" + t + "_can_buy"));
             String action = "page:ask:tier:" + t;
-            String tail = owned ? "owned" : (!shop.forSale(t) ? "n/a" : (canBuy ? cost : "lock"));
-            String withName = "T" + t + " " + label + " " + tail;
-            String caption = UltraStyle.fitsButton(withName) ? withName : ("T" + t + " " + tail);
+            String tail = owned ? "Owned" : (!shop.forSale(t) ? "Not for sale" : (canBuy ? cost + " favor" : "Locked"));
+            String withName = "T" + t + " " + label + " - " + tail;
+            String caption = UltraStyle.fitsButton(withName) ? withName : ("T" + t + " - " + tail);
             if (owned || !canBuy) {
                 spec.button(action, UltraStyle.dim(caption), UltraStyle.STYLE_DIM).rowGap();
             } else {
@@ -973,7 +974,9 @@ public final class UltraPrestigeScreens {
             for (String problem : PrestigeCustomShop.problems(id, entry)) {
                 spec.line(UltraStyle.danger("Staff: " + problem));
             }
-            spec.line(UltraStyle.dim("Staff: id " + id + (entry.enabled ? "" : " (not for sale)")));
+            if (!entry.enabled) {
+                spec.line(UltraStyle.dim("Staff: not for sale."));
+            }
         }
         spec.buttonsAfterLines();
         if (!maxed) {
@@ -1001,12 +1004,8 @@ public final class UltraPrestigeScreens {
      * (or price) when the full caption would clip.
      */
     private static String skillCaption(String label, int bought, int max, boolean maxed, int cost) {
-        String name = switch (label == null ? "" : label) {
-            case "Instant Transmission" -> "Transmit";
-            case "Potential Unlock" -> "Potential";
-            case "Healing Reduction" -> "Healing Cut";
-            default -> label == null || label.isBlank() ? "Skill" : label;
-        };
+        // 4.7.56: the full skill name, as on the ask page; the level and price drop first.
+        String name = label == null || label.isBlank() ? "Skill" : label;
         String prog = bought + "/" + (max > 0 ? max : "?");
         String priceTag = cost >= 0 && !maxed ? " (" + cost + ")" : "";
         String withMax = name + " " + prog + (maxed ? " max" : priceTag);
@@ -1173,7 +1172,7 @@ public final class UltraPrestigeScreens {
         } else if (bought >= max) {
             block = label + " is already at its kept-level max.";
         } else if (favor < cost) {
-            block = "Need " + cost + " favor (have " + favor + ").";
+            block = PrestigePointsSystem.notEnoughFavor(cost, favor);
         }
         askFinish(spec, block, "do:skill:" + skill, "Buy for " + cost + " favor", false, "skills", "Skill shop")
                 .send(player);
@@ -1197,7 +1196,7 @@ public final class UltraPrestigeScreens {
         } else if (!shop.forSale(tierId)) {
             block = "Permanent T" + tierId + " is not for sale right now.";
         } else if (favor < cost) {
-            block = "Need " + cost + " favor (have " + favor + ").";
+            block = PrestigePointsSystem.notEnoughFavor(cost, favor);
         } else if (shop.requireInOrder) {
             for (int prev = 1; prev < tierId && block == null; prev++) {
                 if (!PrestigePointsSystem.hasPurchasedTier(player, prev)) {
@@ -1229,7 +1228,7 @@ public final class UltraPrestigeScreens {
                 && (majin ? PrestigePointsSystem.hasMutant(player) : PrestigePointsSystem.hasMajin(player))) {
             block = "You have Permanent " + other + ". Remove it first - only one at a time.";
         } else if (favor < offer.cost) {
-            block = "Need " + offer.cost + " favor (have " + favor + ").";
+            block = PrestigePointsSystem.notEnoughFavor(offer.cost, favor);
         }
         askFinish(spec, block, majin ? "do:majin" : "do:mutant", "Buy for " + offer.cost + " favor", false,
                 "effects", "Effects").send(player);
@@ -1268,7 +1267,7 @@ public final class UltraPrestigeScreens {
         } else if (!offer.enabled) {
             block = "Permanent Ultimate is not for sale right now.";
         } else if (favor < offer.cost) {
-            block = "Need " + offer.cost + " favor (have " + favor + ").";
+            block = PrestigePointsSystem.notEnoughFavor(offer.cost, favor);
         }
         askFinish(spec, block, "do:ultimate", "Buy for " + offer.cost + " favor", false, "effects", "Effects")
                 .send(player);
@@ -1300,7 +1299,7 @@ public final class UltraPrestigeScreens {
                     ? "You already own the most levels of " + entry.name + "."
                     : PrestigeCustomShop.blockReason(player, id, entry);
             if (block == null && favor < cost) {
-                block = "Need " + cost + " favor (have " + favor + ").";
+                block = PrestigePointsSystem.notEnoughFavor(cost, favor);
             }
             askFinish(spec, block, "do:custom_buy:" + id, "Buy for " + cost + " favor", false, back, backLabel)
                     .send(player);
@@ -1334,7 +1333,7 @@ public final class UltraPrestigeScreens {
         } else if (!selling) {
             block = "Points are not on sale right now. Points you have can still be applied.";
         } else if (favor < pack) {
-            block = "Need " + pack + " favor (have " + favor + ").";
+            block = PrestigePointsSystem.notEnoughFavor(pack, favor);
         }
         return askFinish(spec, block, "do:mastery_buy:" + pack, "Buy " + points + " points", false,
                 "mastery_wallet", "Mastery wallet");
@@ -1386,7 +1385,7 @@ public final class UltraPrestigeScreens {
             } else if (!godKiOnSale) {
                 block = line.label + " is not on sale right now.";
             } else if (balance < points) {
-                block = "You need " + points + " points (have " + balance + "). Buy points on the Mastery wallet page.";
+                block = "Not enough points: this costs " + points + " points and you have " + balance + ". Buy points on the Mastery wallet page.";
             }
             return askFinish(spec, block, doAction, "Level up for " + points + " points", false, back,
                     line.label);

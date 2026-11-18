@@ -1620,7 +1620,7 @@ def main() -> int:
           and "hasUltimateSkill(player)" in buy_ult
           and '"buy_ultimate"' in buy_ult
           and '"Unlocked Permanent Ultimate (-" + cost + " favor)"' in buy_ult
-          and '"Need " + cost + " favor (have "' in buy_ult)
+          and "notEnoughFavor(cost, points)" in buy_ult)  # 4.7.56 shared favor sentence
     # 4.7.21: Permanent Ultimate is not refundable - the remove path is gone.
     check("ultimate can't be removed: no unbuyUltimate, no Remove button, unultimate only says so",
           "unbuyUltimate" not in pp

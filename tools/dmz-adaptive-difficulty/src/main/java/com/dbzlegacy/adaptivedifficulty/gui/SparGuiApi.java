@@ -462,7 +462,7 @@ public final class SparGuiApi {
             case "pending", "invites", "pendinginvites" -> pendingMentorLines(player);
             case "help" -> List.of(
                     UltraStyle.HEADER + "/spar " + UltraStyle.DIM + "- Sparring TP",
-                    UltraStyle.LABEL + "Mentor bonds: GUI -> Training bonds",
+                    UltraStyle.LABEL + "Mentor bonds live under Training bonds",
                     UltraStyle.YELLOW + "/spar stats|end|top [category]",
                     UltraStyle.DIM + "Commands still work for staff / scripts"
             );

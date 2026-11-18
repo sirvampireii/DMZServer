@@ -5,7 +5,7 @@ public final class LmCommandMessages {
     private LmCommandMessages() {}
 
     public static final String NEED_STAFF =
-            "§cYou need staff permission for that (op or difficulty.admin).";
+            "§cYou need staff permission for that.";
 
     public static final String STAFF_ONLY = "§cStaff only.";
 
@@ -22,7 +22,7 @@ public final class LmCommandMessages {
     public static final String NO_PERMISSION_BRIDGE = "§cYou don’t have permission for that.";
 
     public static final String SKILLCHECK_DONATOR =
-            "§cSkill Check is for donators—use §f/lm open skillcheck §7when you have access.";
+            "§cSkill Check is a donator perk — ask staff if you want access.";
 
     public static String tryCommand(String command) {
         return "§cTry: §f" + command;

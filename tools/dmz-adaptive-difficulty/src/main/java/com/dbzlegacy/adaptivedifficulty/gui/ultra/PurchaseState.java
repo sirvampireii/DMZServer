@@ -64,9 +64,10 @@ public final class PurchaseState {
 
     /** State plus the reason line the menu shows next to it. */
     public record View(State state, String reason) {
-        /** {@code SHORT - need 3× Iron Ancient more}. */
+        /** The reason alone, first letter capitalised: {@code You need 3x Ancient Copper more}. */
         public String line() {
-            return state.name() + " - " + reason;
+            String r = reason == null ? "" : reason.trim();
+            return r.isEmpty() ? r : Character.toUpperCase(r.charAt(0)) + r.substring(1);
         }
     }
 

@@ -358,10 +358,10 @@ public final class AncientCoinEconomy {
         }
         long have = balance(player);
         long missing = Math.max(0L, copperCost - have);
-        return "Need " + formatExactCost(copperCost)
-                + " — missing " + formatExactCost(missing)
-                + " (have " + inventoryBreakdown(player) + ")"
-                + " §8· pay-up OK · change returned";
+        return "Costs " + formatExactCost(copperCost)
+                + " — you need " + formatExactCost(missing) + " more"
+                + " (you have " + inventoryBreakdown(player) + ")."
+                + " Overpaying is fine; change is returned.";
     }
 
     public static boolean charge(ServerPlayer player, long copperCost) {

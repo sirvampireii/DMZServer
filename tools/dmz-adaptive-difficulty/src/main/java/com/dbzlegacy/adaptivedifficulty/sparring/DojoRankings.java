@@ -260,7 +260,7 @@ public final class DojoRankings {
         SparStore.get().markDirty();
 
         StringBuilder sb = new StringBuilder();
-        sb.append(UltraStyle.HEADER + "Dojo season " + UltraStyle.VALUE + "#").append(season.seasonId).append(" " + UltraStyle.GOLD + "ended!");
+        sb.append(UltraStyle.HEADER + "Dojo season " + UltraStyle.VALUE + "#").append(season.seasonId).append(" " + UltraStyle.GOLD + "ended.");
         sb.append("\n" + UltraStyle.YELLOW + "#1 " + UltraStyle.VALUE).append(rec.championName).append(" " + UltraStyle.LABEL).append(rec.championRp).append(" RP");
         if (rec.secondName != null && !rec.secondName.isBlank()) {
             sb.append("\n" + UltraStyle.YELLOW + "#2 " + UltraStyle.VALUE).append(rec.secondName).append(" " + UltraStyle.LABEL).append(rec.secondRp).append(" RP");
@@ -670,7 +670,7 @@ public final class DojoRankings {
             i++;
         }
         if (i == 1) {
-            lines.add(UltraStyle.LABEL + "No dojo rankings yet - spar across dojos!");
+            lines.add(UltraStyle.LABEL + "No dojo rankings yet. Spar with other dojos to start them.");
         }
         return lines;
     }
@@ -1031,7 +1031,7 @@ public final class DojoRankings {
                     : active.fromDojoName;
             lines.add(UltraStyle.HEADER + "Active war " + UltraStyle.VALUE + "vs " + blank(rival, "?")
                     + " " + UltraStyle.DIM + "(2x RP)");
-            lines.add(UltraStyle.DIM + "Their members show in Noea tracking.");
+            lines.add(UltraStyle.DIM + "Their members show on the war tracker.");
         }
         return lines;
     }
@@ -1130,7 +1130,7 @@ public final class DojoRankings {
             mat = mat + "_BANNER";
         }
         if (!BANNER_OPTIONS.contains(mat)) {
-            return UltraStyle.DANGER + "Invalid banner. Pick from the Banner menu.";
+            return UltraStyle.DANGER + "That banner is not on the list. Pick one from the Banner menu.";
         }
         String key = master.m_20148_().toString().toLowerCase(Locale.ROOT);
         SparStore.DojoProfile prof = profileOrCreate(key);
@@ -1214,7 +1214,7 @@ public final class DojoRankings {
         }
         String toKey = SparStore.canonicalDojoKey(normalizeMasterUuid(targetMasterRaw));
         if (toKey.isBlank()) {
-            return UltraStyle.DANGER + "Invalid dojo target.";
+            return UltraStyle.DANGER + "That dojo no longer exists. Pick another dojo from the list.";
         }
         String fromKey = SparStore.canonicalDojoKey(challenger.m_20148_().toString());
         if (fromKey.equalsIgnoreCase(toKey)) {
@@ -1251,7 +1251,7 @@ public final class DojoRankings {
         }
         if (targetOnline != null && isDojoMaster(targetOnline)) {
             DmzRewards.msg(targetOnline, LmChat.note("Dojo", UltraStyle.VALUE + c.fromDojoName
-                    + " " + UltraStyle.YELLOW + " challenged your dojo to war!"));
+                    + " " + UltraStyle.YELLOW + " challenged your dojo to war."));
             DmzRewards.msg(targetOnline, LmChat.tip("/spar", "- Dojo War - War pending"));
         }
         return UltraStyle.GREEN + "War challenge sent to " + UltraStyle.VALUE + blank(c.toDojoName, dojoDisplayName(toKey)) + UltraStyle.GREEN + ".";
@@ -1301,8 +1301,8 @@ public final class DojoRankings {
         SparStore.get().markDirty();
         broadcast(LmChat.ok("Dojo", UltraStyle.HEADER + "DOJO WAR " + UltraStyle.VALUE + c.fromDojoName
                 + " " + UltraStyle.LABEL + "vs " + UltraStyle.VALUE + c.toDojoName
-                + " " + UltraStyle.DIM + "- spars vs that dojo earn 2x ranking points. Their members show in Noea tracking."));
-        return UltraStyle.GREEN + "Dojo war accepted! " + UltraStyle.LABEL + "Spars vs " + UltraStyle.VALUE + c.fromDojoName + " " + UltraStyle.GREEN + "now earn double ranking points.";
+                + " " + UltraStyle.DIM + "- spars vs that dojo earn 2x ranking points. Their members show on the war tracker."));
+        return UltraStyle.GREEN + "Dojo war accepted. " + UltraStyle.LABEL + "Spars vs " + UltraStyle.VALUE + c.fromDojoName + " " + UltraStyle.GREEN + "now earn double ranking points.";
     }
 
     public static String declineChallenge(ServerPlayer master) {

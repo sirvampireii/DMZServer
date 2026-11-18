@@ -21,7 +21,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 /** Character Services - Home / Saga Reset / Android Removal (+ race, class, model pages). */
 public final class UltraCharacterScreens {
-    private static final int ANDROID_PICK_PER_PAGE = 8;
+    private static final int ANDROID_PICK_PER_PAGE = 20;
 
     private UltraCharacterScreens() {}
 
@@ -41,6 +41,10 @@ public final class UltraCharacterScreens {
         }
         if (lower.startsWith("class_confirm:")) {
             openClassConfirm(player, p.substring("class_confirm:".length()).trim());
+            return;
+        }
+        if (lower.startsWith("clear_ask:")) {
+            openClearPartsAsk(player, lower.substring("clear_ask:".length()));
             return;
         }
         if (lower.startsWith("bone_ask:")) {
@@ -189,6 +193,8 @@ public final class UltraCharacterScreens {
                 "true".equals(ph.get("can_reskin")),
                 CharacterServicesSystem.cooldownWait(player, "reskin"));
 
+        // 4.7.55: Preview forms is a staff tool; players do not get its line or its button.
+        boolean formsShown = staffMayPreviewForms(player);
         String formsBlock = ModelPreview.raceForms(player).isEmpty() ? "Make your character first." : "";
 
         String bone = ph.getOrDefault("active_head_bone", "");
@@ -214,10 +220,12 @@ public final class UltraCharacterScreens {
                         partsBlock))
                 .line(indexLine("Reskin",
                         "Change your hair, eyes and colors. Race, class and stats stay.",
-                        reskinBlock))
-                .line(indexLine("Preview forms",
-                        "See your race in each of its forms on the model. Nothing changes on you.",
-                        formsBlock));
+                        reskinBlock));
+        if (formsShown) {
+            spec.line(indexLine("Preview forms",
+                    "See your race in each of its forms on the model. Nothing changes on you.",
+                    formsBlock));
+        }
         spec.buttonsAfterLines();
         ModelPreview.rotateButton(spec, player, "main");
 
@@ -228,7 +236,9 @@ public final class UltraCharacterScreens {
         indexButton(spec, false, "page:bodyparts:0", "Body parts", partsBlock);
         spec.rowGap();
         indexButton(spec, true, "page:reskin", "Reskin", reskinBlock);
-        indexButton(spec, false, "page:" + PAGE_FORM_PREVIEW + ":0", "Preview forms", formsBlock);
+        if (formsShown) {
+            indexButton(spec, false, "page:" + PAGE_FORM_PREVIEW + ":0", "Preview forms", formsBlock);
+        }
         spec.rowGap();
 
         spec.footerBackToMain();
@@ -241,7 +251,7 @@ public final class UltraCharacterScreens {
             return "Turned off on this server right now.";
         }
         if (!permitted) {
-            return "Not available for your rank.";
+            return "Not available for your rank. Ask staff which rank unlocks this.";
         }
         if (cooldownWait != null && !cooldownWait.isBlank()) {
             return "Available again in " + cooldownWait + ".";
@@ -290,6 +300,17 @@ public final class UltraCharacterScreens {
      * picked here.
      */
     private static void openFormPreview(ServerPlayer player, int index) {
+        if (!staffMayPreviewForms(player)) {
+            // 4.7.55: staff only. A player who reaches the page (an old button, a typed action)
+            // gets a short note and the way back, not the figure.
+            UltraScreenSpec spec = sub(player, PAGE_FORM_PREVIEW + ":0", false)
+                    .line(UltraStyle.LABEL + "Preview forms")
+                    .line(UltraStyle.LABEL + "Preview forms is a staff tool. Your character and your forms are not affected.")
+                    .buttonsAfterLines();
+            spec.footerBackHome("Character Home");
+            spec.send(player);
+            return;
+        }
         List<ModelPreview.Form> forms = ModelPreview.raceForms(player);
         if (forms.isEmpty()) {
             UltraScreenSpec spec = sub(player, PAGE_FORM_PREVIEW + ":0", false)
@@ -384,9 +405,11 @@ public final class UltraCharacterScreens {
     }
 
     /** Races per Ultra page (two columns). Hard-capping without paging hid later races. */
-    private static final int RACES_PER_PAGE = 10;
+    private static final int RACES_PER_PAGE = 20;
     /** Saga reset / class pickers: two-up rows; page so discovery growth never truncates. */
     private static final int DISCOVERY_PER_PAGE = 8;
+    /** Class picker page size (4.7.56: 20 a page, like the race and name pickers). */
+    private static final int CLASSES_PER_PAGE = 20;
 
     private static void openRace(ServerPlayer player, int page) {
         List<String> cards = CharacterServicesGuiApi.raceCards(player);
@@ -404,7 +427,7 @@ public final class UltraCharacterScreens {
         // Full copy wraps and scrolls. The keep-100 price is pinned so it stays visible.
         appendCompactLines(spec, CharacterServicesGuiApi.linesForPage(player, "race"), true);
         spec.line(UltraStyle.dim(
-                "Keeping everything costs " + keep100Text
+                (keep100Cost <= 0L ? "Keeping everything is free" : "Keeping everything costs " + keep100Text)
                         + " - exact cost shown on the next page."));
         spec.buttonsAfterLines();
         int placed = 0;
@@ -565,10 +588,10 @@ public final class UltraCharacterScreens {
     private static void openClass(ServerPlayer player, int page) {
         List<String> cards = CharacterServicesGuiApi.classCards(player);
         int total = cards == null ? 0 : cards.size();
-        int pages = Math.max(1, (total + DISCOVERY_PER_PAGE - 1) / DISCOVERY_PER_PAGE);
+        int pages = Math.max(1, (total + CLASSES_PER_PAGE - 1) / CLASSES_PER_PAGE);
         int pg = Math.min(pages - 1, Math.max(0, page));
-        int from = pg * DISCOVERY_PER_PAGE;
-        int to = Math.min(total, from + DISCOVERY_PER_PAGE);
+        int from = pg * CLASSES_PER_PAGE;
+        int to = Math.min(total, from + CLASSES_PER_PAGE);
         long classDue = CharacterServicesSystem.classAmountDue(player);
         String classCost = classDue <= 0L ? "Free" : CharacterServicesSystem.formatCost(classDue);
         UltraScreenSpec spec = sub(player, "class:" + pg, false)
@@ -638,6 +661,56 @@ public final class UltraCharacterScreens {
         spec.send(player);
     }
 
+    /** "Confirm" when nothing is charged, else "Pay <cost>" (the race confirm's pattern, 4.7.56). */
+    private static String payLabel(long due) {
+        String label = due <= 0L
+                ? "Confirm"
+                : "Pay " + com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.compactCost(due);
+        return UltraStyle.fitsButton(label) ? label : "Confirm";
+    }
+
+    /** {@code <kind>:<origin page>} -> the parts page the ask came from. */
+    private static String clearAskOrigin(String rest) {
+        int cut = rest.indexOf(':');
+        String origin = cut < 0 ? "" : rest.substring(cut + 1).trim();
+        if (origin.startsWith("bones") || origin.startsWith("bodyparts")) {
+            return origin;
+        }
+        return rest.startsWith("body") ? "bodyparts:0" : "bones:0";
+    }
+
+    /**
+     * Ask before Clear parts / Race default (4.7.56). Both are free to undo: unlocked pieces stay
+     * in the collection and equipping them again costs nothing.
+     */
+    private static void openClearPartsAsk(ServerPlayer player, String rest) {
+        String kind = rest.indexOf(':') < 0 ? rest : rest.substring(0, rest.indexOf(':'));
+        String origin = clearAskOrigin(rest);
+        String title;
+        String notice;
+        String action;
+        String label;
+        if ("default".equals(kind)) {
+            title = "Race default parts";
+            notice = "Switch to your race's default model parts? Your unlocked pieces stay in your collection.";
+            action = "do:bone_race_default";
+            label = UltraStyle.confirm("Use race default");
+        } else {
+            title = "Clear parts";
+            notice = "Clear your equipped parts? Your unlocked pieces stay in your collection.";
+            action = "body".equals(kind) ? "do:bodypart_clear" : "do:bone_unequip";
+            label = UltraStyle.danger("Clear my parts");
+        }
+        UltraScreenSpec spec = sub(player, "clear_ask:" + rest, false)
+                .line(UltraStyle.LABEL + title)
+                .notice(notice)
+                .buttonsAfterLines();
+        spec.button(action, label, "default".equals(kind) ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DANGER)
+                .rowGap();
+        spec.footerBack("page:" + origin, origin.startsWith("bodyparts") ? "Body parts" : "Customize model");
+        spec.send(player);
+    }
+
     private static void openClassConfirm(ServerPlayer player, String classId) {
         String id = classId == null ? "" : classId.trim();
         long classDue = CharacterServicesSystem.classAmountDue(player);
@@ -650,7 +723,7 @@ public final class UltraCharacterScreens {
         spec.buttonsAfterLines();
         spec.button(
                         "do:class_confirm:" + id,
-                        UltraStyle.confirm("Confirm & pay"),
+                        UltraStyle.confirm(payLabel(classDue)),
                         UltraStyle.STYLE_CONFIRM)
                 .rowGap();
         spec.footerBack("page:class:0", "Class list");
@@ -681,7 +754,7 @@ public final class UltraCharacterScreens {
         if (ready) {
             spec.button(
                             "do:reskin_confirm",
-                            UltraStyle.confirm("Confirm & pay"),
+                            UltraStyle.confirm(payLabel(CharacterServicesSystem.reskinAmountDue(player))),
                             UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
@@ -732,11 +805,11 @@ public final class UltraCharacterScreens {
             String label;
             String style;
             if ("E".equals(state)) {
-                String on = name + " on";
+                String on = name + " - Equipped";
                 label = UltraStyle.confirm(UltraStyle.fitsButton(on) ? on : UltraStyle.buttonText(name));
                 style = UltraStyle.STYLE_CONFIRM;
             } else if ("L".equals(state)) {
-                String locked = name + " lock";
+                String locked = name + " - Locked";
                 label = UltraStyle.dim(UltraStyle.fitsButton(locked) ? locked : UltraStyle.buttonText(name));
                 style = UltraStyle.STYLE_DIM;
                 action = "page:bone_ask:" + pg + ":" + id;
@@ -756,11 +829,11 @@ public final class UltraCharacterScreens {
             spec.rowGap();
         }
         spec.buttonLeft(
-                        "do:bone_race_default",
+                        "page:clear_ask:default:bones:" + pg,
                         UltraStyle.confirm("Race default"),
                         UltraStyle.STYLE_CONFIRM)
                 .buttonRight(
-                        "do:bone_unequip",
+                        "page:clear_ask:bones:bones:" + pg,
                         UltraStyle.danger("Clear parts"),
                         UltraStyle.STYLE_DANGER)
                 .rowGap();
@@ -791,6 +864,9 @@ public final class UltraCharacterScreens {
      */
     public static String askReturn(String page) {
         String p = page == null ? "" : page.trim().toLowerCase(Locale.ROOT);
+        if (p.startsWith("clear_ask:")) {
+            return clearAskOrigin(p.substring("clear_ask:".length()));
+        }
         boolean part = p.startsWith("part_ask:");
         if (!part && !p.startsWith("bone_ask:")) {
             return null;
@@ -996,7 +1072,7 @@ public final class UltraCharacterScreens {
             spec.rowGap();
         }
         spec.buttonLeft(
-                        "do:bodypart_clear",
+                        "page:clear_ask:body:" + self,
                         UltraStyle.danger("Clear parts"),
                         UltraStyle.STYLE_DANGER);
         spec.buttonRight(
@@ -1052,11 +1128,11 @@ public final class UltraCharacterScreens {
             String label;
             String style;
             if ("E".equals(state)) {
-                String on = name + " on";
+                String on = name + " - Equipped";
                 label = UltraStyle.confirm(UltraStyle.fitsButton(on) ? on : UltraStyle.buttonText(name));
                 style = UltraStyle.STYLE_CONFIRM;
             } else if ("L".equals(state)) {
-                label = UltraStyle.dim(priced(name, price.isEmpty() ? "lock" : price));
+                label = UltraStyle.dim(priced(name, price.isEmpty() ? "Locked" : price));
                 style = UltraStyle.STYLE_DIM;
                 action = "page:part_ask:" + token + ":" + id;
             } else {
@@ -1302,12 +1378,12 @@ public final class UltraCharacterScreens {
                 style = UltraStyle.STYLE_CONFIRM;
             } else {
                 String state = switch (offer.status()) {
-                    case COMPLETED -> "done";
-                    case IN_PROGRESS -> "active";
-                    case LOCKED -> "locked";
-                    case NOT_STARTED -> "new";
+                    case COMPLETED -> "Done";
+                    case IN_PROGRESS -> "In progress";
+                    case LOCKED -> "Locked";
+                    case NOT_STARTED -> "Not started";
                 };
-                String caption = offer.name() + " " + state;
+                String caption = offer.name() + " - " + state;
                 label = UltraStyle.dim(
                         UltraStyle.fitsButton(caption) ? caption : UltraStyle.buttonText(offer.name()));
                 style = UltraStyle.STYLE_DIM;
@@ -1629,6 +1705,11 @@ public final class UltraCharacterScreens {
 
     /** Staff gate uses the clicking viewer, including while inspecting another player. */
     private static boolean staffMayEditOthers(ServerPlayer fallback) {
+        return StaffAccess.isStaff(actingViewer(fallback));
+    }
+
+    /** Preview forms is staff-only (4.7.55): the same check as {@link #staffMayEditOthers}. */
+    static boolean staffMayPreviewForms(ServerPlayer fallback) {
         return StaffAccess.isStaff(actingViewer(fallback));
     }
 

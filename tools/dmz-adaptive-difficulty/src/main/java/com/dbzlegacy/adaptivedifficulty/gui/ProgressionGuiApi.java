@@ -1145,12 +1145,13 @@ public final class ProgressionGuiApi {
             case "turnin", "points" -> {
                 lore.add("§7Prestige favor: §e" + ph.getOrDefault("points", "0"));
                 lore.add("§7Exchange current prestige for favor: §f1§7, §f2§7, §f3§7, §f6§7, §f9§7, §f12§7, §f15§7, or §f18 §7at a time.");
-                lore.add("§7Bigger turn-ins give bonus favor: §f3->4 §8- §f6->8 §8- §f9->13 §8- §f12->18 §8- §f15->23 §8- §f18->28");
+                lore.add(UltraStyle.LABEL + "Bigger turn-ins give bonus favor: 3 gives 4 favor, 6 gives 8, 9 gives 13,"
+                        + " 12 gives 18, 15 gives 23, 18 gives 28.");
                 lore.add("§81-2 give 1 favor each (no pack bonus)");
             }
             case "shop", "skills" -> {
                 lore.add("§7Prestige favor: §e" + ph.getOrDefault("points", "0"));
-                lore.add("§71 favor -> +1 skill level - §dPotential Unlock §7-> +2");
+                lore.add(UltraStyle.LABEL + "1 favor: +1 skill level. Potential Unlock: +2.");
                 lore.add("§aPermanent purchases §7- survive prestige - §8Natural + Saga skills only");
                 lore.add("§7Catalog: §f" + ph.getOrDefault("shop_skill_count", "0")
                         + " §7skills - §f" + ph.getOrDefault("shop_pages", "1") + " §7page(s)");
@@ -1226,7 +1227,8 @@ public final class ProgressionGuiApi {
             try {
                 amount = Integer.parseInt(arg == null || arg.isBlank() ? "0" : arg.trim());
             } catch (NumberFormatException e) {
-                return "§cUsage: turn in 1 / 2 / 3 / 6 / 9.";
+                return UltraStyle.dangerLine("Turn in " + UltraStyle.plain(PrestigePointsSystem.turnInAmountsText())
+                        + " prestiges at a time.");
             }
             return PrestigePointsSystem.turnIn(player, amount);
         }

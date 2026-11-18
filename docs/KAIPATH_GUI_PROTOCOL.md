@@ -462,42 +462,56 @@ platform-default charset causes mojibake on accents (é/à).
 Panel at `((screenW - panelWidth) / 2, (screenH - panelHeight) / 2)` when `center` is true;
 honor `margin`. Button `x`/`y` are panel-relative.
 
-#### Fullscreen design box
+#### Centered menus (LM 4.7.55)
 
-Since LM **4.7.52** every LM menu sets `fillScreen` (Hub, Staff Admin, Difficulty, Rival,
-Sparring and the Weights shop, Prestige, Character Services, Progression, Skill Check);
-before that only the staff config editor did. `designWidth` and `designHeight` are the
-coordinate space the server laid out, **426x240** for every screen. Scale every button
-and input `x`/`y`/`w`/`h`, the `playerModel` rectangle, and the header/body metrics from
-that box onto the panel after it has been inset by `margin`.
+Every LM player menu (Hub, Staff Admin, Difficulty, Rival, Sparring and the Weights shop,
+Prestige, Character Services, Progression, Skill Check) is a **centered panel sized to its
+page**, in GUI pixels: `center` **true**, `margin` **10**, no `fillScreen` and no design box.
+LM 4.7.52-4.7.54 sent them with `fillScreen` over a 426x240 box, which filled the window; 4.7.55
+went back to the centered look.
 
-`panelWidth` and `panelHeight` are a separate clamp request (**1920x1080**), with
-`margin` **0** and `center` **false**. Clients that do not know `fillScreen` keep that
-rectangle and clamp it down to the window, which fills the GUI.
-
-Rules LM keeps, so the box can be scaled with no further layout on the client:
-
-- **The box is 16:9.** KaiPath scales x by `window / designWidth` and y by
-  `window / designHeight`. On a 16:9 window the two are equal, so buttons, the model
-  rectangle and the model inside it keep their shape. A box of another shape would stretch
-  them, and the model's fit (`min(w / 0.6, h / 1.8)`) could flip axis and cut a giant form.
-- **426x240 is the smallest auto GUI** (1440p and 4K; 1080p auto is 480x270), so the scale
-  is never below 1. Text is drawn at its normal size, not scaled; a bigger box would shrink
-  buttons under their labels on small windows.
-- **Every control is inside the box**, and every control that is not a footer ends above the
-  footer band: the footer pins at `240 - (28 + 14) = 198` on a 240-tall GUI, so content ends
-  at **195**. KaiPath clamps neither buttons nor inputs.
+- **Width:** **350**, or **426** when the page has a player model; wider only when the tab row,
+  the title or a row of 80 px buttons needs it, never over **460** (1080p at GUI scale 4 is
+  480x270, less the margin on each side).
+- **Height:** the header, the whole body text (`scrollBody` **false**, `bodyMaxHeight` is its full
+  height), the rows, the footer row, **4** px, then KaiPath's **28** px Close band. A short page
+  gets a small panel and a long page a tall one.
+- **Nothing is pinned.** Back / Main menu are sent as a normal last row, **without**
+  `footer:true`. KaiPath 1.5.6 caps the panel at the window less its margin and scrolls
+  everything in its content band (body, rows and that footer row together), so at GUI scale 3
+  and 4 the footer is always reachable and is never pinned off-screen. Only KaiPath's own Close
+  button stays in the bottom band.
+- **The model preview is pinned** to the panel by KaiPath while the page scrolls, so LM keeps
+  every row left of it, and the model column (box and spin toggle) ends by y **195**, inside the
+  smallest panel's scroll area (`250 - 28 = 222`). On a page taller than **250** (it scrolls at 1080p GUI
+  scale 4) the spin toggle joins the left rows above the footer, so it never scrolls behind the model.
 - Menu metrics: buttons **14** tall, **3** px apart; body lines **11 + 1**, pad **3**; tabs at
   y **28**; content from y **46** with tabs, **42** without; content **10** px from each side;
-  the footer's Main menu ends on the box's right edge (`x + 150 = 426`).
-- The model preview sits on the right (`ModelPreview.MENU_STANDARD` 330,46 86x120;
-  `MENU_FORMS` 317,46 99x128), its spin toggle under it; the body text stops 8 px left of it.
+  footer row **6** px under the content, Back on the left, Main menu ending **10** px from the
+  right edge.
+- The model preview sits on the right (`ModelPreview.MENU_STANDARD` 330,46 86x120 and
+  `MENU_FORMS` 317,46 99x128 in a 426-wide menu; a wider menu moves them right).
 
 LM builders still lay out on the legacy 350-wide grid; `UltraScreenSpec.fitMenu()` reflows that
-into the box when the packet is built (columns widened to the box, rows packed under the body,
-and regrouped into up to four equal columns when they would not fit). The wire is unchanged:
-no new keys, protocol `"1"`. The staff config editor keeps its own 426x240 layout with a
-**148** px category rail.
+into the panel when the packet is built (columns widened to the content width, rows packed under
+the body). The wire is unchanged: no new keys, protocol `"1"`.
+
+```json
+"center": true,
+"margin": 10,
+"panelWidth": 350,
+"panelHeight": 214,
+"scrollBody": false
+```
+
+#### Fullscreen design box (staff config editor)
+
+Only the staff config editor sets `fillScreen` (its own 426x240 layout with a **148** px
+category rail). `designWidth` and `designHeight` are the coordinate space the server laid out.
+Scale every button and input `x`/`y`/`w`/`h`, the `playerModel` rectangle, and the header/body
+metrics from that box onto the panel after it has been inset by `margin`. `panelWidth` and
+`panelHeight` are a separate clamp request (**1920x1080**), with `margin` **0** and `center`
+**false**; clients that do not know `fillScreen` clamp that rectangle to the window.
 
 ```json
 "fillScreen": true,

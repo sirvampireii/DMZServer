@@ -57,6 +57,14 @@ public final class UltraDifficultyScreens {
             openUnequipTitleAsk(player);
             return;
         }
+        if ("flush_ask".equals(lower)) {
+            openFlushAsk(player);
+            return;
+        }
+        if ("difficulty_off_ask".equals(lower)) {
+            openDifficultyOffAsk(player);
+            return;
+        }
         if (lower.startsWith("title_detail:")) {
             openTitleDetail(player, raw.substring("title_detail:".length()).trim());
             return;
@@ -133,7 +141,7 @@ public final class UltraDifficultyScreens {
                 ? "No tier active yet. Open the Tiers tab."
                 : snap.activeTierName;
         UltraScreenSpec spec = base(player, "main", "home")
-                .labelValue("Personal difficulty", personal ? "On" : "Off")
+                .labelValue("Personal difficulty", personal ? "ON" : "OFF")
                 .labelValue("Active tier", tierName)
                 .labelValue("Title", blankTitle(TitleSystem.activeDisplay(player)))
                 .labelValue("Ancient Coins", AncientCoinEconomy.inventoryBreakdown(player))
@@ -143,7 +151,7 @@ public final class UltraDifficultyScreens {
         placeCoinMessageToggle(spec, data != null && data.isCoinDropChat());
         if (StaffAccess.isStaff(player)) {
             // Staff entry reads red, like Staff Admin on the Rival and Sparring homes.
-            spec.buttonLeft("page:admin", UltraStyle.danger("Server tools"), UltraStyle.STYLE_DANGER).rowGap();
+            spec.buttonLeft("page:admin", UltraStyle.LABEL + "Server tools", UltraStyle.STYLE_NORMAL).rowGap();
         }
         spec.footerBackToMain();
         spec.send(player);
@@ -311,14 +319,12 @@ public final class UltraDifficultyScreens {
         }
         spec.line(UltraStyle.VALUE + EndDimensionStrength.summonLootBonusLine(player));
         if (!ready) {
-            spec.line(UltraStyle.dim("Select End Dragon first - clear the notes above, then return."));
+            spec.line(UltraStyle.dim("Clear the notes above, then return here to confirm."));
         }
         spec.buttonsAfterLines();
+        // Only a summon that can succeed gets a button (4.7.56); the notes above say what is missing.
         if (ready) {
             spec.button("page:summon_ask:end_dragon", UltraStyle.confirm("Summon End Dragon"), "confirm").rowGap();
-        } else {
-            spec.button("page:summon_ask:end_dragon", UltraStyle.dim("Summon locked"), "dim")
-                    .rowGap();
         }
         spec.footerBack("page:summons", "Summons");
         spec.send(player);
@@ -345,13 +351,12 @@ public final class UltraDifficultyScreens {
             spec.line(line);
         }
         if (!ready) {
-            spec.line(UltraStyle.dim("Select " + boss.display + " first - clear the notes above, then return."));
+            spec.line(UltraStyle.dim("Clear the notes above, then return here to confirm."));
         }
         spec.buttonsAfterLines();
+        // Only a summon that can succeed gets a button (4.7.56); the notes above say what is missing.
         if (ready) {
             spec.button(action, UltraStyle.confirm("Summon " + boss.display), "confirm").rowGap();
-        } else {
-            spec.button(action, UltraStyle.dim("Summon locked"), "dim").rowGap();
         }
         spec.footerBack("page:summons", "Summons");
         spec.send(player);
@@ -370,6 +375,12 @@ public final class UltraDifficultyScreens {
         }
         if ("title_unequip_ask".equals(p)) {
             return "titles";
+        }
+        if ("flush_ask".equals(p)) {
+            return "eventlog";
+        }
+        if ("difficulty_off_ask".equals(p)) {
+            return "tiers";
         }
         if (p.startsWith("summon_ask:")) {
             String which = p.substring("summon_ask:".length());
@@ -417,7 +428,8 @@ public final class UltraDifficultyScreens {
         } else if (active > 0 && t < active) {
             block = "Lower tiers are free - pick T" + t + " on the Tiers page.";
         } else if (!unlocked && !eligible) {
-            block = "T" + t + " is locked. Need " + UltraStyle.plain(UltraDifficultyTierUi.humanRequirement(tier)) + ".";
+            String why = UltraDifficultyTierUi.lockedReason(player, tier);
+            block = "T" + t + " is locked. " + Character.toUpperCase(why.charAt(0)) + why.substring(1) + ".";
         } else if (cost > 0L && !AncientCoinEconomy.canAfford(player, cost)) {
             block = UltraStyle.plain(AncientCoinEconomy.missingText(player, cost));
         }
@@ -442,13 +454,48 @@ public final class UltraDifficultyScreens {
         UltraScreenSpec spec = sub("clear_tier_ask")
                 .line(UltraStyle.LABEL + "Clear active tier")
                 .labelValue("Active tier", active <= 0 ? "No tier active" : "T" + active)
-                .notice("Clear your active tier? You will need Ancient Coins to activate a tier again.");
+                .notice("Clear your active tier? Team mode resets to Personal. You will need Ancient Coins to activate a tier again.");
         if (active <= 0) {
             spec.line(UltraStyle.dim("No tier is active, so there is nothing to clear."));
         }
         spec.buttonsAfterLines();
         if (active > 0) {
             spec.button("do:lower_tier:0", UltraStyle.danger("Clear active tier"), UltraStyle.STYLE_DANGER)
+                    .rowGap();
+        }
+        spec.footerBack("page:tiers", "Tiers");
+        spec.send(player);
+    }
+
+    /** Ask before flushing the event log (4.7.56): it writes out and closes the open log files. */
+    private static void openFlushAsk(ServerPlayer player) {
+        if (!StaffAccess.isStaff(player)) {
+            openHome(player);
+            return;
+        }
+        UltraScreenSpec spec = sub("flush_ask")
+                .line(UltraStyle.LABEL + "Flush the event log")
+                .notice("Flush the event log? Recent entries are written out and the log is closed.")
+                .buttonsAfterLines();
+        spec.button("do:syslog:flush", UltraStyle.danger("Flush the event log"), UltraStyle.STYLE_DANGER).rowGap();
+        spec.footerBack("page:eventlog", "Event log");
+        spec.send(player);
+    }
+
+    /** Ask before turning Difficulty off (4.7.56): it releases scaled mobs and despawns the summoned dragon. */
+    private static void openDifficultyOffAsk(ServerPlayer player) {
+        PlayerDifficultyData data = DifficultyCache.data(player);
+        boolean on = data != null && data.isPersonalEnabled();
+        UltraScreenSpec spec = sub("difficulty_off_ask")
+                .line(UltraStyle.LABEL + "Turn Difficulty off")
+                .notice("Turning Difficulty off releases your scaled mobs and despawns your summoned End Dragon."
+                        + " You can turn it back on any time.");
+        if (!on) {
+            spec.line(UltraStyle.dim("Difficulty is already off."));
+        }
+        spec.buttonsAfterLines();
+        if (on) {
+            spec.button("do:toggle_personal", UltraStyle.danger("Turn Difficulty off"), UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
         spec.footerBack("page:tiers", "Tiers");
@@ -629,8 +676,9 @@ public final class UltraDifficultyScreens {
 
     private static void placeDifficultyToggle(UltraScreenSpec spec, boolean enabled) {
         if (enabled) {
+            // Turning it off asks first (4.7.56): the summoned End Dragon despawns.
             spec.buttonRight(
-                    "do:toggle_personal",
+                    "page:difficulty_off_ask",
                     UltraStyle.confirm("Difficulty - ON"),
                     UltraStyle.STYLE_CONFIRM);
             return;
@@ -680,8 +728,8 @@ public final class UltraDifficultyScreens {
             boolean earned = TitleSystem.has(player, t);
             boolean on = t.id != null && t.id.equals(active);
             String label = on
-                    ? UltraStyle.confirm(t.display + " on")
-                    : (earned ? t.display : UltraStyle.dim(t.display + " lock"));
+                    ? UltraStyle.confirm(statusCaption(t.display, "Equipped"))
+                    : (earned ? t.display : UltraStyle.dim(statusCaption(t.display, "Locked")));
             String style = on ? "confirm" : (earned ? "normal" : "dim");
             String action = "page:title_detail:" + t.id;
             if (placed % 2 == 0) {
@@ -749,7 +797,7 @@ public final class UltraDifficultyScreens {
                         : UltraStyle.dim("You do not have this yet."))
                 .line(equipped ? UltraStyle.confirm("Currently equipped.") : "")
                 .line(UltraStyle.LABEL + "How to earn " + UltraStyle.VALUE + humanRequirement(title))
-                .line(UltraStyle.LABEL + "Bonus when worn " + UltraStyle.VALUE
+                .line(UltraStyle.LABEL + "Bonus when equipped " + UltraStyle.VALUE
                         + UltraStyle.plain(title.perkTip(mastery)))
                 .labelValue("Title score", "+" + title.scorePoints)
                 // What the title stands for - added after the existing lines so none of them move.
@@ -804,12 +852,11 @@ public final class UltraDifficultyScreens {
                 .labelValue(
                         "Tier",
                         (snap == null ? "-" : snap.activeTierName)
-                                + " - State "
-                                + (snap == null ? "-" : snap.state()))
+                                + (snap == null ? "" : " (" + words(String.valueOf(snap.state())) + ")"))
                 .labelValue(
-                        "Combat Rating",
-                        String.valueOf(cr)
-                                + " - Unlocked T"
+                        "Combat rating",
+                        String.format(Locale.ROOT, "%,d", cr)
+                                + " - unlocked up to T"
                                 + (snap == null ? 0 : snap.highestUnlockedTier))
                 .labelValue(
                         "Level",
@@ -818,20 +865,17 @@ public final class UltraDifficultyScreens {
                                 + (snap == null ? "-" : String.valueOf(snap.prestige)))
                 .labelValue("Title", blankTitle(TitleSystem.activeDisplay(player)))
                 .labelValue(
-                        "Overhaul",
-                        ph.getOrDefault("overhaul_scale", "x1")
-                                + " - Melee "
-                                + ph.getOrDefault("melee_scaled", "?")
-                                + " - Strike "
-                                + ph.getOrDefault("strike_scaled", "?"))
+                        "Scaled stats (Overhaul " + ph.getOrDefault("overhaul_scale", "x1") + ")",
+                        "Melee " + ph.getOrDefault("melee_scaled", "-")
+                                + " - Strike " + ph.getOrDefault("strike_scaled", "-"))
                 .labelValue(
                         "Ki / Defense",
-                        ph.getOrDefault("ki_scaled", "?") + " / " + ph.getOrDefault("defense_scaled", "?"))
+                        ph.getOrDefault("ki_scaled", "-") + " / " + ph.getOrDefault("defense_scaled", "-"))
                 .labelValue(
                         "Class / Style",
                         blank(profile.fightingClass)
                                 + " / "
-                                + (profile.style == null ? "HYBRID" : profile.style.name()))
+                                + words(profile.style == null ? "HYBRID" : profile.style.name()))
                 .labelValue("Top stats", blank(profile.topStatsLabel()))
                 .labelValue("Ancient Coins", AncientCoinEconomy.inventoryBreakdown(player))
                 .buttonsAfterLines();
@@ -849,10 +893,10 @@ public final class UltraDifficultyScreens {
                 .line(UltraStyle.LABEL + "Reload config, event log, and LM Staff Admin hub")
                 .buttonsAfterLines();
         spec.buttonLeft("do:reload", UltraStyle.confirm("Reload Legacy Mechanics config"), "confirm")
-                .buttonRight("page:stats", UltraStyle.danger("Staff details"), "danger")
+                .buttonRight("page:stats", UltraStyle.LABEL + "Staff details", UltraStyle.STYLE_NORMAL)
                 .rowGap();
-        spec.buttonLeft("open:admin", UltraStyle.danger("LM Staff Admin"), "danger")
-                .buttonRight("page:eventlog", UltraStyle.danger("Event log"), "danger")
+        spec.buttonLeft("open:admin", UltraStyle.LABEL + "LM Staff Admin", UltraStyle.STYLE_NORMAL)
+                .buttonRight("page:eventlog", UltraStyle.LABEL + "Event log", UltraStyle.STYLE_NORMAL)
                 .rowGap();
         spec.footerBackHome("Difficulty Home");
         spec.send(player);
@@ -868,7 +912,7 @@ public final class UltraDifficultyScreens {
                 .line(UltraStyle.LABEL + "Use the toggles, or typed: /lm admin syslog ...")
                 .buttonsAfterLines();
         boolean logOn = DifficultyConfig.get().enableSystemTelemetry;
-        spec.buttonLeft("do:syslog:status", UltraStyle.danger("Status"), "danger")
+        spec.buttonLeft("do:syslog:status", UltraStyle.LABEL + "Status", UltraStyle.STYLE_NORMAL)
                 .buttonRight(
                         "do:syslog:on",
                         logOn ? UltraStyle.confirm("Event log - ON") : "Event log - ON",
@@ -880,10 +924,22 @@ public final class UltraDifficultyScreens {
                                 ? UltraStyle.danger("Event log - OFF")
                                 : UltraStyle.dim("Event log - OFF"),
                         logOn ? "danger" : "dim")
-                .buttonRight("do:syslog:flush", UltraStyle.danger("Flush"), "danger")
+                .buttonRight("page:flush_ask", UltraStyle.danger("Flush"), "danger")
                 .rowGap();
         spec.footerBack("page:admin", "Server tools");
         spec.send(player);
+    }
+
+    /** {@code SOME_ENUM} -> {@code Some enum} for staff pages (4.7.56). */
+    private static String words(String raw) {
+        String s = raw == null ? "" : raw.trim().replace('_', ' ').toLowerCase(Locale.ROOT);
+        return s.isEmpty() ? "-" : Character.toUpperCase(s.charAt(0)) + s.substring(1);
+    }
+
+    /** {@code Name - Status}, or the name alone when that does not fit a button (4.7.56). */
+    private static String statusCaption(String name, String status) {
+        String full = name + " - " + status;
+        return UltraStyle.fitsButton(full) ? full : UltraStyle.buttonText(name);
     }
 
     private static String blank(String s) {

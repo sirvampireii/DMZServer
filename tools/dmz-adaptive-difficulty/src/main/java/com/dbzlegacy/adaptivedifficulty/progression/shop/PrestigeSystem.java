@@ -178,15 +178,15 @@ public final class PrestigeSystem {
         int nextRequired = requiredLevel(player);
         String summary = "§aLifetime prestiges §f" + newCompleted + "§a.\n"
                 + "§7Current prestige amount §6" + newHeld + "§7/§f" + maxHeld() + ".\n"
-                + UltraStyle.LABEL + "Reach " + UltraStyle.YELLOW + DmzRewards.formatWhole(nextRequired)
-                + UltraStyle.LABEL + " power for the next one.";
+                + UltraStyle.LABEL + "Your next prestige needs level " + UltraStyle.YELLOW
+                + DmzRewards.formatWhole(nextRequired) + UltraStyle.LABEL + ".";
         if (!preferGuiFeedback()) {
             send(player, "");
             send(player, LmChat.DIVIDER);
             send(player, "§aLifetime prestiges §f" + newCompleted + "§a.");
             send(player, "§7Current prestige amount §6" + newHeld + "§7/§f" + maxHeld() + ".");
-            send(player, UltraStyle.LABEL + "Reach " + UltraStyle.YELLOW + DmzRewards.formatWhole(nextRequired)
-                    + UltraStyle.LABEL + " power for the next one.");
+            send(player, UltraStyle.LABEL + "Your next prestige needs level " + UltraStyle.YELLOW
+                    + DmzRewards.formatWhole(nextRequired) + UltraStyle.LABEL + ".");
             send(player, LmChat.DIVIDER);
         }
         SystemTelemetry.log("prestige", "purchase", player, null, Map.of(
@@ -214,8 +214,8 @@ public final class PrestigeSystem {
         send(player, "§7Lifetime prestiges: §f" + completed);
         send(player, "§7Current prestige amount §6" + held + "§7/§f" + maxHeld()
                 + " §7· level §f" + DmzRewards.formatWhole(level));
-        send(player, UltraStyle.LABEL + "Need: " + UltraStyle.YELLOW + DmzRewards.formatWhole(required)
-                + UltraStyle.LABEL + " power. Reaching it earns your next prestige; each prestige you hold raises it.");
+        send(player, UltraStyle.LABEL + "Reach level " + UltraStyle.YELLOW + DmzRewards.formatWhole(required)
+                + UltraStyle.LABEL + " to earn your next prestige. Each prestige you hold raises it.");
         MutableComponent row = Component.m_237113_("§7")
                 .m_7220_(btn("§a[Prestige]", "/prestige do confirm", "Confirm prestige purchase"))
                 .m_7220_(Component.m_237113_("  "))
@@ -246,7 +246,7 @@ public final class PrestigeSystem {
             send(player, "");
             send(player, LmChat.DIVIDER);
             send(player, "§ePrestige now?");
-            send(player, "§7This resets your stats and adds one to your current prestige amount.");
+            send(player, UltraStyle.LABEL + "This resets your stats, skills, techniques and quest progress, and adds one to your current prestige amount. Kept skill levels and permanent shop purchases survive.");
             send(player, "§7Your level §f" + DmzRewards.formatWhole(level)
                     + " §7is enough (needs §e" + DmzRewards.formatWhole(required) + "§7).");
             send(player, "§7Current prestige amount will be §6" + (held + 1) + "§7/§f" + maxHeld() + ".");
@@ -288,16 +288,16 @@ public final class PrestigeSystem {
             ServerPlayer player, int completed, int next, int required, int level
     ) {
         String summary = UltraStyle.DANGER + "Not high enough yet.\n"
-                + UltraStyle.LABEL + "Reaching " + UltraStyle.YELLOW
-                + DmzRewards.formatWhole(required) + UltraStyle.LABEL + " power earns your next prestige.\n"
+                + UltraStyle.LABEL + "Reach level " + UltraStyle.YELLOW
+                + DmzRewards.formatWhole(required) + UltraStyle.LABEL + " to earn your next prestige.\n"
                 + UltraStyle.LABEL + "You're at " + UltraStyle.VALUE + DmzRewards.formatWhole(level)
                 + UltraStyle.LABEL + ".";
         if (!preferGuiFeedback()) {
             send(player, "");
             send(player, LmChat.DIVIDER);
             send(player, UltraStyle.DANGER + "Not high enough yet.");
-            send(player, UltraStyle.LABEL + "Reaching " + UltraStyle.YELLOW
-                    + DmzRewards.formatWhole(required) + UltraStyle.LABEL + " power earns your next prestige.");
+            send(player, UltraStyle.LABEL + "Reach level " + UltraStyle.YELLOW
+                    + DmzRewards.formatWhole(required) + UltraStyle.LABEL + " to earn your next prestige.");
             send(player, UltraStyle.LABEL + "You're at " + UltraStyle.VALUE
                     + DmzRewards.formatWhole(level) + UltraStyle.LABEL + ".");
             send(player, UltraStyle.LABEL + "Prestige: " + UltraStyle.VALUE + completed);

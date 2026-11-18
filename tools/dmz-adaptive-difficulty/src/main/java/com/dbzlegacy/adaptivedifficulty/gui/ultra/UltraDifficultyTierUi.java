@@ -60,31 +60,31 @@ public final class UltraDifficultyTierUi {
             return UltraStyle.dim("-");
         }
         if (activeTier == t) {
-            return UltraStyle.confirm("T" + t + " on");
+            return UltraStyle.confirm("T" + t + " - Active");
         }
-        // Downgrade to Tier is free (- Free). Button reads "T# free".
+        // Downgrade to Tier is free. Button reads "T# - Free".
         if (activeTier > 0 && t < activeTier) {
             if (unlocked || eligible) {
-                return UltraStyle.confirm("T" + t + " free");
+                return UltraStyle.confirm("T" + t + " - Free");
             }
-            return UltraStyle.dim("T" + t + " lock");
+            return UltraStyle.dim("T" + t + " - Locked");
         }
         if (!unlocked) {
             if (eligible) {
-                return UltraStyle.confirm("T" + t + " " + buttonPrice(player, t, activeTier));
+                return UltraStyle.confirm("T" + t + " - " + UltraStyle.plain(buttonPrice(player, t, activeTier)));
             }
-            return UltraStyle.dim("T" + t + " lock");
+            return UltraStyle.dim("T" + t + " - Locked");
         }
-        return UltraStyle.LABEL + "T" + t + " " + buttonPrice(player, t, activeTier);
+        return UltraStyle.LABEL + "T" + t + " - " + UltraStyle.plain(buttonPrice(player, t, activeTier));
     }
 
     /** Coin price that fits beside {@code T#} on a standard button. */
     private static String buttonPrice(ServerPlayer player, int t, int activeTier) {
         if (PaidFeatureAccess.bypassAncientCoinCost(player)) {
-            return "free";
+            return "Free";
         }
         if (activeTier > 0 && t < activeTier) {
-            return "free";
+            return "Free";
         }
         return AncientCoinEconomy.compactCost(
                 AncientCoinEconomy.activationCost(UnlockTier.byId(t), player, activeTier));
@@ -131,7 +131,7 @@ public final class UltraDifficultyTierUi {
             case ACTIVE -> "your current tier";
             case OWNED -> "switch down for free";
             case BUYABLE -> price <= 0L ? "activate for free" : "activate for " + AncientCoinEconomy.formatExactCost(price);
-            case SHORT -> "need " + AncientCoinEconomy.formatExactCost(price - funds) + " more (costs "
+            case SHORT -> "you need " + AncientCoinEconomy.formatExactCost(price - funds) + " more (costs "
                     + AncientCoinEconomy.formatExactCost(price) + ")";
             case LOCKED -> lockedReason(player, tier);
             default -> "not available";

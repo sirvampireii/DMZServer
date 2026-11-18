@@ -84,6 +84,7 @@ public final class UltraConfigScreens {
     private static final String[][] CATEGORIES = {
         {"difficulty", "Difficulty"},
         {"progression", "Progress"},
+        {"prestige-shop", "Prestige shop"},
         {"character-services", "Character"},
         {"saga", "Saga"},
         {"rival", "Rival"},
@@ -218,7 +219,7 @@ public final class UltraConfigScreens {
             String parent = ConfigEditor.isSectionPath(groupPath) ? "" : ConfigEditor.parentPath(groupPath);
             spec.button(
                     "page:" + editPage(module, 0, parent),
-                    UltraStyle.dim("v " + crumb),
+                    UltraStyle.dim("Up: " + crumb),
                     UltraStyle.STYLE_DIM,
                     MAIN_X,
                     y,
@@ -239,7 +240,7 @@ public final class UltraConfigScreens {
         if (showIndex) {
             if (sections.isEmpty()) {
                 spec.setRow(y);
-                flowLabel(spec, "No settings in this category.");
+                flowLabel(spec, "No settings in this category yet. Pick another category on the left.");
             }
             for (int i = from; i < to && i < sections.size(); i++) {
                 ConfigEditor.SectionLink section = sections.get(i);
@@ -258,7 +259,7 @@ public final class UltraConfigScreens {
             }
         } else if (from >= to) {
             spec.setRow(y);
-            flowLabel(spec, searching ? "No settings match that search." : "No settings in this section.");
+            flowLabel(spec, searching ? "No settings match that search. Try a shorter word, or Clear to see every category." : "No settings in this section. Go back up and pick another section.");
         } else {
             for (int i = from; i < to; i++) {
                 y = paintField(spec, uuid, rows.get(i), y, true);
@@ -1225,16 +1226,33 @@ public final class UltraConfigScreens {
                         : UltraStyle.dangerLine(error);
             }
             case "discard_all", "discard" -> {
+                // 4.7.56: unsaved work is only dropped on a second click.
+                int pending = ConfigEditor.dirtyCount(uuid);
+                if (pending <= 0) {
+                    yield UltraStyle.noticeLine("Nothing to discard.");
+                }
+                if (!com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm.confirmed(uuid, "config-discard-all")) {
+                    yield UltraStyle.dangerLine("Discard " + changes(pending)
+                            + "? Click Discard all again within 10 seconds.");
+                }
                 int count = ConfigEditor.discardAll(uuid);
-                yield count <= 0
-                        ? UltraStyle.noticeLine("Nothing to discard.")
-                        : UltraStyle.noticeLine("Discarded " + count + " change(s).");
+                yield UltraStyle.noticeLine("Discarded " + changes(count) + ".");
             }
             case "reload_module", "reload" -> {
                 String module = !a.isBlank() ? a : moduleFromPage(page);
+                String label = categoryLabel(module, ConfigEditor.tab(module));
+                int before = ConfigEditor.dirtyCount(uuid);
+                // 4.7.56: reloading drops this file's unsaved changes, so ask first when there are any.
+                if (before > 0 && !com.dbzlegacy.adaptivedifficulty.gui.GuiClickConfirm.confirmed(
+                        uuid, "config-reload:" + module)) {
+                    yield UltraStyle.dangerLine("Reload disk discards your unsaved changes to " + label
+                            + ". Click Reload disk again within 10 seconds.");
+                }
                 String error = ConfigEditor.reloadModule(uuid, module);
+                int dropped = Math.max(0, before - ConfigEditor.dirtyCount(uuid));
                 yield error == null
-                        ? UltraStyle.noticeLine("Reloaded " + module + " from disk.")
+                        ? UltraStyle.noticeLine("Reloaded " + label + " from disk."
+                                + (dropped > 0 ? " Discarded " + changes(dropped) + "." : ""))
                         : UltraStyle.dangerLine(error);
             }
             case "select_module", "open_module" -> {
@@ -1258,7 +1276,7 @@ public final class UltraConfigScreens {
             case "toggle" -> {
                 String[] parts = splitModulePath(a);
                 if (parts == null) {
-                    yield UltraStyle.dangerLine("Missing field.");
+                    yield UltraStyle.dangerLine("That setting is no longer on this page. Open the category again.");
                 }
                 String raw = ConfigEditor.effectiveRaw(uuid, parts[0], parts[1]);
                 boolean on = "true".equalsIgnoreCase(raw) || "ON".equalsIgnoreCase(raw);
@@ -1268,12 +1286,12 @@ public final class UltraConfigScreens {
             case "step" -> {
                 String[] parts = splitModulePathDir(a);
                 if (parts == null) {
-                    yield UltraStyle.dangerLine("Missing field.");
+                    yield UltraStyle.dangerLine("That setting is no longer on this page. Open the category again.");
                 }
                 int dir = "1".equals(parts[2]) ? 1 : -1;
                 String next = ConfigEditor.stepNumber(parts[0], parts[1], dir);
                 if (next == null) {
-                    yield UltraStyle.dangerLine("Cannot step that field.");
+                    yield UltraStyle.dangerLine("That setting is not a number. Type a value or use its own buttons.");
                 }
                 String error = ConfigEditor.stageSet(uuid, parts[0], parts[1], next);
                 yield error == null ? "" : UltraStyle.dangerLine(error);
@@ -1281,11 +1299,11 @@ public final class UltraConfigScreens {
             case "cycle" -> {
                 String[] parts = splitModulePath(a);
                 if (parts == null) {
-                    yield UltraStyle.dangerLine("Missing field.");
+                    yield UltraStyle.dangerLine("That setting is no longer on this page. Open the category again.");
                 }
                 String next = ConfigEditor.nextEnumValue(parts[0], parts[1]);
                 if (next == null) {
-                    yield UltraStyle.dangerLine("Cannot cycle that field.");
+                    yield UltraStyle.dangerLine("That setting has no list of choices. Type a value or use its own buttons.");
                 }
                 String error = ConfigEditor.stageSet(uuid, parts[0], parts[1], next);
                 yield error == null ? "" : UltraStyle.dangerLine(error);
@@ -1293,7 +1311,7 @@ public final class UltraConfigScreens {
             case "set" -> {
                 String[] parts = splitModulePath(a);
                 if (parts == null) {
-                    yield UltraStyle.dangerLine("Missing field.");
+                    yield UltraStyle.dangerLine("That setting is no longer on this page. Open the category again.");
                 }
                 String typed = typedValueFromArgs(args, "set");
                 if (typed == null) {
@@ -1308,7 +1326,7 @@ public final class UltraConfigScreens {
             case "add" -> {
                 String[] parts = splitModulePath(a);
                 if (parts == null) {
-                    yield UltraStyle.dangerLine("Missing field.");
+                    yield UltraStyle.dangerLine("That setting is no longer on this page. Open the category again.");
                 }
                 String typed = typedValueFromArgs(args, "add");
                 if (typed == null || typed.isBlank()) {
@@ -1338,13 +1356,13 @@ public final class UltraConfigScreens {
             case "undo" -> {
                 String[] parts = splitModulePath(a);
                 if (parts == null) {
-                    yield UltraStyle.dangerLine("Missing field.");
+                    yield UltraStyle.dangerLine("That setting is no longer on this page. Open the category again.");
                 }
                 ConfigEditor.undoField(uuid, parts[0], parts[1]);
                 yield UltraStyle.noticeLine("Undid field change.");
             }
             case "page", "refresh" -> "";
-            default -> UltraStyle.dangerLine("That config action is not available.");
+            default -> UltraStyle.dangerLine("That button is not available on this page. Open the category again.");
         };
     }
 
@@ -1561,7 +1579,7 @@ public final class UltraConfigScreens {
         y += ROW_STEP;
         spec.button(
                 "do:refresh",
-                UltraStyle.dim("Until then use Toggle, Next, or +/- ."),
+                UltraStyle.dim("Until then use Toggle, Next, or +/-."),
                 UltraStyle.STYLE_DIM,
                 MAIN_X,
                 y,
@@ -1610,6 +1628,11 @@ public final class UltraConfigScreens {
         return UltraStyle.fitAsciiLabel(plain, labelPx);
     }
 
+    /** "1 unsaved change" / "3 unsaved changes". */
+    private static String changes(int n) {
+        return n == 1 ? "1 unsaved change" : n + " unsaved changes";
+    }
+
     /** Current value beside the default. Equal values read as the default. */
     private static String valueIndicator(String now, String def) {
         String n = now == null || now.isBlank() ? "empty" : UltraStyle.plain(now).trim();
@@ -1620,7 +1643,8 @@ public final class UltraConfigScreens {
         if (n.equalsIgnoreCase(d)) {
             return clipWords("Now " + n + " - default", 16);
         }
-        return clipWords("Now " + n + " - def " + d, 16);
+        String full = "Now " + n + " - default " + d;
+        return UltraStyle.fitAsciiLabel(full, 108).equals(full) ? full : clipWords("Now " + n, 16);
     }
 
     /** Chrome geometry for the startup self-test. No player session and no config files. */
@@ -1630,7 +1654,7 @@ public final class UltraConfigScreens {
         placeSearchRow(spec, "spawn", SEARCH_Y);
         spec.button(
                 "page:edit:difficulty:0:",
-                UltraStyle.dim("v Difficulty > Mob Spawning"),
+                UltraStyle.dim("Up: Difficulty > Mob Spawning"),
                 UltraStyle.STYLE_DIM,
                 MAIN_X,
                 SEARCH_Y + ROW_STEP,

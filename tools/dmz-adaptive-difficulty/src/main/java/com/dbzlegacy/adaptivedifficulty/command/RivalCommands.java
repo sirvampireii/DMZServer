@@ -389,9 +389,7 @@ public final class RivalCommands {
         source.m_288197_(() -> Component.m_237113_(
                 "§6Rival admin status\n"
                         + "§7enabled §f" + (on ? "ON" : "OFF") + "\n"
-                        + "§7players §f" + players + "\n"
-                        + "§8" + RivalStore.path() + "\n"
-                        + "§8" + RivalProgression.path()
+                        + "§7players §f" + players
         ), false);
         return 1;
     }

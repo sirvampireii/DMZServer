@@ -80,7 +80,7 @@ public final class DifficultyTeamGuiApi {
 
     public static List<String> linesForPage(ServerPlayer player, String page) {
         if (player == null) {
-            return List.of(UltraStyle.danger("Unavailable."));
+            return List.of(UltraStyle.danger("This page is not available right now. Open the Difficulty menu again."));
         }
         if (!DifficultyConfig.get().enableRivalSystem) {
             return List.of(
@@ -89,7 +89,7 @@ public final class DifficultyTeamGuiApi {
         }
         String p = page == null ? "team" : page.trim().toLowerCase(Locale.ROOT);
         if (!"team".equals(p) && !"teams".equals(p)) {
-            return List.of(UltraStyle.LABEL + "Unknown teams page.");
+            return List.of(UltraStyle.LABEL + "Unknown teams page. Open the Difficulty menu again.");
         }
         return teamLines(player);
     }
@@ -170,10 +170,7 @@ public final class DifficultyTeamGuiApi {
         DifficultySnapshot snap = DifficultyCache.get(player);
         TeamMode mode = data.getTeamMode();
         lines.add(UltraStyle.LABEL + "Mode " + UltraStyle.VALUE + modeLabel(mode));
-        for (String raw : LmOverhaulScaledCombat.compactLines(DmzProgression.stats(player))) {
-            // compactLines still carry legacy marks; restyle for Ultra.
-            lines.add(UltraStyle.LABEL + UltraStyle.plain(raw));
-        }
+        // 4.7.56: the Overhaul stat rows live on the staff stats page, not on Rival teams.
         int onlineMutual = TeamScaling.onlineMutualRivalCount(player);
         int teaming = TeamScaling.teammates(player).size();
         lines.add(UltraStyle.LABEL + "Mutual rivals " + UltraStyle.VALUE
@@ -181,7 +178,8 @@ public final class DifficultyTeamGuiApi {
                 + UltraStyle.DIM + "/" + UltraStyle.VALUE + RivalConstants.MAX_MUTUAL_RIVALS
                 + "  " + UltraStyle.LABEL + "online " + UltraStyle.VALUE + onlineMutual);
         if (onlineMutual > 0 && teaming < onlineMutual) {
-            lines.add(UltraStyle.DIM + teaming + " online rival(s) also use a team mode for bonuses.");
+            lines.add(UltraStyle.DIM + teaming + (teaming == 1 ? " online rival also uses" : " online rivals also use")
+                    + " a team mode for bonuses.");
         }
         if (mode == TeamMode.PERSONAL_ONLY) {
             lines.add(UltraStyle.LABEL + "Personal ceiling only - no rival bonus.");
@@ -189,15 +187,15 @@ public final class DifficultyTeamGuiApi {
             int bonusPct = (int) DifficultyConfig.get().teamBonusPercent;
             int contribPct = (int) DifficultyConfig.get().contributionPercent;
             int prox = (int) TeamScaling.contributionProximityBlocks();
-            lines.add(UltraStyle.LABEL + "Extra max " + UltraStyle.VALUE + "+" + snap.teamThresholdBonus
-                    + UltraStyle.DIM + " (" + bonusPct + "% more max per online rival on a team mode)");
+            lines.add(UltraStyle.LABEL + "Extra tier ceiling " + UltraStyle.VALUE + "+" + snap.teamThresholdBonus
+                    + UltraStyle.DIM + " (" + bonusPct + "% higher ceiling per online rival on a team mode)");
             if (mode == TeamMode.FULL_TEAM_SCALING) {
-                lines.add(UltraStyle.LABEL + "Nearby spare " + UltraStyle.VALUE + "+" + snap.teamContribution
-                        + UltraStyle.DIM + " (" + contribPct + "% of spare within " + prox + " blocks)");
+                lines.add(UltraStyle.LABEL + "Shared tier room " + UltraStyle.VALUE + "+" + snap.teamContribution
+                        + UltraStyle.DIM + " (" + contribPct + "% of nearby rivals' unused room within " + prox + " blocks)");
             } else {
-                lines.add(UltraStyle.DIM + "Full mode also shares spare tier room when rivals are close.");
+                lines.add(UltraStyle.DIM + "Full mode also shares nearby rivals' unused tier room.");
             }
-            lines.add(UltraStyle.LABEL + "Your max " + UltraStyle.VALUE + snap.availableMax
+            lines.add(UltraStyle.LABEL + "Your tier ceiling " + UltraStyle.VALUE + snap.availableMax
                     + UltraStyle.DIM + " (base " + UltraStyle.VALUE + snap.personalMax + UltraStyle.DIM + ")");
             double eliteBonus = TeamScaling.rarityBonusPercent(player, TeamScaling.RarityBonus.ELITE);
             double mutantBonus = TeamScaling.rarityBonusPercent(player, TeamScaling.RarityBonus.MUTATION);
@@ -210,7 +208,7 @@ public final class DifficultyTeamGuiApi {
             }
         }
         lines.add(UltraStyle.DIM + "Only mutual rivals using Threshold or Full count.");
-        lines.add(UltraStyle.DIM + "/rival - declare, accept, manage slots.");
+        lines.add(UltraStyle.DIM + "Declare and accept rivals in the Rival menu (/rival).");
         return lines;
     }
 

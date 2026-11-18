@@ -542,6 +542,7 @@ public final class ConfigEditor {
         List<EditorTab> tabs = new ArrayList<>();
         addTab(tabs, "difficulty", "Difficulty");
         addTab(tabs, "progression", "Progression");
+        addTab(tabs, "prestige-shop", "Prestige shop");
         addTab(tabs, "character-services", "Character");
         addTab(tabs, "saga", "Saga");
         addTab(tabs, "rival", "Rival");

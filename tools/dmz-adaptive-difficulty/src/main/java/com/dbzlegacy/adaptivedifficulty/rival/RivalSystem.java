@@ -104,7 +104,7 @@ public final class RivalSystem {
 
     public static String silentRival(ServerPlayer player, ServerPlayer target) {
         if (player == null || target == null) {
-            return "§cPlayer not found.";
+            return "§cPlayer not found. Check the spelling and try again.";
         }
         if (player.m_20148_().equals(target.m_20148_())) {
             return "§cYou cannot rival yourself.";
@@ -166,7 +166,7 @@ public final class RivalSystem {
 
     public static String declare(ServerPlayer player, ServerPlayer target) {
         if (player == null || target == null) {
-            return "§cPlayer not found.";
+            return "§cPlayer not found. Check the spelling and try again.";
         }
         if (player.m_20148_().equals(target.m_20148_())) {
             return "§cYou cannot declare yourself.";
@@ -536,7 +536,7 @@ public final class RivalSystem {
         RivalPlayerRecord me = store.ensurePlayer(player);
         RivalPlayerRecord them = findByName(store, otherName);
         if (them == null) {
-            return "§cRival not found: " + otherName;
+            return "§cRival not found: " + otherName + ". Check the name on your rival list.";
         }
         RivalLink myLink = me.rivals.get(them.uuid);
         if (myLink == null) {

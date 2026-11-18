@@ -592,7 +592,7 @@ public final class CharacterServicesSystem {
             String paid = cost > 0L ? " §7Paid §f" + formatCost(cost) + "§7." : "";
             if (fullWipe) {
                 return "§aOpening character setup for §f" + titleCase(raceId)
-                        + "§a. §7Pick your class and appearance - free full wipe."
+                        + "§a. §7Pick your class and appearance - stats wiped, the rest kept."
                         + " §7Purchased looks stay unlocked."
                         + paid;
             }

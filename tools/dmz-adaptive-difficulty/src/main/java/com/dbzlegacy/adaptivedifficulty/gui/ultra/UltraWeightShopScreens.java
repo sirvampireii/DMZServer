@@ -165,7 +165,7 @@ public final class UltraWeightShopScreens {
                 sub("weights_confirm:" + offer.id + ":" + value)
                         .line(UltraStyle.LABEL + "Confirm weight purchase")
                         .labelValue("Type", offer.label)
-                        .labelValue("Weight value", String.valueOf(value))
+                        .labelValue("Weight value", String.format(java.util.Locale.ROOT, "%,d", value))
                         .labelValue("Cost", costText)
                         .labelValue(
                                 "Copper",
@@ -281,7 +281,7 @@ public final class UltraWeightShopScreens {
         return UltraStyle.noticeLine(
                 offer.label
                         + " - weight "
-                        + value
+                        + String.format(java.util.Locale.ROOT, "%,d", value)
                         + " - "
                         + costText
                         + ". Buy: /spar weight buy "
@@ -338,7 +338,7 @@ public final class UltraWeightShopScreens {
                         "Bought "
                                 + offer.label
                                 + " - weight "
-                                + value
+                                + String.format(java.util.Locale.ROOT, "%,d", value)
                                 + " - "
                                 + costText
                                 + " - "

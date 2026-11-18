@@ -92,10 +92,10 @@ public final class PrestigeCustomShop {
             return customEntry.maxPurchases == 1 ? "You already own it." : "Maxed (" + n + "/" + customEntry.maxPurchases + ").";
         }
         if (customEntry.requiredLifetimePrestiges > 0 && PrestigeSystem.getCompleted((ServerPlayer)serverPlayer) < customEntry.requiredLifetimePrestiges) {
-            return "Needs " + customEntry.requiredLifetimePrestiges + " lifetime prestiges.";
+            return "Earn " + customEntry.requiredLifetimePrestiges + " lifetime prestiges first.";
         }
         if (customEntry.requiredLevel > 0 && PrestigeCustomShop.dmzLevel(serverPlayer) < customEntry.requiredLevel) {
-            return "Needs level " + String.format(Locale.ROOT, "%,d", customEntry.requiredLevel) + ".";
+            return "Reach level " + String.format(Locale.ROOT, "%,d", customEntry.requiredLevel) + " first.";
         }
         PrestigeShopConfig prestigeShopConfig = PrestigeShopConfig.get();
         for (String string2 : customEntry.requiredEntries) {
@@ -128,7 +128,7 @@ public final class PrestigeCustomShop {
         int n2 = customEntry.costFor(n);
         int n3 = PrestigePointsSystem.getPoints(serverPlayer);
         if (n3 < n2) {
-            return UltraStyle.dangerLine((String)("Need " + n2 + " favor (have " + n3 + ")."));
+            return UltraStyle.dangerLine(PrestigePointsSystem.notEnoughFavor(n2, n3));
         }
         PrestigePointsSystem.setPoints(serverPlayer, n3 - n2);
         PrestigeCustomShop.setOwned(serverPlayer, string2, n + 1);
@@ -650,7 +650,7 @@ public final class PrestigeCustomShop {
         for (String string : customEntry.dmzStats) {
             stringArray = PrestigeCustomShop.split(string);
             boolean bl = stringArray.length > 2 && stringArray[2].toLowerCase(Locale.ROOT).startsWith("mult");
-            arrayList.add("Stat: " + stringArray[0].toUpperCase(Locale.ROOT) + " " + (String)(bl ? "x" + (stringArray.length > 1 ? stringArray[1] : "?") : PrestigeCustomShop.signed(stringArray.length > 1 ? stringArray[1] : "?")));
+            arrayList.add("Stat: " + PrestigeCustomShop.statName(stringArray[0]) + " " + (String)(bl ? "x" + (stringArray.length > 1 ? stringArray[1] : "?") : PrestigeCustomShop.signed(stringArray.length > 1 ? stringArray[1] : "?")));
         }
         for (String string : customEntry.dmzSkills) {
             stringArray = PrestigeCustomShop.split(string);
@@ -748,6 +748,12 @@ public final class PrestigeCustomShop {
             stringBuilder.append(Character.toUpperCase(string2.charAt(0))).append(string2.substring(1));
         }
         return stringBuilder.toString();
+    }
+
+    /** Short DMZ stat codes stay as they are (STR, SKP); a snake_case id reads as words (4.7.56). */
+    private static String statName(String raw) {
+        String id = raw == null ? "" : raw.trim();
+        return id.length() <= 4 && !id.contains("_") ? id.toUpperCase(Locale.ROOT) : PrestigeCustomShop.prettyId(id);
     }
 
     private static String prettyId(String string) {
