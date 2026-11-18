@@ -297,7 +297,7 @@ public final class DifficultyCommands {
         } else {
             source.m_288197_(() -> Component.m_237113_(
                     LmCommandMessages.turnedOff("Adaptive difficulty")
-                            + "\n§7No scaling, kill coins, AI, or tier purchases until you turn it back on."
+                            + "\n§7No scaling, Ancient Coin drops or tier buys until you turn it back on."
                             + "\n§7Turn it on again: §f/difficulty admin on"
             ), true);
         }

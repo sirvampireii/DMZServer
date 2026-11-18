@@ -404,8 +404,8 @@ public final class DifficultyActions {
         String returnPage = page == null || page.isBlank() ? "main" : page;
         openGui(player, returnPage);
         return Result.ok(on
-                ? "Personal difficulty ON — scaling, kill coins, and tier buys are active again."
-                : "Personal difficulty OFF — scaling, kill coins, AI pressure, and tier buys disabled until you turn it back on.");
+                ? "Personal difficulty ON — scaling, Ancient Coin drops and tier buys are on again."
+                : "Personal difficulty OFF — scaling, Ancient Coin drops and tier buys are off until you turn it back on.");
     }
 
     private static Result toggleCoinChat(ServerPlayer player, String page) {
