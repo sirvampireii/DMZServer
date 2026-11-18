@@ -18,7 +18,7 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public final class UltraRivalScreens {
     /** Online player pickers: two-up rows; page so large servers never truncate. */
-    private static final int PICK_PER_PAGE = 8;
+    private static final int PICK_PER_PAGE = 20;
     // Page sizes below are the old hard caps, so each page keeps its layout.
     private static final int RIVALS_PER_PAGE = 8;
     private static final int DECLARES_PER_PAGE = 4;
@@ -740,7 +740,7 @@ public final class UltraRivalScreens {
         UltraPickHelper.pageLabel(spec, pg, pages);
         spec.buttonsAfterLines();
         if ("spectate".equals(doAction)) {
-            // Spectate is a plain do: picker, so it uses the shared paged helper (same 8 a page,
+            // Spectate is a plain do: picker, so it uses the shared paged helper (same 20 a page,
             // same do:spectate:<arg> buttons, same labels). Its empty line is shown above.
             List<String> choices = new java.util.ArrayList<>();
             for (String arg : nonBlank(args)) {

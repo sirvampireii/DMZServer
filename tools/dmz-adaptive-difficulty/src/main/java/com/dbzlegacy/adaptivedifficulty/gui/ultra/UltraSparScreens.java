@@ -424,8 +424,8 @@ public final class UltraSparScreens {
 
     /** Cards per picker page — the old hard cap, so each page keeps its layout. */
     private static final int CARDS_PER_PAGE = 8;
-    /** Online-player picker page size (the old cap of 10). */
-    private static final int NAMES_PER_PAGE = 10;
+    /** Online-player picker page size (20 since 4.7.55; the page scrolls when it is taller than the window). */
+    private static final int NAMES_PER_PAGE = 20;
 
     /** Card rows with a usable first field, in source order — what a picker can act on. */
     private static List<String> actionableCards(List<String> cards) {

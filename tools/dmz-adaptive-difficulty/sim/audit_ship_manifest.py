@@ -1996,6 +1996,15 @@ def main() -> int:
     check("protocol doc: centered menus; fillScreen only for the config editor; wire unchanged",
           "#### Centered menus (LM 4.7.55)" in p55_doc and "**without**\n  `footer:true`" in p55_doc
           and "Only the staff config editor sets `fillScreen`" in p55_doc and 'protocol `"1"`' in p55_doc)
+    p55_spar = read(SRC / "gui/ultra/UltraSparScreens.java")
+    p55_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
+    check("name pickers: 20 names a page (dojo online picker and rival picker), still paged",
+          "private static final int NAMES_PER_PAGE = 20;" in p55_spar
+          and "UltraPickHelper.pageSlice(names, NAMES_PER_PAGE, pg)" in p55_spar
+          and "UltraPickHelper.placePrevNext(spec, page, pg, pages);" in p55_spar
+          and "private static final int PICK_PER_PAGE = 20;" in p55_rival
+          and "UltraPickHelper.pageCount(total, PICK_PER_PAGE)" in p55_rival
+          and "UltraPickHelper.pageLabel(spec, pg, pages);" in p55_rival)
 
     print("\n--- § lm 4.7.54 ---")
     p54_pick = read(SRC / "event/DragonBallRadarPickup.java")
