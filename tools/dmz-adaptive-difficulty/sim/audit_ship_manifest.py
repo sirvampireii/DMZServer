@@ -1944,6 +1944,59 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.55 ---")
+    p55_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p55_style = read(SRC / "gui/ultra/UltraStyle.java")
+    p55_prev = read(SRC / "gui/ultra/ModelPreview.java")
+    p55_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    p55_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
+    p55_cfg = read(SRC / "gui/ultra/UltraConfigScreens.java")
+    p55_doc = read(ROOT / "docs" / "KAIPATH_GUI_PROTOCOL.md")
+    p55_menu = p55_spec.split("private GuiOpenPacket toMenuPacket() {", 1)[-1].split("\n    }\n", 1)[0]
+    p55_fit = p55_spec.split("public UltraScreenSpec fitMenu() {", 1)[-1].split("\n    }\n", 1)[0]
+    p55_home = p55_char.split("private static void openHome(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    p55_forms = p55_char.split("private static void openFormPreview(ServerPlayer player, int index) {", 1)[-1]
+    check("manifest row for lm 4.7.55", "lm-4755-centered-menus" in manifest)
+    check("menu sizes: 350 (426 with a model), never over 460 (1080p at GUI 4); no design box",
+          "MENU_W = PANEL_W;" in p55_style and "MENU_MODEL_W = 426;" in p55_style
+          and "MENU_MAX_W = 480 - 2 * PANEL_MARGIN;" in p55_style and "MENU_SMALL_H = 270 - 2 * PANEL_MARGIN;" in p55_style
+          and "MENU_MODEL_BOTTOM = 195;" in p55_style and "MENU_DESIGN_W" not in p55_style
+          and "MENU_DESIGN" not in p55_prev and "MENU_DESIGN" not in p55_spec and "MENU_PANEL_W" not in p55_spec)
+    check("fitMenu: centered with the standard margin, no fillScreen",
+          "this.fillScreen = false;" in p55_fit and "this.centerPanel = true;" in p55_fit
+          and "this.panelMargin = UltraStyle.PANEL_MARGIN;" in p55_fit)
+    check("menu packet: centered, content-sized, body at full height, footer row not pinned",
+          'layout.addProperty("center", true);' in p55_menu and 'layout.addProperty("margin", UltraStyle.PANEL_MARGIN);' in p55_menu
+          and '"fillScreen"' not in p55_menu and '"designWidth"' not in p55_menu
+          and 'layout.addProperty("scrollBody", false);' in p55_menu
+          and "bottom + UltraStyle.MENU_END_PAD + UltraStyle.MENU_CLOSE_BAND" in p55_menu
+          and "menuFooterButton(b, x, footerY, UltraStyle.BTN_W, bh)" in p55_menu
+          and "int footerY = bottom + UltraStyle.MENU_FOOTER_GAP;" in p55_menu
+          and "false, b.sound, b.buttonSkin, b.icon, b.raw);" in p55_spec.split("private Button menuFooterButton(", 1)[-1][:400])
+    check("rows stay left of the pinned model; model column ends by MENU_MODEL_BOTTOM",
+          "int right = model == null ? boxW - edge : model.x() - 8;" in p55_menu and "rowFx" not in p55_menu
+          and "UltraStyle.MENU_MODEL_BOTTOM - 46 - UltraStyle.MENU_GAP - UltraStyle.MENU_BTN_H" in p55_prev)
+    check("spin toggle joins the left rows on a page that scrolls at GUI 4 (never behind the pinned model)",
+          "+ UltraStyle.MENU_CLOSE_BAND > UltraStyle.MENU_SMALL_H;" in p55_menu and "int ty = scrolls ? y : modelBottom + gap;" in p55_menu
+          and "it would pass behind the model" in p55_test)
+    check("staff config editor keeps its fillScreen box",
+          ".fillScreen(CONFIG_DESIGN_W, CONFIG_DESIGN_H)" in p55_cfg and ".fitMenu()" not in p55_cfg
+          and 'layout.addProperty("fillScreen", true);' in p55_spec)
+    check("boot self-test asserts centered, content-sized, unpinned menus and the staff-only form preview",
+          "verifyMenuFit();" in p55_test and "must not send" in p55_test
+          and "menus scroll as one page" in p55_test and "is not sized to its content" in p55_test
+          and "UltraStyle.MENU_SMALL_H" in p55_test and "UltraCharacterScreens.staffMayPreviewForms(null)" in p55_test
+          and "ModelPreview.MENU_STANDARD" in p55_test and "UltraStyle.MENU_DESIGN" not in p55_test)
+    check("Preview forms is staff-only: no line or button for players, the page refuses them",
+          "static boolean staffMayPreviewForms(ServerPlayer fallback) {\n        return StaffAccess.isStaff(actingViewer(fallback));" in p55_char
+          and "boolean formsShown = staffMayPreviewForms(player);" in p55_home
+          and p55_home.count("if (formsShown) {") == 2
+          and p55_forms.index("if (!staffMayPreviewForms(player)) {") < p55_forms.index("ModelPreview.raceForms(player)")
+          and "Preview forms is a staff tool." in p55_forms)
+    check("protocol doc: centered menus; fillScreen only for the config editor; wire unchanged",
+          "#### Centered menus (LM 4.7.55)" in p55_doc and "**without**\n  `footer:true`" in p55_doc
+          and "Only the staff config editor sets `fillScreen`" in p55_doc and 'protocol `"1"`' in p55_doc)
+
     print("\n--- § lm 4.7.54 ---")
     p54_pick = read(SRC / "event/DragonBallRadarPickup.java")
     p54_hold = read(SRC / "event/DragonBallSetHold.java")
@@ -1993,28 +2046,28 @@ def main() -> int:
     check("menu design box is 426x240 (16:9), footer band and content bottom derived from it",
           "MENU_DESIGN_W = 426;" in p52_style and "MENU_DESIGN_H = 240;" in p52_style
           and "MENU_FOOTER_Y = MENU_DESIGN_H - (MENU_CLOSE_BAND + MENU_BTN_H);" in p52_style
-          and "MENU_CONTENT_BOTTOM = MENU_FOOTER_Y - MENU_GAP;" in p52_style)
+          and "MENU_CONTENT_BOTTOM = MENU_FOOTER_Y - MENU_GAP;" in p52_style, retired=True)  # 4.7.55 replaced the fillScreen menu box (lm-4755-centered-menus)
     check("fitMenu: fillScreen over the menu box, locked, not centered, margin 0; packet asks 1920x1080",
           "public UltraScreenSpec fitMenu()" in p52_spec and "this.designWidth = UltraStyle.MENU_DESIGN_W;" in p52_spec
           and "this.centerPanel = false;" in p52_spec and "this.panelMargin = 0;" in p52_spec
           and "static final int MENU_PANEL_W = 1920;" in p52_spec and "static final int MENU_PANEL_H = 1080;" in p52_spec
-          and "if (menuFit) {\n            return toMenuPacket();" in p52_spec)
+          and "if (menuFit) {\n            return toMenuPacket();" in p52_spec, retired=True)  # 4.7.55 replaced the fillScreen menu box (lm-4755-centered-menus)
     check("every menu builder frame calls fitMenu (config editor keeps its own box)",
           all(b.count(".fitMenu()") >= (1 if n in ("SkillCheck", "WeightShop") else 2) for n, b in p52_builders.items())
           and ".fitMenu()" not in read(SRC / "gui/ultra/UltraConfigScreens.java"))
     check("reflow: rows packed under the body, regrouped into 2-4 columns of at least 80px when they do not fit",
           "for (int cols = 2; cols <= Math.min(4, maxCols); cols++)" in p52_spec
-          and "(UltraStyle.BTN_MIN_W + gap)" in p52_spec and "Widening pushed two controls together" in p52_spec)
+          and "(UltraStyle.BTN_MIN_W + gap)" in p52_spec and "Widening pushed two controls together" in p52_spec, retired=True)  # 4.7.55 replaced the fillScreen menu box (lm-4755-centered-menus)
     check("model boxes for the menu; scales fit against the box KaiPath draws; uniform-scale note",
           "MENU_STANDARD = new Box(" in p52_prev and "MENU_FORMS = new Box(" in p52_prev
           and "public static Box menuBox(Box legacy)" in p52_prev and "This assumes the box is scaled the same in" in p52_prev)
     check("boot self-test: every builder and the densest page fit the box, template from UltraStyle",
           "verifyMenuFit();" in p52_test and "public static void verifyMenuFit()" in p52_test
           and "UltraStyle.MENU_DESIGN_W" in p52_test and "GuiOpenPacket.LAYOUT_JSON_MAX" in p52_test
-          and "ModelPreview.MENU_STANDARD" in p52_test and "UltraConfigScreens.CONFIG_DESIGN_W" in p52_test)
+          and "ModelPreview.MENU_STANDARD" in p52_test and "UltraConfigScreens.CONFIG_DESIGN_W" in p52_test, retired=True)  # 4.7.55 replaced the fillScreen menu box (lm-4755-centered-menus)
     check("protocol doc: menu design box and the 16:9 rule; wire unchanged",
           "every LM menu sets `fillScreen`" in p52_doc and "**The box is 16:9.**" in p52_doc
-          and "protocol `\"1\"`" in p52_doc)
+          and "protocol `\"1\"`" in p52_doc, retired=True)  # 4.7.55 replaced the fillScreen menu box (lm-4755-centered-menus)
 
     print("\n--- § lm 4.7.51 ---")
     import json as _json51

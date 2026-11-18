@@ -599,3 +599,8 @@ Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-veri
 
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified) from
 `LegacyMechanics-4.7.54.jar`. The other 24 are unchanged.
+
+## Re-baseline (2026-11-17, 4.7.55 centered menus)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified) from
+`LegacyMechanics-4.7.55.jar`. The other 24 are unchanged.

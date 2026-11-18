@@ -63,26 +63,26 @@ public final class ModelPreview {
     /** Preview forms: the panel's right side, from under the title down to the toggle. */
     public static final Box FORMS = new Box(190, 46, 144, 186);
     /**
-     * Where {@link #STANDARD} is drawn in the 426x240 menu design box (4.7.52): the right edge of
-     * the box, under the tab row, same size. Its spin toggle sits under it and ends above the
-     * footer ({@code 46 + 120 + 3 + 14 = 183 <= MENU_CONTENT_BOTTOM}).
+     * Where {@link #STANDARD} is drawn in a {@link UltraStyle#MENU_MODEL_W}-wide menu: the right
+     * edge of the panel, under the tab row, same size. Its spin toggle sits under it and the column
+     * ends by {@link UltraStyle#MENU_MODEL_BOTTOM} ({@code 46 + 120 + 3 + 14 = 183}).
      */
     public static final Box MENU_STANDARD = new Box(
-            UltraStyle.MENU_DESIGN_W - UltraStyle.MENU_EDGE - 86, 46, 86, 120);
+            UltraStyle.MENU_MODEL_W - UltraStyle.MENU_EDGE - 86, 46, 86, 120);
     /**
-     * Where {@link #FORMS} is drawn in the menu design box: same 144:186 shape, shrunk so the box
-     * and its toggle end above the footer ({@code 46 + 128 + 3 + 14 = 191}).
+     * Where {@link #FORMS} is drawn in a menu: same 144:186 shape, shrunk so the box and its toggle
+     * end by {@link UltraStyle#MENU_MODEL_BOTTOM} ({@code 46 + 128 + 3 + 14 = 191}).
      */
     public static final Box MENU_FORMS = new Box(
-            UltraStyle.MENU_DESIGN_W - UltraStyle.MENU_EDGE - 99, 46, 99, 128);
+            UltraStyle.MENU_MODEL_W - UltraStyle.MENU_EDGE - 99, 46, 99, 128);
     /** Scale for a normal-sized model in either box. */
     public static final float BASE_SCALE = 0.9f;
 
     /**
-     * The menu design box a legacy box is drawn in. Scales ({@link #fitScale}) are computed
-     * against this box, since it is the one KaiPath draws: menus are sent with fillScreen, and
-     * KaiPath maps the design box onto the window. The box shape is kept, and the design box is
-     * 16:9, so on a 16:9 window x and y scale alike and the fit below holds at every window size.
+     * The menu box a legacy box is drawn in, for a {@link UltraStyle#MENU_MODEL_W}-wide menu (a
+     * wider menu moves it right by the extra width). Scales ({@link #fitScale}) are computed
+     * against this box, since it is the one KaiPath draws: menus are centered panels in GUI pixels
+     * (4.7.55), so KaiPath draws the box 1:1 and the fit below holds at every window size.
      */
     public static Box menuBox(Box legacy) {
         if (legacy == null) {
@@ -94,11 +94,11 @@ public final class ModelPreview {
         if (legacy.equals(FORMS)) {
             return MENU_FORMS;
         }
-        int maxH = UltraStyle.MENU_CONTENT_BOTTOM - 46 - UltraStyle.MENU_GAP - UltraStyle.MENU_BTN_H;
+        int maxH = UltraStyle.MENU_MODEL_BOTTOM - 46 - UltraStyle.MENU_GAP - UltraStyle.MENU_BTN_H;
         float k = Math.min(1f, maxH / (float) Math.max(1, legacy.h()));
         int w = Math.max(16, Math.round(legacy.w() * k));
         int h = Math.max(16, Math.round(legacy.h() * k));
-        return new Box(UltraStyle.MENU_DESIGN_W - UltraStyle.MENU_EDGE - w, 46, w, h);
+        return new Box(UltraStyle.MENU_MODEL_W - UltraStyle.MENU_EDGE - w, 46, w, h);
     }
     /** Spin toggle width: the model box width, at least the 80px button minimum. */
     static final int TOGGLE_W = 86;
@@ -162,10 +162,8 @@ public final class ModelPreview {
      * first; a form that already fits keeps {@code base}.
      *
      * <p>Pass the box KaiPath draws ({@link #menuBox}). This assumes the box is scaled the same in
-     * x and y. Under fillScreen KaiPath scales x by window/426 and y by window/240; on a window
-     * that is not 16:9 those differ, the {@code min(w/0.6, h/1.8)} axis can flip, and a giant form
-     * this fit keeps whole could be cut again. The scale multiplier itself is not scaled by
-     * KaiPath; only the rectangle is.
+     * x and y, which holds for the centered 4.7.55 menus (drawn 1:1 in GUI pixels). The scale
+     * multiplier itself is not scaled by KaiPath; only the rectangle is.
      */
     public static float fitScale(Box box, float base, String race, String group, String form,
                                  String stackGroup, String stackForm) {

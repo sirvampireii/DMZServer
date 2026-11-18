@@ -1,8 +1,10 @@
 # fillScreen fit: merge guide for KaiPath (JLDK)
 
 Plug-and-play fixes for `fillScreen` screens in `LmDynamicScreen`. They apply to every partner channel.
-LegacyMechanics 4.7.52+ sends every menu this way: a 1920x1080 clamp request, `fillScreen`, and a
-426x240 design box.
+LegacyMechanics 4.7.52-4.7.54 sent every menu this way (a 1920x1080 clamp request, `fillScreen`, and a
+426x240 design box). Since 4.7.55 only the staff config editor does; player menus are centered panels
+sized to their page (see `docs/KAIPATH_GUI_PROTOCOL.md`, "Centered menus"). KaiPath 1.5.6 already
+ships these fixes; fix 3 (the scroll bar) is what a tall centered menu uses at GUI scale 3 and 4.
 
 **No wire change.** Protocol stays `"1"`, there are no new layout keys and nothing new to advertise. LM
 already works on 1.5.3 as shipped; these are polish fixes.

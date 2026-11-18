@@ -189,6 +189,8 @@ public final class UltraCharacterScreens {
                 "true".equals(ph.get("can_reskin")),
                 CharacterServicesSystem.cooldownWait(player, "reskin"));
 
+        // 4.7.55: Preview forms is a staff tool; players do not get its line or its button.
+        boolean formsShown = staffMayPreviewForms(player);
         String formsBlock = ModelPreview.raceForms(player).isEmpty() ? "Make your character first." : "";
 
         String bone = ph.getOrDefault("active_head_bone", "");
@@ -214,10 +216,12 @@ public final class UltraCharacterScreens {
                         partsBlock))
                 .line(indexLine("Reskin",
                         "Change your hair, eyes and colors. Race, class and stats stay.",
-                        reskinBlock))
-                .line(indexLine("Preview forms",
-                        "See your race in each of its forms on the model. Nothing changes on you.",
-                        formsBlock));
+                        reskinBlock));
+        if (formsShown) {
+            spec.line(indexLine("Preview forms",
+                    "See your race in each of its forms on the model. Nothing changes on you.",
+                    formsBlock));
+        }
         spec.buttonsAfterLines();
         ModelPreview.rotateButton(spec, player, "main");
 
@@ -228,7 +232,9 @@ public final class UltraCharacterScreens {
         indexButton(spec, false, "page:bodyparts:0", "Body parts", partsBlock);
         spec.rowGap();
         indexButton(spec, true, "page:reskin", "Reskin", reskinBlock);
-        indexButton(spec, false, "page:" + PAGE_FORM_PREVIEW + ":0", "Preview forms", formsBlock);
+        if (formsShown) {
+            indexButton(spec, false, "page:" + PAGE_FORM_PREVIEW + ":0", "Preview forms", formsBlock);
+        }
         spec.rowGap();
 
         spec.footerBackToMain();
@@ -290,6 +296,17 @@ public final class UltraCharacterScreens {
      * picked here.
      */
     private static void openFormPreview(ServerPlayer player, int index) {
+        if (!staffMayPreviewForms(player)) {
+            // 4.7.55: staff only. A player who reaches the page (an old button, a typed action)
+            // gets a short note and the way back, not the figure.
+            UltraScreenSpec spec = sub(player, PAGE_FORM_PREVIEW + ":0", false)
+                    .line(UltraStyle.LABEL + "Preview forms")
+                    .line(UltraStyle.LABEL + "Preview forms is a staff tool. Your character and your forms are not affected.")
+                    .buttonsAfterLines();
+            spec.footerBackHome("Character Home");
+            spec.send(player);
+            return;
+        }
         List<ModelPreview.Form> forms = ModelPreview.raceForms(player);
         if (forms.isEmpty()) {
             UltraScreenSpec spec = sub(player, PAGE_FORM_PREVIEW + ":0", false)
@@ -1629,6 +1646,11 @@ public final class UltraCharacterScreens {
 
     /** Staff gate uses the clicking viewer, including while inspecting another player. */
     private static boolean staffMayEditOthers(ServerPlayer fallback) {
+        return StaffAccess.isStaff(actingViewer(fallback));
+    }
+
+    /** Preview forms is staff-only (4.7.55): the same check as {@link #staffMayEditOthers}. */
+    static boolean staffMayPreviewForms(ServerPlayer fallback) {
         return StaffAccess.isStaff(actingViewer(fallback));
     }
 

@@ -132,19 +132,25 @@ public final class UltraStyle {
     public static final int CONTENT_ROW_TABS = TAB_ROW_Y + BTN_H + 8;
 
     /*
-     * Menu design box (4.7.52). Every LM menu is sent with fillScreen: KaiPath scales this box
-     * onto the whole window (x by window/MENU_DESIGN_W, y by window/MENU_DESIGN_H), the way the
-     * staff config editor already works. Builders still lay out on the legacy 350-wide grid
-     * above; UltraScreenSpec reflows that into this box when it builds the packet.
+     * Centered menus (4.7.55). Every LM menu is a centered panel sized to its content, in GUI
+     * pixels (no fillScreen, no design box): a short page gets a small panel, a long page a tall
+     * one. KaiPath caps the panel at the window minus its margin and, when the content is taller,
+     * scrolls the whole page (body, rows and footer row together); only its own Close button stays
+     * pinned in the bottom band. Builders still lay out on the legacy 350-wide grid above;
+     * UltraScreenSpec reflows that into the panel when it builds the packet.
      *
-     * 426x240 is 16:9 (so x and y scale alike on a 16:9 window and buttons are not stretched)
-     * and is the smallest GUI Minecraft's auto scale gives (1440p and 4K); 1080p auto is 480x270.
-     * KaiPath scales geometry but draws text at its normal size, so a bigger box would shrink
-     * buttons below their labels on small windows; at 426x240 the scale is never below 1.
+     * 1080p at GUI scale 4 is 480x270, so the panel there is at most 460x250 after the 10px margin
+     * on each side; at GUI scale 3 it is 620x340.
      */
-    public static final int MENU_DESIGN_W = 426;
-    public static final int MENU_DESIGN_H = 240;
-    /** Left and right inset of menu content inside the design box. */
+    /** Width of a menu without a player model: the legacy panel width. */
+    public static final int MENU_W = PANEL_W;
+    /** Width of a menu with a player model: the 350 grid plus the model column on the right. */
+    public static final int MENU_MODEL_W = 426;
+    /** Widest menu (tabs or a wide row need more): 1080p at GUI scale 4, less the side margins. */
+    public static final int MENU_MAX_W = 480 - 2 * PANEL_MARGIN;
+    /** Tallest panel 1080p at GUI scale 4 allows (270 less the margins); taller pages scroll there. */
+    public static final int MENU_SMALL_H = 270 - 2 * PANEL_MARGIN;
+    /** Left and right inset of menu content inside the panel. */
     public static final int MENU_EDGE = 10;
     /** Menu button height: tighter than BTN_H so more rows fit (font is 9px). */
     public static final int MENU_BTN_H = 14;
@@ -158,15 +164,21 @@ public final class UltraStyle {
     public static final int MENU_TAB_Y = TAB_ROW_Y;
     /** Header bottom in menus without tabs. */
     public static final int MENU_HEADER_BOTTOM = BODY_TOP;
-    /** KaiPath keeps this band under the footer for its own Close button (screen pixels, not scaled). */
-    public static final int MENU_CLOSE_BAND = 28;
     /**
-     * Footer Y in the design box: KaiPath pins the footer at {@code panel - (close band + button)},
-     * which on the smallest (240-tall) GUI is this design Y. On bigger windows it is lower, never higher.
+     * KaiPath keeps this band at the bottom of the panel for its own Close button; the page's
+     * scroll area ends above it. A control below {@code panel - band} is only reached by scrolling.
      */
-    public static final int MENU_FOOTER_Y = MENU_DESIGN_H - (MENU_CLOSE_BAND + MENU_BTN_H);
-    /** Lowest Y menu content may reach: one gap above the footer. */
-    public static final int MENU_CONTENT_BOTTOM = MENU_FOOTER_Y - MENU_GAP;
+    public static final int MENU_CLOSE_BAND = 28;
+    /** Space between the last content row and the footer row (Back / Main menu). */
+    public static final int MENU_FOOTER_GAP = 6;
+    /** Space between the lowest control and the Close band. */
+    public static final int MENU_END_PAD = 4;
+    /**
+     * Lowest Y of the model column (model box and its spin toggle). KaiPath pins the model to the
+     * panel while the page scrolls, so the column must fit the smallest panel: 195 is well above
+     * {@code MENU_SMALL_H - MENU_CLOSE_BAND} (222).
+     */
+    public static final int MENU_MODEL_BOTTOM = 195;
     /** Title alignment in layoutJson: {@code center} or {@code left}. */
     public static final String TITLE_ALIGN = "center";
 

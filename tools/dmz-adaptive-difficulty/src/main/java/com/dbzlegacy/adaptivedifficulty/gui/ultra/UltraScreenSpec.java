@@ -28,9 +28,8 @@ import net.minecraft.server.level.ServerPlayer;
  */
 public final class UltraScreenSpec {
     private static final Gson GSON = new Gson();
-    /** Clamp request of a {@link #fitMenu} screen: larger than any GUI, so it fills the window. */
-    static final int MENU_PANEL_W = 1920;
-    static final int MENU_PANEL_H = 1080;
+    /** Largest panel height a menu asks for (KaiPath caps the panel at the window anyway). */
+    static final int MENU_MAX_REQUEST_H = 2000;
 
     /** When set, {@link #send} captures packets instead of transmitting (startup self-test). */
     private static final ThreadLocal<List<GuiOpenPacket>> PROBE = new ThreadLocal<>();
@@ -70,9 +69,8 @@ public final class UltraScreenSpec {
     private int designWidth;
     private int designHeight;
     /**
-     * Menu fit (4.7.52, {@link #fitMenu}): the packet is the 1920x1080 clamp request with
-     * fillScreen and the {@link UltraStyle#MENU_DESIGN_W}x{@link UltraStyle#MENU_DESIGN_H} design
-     * box, and {@link #toPacket} reflows the legacy 350-grid layout into that box.
+     * Menu fit ({@link #fitMenu}; centered and content-sized since 4.7.55): {@link #toPacket}
+     * reflows the legacy 350-grid layout into a centered panel as tall as the page.
      */
     private boolean menuFit;
     private PlayerModel playerModel;
@@ -236,26 +234,27 @@ public final class UltraScreenSpec {
     }
 
     /**
-     * Fit this menu to the window like the staff config editor (4.7.52): the packet asks for a
-     * {@code 1920x1080} panel, locked, with {@code fillScreen} over the
-     * {@link UltraStyle#MENU_DESIGN_W}x{@link UltraStyle#MENU_DESIGN_H} design box, not centered,
-     * margin 0. KaiPath then scales the box onto the whole window, and a client that ignores
-     * {@code fillScreen} clamps the 1920x1080 request to the window.
+     * Player menu (4.7.55): a centered panel sized to its page, in GUI pixels, no fillScreen.
+     * The width is {@link UltraStyle#MENU_W} ({@link UltraStyle#MENU_MODEL_W} with a player
+     * model), wider only when the tabs, the title or a row need it, never over
+     * {@link UltraStyle#MENU_MAX_W}. The height is the header, the whole body text, the rows and
+     * the footer row, plus KaiPath's Close band. KaiPath caps the panel at the window and scrolls
+     * the whole page (body, rows and footer together) when it is taller, so nothing is cut off and
+     * the footer is never pinned off-screen.
      *
      * <p>Builders keep laying out on the legacy 350-wide grid ({@link UltraStyle#COL_L},
-     * {@link UltraStyle#COL_R}, {@link #rowGap}); {@link #toPacket} reflows it into the design box:
-     * columns are widened to the box, rows are packed under the body text and, when they would
-     * not fit above the footer, regrouped into up to four columns. Call it before any
-     * {@link #line} so body text wraps to the wider box.
+     * {@link UltraStyle#COL_R}, {@link #rowGap}); {@link #toPacket} reflows it into the panel:
+     * columns are widened to the panel and rows are packed under the body text. Call it before
+     * any {@link #line} so body text wraps to the menu width.
      */
     public UltraScreenSpec fitMenu() {
         this.menuFit = true;
-        this.fillScreen = true;
-        this.designWidth = UltraStyle.MENU_DESIGN_W;
-        this.designHeight = UltraStyle.MENU_DESIGN_H;
+        this.fillScreen = false;
+        this.designWidth = 0;
+        this.designHeight = 0;
         this.lockPanel = true;
-        this.centerPanel = false;
-        this.panelMargin = 0;
+        this.centerPanel = true;
+        this.panelMargin = UltraStyle.PANEL_MARGIN;
         return this;
     }
 
@@ -363,9 +362,10 @@ public final class UltraScreenSpec {
     /** Pixel width of the body text box for the panel and player model set so far. */
     private int bodyFitPx() {
         if (menuFit) {
-            // Wrap to the body KaiPath draws in the design box: left of the menu model box.
+            // Wrap to the body KaiPath draws in the menu panel: left of the menu model box.
             int modelX = playerModel == null ? -1 : menuModelBox().x();
-            return UltraStyle.bodyTextFitPx(UltraStyle.MENU_DESIGN_W, modelX);
+            return UltraStyle.bodyTextFitPx(
+                    playerModel == null ? UltraStyle.MENU_W : UltraStyle.MENU_MODEL_W, modelX);
         }
         int modelX = playerModel == null ? -1 : playerModel.x;
         return UltraStyle.bodyTextFitPx(panelWidth, modelX);
@@ -1088,10 +1088,10 @@ public final class UltraScreenSpec {
         }
     }
 
-    /** One row of the menu reflow: its cells, its design-box height, and whether it is a regrouped grid row. */
-    private record Row(List<Cell> cells, int h, boolean grid) {}
+    /** One row of the menu reflow: its cells and its height. */
+    private record Row(List<Cell> cells, int h) {}
 
-    /** Design-box height of a legacy control in a menu row. */
+    /** Menu height of a legacy control in a menu row. */
     private static int menuCellH(Cell c) {
         if (c.isButton()) {
             return UltraStyle.MENU_BTN_H;
@@ -1115,55 +1115,9 @@ public final class UltraScreenSpec {
             for (Cell c : row) {
                 h = Math.max(h, menuCellH(c));
             }
-            rows.add(new Row(row, h, false));
+            rows.add(new Row(row, h));
         }
         return rows;
-    }
-
-    /**
-     * The same controls in {@code cols} equal columns, in reading order. A row holding an input
-     * keeps its own line, so a search field and its button stay together.
-     */
-    private static List<Row> menuGrid(List<Row> rows, int cols) {
-        List<Row> out = new ArrayList<>();
-        List<Cell> pending = new ArrayList<>();
-        for (Row r : rows) {
-            if (r.cells().stream().allMatch(Cell::isButton)) {
-                pending.addAll(r.cells());
-                continue;
-            }
-            flushGrid(out, pending, cols);
-            out.add(r);
-        }
-        flushGrid(out, pending, cols);
-        return out;
-    }
-
-    private static void flushGrid(List<Row> out, List<Cell> pending, int cols) {
-        for (int i = 0; i < pending.size(); i += cols) {
-            out.add(new Row(new ArrayList<>(pending.subList(i, Math.min(pending.size(), i + cols))),
-                    UltraStyle.MENU_BTN_H, true));
-        }
-        pending.clear();
-    }
-
-    private static int menuRowsHeight(List<Row> rows) {
-        int h = 0;
-        for (Row r : rows) {
-            h += r.h();
-        }
-        return h + Math.max(0, rows.size() - 1) * UltraStyle.MENU_GAP;
-    }
-
-    /** Column count of the regrouped grid: its widest row. */
-    private static int gridCols(List<Row> rows) {
-        int cols = 1;
-        for (Row r : rows) {
-            if (r.grid()) {
-                cols = Math.max(cols, r.cells().size());
-            }
-        }
-        return cols;
     }
 
     /** Button label fitted to {@code w}, with this button's ink (same rules as {@link #addButton}). */
@@ -1183,46 +1137,34 @@ public final class UltraScreenSpec {
     }
 
     /**
-     * {@link #toPacket} for a {@link #fitMenu} screen: every control inside the
-     * {@link UltraStyle#MENU_DESIGN_W}x{@link UltraStyle#MENU_DESIGN_H} design box.
+     * {@link #toPacket} for a {@link #fitMenu} screen (4.7.55): a centered panel sized to the page.
      *
      * <ul>
-     *   <li>Title band, then the tabs at {@link UltraStyle#MENU_TAB_Y} across the box.
+     *   <li>Title band, then the tabs at {@link UltraStyle#MENU_TAB_Y} across the panel.
      *   <li>Player model at its {@link ModelPreview#menuBox} on the right, its spin toggle under it.
-     *   <li>Body text from the content top, as tall as the room the controls leave (it scrolls).
+     *       KaiPath pins the model to the panel while the page scrolls, so every row stays left of it,
+     *       and on a page taller than {@link UltraStyle#MENU_SMALL_H} the toggle joins the left rows.
+     *   <li>Body text from the content top, all of it (the page scrolls, not the body).
      *   <li>Controls in their legacy rows, widened from the 350 grid to the content width and packed
-     *       under the body. When they would not fit above the footer with two body lines left, they
-     *       are regrouped into the fewest equal columns (2 to 4, each at least
-     *       {@link UltraStyle#BTN_MIN_W} wide) that fit.
-     *   <li>Footer at {@link UltraStyle#MENU_FOOTER_Y}: Back on the left, Main menu flush right.
+     *       under the body.
+     *   <li>Footer row under the content: Back on the left, Main menu on the right. It is a normal
+     *       row (no {@code footer:true}), so it scrolls with the page and is never pinned off-screen.
+     *   <li>Panel height: the lowest control, {@link UltraStyle#MENU_END_PAD}, then KaiPath's Close band.
      * </ul>
      */
     private GuiOpenPacket toMenuPacket() {
-        final int boxW = UltraStyle.MENU_DESIGN_W;
-        final int boxH = UltraStyle.MENU_DESIGN_H;
         final int edge = UltraStyle.MENU_EDGE;
         final int gap = UltraStyle.MENU_GAP;
         final int bh = UltraStyle.MENU_BTN_H;
         boolean hasTabs = !tabs.isEmpty();
         int headerBottom = hasTabs ? UltraStyle.MENU_TAB_Y : UltraStyle.MENU_HEADER_BOTTOM;
         int contentTop = hasTabs ? UltraStyle.MENU_TAB_Y + bh + 4 : UltraStyle.MENU_HEADER_BOTTOM;
-        int contentBottom = footerButtons.isEmpty()
-                ? boxH - UltraStyle.MENU_CLOSE_BAND - gap
-                : UltraStyle.MENU_CONTENT_BOTTOM;
-
-        ModelPreview.Box model = playerModel == null ? null : menuModelBox();
-        int left = edge;
-        int right = model == null ? boxW - edge : model.x() - 8;
-        int legacyLeft = UltraStyle.COL_L;
-        int legacyRight = playerModel == null
-                ? UltraStyle.COL_R + UltraStyle.BTN_W
-                : Math.max(legacyLeft + UltraStyle.BTN_W, playerModel.x - 8);
 
         List<Cell> cells = new ArrayList<>();
         for (Button b : buttons) {
             cells.add(new Cell(b, null, b.x, b.y, b.w, b.h));
         }
-        if (model == null) {
+        if (playerModel == null) {
             for (Button b : fixedButtons) {
                 cells.add(new Cell(b, null, b.x, b.y, b.w, b.h));
             }
@@ -1233,66 +1175,39 @@ public final class UltraScreenSpec {
             }
         }
         List<Row> rows = menuRows(cells);
+        final int boxW = menuWidth(rows);
+        ModelPreview.Box model = playerModel == null ? null : menuModelBox(boxW);
+        int left = edge;
+        int right = model == null ? boxW - edge : model.x() - 8;
+        int legacyLeft = UltraStyle.COL_L;
+        int legacyRight = playerModel == null
+                ? UltraStyle.COL_R + UltraStyle.BTN_W
+                : Math.max(legacyLeft + UltraStyle.BTN_W, playerModel.x - 8);
 
         int lineStep = UltraStyle.MENU_LINE_H + UltraStyle.MENU_LINE_GAP;
         int pad = UltraStyle.MENU_BODY_PAD;
-        int naturalBody = lines.isEmpty() ? 0 : pad * 2 + lines.size() * lineStep;
-        int minBody = lines.isEmpty() ? 0 : pad * 2 + Math.min(2, lines.size()) * lineStep;
-        int avail = contentBottom - contentTop;
-        int bodyReserve = minBody > 0 ? minBody + gap : 0;
-        if (!rows.isEmpty() && menuRowsHeight(rows) + bodyReserve > avail) {
-            int maxCols = Math.max(1, (right - left + gap) / (UltraStyle.BTN_MIN_W + gap));
-            List<Row> best = rows;
-            for (int cols = 2; cols <= Math.min(4, maxCols); cols++) {
-                best = menuGrid(rows, cols);
-                if (menuRowsHeight(best) + bodyReserve <= avail) {
-                    break;
-                }
-            }
-            if (menuRowsHeight(best) < menuRowsHeight(rows)) {
-                rows = best;
-            }
-        }
-        int rowsH = rows.isEmpty() ? 0 : menuRowsHeight(rows);
-        int bodyH = naturalBody <= 0
-                ? 0
-                : Math.max(minBody, Math.min(naturalBody, avail - rowsH - (rowsH > 0 ? gap : 0)));
-        boolean scrollBody = naturalBody > bodyH;
+        int bodyH = lines.isEmpty() ? 0 : pad * 2 + lines.size() * lineStep;
 
         JsonArray btnArr = new JsonArray();
         appendTabButtons(btnArr, edge, boxW - edge * 2, UltraStyle.MENU_TAB_Y, bh, gap);
         JsonArray inputArr = new JsonArray();
+        // The model does not scroll with the page, so every row keeps to the left of it.
         double fx = (right - left) / (double) Math.max(1, legacyRight - legacyLeft);
-        int cols = gridCols(rows);
-        int gridW = (right - left - gap * (cols - 1)) / cols;
-        int fullRight = UltraStyle.COL_R + UltraStyle.BTN_W;
         int y = contentTop + (bodyH > 0 ? bodyH + gap : 0);
+        int bottom = contentTop + bodyH;
         for (Row row : rows) {
             int n = row.cells().size();
             int[] xs = new int[n];
             int[] ws = new int[n];
-            // A legacy row that ran under the model (past its left edge) spanned the full grid.
-            int rowRight = 0;
-            for (Cell c : row.cells()) {
-                rowRight = Math.max(rowRight, c.x() + c.w());
-            }
-            double rowFx = playerModel != null && rowRight > legacyRight
-                    ? (right - left) / (double) Math.max(1, fullRight - legacyLeft)
-                    : fx;
             boolean clean = true;
             for (int i = 0; i < n; i++) {
                 Cell c = row.cells().get(i);
-                if (row.grid()) {
-                    ws[i] = gridW;
-                    xs[i] = left + i * (gridW + gap);
-                    continue;
-                }
-                int w = (int) Math.round(c.w() * rowFx);
+                int w = (int) Math.round(c.w() * fx);
                 if (c.isButton()) {
                     w = Math.max(UltraStyle.BTN_MIN_W, w);
                 }
                 w = Math.min(w, right - left);
-                int x = left + (int) Math.round((c.x() - legacyLeft) * rowFx);
+                int x = left + (int) Math.round((c.x() - legacyLeft) * fx);
                 xs[i] = Math.max(left, Math.min(x, right - w));
                 ws[i] = w;
                 if (i > 0 && xs[i] < xs[i - 1] + ws[i - 1] + gap) {
@@ -1309,33 +1224,57 @@ public final class UltraScreenSpec {
             }
             for (int i = 0; i < n; i++) {
                 Cell c = row.cells().get(i);
-                int x = xs[i];
-                int w = ws[i];
                 if (c.isButton()) {
-                    appendButtonJson(btnArr, menuButton(c.button(), x, y, w, bh), 0, boxH);
+                    appendButtonJson(btnArr, menuButton(c.button(), xs[i], y, ws[i], bh), 0, 0);
                 } else {
-                    inputArr.add(menuInputJson(c.input(), x, y, w, menuCellH(c)));
+                    inputArr.add(menuInputJson(c.input(), xs[i], y, ws[i], menuCellH(c)));
                 }
             }
+            bottom = Math.max(bottom, y + row.h());
             y += row.h() + gap;
         }
         if (model != null) {
-            int ty = model.y() + model.h() + gap;
+            int modelBottom = model.y() + model.h();
+            int columnBottom = modelBottom + fixedButtons.size() * (bh + gap);
+            int footerH = footerButtons.isEmpty() ? 0 : UltraStyle.MENU_FOOTER_GAP + bh;
+            // KaiPath pins the model while the page scrolls. On a page that scrolls at 1080p GUI
+            // scale 4 a spin toggle under the model would scroll up behind it, so it joins the
+            // rows on the left instead (just above the footer); a shorter page keeps it under the model.
+            boolean scrolls = Math.max(bottom, columnBottom) + footerH + UltraStyle.MENU_END_PAD
+                    + UltraStyle.MENU_CLOSE_BAND > UltraStyle.MENU_SMALL_H;
+            bottom = Math.max(bottom, modelBottom);
+            int ty = scrolls ? y : modelBottom + gap;
             for (Button b : fixedButtons) {
-                int w = Math.max(UltraStyle.BTN_MIN_W, Math.min(b.w, model.w()));
-                int x = Math.min(boxW - edge - w, model.x() + (model.w() - w) / 2);
-                appendButtonJson(btnArr, menuButton(b, x, ty, w, bh), 0, boxH);
+                int w;
+                int x;
+                if (scrolls) {
+                    w = Math.max(UltraStyle.BTN_MIN_W, Math.min(b.w, right - left));
+                    x = left;
+                } else {
+                    w = Math.max(UltraStyle.BTN_MIN_W, Math.min(b.w, model.w()));
+                    x = Math.min(boxW - edge - w, model.x() + (model.w() - w) / 2);
+                }
+                appendButtonJson(btnArr, menuButton(b, x, ty, w, bh), 0, 0);
+                bottom = Math.max(bottom, ty + bh);
                 ty += bh + gap;
             }
         }
+        boolean footerRow = false;
+        int footerY = bottom + UltraStyle.MENU_FOOTER_GAP;
         for (Button b : footerButtons) {
             if (b == null) {
                 continue;
             }
-            // Back on the left; Main menu flush right, so its right edge is the design box edge.
-            int x = b.x == UltraStyle.COL_L ? edge : boxW - UltraStyle.BTN_W;
-            appendButtonJson(btnArr, menuButton(b, x, UltraStyle.MENU_FOOTER_Y, UltraStyle.BTN_W, bh), 0, boxH);
+            // Back on the left; Main menu flush with the right content edge. Not pinned: the
+            // footer row scrolls with the page, so a capped panel never hides it.
+            int x = b.x == UltraStyle.COL_L ? edge : boxW - edge - UltraStyle.BTN_W;
+            appendButtonJson(btnArr, menuFooterButton(b, x, footerY, UltraStyle.BTN_W, bh), 0, 0);
+            footerRow = true;
         }
+        if (footerRow) {
+            bottom = footerY + bh;
+        }
+        int panelH = Math.min(MENU_MAX_REQUEST_H, bottom + UltraStyle.MENU_END_PAD + UltraStyle.MENU_CLOSE_BAND);
 
         JsonArray lineArr = new JsonArray();
         for (String line : lines) {
@@ -1344,15 +1283,12 @@ public final class UltraScreenSpec {
             }
         }
         JsonObject layout = new JsonObject();
-        layout.addProperty("panelWidth", MENU_PANEL_W);
-        layout.addProperty("panelHeight", MENU_PANEL_H);
-        layout.addProperty("width", MENU_PANEL_W);
-        layout.addProperty("height", MENU_PANEL_H);
-        layout.addProperty("center", false);
-        layout.addProperty("margin", 0);
-        layout.addProperty("fillScreen", true);
-        layout.addProperty("designWidth", boxW);
-        layout.addProperty("designHeight", boxH);
+        layout.addProperty("panelWidth", boxW);
+        layout.addProperty("panelHeight", panelH);
+        layout.addProperty("width", boxW);
+        layout.addProperty("height", panelH);
+        layout.addProperty("center", true);
+        layout.addProperty("margin", UltraStyle.PANEL_MARGIN);
         layout.addProperty("titleAlign", UltraStyle.TITLE_ALIGN);
         layout.addProperty("tabsUnderTitle", hasTabs);
         layout.addProperty("headerBottom", headerBottom);
@@ -1370,7 +1306,8 @@ public final class UltraScreenSpec {
         layout.addProperty("bodyTop", contentTop);
         layout.addProperty("bodyPad", pad);
         layout.addProperty("bodyMaxHeight", bodyH);
-        layout.addProperty("scrollBody", scrollBody);
+        // The whole page scrolls in KaiPath's content band; the body is drawn at its full height.
+        layout.addProperty("scrollBody", false);
         layout.addProperty("buttonPad", UltraStyle.BTN_PAD);
         layout.addProperty("buttonGap", gap);
         layout.addProperty("buttonMinWidth", UltraStyle.BTN_MIN_W);
@@ -1401,10 +1338,52 @@ public final class UltraScreenSpec {
                 activeTab,
                 GSON.toJson(lineArr),
                 GSON.toJson(btnArr),
-                MENU_PANEL_W,
-                MENU_PANEL_H,
+                boxW,
+                panelH,
                 GSON.toJson(layout),
                 GSON.toJson(inputArr));
+    }
+
+    /**
+     * Menu width (4.7.55): {@link UltraStyle#MENU_W}, or {@link UltraStyle#MENU_MODEL_W} with a
+     * player model; wider when the tab row, the title or a row of 80px buttons needs it; never over
+     * {@link UltraStyle#MENU_MAX_W} (1080p at GUI scale 4).
+     */
+    private int menuWidth(List<Row> rows) {
+        int edge = UltraStyle.MENU_EDGE;
+        int gap = UltraStyle.MENU_GAP;
+        int modelCol = playerModel == null ? 0 : menuModelBox().w() + 8;
+        int w = playerModel == null ? UltraStyle.MENU_W : UltraStyle.MENU_MODEL_W;
+        int tabCount = 0;
+        for (Tab tab : tabs) {
+            if (tab != null && tab.id != null && !tab.id.isBlank()) {
+                tabCount++;
+            }
+        }
+        if (tabCount > 0) {
+            w = Math.max(w, edge * 2 + tabCount * UltraStyle.BTN_MIN_W + (tabCount - 1) * gap);
+        }
+        for (Row r : rows) {
+            int n = r.cells().size();
+            w = Math.max(w, edge * 2 + n * UltraStyle.BTN_MIN_W + (n - 1) * gap + modelCol);
+        }
+        if (title != null && !title.isBlank()) {
+            w = Math.max(w, UltraStyle.textWidthPx(UltraStyle.plain(title)) + edge * 2 + 16);
+        }
+        return Math.min(UltraStyle.MENU_MAX_W, w);
+    }
+
+    /** The menu model box moved to the right edge of a {@code boxW}-wide panel. */
+    private ModelPreview.Box menuModelBox(int boxW) {
+        ModelPreview.Box b = menuModelBox();
+        int dx = boxW - UltraStyle.MENU_MODEL_W;
+        return dx == 0 ? b : new ModelPreview.Box(b.x() + dx, b.y(), b.w(), b.h());
+    }
+
+    /** A footer button sent as a normal row (4.7.55): same label and ink, but it scrolls with the page. */
+    private Button menuFooterButton(Button b, int x, int y, int w, int h) {
+        return new Button(b.actionId, menuLabel(b, w), b.style, x, y, w, h, b.pad, b.bindInput, b.accent,
+                false, b.sound, b.buttonSkin, b.icon, b.raw);
     }
 
     private JsonObject menuInputJson(Input in, int x, int y, int w, int h) {
