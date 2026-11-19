@@ -142,9 +142,13 @@ public final class UltraStyle {
      * 1080p at GUI scale 4 is 480x270, so the panel there is at most 460x250 after the 10px margin
      * on each side; at GUI scale 3 it is 620x340.
      */
-    /** Width of a menu without a player model: the legacy panel width. */
-    public static final int MENU_W = PANEL_W;
-    /** Width of a menu with a player model: the 350 grid plus the model column on the right. */
+    /**
+     * Width of a menu without a player model (4.7.57: 426, was 350). The 4.7.52-4.7.54 menus filled
+     * the window from a 426x240 box; the centered panel renders at native GUI size, so it takes that
+     * width and the roomier spacing below instead.
+     */
+    public static final int MENU_W = 426;
+    /** Width of a menu with a player model: the same 426, the model column on the right. */
     public static final int MENU_MODEL_W = 426;
     /** Widest menu (tabs or a wide row need more): 1080p at GUI scale 4, less the side margins. */
     public static final int MENU_MAX_W = 480 - 2 * PANEL_MARGIN;
@@ -152,14 +156,14 @@ public final class UltraStyle {
     public static final int MENU_SMALL_H = 270 - 2 * PANEL_MARGIN;
     /** Left and right inset of menu content inside the panel. */
     public static final int MENU_EDGE = 10;
-    /** Menu button height: tighter than BTN_H so more rows fit (font is 9px). */
-    public static final int MENU_BTN_H = 14;
-    /** Gap between menu button rows and between buttons on one row. */
-    public static final int MENU_GAP = 3;
-    /** Body line height and gap in menus (top-to-top 12px). */
+    /** Menu button height (4.7.57: 16, was 14). */
+    public static final int MENU_BTN_H = 16;
+    /** Gap between menu button rows and between buttons on one row: the 6px GUI row gap (4.7.57). */
+    public static final int MENU_GAP = 6;
+    /** Body line height and gap in menus (top-to-top 13px since 4.7.57). */
     public static final int MENU_LINE_H = 11;
-    public static final int MENU_LINE_GAP = 1;
-    public static final int MENU_BODY_PAD = 3;
+    public static final int MENU_LINE_GAP = 2;
+    public static final int MENU_BODY_PAD = 6;
     /** Tab row Y in menus; the title and divider end above it. */
     public static final int MENU_TAB_Y = TAB_ROW_Y;
     /** Header bottom in menus without tabs. */
@@ -172,7 +176,7 @@ public final class UltraStyle {
     /** Space between the last content row and the footer row (Back / Main menu). */
     public static final int MENU_FOOTER_GAP = 6;
     /** Space between the lowest control and the Close band. */
-    public static final int MENU_END_PAD = 4;
+    public static final int MENU_END_PAD = 6;
     /**
      * Lowest Y of the model column (model box and its spin toggle). KaiPath pins the model to the
      * panel while the page scrolls, so the column must fit the smallest panel: 195 is well above

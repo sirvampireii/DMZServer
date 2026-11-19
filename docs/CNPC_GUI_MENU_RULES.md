@@ -63,6 +63,10 @@ Automated checks: `python3 tools/dmz-adaptive-difficulty/sim/audit_cnpc_gui_styl
   Discard all, demote, remove). Navigation and read-only status buttons use the normal style.
 - **Ask pages act on the first Confirm.** An ask page is the confirmation; its Confirm button
   never needs a second click elsewhere.
+- **Locked actions stay visible (LM 4.7.57).** A button for something the player cannot do yet
+  renders dim and does nothing when clicked (`UltraScreenSpec.lockedButton`, action `nav:none`);
+  it is never hidden. The page text says what is missing. A dim button that opens a detail page
+  (a locked tier on the Tiers list) is fine: the click shows why, it never acts.
 - **Staff config editor exception.** The editor keeps its dense 15 px row step (13 px buttons,
   2 px apart) in its own full-screen 426x240 frame so a category fits on one page. Player menus
   keep the normal row gap.

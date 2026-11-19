@@ -1944,6 +1944,35 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.57 ---")
+    p57_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    p57_style = read(SRC / "gui/ultra/UltraStyle.java")
+    p57_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p57_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    p57_dact = read(SRC / "service/DifficultyActions.java")
+    check("manifest row for lm 4.7.57", "lm-4757-menu-regressions" in manifest)
+    check("locked summons show a dim, inert Summon locked button (LM54-C4)",
+          p57_diff.count('spec.lockedButton("Summon locked").rowGap();') == 2
+          and "Only a summon that can succeed gets a button" not in p57_diff
+          and "Clear the notes above, then return here to confirm." in p57_diff
+          and 'public static final String NO_ACTION = "nav:none";' in p57_act
+          and "if (NO_ACTION.equals(action)) {" in p57_act
+          and "button(UltraGuiActions.NO_ACTION, UltraStyle.dim(" in p57_spec)
+    check("roomier menus: 426 wide, 6px gaps and pads, 16px buttons, 2px line gap",
+          "MENU_W = 426;" in p57_style and "MENU_GAP = 6;" in p57_style and "MENU_BODY_PAD = 6;" in p57_style
+          and "MENU_END_PAD = 6;" in p57_style and "MENU_BTN_H = 16;" in p57_style
+          and "MENU_LINE_GAP = 2;" in p57_style)
+    check("Tiers list: one button per tier, every tier opens its detail page, no per-tier lines",
+          'String action = "page:tier_ask:" + t;' in p57_diff
+          and 'spec.labelValue("T" + t + " " + ut.display, view.line());' not in p57_diff
+          and "Only tiers you can" not in p57_diff and "tappable.add(t)" not in p57_diff
+          and 'UltraStyle.dim("T" + t + " - Locked")' in p57_diff)
+    check("tier detail page covers every tier; switch down confirms with Switch to T#",
+          '"Switch to T" + t' in p57_diff and '"Needs"' in p57_diff
+          and "Lower tiers are free - pick T" not in p57_diff
+          and "diff-tier:" not in p57_dact and "Click again within 10 seconds to confirm" not in p57_dact[
+              p57_dact.find("private static Result setTier"):p57_dact.find("private static Result lowerTier")])
+
     print("\n--- § lm 4.7.56 ---")
     g = lambda rel: read(SRC / rel)
     p56_pres = g("gui/ultra/UltraPrestigeScreens.java")
@@ -1981,7 +2010,8 @@ def main() -> int:
           and "pay-up OK" not in p56_coin and "Overpaying is fine; change is returned." in p56_coin)
     check("LM-P1-12 chat settings menu retired: /difficulty admin settings opens the Ultra editor",
           "DifficultyMenu.open(player, page);" in p56_chat and "DifficultyChatMenu.open" not in p56_cmd)
-    check("C7/C9 Flush and Difficulty off ask first; C4 no dead-end Summon locked button",
+    # C4 was reworked in 4.7.57: the locked summon button is back, dim and inert (see lm 4.7.57).
+    check("C7/C9 Flush and Difficulty off ask first; C4 no Summon locked button that opens the ask page",
           '"page:flush_ask"' in p56_diff and '"page:difficulty_off_ask"' in p56_diff
           and 'UltraStyle.dim("Summon locked")' not in p56_diff and "Select End Dragon first" not in p56_diff)
     check("C8 Discard all / Reload disk confirm before dropping unsaved changes",
@@ -2015,8 +2045,9 @@ def main() -> int:
     p55_home = p55_char.split("private static void openHome(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
     p55_forms = p55_char.split("private static void openFormPreview(ServerPlayer player, int index) {", 1)[-1]
     check("manifest row for lm 4.7.55", "lm-4755-centered-menus" in manifest)
-    check("menu sizes: 350 (426 with a model), never over 460 (1080p at GUI 4); no design box",
-          "MENU_W = PANEL_W;" in p55_style and "MENU_MODEL_W = 426;" in p55_style
+    # 4.7.57 widened MENU_W from PANEL_W (350) to 426.
+    check("menu sizes: 426 (also with a model), never over 460 (1080p at GUI 4); no design box",
+          "MENU_W = 426;" in p55_style and "MENU_MODEL_W = 426;" in p55_style
           and "MENU_MAX_W = 480 - 2 * PANEL_MARGIN;" in p55_style and "MENU_SMALL_H = 270 - 2 * PANEL_MARGIN;" in p55_style
           and "MENU_MODEL_BOTTOM = 195;" in p55_style and "MENU_DESIGN_W" not in p55_style
           and "MENU_DESIGN" not in p55_prev and "MENU_DESIGN" not in p55_spec and "MENU_PANEL_W" not in p55_spec)
@@ -2349,9 +2380,10 @@ def main() -> int:
     check("tier lines quote revamp's effective level cap, never LmOverhaulCapMath or OverhaulScale",
           "RevampEffectiveCaps.levelMaximum()" in p46_tier and '"configuredLevelMaximum"' in p46_caps
           and "LmOverhaulCapMath" not in p46_tier and "OverhaulScale" not in p46_tier)
-    check("Tiers page: a state line per tier, buttons only for tappable tiers",
-          "spec.labelValue(\"T\" + t + \" \" + ut.display, view.line());" in p46_diff
-          and "if (view.state().tappable()) {" in p46_diff)
+    # 4.7.57 retired the per-tier state lines: one button per tier, each opens its detail page.
+    check("Tiers page: one button per tier, state shown by the caption (4.7.57 replaced the state lines)",
+          "PurchaseState.View view = UltraDifficultyTierUi.tierView(player, t, active, unlocked, eligible);" in p46_diff
+          and "if (view.state().tappable()) {" not in p46_diff)
     p46_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
     p46_svc = read(SRC / "character/CosmeticBodyPartService.java")
     p46_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
@@ -3210,9 +3242,8 @@ def main() -> int:
     check("GuiClickConfirm guards no spend: shops, wallet, God Ki, paid tier activation",
           all("GuiClickConfirm" not in read(SRC / ("progression/shop/" + n + ".java"))
               for n in ("MasteryWallet", "GodKiEnhancementShop", "PrestigePointsSystem", "PrestigeCustomShop"))
-          and sc_settier.count("GuiClickConfirm.confirmed") == 1
-          and sc_settier.index("GuiClickConfirm.confirmed") < sc_settier.index("if (!canPersist(player))")
-          and sc_settier.index("if (downgrade) {") < sc_settier.index("GuiClickConfirm.confirmed"))
+          # 4.7.57: the free switch down is confirmed on tier_ask too, so setTier has no click-again guard.
+          and "GuiClickConfirm.confirmed" not in sc_settier)
     check("Prestige spend buttons open ask: pages; do: spend actions only on confirm pages",
           all(t in sc_pre_src for t in ('"page:ask:turnin:"', '"page:ask:skill:"', '"page:ask:tier:"',
                                         '"page:ask:majin"', '"page:ask:mutant"', '"page:ask:unmajin"',
@@ -3232,7 +3263,7 @@ def main() -> int:
           and sc_pre_ask.count('.labelValue("Cost"') >= 5
           and '"exchange", "Exchange shop"' in sc_pre_ask and '"mastery_wallet", "Mastery wallet"' in sc_pre_ask)
     check("Difficulty: coin tier upgrades -> tier_ask, summons -> summon_ask; do: only on confirm pages",
-          'String action = t > active ? "page:tier_ask:" + t : "do:activate:" + t;' in sc_diff_src
+          'String action = "page:tier_ask:" + t;' in sc_diff_src and '"do:activate:' not in sc_diff_src
           and '"page:summon_ask:end_dragon"' in sc_diff_src and '"page:summon_ask:" + page' in sc_diff_src
           and '"do:summon' not in sc_diff_src
           and '"do:activate:" + t' in sc_diff_ask and '"do:summon_end_dragon"' in sc_diff_ask
