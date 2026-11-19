@@ -2178,8 +2178,12 @@ def main() -> int:
               SRC / "com/dbzlegacy/adaptivedifficulty/gui/ProgressionGuiApi.java"), retired=True)
     check("rival confirm does not show the raw action id",
           "Action §7" not in rival_gui and "Declare rival" in rival_gui, retired=True)
+    # 4.7.57: every tier button opens its detail page (tier_ask:<t>), which asks before it
+    # charges or switches; the old click-again guard (diff-tier:) is gone.
     check("tier buy asks before it charges",
-          "diff-tier:" in read(SRC / "com/dbzlegacy/adaptivedifficulty/service/DifficultyActions.java"))
+          'String action = "page:tier_ask:" + t;' in read(
+              SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraDifficultyScreens.java")
+          and "diff-tier:" not in read(SRC / "com/dbzlegacy/adaptivedifficulty/service/DifficultyActions.java"))
     build_sh = read(ROOT / "tools/dmz-adaptive-difficulty/build.sh")
     confirm_at = build_sh.find("GuiClickConfirm DifficultyTeamGuiApi")
     confirm_tail = build_sh[confirm_at:confirm_at + 700] if confirm_at >= 0 else ""

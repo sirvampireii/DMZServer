@@ -553,13 +553,8 @@ public final class DifficultyActions {
                 : (staffFree ? "free (staff)" : AncientCoinEconomy.formatExactCost(cost));
 
         if (downgrade) {
-            if (!GuiClickConfirm.confirmed(player.m_20148_(), "diff-tier:" + tier.id)) {
-                openGui(player, returnPage);
-                return Result.ok(
-                        UltraStyle.YELLOW + "Downgrade to " + UltraStyle.VALUE + tier.display
-                                + UltraStyle.YELLOW + " (Tier " + tier.id
-                                + ") — free. Click again within 10 seconds to confirm.");
-            }
+            // 4.7.57: the switch down is confirmed on the tier detail page (tier_ask:<t>), like an
+            // upgrade; it stays free and no longer needs a second click.
             applyTier(data, player, tier);
             openGui(player, returnPage);
             return Result.ok("Downgraded to " + tier.display + " (T" + tier.id + ") — Free.");

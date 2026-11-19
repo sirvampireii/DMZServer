@@ -615,3 +615,8 @@ legacy lore wording), `PrestigePointsSystem` (shared "Not enough favor" sentence
 turnInAmountsText), and `PrestigeCustomShop` with its `StatWant` / `PotionWant` inner classes
 (lock reasons, readable stat names). The other 17 are unchanged. `UltraPrestigeScreens` was
 re-extracted once more for the "N favor" unit on prestige tier buttons.
+
+## Re-baseline (2026-11-19, 4.7.57 menu regressions)
+
+Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified) from
+`LegacyMechanics-4.7.57.jar`. The other 24 are unchanged.

@@ -389,6 +389,15 @@ public final class UltraScreenSpec {
         return line(UltraStyle.notice(body));
     }
 
+    /**
+     * A button for something the player cannot do yet (4.7.57): dim and inert. It sends
+     * {@link UltraGuiActions#NO_ACTION}, which the server ignores, so the page stays as it is.
+     * Such a button is shown, never hidden; the page text says what is missing.
+     */
+    public UltraScreenSpec lockedButton(String label) {
+        return button(UltraGuiActions.NO_ACTION, UltraStyle.dim(UltraStyle.plain(label)), UltraStyle.STYLE_DIM);
+    }
+
     public UltraScreenSpec button(String actionId, String label, String style) {
         return button(actionId, label, style, UltraStyle.COL_L, nextRow, UltraStyle.BTN_W);
     }

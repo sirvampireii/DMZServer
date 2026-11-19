@@ -21,6 +21,8 @@ import net.minecraft.server.level.ServerPlayer;
 
 /** Dispatches KaiPath GuiActionPacket presses to existing server menu APIs. */
 public final class UltraGuiActions {
+    /** Action of a dim locked button (4.7.57): does nothing and keeps the page open. */
+    public static final String NO_ACTION = "nav:none";
     private UltraGuiActions() {}
 
     public static void dispatch(ServerPlayer player, String screenId, String actionId, String argsJson) {
@@ -192,6 +194,10 @@ public final class UltraGuiActions {
                 return;
             }
             UltraGui.open(viewer, safeScreen, page);
+            return;
+        }
+        if (NO_ACTION.equals(action)) {
+            // A locked button: nothing to do, the page already says what is missing.
             return;
         }
         if ("nav:hub".equals(action)) {

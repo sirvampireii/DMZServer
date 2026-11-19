@@ -470,11 +470,11 @@ page**, in GUI pixels: `center` **true**, `margin` **10**, no `fillScreen` and n
 LM 4.7.52-4.7.54 sent them with `fillScreen` over a 426x240 box, which filled the window; 4.7.55
 went back to the centered look.
 
-- **Width:** **350**, or **426** when the page has a player model; wider only when the tab row,
+- **Width:** **426** (LM 4.7.57; 4.7.55-4.7.56 used 350), with or without a player model; wider only when the tab row,
   the title or a row of 80 px buttons needs it, never over **460** (1080p at GUI scale 4 is
   480x270, less the margin on each side).
 - **Height:** the header, the whole body text (`scrollBody` **false**, `bodyMaxHeight` is its full
-  height), the rows, the footer row, **4** px, then KaiPath's **28** px Close band. A short page
+  height), the rows, the footer row, **6** px, then KaiPath's **28** px Close band. A short page
   gets a small panel and a long page a tall one.
 - **Nothing is pinned.** Back / Main menu are sent as a normal last row, **without**
   `footer:true`. KaiPath 1.5.6 caps the panel at the window less its margin and scrolls
@@ -485,7 +485,7 @@ went back to the centered look.
   every row left of it, and the model column (box and spin toggle) ends by y **195**, inside the
   smallest panel's scroll area (`250 - 28 = 222`). On a page taller than **250** (it scrolls at 1080p GUI
   scale 4) the spin toggle joins the left rows above the footer, so it never scrolls behind the model.
-- Menu metrics: buttons **14** tall, **3** px apart; body lines **11 + 1**, pad **3**; tabs at
+- Menu metrics (LM 4.7.57): buttons **16** tall, **6** px apart; body lines **11 + 2**, pad **6**; tabs at
   y **28**; content from y **46** with tabs, **42** without; content **10** px from each side;
   footer row **6** px under the content, Back on the left, Main menu ending **10** px from the
   right edge.
