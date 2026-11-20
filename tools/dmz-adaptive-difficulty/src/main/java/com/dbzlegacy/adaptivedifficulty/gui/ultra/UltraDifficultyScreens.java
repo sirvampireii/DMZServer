@@ -532,7 +532,8 @@ public final class UltraDifficultyScreens {
             spec.line(UltraStyle.danger(block));
         }
         String trialBlock = com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.blockReason(player, t);
-        if (trialBlock != null && owned != t) {
+        // Difficulty off is already said above; the trial line only adds a different reason.
+        if (trialBlock != null && owned != t && data.isPersonalEnabled()) {
             spec.line(UltraStyle.dim("Free trial: " + trialBlock));
         }
         spec.buttonsAfterLines();
