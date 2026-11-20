@@ -436,6 +436,12 @@ public final class DifficultyConfig {
      * {@code chat} = text-only. Retired {@code cmi}/{@code chest} values migrate to ultra on load.
      */
     public String guiBackend = "ultra";
+    /**
+     * LM 4.7.58: when true, a player who joins without the LegacyMechanics client mod is turned away
+     * with an install message. False (the default while the client is tested) lets everyone in; players
+     * without the LM client keep the KaiPath bridge.
+     */
+    public boolean requireLmClient = false;
     /** Staff {@code /lm admin testgui} — opens the Ultra hub (experimental flag). */
     public boolean enableStaffCnpcTestGui = true;
     /**

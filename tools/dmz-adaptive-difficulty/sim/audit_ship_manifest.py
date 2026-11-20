@@ -1944,6 +1944,54 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.58 ---")
+    p58_proto = read(SRC / "net/gui/LmNativeProtocol.java")
+    p58_net = read(SRC / "net/gui/LmNativeNetwork.java")
+    p58_bridge = read(SRC / "net/gui/LmGuiNetwork.java")
+    p58_mod = read(SRC / "AdaptiveDifficultyMod.java")
+    p58_cfg = read(SRC / "config/DifficultyConfig.java")
+    p58_events = read(SRC / "event/DifficultyEvents.java")
+    p58_screen = read(SRC / "client/NativeMenuScreen.java")
+    p58_model = read(SRC / "client/NativeModelPreview.java")
+    p58_client = read(SRC / "client/LmClient.java")
+    p58_build = read(MOD / "build.sh")
+    p58_toml = read(MOD / "src/main/resources/META-INF/mods.toml")
+    check("manifest row for lm 4.7.58", "lm-4758-native-client" in manifest)
+    check("native channel legacymechanics:native_ui, protocol 1, clicks reuse the bridge codec",
+          'CHANNEL_PATH = "native_ui";' in p58_proto and 'PROTOCOL_VERSION = "1";' in p58_proto
+          and "GuiActionPacket::encode" in p58_net and "GuiOpenPacket::encode" in p58_net
+          and "NetworkRegistry.acceptMissingOr(LmNativeProtocol.PROTOCOL_VERSION)" in p58_net)
+    route_at = p58_bridge.find("switch (LmNativeNetwork.route(player, wire))")
+    check("each menu goes on exactly one channel: native first, else the unchanged bridge send",
+          route_at > 0 and p58_bridge.find("CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), wire);") > route_at
+          and "LmNativeNetwork.sendOpen(player, wire);" in p58_bridge and "public static Route decide(" in p58_net)
+    # A KaiPath-only client can list LM channel names in minecraft:register; only the handshake counts.
+    check("LM client detected from the Forge login handshake only (mod list + channel)",
+          "data.getChannels().containsKey(CHANNEL_ID)" in p58_net
+          and "data.getModList().contains(AdaptiveDifficultyMod.MOD_ID)" in p58_net
+          and "isRemotePresent" not in p58_net)
+    check("a menu the LM client cannot fully draw falls back to KaiPath",
+          "if (kaipath) {" in p58_net and "Route.REFUSE" in p58_net
+          and '"combined.forms.v1"' in p58_proto and "FEATURE_FORMS" in p58_proto
+          and '"combined.forms.v1",' not in p58_proto.split("CLIENT_FEATURES = List.of(")[1].split(");")[0])
+    check("requireLmClient ships off and turns away a no-client login with a plain message",
+          "public boolean requireLmClient = false;" in p58_cfg
+          and "rejectWithoutClient(" in p58_events
+          and p58_events.find("rejectWithoutClient(") < p58_events.find("logClientGuiCapability(player)")
+          and "This server needs the Legacy Mechanics client mod." in p58_net)
+    check("client classes stay isolated: booted by name on a game client, compiled in their own pass",
+          'CLIENT_BOOT_CLASS = "com.dbzlegacy.adaptivedifficulty.client.LmClient";' in p58_mod
+          and "import com.dbzlegacy.adaptivedifficulty.client" not in p58_mod
+          and "-not -path \"*/$CLIENT_PKG/*\"" in p58_build and "@$CLIENT_LIST" in p58_build
+          and "LmGuiNetwork" not in p58_client)
+    check("native renderer: locked buttons inert, spin resets forward, scale-to-fit with a 0.5x floor",
+          'NO_ACTION = "nav:none";' in p58_screen and "if (isNoAction(b.id())) {" in p58_screen
+          and "if (!rotate) {" in p58_model and "yaw = 0f;" in p58_model
+          and "NativeMenuFit.place(" in p58_screen
+          and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
+    check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
+          and "LmNativeSelfTest.run();" in p58_bridge)
+
     print("\n--- § lm 4.7.57 ---")
     p57_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
     p57_style = read(SRC / "gui/ultra/UltraStyle.java")

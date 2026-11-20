@@ -33,7 +33,7 @@ public final class AdaptiveDifficultyMod {
     /** Forge modId — lowercase; not used for NBT / GUI class lookup. */
     public static final String MOD_ID = "legacymechanics";
     /** Product line version (was DMZ Adaptive Difficulty 3.3.x). */
-    public static final String VERSION = "4.7.57";
+    public static final String VERSION = "4.7.58";
 
     private static boolean dedicatedServer() {
         try {
@@ -44,6 +44,21 @@ public final class AdaptiveDifficultyMod {
             return true;
         }
     }
+    /** Client renderer entry (physical client only); loaded by name so a server never links it. */
+    static final String CLIENT_BOOT_CLASS = "com.dbzlegacy.adaptivedifficulty.client.LmClient";
+
+    private static void bootClientRenderer() {
+        try {
+            Class<?> loader = Class.forName("net.minecraftforge.fml.loading.FMLLoader");
+            if (!"CLIENT".equals(String.valueOf(loader.getMethod("getDist").invoke(null)))) {
+                return;
+            }
+            Class.forName(CLIENT_BOOT_CLASS).getMethod("init").invoke(null);
+        } catch (Throwable t) {
+            LOGGER.error("[{}] LM client renderer did not start; menus fall back to KaiPath", MOD_ID, t);
+        }
+    }
+
     public static final String DISPLAY_NAME = "LegacyMechanics";
     public static final Logger LOGGER = LogManager.getLogger(DISPLAY_NAME);
 
@@ -58,6 +73,9 @@ public final class AdaptiveDifficultyMod {
         );
 
         if (!dedicatedServer()) {
+            // 4.7.58: on a game client LM only draws its menus (the server features stay off, as
+            // before). Reflection keeps every client class out of the server's class graph.
+            bootClientRenderer();
             return;
         }
 

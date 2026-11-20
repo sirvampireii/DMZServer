@@ -124,7 +124,9 @@ echo "Cleaning compile output before packaging"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-mapfile -t SOURCES < <(find "$SRC" -name '*.java' | sort)
+# 4.7.58: the client renderer package compiles in its own pass below, against the client jars.
+CLIENT_PKG="com/dbzlegacy/adaptivedifficulty/client"
+mapfile -t SOURCES < <(find "$SRC" -name '*.java' -not -path "*/$CLIENT_PKG/*" | sort)
 # Argfile keeps Windows argv under the 32K limit; javac supports @file everywhere.
 # MSYS does not path-convert @file contents, so map /c/... -> c:/... on Windows.
 SOURCES_LIST="$HERE/build/lm-sources.list"
@@ -151,6 +153,35 @@ if [[ -f "$ASM_JAR" && -f "$PATCH_SRC" ]]; then
   javac --release 17 -encoding UTF-8 -proc:none -cp "$ASM_JAR" -d "$PATCH_OUT" "$PATCH_SRC"
   java -cp "$PATCH_OUT:$ASM_JAR" PatchUltraGotoFalsePositives "$OUT"
 fi
+
+# 4.7.58: LM client renderer (com/dbzlegacy/adaptivedifficulty/client). Compiled after the server
+# classes against the Forge 1.20.1-47.4.10 client jars (CurseForge launcher libraries by default,
+# CLIENT_LIBS to override), so no server-side class can name a client class: pass 1 would not compile.
+CLIENT_LIBS="${CLIENT_LIBS:-$HOME/curseforge/minecraft/Install/libraries}"
+CLIENT_SRG="$CLIENT_LIBS/net/minecraft/client/1.20.1-20230612.114412/client-1.20.1-20230612.114412-srg.jar"
+FORGE_C="$CLIENT_LIBS/net/minecraftforge/forge/1.20.1-47.4.10/forge-1.20.1-47.4.10-client.jar"
+JOML="$CLIENT_LIBS/org/joml/joml/1.10.5/joml-1.10.5.jar"
+DFU="$ROOT/libraries/com/mojang/datafixerupper/6.0.8/datafixerupper-6.0.8.jar"
+FASTUTIL="$ROOT/libraries/it/unimi/dsi/fastutil/8.5.9/fastutil-8.5.9.jar"
+for f in "$CLIENT_SRG" "$FORGE_C" "$JOML" "$DFU" "$FASTUTIL"; do
+  if [[ ! -f "$f" ]]; then
+    echo "Missing $f - install the Forge 1.20.1-47.4.10 client or set CLIENT_LIBS" >&2
+    exit 1
+  fi
+done
+mapfile -t CLIENT_SOURCES < <(find "$SRC/$CLIENT_PKG" -name '*.java' | sort)
+if [[ ${#CLIENT_SOURCES[@]} -eq 0 ]]; then
+  echo "ERROR: no LM client renderer sources under $SRC/$CLIENT_PKG" >&2
+  exit 1
+fi
+CLIENT_LIST="$HERE/build/lm-client-sources.list"
+if [[ -n "${WINDIR:-}" ]]; then
+  printf '%s\n' "${CLIENT_SOURCES[@]}" | sed -E 's|^/([A-Za-z])/|\1:/|' > "$CLIENT_LIST"
+else
+  printf '%s\n' "${CLIENT_SOURCES[@]}" > "$CLIENT_LIST"
+fi
+javac --release 17 -encoding UTF-8 -proc:none -cp "$FORGE_C:$CLIENT_SRG:$JOML:$DFU:$FASTUTIL:$OUT:$CP" -d "$OUT" "@$CLIENT_LIST"
+echo "Compiled ${#CLIENT_SOURCES[@]} LM client renderer sources"
 
 # For every class this compile actually overlaid, drop base-jar inner classes the
 # new bytecode does not emit, and copy the inner classes it does emit.
@@ -562,8 +593,11 @@ merge_onto_base_jar() {
     cp "$OUT/com/dbzlegacy/adaptivedifficulty/config/editor/ConfigFieldHelp\$"*.class \
       "$merge/com/dbzlegacy/adaptivedifficulty/config/editor/" 2>/dev/null || true
   fi
-  # Keep net/gui (Ultra channel). Strip client-only packages if a base jar ever had them.
+  # Keep net/gui (Ultra channel). 4.7.58: the LM client renderer ships in the same jar; it is only
+  # loaded on a game client (AdaptiveDifficultyMod boots it by name there). Never a stale base copy.
   rm -rf "$merge/com/dbzlegacy/adaptivedifficulty/client"
+  mkdir -p "$merge/com/dbzlegacy/adaptivedifficulty/client"
+  cp -a "$OUT/com/dbzlegacy/adaptivedifficulty/client/." "$merge/com/dbzlegacy/adaptivedifficulty/client/"
   # Classes copied from this compile must ship their inner classes, and must
   # not keep a stale base-jar inner the new bytecode no longer emits.
   sync_overlaid_inners "$OUT" "$merge"
@@ -760,14 +794,22 @@ python3 - "$JAR" << 'PY'
 import sys, zipfile
 jar = sys.argv[1]
 bad = []
-banned = (
-    "com/dbzlegacy/adaptivedifficulty/client/",
-)
+# 4.7.58: the LM client renderer ships in this jar, but only its own package may name client
+# classes; every other class must load on a dedicated server with no client jar present.
+client_pkg = "com/dbzlegacy/adaptivedifficulty/client/"
 required = (
     "com/dbzlegacy/adaptivedifficulty/net/gui/LmGuiNetwork.class",
     "com/dbzlegacy/adaptivedifficulty/net/gui/GuiOpenPacket.class",
     "com/dbzlegacy/adaptivedifficulty/net/gui/GuiActionPacket.class",
+    "com/dbzlegacy/adaptivedifficulty/net/gui/LmNativeNetwork.class",
+    "com/dbzlegacy/adaptivedifficulty/net/gui/LmNativeProtocol.class",
+    "com/dbzlegacy/adaptivedifficulty/net/gui/NativeHelloPacket.class",
+    "com/dbzlegacy/adaptivedifficulty/net/gui/NativeMenuFit.class",
     "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraGui.class",
+    client_pkg + "LmClient.class",
+    client_pkg + "NativeMenuScreen.class",
+    client_pkg + "NativeModelPreview.class",
+    client_pkg + "NativeText.class",
     "META-INF/kaipath-ultra.txt",
 )
 with zipfile.ZipFile(jar) as zf:
@@ -777,10 +819,12 @@ with zipfile.ZipFile(jar) as zf:
             bad.append("MISSING " + req)
     for name in names:
         norm = name.replace("\\", "/")
-        if any(norm.startswith(prefix) for prefix in banned):
-            bad.append(name)
+        if norm.startswith(client_pkg):
             continue
         if not name.endswith(".class") or not norm.startswith("com/dbzlegacy/"):
+            continue
+        if b"com/dbzlegacy/adaptivedifficulty/client/" in zf.read(name):
+            bad.append(name + " (names the client package; boot it by name only)")
             continue
         # net/gui + gui/ultra may reference LmGuiNetwork; that is server-side Ultra.
         if norm.startswith("com/dbzlegacy/adaptivedifficulty/net/gui/") or \
@@ -799,7 +843,7 @@ if bad:
     for name in bad:
         print("  " + name, file=sys.stderr)
     sys.exit(1)
-print("Server jar ships Ultra net/gui; no client GUI dependency")
+print("Jar ships Ultra net/gui + the LM client renderer; only client/ names client classes")
 PY
 # A second LegacyMechanics jar in mods/ crashes a fresh server on startup.
 find "$ROOT/mods" -maxdepth 1 -type f -name 'LegacyMechanics-*.jar' ! -name "LegacyMechanics-${VERSION}.jar" -delete
