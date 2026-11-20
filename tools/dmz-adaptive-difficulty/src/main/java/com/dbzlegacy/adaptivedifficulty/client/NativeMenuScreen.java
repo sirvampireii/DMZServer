@@ -240,8 +240,49 @@ public final class NativeMenuScreen extends Screen {
                         navY, navW, 16, 8, new JsonObject(), "", "", "", "", b.id()));
             }
         }
-        buttons.add(new Btn(Kind.CLOSE, "close", "Close", "normal", panelW - EDGE - 80, panelH - CLOSE_BAND + 6, 80, 16,
+        int[] close = closeSpot();
+        buttons.add(new Btn(Kind.CLOSE, "close", "Close", "normal", close[0], close[1], 80, close[2],
                 8, new JsonObject(), "", "", "", "", ""));
+    }
+
+    /**
+     * Close goes in the bottom band, right side, like KaiPath's. A page whose own controls already
+     * use that spot (the config editor's pinned footer) gets it bottom left, else top right.
+     */
+    private int[] closeSpot() {
+        int[][] spots = {
+            {panelW - EDGE - 80, panelH - CLOSE_BAND + 6, 16},
+            {EDGE, panelH - CLOSE_BAND + 6, 16},
+            {panelW - EDGE - 80, 4, Math.max(12, Math.min(16, headerBottom - 8))},
+        };
+        for (int[] s : spots) {
+            if (free(s[0], s[1], 80, s[2])) {
+                return s;
+            }
+        }
+        return spots[2];
+    }
+
+    private boolean free(int x, int y, int w, int h) {
+        List<int[]> taken = new ArrayList<>();
+        for (Btn b : buttons) {
+            taken.add(new int[] {b.x(), b.y(), b.w(), b.h()});
+        }
+        for (Field f : fields) {
+            taken.add(new int[] {f.x(), f.y(), f.w(), f.h()});
+        }
+        for (Book b : books) {
+            taken.add(new int[] {b.x(), b.y(), b.w(), b.h()});
+        }
+        if (model != null) {
+            taken.add(new int[] {num(model, "x", 0), num(model, "y", 0), num(model, "width", 64), num(model, "height", 96)});
+        }
+        for (int[] t : taken) {
+            if (x < t[0] + t[2] && t[0] < x + w && y < t[1] + t[3] && t[1] < y + h) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private float scale() {
