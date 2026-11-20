@@ -311,6 +311,22 @@ public final class LmGuiNetwork {
                     AdaptiveDifficultyMod.MOD_ID, e.getMessage(), e);
         }
         runPacketRoundTripSelfTest();
+        // 4.7.59: Momentum timer and hit rule, free trial revert, and the guide's recommendation rule.
+        java.util.List<String> guideBroken = new java.util.ArrayList<>();
+        guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.progression.Momentum.selfTest());
+        guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.selfTest());
+        guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.DifficultyGuide.selfTest());
+        if (!guideBroken.isEmpty()) {
+            String msg = "Momentum / trial / guide self-test FAILED: " + String.join("; ", guideBroken);
+            if (Boolean.getBoolean("lm.selftest.strict")) {
+                throw new IllegalStateException(msg);
+            }
+            AdaptiveDifficultyMod.LOGGER.error("[{}] {}", AdaptiveDifficultyMod.MOD_ID, msg);
+        } else {
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Momentum / free trial / guide self-test OK (timer, kill rule, hit scaling, revert, recommendation)",
+                    AdaptiveDifficultyMod.MOD_ID);
+        }
         AdaptiveDifficultyMod.LOGGER.info(
                 "[{}] Ultra GUI bridge ready channel={} protocol={} — KaiPath {}+ dynamic UI "
                         + "(any screenId; no hub shim). Recommended KaiPath {}; "

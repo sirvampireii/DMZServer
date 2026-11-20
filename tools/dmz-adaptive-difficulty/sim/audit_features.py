@@ -1685,8 +1685,8 @@ def main() -> int:
           and '"No active challenges right now"' not in rival_ultra
           and '"Active tier", "None"' not in diff_ultra
           and '? "None" :' not in diff_ultra
-          and "No tier active yet. Pick one below." in diff_ultra
-          and "No tier active yet. Open the Tiers tab." in diff_ultra)
+          # 4.7.59 guide: the empty tier state points at Step 2 (the Tiers list).
+          and diff_ultra.count("No tier active yet. Pick one in Step 2.") >= 2)
     # MutantManager.grant always chats message.dragonminez.mutant.gained — pulse must not call it.
     check("silent mutant ensure (no grant chat spam)",
           "ensureMutantSilent" in pp

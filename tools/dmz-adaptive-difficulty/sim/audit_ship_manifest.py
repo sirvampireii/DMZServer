@@ -1944,6 +1944,48 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.59 ---")
+    p59_mom = read(SRC / "progression/Momentum.java")
+    p59_trial = read(SRC / "service/DifficultyTrial.java")
+    p59_guide = read(SRC / "gui/ultra/DifficultyGuide.java")
+    p59_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    p59_cfg = read(SRC / "config/DifficultyConfig.java")
+    p59_events = read(SRC / "event/DifficultyEvents.java")
+    p59_hit = read(SRC / "mixin/StatsEventsHitTakenMasteryMixin.java")
+    p59_pot = read(SRC / "mixin/PotionEffectHelperHitTakenMasteryMixin.java")
+    p59_char = read(SRC / "progression/shop/PrestigeCharacter.java")
+    p59_act = read(SRC / "service/DifficultyActions.java")
+    check("manifest row for lm 4.7.59", "lm-4759-momentum-guide" in manifest)
+    check("Momentum config ships with the brief's defaults",
+          "public boolean momentumEnabled = true;" in p59_cfg and "public int momentumSecondsPerKill = 10;" in p59_cfg
+          and "public int momentumMaxBankSeconds = 300;" in p59_cfg
+          and "public double momentumMasteryMultiplier = 1.5;" in p59_cfg)
+    check("Momentum banks on difficulty mob kills only, never chamber wave foes",
+          "return hostile && difficultyScaled && !chamberWaveFoe;" in p59_mom
+          and "MobScaling.isAdPainted(mob)" in p59_mom and "ChamberKillMastery.WAVE_FOE" in p59_mom
+          and "Momentum.onDeath(event);" in p59_events)
+    check("Momentum multiplies only the attacker's hit mastery on difficulty mobs",
+          "Momentum.begin(event);" in p59_hit and "Momentum.end();" in p59_hit
+          and "Momentum.scale(entity, scaled);" in p59_pot
+          and "!qualifies(event.getEntity())" in p59_mom)
+    check("Momentum is per character and session-only (logout, slot switch)",
+          "Momentum.clear(player);" in p59_events and "Momentum.clear(player);" in p59_char
+          and "PrestigeCharacter.id(player)" in p59_mom)
+    check("free trial: 5 minutes, one per tier per character, reverts to the previous tier",
+          "TRIAL_MILLIS = 5L * 60L * 1000L;" in p59_trial
+          and "return currentActive == trialTier ? Math.max(0, prev) : currentActive;" in p59_trial
+          and "LmPlayerStore.root(PrestigeCharacter.id(player))" in p59_trial
+          and "DifficultyTrial.pulse(server)" in p59_events and "case ACT_TRIAL ->" in p59_act)
+    check("recommended tier: highest met, Tier 1 with no tier",
+          "if (activeTier <= 0) {\n            return 1;" in p59_guide.replace("\r\n", "\n")
+          and "DifficultyGuide.recommend(active, highestEligible)" in p59_diff)
+    check("guide flow: 3 steps with dots, Back in the left slot, detail page with before/after and trial",
+          'stepHeader(spec, 1, "What is Difficulty")' in p59_diff and 'stepHeader(spec, 2, "Pick your level")' in p59_diff
+          and 'stepHeader(spec, 3, "Your tier")' in p59_diff and 'footerBackOnly("nav:hub", "main menu")' in p59_diff
+          and '"Try one fight free"' in p59_diff and 'labelValue("Enemy damage"' in p59_diff
+          and 'labelValue("TP earned"' in p59_diff and 'labelValue("Mastery gain"' in p59_diff
+          and 'spec.lockedButton("Summon locked")' in p59_diff)
+
     print("\n--- § lm 4.7.57 ---")
     p57_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
     p57_style = read(SRC / "gui/ultra/UltraStyle.java")
@@ -1966,7 +2008,8 @@ def main() -> int:
           'String action = "page:tier_ask:" + t;' in p57_diff
           and 'spec.labelValue("T" + t + " " + ut.display, view.line());' not in p57_diff
           and "Only tiers you can" not in p57_diff and "tappable.add(t)" not in p57_diff
-          and 'UltraStyle.dim("T" + t + " - Locked")' in p57_diff)
+          # 4.7.59: locked caption names the tier (T5 Master - Locked).
+          and 'UltraStyle.dim(name + " - Locked")' in p57_diff)
     check("tier detail page covers every tier; switch down confirms with Switch to T#",
           '"Switch to T" + t' in p57_diff and '"Needs"' in p57_diff
           and "Lower tiers are free - pick T" not in p57_diff
@@ -2382,7 +2425,8 @@ def main() -> int:
           and "LmOverhaulCapMath" not in p46_tier and "OverhaulScale" not in p46_tier)
     # 4.7.57 retired the per-tier state lines: one button per tier, each opens its detail page.
     check("Tiers page: one button per tier, state shown by the caption (4.7.57 replaced the state lines)",
-          "PurchaseState.View view = UltraDifficultyTierUi.tierView(player, t, active, unlocked, eligible);" in p46_diff
+          # 4.7.59: caption from placeTierButton (You are here / Recommended / Locked), no state lines.
+          "private static void placeTierButton(" in p46_diff and '" - You are here"' in p46_diff
           and "if (view.state().tappable()) {" not in p46_diff)
     p46_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
     p46_svc = read(SRC / "character/CosmeticBodyPartService.java")

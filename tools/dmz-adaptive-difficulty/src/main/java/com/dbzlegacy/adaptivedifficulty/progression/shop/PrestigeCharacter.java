@@ -218,6 +218,8 @@ public final class PrestigeCharacter {
         if (player == null) {
             return;
         }
+        // 4.7.59: banked Momentum belongs to the character that earned it; the new one starts empty.
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);
         if (fromCharacter != null) {
             PrestigeSystem.clearPlayer(fromCharacter);
             LmPlayerStore.flush(fromCharacter);

@@ -441,6 +441,8 @@ public final class DifficultyEvents {
             } catch (Throwable ignored) {
             }
             com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.onLogout(player);
+            // 4.7.59: Momentum is session-only.
+            com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);
             com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.onLogout(player);
             com.dbzlegacy.adaptivedifficulty.util.TpBossNotify.onLogout(player);
             // Flush player AD data only — do NOT clear active tier on disconnect.
@@ -761,6 +763,8 @@ public final class DifficultyEvents {
             safePulse("gui-login-check",
                     () -> com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.pulseLoginChecks(server));
             safePulse("dragon-ball-respawn", () -> DragonBallRespawn.pulse(server, tick));
+            // 4.7.59: a free tier trial reverts once its 5 minutes are up.
+            safePulse("difficulty-trial", () -> com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.pulse(server));
         }
         if (tick % 600 == 0) {
             safePulse("player-store", com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore::flushAll);
@@ -1134,6 +1138,8 @@ public final class DifficultyEvents {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onChamberWaveKill(LivingDeathEvent event) {
         com.dbzlegacy.adaptivedifficulty.progression.ChamberKillMastery.onDeath(event);
+        // 4.7.59 Momentum: a difficulty mob kill banks Mastery Boost time (never a chamber wave foe).
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.onDeath(event);
     }
 
     /**
