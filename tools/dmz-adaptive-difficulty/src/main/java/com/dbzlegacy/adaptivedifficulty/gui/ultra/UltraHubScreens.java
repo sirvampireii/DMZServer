@@ -30,6 +30,15 @@ public final class UltraHubScreens {
     /** Staff Admin page that opens the prestige shop editor (4.7.31). */
     static final String PAGE_PRESTIGE_SHOP_EDIT = "prestige_shop_edit";
 
+    /** 4.7.62: the menu skin picker (Main menu > Menu skins). */
+    public static final String PAGE_SKINS = "skins";
+    /** {@code do:menu_skin:<skin id>}: use that skin now (free, no confirm). */
+    public static final String ACTION_SKIN = "menu_skin";
+    /** {@code do:menu_backgrounds}: themed backgrounds on/off. */
+    public static final String ACTION_BACKGROUNDS = "menu_backgrounds";
+    /** {@code do:menu_look}: Full / Lite. */
+    public static final String ACTION_LOOK = "menu_look";
+
     public static void open(ServerPlayer player, String page) {
         if (player == null) {
             return;
@@ -37,6 +46,10 @@ public final class UltraHubScreens {
         String p = page == null || page.isBlank() ? "main" : page.toLowerCase(Locale.ROOT);
         if ("admin".equals(p)) {
             openAdmin(player);
+            return;
+        }
+        if (PAGE_SKINS.equals(p)) {
+            openSkins(player);
             return;
         }
         if (PAGE_PRESTIGE_SHOP_EDIT.equals(p)) {
@@ -85,6 +98,9 @@ public final class UltraHubScreens {
         if (staff) {
             tiles.add(new HubTile("admin", "Staff Admin", UltraStyle.STYLE_NORMAL, true));
         }
+
+        // 4.7.62: everyone can pick a menu skin; it is free and per account.
+        tiles.add(new HubTile("menu_skins", "Menu skins", UltraStyle.STYLE_NORMAL, true));
 
         placeTiles(spec, ph, tiles);
         // System tiles only (4.7.49): Find body parts lives on the Body parts shop.
@@ -140,6 +156,68 @@ public final class UltraHubScreens {
         // Sub-page of the hub: one exit back to it (nav:home would reopen this page).
         spec.footerBackToMain();
         spec.send(player);
+    }
+
+    /**
+     * Menu skins (4.7.62): the five skins, one row each. The name applies the skin at once (free, no confirm,
+     * change back any time); the row's second control is a locked label the LM client draws as a live swatch of
+     * that skin (panel, button and tab on its background). Then the Backgrounds and Full/Lite toggles. Every
+     * choice is per account and survives relogs and character slot switches.
+     */
+    private static void openSkins(ServerPlayer player) {
+        MenuPrefs.Prefs prefs = MenuPrefs.get(player);
+        boolean lmClient = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.hasNativeClient(player);
+        UltraScreenSpec spec = UltraScreenSpec.of("hub")
+                .fitMenu()
+                .title("Menu skins")
+                .page(PAGE_SKINS)
+                .activeTab("home");
+        spec.line(UltraStyle.VALUE + "Pick how your menus look. Tap a name to use it.")
+                .line(UltraStyle.VALUE + "Switching is free and you can switch back.")
+                .labelValue("Backgrounds:", "a themed scene behind menus")
+                .labelValue("Lite:", "plainer, faster menus for slow PCs");
+        if (!lmClient) {
+            spec.line(UltraStyle.LABEL + "Full colors need the Legacy Mechanics client.");
+        }
+        spec.buttonsAfterLines();
+        for (MenuSkins.Skin skin : MenuSkins.ALL) {
+            boolean using = skin.id().equals(prefs.skin());
+            String action = "do:" + ACTION_SKIN + ":" + skin.id();
+            if (using) {
+                spec.buttonLeft(action, UltraStyle.confirm(skin.name()), UltraStyle.STYLE_CONFIRM);
+                spec.lockedButtonRight("You are using this");
+            } else {
+                spec.buttonLeft(action, skin.name(), UltraStyle.STYLE_NORMAL);
+                spec.lockedButtonRight("Tap the name to use it");
+            }
+            spec.rowGap();
+        }
+        spec.buttonLeft("do:" + ACTION_BACKGROUNDS, "Backgrounds - " + (prefs.backgrounds() ? "ON" : "OFF"),
+                UltraStyle.STYLE_NORMAL);
+        spec.buttonRight("do:" + ACTION_LOOK, "Look - " + (prefs.lite() ? "Lite" : "Full"), UltraStyle.STYLE_NORMAL);
+        spec.rowGap();
+        spec.footerBackToMain();
+        spec.send(player);
+    }
+
+    /**
+     * Apply a Menu skins action. Returns true when {@code action} was one; the caller reopens the picker, which
+     * then wears the new choice (the LM client gets the look first, so the page re-skins as it opens).
+     */
+    public static boolean applySkinAction(ServerPlayer player, String action, String arg) {
+        if (player == null || action == null) {
+            return false;
+        }
+        switch (action) {
+            case ACTION_SKIN -> MenuPrefs.setSkin(player, arg);
+            case ACTION_BACKGROUNDS -> MenuPrefs.toggleBackgrounds(player);
+            case ACTION_LOOK -> MenuPrefs.toggleLite(player);
+            default -> {
+                return false;
+            }
+        }
+        com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.sendPrefs(player);
+        return true;
     }
 
     /**
@@ -204,6 +282,7 @@ public final class UltraHubScreens {
             case "skillcheck_denied" -> "do:skillcheck_denied";
             case "admin" -> "open:admin";
             case "character" -> "open:character";
+            case "menu_skins" -> "page:" + PAGE_SKINS;
             default -> "open:" + system;
         };
     }

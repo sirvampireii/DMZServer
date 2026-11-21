@@ -40,9 +40,17 @@ mkdir -p "$OUTROOT"
 # One rig run at a time. Every process a run starts carries -Dlmrig.run=<id>; a stale run's server, client or
 # command feed (left behind by an interrupted run) is stopped before this one starts, and this run's own are
 # stopped when it exits, so two runs can never share the port, the probe player name or the server folder.
-LOCK="$OUTROOT/.rig.lock"
+# The lock lives in the shared server folder, not in $RIG_OUT: two runs with different output folders still
+# share the server, client, port and probe name. A matrix holds its own lock across all stages (matrix.sh
+# exports RIG_MATRIX_PID), so another matrix cannot start a stage between two of this one's.
+LOCK="$T/.rig.lock"
+MLOCK="$T/.rig-matrix.lock"
+if [ -f "$MLOCK" ] && kill -0 "$(cat "$MLOCK" 2>/dev/null)" 2>/dev/null \
+    && [ "$(cat "$MLOCK" 2>/dev/null)" != "${RIG_MATRIX_PID:-none}" ]; then
+  echo "another rig matrix is active (pid $(cat "$MLOCK")); stop it with tools/lm-ui-probe/stop.sh first"; exit 2
+fi
 if [ -f "$LOCK" ] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then
-  echo "another rig run is active (pid $(cat "$LOCK")); wait for it or stop it first"; exit 2
+  echo "another rig run is active (pid $(cat "$LOCK")); wait for it or stop it with tools/lm-ui-probe/stop.sh"; exit 2
 fi
 echo $$ > "$LOCK"
 RUNID="$L-$$"
@@ -79,7 +87,9 @@ grep -E "Done \(|LegacyMechanics.*4\.7\.|Crash report|self-test" "$LOG" | head -
 if [ "$STAFF" = 1 ]; then echo "op LTProbe" >> "$CMD"; else echo "deop LTProbe" >> "$CMD"; fi
 for c in "time set midnight" "gamerule doDaylightCycle false" "gamerule doMobSpawning false" "difficulty normal"; do echo "$c" >> "$CMD"; done
 rm -rf "$G/mods" "$G/config" "$G/defaultconfigs" "$G/screenshots" "$G/uiprobe-client.txt"; mkdir -p "$G/mods"
-printf "guiScale:2\nonboardAccessibility:false\n" > "$G/options.txt"
+# 4.7.62: vsync off and no frame cap, so the fps= on each SCREEN line measures real headroom (vsync pinned it at
+# the monitor rate, 60, and the FPS budget could not tell builds apart).
+printf "guiScale:2\nonboardAccessibility:false\nenableVsync:false\nmaxFps:260\n" > "$G/options.txt"
 cp "${COMMON[@]}" "$G/mods/"
 [ "$CKAI" = 1 ] && cp "$KAI" "$G/mods/"
 [ "$CLM" != "-" ] && cp "$CLM" "$G/mods/"

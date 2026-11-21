@@ -26,16 +26,14 @@ public final class SaiyanRoyal {
 
     public static final String NAME = "saiyan_royal";
 
-    /** Source of truth: the hex values the owner picked (2026-11-20). */
-    public static final String PANEL_HEX = "#160b0d";
-    public static final String CRIMSON_HEX = "#e23b3b";
-    public static final String GOLD_TRIM_HEX = "#f0b429";
-    public static final String TEXT_HEX = "#f6e8e4";
-
-    public static final int PANEL = rgb(PANEL_HEX);
-    public static final int CRIMSON = rgb(CRIMSON_HEX);
-    public static final int GOLD_TRIM = rgb(GOLD_TRIM_HEX);
-    public static final int TEXT = rgb(TEXT_HEX);
+    /**
+     * 4.7.62: the palette lives in the skin registry ({@link MenuSkins#SAIYAN_ROYAL}, the owner's hex values from
+     * 2026-11-20); these names stay for the bridge chrome and the 4.7.60 checks.
+     */
+    public static final int PANEL = MenuSkins.SAIYAN_ROYAL.panel();
+    public static final int CRIMSON = MenuSkins.SAIYAN_ROYAL.primary();
+    public static final int GOLD_TRIM = MenuSkins.SAIYAN_ROYAL.trim();
+    public static final int TEXT = MenuSkins.SAIYAN_ROYAL.text();
 
     /**
      * Bridge mapping onto UltraStyle's existing color letters (no new wire values). Every menu builder takes
@@ -87,18 +85,16 @@ public final class SaiyanRoyal {
     public static final double GRADIENT_BOTTOM_DROP = 0.25;
     public static final double FACE_TOP_LIFT = 0.12;
     public static final double FACE_BOTTOM_DROP = 0.18;
-    /** Top-edge highlight and bottom-edge shade on raised buttons. */
-    public static final int EDGE_HIGHLIGHT = 0x40FFFFFF;
-    public static final int EDGE_SHADE = 0x50000000;
+    /* Top-edge sheen and bottom-edge shade on raised buttons: per skin since 4.7.62 (MenuSkins.Skin). */
 
     /** Panel gradient: the panel color lifted toward white at the top. */
     public static int panelTop() {
-        return blend(PANEL, 0xFFFFFF, GRADIENT_TOP_LIFT);
+        return MenuSkins.SAIYAN_ROYAL.panelTop();
     }
 
     /** Panel gradient: the panel color pressed toward black at the bottom. */
     public static int panelBottom() {
-        return blend(PANEL, 0x000000, GRADIENT_BOTTOM_DROP);
+        return MenuSkins.SAIYAN_ROYAL.panelBottom();
     }
 
     /** ARGB mix of {@code a} toward {@code b} by {@code t} (0..1), alpha included. */
@@ -160,22 +156,7 @@ public final class SaiyanRoyal {
      * yellow and Admin dark red keep their Minecraft hex. -1 for no accent.
      */
     public static int accentHex(char code) {
-        return switch (Character.toLowerCase(code)) {
-            case 'c' -> CRIMSON;
-            case '6' -> GOLD_TRIM;
-            case 'f' -> 0xFFFFFF;
-            case '3' -> 0x00AAAA;
-            case 'b' -> 0x55FFFF;
-            case 'a' -> 0x55FF55;
-            case 'e' -> 0xFFFF55;
-            case '4' -> 0xAA0000;
-            case '2' -> 0x00AA00;
-            case '5' -> 0xAA00AA;
-            case 'd' -> 0xFF55FF;
-            case '9' -> 0x5555FF;
-            case '7' -> 0xAAAAAA;
-            default -> -1;
-        };
+        return MenuSkins.systemAccentHex(code);
     }
 
     /** Accent hex for a bridge accent string ({@code c} or a section sign and {@code c}); -1 when blank. */
@@ -201,16 +182,7 @@ public final class SaiyanRoyal {
      */
     public static int nativeInk(char code) {
         char c = Character.toLowerCase(code);
-        if (c == BRIDGE_ACCENT) {
-            return CRIMSON;
-        }
-        if (c == BRIDGE_HEADER) {
-            return GOLD_TRIM;
-        }
-        if (c == BRIDGE_VALUE) {
-            return TEXT;
-        }
-        return -1;
+        return c == BRIDGE_ACCENT ? CRIMSON : c == BRIDGE_HEADER ? GOLD_TRIM : c == BRIDGE_VALUE ? TEXT : -1;
     }
 
     /**
@@ -274,17 +246,13 @@ public final class SaiyanRoyal {
         return ((rgb >> 16) & 0xFF) * 3 + ((rgb >> 8) & 0xFF) * 6 + (rgb & 0xFF);
     }
 
-    private static int rgb(String hex) {
-        return Integer.parseInt(hex.substring(1), 16);
-    }
-
     /**
      * Pins the palette, the bridge mapping and the shape math. If a constant moves on purpose, update these
      * pins and the 4.7.60 ship-manifest check in the same change.
      */
     public static List<String> selfTest() {
         List<String> bad = new ArrayList<>();
-        if (PANEL != 0x160B0D || CRIMSON != 0xE23B3B || GOLD_TRIM != 0xF0B429 || TEXT != 0xF6E8E4) {
+        if (PANEL != 0x160B0D || CRIMSON != 0xE23B3B || GOLD_TRIM != 0xF0B429 || TEXT != 0xF6E8E4) { // pins
             bad.add("Saiyan Royal palette must be panel #160b0d, crimson #e23b3b, gold trim #f0b429, text #f6e8e4");
         }
         String m = UltraStyle.MARK;

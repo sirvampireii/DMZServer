@@ -1994,6 +1994,67 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.62 ---")
+    p62_reg = read(SRC / "gui/ultra/MenuSkins.java")
+    p62_prefs = read(SRC / "gui/ultra/MenuPrefs.java")
+    p62_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p62_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    p62_screen = read(SRC / "client/NativeMenuScreen.java")
+    p62_text = read(SRC / "client/NativeText.java")
+    p62_look = read(SRC / "client/MenuLook.java")
+    p62_bake = read(SRC / "client/MenuBackground.java")
+    p62_netw = read(SRC / "net/gui/LmNativeNetwork.java")
+    p62_proto = read(SRC / "net/gui/LmNativeProtocol.java")
+    p62_gui = read(SRC / "net/gui/LmGuiNetwork.java")
+    p62_client = read(SRC / "client/LmClient.java")
+    check("manifest row for lm 4.7.62", "lm-4762-menu-skins" in manifest)
+    check("registry holds exactly the five skins with the mock's hex",
+          "List.of(SAIYAN_ROYAL, NAMEK_SERENITY, OBSIDIAN_GOLD, BEERUS_DESTRUCTION," in p62_reg
+          and "0x0D201B, 0x57D9A3, 0xFFD166, 0xE6F4EC" in p62_reg
+          and "0x17140F, 0xE8B33C, 0xE8B33C, 0xF3EAD8, 0x4CAF6D" in p62_reg
+          and "0x281840, 0xF0B429, 0xE86A9A, 0xF3EAFF" in p62_reg
+          and '"zeno_omni", "Zeno Omni", false,' in p62_reg and "0xF6F9FF, 0x2563EB, 0xF59E0B, 0x1E2A4A" in p62_reg
+          and 'bad.add("registry must hold exactly the five skins, has "' in p62_reg
+          and "MenuSkins.selfTest()" in p62_gui)
+    hexes = re.findall(r"0x[0-9A-Fa-f]{6,8}", p62_screen + p62_text)
+    check("no hardcoded tones in NativeMenuScreen / NativeText (every tone is skin-owned)", not hexes,
+          f"found {hexes[:5]}" if hexes else "")
+    check("light-aware inks: every ink made readable on its surface (3:1 dark skins, 4.5:1 light)",
+          "return readable(raw, bg, skin.dark() ? 3.0 : 4.5);" in p62_reg and "MenuSkins.ink(skin, code, bg, fallback)" in p62_text
+          and "box.m_94202_(skin.fieldText());" in p62_screen)
+    check("per-account choice in the player's LM record; default Saiyan Royal, backgrounds on, Full",
+          'KEY = "lm_menu_prefs";' in p62_prefs and "LmPlayerStore.root(id).m_128365_(KEY, t);" in p62_prefs
+          and "new Prefs(MenuSkins.DEFAULT.id(), true, false);" in p62_prefs)
+    check("native look over message 3, only to clients whose hello said menuSkins; no handshake change",
+          "MSG_PREFS = 3;" in p62_proto and 'FEATURE_MENU_SKINS = "menuSkins";' in p62_proto
+          and "a.add(FEATURE_MENU_SKINS);" in p62_proto and 'PROTOCOL_VERSION = "1";' in p62_proto
+          and "!takesPrefs(player)" in p62_netw and "context.enqueueWork(() -> sendPrefs(sender));" in p62_netw
+          and "LmNativeNetwork.onPrefs(MenuLook::apply);" in p62_client)
+    check("bridge: Saiyan Royal bytes unchanged, other skins rewrite letters only, never blank",
+          "if (skin == null || skin == SAIYAN_ROYAL) {" in p62_reg and "wire = bridgeSkin(player, wire);" in p62_gui
+          and "// Never a blank menu: fall back to the Saiyan Royal bytes." in p62_gui
+          and "'9', '3');" in p62_reg)
+    check("Menu skins picker: hub entry, five rows, instant apply, backgrounds and Full/Lite toggles",
+          'new HubTile("menu_skins", "Menu skins"' in p62_hub and 'case "menu_skins" -> "page:" + PAGE_SKINS;' in p62_hub
+          and 'spec.lockedButtonRight("You are using this");' in p62_hub
+          and "UltraHubScreens.applySkinAction(viewer, parts.action, stringArg(args, \"arg\"))" in p62_act
+          and '"Backgrounds - "' in p62_hub and '"Look - "' in p62_hub)
+    check("themed backgrounds baked once per skin and size; panel shadow baked; Lite flattens and strips",
+          "BG_MAX = 960;" in p62_bake and "MenuSkins.backgroundPixel(skin, (x + 0.5) / tw, v, lite)" in p62_bake
+          and "int ambient = lite ? 0 : SaiyanRoyal.AMBIENT_RINGS;" in p62_bake
+          and "MenuBackground.panelShadow(g, panelW, panelH, r, skin, lite, alpha);" in p62_screen
+          and "if (lite && offScreen(b.y(), b.h())) {" in p62_screen
+          and "SHAPES.computeIfAbsent(new Shape(" in p62_screen)
+    check("polish uses transform/opacity only: page crossfade and slide, hover lift, tab slide, bar fill, shimmer",
+          "previous.drawMenu(g, Integer.MIN_VALUE / 2" in p62_screen and "RenderSystem.setShaderColor(1f, 1f, 1f, alpha);" in p62_screen
+          and "private float liftOf(" in p62_screen and "private void drawTabIndicator(" in p62_screen
+          and "BAR_SHOWN.put(barKey(index), share);" in p62_screen and "private void shimmer(" in p62_screen
+          and "MenuLook.fadingFrom()" in p62_screen and "private void drawFocus(" in p62_screen)
+    check("fps sag suggests Lite once, never switches",
+          "FPS_FLOOR = 45.0;" in p62_screen and "MenuLook.markLiteSuggested();" in p62_screen
+          and "liteSuggested = false;" in p62_look)
+    check("layout dump names skin, background and look for the rig",
+          '"SKIN %s accent=%06X bg=%s look=%s dark=%s baked=%d"' in p62_screen and '"swatch:" + swatch.id()' in p62_screen)
     print("\n--- § lm 4.7.61 ---")
     p61_screen = read(SRC / "client/NativeMenuScreen.java")
     p61_editor = read(SRC / "config/editor/ConfigEditor.java")
@@ -2049,14 +2110,18 @@ def main() -> int:
     p60_style = read(SRC / "gui/ultra/UltraStyle.java")
     p60_screen = read(SRC / "client/NativeMenuScreen.java")
     p60_net = read(SRC / "net/gui/LmGuiNetwork.java")
+    # 4.7.62 moved the palette and every native tone into MenuSkins; the 4.7.60 pins follow it there.
+    p60_reg = read(SRC / "gui/ultra/MenuSkins.java")
+    p60_bake = read(SRC / "client/MenuBackground.java")
     check("manifest row for lm 4.7.60", "lm-4760-saiyan-royal" in manifest)
     check("Saiyan Royal palette defined once with the owner's hex values",
-          'PANEL_HEX = "#160b0d";' in p60_skin and 'CRIMSON_HEX = "#e23b3b";' in p60_skin
-          and 'GOLD_TRIM_HEX = "#f0b429";' in p60_skin and 'TEXT_HEX = "#f6e8e4";' in p60_skin
+          "0x160B0D, 0xE23B3B, 0xF0B429, 0xF6E8E4, 0x3FAF55" in p60_reg
+          and "PANEL = MenuSkins.SAIYAN_ROYAL.panel();" in p60_skin
           and 'NAME = "saiyan_royal";' in p60_skin)
     check("skin on every menu natively; system accents keep their hue; bridge keeps the 4.7.57 letters",
-          "return screenId != null;" in p60_skin and "case 'c' -> CRIMSON;" in p60_skin
-          and "case '3' -> 0x00AAAA;" in p60_skin and "case 'f' -> 0xFFFFFF;" in p60_skin
+          "return screenId != null;" in p60_skin and "case 'c' -> 0xE23B3B;" in p60_reg
+          and "case '3' -> 0x00AAAA;" in p60_reg and "case 'f' -> 0xFFFFFF;" in p60_reg
+          and "return MenuSkins.systemAccentHex(code);" in p60_skin
           and "BRIDGE_ACCENT = 'c';" in p60_skin
           and "BRIDGE_HEADER = '6';" in p60_skin
           and 'case "difficulty" -> String.valueOf(BRIDGE_ACCENT);' in p60_skin
@@ -2072,23 +2137,24 @@ def main() -> int:
           and 'ACCENT_RIVAL = MARK + SaiyanRoyal.bridgeAccent("rival");' in p60_style
           and '!UltraStyle.HEADER.equals(m + "6" + m + "l")' in p60_skin)
     check("native renderer: rounded panel with shadow and gold border, rounded buttons; clicks keep the rectangle",
-          "PANEL_BG" not in p60_screen and "drawSkinButton(g, b, hover, down && !inert, inert, style, isActiveTab(b));" in p60_screen
-          and "accentRgb = sys >= 0 ? sys : paletteRgb(palette, SaiyanRoyal.GOLD_TRIM);" in p60_screen
-          and "private void drawPanel(GuiGraphics g)" in p60_screen
-          and "SaiyanRoyal.AMBIENT_RINGS" in p60_screen and "static void fillRounded(" in p60_screen
+          "PANEL_BG" not in p60_screen
+          and "drawSkinButton(g, b, hover, down && !inert, inert, style, isActiveTab(b), dt);" in p60_screen
+          and "return sys >= 0 ? sys : MenuSkins.paletteRgb(palette, skin, skin.defaultAccent());" in p60_screen
+          and "private void drawPanel(GuiGraphics g, float alpha)" in p60_screen
+          and "SaiyanRoyal.AMBIENT_RINGS" in p60_bake and "static void fillRounded(" in p60_screen
           and "fillRounded(g, bx, by, w, h, r, edge);" in p60_screen
           and "return x >= b.x() && x < b.x() + b.w() && y >= b.y() && y < b.y() + b.h();" in p60_screen)
     check("depth: layered panel shadow, gradient, raised buttons sink 2px, inset boxes, glossy bars, tab glow",
           "PANEL_RADIUS = 14;" in p60_skin and "PRESS_SINK = 2;" in p60_skin
-          and "SaiyanRoyal.KEY_RINGS" in p60_screen and "SaiyanRoyal.panelTop()" in p60_screen
-          and "SaiyanRoyal.buttonOffset(pressed, activeTab)" in p60_screen
-          and "SaiyanRoyal.EDGE_HIGHLIGHT" in p60_screen and "SaiyanRoyal.EDGE_SHADE" in p60_screen
+          and "SaiyanRoyal.KEY_RINGS" in p60_bake and "skin.panelTop()" in p60_screen
+          and "pressed ? SaiyanRoyal.PRESS_SINK" in p60_screen and "-SaiyanRoyal.TAB_LIFT" in p60_screen
+          and "skin.edgeHighlight()" in p60_screen and "skin.edgeShade()" in p60_screen
           and "static void insetBox(" in p60_screen and "private void drawInfoBox(" in p60_screen
           and "glossy(g, x + 1, ty + 1, fw, h - 2" in p60_screen
-          and "glow(g, bx, by, w, h, r, SaiyanRoyal.GOLD_TRIM" in p60_screen
+          and "glow(g, at[0], at[1], at[2], at[3], r, skin.glow()" in p60_screen
           and "buttonOffset(true, false) != 2" in p60_skin
           # Labels inked in the button's own accent draw in the skin text (the accent is on the edge).
-          and "SaiyanRoyal.accentHex(label.charAt(1)) == buttonTint(b)" in p60_screen)
+          and "MenuSkins.systemAccentHex(label.charAt(1)) == buttonTint(b)" in p60_screen)
     # tools/lm-ui-probe/analyze_look.py reads these fields; keep the dump and the analyzer in step.
     check("native layout dump carries button face/ink/cut and body ink/background for the rig's look check",
           'face=%06X ink=%06X cut=%s' in p60_screen and '"I %d ink=%06X bg=%06X"' in p60_screen

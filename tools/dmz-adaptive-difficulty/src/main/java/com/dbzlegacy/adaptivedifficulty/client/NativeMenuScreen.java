@@ -1,5 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.client;
 
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.SaiyanRoyal;
 import com.dbzlegacy.adaptivedifficulty.net.gui.GuiOpenPacket;
 import com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork;
@@ -8,8 +9,11 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -41,14 +45,19 @@ import net.minecraft.world.item.Items;
  * confirm, danger, dim; tabs with the active one marked; locked buttons that do nothing), text
  * fields, paged books, the player model, and the Close button in the bottom band.
  *
- * <p>4.7.60: every menu wears the Saiyan Royal skin ({@link SaiyanRoyal}): the exact hex palette, a rounded
- * panel (14px) with a 1px gold-trim border, rounded buttons, tier rows and bars. Each system's accent
- * (Difficulty crimson, Rival white, Sparring dark aqua, ...) stays on button edges, the active tab and frames.
- * Depth: the panel lifts off the background on two shadow layers and is lighter at the top; raised buttons
- * carry their own shadow, a top-edge highlight and a darker bottom edge, and sink 2px while pressed; info
- * boxes, fields, books and bar tracks are inset with an inner shadow; bars fill with a glossy gradient; the
- * active tab is raised with a gold glow. Only the drawn shapes move or round; every click area stays the full
- * rectangle from the server layout.
+ * <p>4.7.60 depth system: a rounded panel (14px) lifted on two soft shadow layers, lighter at the top; raised
+ * buttons with their own shadow, a top-edge sheen and a darker bottom edge that sink 2px when pressed; inset
+ * info boxes, fields, books and bar tracks; glossy bars; the active tab raised with a glow. Only the drawn shapes
+ * move or round; every click area stays the full rectangle from the server layout.
+ *
+ * <p>4.7.62: every tone comes from the player's menu skin ({@link MenuSkins}, five skins, picked on Main menu &gt;
+ * Menu skins); each system keeps its accent. A themed background sits behind the panel (or the game world, when
+ * backgrounds are off). Polish uses transforms and opacity only: pages crossfade and slide, buttons lift on hover
+ * and sink on press, the tab indicator slides, the Momentum bar fills smoothly and shimmers while time is banked,
+ * and the keyboard focus has a ring. The background and panel shadow are baked textures and shapes reuse cached
+ * geometry, so nothing expensive is recomputed per frame. Lite drops the ambient shadow, glow, sheen and motion,
+ * flattens the background, and skips rows outside the view. If the frame rate sags while a menu is open, a small
+ * notice suggests Lite once; it never switches anything itself.
  */
 public final class NativeMenuScreen extends Screen {
     /** Action id of a locked button: drawn dim, never sends anything. */
@@ -56,9 +65,28 @@ public final class NativeMenuScreen extends Screen {
     private static final int CLOSE_BAND = 28;
     private static final int EDGE = 10;
 
-    /** Button and row faces on the Saiyan Royal panel. */
-    private static final int FACE = 0x2E1316;
-    private static final int FACE_HOVER = 0x4A1C20;
+    /** Page change: the old page fades out while the new one fades and slides in. */
+    private static final long TRANSITION_NS = 160_000_000L;
+    private static final float SLIDE_PX = 6f;
+    /** Hover lift / press sink easing rate (per second). */
+    private static final float LIFT_RATE = 18f;
+    private static final float HOVER_LIFT = 1f;
+    private static final long TAB_SLIDE_NS = 180_000_000L;
+    private static final long BAR_FILL_NS = 400_000_000L;
+    private static final long SHIMMER_NS = 1_800_000_000L;
+    /** Frame-rate watch: settle, then measure over a window; under the floor once, the Lite notice shows. */
+    private static final long FPS_SETTLE_NS = 1_000_000_000L;
+    private static final long FPS_WINDOW_NS = 3_000_000_000L;
+    private static final double FPS_FLOOR = 45.0;
+    private static final long NOTICE_NS = 8_000_000_000L;
+    /** Menu skins picker (hub page) and its apply action. */
+    private static final String SKINS_PAGE = "skins";
+    private static final String SKIN_ACTION = "do:menu_skin:";
+
+    /** Last Momentum-bar share shown per screen, page and line, so the next packet fills from there. */
+    private static final Map<String, Double> BAR_SHOWN = new HashMap<>();
+    /** Last active-tab rectangle per screen, so the indicator slides from it. */
+    private static final Map<String, int[]> TAB_SHOWN = new HashMap<>();
 
     private enum Kind { SERVER, CLOSE, BOOK_PREV, BOOK_NEXT }
 
@@ -98,25 +126,55 @@ public final class NativeMenuScreen extends Screen {
     private String palette = "";
     private boolean frame;
     private JsonObject model;
-    /** Gold-trim headers on every menu. */
-    private final int titleRgb = SaiyanRoyal.GOLD_TRIM;
-    /** This system's accent (exact hex), or the gold trim on menus without one (the main menu). */
-    private int accentRgb = SaiyanRoyal.GOLD_TRIM;
+    /** The player's skin and Lite flag, as of the last look message. */
+    private MenuSkins.Skin skin = MenuLook.skin();
+    private boolean lite = MenuLook.lite();
+    /** This system's accent (exact hex), or the skin's default accent on menus without one. */
+    private int accentRgb;
 
     private NativeMenuFit.Placement place = new NativeMenuFit.Placement(0, 0, 1, 0);
     private float scroll;
     private float bodyScroll;
 
+    // Polish state (transforms and opacity only).
+    private final long openedNs = System.nanoTime();
+    private NativeMenuScreen previous;
+    private final Map<Btn, Float> lift = new HashMap<>();
+    private long lastFrameNs;
+    private int[] tabFrom;
+    private final Map<Integer, Double> barFrom = new HashMap<>();
+    private int focus = -1;
+    private long fpsStart;
+    private int fpsFrames;
+    private boolean fpsDone;
+    private long noticeUntil;
+
     public NativeMenuScreen(GuiOpenPacket packet, NativeMenuScreen previous) {
         super(Component.m_237113_(NativeText.plain(packet.title())));
         this.packet = packet;
         parse();
-        if (previous != null && previous.packet.screenId().equals(packet.screenId())
-                && previous.packet.pageId().equals(packet.pageId())) {
-            // Same page again (a toggle or a refresh): keep where the player was.
+        boolean samePage = previous != null && previous.packet.screenId().equals(packet.screenId())
+                && previous.packet.pageId().equals(packet.pageId());
+        if (samePage) {
+            // Same page again (a toggle or a refresh): keep where the player was, no page transition.
             this.scroll = previous.scroll;
             this.bodyScroll = previous.bodyScroll;
             this.bookPage.putAll(previous.bookPage);
+            this.focus = previous.focus;
+        } else if (previous != null && !lite) {
+            // Navigation: the previous page crossfades out under this one.
+            this.previous = previous;
+            previous.previous = null;
+        }
+        int[] lastTab = TAB_SHOWN.get(packet.screenId());
+        if (lastTab != null && !lite) {
+            tabFrom = lastTab;
+        }
+        for (int i = 0; i < lines.size(); i++) {
+            double share = SaiyanRoyal.barFill(NativeText.plain(lines.get(i)));
+            if (share >= 0) {
+                barFrom.put(i, BAR_SHOWN.getOrDefault(barKey(i), share));
+            }
         }
         if (model != null) {
             NativeModelPreview.onPacket(bool(model, "rotate", false));
@@ -125,6 +183,16 @@ public final class NativeMenuScreen extends Screen {
 
     GuiOpenPacket packet() {
         return packet;
+    }
+
+    /** The player's look changed (message 3) while this menu is open: redraw it in the new skin. */
+    void lookChanged() {
+        skin = MenuLook.skin();
+        lite = MenuLook.lite();
+        accentRgb = resolveAccent();
+        if (this.f_96541_ != null) {
+            m_7856_();
+        }
     }
 
     // ------------------------------------------------------------------ spec
@@ -164,8 +232,7 @@ public final class NativeMenuScreen extends Screen {
                 panelH = designH;
             }
         }
-        int sys = SaiyanRoyal.accentHex(accent);
-        accentRgb = sys >= 0 ? sys : paletteRgb(palette, SaiyanRoyal.GOLD_TRIM);
+        accentRgb = resolveAccent();
         for (JsonElement el : arr(packet.linesJson())) {
             if (el.isJsonPrimitive()) {
                 lines.add(el.getAsString());
@@ -226,6 +293,13 @@ public final class NativeMenuScreen extends Screen {
         }
     }
 
+    /** The layout's system accent letter, else its palette name, else the skin's default accent. */
+    private int resolveAccent() {
+        int sys = accent == null || accent.isBlank() ? -1
+                : MenuSkins.systemAccentHex(accent.trim().charAt(accent.trim().length() - 1));
+        return sys >= 0 ? sys : MenuSkins.paletteRgb(palette, skin, skin.defaultAccent());
+    }
+
     // ------------------------------------------------------------------ layout
 
     @Override
@@ -243,6 +317,7 @@ public final class NativeMenuScreen extends Screen {
             box.m_94182_(false);
             box.m_94199_(f.maxLength());
             box.m_94144_(typed.getOrDefault(f.id(), f.value()));
+            box.m_94202_(skin.fieldText());
             if (!fieldHint(f).isBlank()) {
                 box.m_257771_(Component.m_237113_(fieldHint(f)));
             }
@@ -268,6 +343,9 @@ public final class NativeMenuScreen extends Screen {
         int[] close = closeSpot();
         buttons.add(new Btn(Kind.CLOSE, "close", "Close", "normal", close[0], close[1], 80, close[2],
                 8, new JsonObject(), "", "", "", "", ""));
+        if (focus >= focusables().size()) {
+            focus = -1;
+        }
     }
 
     /**
@@ -366,68 +444,146 @@ public final class NativeMenuScreen extends Screen {
 
     @Override
     public void m_88315_(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
-        g.m_280509_(0, 0, this.f_96543_, this.f_96544_, 0x90000000);
+        long now = System.nanoTime();
+        float dt = lastFrameNs == 0 ? 0f : Math.min(0.1f, (now - lastFrameNs) / 1.0e9f);
+        lastFrameNs = now;
+        watchFrameRate(now);
+        drawBackdrop(g);
+        float t = transition(now);
+        if (previous != null) {
+            if (t < 1f) {
+                previous.drawMenu(g, Integer.MIN_VALUE / 2, Integer.MIN_VALUE / 2, partialTick, 1f - t, -SLIDE_PX * t,
+                        false, 0f, now);
+            } else {
+                previous = null;
+            }
+        }
+        drawMenu(g, mouseX, mouseY, partialTick, t, SLIDE_PX * (1f - t), true, dt, now);
+        if (place.scrolls()) {
+            drawScrollBar(g);
+        }
+        drawNotice(g, now);
+    }
+
+    /** 0 when the page just opened, 1 once its fade-in is over (always 1 in Lite). */
+    private float transition(long now) {
+        if (lite) {
+            return 1f;
+        }
+        float t = Math.min(1f, (now - openedNs) / (float) TRANSITION_NS);
+        return 1f - (1f - t) * (1f - t);
+    }
+
+    /**
+     * Behind the panel: the skin's baked background (crossfading from the previous skin right after a switch),
+     * or the game world under a scrim when backgrounds are off. The config editor covers the window anyway.
+     */
+    private void drawBackdrop(GuiGraphics g) {
+        if (fillScreen) {
+            return;
+        }
+        if (!MenuLook.backgrounds()) {
+            g.m_280509_(0, 0, this.f_96543_, this.f_96544_, skin.scrim());
+            return;
+        }
+        MenuSkins.Skin from = MenuLook.fadingFrom();
+        if (from != null) {
+            MenuBackground.draw(g, this.f_96543_, this.f_96544_, from, lite, 1f);
+            MenuBackground.draw(g, this.f_96543_, this.f_96544_, skin, lite, MenuLook.skinFade());
+        } else {
+            MenuBackground.draw(g, this.f_96543_, this.f_96544_, skin, lite, 1f);
+        }
+    }
+
+    /** The whole menu at {@code alpha}, shifted {@code dy} screen pixels (page transitions). */
+    private void drawMenu(GuiGraphics g, int mouseX, int mouseY, float partialTick, float alpha, float dy,
+            boolean live, float dt, long now) {
+        if (alpha <= 0.01f) {
+            return;
+        }
         int mx = (int) Math.floor(toDesignX(mouseX));
-        int my = (int) Math.floor(toDesignY(mouseY));
+        int my = (int) Math.floor(toDesignY(mouseY - dy));
+        RenderSystem.enableBlend();
+        RenderSystem.setShaderColor(1f, 1f, 1f, alpha);
         PoseStack pose = g.m_280168_();
         pose.m_85836_();
-        pose.m_252880_(place.x(), originY(), 0f);
+        pose.m_252880_(place.x(), originY() + dy, 0f);
         pose.m_85841_(scale(), scale(), 1f);
-        drawPanel(g);
+        drawPanel(g, alpha);
         drawTitle(g);
-        drawBody(g);
-        drawModel(g);
+        drawBody(g, now);
+        if (live) {
+            drawModel(g);
+        }
         for (Book b : books) {
             drawBook(g, b);
         }
         for (Field f : fields) {
             EditBox box = boxes.get(f.id());
             if (box != null) {
-                insetBox(g, f.x(), f.y(), f.w(), f.h(), 4, box.m_93696_() ? 0xFF000000 | SaiyanRoyal.GOLD_TRIM
-                        : 0xFF5A3A2C, 0xFF0C0607);
-                box.m_88315_(g, mx, my, partialTick);
+                insetBox(g, f.x(), f.y(), f.w(), f.h(), 4, MenuSkins.OPAQUE | (box.m_93696_() ? skin.trim()
+                        : skin.fieldEdge()), MenuSkins.OPAQUE | skin.fieldFill(), skin);
+                if (live) {
+                    box.m_88315_(g, mx, my, partialTick);
+                }
             }
         }
-        boolean down = Minecraft.m_91087_().f_91067_.m_91560_();
+        boolean down = live && Minecraft.m_91087_().f_91067_.m_91560_();
+        drawTabIndicator(g, now, true);
         for (Btn b : buttons) {
-            boolean hover = contains(b, mx, my);
-            drawButton(g, b, hover, hover && down);
+            if (lite && offScreen(b.y(), b.h())) {
+                continue;
+            }
+            boolean hover = live && contains(b, mx, my);
+            drawButton(g, b, hover, hover && down, dt);
+        }
+        drawTabIndicator(g, now, false);
+        if (live) {
+            drawFocus(g);
         }
         pose.m_85849_();
-        if (place.scrolls()) {
-            drawScrollBar(g);
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+    }
+
+    /** Lite: rows the player cannot see right now (a scrolling menu) are not drawn at all. */
+    private boolean offScreen(int y, int h) {
+        if (!place.scrolls()) {
+            return false;
         }
+        float top = (y + h) * scale() + originY();
+        float bottom = y * scale() + originY();
+        return top < 0 || bottom > this.f_96544_;
     }
 
     /**
-     * Saiyan Royal panel: lifted on a wide ambient shadow and a tight key shadow, 1px gold-trim border, the
-     * #160b0d fill as a vertical gradient (lighter at the top), rounded 14px; gold divider. A framed page adds
-     * a faint inner ring in its system accent.
+     * Panel: the baked drop shadow (two layers; one in Lite), a 1px trim border, the panel color as a vertical
+     * gradient (lighter at the top), rounded 14px; a trim divider. A framed page adds a faint inner ring in its
+     * system accent.
      */
-    private void drawPanel(GuiGraphics g) {
+    private void drawPanel(GuiGraphics g, float alpha) {
         int r = SaiyanRoyal.PANEL_RADIUS;
-        shadow(g, 0, 0, panelW, panelH, r, SaiyanRoyal.AMBIENT_RINGS, SaiyanRoyal.AMBIENT_DROP, SaiyanRoyal.AMBIENT_ALPHA);
-        shadow(g, 0, 0, panelW, panelH, r, SaiyanRoyal.KEY_RINGS, SaiyanRoyal.KEY_DROP, SaiyanRoyal.KEY_ALPHA);
-        fillRounded(g, 0, 0, panelW, panelH, r, 0xFF000000 | SaiyanRoyal.GOLD_TRIM);
-        paint(g, 1, 1, panelW - 2, panelH - 2, r - 1, 0xFF000000 | SaiyanRoyal.panelTop(),
-                0xFF000000 | SaiyanRoyal.panelBottom(), panelH - 2);
+        MenuBackground.panelShadow(g, panelW, panelH, r, skin, lite, alpha);
+        RenderSystem.setShaderColor(1f, 1f, 1f, alpha);
+        fillRounded(g, 0, 0, panelW, panelH, r, MenuSkins.OPAQUE | skin.trim());
+        paint(g, 1, 1, panelW - 2, panelH - 2, r - 1, MenuSkins.OPAQUE | skin.panelTop(),
+                MenuSkins.OPAQUE | skin.panelBottom(), panelH - 2);
         if (frame) {
-            outlineRounded(g, 2, 2, panelW - 4, panelH - 4, r - 2,
-                    0xFF000000 | SaiyanRoyal.blend(accentRgb, SaiyanRoyal.PANEL, 0.6));
+            outlineRounded(g, 2, 2, panelW - 4, panelH - 4, r - 2, MenuSkins.OPAQUE | skin.frameRing(accentRgb));
         }
         int dividerY = Math.max(10, headerBottom - 3);
-        fillRounded(g, EDGE, dividerY, panelW - 2 * EDGE, 1, 0, 0xC0000000 | SaiyanRoyal.GOLD_TRIM);
+        fillRounded(g, EDGE, dividerY, panelW - 2 * EDGE, 1, 0, (MenuSkins.DIVIDER_ALPHA << 24) | skin.title());
     }
 
     private void drawTitle(GuiGraphics g) {
-        MutableComponent title = NativeText.parse(packet.title(), titleRgb, false, true, true);
+        MutableComponent title = NativeText.parse(packet.title(), skin.title(), false, true,
+                NativeText.Ink.on(skin, skin.panel()));
         int maxW = panelW - 2 * EDGE;
         FormattedCharSequence seq = NativeText.fit(this.f_96547_, title, maxW);
         int tw = this.f_96547_.m_92724_(seq);
         int band = Math.max(9, headerBottom - 3);
         int ty = Math.max(3, (band - 9) / 2);
         int tx = "left".equals(titleAlign) ? EDGE : (panelW - tw) / 2;
-        g.m_280649_(this.f_96547_, seq, tx, ty, 0xFFFFFF, true);
+        g.m_280649_(this.f_96547_, seq, tx, ty, MenuSkins.INK_FROM_TEXT, skin.textShadow());
     }
 
     private int bodyRight() {
@@ -445,7 +601,7 @@ public final class NativeMenuScreen extends Screen {
         return scrollBody && bodyMaxH > 0 && bodyNaturalH() > bodyMaxH;
     }
 
-    private void drawBody(GuiGraphics g) {
+    private void drawBody(GuiGraphics g, long now) {
         if (lines.isEmpty()) {
             return;
         }
@@ -462,18 +618,22 @@ public final class NativeMenuScreen extends Screen {
             int y2 = Math.round(originY() + (bodyTop + bodyMaxH) * s);
             g.m_280588_(x1, y1, x2, y2);
         }
+        NativeText.Ink ink = NativeText.Ink.on(skin, bodyBackground());
         for (int i = 0; i < lines.size(); i++) {
             String raw = lines.get(i);
             if (raw == null || NativeText.plain(raw).isBlank()) {
                 continue;
             }
             int y = Math.round(bodyTop + bodyPad + i * step + (lineH - 9) / 2f + 1 - offset);
-            if (drawSkinLine(g, raw, y, maxW)) {
+            if (lite && offScreen(y, lineH)) {
+                continue;
+            }
+            if (drawSkinLine(g, raw, i, y, maxW, ink, now)) {
                 continue;
             }
             FormattedCharSequence seq = NativeText.fit(this.f_96547_,
-                    NativeText.parse(raw, SaiyanRoyal.TEXT, false, false, true), maxW);
-            g.m_280649_(this.f_96547_, seq, EDGE, y, 0xFFFFFF, false);
+                    NativeText.parse(raw, skin.text(), false, false, ink), maxW);
+            g.m_280649_(this.f_96547_, seq, EDGE, y, MenuSkins.INK_FROM_TEXT, false);
         }
         if (clip) {
             g.m_280618_();
@@ -492,8 +652,8 @@ public final class NativeMenuScreen extends Screen {
         int x = EDGE - 4;
         int w = bodyRight() - EDGE + 8;
         int y = bodyTop + 1;
-        insetBox(g, x, y, w, h, SaiyanRoyal.BOX_RADIUS, 0xFF000000 | SaiyanRoyal.blend(SaiyanRoyal.PANEL, 0x000000, 0.5),
-                0xFF000000 | SaiyanRoyal.blend(SaiyanRoyal.PANEL, 0x000000, 0.35));
+        insetBox(g, x, y, w, h, SaiyanRoyal.BOX_RADIUS, MenuSkins.OPAQUE | skin.insetEdge(),
+                MenuSkins.OPAQUE | skin.infoFill(), skin);
     }
 
     private boolean infoBoxShown() {
@@ -501,11 +661,16 @@ public final class NativeMenuScreen extends Screen {
         return !lines.isEmpty() && h >= 12 && free(EDGE - 4, bodyTop + 1, bodyRight() - EDGE + 8, h);
     }
 
+    private String barKey(int line) {
+        return packet.screenId() + "|" + packet.pageId() + "|" + line;
+    }
+
     /**
      * Skinned body lines that end in a text bar ({@code [####----]}) or progress dots ({@code [x] [ ] [ ]})
-     * draw the text before it, then a rounded bar or round dots. Returns false for an ordinary line.
+     * draw the text before it, then a rounded bar or round dots. The bar fills smoothly from the share the
+     * last menu showed (Momentum +10s) and shimmers while time is banked. Returns false for an ordinary line.
      */
-    private boolean drawSkinLine(GuiGraphics g, String raw, int y, int maxW) {
+    private boolean drawSkinLine(GuiGraphics g, String raw, int index, int y, int maxW, NativeText.Ink ink, long now) {
         String plain = NativeText.plain(raw);
         int bar = SaiyanRoyal.barStart(plain);
         int dots = bar < 0 ? SaiyanRoyal.dotsStart(plain) : -1;
@@ -516,36 +681,59 @@ public final class NativeMenuScreen extends Screen {
         String lead = rawPrefix(raw, bar >= 0 ? bar : dots);
         if (!NativeText.plain(lead).isBlank()) {
             FormattedCharSequence seq = NativeText.fit(this.f_96547_,
-                    NativeText.parse(lead, SaiyanRoyal.TEXT, false, false, true), maxW / 2);
-            g.m_280649_(this.f_96547_, seq, x, y, 0xFFFFFF, false);
+                    NativeText.parse(lead, skin.text(), false, false, ink), maxW / 2);
+            g.m_280649_(this.f_96547_, seq, x, y, MenuSkins.INK_FROM_TEXT, false);
             x += this.f_96547_.m_92724_(seq) + 4;
         }
         int midY = y + 4;
         if (bar >= 0) {
-            double share = SaiyanRoyal.barFill(plain);
+            double target = SaiyanRoyal.barFill(plain);
+            double from = barFrom.getOrDefault(index, target);
+            double k = lite ? 1 : Math.min(1, (now - openedNs) / (double) BAR_FILL_NS);
+            double share = from + (target - from) * (1 - (1 - k) * (1 - k));
+            BAR_SHOWN.put(barKey(index), share);
             int w = Math.max(24, Math.min(EDGE + maxW - x, 144));
             int h = 8;
             int ty = midY - h / 2;
-            // Recessed track (dim gold rim, darker than the info box so an empty bar still reads), then a
-            // glossy gold fill with a highlight along its upper third.
-            insetBox(g, x, ty, w, h, SaiyanRoyal.BAR_RADIUS + 1,
-                    0xFF000000 | SaiyanRoyal.blend(SaiyanRoyal.GOLD_TRIM, SaiyanRoyal.PANEL, 0.7), 0xFF050102);
+            // Recessed track (dim trim rim, darker than the info box so an empty bar still reads), then a
+            // glossy trim fill with a highlight along its upper third.
+            insetBox(g, x, ty, w, h, SaiyanRoyal.BAR_RADIUS + 1, MenuSkins.OPAQUE | skin.trackRim(),
+                    MenuSkins.OPAQUE | skin.trackFill(), skin);
             int fw = share <= 0 ? 0 : Math.max(h - 2, (int) Math.round((w - 2) * share));
             if (fw > 0) {
-                glossy(g, x + 1, ty + 1, fw, h - 2, SaiyanRoyal.BAR_RADIUS, SaiyanRoyal.GOLD_TRIM);
+                glossy(g, x + 1, ty + 1, fw, h - 2, SaiyanRoyal.BAR_RADIUS, skin.trim());
+                if (!lite && target > 0) {
+                    shimmer(g, x + 1, ty + 1, fw, h - 2, now);
+                }
             }
         } else {
             for (boolean done : SaiyanRoyal.dots(plain)) {
                 if (done) {
-                    glossy(g, x, midY - 4, 8, 8, 4, SaiyanRoyal.GOLD_TRIM);
+                    glossy(g, x, midY - 4, 8, 8, 4, skin.trim());
                 } else {
-                    insetBox(g, x, midY - 4, 8, 8, 4, 0xFF000000 | SaiyanRoyal.blend(SaiyanRoyal.GOLD_TRIM,
-                            SaiyanRoyal.PANEL, 0.4), 0xFF0E0607);
+                    insetBox(g, x, midY - 4, 8, 8, 4, MenuSkins.OPAQUE | skin.dotEdge(), MenuSkins.OPAQUE | skin.dotFill(),
+                            skin);
                 }
                 x += 14;
             }
         }
         return true;
+    }
+
+    /** A soft light band sliding across a filled bar (translation only, clipped to the fill). */
+    private void shimmer(GuiGraphics g, int x, int y, int w, int h, long now) {
+        float phase = (now % SHIMMER_NS) / (float) SHIMMER_NS;
+        int band = 10;
+        float bx = x - band + phase * (w + band);
+        float s = scale();
+        g.m_280588_(Math.round(place.x() + x * s), Math.round(originY() + y * s),
+                Math.round(place.x() + (x + w) * s), Math.round(originY() + (y + h) * s));
+        PoseStack pose = g.m_280168_();
+        pose.m_85836_();
+        pose.m_252880_(bx, 0f, 0f);
+        fillRounded(g, 0, y, band, h, 0, MenuSkins.SHIMMER);
+        pose.m_85849_();
+        g.m_280618_();
     }
 
     /** The part of {@code raw} (color codes kept) that holds its first {@code plainLen} visible characters. */
@@ -572,12 +760,12 @@ public final class NativeMenuScreen extends Screen {
         int w = Math.max(16, num(model, "width", 64));
         int h = Math.max(16, num(model, "height", 96));
         if (!str(model, "portraitFrame", "").isBlank()) {
-            insetBox(g, x - 2, y - 2, w + 4, h + 4, 6, 0xFF000000 | accentRgb,
-                    0xFF000000 | SaiyanRoyal.blend(SaiyanRoyal.PANEL, 0x000000, 0.3));
+            insetBox(g, x - 2, y - 2, w + 4, h + 4, 6, MenuSkins.OPAQUE | accentRgb, MenuSkins.OPAQUE | skin.infoFill(),
+                    skin);
         }
         LivingEntity entity = NativeModelPreview.resolve(model);
         if (entity == null) {
-            fillRounded(g, x, y, w, h, 6, 0x33000000);
+            fillRounded(g, x, y, w, h, 6, MenuSkins.MODEL_PLACEHOLDER);
             return;
         }
         float scale = model.has("scale") ? (float) dbl(model, "scale", 1.0) : 1f;
@@ -586,16 +774,18 @@ public final class NativeMenuScreen extends Screen {
     }
 
     private void drawBook(GuiGraphics g, Book b) {
-        insetBox(g, b.x(), b.y(), b.w(), b.h(), SaiyanRoyal.BUTTON_RADIUS, 0xFF5A3A2C, 0xFF1F1012);
+        insetBox(g, b.x(), b.y(), b.w(), b.h(), SaiyanRoyal.BUTTON_RADIUS, MenuSkins.OPAQUE | skin.fieldEdge(),
+                MenuSkins.OPAQUE | skin.bookFill(), skin);
         int pages = Math.max(1, b.pages().size());
         int page = Math.min(pages - 1, bookPage.getOrDefault(b.id(), 0));
         JsonObject p = b.pages().size() > page && b.pages().get(page).isJsonObject()
                 ? b.pages().get(page).getAsJsonObject() : new JsonObject();
         int tx = b.x() + 6;
         int maxW = b.w() - 12;
+        NativeText.Ink ink = NativeText.Ink.on(skin, skin.bookFill());
         String title = str(p, "title", "Page " + (page + 1)) + "  (" + (page + 1) + "/" + pages + ")";
-        MutableComponent t = NativeText.parse(title, SaiyanRoyal.GOLD_TRIM, false, true, true);
-        g.m_280649_(this.f_96547_, NativeText.fit(this.f_96547_, t, maxW), tx, b.y() + 5, 0xFFFFFF, false);
+        MutableComponent t = NativeText.parse(title, skin.title(), false, true, ink);
+        g.m_280649_(this.f_96547_, NativeText.fit(this.f_96547_, t, maxW), tx, b.y() + 5, MenuSkins.INK_FROM_TEXT, false);
         int y = b.y() + 18;
         int bottom = b.y() + b.h() - 22;
         if (p.has("lines") && p.get("lines").isJsonArray()) {
@@ -604,65 +794,90 @@ public final class NativeMenuScreen extends Screen {
                     continue;
                 }
                 for (FormattedCharSequence part : this.f_96547_.m_92923_(
-                        NativeText.parse(el.getAsString(), SaiyanRoyal.TEXT, false, false, true),
-                        maxW)) {
+                        NativeText.parse(el.getAsString(), skin.text(), false, false, ink), maxW)) {
                     if (y + 9 > bottom) {
                         break;
                     }
-                    g.m_280649_(this.f_96547_, part, tx, y, 0xFFFFFF, false);
+                    g.m_280649_(this.f_96547_, part, tx, y, MenuSkins.INK_FROM_TEXT, false);
                     y += lineH + lineGap;
                 }
             }
         }
     }
 
-    private void drawButton(GuiGraphics g, Btn b, boolean hover, boolean down) {
+    private void drawButton(GuiGraphics g, Btn b, boolean hover, boolean down, float dt) {
         boolean inert = b.kind() == Kind.SERVER && isNoAction(b.id());
+        MenuSkins.Skin swatch = inert ? swatchSkin(b) : null;
+        if (swatch != null) {
+            drawSwatch(g, b, swatch);
+            return;
+        }
         String style = inert ? "dim" : b.style().toLowerCase(Locale.ROOT);
-        drawSkinButton(g, b, hover, down && !inert, inert, style, isActiveTab(b));
+        drawSkinButton(g, b, hover, down && !inert, inert, style, isActiveTab(b), dt);
     }
 
     /**
-     * Saiyan Royal button or tier row: rounded 8px face with a 1px edge. Normal rows sit on a deep red face
-     * with an edge in the system accent (a hub tile in its own system's accent); confirm stays green, danger
-     * red, dim and locked dark gray (copy rules). Raised rows have their own shadow, a face lighter at the top,
-     * a top-edge highlight and a darker bottom edge; pressed they sink 2px, lose the shadow and invert the
-     * gradient. Dim and locked rows stay flat (nothing to press). The active tab is raised with a gold glow,
-     * the full accent edge and an underline. The click area is still the full rectangle ({@link #contains}).
+     * Raised offset of a button, eased toward its target: pressed sinks, hovered lifts, the active tab sits
+     * raised, dim rows stay flat. Lite jumps straight to the target (no motion).
+     */
+    private float liftOf(Btn b, boolean flat, boolean pressed, boolean hover, boolean activeTab, float dt) {
+        float target = flat ? 0f : pressed ? SaiyanRoyal.PRESS_SINK
+                : activeTab ? -SaiyanRoyal.TAB_LIFT : hover ? -HOVER_LIFT : 0f;
+        if (lite) {
+            lift.put(b, target);
+            return target;
+        }
+        float now = lift.getOrDefault(b, target);
+        float next = now + (target - now) * Math.min(1f, dt * LIFT_RATE);
+        if (Math.abs(target - next) < 0.02f) {
+            next = target;
+        }
+        lift.put(b, next);
+        return next;
+    }
+
+    /**
+     * Skinned button or tier row: rounded 8px face with a 1px edge in the skin's tones; the edge takes the
+     * system accent (a hub tile its own system's), confirm stays green, danger red, dim and locked flat in the
+     * skin's dim tones. Raised rows have their own shadow, a face lighter at the top, a top-edge sheen and a
+     * darker bottom edge; they lift on hover and sink 2px pressed, losing shadow and sheen and inverting the
+     * gradient. Primary (confirm) buttons glow in the skin's primary. The click area is the full rectangle.
      */
     private void drawSkinButton(GuiGraphics g, Btn b, boolean hover, boolean pressed, boolean inert, String style,
-            boolean activeTab) {
+            boolean activeTab, float dt) {
         int[] fe = faceAndEdge(b, style, hover, inert);
         int face = fe[0];
         int edge = fe[1];
         int accentNow = buttonTint(b);
         if (activeTab) {
-            edge = 0xFF000000 | accentNow;
+            edge = MenuSkins.OPAQUE | accentNow;
         }
         boolean flat = "dim".equals(style);
         int r = SaiyanRoyal.BUTTON_RADIUS;
-        int bx = b.x();
-        int by = b.y() + (flat ? 0 : SaiyanRoyal.buttonOffset(pressed, activeTab));
+        float off = liftOf(b, flat, pressed, hover, activeTab, dt);
         int w = b.w();
         int h = b.h();
-        if (activeTab) {
-            glow(g, bx, by, w, h, r, SaiyanRoyal.GOLD_TRIM, SaiyanRoyal.GLOW_RINGS, SaiyanRoyal.GLOW_ALPHA);
+        PoseStack pose = g.m_280168_();
+        pose.m_85836_();
+        pose.m_252880_(0f, off, 0f);
+        int bx = b.x();
+        int by = b.y();
+        if ("confirm".equals(style) && !lite && !inert) {
+            glow(g, bx, by, w, h, r, skin.glow(), 2, SaiyanRoyal.GLOW_ALPHA / 2);
         }
-        if (!flat && !pressed) {
-            shadow(g, bx, by, w, h, r, SaiyanRoyal.BUTTON_SHADOW_RINGS, SaiyanRoyal.BUTTON_SHADOW_DROP,
-                    SaiyanRoyal.BUTTON_SHADOW_ALPHA);
+        boolean sunk = off > 0.5f;
+        if (!flat && !sunk) {
+            shadow(g, bx, by, w, h, r, lite ? 1 : SaiyanRoyal.BUTTON_SHADOW_RINGS, SaiyanRoyal.BUTTON_SHADOW_DROP,
+                    skin.shadowAlpha(SaiyanRoyal.BUTTON_SHADOW_ALPHA));
         }
         fillRounded(g, bx, by, w, h, r, edge);
-        int rgb = face & 0xFFFFFF;
-        int top = 0xFF000000 | SaiyanRoyal.blend(rgb, 0xFFFFFF, flat ? 0 : SaiyanRoyal.FACE_TOP_LIFT);
-        int bottom = 0xFF000000 | SaiyanRoyal.blend(rgb, 0x000000, flat ? 0 : SaiyanRoyal.FACE_BOTTOM_DROP);
-        paint(g, bx + 1, by + 1, w - 2, h - 2, r - 1, pressed ? bottom : top, pressed ? top : bottom, h - 2);
-        if (!flat && !pressed) {
-            fillRounded(g, bx + r / 2, by + 1, w - r, 1, 0, SaiyanRoyal.EDGE_HIGHLIGHT);
-            fillRounded(g, bx + r / 2, by + h - 2, w - r, 1, 0, SaiyanRoyal.EDGE_SHADE);
-        }
-        if (activeTab) {
-            fillRounded(g, bx + r, by + h - 3, w - 2 * r, 2, 1, 0xFF000000 | accentNow);
+        int rgb = face & MenuSkins.RGB_MASK;
+        int top = MenuSkins.OPAQUE | MenuSkins.blend(rgb, MenuSkins.WHITE, flat ? 0 : SaiyanRoyal.FACE_TOP_LIFT);
+        int bottom = MenuSkins.OPAQUE | MenuSkins.blend(rgb, MenuSkins.BLACK, flat ? 0 : SaiyanRoyal.FACE_BOTTOM_DROP);
+        paint(g, bx + 1, by + 1, w - 2, h - 2, r - 1, sunk ? bottom : top, sunk ? top : bottom, h - 2);
+        if (!flat && !sunk && !lite) {
+            fillRounded(g, bx + r / 2, by + 1, w - r, 1, 0, skin.edgeHighlight());
+            fillRounded(g, bx + r / 2, by + h - 2, w - r, 1, 0, skin.edgeShade());
         }
         int left = b.x() + b.pad();
         int maxW = b.w() - 2 * b.pad();
@@ -672,69 +887,132 @@ public final class NativeMenuScreen extends Screen {
         }
         boolean muted = "dim".equals(style);
         FormattedCharSequence seq = NativeText.fit(this.f_96547_,
-                NativeText.parse(labelInk(b), SaiyanRoyal.TEXT, muted, false, true), Math.max(8, maxW));
+                NativeText.parse(labelInk(b), skin.text(), muted, false, NativeText.Ink.on(skin, face & MenuSkins.RGB_MASK)),
+                Math.max(8, maxW));
         int tw = this.f_96547_.m_92724_(seq);
         int tx = left + Math.max(0, (maxW - tw) / 2);
         int ty = by + (h - 8) / 2;
-        g.m_280649_(this.f_96547_, seq, tx, ty, 0xFFFFFF, !muted);
+        g.m_280649_(this.f_96547_, seq, tx, ty, MenuSkins.INK_FROM_TEXT, !muted && skin.textShadow());
+        pose.m_85849_();
+    }
+
+    /**
+     * The active tab's glow (under the buttons) and underline (over them), sliding from where the last menu of
+     * this system had it. Nothing on a page without an active tab.
+     */
+    private void drawTabIndicator(GuiGraphics g, long now, boolean under) {
+        Btn tab = null;
+        for (Btn b : buttons) {
+            if (isActiveTab(b)) {
+                tab = b;
+                break;
+            }
+        }
+        if (tab == null) {
+            return;
+        }
+        int[] to = {tab.x(), tab.y() - SaiyanRoyal.TAB_LIFT, tab.w(), tab.h()};
+        int[] at = to;
+        if (tabFrom != null && !lite) {
+            double k = Math.min(1, (now - openedNs) / (double) TAB_SLIDE_NS);
+            double e = 1 - (1 - k) * (1 - k);
+            at = new int[4];
+            for (int i = 0; i < 4; i++) {
+                at[i] = (int) Math.round(tabFrom[i] + (to[i] - tabFrom[i]) * e);
+            }
+            if (k >= 1) {
+                tabFrom = null;
+            }
+        }
+        if (!under) {
+            TAB_SHOWN.put(packet.screenId(), to);
+        }
+        int r = SaiyanRoyal.BUTTON_RADIUS;
+        if (under) {
+            if (!lite) {
+                glow(g, at[0], at[1], at[2], at[3], r, skin.glow(), SaiyanRoyal.GLOW_RINGS, SaiyanRoyal.GLOW_ALPHA);
+            }
+        } else {
+            fillRounded(g, at[0] + r, at[1] + at[3] - 3, at[2] - 2 * r, 2, 1, MenuSkins.OPAQUE | buttonTint(tab));
+        }
+    }
+
+    /** Menu skins picker: the skin a locked row-label previews (same row as a {@code do:menu_skin:<id>}). */
+    private MenuSkins.Skin swatchSkin(Btn b) {
+        if (!"hub".equalsIgnoreCase(packet.screenId()) || !SKINS_PAGE.equalsIgnoreCase(packet.pageId())) {
+            return null;
+        }
+        for (Btn o : serverButtons) {
+            String s = semantic(o.id());
+            if (o != b && o.y() == b.y() && s.startsWith(SKIN_ACTION)) {
+                return MenuSkins.byId(s.substring(SKIN_ACTION.length()));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Live preview of {@code s}: its background, a mini panel with a trim border, a tab and a button in its
+     * colors, and its text: "You are using this" on the current skin, a text sample on the others.
+     */
+    private void drawSwatch(GuiGraphics g, Btn b, MenuSkins.Skin s) {
+        int x = b.x();
+        int y = b.y();
+        int w = b.w();
+        int h = b.h();
+        paint(g, x, y, w, h, SaiyanRoyal.BUTTON_RADIUS, MenuSkins.OPAQUE | s.bgTop(), MenuSkins.OPAQUE | s.bgBottom(), h);
+        fillRounded(g, x + 3, y + 2, w - 6, h - 4, 4, MenuSkins.OPAQUE | s.trim());
+        fillRounded(g, x + 4, y + 3, w - 8, h - 6, 3, MenuSkins.OPAQUE | s.panel());
+        fillRounded(g, x + 7, y + 5, 12, 3, 1, MenuSkins.OPAQUE | s.primary());
+        fillRounded(g, x + 21, y + 5, 10, 3, 1, MenuSkins.OPAQUE | s.face());
+        fillRounded(g, x + 7, y + h - 7, 24, 3, 1, MenuSkins.OPAQUE | s.confirmFace());
+        String text = swatchText(b, s);
+        int left = x + 36;
+        int maxW = w - 36 - 6;
+        FormattedCharSequence seq = NativeText.fit(this.f_96547_,
+                NativeText.parse(text, s.text(), false, false, NativeText.Ink.on(s, s.panel())), maxW);
+        g.m_280649_(this.f_96547_, seq, left, y + (h - 8) / 2, MenuSkins.INK_FROM_TEXT, s.textShadow());
+    }
+
+    private String swatchText(Btn b, MenuSkins.Skin s) {
+        return s == skin ? "You are using this" : "Sample text";
     }
 
     /** Face and edge color (ARGB) of a button at rest or hovered, by style; the edge takes the accent. */
     private int[] faceAndEdge(Btn b, String style, boolean hover, boolean inert) {
         return switch (style) {
-            case "confirm" -> new int[] {hover ? 0xFF2A7A3A : 0xFF1F5E2C, 0xFF3FAF55};
-            case "danger" -> new int[] {hover ? 0xFF8A2A2A : 0xFF6A1F1F, 0xFF000000 | SaiyanRoyal.CRIMSON};
-            case "dim" -> new int[] {hover && !inert ? 0xFF2C2425 : 0xFF221B1C, 0xFF3A3233};
+            case "confirm" -> new int[] {MenuSkins.OPAQUE | (hover ? skin.confirmFaceHover() : skin.confirmFace()),
+                    MenuSkins.OPAQUE | skin.confirm()};
+            case "danger" -> new int[] {MenuSkins.OPAQUE | (hover ? skin.dangerFaceHover() : skin.dangerFace()),
+                    MenuSkins.OPAQUE | MenuSkins.DANGER};
+            case "dim" -> new int[] {MenuSkins.OPAQUE | (hover && !inert ? skin.dimFaceHover() : skin.dimFace()),
+                    MenuSkins.OPAQUE | skin.dimEdge()};
             default -> {
                 int tint = buttonTint(b);
-                yield new int[] {0xFF000000 | (hover ? FACE_HOVER : FACE),
-                        0xFF000000 | (hover ? tint : SaiyanRoyal.blend(tint, FACE, 0.4))};
+                yield new int[] {MenuSkins.OPAQUE | (hover ? skin.faceHover() : skin.face()),
+                        MenuSkins.OPAQUE | (hover ? tint : skin.edgeRest(tint))};
             }
         };
     }
 
-    /** Ink (RGB) of the first visible character of {@code raw}, as the skin draws it. */
-    private static int firstInk(String raw, int fallback, boolean muted) {
-        if (muted) {
-            return NativeText.MUTED_RGB;
-        }
-        int color = fallback;
-        for (int i = 0; raw != null && i < raw.length(); i++) {
-            char c = raw.charAt(i);
-            if (c == NativeText.MARK && i + 1 < raw.length()) {
-                char code = Character.toLowerCase(raw.charAt(++i));
-                if ((code >= '0' && code <= '9') || (code >= 'a' && code <= 'f')) {
-                    color = NativeText.skinRgb(code, fallback);
-                } else if (code == 'r') {
-                    color = fallback;
-                }
-                continue;
-            }
-            if (!Character.isWhitespace(c)) {
-                return color;
-            }
-        }
-        return color;
-    }
-
     /** Background behind body text: the info box fill when it is drawn, else the panel. */
     private int bodyBackground() {
-        return infoBoxShown() ? SaiyanRoyal.blend(SaiyanRoyal.PANEL, 0x000000, 0.35) : SaiyanRoyal.PANEL;
+        return infoBoxShown() ? skin.infoFill() : skin.panel();
     }
 
     /**
      * Label text to draw. The spec inks a label in its system accent; the skin already puts that accent on
      * the button edge, so a label whose leading ink is the button's own accent draws in the skin text color
-     * (readable on green confirm and deep red faces). Any other ink, and dim labels, stay as sent.
+     * (readable on every face). Any other ink, and dim labels, stay as sent.
      */
     private String labelInk(Btn b) {
         String label = b.label() == null ? "" : b.label();
         if (label.length() >= 2 && label.charAt(0) == NativeText.MARK
-                && SaiyanRoyal.accentHex(label.charAt(1)) == buttonTint(b)) {
+                && MenuSkins.systemAccentHex(label.charAt(1)) == buttonTint(b)) {
             return label.substring(2);
         }
-        // 4.7.61: the bridge darkens yellow and gold labels to dark gray for KaiPath's light button face. On the
-        // skin's dark face that gray is the disabled look, so a live button (Skills' Back to main menu) read as
+        // 4.7.61: the bridge darkens yellow and gold labels to dark gray for KaiPath's light button face. On a
+        // skinned face that gray is the disabled look, so a live button (Skills' Back to main menu) read as
         // locked. A live button's dark-gray label draws in skin text; dim and locked buttons keep the gray.
         if (label.length() >= 2 && label.charAt(0) == NativeText.MARK && label.charAt(1) == '8'
                 && !"dim".equalsIgnoreCase(b.style()) && !(b.kind() == Kind.SERVER && isNoAction(b.id()))) {
@@ -780,12 +1058,76 @@ public final class NativeMenuScreen extends Screen {
         int barH = Math.max(12, Math.round(trackH * view / total));
         int barY = trackTop + Math.round((trackH - barH) * (scroll / place.maxScroll()));
         int x = Math.min(this.f_96543_ - 4, Math.round(place.x() + panelW * scale()) + 3);
-        insetBox(g, x - 1, trackTop, 5, trackH, 2, 0x60000000, 0x40FFFFFF);
-        glossy(g, x, barY, 3, barH, 1, SaiyanRoyal.GOLD_TRIM);
+        insetBox(g, x - 1, trackTop, 5, trackH, 2, skin.scrollTrack(), skin.scrollTrackEdge(), skin);
+        glossy(g, x, barY, 3, barH, 1, skin.trim());
+    }
+
+    /** Ring around the control the keyboard is on (Tab / Shift+Tab move it, Enter or Space presses it). */
+    private void drawFocus(GuiGraphics g) {
+        List<Object> f = focusables();
+        if (focus < 0 || focus >= f.size()) {
+            return;
+        }
+        Object o = f.get(focus);
+        int[] r = o instanceof Btn b ? new int[] {b.x(), b.y(), b.w(), b.h()}
+                : o instanceof Field fl ? new int[] {fl.x(), fl.y(), fl.w(), fl.h()} : null;
+        if (r != null) {
+            outlineRounded(g, r[0] - 2, r[1] - 2, r[2] + 4, r[3] + 4, SaiyanRoyal.BUTTON_RADIUS + 2,
+                    MenuSkins.OPAQUE | skin.focusRing());
+        }
+    }
+
+    /** Frame-rate watch: after a settle period, one measuring window per menu; a sag shows the Lite notice once. */
+    private void watchFrameRate(long now) {
+        if (fpsDone || lite || MenuLook.liteSuggested()) {
+            return;
+        }
+        if (now - openedNs < FPS_SETTLE_NS) {
+            return;
+        }
+        if (fpsStart == 0) {
+            fpsStart = now;
+            fpsFrames = 0;
+            return;
+        }
+        fpsFrames++;
+        long span = now - fpsStart;
+        if (span >= FPS_WINDOW_NS) {
+            fpsDone = true;
+            double fps = fpsFrames / (span / 1.0e9);
+            if (fps < FPS_FLOOR) {
+                MenuLook.markLiteSuggested();
+                noticeUntil = now + NOTICE_NS;
+            }
+        }
+    }
+
+    /** The small "menus running slowly" notice at the bottom of the screen. Never blocks a click. */
+    private void drawNotice(GuiGraphics g, long now) {
+        if (now >= noticeUntil) {
+            return;
+        }
+        String text = "Menus running slowly? Main menu > Menu skins > Look - Lite.";
+        int tw = this.f_96547_.m_92895_(text);
+        int x = (this.f_96543_ - tw) / 2;
+        int y = this.f_96544_ - 18;
+        fillRounded(g, x - 6, y - 4, tw + 12, 16, 4, skin.noticeFill());
+        g.m_280056_(this.f_96547_, text, x, y, skin.dark() ? skin.text() : MenuSkins.readable(skin.text(),
+                skin.noticeFill() & MenuSkins.RGB_MASK, 4.5), false);
     }
 
     /** Sub-pixel rows per design pixel for rounded corners, so curves stay smooth at GUI scale 3 and 4. */
     private static final int ROUND_Q = 4;
+
+    /** Cached rounded-shape geometry: a shape's rows and colors are computed once, then reused every frame. */
+    private record Shape(int x, int y, int w, int h, int radius, int top, int bottom, int rows) {}
+
+    private static final Map<Shape, int[]> SHAPES = new LinkedHashMap<>(256, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<Shape, int[]> eldest) {
+            return size() > 2048;
+        }
+    };
 
     /** Fill a rounded rectangle (radius in design pixels, capped at half the shorter side) in one color. */
     static void fillRounded(GuiGraphics g, int x, int y, int w, int h, int radius, int argb) {
@@ -795,44 +1137,66 @@ public final class NativeMenuScreen extends Screen {
     /**
      * Paint the top {@code rows} design rows of a rounded rectangle with a vertical gradient from {@code top}
      * to {@code bottom} (ARGB). Corners are cut row by row at a quarter-pixel step; the middle goes one design
-     * row at a time (or one fill for a flat color). One batched draw.
+     * row at a time (or one fill for a flat color). The quads are cached per shape. One batched draw.
      */
     static void paint(GuiGraphics g, int x, int y, int w, int h, int radius, int top, int bottom, int rows) {
         if (w <= 0 || h <= 0 || rows <= 0) {
             return;
         }
-        int r = SaiyanRoyal.radiusFor(w, h, radius);
-        int limit = Math.min(rows, h);
+        int[] quads = SHAPES.computeIfAbsent(new Shape(x, y, w, h, radius, top, bottom, rows), NativeMenuScreen::quads);
         g.m_286007_(() -> {
             PoseStack pose = g.m_280168_();
             pose.m_85836_();
             pose.m_85841_(1f / ROUND_Q, 1f / ROUND_Q, 1f);
-            int X = x * ROUND_Q;
-            int Y = y * ROUND_Q;
-            int W = w * ROUND_Q;
-            int H = h * ROUND_Q;
-            int R = r * ROUND_Q;
-            int L = limit * ROUND_Q;
-            boolean flat = top == bottom;
-            int q = 0;
-            while (q < L) {
-                boolean corner = q < R || q >= H - R;
-                if (corner) {
-                    int edge = q < R ? q : H - q - 1;
-                    int in = (int) Math.round(SaiyanRoyal.cornerInset(R, edge + 0.5));
-                    int c = flat ? top : SaiyanRoyal.lerpArgb(top, bottom, (q + 0.5) / L);
-                    g.m_280509_(X + in, Y + q, X + W - in, Y + q + 1, c);
-                    q++;
-                } else {
-                    int stop = Math.min(L, H - R);
-                    int next = flat ? stop : Math.min(stop, q + ROUND_Q);
-                    int c = flat ? top : SaiyanRoyal.lerpArgb(top, bottom, ((q + next) / 2.0) / L);
-                    g.m_280509_(X, Y + q, X + W, Y + next, c);
-                    q = next;
-                }
+            for (int i = 0; i + 4 < quads.length; i += 5) {
+                g.m_280509_(quads[i], quads[i + 1], quads[i + 2], quads[i + 3], quads[i + 4]);
             }
             pose.m_85849_();
         });
+    }
+
+    /** {x1, y1, x2, y2, argb}* in quarter pixels for one rounded gradient shape. */
+    private static int[] quads(Shape s) {
+        int r = SaiyanRoyal.radiusFor(s.w(), s.h(), s.radius());
+        int limit = Math.min(s.rows(), s.h());
+        int X = s.x() * ROUND_Q;
+        int Y = s.y() * ROUND_Q;
+        int W = s.w() * ROUND_Q;
+        int H = s.h() * ROUND_Q;
+        int R = r * ROUND_Q;
+        int L = limit * ROUND_Q;
+        boolean flat = s.top() == s.bottom();
+        List<Integer> out = new ArrayList<>();
+        int q = 0;
+        while (q < L) {
+            boolean corner = q < R || q >= H - R;
+            if (corner) {
+                int edge = q < R ? q : H - q - 1;
+                int in = (int) Math.round(SaiyanRoyal.cornerInset(R, edge + 0.5));
+                int c = flat ? s.top() : SaiyanRoyal.lerpArgb(s.top(), s.bottom(), (q + 0.5) / L);
+                add(out, X + in, Y + q, X + W - in, Y + q + 1, c);
+                q++;
+            } else {
+                int stop = Math.min(L, H - R);
+                int next = flat ? stop : Math.min(stop, q + ROUND_Q);
+                int c = flat ? s.top() : SaiyanRoyal.lerpArgb(s.top(), s.bottom(), ((q + next) / 2.0) / L);
+                add(out, X, Y + q, X + W, Y + next, c);
+                q = next;
+            }
+        }
+        int[] a = new int[out.size()];
+        for (int i = 0; i < a.length; i++) {
+            a[i] = out.get(i);
+        }
+        return a;
+    }
+
+    private static void add(List<Integer> out, int x1, int y1, int x2, int y2, int c) {
+        out.add(x1);
+        out.add(y1);
+        out.add(x2);
+        out.add(y2);
+        out.add(c);
     }
 
     /** Soft drop shadow: {@code rings} rounded rings around the box, offset down, fading outwards. */
@@ -847,7 +1211,7 @@ public final class NativeMenuScreen extends Screen {
     static void glow(GuiGraphics g, int x, int y, int w, int h, int radius, int rgb, int rings, int alpha) {
         for (int i = rings; i >= 1; i--) {
             int a = SaiyanRoyal.ringAlpha(alpha, rings, i);
-            fillRounded(g, x - i, y - i, w + 2 * i, h + 2 * i, radius + i, (a << 24) | (rgb & 0xFFFFFF));
+            fillRounded(g, x - i, y - i, w + 2 * i, h + 2 * i, radius + i, (a << 24) | (rgb & MenuSkins.RGB_MASK));
         }
     }
 
@@ -887,20 +1251,20 @@ public final class NativeMenuScreen extends Screen {
         });
     }
 
-    /** Inset box: a 1px edge, the fill, and an inner shadow fading down from the top edge. */
-    static void insetBox(GuiGraphics g, int x, int y, int w, int h, int radius, int edge, int fill) {
+    /** Inset box: a 1px edge, the fill, and an inner shadow fading down from the top edge (skin strength). */
+    static void insetBox(GuiGraphics g, int x, int y, int w, int h, int radius, int edge, int fill, MenuSkins.Skin skin) {
         ring(g, x, y, w, h, radius, edge, fill);
         int rows = Math.min(SaiyanRoyal.INSET_SHADOW_PX, Math.max(1, (h - 2) / 2));
-        paint(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, radius - 1), SaiyanRoyal.INSET_SHADOW_ALPHA << 24, 0, rows);
+        paint(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, radius - 1), skin.insetShadowAlpha() << 24, 0, rows);
     }
 
     /** Glossy fill: a gradient from a light top to a darker bottom, with a highlight along the upper third. */
     static void glossy(GuiGraphics g, int x, int y, int w, int h, int radius, int rgb) {
-        paint(g, x, y, w, h, radius, 0xFF000000 | SaiyanRoyal.blend(rgb, 0xFFFFFF, 0.35),
-                0xFF000000 | SaiyanRoyal.blend(rgb, 0x000000, 0.25), h);
+        paint(g, x, y, w, h, radius, MenuSkins.OPAQUE | MenuSkins.blend(rgb, MenuSkins.WHITE, 0.35),
+                MenuSkins.OPAQUE | MenuSkins.blend(rgb, MenuSkins.BLACK, 0.25), h);
         int r = SaiyanRoyal.radiusFor(w, h, radius);
         if (h >= 4 && w > 2 * r + 2) {
-            fillRounded(g, x + r, y + Math.max(1, h / 3 - 1), w - 2 * r, 1, 0, 0x60FFFFFF);
+            fillRounded(g, x + r, y + Math.max(1, h / 3 - 1), w - 2 * r, 1, 0, MenuSkins.GLOSS_LINE);
         }
     }
 
@@ -910,11 +1274,38 @@ public final class NativeMenuScreen extends Screen {
         return x >= b.x() && x < b.x() + b.w() && y >= b.y() && y < b.y() + b.h();
     }
 
+    /** Keyboard order: live buttons and fields, top to bottom, left to right. */
+    private List<Object> focusables() {
+        List<Object> out = new ArrayList<>();
+        for (Btn b : buttons) {
+            if (!(b.kind() == Kind.SERVER && isNoAction(b.id()))) {
+                out.add(b);
+            }
+        }
+        out.addAll(fields);
+        out.sort(Comparator.<Object>comparingInt(o -> o instanceof Btn b ? b.y() : ((Field) o).y())
+                .thenComparingInt(o -> o instanceof Btn b ? b.x() : ((Field) o).x()));
+        return out;
+    }
+
+    private void moveFocus(int delta) {
+        List<Object> f = focusables();
+        if (f.isEmpty()) {
+            return;
+        }
+        focus = focus < 0 ? (delta > 0 ? 0 : f.size() - 1) : Math.floorMod(focus + delta, f.size());
+        Object o = f.get(focus);
+        for (Map.Entry<String, EditBox> e : boxes.entrySet()) {
+            e.getValue().m_93692_(o instanceof Field fl && fl.id().equals(e.getKey()));
+        }
+    }
+
     @Override
     public boolean m_6375_(double mouseX, double mouseY, int button) {
         double x = toDesignX(mouseX);
         double y = toDesignY(mouseY);
         if (button == 0) {
+            focus = -1;
             boolean anyBox = false;
             for (Field f : fields) {
                 EditBox box = boxes.get(f.id());
@@ -976,6 +1367,11 @@ public final class NativeMenuScreen extends Screen {
 
     @Override
     public boolean m_7933_(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == 258) {
+            // Tab / Shift+Tab: move the focus ring.
+            moveFocus((modifiers & 1) != 0 ? -1 : 1);
+            return true;
+        }
         for (Field f : fields) {
             EditBox box = boxes.get(f.id());
             if (box == null || !box.m_93696_()) {
@@ -995,6 +1391,12 @@ public final class NativeMenuScreen extends Screen {
                 // Typing goes to the field, never to a game key binding.
                 return true;
             }
+        }
+        List<Object> f = focusables();
+        if ((keyCode == 257 || keyCode == 335 || keyCode == 32) && focus >= 0 && focus < f.size()
+                && f.get(focus) instanceof Btn b) {
+            click(b);
+            return true;
         }
         return super.m_7933_(keyCode, scanCode, modifiers);
     }
@@ -1074,62 +1476,44 @@ public final class NativeMenuScreen extends Screen {
      * (A button's {@code accent} letter is its label ink, not chrome.)
      */
     private int buttonTint(Btn b) {
-        return paletteRgb(b.palette(), accentRgb);
-    }
-
-    static int accentRgb(String code, int fallback) {
-        if (code == null || code.isBlank()) {
-            return fallback;
-        }
-        char c = code.trim().charAt(code.trim().length() == 2 && code.trim().charAt(0) == NativeText.MARK ? 1 : 0);
-        return NativeText.rgb(c, fallback);
-    }
-
-    static int paletteRgb(String name, int fallback) {
-        if (name == null || name.isBlank()) {
-            return fallback;
-        }
-        return switch (name.trim().toLowerCase(Locale.ROOT)) {
-            case "red" -> SaiyanRoyal.CRIMSON;
-            case "dark_red" -> 0xAA0000;
-            case "purple", "dark_purple" -> 0xC058C0;
-            case "light_purple", "pink" -> 0xFF55FF;
-            case "gold", "orange" -> SaiyanRoyal.GOLD_TRIM;
-            case "yellow" -> 0xFFFF55;
-            case "green" -> 0x55FF55;
-            case "dark_green" -> 0x00AA00;
-            case "aqua", "cyan" -> 0x55FFFF;
-            case "dark_aqua", "teal" -> 0x00AAAA;
-            case "blue" -> 0x5555FF;
-            case "white" -> 0xFFFFFF;
-            case "gray", "grey" -> 0xAAAAAA;
-            default -> fallback;
-        };
+        return MenuSkins.paletteRgb(b.palette(), skin, accentRgb);
     }
 
     /**
      * Screen-space layout for test probes: one line per drawn control
      * ({@code kind x y w h style "label"}), after the fit transform and scroll. Button lines end with
      * {@code face=RRGGBB ink=RRGGBB cut=true|false} (cut: the label did not fit and was shortened); body lines
-     * have a matching {@code I index ink=RRGGBB bg=RRGGBB} line, so the rig can check contrast.
+     * have a matching {@code I index ink=RRGGBB bg=RRGGBB} line, so the rig can check contrast. The SKIN line
+     * names the player's skin, backgrounds and look; a picker swatch reports the skin it previews.
      */
     public List<String> debugLayout() {
         List<String> out = new ArrayList<>();
         out.add(String.format(Locale.ROOT, "PANEL %.1f %.1f %.1f %.1f scale=%.3f scroll=%.1f maxScroll=%.1f",
                 place.x(), originY(), panelW * scale(), panelH * scale(), scale(), scroll, place.maxScroll()));
-        out.add(String.format(Locale.ROOT, "SKIN %s accent=%06X", SaiyanRoyal.NAME, accentRgb));
+        out.add(String.format(Locale.ROOT, "SKIN %s accent=%06X bg=%s look=%s dark=%s baked=%d", skin.id(), accentRgb,
+                MenuLook.backgrounds() && !fillScreen ? "on" : "off", lite ? "lite" : "full", skin.dark(),
+                MenuBackground.bakedCount()));
         for (Btn b : buttons) {
             boolean inert = b.kind() == Kind.SERVER && isNoAction(b.id());
+            MenuSkins.Skin swatch = inert ? swatchSkin(b) : null;
             String style = inert ? "dim" : b.style().toLowerCase(Locale.ROOT);
+            if (swatch != null) {
+                out.add(String.format(Locale.ROOT, "B %.1f %.1f %.1f %.1f swatch %s \"%s\" face=%06X ink=%06X cut=false",
+                        place.x() + b.x() * scale(), originY() + b.y() * scale(), b.w() * scale(), b.h() * scale(),
+                        "swatch:" + swatch.id(), swatchText(b, swatch), swatch.panel(),
+                        MenuSkins.readable(swatch.text(), swatch.panel(), swatch.dark() ? 3.0 : 4.5)));
+                continue;
+            }
             String label = labelInk(b);
             boolean muted = "dim".equals(style);
+            int face = faceAndEdge(b, style, false, inert)[0] & MenuSkins.RGB_MASK;
+            NativeText.Ink ink = NativeText.Ink.on(skin, face);
             int room = b.w() - 2 * b.pad() - (b.icon() == null || b.icon().isBlank() ? 0 : 12);
-            boolean cut = this.f_96547_.m_92852_(NativeText.parse(label, SaiyanRoyal.TEXT, muted, false, true)) > room;
+            boolean cut = this.f_96547_.m_92852_(NativeText.parse(label, skin.text(), muted, false, ink)) > room;
             out.add(String.format(Locale.ROOT, "B %.1f %.1f %.1f %.1f %s %s \"%s\" face=%06X ink=%06X cut=%s",
                     place.x() + b.x() * scale(), originY() + b.y() * scale(), b.w() * scale(), b.h() * scale(),
                     inert ? "locked" : b.style(), b.kind() == Kind.SERVER ? b.id() : b.kind().name(),
-                    NativeText.plain(b.label()), faceAndEdge(b, style, false, inert)[0] & 0xFFFFFF,
-                    firstInk(label, SaiyanRoyal.TEXT, muted), cut));
+                    NativeText.plain(b.label()), face, NativeText.firstInk(label, skin.text(), muted, ink), cut));
         }
         for (Field f : fields) {
             out.add(String.format(Locale.ROOT, "T %.1f %.1f %.1f %.1f %s hint=\"%s\" hintw=%d room=%d",
@@ -1148,11 +1532,12 @@ public final class NativeMenuScreen extends Screen {
                     bool(model, "rotate", false), NativeModelPreview.yaw()));
         }
         int step = lineH + lineGap;
+        NativeText.Ink ink = NativeText.Ink.on(skin, bodyBackground());
         for (int i = 0; i < lines.size(); i++) {
             out.add(String.format(Locale.ROOT, "L %.1f %.1f %s", place.x() + EDGE * scale(),
                     originY() + (bodyTop + bodyPad + i * step) * scale(), NativeText.plain(lines.get(i))));
-            out.add(String.format(Locale.ROOT, "I %d ink=%06X bg=%06X", i, firstInk(lines.get(i), SaiyanRoyal.TEXT, false),
-                    bodyBackground()));
+            out.add(String.format(Locale.ROOT, "I %d ink=%06X bg=%06X", i,
+                    NativeText.firstInk(lines.get(i), skin.text(), false, ink), bodyBackground()));
         }
         return out;
     }

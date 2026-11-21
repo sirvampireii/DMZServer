@@ -53,11 +53,23 @@ bash tools/lm-ui-probe/matrix.sh mods/LegacyMechanics-<version>.jar [<older run>
 - `review.html`: a contact sheet for the owner. It shows GUI scale 3 and 4 shots of every Difficulty page, the main page
   of every other menu, and the spin-stop shots.
 
+Menu skins (4.7.62): after the scripted checks the probe runs a skins pass: every skin on one page per system, Lite
+on three pages per skin, backgrounds off on the main menu for two skins. Each page goes out in its look (the probe
+sets the player's Menu skins choice right before it), and the client waits a full second per GUI size so the
+`fps=` on each SCREEN line is the menu at rest. `report.py` then checks:
+- every page in its expected skin, background and look (`analyze_skin.py`);
+- 60+ FPS at GUI 3/4 in every skin, Full and Lite, and Saiyan Royal no slower than before (`RIG_FPS_BASE` = an older
+  run's `full/`; a scripted-only run on the old jar is enough);
+- `review.html` gets one card per look.
+`RIG_EXPECTED_DIFF="hub|main"` lists pages a release changes on purpose, so the bridge comparison names them instead of
+failing. The probe keeps the client's hello across its fake logout (the Momentum and trial checks post one), so later
+menus route as they would in play.
+
 Settings:
 - `ONLY_SCRIPTED=1` screenshots only the scripted pages, a quick rerun after a client-only change.
 - `SKIP="kai reject"` drops stages.
 
-Runs are exclusive: a lock in `$RIG_OUT`. Every process a run starts carries `-Dlmrig.run=<id>`. Stale servers,
+Runs are exclusive: a run lock and a matrix lock in the shared `$RIG_SERVER` folder (not `$RIG_OUT`, so two output folders cannot overlap). Stop a matrix with `bash tools/lm-ui-probe/stop.sh`: stopping only its outer shell leaves `matrix.sh` running into its next stage. Every process a run starts carries `-Dlmrig.run=<id>`. Stale servers,
 clients and command feeds from an interrupted run are stopped before the next starts, and a run stops its own on
 exit.
 

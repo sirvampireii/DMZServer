@@ -320,6 +320,12 @@ public final class UltraGuiActions {
             return;
         }
 
+        // 4.7.62: Menu skins. Free and instant: save, push the look to the LM client, reopen the picker.
+        if (UltraHubScreens.applySkinAction(viewer, parts.action, stringArg(args, "arg"))) {
+            UltraGui.open(viewer, "hub", UltraHubScreens.PAGE_SKINS);
+            return;
+        }
+
         String msg = runDo(viewer, data, safeScreen, parts.action, args, rawActionId);
         // Race full-wipe / free class picker opens the DMZ editor - do not fight it with Ultra.
         if ("character".equals(safeScreen)

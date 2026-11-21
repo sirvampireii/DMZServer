@@ -82,7 +82,13 @@ public final class LmNativeSelfTest {
         NativeHelloPacket hello = NativeHelloPacket.decode(hb);
         check(broken, AdaptiveDifficultyMod.VERSION.equals(hello.clientVersion())
                 && LmNativeProtocol.parseFeatures(hello.featuresJson()).equals(
-                        new LinkedHashSet<>(LmNativeProtocol.CLIENT_FEATURES)), "hello round trip lost a field");
+                        LmNativeProtocol.parseFeatures(LmNativeProtocol.clientFeaturesJson())), "hello round trip lost a field");
+        // 4.7.62: message 3, the player's menu look.
+        FriendlyByteBuf pb = new FriendlyByteBuf(Unpooled.buffer());
+        NativePrefsPacket.encode(new NativePrefsPacket("zeno_omni", false, true), pb);
+        NativePrefsPacket prefs = NativePrefsPacket.decode(pb);
+        check(broken, "zeno_omni".equals(prefs.skin()) && !prefs.backgrounds() && prefs.lite()
+                && LmNativeProtocol.MSG_PREFS == 3, "menu look round trip lost a field");
         FriendlyByteBuf ab = new FriendlyByteBuf(Unpooled.buffer());
         GuiActionPacket.encode(new GuiActionPacket("difficulty", "@difficulty:page:tier_ask:3", "{\"value\":\"x\"}"), ab);
         GuiActionPacket action = GuiActionPacket.decode(ab);
@@ -135,7 +141,10 @@ public final class LmNativeSelfTest {
         Set<String> dressed = LmNativeProtocol.parseFeatures(LmNativeProtocol.clientFeaturesJson(true, true));
         Set<String> formsOnly = LmNativeProtocol.parseFeatures(LmNativeProtocol.clientFeaturesJson(true, false));
         check(broken, offline.metBy(dressed) && !offline.metBy(formsOnly)
-                && LmNativeProtocol.parseFeatures(LmNativeProtocol.clientFeaturesJson()).equals(client),
+                && LmNativeProtocol.parseFeatures(LmNativeProtocol.clientFeaturesJson()).containsAll(client)
+                && LmNativeProtocol.parseFeatures(LmNativeProtocol.clientFeaturesJson())
+                        .contains(LmNativeProtocol.FEATURE_MENU_SKINS)
+                && !client.contains(LmNativeProtocol.FEATURE_MENU_SKINS),
                 "Preview forms must go native only when the client draws forms and body parts");
     }
 

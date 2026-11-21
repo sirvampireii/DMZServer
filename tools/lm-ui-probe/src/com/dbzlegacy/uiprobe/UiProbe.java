@@ -193,6 +193,7 @@ public final class UiProbe {
             }
         }
         runScript();
+        skinPass();
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < packets.size(); i++) {
             GuiOpenPacket p = packets.get(i);
@@ -216,6 +217,139 @@ public final class UiProbe {
         LOG.info("uiprobe crawled {} packets with {} dispatches", packets.size(), dispatched);
     }
 
+
+    // ---- 4.7.62 menu skins pass (test only) ----
+    static final String[] SKIN_IDS = {"saiyan_royal", "namek_serenity", "obsidian_gold", "beerus_destruction",
+            "zeno_omni"};
+    /** One page per system, then the picker itself. */
+    static final String[][] SKIN_PAGES = {{"hub", "main"}, {"hub", "skins"}, {"difficulty", "main"},
+            {"difficulty", "your_tier"}, {"rival", "home"}, {"spar", "main"}, {"prestige", "main"},
+            {"character", "main"}, {"skills", "main"}, {"admin", "admin"}, {"config", "edit:difficulty:0:"}};
+    /** Lite is checked on the picker, the Momentum page and the model page; backgrounds off on the main menu. */
+    static final String[][] LITE_PAGES = {{"hub", "skins"}, {"difficulty", "your_tier"}, {"character", "main"}};
+    private static final String LOOK_TAG = "script skins look=";
+    private String lookNow = "saiyan_royal,on,full";
+
+    /**
+     * Every skin on one page per system (Full, backgrounds on), Lite on three pages per skin, backgrounds off on the
+     * main menu for two skins. Each packet is captured in its look and tagged "script skins look=skin,bg,look"; the
+     * send loop puts the probe player in that look right before the page goes out, so the client draws it there.
+     * An LM jar without menu skins (4.7.61 and older) gets one default pass: same pages, for the FPS baseline.
+     */
+    private void skinPass() {
+        boolean skins = cls("com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs") != null;
+        try {
+            com.dbzlegacy.adaptivedifficulty.progression.Momentum.bank(player);
+        } catch (Throwable ignored) {
+        }
+        String[] ids = skins ? SKIN_IDS : new String[] {"saiyan_royal"};
+        for (String id : ids) {
+            for (String[] pg : SKIN_PAGES) {
+                if (!skins && "skins".equals(pg[1])) {
+                    continue;
+                }
+                skinKeep(id, true, false, pg);
+            }
+            if (skins) {
+                for (String[] pg : LITE_PAGES) {
+                    skinKeep(id, true, true, pg);
+                }
+            }
+        }
+        if (skins) {
+            skinKeep("saiyan_royal", false, false, SKIN_PAGES[0]);
+            skinKeep("zeno_omni", false, false, SKIN_PAGES[0]);
+        }
+        applyLook("saiyan_royal,on,full");
+    }
+
+    private void skinKeep(String id, boolean bg, boolean lite, String[] pg) {
+        String look = id + "," + (bg ? "on" : "off") + "," + (lite ? "lite" : "full");
+        applyLook(look);
+        List<GuiOpenPacket> got;
+        try {
+            got = UltraScreenSpec.captureSends(() -> UltraGui.open(player, pg[0], pg[1]));
+        } catch (Throwable t) {
+            note("ERROR skins " + look + " " + pg[0] + "|" + pg[1] + " " + t);
+            return;
+        }
+        for (GuiOpenPacket p : got) {
+            packets.add(p);
+            origin.add(LOOK_TAG + look + " " + pg[0] + "|" + pg[1]);
+        }
+    }
+
+    private static Class<?> cls(String name) {
+        try {
+            return Class.forName(name);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** Put the probe player in {@code look} ("skin,on|off,full|lite") and push it to their LM client. */
+    private void applyLook(String look) {
+        if (look.equals(lookNow)) {
+            return;
+        }
+        Class<?> prefs = cls("com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs");
+        Class<?> rec = cls("com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs$Prefs");
+        if (prefs == null || rec == null) {
+            return;
+        }
+        String[] f = look.split(",");
+        try {
+            Object v = rec.getConstructor(String.class, boolean.class, boolean.class)
+                    .newInstance(f[0], "on".equals(f[1]), "lite".equals(f[2]));
+            prefs.getMethod("put", ServerPlayer.class, rec).invoke(null, player, v);
+            cls("com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork").getMethod("sendPrefs", ServerPlayer.class)
+                    .invoke(null, player);
+            lookNow = look;
+            note("LOOK " + look);
+        } catch (ReflectiveOperationException e) {
+            note("ERROR look " + look + " " + e);
+        }
+    }
+
+    /** Per-session client state the logout handler clears (class#field -> this player's value). */
+    private static final String[] SESSION = {
+        "com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork#FEATURES",
+        "com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork#CLIENT_VERSION",
+        "com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures#BY_PLAYER"};
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> sessionSnapshot() {
+        Map<String, Object> out = new LinkedHashMap<>();
+        for (String ref : SESSION) {
+            try {
+                String[] f = ref.split("#");
+                java.lang.reflect.Field fld = Class.forName(f[0]).getDeclaredField(f[1]);
+                fld.setAccessible(true);
+                Object v = ((Map<Object, Object>) fld.get(null)).get(player.m_20148_());
+                if (v != null) {
+                    out.put(ref, v);
+                }
+            } catch (Throwable t) {
+                note("session snapshot " + ref + " " + t);
+            }
+        }
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void sessionRestore(Map<String, Object> snap) {
+        for (Map.Entry<String, Object> e : snap.entrySet()) {
+            try {
+                String[] f = e.getKey().split("#");
+                java.lang.reflect.Field fld = Class.forName(f[0]).getDeclaredField(f[1]);
+                fld.setAccessible(true);
+                ((Map<Object, Object>) fld.get(null)).put(player.m_20148_(), e.getValue());
+            } catch (Throwable t) {
+                note("session restore " + e.getKey() + " " + t);
+            }
+        }
+        note("SESSION kept across the fake logout: " + snap.keySet().size() + " entries");
+    }
 
     // ---- 4.7.56 scripted checks (test only) ----
     private final StringBuilder scriptLog = new StringBuilder();
@@ -458,8 +592,13 @@ public final class UiProbe {
 
             com.dbzlegacy.adaptivedifficulty.progression.Momentum.bank(player);
             long pre = left();
+            // The client stays connected: keep its hello (native features, KaiPath features) across the fake
+            // logout, or every later menu routes as if the client never said hello (4.7.61 rig: Preview forms
+            // fell back to KaiPath only because of this).
+            Map<String, Object> session = sessionSnapshot();
             net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
                     new net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent(player));
+            sessionRestore(session);
             note("LOGOUT clears the bank: " + pre + " -> " + left() + (pre > 0 && left() == 0L ? " PASS" : " FAIL"));
             // The logout handler dropped the cached record; the trial lives in the store, so it still reverts.
         } catch (Throwable t) {
@@ -579,10 +718,18 @@ public final class UiProbe {
             }
             int cap = Integer.getInteger("uiprobe.maxshots", Integer.MAX_VALUE);
             if (sendIdx >= packets.size() || sendIdx >= cap) {
+                applyLook("saiyan_royal,on,full");
                 finalPhase = true;
                 return;
             }
             GuiOpenPacket p = packets.get(sendIdx);
+            String from = origin.get(sendIdx);
+            boolean skinShot = from.startsWith(LOOK_TAG);
+            // 4.7.62: the page goes out in its look (default for everything outside the skins pass).
+            applyLook(skinShot ? from.substring(LOOK_TAG.length()).split(" ")[0] : "saiyan_royal,on,full");
+            if (skinShot) {
+                say("uifps");
+            }
             say("uishot " + sendIdx + " " + p.screenId() + " " + p.pageId().replace(' ', '_'));
             LmGuiNetwork.sendOpen(player, p);
         }

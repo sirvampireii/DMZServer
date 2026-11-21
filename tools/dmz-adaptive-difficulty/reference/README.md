@@ -647,3 +647,7 @@ already matched the 4.7.59 baseline. No signature changed. The other 23 are unch
 - `AdaptiveDifficultyMod.class`: VERSION 4.7.61.
 - `ConfigEditor.class`: `valueText` shows number lists ("60, 300, 900") instead of `[I@hash`, and `coerce` reads
   comma-separated numbers into a primitive array. No shop logic changed.
+
+## Re-baseline (2026-11-21, 4.7.62 menu skins)
+
+- `AdaptiveDifficultyMod.class`: VERSION 4.7.62 only. The other 24 are unchanged.

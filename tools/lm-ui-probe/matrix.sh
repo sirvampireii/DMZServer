@@ -15,6 +15,15 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 J="$1"; BASE="${2:-}"
 OUT="${RIG_OUT:-$HERE/out}"; mkdir -p "$OUT"
 skip() { case " ${SKIP:-} " in *" $1 "*) return 0;; esac; return 1; }
+# One matrix at a time across every output folder (the server and client folders are shared).
+: "${RIG_SERVER:?set RIG_SERVER}"
+MLOCK="$RIG_SERVER/.rig-matrix.lock"
+if [ -f "$MLOCK" ] && kill -0 "$(cat "$MLOCK" 2>/dev/null)" 2>/dev/null; then
+  echo "another rig matrix is active (pid $(cat "$MLOCK")); stop it with $HERE/stop.sh first"; exit 2
+fi
+echo $$ > "$MLOCK"
+export RIG_MATRIX_PID=$$
+trap 'rm -f "$MLOCK"' EXIT INT TERM
 LM_JAR="$J" bash "$HERE/build.sh" || exit 1
 echo "== start $(date +%T) $(basename "$J") $(sha256sum "$J" | cut -c1-16)" > "$OUT/matrix.out"
 rm -rf "$OUT/full" "$OUT/kai" "$OUT/reject"
