@@ -620,3 +620,24 @@ re-extracted once more for the "N favor" unit on prestige tier buttons.
 
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified) from
 `LegacyMechanics-4.7.57.jar`. The other 24 are unchanged.
+
+## Re-baseline (2026-11-20, 4.7.58 LM client renderer)
+
+Two classes were re-extracted from `LegacyMechanics-4.7.58.jar` after a javap diff showed only the
+intended changes: `AdaptiveDifficultyMod` (version constant, and the by-name client renderer boot
+that runs only on a game client) and `ConfigFieldHelp` (the new `requireLmClient` help line). The
+other 23 are unchanged.
+
+## Re-baseline (2026-11-20, 4.7.59 Difficulty Momentum)
+
+Three classes were re-extracted from `LegacyMechanics-4.7.59.jar` after a javap diff showed only the
+intended changes: `AdaptiveDifficultyMod` (version constant), `ConfigEditor` (the new Momentum
+section) and `ConfigFieldHelp` (help lines for the four momentum settings). No signature changed.
+The other 22 are unchanged.
+
+## Re-baseline (2026-11-20, 4.7.60 merge of 4.7.58 and 4.7.59, Saiyan Royal skin)
+
+Two classes were re-extracted from `LegacyMechanics-4.7.60.jar` after a javap diff showed only the
+intended changes: `AdaptiveDifficultyMod` (version constant) and `ConfigFieldHelp` (the help text now
+carries both the 4.7.58 `requireLmClient` line and the four 4.7.59 momentum lines). `ConfigEditor`
+already matched the 4.7.59 baseline. No signature changed. The other 23 are unchanged.

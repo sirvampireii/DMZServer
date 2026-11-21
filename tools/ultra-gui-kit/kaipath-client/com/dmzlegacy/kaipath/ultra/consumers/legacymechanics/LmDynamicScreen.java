@@ -620,6 +620,9 @@ public class LmDynamicScreen extends UltraScreen {
             }
             if (o.has("playerModel") && o.get("playerModel").isJsonObject()) {
                 playerModel = o.getAsJsonObject("playerModel");
+                // LM 4.7.60 contract: a still preview resets to the front (PreviewFacing).
+                boolean rot = playerModel.has("rotate") && playerModel.get("rotate").getAsBoolean();
+                turntableDegrees = PreviewFacing.afterPacket(turntableDegrees, rot);
             }
             if (o.has("fillScreen") && o.get("fillScreen").isJsonPrimitive()) {
                 fillScreen = o.get("fillScreen").getAsBoolean();
@@ -853,8 +856,9 @@ public class LmDynamicScreen extends UltraScreen {
         if (pmRotate) {
             turntableDegrees = (turntableDegrees + tick * 1.2f) % 360f;
         }
-        float lookX = pmRotate ? (float) Math.sin(Math.toRadians(turntableDegrees)) * 40f : mouseX - centerX;
-        float lookY = pmRotate ? -20f : mouseY - (panelY + pmY + pmH / 2f);
+        // Still = front-facing toward the viewer (not following the mouse, never the back).
+        float lookX = PreviewFacing.lookX(pmRotate, turntableDegrees);
+        float lookY = PreviewFacing.lookY(pmRotate);
         // Portrait frame chrome (namespaced id — texture map is KaiPath/DMZUltra-owned)
         if (!portraitFrame.isBlank()) {
             int fx = panelX + pmX - 2;

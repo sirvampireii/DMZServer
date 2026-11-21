@@ -230,21 +230,24 @@ public final class UltraStyle {
         DARK_RED = MARK + "4";
         DARK_AQUA = MARK + "3";
         BLUE = MARK + "9";
-        HEADER = GOLD + BOLD;
-        LABEL = GRAY;
-        VALUE = WHITE;
+        // 4.7.60: shared chrome letters come from the Saiyan Royal skin (gold trim, gray, near-white text).
+        HEADER = MARK + SaiyanRoyal.BRIDGE_HEADER + BOLD;
+        LABEL = MARK + SaiyanRoyal.BRIDGE_LABEL;
+        VALUE = MARK + SaiyanRoyal.BRIDGE_VALUE;
         CONFIRM = GREEN;
         DANGER = RED;
         DIM = DARK_GRAY;
         NOTICE_HEAD = HEADER;
         NOTICE_BODY = YELLOW;
-        ACCENT_DIFFICULTY = RED;
-        ACCENT_RIVAL = WHITE;
-        ACCENT_SPAR = DARK_AQUA;
-        ACCENT_PRESTIGE = AQUA;
-        ACCENT_CHARACTER = GREEN;
-        ACCENT_SKILLCHECK = YELLOW;
-        ACCENT_ADMIN = DARK_RED;
+        // 4.7.60: system accents come from the skin's table (same bytes as 4.7.57; Difficulty's red is the
+        // crimson). SaiyanRoyal.selfTest pins every letter.
+        ACCENT_DIFFICULTY = MARK + SaiyanRoyal.bridgeAccent("difficulty");
+        ACCENT_RIVAL = MARK + SaiyanRoyal.bridgeAccent("rival");
+        ACCENT_SPAR = MARK + SaiyanRoyal.bridgeAccent("spar");
+        ACCENT_PRESTIGE = MARK + SaiyanRoyal.bridgeAccent("prestige");
+        ACCENT_CHARACTER = MARK + SaiyanRoyal.bridgeAccent("character");
+        ACCENT_SKILLCHECK = MARK + SaiyanRoyal.bridgeAccent("skillcheck");
+        ACCENT_ADMIN = MARK + SaiyanRoyal.bridgeAccent("admin");
         // ASCII-only separators: KaiPath/JLDK still mojibakes multi-byte punctuation.
         SEP = "|";
         TIMES = "x";
@@ -677,26 +680,8 @@ public final class UltraStyle {
      * default — identity is the colored label text, not {@code buttonSkin}/wire accent.
      */
     public static String systemAccentCode(String screenId) {
-        if (screenId == null || screenId.isBlank()) {
-            return "";
-        }
-        String id = screenId.trim().toLowerCase();
-        return switch (id) {
-            case "difficulty" -> "c";
-            // White, not dark purple. Purple on the gold header and yellow button face
-            // does not read. Body copy on the dark panel may still use purple.
-            case "rival" -> "f";
-            // Dark aqua. Gold is the shared action color and dark red is staff, so sparring
-            // keeps its own combat accent.
-            case "spar" -> "3";
-            case "prestige" -> "b";
-            case "character" -> "a";
-            case "skillcheck", "skills", "skillcheck_denied" -> "e";
-            case "admin", "config", "progression" -> "4";
-            // Main hub title keeps shared HEADER/GOLD chrome — no per-system accent override.
-            case "hub" -> "";
-            default -> "";
-        };
+        // 4.7.60: the per-system table lives with the skin (SaiyanRoyal), same letters as 4.7.57.
+        return SaiyanRoyal.bridgeAccent(screenId);
     }
 
     /** Accent ink for body lines (section-sign OK). Empty string when none. */

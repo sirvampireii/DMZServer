@@ -21,6 +21,8 @@ KNOWN_DO: dict[str, set[str]] = {
     "difficulty": {
         "activate",
         "lower_tier",
+        # 4.7.59: "Try one fight free" on the tier detail page.
+        "trial",
         "toggle_personal",
         "summon_end_dragon",
         # 4.6.239: paid Wither / Warden summons, routed like the dragon.
@@ -919,7 +921,7 @@ def main() -> int:
     if "MAX_WEIGHT_DIGITS" not in weight_shop:
         errors.append("UltraWeightShopScreens must define MAX_WEIGHT_DIGITS from MAX_WEIGHT_VALUE")
     # Every open* that sends must pin a footer; forbid generic "Back" / Cancel-as-back duplicates.
-    footer_call = re.compile(r"footerBack(?:Home|ToMain)?\s*\(")
+    footer_call = re.compile(r"footerBack(?:Home|ToMain|Only)?\s*\(")  # 4.7.59: footerBackOnly (guide Step 1)
     for path in sorted(ULTRA.glob("Ultra*Screens.java")):
         if path.name == "UltraHubScreens.java":
             continue

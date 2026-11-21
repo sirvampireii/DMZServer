@@ -1944,6 +1944,150 @@ def main() -> int:
     check("config help covers the cap and its migration flag",
           '"godKi.maxPoints10MigratedV1"' in gw_hooks and "default 10 = 10,000 mastery" in gw_hooks)
 
+    print("\n--- § lm 4.7.58 ---")
+    p58_proto = read(SRC / "net/gui/LmNativeProtocol.java")
+    p58_net = read(SRC / "net/gui/LmNativeNetwork.java")
+    p58_bridge = read(SRC / "net/gui/LmGuiNetwork.java")
+    p58_mod = read(SRC / "AdaptiveDifficultyMod.java")
+    p58_cfg = read(SRC / "config/DifficultyConfig.java")
+    p58_events = read(SRC / "event/DifficultyEvents.java")
+    p58_screen = read(SRC / "client/NativeMenuScreen.java")
+    p58_model = read(SRC / "client/NativeModelPreview.java")
+    p58_client = read(SRC / "client/LmClient.java")
+    p58_build = read(MOD / "build.sh")
+    p58_toml = read(MOD / "src/main/resources/META-INF/mods.toml")
+    check("manifest row for lm 4.7.58", "lm-4758-native-client" in manifest)
+    check("native channel legacymechanics:native_ui, protocol 1, clicks reuse the bridge codec",
+          'CHANNEL_PATH = "native_ui";' in p58_proto and 'PROTOCOL_VERSION = "1";' in p58_proto
+          and "GuiActionPacket::encode" in p58_net and "GuiOpenPacket::encode" in p58_net
+          and "NetworkRegistry.acceptMissingOr(LmNativeProtocol.PROTOCOL_VERSION)" in p58_net)
+    route_at = p58_bridge.find("switch (LmNativeNetwork.route(player, wire))")
+    check("each menu goes on exactly one channel: native first, else the unchanged bridge send",
+          route_at > 0 and p58_bridge.find("CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), wire);") > route_at
+          and "LmNativeNetwork.sendOpen(player, wire);" in p58_bridge and "public static Route decide(" in p58_net)
+    # A KaiPath-only client can list LM channel names in minecraft:register; only the handshake counts.
+    check("LM client detected from the Forge login handshake only (mod list + channel)",
+          "data.getChannels().containsKey(CHANNEL_ID)" in p58_net
+          and "data.getModList().contains(AdaptiveDifficultyMod.MOD_ID)" in p58_net
+          and "isRemotePresent" not in p58_net)
+    check("a menu the LM client cannot fully draw falls back to KaiPath",
+          "if (kaipath) {" in p58_net and "Route.REFUSE" in p58_net
+          and '"combined.forms.v1"' in p58_proto and "FEATURE_FORMS" in p58_proto
+          and '"combined.forms.v1",' not in p58_proto.split("CLIENT_FEATURES = List.of(")[1].split(");")[0])
+    check("requireLmClient ships off and turns away a no-client login with a plain message",
+          "public boolean requireLmClient = false;" in p58_cfg
+          and "rejectWithoutClient(" in p58_events
+          and p58_events.find("rejectWithoutClient(") < p58_events.find("logClientGuiCapability(player)")
+          and "This server needs the Legacy Mechanics client mod." in p58_net)
+    check("client classes stay isolated: booted by name on a game client, compiled in their own pass",
+          'CLIENT_BOOT_CLASS = "com.dbzlegacy.adaptivedifficulty.client.LmClient";' in p58_mod
+          and "import com.dbzlegacy.adaptivedifficulty.client" not in p58_mod
+          and "-not -path \"*/$CLIENT_PKG/*\"" in p58_build and "@$CLIENT_LIST" in p58_build
+          and "LmGuiNetwork" not in p58_client)
+    check("native renderer: locked buttons inert, spin resets forward, scale-to-fit with a 0.5x floor",
+          'NO_ACTION = "nav:none";' in p58_screen and "if (isNoAction(b.id())) {" in p58_screen
+          # 4.7.60: front-facing is explicit (body yaw 180, front toward the viewer, never the back).
+          and "yaw = LmNativeProtocol.spinAfterPacket(yaw, rotate);" in p58_model
+          and "LmNativeProtocol.previewFacing(yaw)" in p58_model
+          and "PREVIEW_FRONT_YAW = 180f;" in p58_proto and "return rotate ? spin : 0f;" in p58_proto
+          and "NativeMenuFit.place(" in p58_screen
+          and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
+    check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
+          and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.60 ---")
+    p60_skin = read(SRC / "gui/ultra/SaiyanRoyal.java")
+    p60_style = read(SRC / "gui/ultra/UltraStyle.java")
+    p60_screen = read(SRC / "client/NativeMenuScreen.java")
+    p60_net = read(SRC / "net/gui/LmGuiNetwork.java")
+    check("manifest row for lm 4.7.60", "lm-4760-saiyan-royal" in manifest)
+    check("Saiyan Royal palette defined once with the owner's hex values",
+          'PANEL_HEX = "#160b0d";' in p60_skin and 'CRIMSON_HEX = "#e23b3b";' in p60_skin
+          and 'GOLD_TRIM_HEX = "#f0b429";' in p60_skin and 'TEXT_HEX = "#f6e8e4";' in p60_skin
+          and 'NAME = "saiyan_royal";' in p60_skin)
+    check("skin on every menu natively; system accents keep their hue; bridge keeps the 4.7.57 letters",
+          "return screenId != null;" in p60_skin and "case 'c' -> CRIMSON;" in p60_skin
+          and "case '3' -> 0x00AAAA;" in p60_skin and "case 'f' -> 0xFFFFFF;" in p60_skin
+          and "BRIDGE_ACCENT = 'c';" in p60_skin
+          and "BRIDGE_HEADER = '6';" in p60_skin
+          and 'case "difficulty" -> String.valueOf(BRIDGE_ACCENT);' in p60_skin
+          and 'case "rival" -> "f";' in p60_skin and 'case "spar" -> "3";' in p60_skin
+          and 'case "prestige" -> "b";' in p60_skin and 'case "character" -> "a";' in p60_skin
+          and "BRIDGE_LABEL = '7';" in p60_skin and "BRIDGE_VALUE = 'f';" in p60_skin)
+    # Menu builders read the skin: one table for chrome letters and system accents, bytes pinned literally.
+    check("menu builders take chrome and accents from SaiyanRoyal; self-test pins the 4.7.57 bytes",
+          "return SaiyanRoyal.bridgeAccent(screenId);" in p60_style
+          and "HEADER = MARK + SaiyanRoyal.BRIDGE_HEADER + BOLD;" in p60_style
+          and "LABEL = MARK + SaiyanRoyal.BRIDGE_LABEL;" in p60_style
+          and "VALUE = MARK + SaiyanRoyal.BRIDGE_VALUE;" in p60_style
+          and 'ACCENT_RIVAL = MARK + SaiyanRoyal.bridgeAccent("rival");' in p60_style
+          and '!UltraStyle.HEADER.equals(m + "6" + m + "l")' in p60_skin)
+    check("native renderer: rounded panel with shadow and gold border, rounded buttons; clicks keep the rectangle",
+          "PANEL_BG" not in p60_screen and "drawSkinButton(g, b, hover, down && !inert, inert, style, isActiveTab(b));" in p60_screen
+          and "accentRgb = sys >= 0 ? sys : paletteRgb(palette, SaiyanRoyal.GOLD_TRIM);" in p60_screen
+          and "private void drawPanel(GuiGraphics g)" in p60_screen
+          and "SaiyanRoyal.AMBIENT_RINGS" in p60_screen and "static void fillRounded(" in p60_screen
+          and "fillRounded(g, bx, by, w, h, r, edge);" in p60_screen
+          and "return x >= b.x() && x < b.x() + b.w() && y >= b.y() && y < b.y() + b.h();" in p60_screen)
+    check("depth: layered panel shadow, gradient, raised buttons sink 2px, inset boxes, glossy bars, tab glow",
+          "PANEL_RADIUS = 14;" in p60_skin and "PRESS_SINK = 2;" in p60_skin
+          and "SaiyanRoyal.KEY_RINGS" in p60_screen and "SaiyanRoyal.panelTop()" in p60_screen
+          and "SaiyanRoyal.buttonOffset(pressed, activeTab)" in p60_screen
+          and "SaiyanRoyal.EDGE_HIGHLIGHT" in p60_screen and "SaiyanRoyal.EDGE_SHADE" in p60_screen
+          and "static void insetBox(" in p60_screen and "private void drawInfoBox(" in p60_screen
+          and "glossy(g, x + 1, ty + 1, fw, h - 2" in p60_screen
+          and "glow(g, bx, by, w, h, r, SaiyanRoyal.GOLD_TRIM" in p60_screen
+          and "buttonOffset(true, false) != 2" in p60_skin
+          # Labels inked in the button's own accent draw in the skin text (the accent is on the edge).
+          and "SaiyanRoyal.accentHex(label.charAt(1)) == buttonTint(b)" in p60_screen)
+    # tools/lm-ui-probe/analyze_look.py reads these fields; keep the dump and the analyzer in step.
+    check("native layout dump carries button face/ink/cut and body ink/background for the rig's look check",
+          'face=%06X ink=%06X cut=%s' in p60_screen and '"I %d ink=%06X bg=%06X"' in p60_screen
+          and "private int[] faceAndEdge(" in p60_screen)
+    check("skin self-test pins the palette, the accent mapping and the shape math at boot",
+          "SaiyanRoyal.selfTest()" in p60_net and "public static List<String> selfTest()" in p60_skin)
+
+    print("\n--- § lm 4.7.59 ---")
+    p59_mom = read(SRC / "progression/Momentum.java")
+    p59_trial = read(SRC / "service/DifficultyTrial.java")
+    p59_guide = read(SRC / "gui/ultra/DifficultyGuide.java")
+    p59_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    p59_cfg = read(SRC / "config/DifficultyConfig.java")
+    p59_events = read(SRC / "event/DifficultyEvents.java")
+    p59_hit = read(SRC / "mixin/StatsEventsHitTakenMasteryMixin.java")
+    p59_pot = read(SRC / "mixin/PotionEffectHelperHitTakenMasteryMixin.java")
+    p59_char = read(SRC / "progression/shop/PrestigeCharacter.java")
+    p59_act = read(SRC / "service/DifficultyActions.java")
+    check("manifest row for lm 4.7.59", "lm-4759-momentum-guide" in manifest)
+    check("Momentum config ships with the brief's defaults",
+          "public boolean momentumEnabled = true;" in p59_cfg and "public int momentumSecondsPerKill = 10;" in p59_cfg
+          and "public int momentumMaxBankSeconds = 300;" in p59_cfg
+          and "public double momentumMasteryMultiplier = 1.5;" in p59_cfg)
+    check("Momentum banks on difficulty mob kills only, never chamber wave foes",
+          "return hostile && difficultyScaled && !chamberWaveFoe;" in p59_mom
+          and "MobScaling.isAdPainted(mob)" in p59_mom and "ChamberKillMastery.WAVE_FOE" in p59_mom
+          and "Momentum.onDeath(event);" in p59_events)
+    check("Momentum multiplies only the attacker's hit mastery on difficulty mobs",
+          "Momentum.begin(event);" in p59_hit and "Momentum.end();" in p59_hit
+          and "Momentum.scale(entity, scaled);" in p59_pot
+          and "!qualifies(event.getEntity())" in p59_mom)
+    check("Momentum is per character and session-only (logout, slot switch)",
+          "Momentum.clear(player);" in p59_events and "Momentum.clear(player);" in p59_char
+          and "PrestigeCharacter.id(player)" in p59_mom)
+    check("free trial: 5 minutes, one per tier per character, reverts to the previous tier",
+          "TRIAL_MILLIS = 5L * 60L * 1000L;" in p59_trial
+          and "return currentActive == trialTier ? Math.max(0, prev) : currentActive;" in p59_trial
+          and "LmPlayerStore.root(PrestigeCharacter.id(player))" in p59_trial
+          and "DifficultyTrial.pulse(server)" in p59_events and "case ACT_TRIAL ->" in p59_act)
+    check("recommended tier: highest met, Tier 1 with no tier",
+          "if (activeTier <= 0) {\n            return 1;" in p59_guide.replace("\r\n", "\n")
+          and "DifficultyGuide.recommend(active, highestEligible)" in p59_diff)
+    check("guide flow: 3 steps with dots, Back in the left slot, detail page with before/after and trial",
+          'stepHeader(spec, 1, "What is Difficulty")' in p59_diff and 'stepHeader(spec, 2, "Pick your level")' in p59_diff
+          and 'stepHeader(spec, 3, "Your tier")' in p59_diff and 'footerBackOnly("nav:hub", "main menu")' in p59_diff
+          and '"Try one fight free"' in p59_diff and 'labelValue("Enemy damage"' in p59_diff
+          and 'labelValue("TP earned"' in p59_diff and 'labelValue("Mastery gain"' in p59_diff
+          and 'spec.lockedButton("Summon locked")' in p59_diff)
+
     print("\n--- § lm 4.7.57 ---")
     p57_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
     p57_style = read(SRC / "gui/ultra/UltraStyle.java")
@@ -1966,7 +2110,8 @@ def main() -> int:
           'String action = "page:tier_ask:" + t;' in p57_diff
           and 'spec.labelValue("T" + t + " " + ut.display, view.line());' not in p57_diff
           and "Only tiers you can" not in p57_diff and "tappable.add(t)" not in p57_diff
-          and 'UltraStyle.dim("T" + t + " - Locked")' in p57_diff)
+          # 4.7.59: locked caption names the tier (T5 Master - Locked).
+          and 'UltraStyle.dim(name + " - Locked")' in p57_diff)
     check("tier detail page covers every tier; switch down confirms with Switch to T#",
           '"Switch to T" + t' in p57_diff and '"Needs"' in p57_diff
           and "Lower tiers are free - pick T" not in p57_diff
@@ -2382,7 +2527,8 @@ def main() -> int:
           and "LmOverhaulCapMath" not in p46_tier and "OverhaulScale" not in p46_tier)
     # 4.7.57 retired the per-tier state lines: one button per tier, each opens its detail page.
     check("Tiers page: one button per tier, state shown by the caption (4.7.57 replaced the state lines)",
-          "PurchaseState.View view = UltraDifficultyTierUi.tierView(player, t, active, unlocked, eligible);" in p46_diff
+          # 4.7.59: caption from placeTierButton (You are here / Recommended / Locked), no state lines.
+          "private static void placeTierButton(" in p46_diff and '" - You are here"' in p46_diff
           and "if (view.state().tappable()) {" not in p46_diff)
     p46_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
     p46_svc = read(SRC / "character/CosmeticBodyPartService.java")

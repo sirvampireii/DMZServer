@@ -221,16 +221,19 @@ public final class LmGuiNetwork {
             return;
         }
         boolean kaipath = clientHasKaiPath(player);
+        boolean lmClient = LmNativeNetwork.hasNativeClient(player);
         LmLog.event(
-                "[{}] login GUI probe player={} kaipath={} channel={}:{} protocol={} guiBackend={}",
+                "[{}] login GUI probe player={} kaipath={} lmClient={} channel={}:{} protocol={} guiBackend={}",
                 AdaptiveDifficultyMod.MOD_ID,
                 safeName(player),
                 kaipath,
+                lmClient,
                 CHANNEL_NAMESPACE,
                 CHANNEL_PATH,
                 PROTOCOL_VERSION,
                 com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig.get().guiBackend);
         if (!kaipath
+                && !lmClient
                 && com.dbzlegacy.adaptivedifficulty.gui.GuiBackend.fromConfig()
                         == com.dbzlegacy.adaptivedifficulty.gui.GuiBackend.ULTRA) {
             AdaptiveDifficultyMod.LOGGER.warn(
@@ -293,6 +296,8 @@ public final class LmGuiNetwork {
                 .decoder(GuiModelSyncPacket::decode)
                 .consumerMainThread(GuiModelSyncPacket::handle)
                 .add();
+        // 4.7.58: the LM client's own menu channel (legacymechanics:native_ui), next to the bridge.
+        LmNativeNetwork.register();
         validateBuilderScreenIdsAtStartup();
         // 4.7.46: detect the installed DMZ Ultra and pick the body-parts catalog before any
         // screen or model sync reads it; one boot line names both.
@@ -311,6 +316,33 @@ public final class LmGuiNetwork {
                     AdaptiveDifficultyMod.MOD_ID, e.getMessage(), e);
         }
         runPacketRoundTripSelfTest();
+        // 4.7.58: native client channel, codecs, routing and scale-to-fit pins.
+        try {
+            LmNativeSelfTest.run();
+        } catch (RuntimeException e) {
+            if (Boolean.getBoolean("lm.selftest.strict")) {
+                throw e;
+            }
+            AdaptiveDifficultyMod.LOGGER.error("[{}] {}", AdaptiveDifficultyMod.MOD_ID, e.getMessage(), e);
+        }
+        // 4.7.59: Momentum timer and hit rule, free trial revert, and the guide's recommendation rule.
+        java.util.List<String> guideBroken = new java.util.ArrayList<>();
+        guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.progression.Momentum.selfTest());
+        guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.selfTest());
+        guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.DifficultyGuide.selfTest());
+        // 4.7.60: Saiyan Royal skin constants, bridge accent mapping and the native shape math.
+        guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.SaiyanRoyal.selfTest());
+        if (!guideBroken.isEmpty()) {
+            String msg = "Momentum / trial / guide / skin self-test FAILED: " + String.join("; ", guideBroken);
+            if (Boolean.getBoolean("lm.selftest.strict")) {
+                throw new IllegalStateException(msg);
+            }
+            AdaptiveDifficultyMod.LOGGER.error("[{}] {}", AdaptiveDifficultyMod.MOD_ID, msg);
+        } else {
+            AdaptiveDifficultyMod.LOGGER.info(
+                    "[{}] Momentum / free trial / guide / skin self-test OK (timer, kill rule, hit scaling, revert, recommendation, Saiyan Royal)",
+                    AdaptiveDifficultyMod.MOD_ID);
+        }
         AdaptiveDifficultyMod.LOGGER.info(
                 "[{}] Ultra GUI bridge ready channel={} protocol={} — KaiPath {}+ dynamic UI "
                         + "(any screenId; no hub shim). Recommended KaiPath {}; "
@@ -721,6 +753,23 @@ public final class LmGuiNetwork {
                 wire.activeTab(),
                 UltraClientFeatures.summarizeForStaff(player));
         validatePanelBounds(wire);
+        // 4.7.58: the LM client draws the menu itself when it can; one channel per menu, never both.
+        switch (LmNativeNetwork.route(player, wire)) {
+            case NATIVE -> {
+                LmNativeNetwork.sendOpen(player, wire);
+                return;
+            }
+            case REFUSE -> {
+                com.dbzlegacy.adaptivedifficulty.util.DmzRewards.msg(
+                        player,
+                        com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.dangerLine(
+                                "This menu needs a newer Legacy Mechanics client. Update the mod, or install KaiPath."));
+                return;
+            }
+            default -> {
+                // KaiPath bridge, byte-identical to 4.7.57.
+            }
+        }
         if (FEATURE_GAP_WARNED.add(player.m_20148_())) {
             UltraClientFeatures.warnMissingOptionalFeatures(player, "GuiOpenPacket");
         }
@@ -733,6 +782,7 @@ public final class LmGuiNetwork {
             return;
         }
         UltraClientFeatures.clear(player);
+        LmNativeNetwork.clear(player);
         FEATURE_GAP_WARNED.remove(player.m_20148_());
         MODEL_SYNCED.remove(player.m_20148_());
         MODEL_SYNC_PENDING.remove(player.m_20148_());
@@ -1159,7 +1209,7 @@ public final class LmGuiNetwork {
         }
     }
 
-    private static Connection connectionOf(ServerPlayer player) {
+    static Connection connectionOf(ServerPlayer player) {
         try {
             ServerGamePacketListenerImpl listener = player.f_8906_;
             if (listener == null) {

@@ -460,7 +460,8 @@ public final class UltraClientFeatures {
     }
 
     public static boolean hasTextInput(ServerPlayer player) {
-        return get(player).has(FEATURE_TEXT_INPUT);
+        // 4.7.58: the LM client draws text fields (protocol-1 feature textInput).
+        return get(player).has(FEATURE_TEXT_INPUT) || LmNativeNetwork.hasNativeClient(player);
     }
 
     /** Human-readable impact lines for missing features. */
