@@ -83,9 +83,12 @@ def main(out, base=None):
     rec = {}
     for m in re.finditer(r"^REC (\S+) .*?\n(?:  .*\n)*?  N M .* rotate=(\w+) yaw=([\d.-]+)", client, re.M):
         rec[m.group(1)] = (m.group(2), float(m.group(3)))
+    interrupted = re.findall(r"^REC (rot\S+) class=(?!\S*NativeMenuScreen)(\S+)", client, re.M)
     stop = rec.get("rot4-stopped-after-back")
     back = rec.get("rot3-spun-to-back")
-    if not stop:
+    if interrupted:
+        row("spin stop is front-facing", False, f"check interrupted: {interrupted[:2]} was on screen instead of the menu")
+    elif not stop:
         row("spin stop is front-facing", None, "no spin records")
     else:
         row("spin stop is front-facing", stop == ("false", 0.0) and back is not None and back[0] == "true",
