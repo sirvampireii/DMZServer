@@ -638,11 +638,25 @@ public final class NativeMenuScreen extends Screen {
         }
         boolean muted = "dim".equals(style);
         FormattedCharSequence seq = NativeText.fit(this.f_96547_,
-                NativeText.parse(b.label(), SaiyanRoyal.TEXT, muted, false, true), Math.max(8, maxW));
+                NativeText.parse(labelInk(b), SaiyanRoyal.TEXT, muted, false, true), Math.max(8, maxW));
         int tw = this.f_96547_.m_92724_(seq);
         int tx = left + Math.max(0, (maxW - tw) / 2);
         int ty = by + (h - 8) / 2;
         g.m_280649_(this.f_96547_, seq, tx, ty, 0xFFFFFF, !muted);
+    }
+
+    /**
+     * Label text to draw. The spec inks a label in its system accent; the skin already puts that accent on
+     * the button edge, so a label whose leading ink is the button's own accent draws in the skin text color
+     * (readable on green confirm and deep red faces). Any other ink, and dim labels, stay as sent.
+     */
+    private String labelInk(Btn b) {
+        String label = b.label() == null ? "" : b.label();
+        if (label.length() >= 2 && label.charAt(0) == NativeText.MARK
+                && SaiyanRoyal.accentHex(label.charAt(1)) == buttonTint(b)) {
+            return label.substring(2);
+        }
+        return label;
     }
 
     /** Optional button icon: an item id draws that item small; a texture path draws the texture. */

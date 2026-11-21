@@ -2036,7 +2036,9 @@ def main() -> int:
           and "static void insetBox(" in p60_screen and "private void drawInfoBox(" in p60_screen
           and "glossy(g, x + 1, ty + 1, fw, h - 2" in p60_screen
           and "glow(g, bx, by, w, h, r, SaiyanRoyal.GOLD_TRIM" in p60_screen
-          and "buttonOffset(true, false) != 2" in p60_skin)
+          and "buttonOffset(true, false) != 2" in p60_skin
+          # Labels inked in the button's own accent draw in the skin text (the accent is on the edge).
+          and "SaiyanRoyal.accentHex(label.charAt(1)) == buttonTint(b)" in p60_screen)
     check("skin self-test pins the palette, the accent mapping and the shape math at boot",
           "SaiyanRoyal.selfTest()" in p60_net and "public static List<String> selfTest()" in p60_skin)
 
