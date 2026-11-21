@@ -200,6 +200,11 @@ Advertise (KaiPath **1.5.1**, live — eighteen ids; the first fifteen shipped o
 ["style","activeTab","titleAlign","playerModel","textInput","headerBottom","accent","palette","sound","buttonSkin","frame","pagedBook","portraitFrame","fixedFooter","combined.forms.v1","icon","bodyParts","bodyPartsSync"]
 ```
 
+LM native client (channel `legacymechanics:native_ui`, LM 4.7.61): its hello lists the eighteen ids in
+`LmNativeProtocol.CLIENT_FEATURES`, plus `combined.forms.v1` when DragonMineZ is installed and `bodyParts`
+when DMZUltra's FormParts is installed. With both, Character Services > Preview forms (a made-up figure in a
+form) opens natively; without them it falls back to KaiPath as before.
+
 `icon` is no longer pending. Stock 1.3.17 stops before it and is reported as a shipped-client gap. The reference kit (`tools/ultra-gui-kit/`) also advertises `"bodyParts"` after `icon`, and official KaiPath 1.3.29 does too. A missing `bodyParts` advertisement (pre-1.3.29 clients) is now a shipped-client warning (`missingShipped=bodyParts`). Clients that never advertise `bodyParts` still draw the base entity.
 
 **Spelling split:** GuiFeatures advertise uses camelCase **`pagedBook`**; the widget `type` string is snake_case **`paged_book`**.

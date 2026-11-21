@@ -124,7 +124,9 @@ public final class LmNativeNetwork {
     /** Client: tell the server this client draws menus natively, and what it draws. */
     public static void sendHello(String clientVersion) {
         if (channel != null) {
-            channel.sendToServer(new NativeHelloPacket(clientVersion, LmNativeProtocol.clientFeaturesJson()));
+            channel.sendToServer(new NativeHelloPacket(clientVersion,
+                    LmNativeProtocol.clientFeaturesJson(LmNativeProtocol.clientDrawsForms(),
+                            LmNativeProtocol.clientDrawsBodyParts())));
         }
     }
 

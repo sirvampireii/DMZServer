@@ -1,0 +1,14 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.dbzlegacy.adaptivedifficulty.client.mixin",
+  "plugin": "com.dbzlegacy.adaptivedifficulty.mixin.LegacyMechanicsMixinPlugin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "FormPartsPreviewMixin",
+    "RaceTailSuppressMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

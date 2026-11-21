@@ -82,6 +82,7 @@ final class NativeModelPreview {
         }
         AbstractClientPlayer cached = STAND_INS.get(id);
         if (cached != null) {
+            NativeFormLook.apply(cached, parts);
             return cached;
         }
         PlayerInfo info = mc.m_91403_() == null ? null : mc.m_91403_().m_104949_(id);
@@ -89,6 +90,8 @@ final class NativeModelPreview {
                 ? new RemotePlayer(level, info.m_105312_())
                 : new StandIn(level, new GameProfile(id, "Preview"), viewer);
         STAND_INS.put(id, made);
+        // 4.7.61: a made-up figure wears the race and form the menu names (Preview forms).
+        NativeFormLook.apply(made, parts);
         return made;
     }
 
@@ -121,7 +124,8 @@ final class NativeModelPreview {
      * Draw {@code entity} standing in the box ({@code x,y,w,h} in the current pose), feet at the
      * bottom. {@code scale} is the spec's entity scale (1 = fill the box height).
      */
-    static void render(GuiGraphics g, int x, int y, int w, int h, float scale, boolean rotate, LivingEntity entity) {
+    static void render(GuiGraphics g, int x, int y, int w, int h, float scale, boolean rotate, LivingEntity entity,
+            JsonObject parts) {
         if (rotate) {
             long now = System.nanoTime();
             if (lastNanos != 0L) {
@@ -156,9 +160,12 @@ final class NativeModelPreview {
         entity.f_20885_ = facing;
         entity.f_20886_ = facing;
         drawing = entity;
+        // 4.7.61: the preview's bodyParts join DMZUltra's look while this figure draws (FormPartsPreviewMixin).
+        BodyPartPreview.begin(entity, parts);
         try {
             InventoryScreen.m_280432_(g, cx, feet, size, pose, camera, entity);
         } finally {
+            BodyPartPreview.end();
             drawing = null;
             entity.f_20883_ = bodyRot;
             entity.f_20884_ = bodyRotO;
@@ -174,6 +181,7 @@ final class NativeModelPreview {
     /** Drop stand-ins (logout / new world). */
     static void clear() {
         STAND_INS.clear();
+        NativeFormLook.clear();
         standInLevel = null;
         yaw = 0f;
         lastNanos = 0L;

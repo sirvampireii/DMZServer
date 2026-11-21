@@ -186,11 +186,46 @@ public final class LmNativeProtocol {
 
     /** JSON array of {@link #CLIENT_FEATURES}, as the client sends it. */
     public static String clientFeaturesJson() {
+        return clientFeaturesJson(false, false);
+    }
+
+    /**
+     * LM 4.7.61: {@link #CLIENT_FEATURES} plus what the installed mods let the LM client draw on a made-up
+     * preview figure: {@link #FEATURE_FORMS} with DragonMineZ (race and form on the stand-in) and
+     * {@link #FEATURE_BODY_PARTS} with DMZUltra (bodyParts merged into its FormParts look). With both,
+     * Character Services Preview forms opens natively instead of falling back to KaiPath.
+     */
+    public static String clientFeaturesJson(boolean forms, boolean bodyParts) {
         JsonArray a = new JsonArray();
         for (String f : CLIENT_FEATURES) {
             a.add(f);
         }
+        if (forms) {
+            a.add(FEATURE_FORMS);
+        }
+        if (bodyParts) {
+            a.add(FEATURE_BODY_PARTS);
+        }
         return a.toString();
+    }
+
+    /** Client: the DragonMineZ stats capability is installed (a stand-in can wear a race and form). */
+    public static boolean clientDrawsForms() {
+        return classPresent("com/dragonminez/common/stats/StatsCapability.class");
+    }
+
+    /** Client: DMZUltra's FormParts is installed (bodyParts can join the look). */
+    public static boolean clientDrawsBodyParts() {
+        return classPresent("com/dmzultra/client/forms/FormParts.class");
+    }
+
+    private static boolean classPresent(String resource) {
+        try {
+            ClassLoader loader = LmNativeProtocol.class.getClassLoader();
+            return loader != null && loader.getResource(resource) != null;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     static JsonArray array(String json) {

@@ -182,8 +182,17 @@ public final class NativeMenuScreen extends Screen {
             }
             JsonObject args = b.has("args") && b.get("args").isJsonObject() ? b.getAsJsonObject("args").deepCopy()
                     : new JsonObject();
+            int bx = num(b, "x", EDGE);
+            int by = num(b, "y", 0);
+            int bw = Math.max(1, num(b, "w", 80));
+            int bh = Math.max(8, num(b, "h", 16));
+            if (bool(b, "footer", false)) {
+                int[] pin = pinFooter(bx, by, bw, bh, panelW, panelH);
+                bx = pin[0];
+                by = pin[1];
+            }
             serverButtons.add(new Btn(Kind.SERVER, id, str(b, "label", id), str(b, "style", "normal"),
-                    num(b, "x", EDGE), num(b, "y", 0), Math.max(1, num(b, "w", 80)), Math.max(8, num(b, "h", 16)),
+                    bx, by, bw, bh,
                     Math.max(0, num(b, "pad", 8)), args, str(b, "sound", ""), str(b, "icon", ""),
                     str(b, "accent", ""), str(b, "palette", ""), ""));
         }
@@ -234,8 +243,8 @@ public final class NativeMenuScreen extends Screen {
             box.m_94182_(false);
             box.m_94199_(f.maxLength());
             box.m_94144_(typed.getOrDefault(f.id(), f.value()));
-            if (!f.placeholder().isBlank()) {
-                box.m_257771_(Component.m_237113_(f.placeholder()));
+            if (!fieldHint(f).isBlank()) {
+                box.m_257771_(Component.m_237113_(fieldHint(f)));
             }
             boxes.put(f.id(), box);
         }
@@ -266,6 +275,13 @@ public final class NativeMenuScreen extends Screen {
      * use that spot (the config editor's pinned footer) gets it bottom left, else top right.
      */
     private int[] closeSpot() {
+        // 4.7.61: a pinned footer owns the bottom band's right end; Close takes the left end of the same row,
+        // at the same height, so the band reads as one footer.
+        for (Btn b : serverButtons) {
+            if (b.y() >= panelH - CLOSE_BAND && free(EDGE, b.y(), 80, b.h())) {
+                return new int[] {EDGE, b.y(), b.h()};
+            }
+        }
         int[][] spots = {
             {panelW - EDGE - 80, panelH - CLOSE_BAND + 6, 16},
             {EDGE, panelH - CLOSE_BAND + 6, 16},
@@ -277,6 +293,35 @@ public final class NativeMenuScreen extends Screen {
             }
         }
         return spots[2];
+    }
+
+    /**
+     * LM 4.7.61: a {@code footer:true} button the server placed on the design box's edge (the config editor
+     * sends margin 0, so its footer sat on the bottom-right corner, cut by the rounded border) moves into the
+     * bottom band, {@link #EDGE} inside the right border. A footer already clear of the edges stays put.
+     */
+    static int[] pinFooter(int x, int y, int w, int h, int panelW, int panelH) {
+        if (y + h > panelH - EDGE) {
+            y = panelH - CLOSE_BAND + 6;
+        }
+        if (x + w > panelW - EDGE) {
+            x = Math.max(EDGE, panelW - EDGE - w);
+        }
+        return new int[] {Math.max(EDGE, x), y};
+    }
+
+    /**
+     * LM 4.7.61: the grey hint inside an empty field, shortened with "..." to the field's inner width. The
+     * EditBox draws its hint unclipped, so "Search by name" ran under the Search button on the config editor.
+     */
+    private String fieldHint(Field f) {
+        String hint = f.placeholder() == null ? "" : f.placeholder();
+        int room = f.w() - 8;
+        if (hint.isBlank() || this.f_96547_.m_92895_(hint) <= room) {
+            return hint;
+        }
+        String cut = this.f_96547_.m_92834_(hint, Math.max(0, room - this.f_96547_.m_92895_("...")));
+        return cut.stripTrailing() + "...";
     }
 
     private boolean free(int x, int y, int w, int h) {
@@ -536,7 +581,8 @@ public final class NativeMenuScreen extends Screen {
             return;
         }
         float scale = model.has("scale") ? (float) dbl(model, "scale", 1.0) : 1f;
-        NativeModelPreview.render(g, x, y, w, h, scale, bool(model, "rotate", false), entity);
+        NativeModelPreview.render(g, x, y, w, h, scale, bool(model, "rotate", false), entity,
+                model.has("parts") && model.get("parts").isJsonObject() ? model.getAsJsonObject("parts") : null);
     }
 
     private void drawBook(GuiGraphics g, Book b) {
@@ -685,6 +731,13 @@ public final class NativeMenuScreen extends Screen {
         String label = b.label() == null ? "" : b.label();
         if (label.length() >= 2 && label.charAt(0) == NativeText.MARK
                 && SaiyanRoyal.accentHex(label.charAt(1)) == buttonTint(b)) {
+            return label.substring(2);
+        }
+        // 4.7.61: the bridge darkens yellow and gold labels to dark gray for KaiPath's light button face. On the
+        // skin's dark face that gray is the disabled look, so a live button (Skills' Back to main menu) read as
+        // locked. A live button's dark-gray label draws in skin text; dim and locked buttons keep the gray.
+        if (label.length() >= 2 && label.charAt(0) == NativeText.MARK && label.charAt(1) == '8'
+                && !"dim".equalsIgnoreCase(b.style()) && !(b.kind() == Kind.SERVER && isNoAction(b.id()))) {
             return label.substring(2);
         }
         return label;
@@ -1079,8 +1132,9 @@ public final class NativeMenuScreen extends Screen {
                     firstInk(label, SaiyanRoyal.TEXT, muted), cut));
         }
         for (Field f : fields) {
-            out.add(String.format(Locale.ROOT, "T %.1f %.1f %.1f %.1f %s", place.x() + f.x() * scale(),
-                    originY() + f.y() * scale(), f.w() * scale(), f.h() * scale(), f.id()));
+            out.add(String.format(Locale.ROOT, "T %.1f %.1f %.1f %.1f %s hint=\"%s\" hintw=%d room=%d",
+                    place.x() + f.x() * scale(), originY() + f.y() * scale(), f.w() * scale(), f.h() * scale(), f.id(),
+                    fieldHint(f), this.f_96547_.m_92895_(fieldHint(f)), f.w() - 8));
         }
         for (Book b : books) {
             out.add(String.format(Locale.ROOT, "K %.1f %.1f %.1f %.1f %s page=%d", place.x() + b.x() * scale(),

@@ -111,8 +111,8 @@ public final class GuiModelSyncPacketTest {
         // The race tail mesh is dropped from the merged look before the chosen pieces go in,
         // so the FormParts path cannot re-add what the race layer draws.
         FormParts.Design raced =
-                new FormParts.Design(Set.of(BodyPartWire.SAIYAN_TAIL_MESH), 1, 2, 3, 4, 0f, 0f);
-        FormParts.Look racedLook = new FormParts.Look(raced, 1, 2, 3);
+                new FormParts.Design(Set.of(BodyPartWire.SAIYAN_TAIL_MESH), 1, 2, 3, 4, 0f, 0f, null);
+        FormParts.Look racedLook = new FormParts.Look(raced, 1, 2, 3, java.util.List.of());
         Object merged = BodyPartPreview.mergeLook(racedLook, resolved, null, shopJson);
         assertTrue(merged instanceof FormParts.Look, "shop-tail merge must build a Look");
         Set<String> parts = ((FormParts.Look) merged).design().parts();
@@ -386,8 +386,8 @@ public final class GuiModelSyncPacketTest {
 
         // A remote player's reflective read comes back gray — seed exactly that.
         FormParts.Design grayDesign =
-                new FormParts.Design(Set.of(), 0x808080, 0x808080, 0x808080, 0x808080, 0f, 0f);
-        FormParts.Look gray = new FormParts.Look(grayDesign, 0x808080, 0x808080, 0x808080);
+                new FormParts.Design(Set.of(), 0x808080, 0x808080, 0x808080, 0x808080, 0f, 0f, null);
+        FormParts.Look gray = new FormParts.Look(grayDesign, 0x808080, 0x808080, 0x808080, java.util.List.of());
 
         Object merged =
                 BodyPartPreview.mergeLook(

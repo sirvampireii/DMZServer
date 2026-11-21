@@ -140,14 +140,16 @@ public final class UltraDifficultyScreens {
      */
     private static void openHome(ServerPlayer player) {
         DifficultySnapshot snap = DifficultyCache.refresh(player);
-        String tierName = snap == null || snap.activeTier <= 0 ? "No tier active yet. Pick one in Step 2." : "T" + snap.activeTier + " " + snap.activeTierName;
+        String tierName = snap == null || snap.activeTier <= 0 ? "No tier yet. Pick one in Step 2." : "T" + snap.activeTier + " " + snap.activeTierName;
         UltraScreenSpec spec = base(player, "main", "home");
         stepHeader(spec, 1, "What is Difficulty");
         spec.line(UltraStyle.VALUE + "Difficulty makes the mobs near you fight at a level you pick, and pays you more for it.")
-                .labelValue("Stronger enemies", "Mobs near you scale to your tier")
-                .labelValue("Bigger rewards", "More TP per kill, plus Momentum mastery")
-                .labelValue("Change anytime", "Switching to a lower tier is always free")
-                .labelValue("Your tier", tierName)
+                // 4.7.61: "Label: value" rows that each fit one line (the colon separates the gray label from the
+                // white text over KaiPath too; the old copy ran on and left "mastery" and "free" alone on a line).
+                .labelValue("Stronger enemies:", "mobs near you match your tier")
+                .labelValue("Bigger rewards:", "more TP per kill, plus Momentum")
+                .labelValue("Change anytime:", "lowering your tier is free")
+                .labelValue("Your tier:", tierName)
                 .buttonsAfterLines();
         spec.button("page:tiers", UltraStyle.confirm("Next: Pick your level"), UltraStyle.STYLE_CONFIRM).rowGap();
         spec.footerBackOnly("nav:hub", "main menu");
@@ -164,12 +166,12 @@ public final class UltraDifficultyScreens {
     private static void momentumLines(UltraScreenSpec spec, ServerPlayer player) {
         DifficultyConfig cfg = DifficultyConfig.get();
         if (!cfg.momentumEnabled) {
-            spec.labelValue("Momentum", "Off on this server");
+            spec.labelValue("Momentum:", "Off on this server");
             return;
         }
         long left = com.dbzlegacy.adaptivedifficulty.progression.Momentum.remainingMillis(player);
         long max = cfg.momentumMaxBankSeconds * 1000L;
-        spec.labelValue("Momentum", com.dbzlegacy.adaptivedifficulty.progression.Momentum.clock(left) + " banked of "
+        spec.labelValue("Momentum:", com.dbzlegacy.adaptivedifficulty.progression.Momentum.clock(left) + " banked of "
                         + com.dbzlegacy.adaptivedifficulty.progression.Momentum.clock(max))
                 .line(UltraStyle.color(left > 0L ? "a" : "8", DifficultyGuide.bar(left, max, 24)))
                 .line(UltraStyle.LABEL + "Beat difficulty mobs to bank Mastery Boost time (+"
@@ -189,14 +191,14 @@ public final class UltraDifficultyScreens {
         int active = data == null ? 0 : data.getActiveTier();
         UltraScreenSpec spec = base(player, "your_tier", "home");
         stepHeader(spec, 3, "Your tier");
-        spec.labelValue("Tier", active <= 0 || snap == null ? "No tier active yet. Pick one in Step 2."
+        spec.labelValue("Tier:", active <= 0 || snap == null ? "No tier yet. Pick one in Step 2."
                         : "T" + active + " " + snap.activeTierName)
-                .labelValue("Difficulty", personal ? "ON" : "OFF");
+                .labelValue("Difficulty:", personal ? "ON" : "OFF");
         com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.Active trial =
                 com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.active(player);
         if (trial != null) {
             long left = com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.remainingMillis(player);
-            spec.labelValue("Free trial", "T" + trial.tier() + " for "
+            spec.labelValue("Free trial:", "T" + trial.tier() + " for "
                     + com.dbzlegacy.adaptivedifficulty.progression.Momentum.clock(left) + " more, then "
                     + (trial.prev() > 0 ? "back to T" + trial.prev() : "back to no tier"));
         }

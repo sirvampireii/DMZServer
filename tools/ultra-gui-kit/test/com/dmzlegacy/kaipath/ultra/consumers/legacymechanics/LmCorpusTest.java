@@ -17,7 +17,8 @@ import net.minecraft.network.FriendlyByteBuf;
  * LM menu family ({@code test/fixtures/lm-specs.jsonl}, made by {@code test/gen_lm_corpus.py} from an LM UI probe
  * run). Every packet must survive the kit's encode/decode unchanged and follow what KaiPath relies on:
  * buttons inside the panel, 80px minimum width, 16px menu rows, ASCII-only labels (KaiPath mojibakes other
- * characters), palette names the kit knows, and a still model preview that resets to front-facing.
+ * characters), palette names the kit knows, a still model preview that resets to front-facing, and no Java
+ * object printed as text ("[I@2feb1f5f", LM 4.7.60's Meditation config row) in a label or body line.
  */
 public final class LmCorpusTest {
     private LmCorpusTest() {}
@@ -25,6 +26,10 @@ public final class LmCorpusTest {
     /** Palette names {@link UltraBridgeChrome} draws in their own color (anything else falls back to gold). */
     private static final Set<String> KNOWN_PALETTES = Set.of("red", "dark_red", "purple", "dark_purple", "gold",
             "yellow", "green", "aqua", "blue", "white", "gray", "grey");
+
+    /** A Java array or object printed with String.valueOf: "[I@2feb1f5f", "com.x.Foo@1a2b". */
+    private static final java.util.regex.Pattern RAW_VALUE =
+            java.util.regex.Pattern.compile("\\[[IJDZBCSF]@[0-9a-f]{4,}|\\b[a-z]+(\\.[a-z]+)+\\.[A-Z]\\w*@[0-9a-f]{4,}");
 
     public static void main(String[] args) throws Exception {
         Path corpus = Path.of(System.getProperty("ultragui.corpus", "test/fixtures/lm-specs.jsonl"));
@@ -65,6 +70,11 @@ public final class LmCorpusTest {
                     bad.add(where + ": still preview is not front-facing");
                 }
             }
+            for (JsonElement ln : JsonParser.parseString(p.linesJson()).getAsJsonArray()) {
+                if (ln.isJsonPrimitive() && RAW_VALUE.matcher(plain(ln.getAsString())).find()) {
+                    bad.add(where + ": raw Java value in a line '" + plain(ln.getAsString()) + "'");
+                }
+            }
             JsonArray bs = JsonParser.parseString(p.buttonsJson()).getAsJsonArray();
             for (JsonElement el : bs) {
                 JsonObject b = el.getAsJsonObject();
@@ -72,6 +82,9 @@ public final class LmCorpusTest {
                 String id = b.has("id") ? b.get("id").getAsString() : "";
                 String label = b.has("label") ? b.get("label").getAsString() : "";
                 String what = where + " '" + plain(label) + "'";
+                if (RAW_VALUE.matcher(plain(label)).find()) {
+                    bad.add(what + ": raw Java value in the label");
+                }
                 if (id.isBlank()) {
                     bad.add(what + ": no action id");
                 }

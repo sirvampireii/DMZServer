@@ -641,3 +641,9 @@ Two classes were re-extracted from `LegacyMechanics-4.7.60.jar` after a javap di
 intended changes: `AdaptiveDifficultyMod` (version constant) and `ConfigFieldHelp` (the help text now
 carries both the 4.7.58 `requireLmClient` line and the four 4.7.59 momentum lines). `ConfigEditor`
 already matched the 4.7.59 baseline. No signature changed. The other 23 are unchanged.
+
+## Re-baseline (2026-11-21, 4.7.61 UI polish)
+
+- `AdaptiveDifficultyMod.class`: VERSION 4.7.61.
+- `ConfigEditor.class`: `valueText` shows number lists ("60, 300, 900") instead of `[I@hash`, and `coerce` reads
+  comma-separated numbers into a primitive array. No shop logic changed.
