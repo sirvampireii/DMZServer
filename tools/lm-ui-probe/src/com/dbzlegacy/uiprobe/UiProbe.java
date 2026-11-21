@@ -47,6 +47,8 @@ public final class UiProbe {
     private final List<GuiOpenPacket> packets = new ArrayList<>();
     private final List<String> origin = new ArrayList<>();
     private int sendIdx = -1;
+    /** First packet the scripted checks kept; -Duiprobe.scriptshots=true screenshots from here only. */
+    private int firstScript = -1;
     private volatile boolean advance;
     private int waitTicks;
 
@@ -312,6 +314,7 @@ public final class UiProbe {
     }
 
     private void runScript() {
+        firstScript = packets.size();
         boolean staff = com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(player);
         note("staff=" + staff);
         var cfg = com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig.get();
@@ -374,6 +377,8 @@ public final class UiProbe {
             killByPlayer(z2);
             long a2 = left();
             note("KILL 2 adds 10s inside the window: left=" + a2 + (a2 > a1 + 8_000 && a2 <= 20_000 ? " PASS" : " FAIL"));
+            // 4.7.60: Step 3 with time banked, so the screenshots show a filled Momentum bar.
+            keep("step3 momentum banked", () -> UltraGui.open(player, "difficulty", "your_tier"));
             Thread.sleep(1_000);
             long before = left();
             note("COUNTS DOWN: " + a2 + " -> " + before + (before < a2 - 800 ? " PASS" : " FAIL"));
@@ -392,6 +397,7 @@ public final class UiProbe {
             long capped = left();
             cfg.momentumMaxBankSeconds = oldMax;
             note("CAP at max (30s for the test): left=" + capped + (capped > 29_000 && capped <= 30_000 ? " PASS" : " FAIL"));
+            keep("step3 momentum full", () -> UltraGui.open(player, "difficulty", "your_tier"));
 
             var target = spawnZombie(true, false);
             var plain = spawnZombie(false, false);
@@ -563,6 +569,9 @@ public final class UiProbe {
             advance = false;
             waitTicks = 0;
             sendIdx++;
+            if (Boolean.getBoolean("uiprobe.scriptshots") && firstScript > 0 && sendIdx < firstScript) {
+                sendIdx = firstScript;
+            }
             int cap = Integer.getInteger("uiprobe.maxshots", Integer.MAX_VALUE);
             if (sendIdx >= packets.size() || sendIdx >= cap) {
                 finalPhase = true;

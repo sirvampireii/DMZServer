@@ -39,6 +39,9 @@ python tools/lm-ui-probe/analyze_layout.py tools/lm-ui-probe/out/full
 python tools/lm-ui-probe/analyze_skin.py tools/lm-ui-probe/out/full tools/lm-ui-probe/out/<older run>
 ```
 
+`SRVJVM="-Duiprobe.scriptshots=true"` screenshots only the pages the scripted checks kept (Difficulty guide, tier
+detail, Step 3 with Momentum empty, banked and full, trial, summons). That is a quick rerun after a client-only change.
+
 `run.sh` lists every environment setting. Results and logs go to `tools/lm-ui-probe/out/` (gitignored).
 
 **Checks to read:**

@@ -477,8 +477,10 @@ public final class NativeMenuScreen extends Screen {
             int w = Math.max(24, Math.min(EDGE + maxW - x, 144));
             int h = 8;
             int ty = midY - h / 2;
-            // Recessed track, then a glossy gold fill with a highlight along its upper third.
-            insetBox(g, x, ty, w, h, SaiyanRoyal.BAR_RADIUS + 1, 0xFF0A0405, 0xFF1A0C0E);
+            // Recessed track (dim gold rim, darker than the info box so an empty bar still reads), then a
+            // glossy gold fill with a highlight along its upper third.
+            insetBox(g, x, ty, w, h, SaiyanRoyal.BAR_RADIUS + 1,
+                    0xFF000000 | SaiyanRoyal.blend(SaiyanRoyal.GOLD_TRIM, SaiyanRoyal.PANEL, 0.7), 0xFF050102);
             int fw = share <= 0 ? 0 : Math.max(h - 2, (int) Math.round((w - 2) * share));
             if (fw > 0) {
                 glossy(g, x + 1, ty + 1, fw, h - 2, SaiyanRoyal.BAR_RADIUS, SaiyanRoyal.GOLD_TRIM);
