@@ -18,10 +18,13 @@ public abstract class StatsEventsHitTakenMasteryMixin {
     @Inject(method = "onEntityHit", at = @At("HEAD"), remap = false)
     private static void lm$hitTakenMasteryBegin(LivingHurtEvent event, CallbackInfo ci) {
         HitTakenMastery.begin(event);
+        // 4.7.59 Momentum: mark the attacker of a difficulty mob while they have time banked.
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.begin(event);
     }
 
     @Inject(method = "onEntityHit", at = @At("RETURN"), remap = false)
     private static void lm$hitTakenMasteryEnd(LivingHurtEvent event, CallbackInfo ci) {
         HitTakenMastery.end();
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.end();
     }
 }

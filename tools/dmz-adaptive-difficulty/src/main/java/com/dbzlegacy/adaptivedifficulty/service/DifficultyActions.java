@@ -41,6 +41,8 @@ public final class DifficultyActions {
     public static final String ACT_ACTIVATE = "activate";
     public static final String ACT_PURCHASE_TIER = "purchase_tier";
     public static final String ACT_LOWER_TIER = "lower_tier";
+    /** 4.7.59: {@code do:trial:<t>} starts a 5-minute free trial of a tier ({@link DifficultyTrial}). */
+    public static final String ACT_TRIAL = "trial";
     public static final String ACT_TEAM = "team";
     public static final String ACT_RESET = "reset";
     public static final String ACT_CHARACTER_RESET = "character_reset";
@@ -299,6 +301,7 @@ public final class DifficultyActions {
         if (!SystemGate.participates(player)
                 && (ACT_ACTIVATE.equals(act) || ACT_PURCHASE_TIER.equals(act) || ACT_BUY.equals(act)
                 || ACT_LOWER_TIER.equals(act) || ACT_RESET.equals(act) || ACT_TEAM.equals(act)
+                || ACT_TRIAL.equals(act)
                 || "zero".equals(act) || "clear".equals(act))) {
             openGui(player, page == null || page.isBlank() ? "main" : page);
             String hint = ACT_TEAM.equals(act)
@@ -315,7 +318,7 @@ public final class DifficultyActions {
                 amount = Long.parseLong(arg.trim());
             } catch (NumberFormatException ignored) {
                 if (ACT_ACTIVATE.equals(act) || ACT_PURCHASE_TIER.equals(act)
-                        || ACT_BUY.equals(act) || ACT_LOWER_TIER.equals(act)) {
+                        || ACT_BUY.equals(act) || ACT_LOWER_TIER.equals(act) || ACT_TRIAL.equals(act)) {
                     return Result.fail("Invalid tier: " + arg);
                 }
             }
@@ -323,6 +326,7 @@ public final class DifficultyActions {
         return switch (act) {
             case ACT_ACTIVATE, ACT_PURCHASE_TIER, ACT_BUY -> setTier(player, (int) amount, page);
             case ACT_LOWER_TIER -> lowerTier(player, (int) amount, page);
+            case ACT_TRIAL -> DifficultyTrial.start(player, (int) amount, page);
             case ACT_RESET, "zero", "clear" -> resetActive(player, page);
             default -> Result.fail("Unknown action.");
         };
@@ -538,7 +542,17 @@ public final class DifficultyActions {
             data.unlockTier(tier.id);
         }
         int current = data.getActiveTier();
+        // 4.7.59: during a free trial the tier the player owns is the one the trial replaced; buying the
+        // trial tier (or any other) keeps it and ends the trial.
+        DifficultyTrial.Active trial = DifficultyTrial.active(player);
+        if (trial != null && trial.tier() == current) {
+            current = trial.prev();
+        }
         if (current == tier.id) {
+            DifficultyTrial.endByChoice(player);
+            if (data.getActiveTier() != tier.id) {
+                applyTier(data, player, tier);
+            }
             openGui(player, returnPage);
             return Result.ok("Already on " + tier.display + " (T" + tier.id + ").");
         }
@@ -555,6 +569,7 @@ public final class DifficultyActions {
         if (downgrade) {
             // 4.7.57: the switch down is confirmed on the tier detail page (tier_ask:<t>), like an
             // upgrade; it stays free and no longer needs a second click.
+            DifficultyTrial.endByChoice(player);
             applyTier(data, player, tier);
             openGui(player, returnPage);
             return Result.ok("Downgraded to " + tier.display + " (T" + tier.id + ") — Free.");
@@ -573,6 +588,7 @@ public final class DifficultyActions {
             openGui(player, returnPage);
             return Result.fail(AncientCoinEconomy.missingText(player, charge));
         }
+        DifficultyTrial.endByChoice(player);
         applyTier(data, player, tier);
         TitleSystem.syncTierTitles(player, true);
         DifficultySnapshot snap = DifficultyCache.get(player);
@@ -611,12 +627,13 @@ public final class DifficultyActions {
             openGui(player, returnPage);
             return Result.ok("Already on " + tier.display + ".");
         }
+        DifficultyTrial.endByChoice(player);
         applyTier(data, player, tier);
         openGui(player, returnPage);
         return Result.ok("Downgraded to " + tier.display + " (T" + tier.id + ") — Free.");
     }
 
-    private static void applyTier(PlayerDifficultyData data, ServerPlayer player, UnlockTier tier) {
+    static void applyTier(PlayerDifficultyData data, ServerPlayer player, UnlockTier tier) {
         if (!UnlockSystem.isEligible(player, tier)) {
             return;
         }
@@ -662,6 +679,7 @@ public final class DifficultyActions {
                             + UltraStyle.YELLOW + "Click again within 10 seconds.");
         }
         PlayerDifficultyData data = DifficultyCache.data(player);
+        DifficultyTrial.endByChoice(player);
         data.resetTemporary();
         DifficultyCache.save(player);
         DifficultyCache.refresh(player);

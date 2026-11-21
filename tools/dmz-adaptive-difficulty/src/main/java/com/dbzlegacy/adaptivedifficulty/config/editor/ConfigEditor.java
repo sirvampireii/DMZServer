@@ -1634,6 +1634,7 @@ public final class ConfigEditor {
             "Master switch",
             "Access",
             "Player Scaling",
+            "Momentum",
             "Mob Spawning",
             "Boss Behavior",
             "Elites and Mutations",
@@ -1756,6 +1757,9 @@ public final class ConfigEditor {
         }
         if (lower.contains("migrated")) {
             return "One-time Migrations";
+        }
+        if (lower.startsWith("momentum")) {
+            return "Momentum";
         }
         if (lower.contains("whitelist")) {
             return "Access";

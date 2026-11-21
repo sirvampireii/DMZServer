@@ -21,6 +21,8 @@ public abstract class PotionEffectHelperHitTakenMasteryMixin {
     private static void lm$hitTakenMastery(LivingEntity entity, double baseValue, CallbackInfoReturnable<Double> cir) {
         double value = cir.getReturnValueD();
         double scaled = HitTakenMastery.scale(entity, value);
+        // 4.7.59 Momentum: the marked attacker's hit mastery on a difficulty mob, while time is banked.
+        scaled = com.dbzlegacy.adaptivedifficulty.progression.Momentum.scale(entity, scaled);
         if (scaled != value) {
             cir.setReturnValue(scaled);
         }

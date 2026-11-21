@@ -398,6 +398,11 @@ public final class UltraScreenSpec {
         return button(UltraGuiActions.NO_ACTION, UltraStyle.dim(UltraStyle.plain(label)), UltraStyle.STYLE_DIM);
     }
 
+    /** {@link #lockedButton} in the right column (4.7.59: a locked second action on the same row). */
+    public UltraScreenSpec lockedButtonRight(String label) {
+        return buttonRight(UltraGuiActions.NO_ACTION, UltraStyle.dim(UltraStyle.plain(label)), UltraStyle.STYLE_DIM);
+    }
+
     public UltraScreenSpec button(String actionId, String label, String style) {
         return button(actionId, label, style, UltraStyle.COL_L, nextRow, UltraStyle.BTN_W);
     }
@@ -649,6 +654,16 @@ public final class UltraScreenSpec {
         String action =
                 backActionId == null || backActionId.isBlank() ? "nav:home" : backActionId.trim();
         return placeFooter(action, UltraStyle.backTo(destination), "nav:hub", UltraStyle.MAIN_MENU);
+    }
+
+    /**
+     * 4.7.59 guide footer: only the left Back slot ({@code Back to {destination}}), for a first step whose
+     * way back is the main menu itself. Keeps Back in the same place as every other step.
+     */
+    public UltraScreenSpec footerBackOnly(String backActionId, String destination) {
+        String action =
+                backActionId == null || backActionId.isBlank() ? "nav:hub" : backActionId.trim();
+        return placeFooter(action, UltraStyle.backTo(destination), null, null);
     }
 
     /**

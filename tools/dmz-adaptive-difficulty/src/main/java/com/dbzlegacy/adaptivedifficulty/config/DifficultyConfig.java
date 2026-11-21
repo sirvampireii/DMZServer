@@ -442,6 +442,18 @@ public final class DifficultyConfig {
      * without the LM client keep the KaiPath bridge.
      */
     public boolean requireLmClient = false;
+    /**
+     * LM 4.7.59 Momentum: a player who beats a difficulty-scaled hostile banks Mastery Boost time on a
+     * per-character, session-only timer. While time is banked, form mastery from hitting difficulty mobs is
+     * multiplied. Chamber wave foes never count (they have their own per-kill grant).
+     */
+    public boolean momentumEnabled = true;
+    /** Seconds banked per qualifying kill. */
+    public int momentumSecondsPerKill = 10;
+    /** Most seconds a player can bank at once. */
+    public int momentumMaxBankSeconds = 300;
+    /** Form mastery multiplier from hitting difficulty mobs while time is banked (1.5 = +50%). */
+    public double momentumMasteryMultiplier = 1.5;
     /** Staff {@code /lm admin testgui} — opens the Ultra hub (experimental flag). */
     public boolean enableStaffCnpcTestGui = true;
     /**
@@ -1449,6 +1461,12 @@ public final class DifficultyConfig {
         }
         if (cfg.rewardScaling < 1.0) {
             cfg.rewardScaling = 2_500.0;
+        }
+        // 4.7.59 Momentum: keep the bank sane; a 1.0 multiplier simply turns the boost off.
+        cfg.momentumSecondsPerKill = Math.max(0, Math.min(3_600, cfg.momentumSecondsPerKill));
+        cfg.momentumMaxBankSeconds = Math.max(0, Math.min(86_400, cfg.momentumMaxBankSeconds));
+        if (!(cfg.momentumMasteryMultiplier >= 1.0) || cfg.momentumMasteryMultiplier > 10.0) {
+            cfg.momentumMasteryMultiplier = 1.5;
         }
         if (!Boolean.TRUE.equals(cfg.legacyMaxHealthCapMigratedV1)) {
             if (nearly(cfg.maxScaledHealth, 400.0) || nearly(cfg.maxScaledHealth, 1024.0)) {
