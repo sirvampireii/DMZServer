@@ -166,7 +166,6 @@ public final class UltraHubScreens {
      */
     private static void openSkins(ServerPlayer player) {
         MenuPrefs.Prefs prefs = MenuPrefs.get(player);
-        boolean lmClient = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.hasNativeClient(player);
         UltraScreenSpec spec = UltraScreenSpec.of("hub")
                 .fitMenu()
                 .title("Menu skins")
@@ -176,9 +175,8 @@ public final class UltraHubScreens {
                 .line(UltraStyle.VALUE + "Switching is free and you can switch back.")
                 .labelValue("Backgrounds:", "a themed scene behind menus")
                 .labelValue("Lite:", "plainer, faster menus for slow PCs");
-        if (!lmClient) {
-            spec.line(UltraStyle.LABEL + "Full colors need the Legacy Mechanics client.");
-        }
+        // Same text on both paths (one spec): true for everyone, useful for players without the client.
+        spec.line(UltraStyle.LABEL + "Full skins need the Legacy Mechanics client.");
         spec.buttonsAfterLines();
         for (MenuSkins.Skin skin : MenuSkins.ALL) {
             boolean using = skin.id().equals(prefs.skin());
