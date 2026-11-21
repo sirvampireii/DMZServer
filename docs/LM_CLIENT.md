@@ -85,3 +85,16 @@ Defined once in `gui/ultra/SaiyanRoyal.java`; both render paths read it. Hex is 
 - **Self-test:** `SaiyanRoyal.selfTest()` runs at server boot (strict mode throws). It pins the hex values,
   the bridge letters and native accent hex for every system, the corner math and the bar and dots readers. Move
   a constant on purpose: update the self-test and the `§lm 4.7.60` ship-manifest check together.
+
+## Model preview spin stop (4.7.60)
+
+A menu with `playerModel.rotate:false` shows the model front-facing: the character's front toward the viewer,
+never the back, whatever angle the spin had reached. `LmNativeProtocol.PREVIEW_FRONT_YAW` (body yaw 180 under
+the in-GUI renderer's roll, as the vanilla inventory draws), `spinAfterPacket` and `previewFacing` name it; the
+native self-test stops a back-facing spin and expects the front. KaiPath's side of the same rule is the kit's
+`PreviewFacing`.
+
+## Test rig
+
+`tools/lm-ui-probe/` is the in-game test rig for every LM menu: crawl, screenshots at GUI scale 2/3/4, scripted
+checks, layout and skin analyzers. See its README; keep it current with every menu change.
