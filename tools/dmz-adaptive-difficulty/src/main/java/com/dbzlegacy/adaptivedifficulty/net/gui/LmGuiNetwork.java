@@ -332,6 +332,8 @@ public final class LmGuiNetwork {
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.DifficultyGuide.selfTest());
         // 4.7.60: Saiyan Royal skin constants, bridge accent mapping and the native shape math.
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.SaiyanRoyal.selfTest());
+        // 4.7.62: the five menu skins, their readable tones and the bridge letter rewrite.
+        guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.selfTest());
         if (!guideBroken.isEmpty()) {
             String msg = "Momentum / trial / guide / skin self-test FAILED: " + String.join("; ", guideBroken);
             if (Boolean.getBoolean("lm.selftest.strict")) {
@@ -340,7 +342,7 @@ public final class LmGuiNetwork {
             AdaptiveDifficultyMod.LOGGER.error("[{}] {}", AdaptiveDifficultyMod.MOD_ID, msg);
         } else {
             AdaptiveDifficultyMod.LOGGER.info(
-                    "[{}] Momentum / free trial / guide / skin self-test OK (timer, kill rule, hit scaling, revert, recommendation, Saiyan Royal)",
+                    "[{}] Momentum / free trial / guide / skin self-test OK (timer, kill rule, hit scaling, revert, recommendation, Saiyan Royal, five menu skins)",
                     AdaptiveDifficultyMod.MOD_ID);
         }
         AdaptiveDifficultyMod.LOGGER.info(
@@ -767,13 +769,33 @@ public final class LmGuiNetwork {
                 return;
             }
             default -> {
-                // KaiPath bridge, byte-identical to 4.7.57.
+                // KaiPath bridge, byte-identical to 4.7.57 in Saiyan Royal. 4.7.62: another skin changes only a few
+                // color letters (MenuSkins.bridgeRewrite); no background and no new field ever go over the bridge.
+                wire = bridgeSkin(player, wire);
             }
         }
         if (FEATURE_GAP_WARNED.add(player.m_20148_())) {
             UltraClientFeatures.warnMissingOptionalFeatures(player, "GuiOpenPacket");
         }
         CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), wire);
+    }
+
+    /** The player's skin on the bridge: unchanged for Saiyan Royal, letters rewritten otherwise. */
+    static GuiOpenPacket bridgeSkin(ServerPlayer player, GuiOpenPacket wire) {
+        try {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.Skin skin =
+                    com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.get(player).skinOrDefault();
+            String[] out = com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.bridgeRewrite(
+                    skin, wire.layoutJson(), wire.linesJson());
+            if (out == null) {
+                return wire;
+            }
+            return new GuiOpenPacket(wire.screenId(), wire.title(), wire.pageId(), wire.tabsJson(), wire.activeTab(),
+                    out[1], wire.buttonsJson(), wire.panelWidth(), wire.panelHeight(), out[0], wire.inputsJson());
+        } catch (Throwable t) {
+            // Never a blank menu: fall back to the Saiyan Royal bytes.
+            return wire;
+        }
     }
 
     /** Clear per-session feature advertisement (call on logout). */

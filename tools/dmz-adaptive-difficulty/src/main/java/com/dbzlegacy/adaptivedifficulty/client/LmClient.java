@@ -24,6 +24,8 @@ public final class LmClient {
 
     public static void init() {
         LmNativeNetwork.register(LmClient::open);
+        // 4.7.62: the player's menu look (message 3).
+        LmNativeNetwork.onPrefs(MenuLook::apply);
         MinecraftForge.EVENT_BUS.addListener(LmClient::onLoggingIn);
         MinecraftForge.EVENT_BUS.addListener(LmClient::onLoggingOut);
         MinecraftForge.EVENT_BUS.addListener(LmClient::onNameTag);
@@ -52,6 +54,7 @@ public final class LmClient {
     private static void onLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
         helloSent = false;
         NativeModelPreview.clear();
+        MenuLook.reset();
         if (LmNativeNetwork.serverHasChannel(event.getConnection())) {
             sayHello();
         }
@@ -60,6 +63,8 @@ public final class LmClient {
     private static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         helloSent = false;
         NativeModelPreview.clear();
+        MenuLook.reset();
+        MenuBackground.clear();
     }
 
     private static void onNameTag(RenderNameTagEvent event) {

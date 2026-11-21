@@ -102,16 +102,24 @@ def main(out, base=None):
             f"spun to yaw {back[1] if back else '?'}, stopped at yaw {stop[1]} (0 = front toward the viewer)")
 
     rc, txt = analyzer("analyze_skin.py", full, *([base] if base else []))
-    row("skin on every native menu with its system accent", "SKIN OK" in txt,
-        next((l for l in txt.splitlines() if l.startswith("SKIN")), txt[:200]))
+    row("skin, background and look on every native menu, with its system accent", "SKIN OK" in txt,
+        next((l for l in txt.splitlines() if l.startswith("SKIN OK") or l.startswith("SKIN MISMATCH")), txt[:200])
+        + " | " + next((l for l in txt.splitlines() if l.startswith("SKINS SEEN")), ""))
+    fps_row(row, full, base, pk_of(full))
     wire = re.search(r"wire compare vs .*?: common pages (\d+) differ (\d+) only-old (\d+) only-new (\d+)", txt)
     if base and wire:
         common, differ = int(wire.group(1)), int(wire.group(2))
         diffs = [l.strip()[:160] for l in txt.splitlines() if l.strip().startswith("DIFF")]
         # A label with a Java array reference ("[I@1a2b") changes on every run: noise, listed but not failed.
         real = [d for d in diffs if not re.search(r"\[I@[0-9a-f]+", d)]
+        # RIG_EXPECTED_DIFF="hub|main ..." names pages a release changes on purpose (4.7.62: the main menu's
+        # Menu skins tile): listed as expected, never failed.
+        expected = [e for e in os.environ.get("RIG_EXPECTED_DIFF", "").split() if "|" in e]
+        allowed = [d for d in real if any(f"('{e.split('|')[0]}', '{e.split('|')[1]}'," in d for e in expected)]
+        real = [d for d in real if d not in allowed]
         row("bridge sends the same specs as the baseline", not real,
             f"{common - differ} of {common} identical" + (f"; {len(diffs) - len(real)} volatile" if len(diffs) > len(real) else "")
+            + (f"; {len(allowed)} expected ({' '.join(expected)})" if allowed else "")
             + (f"; differ: {real[:3]}" if real else ""))
     else:
         row("bridge sends the same specs as the baseline", None, "no baseline given")
@@ -187,6 +195,52 @@ def main(out, base=None):
     return 1 if bad else 0
 
 
+def pk_of(d):
+    return packets(d)
+
+
+def fps_of(d, pk):
+    """{(look, screen, page, cfg): fps} for the skins-pass shots (look 'default' on a jar without skins)."""
+    out = {}
+    text = read(os.path.join(d, "uiprobe-client.txt")) or ""
+    for m in re.finditer(r"^SCREEN (\d+) (\S+) (\S+) cfg=(\S+) .* class=(\S+) fps=(\d+)", text, re.M):
+        i, screen, page, cfg, cls, fps = m.groups()
+        r = pk.get(int(i))
+        if not r or not r.get("from", "").startswith("script skins") or cfg.endswith("-end"):
+            continue
+        look = re.search(r"look=(\S+)", r["from"])
+        out[(look.group(1) if look else "saiyan_royal,on,full", screen, page, cfg)] = int(fps)
+    return out
+
+
+def fps_row(row, full, base, pk):
+    """4.7.62 budget: menus hold 60 FPS at GUI 3/4 in every skin, Full and Lite; Saiyan Royal no slower than before."""
+    now = fps_of(full, pk)
+    if not now:
+        row("frame rate: 60+ FPS at GUI 3/4 in every skin, Full and Lite", None, "no skins-pass shots")
+        return
+    sel = {k: v for k, v in now.items() if k[3] in ("1080p-gs3", "1080p-gs4")}
+    low = sorted((v, k) for k, v in sel.items() if v < 60)
+    by = {}
+    for k, v in sel.items():
+        by.setdefault(k[0], []).append(v)
+    summary = "; ".join(f"{look}: min {min(v)} median {sorted(v)[len(v) // 2]}" for look, v in sorted(by.items()))
+    ok = not low
+    # RIG_FPS_BASE: an older run's full/ folder with skins-pass shots (a scripted-only run is enough).
+    base = norm(os.environ["RIG_FPS_BASE"]) if os.environ.get("RIG_FPS_BASE") else base
+    if base:
+        old = fps_of(base, packets(base))
+        pairs = [(v, old[("saiyan_royal,on,full",) + k[1:]]) for k, v in sel.items()
+                 if k[0] == "saiyan_royal,on,full" and ("saiyan_royal,on,full",) + k[1:] in old]
+        if pairs:
+            mn = sorted(a for a, _ in pairs)[len(pairs) // 2]
+            mo = sorted(b for _, b in pairs)[len(pairs) // 2]
+            summary += f" | Saiyan Royal median {mn} vs {mo} before"
+            ok = ok and mn >= mo * 0.9
+    row("frame rate: 60+ FPS at GUI 3/4 in every skin, Full and Lite", ok,
+        summary + (f" | under 60: {low[:4]}" if low else ""))
+
+
 def gallery(out, pk, client):
     full = os.path.join(out, "full")
     picks = []
@@ -216,6 +270,20 @@ def gallery(out, pk, client):
             spin += f'<figure><a href="{f}"><img src="{f}" loading="lazy"></a><figcaption>{name}</figcaption></figure>'
     if spin:
         cards.append(f"<section><h2>Model spin stop (must show the front)</h2><div class=row>{spin}</div></section>")
+    looks = {}
+    for i in sorted(pk):
+        m = re.search(r"look=(\S+)", pk[i].get("from", ""))
+        if m:
+            looks.setdefault(m.group(1), []).append(pk[i])
+    for look, rs in looks.items():
+        imgs = ""
+        for r in rs:
+            f = f"full/ui-{r['i']:03d}-1080p-gs3.png"
+            if os.path.exists(os.path.join(out, f)):
+                imgs += (f'<figure><a href="{f}"><img src="{f}" loading="lazy"></a>'
+                         f'<figcaption>{html.escape(r["screen"] + " / " + r["page"])}</figcaption></figure>')
+        if imgs:
+            cards.append(f"<section><h2>Skin {html.escape(look)}</h2><div class=row>{imgs}</div></section>")
     forms = ""
     for i in sorted(pk):
         r = pk[i]

@@ -54,6 +54,7 @@ public final class LmNativeNetwork {
 
     private static SimpleChannel channel;
     private static volatile Consumer<GuiOpenPacket> clientOpener;
+    private static volatile Consumer<NativePrefsPacket> clientPrefs;
     private static final Map<UUID, Set<String>> FEATURES = new ConcurrentHashMap<>();
     private static final Map<UUID, String> CLIENT_VERSION = new ConcurrentHashMap<>();
 
@@ -93,9 +94,15 @@ public final class LmNativeNetwork {
                 .decoder(NativeHelloPacket::decode)
                 .consumerNetworkThread(LmNativeNetwork::onServerHello)
                 .add();
+        // 4.7.62: the player's menu look, only to clients whose hello listed menuSkins.
+        ch.messageBuilder(NativePrefsPacket.class, LmNativeProtocol.MSG_PREFS, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(NativePrefsPacket::encode)
+                .decoder(NativePrefsPacket::decode)
+                .consumerMainThread(LmNativeNetwork::onClientPrefs)
+                .add();
         channel = ch;
         AdaptiveDifficultyMod.LOGGER.info(
-                "[{}] native menu channel {} protocol={} (msg0 open S>C, msg1 action C>S, msg2 hello C>S)",
+                "[{}] native menu channel {} protocol={} (msg0 open S>C, msg1 action C>S, msg2 hello C>S, msg3 look S>C)",
                 AdaptiveDifficultyMod.MOD_ID, CHANNEL_ID, LmNativeProtocol.PROTOCOL_VERSION);
     }
 
@@ -132,6 +139,19 @@ public final class LmNativeNetwork {
 
     // ------------------------------------------------------------------ server side
 
+    /** Client: where the menu look goes (the LM client's MenuLook). */
+    public static void onPrefs(Consumer<NativePrefsPacket> consumer) {
+        clientPrefs = consumer;
+    }
+
+    private static void onClientPrefs(NativePrefsPacket msg, Supplier<NetworkEvent.Context> ctx) {
+        Consumer<NativePrefsPacket> c = clientPrefs;
+        if (c != null && msg != null) {
+            c.accept(msg);
+        }
+        ctx.get().setPacketHandled(true);
+    }
+
     private static void onServerAction(GuiActionPacket msg, Supplier<NetworkEvent.Context> ctx) {
         // Same path as a KaiPath click: log, then dispatch on the main thread.
         LmGuiNetwork.handleGuiAction(msg, ctx);
@@ -147,6 +167,8 @@ public final class LmNativeNetwork {
             LmLog.event("[{}] native client hello player={} lmClient={} server={} features={}",
                     AdaptiveDifficultyMod.MOD_ID, sender.m_7755_().getString(), msg.clientVersion(),
                     AdaptiveDifficultyMod.VERSION, features);
+            // 4.7.62: the client draws in the player's skin from the first menu on.
+            context.enqueueWork(() -> sendPrefs(sender));
         }
         context.setPacketHandled(true);
     }
@@ -246,6 +268,23 @@ public final class LmNativeNetwork {
         if (channel != null && player != null && packet != null) {
             channel.send(PacketDistributor.PLAYER.with(() -> player), packet);
         }
+    }
+
+    /** True when this player's LM client said it takes message 3 (menu skins). */
+    public static boolean takesPrefs(ServerPlayer player) {
+        Set<String> f = player == null ? null : FEATURES.get(player.m_20148_());
+        return f != null && f.contains(LmNativeProtocol.FEATURE_MENU_SKINS);
+    }
+
+    /** Server: send the player's menu look to their LM client (no-op for a client that cannot take it). */
+    public static void sendPrefs(ServerPlayer player) {
+        if (channel == null || player == null || !takesPrefs(player)) {
+            return;
+        }
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.Prefs p =
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.get(player);
+        channel.send(PacketDistributor.PLAYER.with(() -> player),
+                new NativePrefsPacket(p.skin(), p.backgrounds(), p.lite()));
     }
 
     /** Forget the per-session hello (logout). */

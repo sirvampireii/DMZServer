@@ -200,6 +200,12 @@ Advertise (KaiPath **1.5.1**, live — eighteen ids; the first fifteen shipped o
 ["style","activeTab","titleAlign","playerModel","textInput","headerBottom","accent","palette","sound","buttonSkin","frame","pagedBook","portraitFrame","fixedFooter","combined.forms.v1","icon","bodyParts","bodyPartsSync"]
 ```
 
+LM native client, 4.7.62: message 3 (server to client, `NativePrefsPacket`: skin id, backgrounds, Lite) carries the
+player's menu skin; it is sent only to an LM client whose hello listed `menuSkins`, so the protocol string stays "1".
+Over the KaiPath bridge a skin never adds a field: Saiyan Royal keeps the 4.7.57 bytes, and another skin only rewrites
+color letters at send time (its primary letter as the layout `accent` on menus without a system accent, and Zeno
+Omni's text letter, dark aqua, on body lines). Backgrounds are native only.
+
 LM native client (channel `legacymechanics:native_ui`, LM 4.7.61): its hello lists the eighteen ids in
 `LmNativeProtocol.CLIENT_FEATURES`, plus `combined.forms.v1` when DragonMineZ is installed and `bodyParts`
 when DMZUltra's FormParts is installed. With both, Character Services > Preview forms (a made-up figure in a

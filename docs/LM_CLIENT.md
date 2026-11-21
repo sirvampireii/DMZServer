@@ -42,6 +42,21 @@ floor does the whole menu scroll. The staff config editor (`fillScreen`) scales 
 the window. Locked buttons (`nav:none`) are dim and send nothing. Spin off (`rotate:false`) puts the
 model back facing forward. Close sits in the bottom 28 px band like KaiPath's.
 
+4.7.62 menu skins: players pick a skin on Main menu > Menu skins (Saiyan Royal default, Namek Serenity,
+Obsidian & Gold, Beerus Destruction, Zeno Omni). The choice, plus Backgrounds on/off and Look Full/Lite, is per
+account (`lm_menu_prefs` in the player's LM record) and reaches this client on native message 3 (`NativePrefsPacket`),
+sent only when the hello listed `menuSkins`.
+- Every tone comes from `MenuSkins` (no hex in `NativeMenuScreen` or `NativeText`). Each skin is dark or light; inks
+  are made readable on their surface (3:1 on dark skins, 4.5:1 on Zeno Omni, the light one).
+- `MenuBackground` bakes each skin's themed background once per window size and the panel's drop shadow once per
+  panel size; rounded shapes reuse cached geometry. Per frame the menu blits textures and draws cached shapes.
+- Polish (transforms and opacity only): page crossfade and slide, hover lift and press sink, sliding tab indicator,
+  smooth Momentum fill with a shimmer while time is banked, background crossfade on a skin switch, a skin-tinted glow
+  on the active tab and confirm buttons, and a keyboard focus ring (Tab / Shift+Tab, Enter or Space).
+- Lite: no ambient shadow, glow, sheen, shimmer or motion; a flat background; rows outside the view are skipped.
+- A frame-rate sag (under 45 FPS over 3 seconds) shows a small notice suggesting Lite, once per session; it never
+  switches anything itself.
+
 4.7.61 Preview forms: Character Services > Preview forms is native. The made-up figure is a client-only
 stand-in that wears the race and form the page names (`NativeFormLook` sets DragonMineZ race, form and stack
 form), and its body parts join DMZUltra 0.5.7's look through the client-only mixins in

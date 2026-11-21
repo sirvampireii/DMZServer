@@ -67,6 +67,11 @@ final class UiClient {
             }
             UiProbe.write("uiprobe-client.txt", sb.toString(), true);
             pendingShot = "ui-rec-" + s.substring(9).trim() + ".png";
+        } else if (s.startsWith("uifps")) {
+            // 4.7.62: the next cue is a skins-pass page: let each GUI size settle a full second so the frame
+            // counter (one value per second) reflects the menu at rest, then record it.
+            e.setCanceled(true);
+            fpsCue = true;
         } else if (s.startsWith("uishot ")) {
             cue = s.substring(7).trim();
             cueScreen = null;
@@ -85,6 +90,8 @@ final class UiClient {
     }
 
     private String pendingClick;
+    /** Settle ticks before each capture: 8, or 26 on a skins-pass page (a fresh frame-rate second). */
+    private boolean fpsCue;
 
     /** Ask the server for the next menu; a lost connection is logged and ends the run instead of crashing. */
     private void next(Minecraft mc) {
@@ -145,7 +152,8 @@ final class UiClient {
         StringBuilder sb = new StringBuilder();
         sb.append("SCREEN ").append(cue).append(" cfg=").append(cfgName).append(" fb=").append(win.m_85441_()).append('x')
                 .append(win.m_85442_()).append(" gui=").append(gw).append('x').append(gh).append(" scale=")
-                .append(win.m_85449_()).append(" class=").append(s.getClass().getSimpleName()).append('\n');
+                .append(win.m_85449_()).append(" class=").append(s.getClass().getSimpleName())
+                .append(" fps=").append(mc.m_260875_()).append('\n');
         for (String l : nativeLayout(s)) {
             sb.append("  N ").append(l).append("\n");
         }
@@ -257,10 +265,11 @@ final class UiClient {
         cfg++;
         if (cfg >= CONFIGS.length) {
             cue = null;
+            fpsCue = false;
             next(mc);
             return;
         }
         apply(mc, use[cfg]);
-        wait = 8;
+        wait = fpsCue ? 26 : 8;
     }
 }

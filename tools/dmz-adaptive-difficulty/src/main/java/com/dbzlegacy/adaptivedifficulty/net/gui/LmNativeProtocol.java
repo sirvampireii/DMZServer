@@ -34,6 +34,13 @@ public final class LmNativeProtocol {
     public static final int MSG_OPEN = 0;
     public static final int MSG_ACTION = 1;
     public static final int MSG_HELLO = 2;
+    /** LM 4.7.62: server to client, the player's menu look ({@link NativePrefsPacket}). */
+    public static final int MSG_PREFS = 3;
+    /**
+     * LM 4.7.62: the client takes message 3 (menu skins, backgrounds, Lite). Never in {@link #CLIENT_FEATURES}:
+     * the server assumes that list before a hello arrives, and only a client that said this id may get message 3.
+     */
+    public static final String FEATURE_MENU_SKINS = "menuSkins";
 
     /** Feature ids (bridge spelling) the protocol-1 LM client draws natively. */
     public static final List<String> CLIENT_FEATURES = List.of(
@@ -206,6 +213,7 @@ public final class LmNativeProtocol {
         if (bodyParts) {
             a.add(FEATURE_BODY_PARTS);
         }
+        a.add(FEATURE_MENU_SKINS);
         return a.toString();
     }
 
