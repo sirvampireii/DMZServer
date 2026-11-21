@@ -2022,12 +2022,21 @@ def main() -> int:
           and 'ACCENT_RIVAL = MARK + SaiyanRoyal.bridgeAccent("rival");' in p60_style
           and '!UltraStyle.HEADER.equals(m + "6" + m + "l")' in p60_skin)
     check("native renderer: rounded panel with shadow and gold border, rounded buttons; clicks keep the rectangle",
-          "PANEL_BG" not in p60_screen and "drawSkinButton(g, b, hover, inert, style, isActiveTab(b));" in p60_screen
+          "PANEL_BG" not in p60_screen and "drawSkinButton(g, b, hover, down && !inert, inert, style, isActiveTab(b));" in p60_screen
           and "accentRgb = sys >= 0 ? sys : paletteRgb(palette, SaiyanRoyal.GOLD_TRIM);" in p60_screen
           and "private void drawPanel(GuiGraphics g)" in p60_screen
-          and "SaiyanRoyal.SHADOW_RINGS" in p60_screen and "static void fillRounded(" in p60_screen
-          and "ring(g, b.x(), b.y(), b.w(), b.h(), SaiyanRoyal.BUTTON_RADIUS, edge, face);" in p60_screen
+          and "SaiyanRoyal.AMBIENT_RINGS" in p60_screen and "static void fillRounded(" in p60_screen
+          and "fillRounded(g, bx, by, w, h, r, edge);" in p60_screen
           and "return x >= b.x() && x < b.x() + b.w() && y >= b.y() && y < b.y() + b.h();" in p60_screen)
+    check("depth: layered panel shadow, gradient, raised buttons sink 2px, inset boxes, glossy bars, tab glow",
+          "PANEL_RADIUS = 14;" in p60_skin and "PRESS_SINK = 2;" in p60_skin
+          and "SaiyanRoyal.KEY_RINGS" in p60_screen and "SaiyanRoyal.panelTop()" in p60_screen
+          and "SaiyanRoyal.buttonOffset(pressed, activeTab)" in p60_screen
+          and "SaiyanRoyal.EDGE_HIGHLIGHT" in p60_screen and "SaiyanRoyal.EDGE_SHADE" in p60_screen
+          and "static void insetBox(" in p60_screen and "private void drawInfoBox(" in p60_screen
+          and "glossy(g, x + 1, ty + 1, fw, h - 2" in p60_screen
+          and "glow(g, bx, by, w, h, r, SaiyanRoyal.GOLD_TRIM" in p60_screen
+          and "buttonOffset(true, false) != 2" in p60_skin)
     check("skin self-test pins the palette, the accent mapping and the shape math at boot",
           "SaiyanRoyal.selfTest()" in p60_net and "public static List<String> selfTest()" in p60_skin)
 

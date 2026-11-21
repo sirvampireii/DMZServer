@@ -76,11 +76,17 @@ Defined once in `gui/ultra/SaiyanRoyal.java`; both render paths read it. Hex is 
   system's accent.
 - **KaiPath bridge:** unchanged bytes on every menu: headers gold bold, labels gray, values white, accents as
   4.7.57. The panel tint and round corners cannot be sent; KaiPath keeps its square dark default.
-- **Native shapes:** rounded panel (12px) with a soft shadow, rounded buttons and tier rows (8px, never more
+- **Native shapes:** rounded panel (14px, as the Difficulty Menu Concept mock) with a soft shadow, rounded buttons and tier rows (8px, never more
   than half the height), rounded Momentum bar, round progress dots, rounded scroll bar. Corners are cut at a
   quarter-pixel step so they stay smooth at GUI scale 3 and 4. Confirm stays green, danger red, dim and locked
   dark gray.
-- **Clicks:** only the drawn shape rounds. Every click area is still the full rectangle from the server
+- **Depth (native only):** the panel lifts off the background on two shadow layers (wide ambient, tight key)
+  and is lighter at the top. Raised buttons and tier rows carry their own shadow, a face lighter at the top, a
+  top-edge highlight and a darker bottom edge. While held they sink 2px and lose the shadow. Dim and locked
+  rows stay flat. The body text, fields, paged books and bar tracks sit in inset boxes with an inner shadow
+  (the body box is skipped when a control would sit under it). The Momentum bar fills with a glossy gold
+  gradient in a recessed track. The active tab is raised 1px with a gold glow.
+- **Clicks:** only the drawn shape rounds or moves. Every click area is still the full rectangle from the server
   layout.
 - **Self-test:** `SaiyanRoyal.selfTest()` runs at server boot (strict mode throws). It pins the hex values,
   the bridge letters and native accent hex for every system, the corner math and the bar and dots readers. Move

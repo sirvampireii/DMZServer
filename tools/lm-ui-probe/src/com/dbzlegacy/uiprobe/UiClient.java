@@ -86,6 +86,17 @@ final class UiClient {
 
     private String pendingClick;
 
+    /** Ask the server for the next menu; a lost connection is logged and ends the run instead of crashing. */
+    private void next(Minecraft mc) {
+        if (mc.f_91074_ == null || mc.f_91074_.f_108617_ == null) {
+            UiProbe.write("uiprobe-client.txt", "DISCONNECTED during " + cue + System.lineSeparator(), true);
+            done = true;
+            mc.m_91395_();
+            return;
+        }
+        mc.f_91074_.f_108617_.m_246175_("uinext");
+    }
+
     /** LM 4.7.58 native screen layout (screen space), or empty for any other screen. */
     @SuppressWarnings("unchecked")
     static List<String> nativeLayout(Screen s) {
@@ -213,7 +224,7 @@ final class UiClient {
                 UiProbe.write("uiprobe-client.txt", "NOSCREEN " + cue + " got="
                         + (s == null ? "null" : s.getClass().getName()) + "\n", true);
                 cue = null;
-                mc.f_91074_.f_108617_.m_246175_("uinext");
+                next(mc);
             }
             return;
         }
@@ -224,7 +235,7 @@ final class UiClient {
         if (mc.f_91080_ == null) {
             UiProbe.write("uiprobe-client.txt", "CLOSED " + cue + "\n", true);
             cue = null;
-            mc.f_91074_.f_108617_.m_246175_("uinext");
+            next(mc);
             return;
         }
         if (cfg >= 0) {
@@ -246,7 +257,7 @@ final class UiClient {
         cfg++;
         if (cfg >= CONFIGS.length) {
             cue = null;
-            mc.f_91074_.f_108617_.m_246175_("uinext");
+            next(mc);
             return;
         }
         apply(mc, use[cfg]);

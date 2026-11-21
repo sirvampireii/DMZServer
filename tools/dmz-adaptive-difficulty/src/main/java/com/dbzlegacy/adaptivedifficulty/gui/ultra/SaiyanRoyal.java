@@ -50,14 +50,78 @@ public final class SaiyanRoyal {
     public static final Set<String> SYSTEMS = Set.of("difficulty", "rival", "spar", "prestige", "character",
             "skillcheck", "admin");
 
-    /** Native shapes, in menu design pixels (matching the UI Skin Concepts picker preview). */
-    public static final int PANEL_RADIUS = 12;
+    /**
+     * Native shapes, in menu design pixels, matching the UI Skin Concepts picker preview and the Difficulty Menu
+     * Concept mock (panel 14px there).
+     */
+    public static final int PANEL_RADIUS = 14;
     public static final int BUTTON_RADIUS = 8;
     public static final int BAR_RADIUS = 3;
-    /** Soft drop shadow under the panel: rings, offset down, alpha fading outwards. */
-    public static final int SHADOW_RINGS = 6;
-    public static final int SHADOW_DROP = 3;
-    public static final int SHADOW_ALPHA = 0x2C;
+    public static final int BOX_RADIUS = 6;
+
+    /*
+     * Depth (native renderer only). Each shadow is a stack of rounded rings, offset down, alpha fading
+     * outwards. The panel has two layers: a wide ambient one and a tight key one.
+     */
+    public static final int AMBIENT_RINGS = 10;
+    public static final int AMBIENT_DROP = 4;
+    public static final int AMBIENT_ALPHA = 0x14;
+    public static final int KEY_RINGS = 4;
+    public static final int KEY_DROP = 2;
+    public static final int KEY_ALPHA = 0x30;
+    /** Raised buttons and tier rows carry their own small shadow. */
+    public static final int BUTTON_SHADOW_RINGS = 2;
+    public static final int BUTTON_SHADOW_DROP = 2;
+    public static final int BUTTON_SHADOW_ALPHA = 0x40;
+    /** A pressed button sinks this far and loses its shadow and highlight. */
+    public static final int PRESS_SINK = 2;
+    /** The active tab sits this far raised, with a gold glow. */
+    public static final int TAB_LIFT = 1;
+    public static final int GLOW_RINGS = 3;
+    public static final int GLOW_ALPHA = 0x38;
+    /** Inner shadow depth of an inset info box or bar track. */
+    public static final int INSET_SHADOW_PX = 4;
+    public static final int INSET_SHADOW_ALPHA = 0x80;
+    /** Panel and button gradients: lighter at the top, darker at the bottom. */
+    public static final double GRADIENT_TOP_LIFT = 0.07;
+    public static final double GRADIENT_BOTTOM_DROP = 0.25;
+    public static final double FACE_TOP_LIFT = 0.12;
+    public static final double FACE_BOTTOM_DROP = 0.18;
+    /** Top-edge highlight and bottom-edge shade on raised buttons. */
+    public static final int EDGE_HIGHLIGHT = 0x40FFFFFF;
+    public static final int EDGE_SHADE = 0x50000000;
+
+    /** Panel gradient: the panel color lifted toward white at the top. */
+    public static int panelTop() {
+        return blend(PANEL, 0xFFFFFF, GRADIENT_TOP_LIFT);
+    }
+
+    /** Panel gradient: the panel color pressed toward black at the bottom. */
+    public static int panelBottom() {
+        return blend(PANEL, 0x000000, GRADIENT_BOTTOM_DROP);
+    }
+
+    /** ARGB mix of {@code a} toward {@code b} by {@code t} (0..1), alpha included. */
+    public static int lerpArgb(int a, int b, double t) {
+        double k = Math.max(0, Math.min(1, t));
+        int out = 0;
+        for (int shift = 0; shift <= 24; shift += 8) {
+            int ca = (a >>> shift) & 0xFF;
+            int cb = (b >>> shift) & 0xFF;
+            out |= ((int) Math.round(ca + (cb - ca) * k) & 0xFF) << shift;
+        }
+        return out;
+    }
+
+    /** Alpha of shadow ring {@code i} (1 = innermost) of {@code rings}: strongest inside, fading out. */
+    public static int ringAlpha(int alpha, int rings, int i) {
+        return rings <= 0 ? 0 : alpha * (rings - i + 1) / rings;
+    }
+
+    /** Vertical offset of a button: pressed sinks, the active tab lifts, others stay put. */
+    public static int buttonOffset(boolean pressed, boolean activeTab) {
+        return pressed ? PRESS_SINK : activeTab ? -TAB_LIFT : 0;
+    }
 
     private static final Pattern BAR = Pattern.compile("\\[(#*)(-*)\\]\\s*$");
     private static final Pattern DOTS = Pattern.compile("(\\[[x ]\\])(\\s\\[[x ]\\])+\\s*$");
@@ -206,6 +270,10 @@ public final class SaiyanRoyal {
         return r;
     }
 
+    private static int lum(int rgb) {
+        return ((rgb >> 16) & 0xFF) * 3 + ((rgb >> 8) & 0xFF) * 6 + (rgb & 0xFF);
+    }
+
     private static int rgb(String hex) {
         return Integer.parseInt(hex.substring(1), 16);
     }
@@ -271,8 +339,22 @@ public final class SaiyanRoyal {
             bad.add("rounded corner inset: full radius at the edge, shrinking to 0 past the curve");
         }
         if (radiusFor(80, 16, BUTTON_RADIUS) != 8 || radiusFor(80, 10, BUTTON_RADIUS) != 5
-                || radiusFor(426, 300, PANEL_RADIUS) != 12) {
+                || radiusFor(426, 300, PANEL_RADIUS) != 14) {
             bad.add("radius never exceeds half the shorter side");
+        }
+        if (lum(panelTop()) <= lum(PANEL) || lum(panelBottom()) >= lum(PANEL)) {
+            bad.add("panel gradient is lighter at the top, darker at the bottom");
+        }
+        if (lerpArgb(0x00000000, 0xFFFFFFFF, 0) != 0 || lerpArgb(0x00000000, 0xFFFFFFFF, 1) != 0xFFFFFFFF
+                || lerpArgb(0x80000000, 0x00000000, 0.5) != 0x40000000) {
+            bad.add("ARGB gradient math");
+        }
+        if (ringAlpha(KEY_ALPHA, KEY_RINGS, 1) != KEY_ALPHA || ringAlpha(KEY_ALPHA, KEY_RINGS, KEY_RINGS) >= KEY_ALPHA) {
+            bad.add("shadow rings fade outwards");
+        }
+        if (buttonOffset(true, false) != 2 || buttonOffset(true, true) != 2 || buttonOffset(false, true) != -1
+                || buttonOffset(false, false) != 0 || PRESS_SINK != 2) {
+            bad.add("pressed buttons sink 2px; the active tab is raised");
         }
         if (barFill("[######------------------]") != 0.25 || barFill("Momentum 1:00") != -1 || barFill("[x]") != -1
                 || barStart("[####]") != 0) {

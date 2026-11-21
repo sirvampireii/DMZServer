@@ -42,9 +42,13 @@ import net.minecraft.world.item.Items;
  * fields, paged books, the player model, and the Close button in the bottom band.
  *
  * <p>4.7.60: every menu wears the Saiyan Royal skin ({@link SaiyanRoyal}): the exact hex palette, a rounded
- * panel with a soft shadow and a 1px gold-trim border, rounded buttons, tier rows and bars. Each system's
- * accent (Difficulty crimson, Rival white, Sparring dark aqua, ...) stays on button edges, the active tab and
- * frames. Only the drawn shapes round; every click area stays the full rectangle from the server layout.
+ * panel (14px) with a 1px gold-trim border, rounded buttons, tier rows and bars. Each system's accent
+ * (Difficulty crimson, Rival white, Sparring dark aqua, ...) stays on button edges, the active tab and frames.
+ * Depth: the panel lifts off the background on two shadow layers and is lighter at the top; raised buttons
+ * carry their own shadow, a top-edge highlight and a darker bottom edge, and sink 2px while pressed; info
+ * boxes, fields, books and bar tracks are inset with an inner shadow; bars fill with a glossy gradient; the
+ * active tab is raised with a gold glow. Only the drawn shapes move or round; every click area stays the full
+ * rectangle from the server layout.
  */
 public final class NativeMenuScreen extends Screen {
     /** Action id of a locked button: drawn dim, never sends anything. */
@@ -334,13 +338,15 @@ public final class NativeMenuScreen extends Screen {
         for (Field f : fields) {
             EditBox box = boxes.get(f.id());
             if (box != null) {
-                ring(g, f.x(), f.y(), f.w(), f.h(), 4, box.m_93696_() ? 0xFF000000 | SaiyanRoyal.GOLD_TRIM
+                insetBox(g, f.x(), f.y(), f.w(), f.h(), 4, box.m_93696_() ? 0xFF000000 | SaiyanRoyal.GOLD_TRIM
                         : 0xFF5A3A2C, 0xFF0C0607);
                 box.m_88315_(g, mx, my, partialTick);
             }
         }
+        boolean down = Minecraft.m_91087_().f_91067_.m_91560_();
         for (Btn b : buttons) {
-            drawButton(g, b, contains(b, mx, my));
+            boolean hover = contains(b, mx, my);
+            drawButton(g, b, hover, hover && down);
         }
         pose.m_85849_();
         if (place.scrolls()) {
@@ -349,19 +355,20 @@ public final class NativeMenuScreen extends Screen {
     }
 
     /**
-     * Saiyan Royal panel: soft shadow, 1px gold-trim border, #160b0d fill, rounded 12px; gold divider. A
-     * framed page adds a faint inner ring in its system accent.
+     * Saiyan Royal panel: lifted on a wide ambient shadow and a tight key shadow, 1px gold-trim border, the
+     * #160b0d fill as a vertical gradient (lighter at the top), rounded 14px; gold divider. A framed page adds
+     * a faint inner ring in its system accent.
      */
     private void drawPanel(GuiGraphics g) {
         int r = SaiyanRoyal.PANEL_RADIUS;
-        for (int i = SaiyanRoyal.SHADOW_RINGS; i >= 1; i--) {
-            int a = SaiyanRoyal.SHADOW_ALPHA * (SaiyanRoyal.SHADOW_RINGS - i + 1) / SaiyanRoyal.SHADOW_RINGS;
-            fillRounded(g, -i, -i + SaiyanRoyal.SHADOW_DROP, panelW + 2 * i, panelH + 2 * i, r + i, a << 24);
-        }
-        ring(g, 0, 0, panelW, panelH, r, 0xFF000000 | SaiyanRoyal.GOLD_TRIM, 0xFF000000 | SaiyanRoyal.PANEL);
+        shadow(g, 0, 0, panelW, panelH, r, SaiyanRoyal.AMBIENT_RINGS, SaiyanRoyal.AMBIENT_DROP, SaiyanRoyal.AMBIENT_ALPHA);
+        shadow(g, 0, 0, panelW, panelH, r, SaiyanRoyal.KEY_RINGS, SaiyanRoyal.KEY_DROP, SaiyanRoyal.KEY_ALPHA);
+        fillRounded(g, 0, 0, panelW, panelH, r, 0xFF000000 | SaiyanRoyal.GOLD_TRIM);
+        paint(g, 1, 1, panelW - 2, panelH - 2, r - 1, 0xFF000000 | SaiyanRoyal.panelTop(),
+                0xFF000000 | SaiyanRoyal.panelBottom(), panelH - 2);
         if (frame) {
-            ring(g, 2, 2, panelW - 4, panelH - 4, r - 2,
-                    0xFF000000 | SaiyanRoyal.blend(accentRgb, SaiyanRoyal.PANEL, 0.6), 0xFF000000 | SaiyanRoyal.PANEL);
+            outlineRounded(g, 2, 2, panelW - 4, panelH - 4, r - 2,
+                    0xFF000000 | SaiyanRoyal.blend(accentRgb, SaiyanRoyal.PANEL, 0.6));
         }
         int dividerY = Math.max(10, headerBottom - 3);
         fillRounded(g, EDGE, dividerY, panelW - 2 * EDGE, 1, 0, 0xC0000000 | SaiyanRoyal.GOLD_TRIM);
@@ -397,6 +404,7 @@ public final class NativeMenuScreen extends Screen {
         if (lines.isEmpty()) {
             return;
         }
+        drawInfoBox(g);
         int step = lineH + lineGap;
         int maxW = bodyRight() - EDGE;
         boolean clip = bodyClipped();
@@ -428,6 +436,23 @@ public final class NativeMenuScreen extends Screen {
     }
 
     /**
+     * The body text sits in an inset info box with an inner shadow, when the box would not run under a
+     * control (a page that mixes rows into its text keeps plain text).
+     */
+    private void drawInfoBox(GuiGraphics g) {
+        int h = bodyClipped() ? bodyMaxH : bodyNaturalH();
+        int x = EDGE - 4;
+        int w = bodyRight() - EDGE + 8;
+        int y = bodyTop + 1;
+        h -= 2;
+        if (h < 12 || !free(x, y, w, h)) {
+            return;
+        }
+        insetBox(g, x, y, w, h, SaiyanRoyal.BOX_RADIUS, 0xFF000000 | SaiyanRoyal.blend(SaiyanRoyal.PANEL, 0x000000, 0.5),
+                0xFF000000 | SaiyanRoyal.blend(SaiyanRoyal.PANEL, 0x000000, 0.35));
+    }
+
+    /**
      * Skinned body lines that end in a text bar ({@code [####----]}) or progress dots ({@code [x] [ ] [ ]})
      * draw the text before it, then a rounded bar or round dots. Returns false for an ordinary line.
      */
@@ -450,18 +475,21 @@ public final class NativeMenuScreen extends Screen {
         if (bar >= 0) {
             double share = SaiyanRoyal.barFill(plain);
             int w = Math.max(24, Math.min(EDGE + maxW - x, 144));
-            int h = 6;
-            fillRounded(g, x, midY - h / 2, w, h, SaiyanRoyal.BAR_RADIUS, 0xFF3A1E21);
-            int fw = share <= 0 ? 0 : Math.max(h, (int) Math.round(w * share));
+            int h = 8;
+            int ty = midY - h / 2;
+            // Recessed track, then a glossy gold fill with a highlight along its upper third.
+            insetBox(g, x, ty, w, h, SaiyanRoyal.BAR_RADIUS + 1, 0xFF0A0405, 0xFF1A0C0E);
+            int fw = share <= 0 ? 0 : Math.max(h - 2, (int) Math.round((w - 2) * share));
             if (fw > 0) {
-                fillRounded(g, x, midY - h / 2, fw, h, SaiyanRoyal.BAR_RADIUS, 0xFF000000 | SaiyanRoyal.GOLD_TRIM);
+                glossy(g, x + 1, ty + 1, fw, h - 2, SaiyanRoyal.BAR_RADIUS, SaiyanRoyal.GOLD_TRIM);
             }
         } else {
             for (boolean done : SaiyanRoyal.dots(plain)) {
                 if (done) {
-                    fillRounded(g, x, midY - 4, 8, 8, 4, 0xFF000000 | SaiyanRoyal.GOLD_TRIM);
+                    glossy(g, x, midY - 4, 8, 8, 4, SaiyanRoyal.GOLD_TRIM);
                 } else {
-                    ring(g, x, midY - 4, 8, 8, 4, 0xFF000000 | SaiyanRoyal.GOLD_TRIM, 0xFF000000 | SaiyanRoyal.PANEL);
+                    insetBox(g, x, midY - 4, 8, 8, 4, 0xFF000000 | SaiyanRoyal.blend(SaiyanRoyal.GOLD_TRIM,
+                            SaiyanRoyal.PANEL, 0.4), 0xFF0E0607);
                 }
                 x += 14;
             }
@@ -493,7 +521,8 @@ public final class NativeMenuScreen extends Screen {
         int w = Math.max(16, num(model, "width", 64));
         int h = Math.max(16, num(model, "height", 96));
         if (!str(model, "portraitFrame", "").isBlank()) {
-            ring(g, x - 2, y - 2, w + 4, h + 4, 6, 0xFF000000 | accentRgb, 0xFF000000 | SaiyanRoyal.PANEL);
+            insetBox(g, x - 2, y - 2, w + 4, h + 4, 6, 0xFF000000 | accentRgb,
+                    0xFF000000 | SaiyanRoyal.blend(SaiyanRoyal.PANEL, 0x000000, 0.3));
         }
         LivingEntity entity = NativeModelPreview.resolve(model);
         if (entity == null) {
@@ -505,7 +534,7 @@ public final class NativeMenuScreen extends Screen {
     }
 
     private void drawBook(GuiGraphics g, Book b) {
-        ring(g, b.x(), b.y(), b.w(), b.h(), SaiyanRoyal.BUTTON_RADIUS, 0xFF5A3A2C, 0xFF1F1012);
+        insetBox(g, b.x(), b.y(), b.w(), b.h(), SaiyanRoyal.BUTTON_RADIUS, 0xFF5A3A2C, 0xFF1F1012);
         int pages = Math.max(1, b.pages().size());
         int page = Math.min(pages - 1, bookPage.getOrDefault(b.id(), 0));
         JsonObject p = b.pages().size() > page && b.pages().get(page).isJsonObject()
@@ -535,19 +564,22 @@ public final class NativeMenuScreen extends Screen {
         }
     }
 
-    private void drawButton(GuiGraphics g, Btn b, boolean hover) {
+    private void drawButton(GuiGraphics g, Btn b, boolean hover, boolean down) {
         boolean inert = b.kind() == Kind.SERVER && isNoAction(b.id());
         String style = inert ? "dim" : b.style().toLowerCase(Locale.ROOT);
-        drawSkinButton(g, b, hover, inert, style, isActiveTab(b));
+        drawSkinButton(g, b, hover, down && !inert, inert, style, isActiveTab(b));
     }
 
     /**
      * Saiyan Royal button or tier row: rounded 8px face with a 1px edge. Normal rows sit on a deep red face
      * with an edge in the system accent (a hub tile in its own system's accent); confirm stays green, danger
-     * red, dim and locked dark gray (copy rules). The active tab gets the full accent edge and an underline.
-     * The click area is still the full rectangle ({@link #contains}).
+     * red, dim and locked dark gray (copy rules). Raised rows have their own shadow, a face lighter at the top,
+     * a top-edge highlight and a darker bottom edge; pressed they sink 2px, lose the shadow and invert the
+     * gradient. Dim and locked rows stay flat (nothing to press). The active tab is raised with a gold glow,
+     * the full accent edge and an underline. The click area is still the full rectangle ({@link #contains}).
      */
-    private void drawSkinButton(GuiGraphics g, Btn b, boolean hover, boolean inert, String style, boolean activeTab) {
+    private void drawSkinButton(GuiGraphics g, Btn b, boolean hover, boolean pressed, boolean inert, String style,
+            boolean activeTab) {
         int face;
         int edge;
         switch (style) {
@@ -573,10 +605,30 @@ public final class NativeMenuScreen extends Screen {
         if (activeTab) {
             edge = 0xFF000000 | accentNow;
         }
-        ring(g, b.x(), b.y(), b.w(), b.h(), SaiyanRoyal.BUTTON_RADIUS, edge, face);
+        boolean flat = "dim".equals(style);
+        int r = SaiyanRoyal.BUTTON_RADIUS;
+        int bx = b.x();
+        int by = b.y() + (flat ? 0 : SaiyanRoyal.buttonOffset(pressed, activeTab));
+        int w = b.w();
+        int h = b.h();
         if (activeTab) {
-            int r = SaiyanRoyal.BUTTON_RADIUS;
-            fillRounded(g, b.x() + r, b.y() + b.h() - 3, b.w() - 2 * r, 2, 1, 0xFF000000 | accentNow);
+            glow(g, bx, by, w, h, r, SaiyanRoyal.GOLD_TRIM, SaiyanRoyal.GLOW_RINGS, SaiyanRoyal.GLOW_ALPHA);
+        }
+        if (!flat && !pressed) {
+            shadow(g, bx, by, w, h, r, SaiyanRoyal.BUTTON_SHADOW_RINGS, SaiyanRoyal.BUTTON_SHADOW_DROP,
+                    SaiyanRoyal.BUTTON_SHADOW_ALPHA);
+        }
+        fillRounded(g, bx, by, w, h, r, edge);
+        int rgb = face & 0xFFFFFF;
+        int top = 0xFF000000 | SaiyanRoyal.blend(rgb, 0xFFFFFF, flat ? 0 : SaiyanRoyal.FACE_TOP_LIFT);
+        int bottom = 0xFF000000 | SaiyanRoyal.blend(rgb, 0x000000, flat ? 0 : SaiyanRoyal.FACE_BOTTOM_DROP);
+        paint(g, bx + 1, by + 1, w - 2, h - 2, r - 1, pressed ? bottom : top, pressed ? top : bottom, h - 2);
+        if (!flat && !pressed) {
+            fillRounded(g, bx + r / 2, by + 1, w - r, 1, 0, SaiyanRoyal.EDGE_HIGHLIGHT);
+            fillRounded(g, bx + r / 2, by + h - 2, w - r, 1, 0, SaiyanRoyal.EDGE_SHADE);
+        }
+        if (activeTab) {
+            fillRounded(g, bx + r, by + h - 3, w - 2 * r, 2, 1, 0xFF000000 | accentNow);
         }
         int left = b.x() + b.pad();
         int maxW = b.w() - 2 * b.pad();
@@ -589,7 +641,7 @@ public final class NativeMenuScreen extends Screen {
                 NativeText.parse(b.label(), SaiyanRoyal.TEXT, muted, false, true), Math.max(8, maxW));
         int tw = this.f_96547_.m_92724_(seq);
         int tx = left + Math.max(0, (maxW - tw) / 2);
-        int ty = b.y() + (b.h() - 8) / 2;
+        int ty = by + (h - 8) / 2;
         g.m_280649_(this.f_96547_, seq, tx, ty, 0xFFFFFF, !muted);
     }
 
@@ -630,26 +682,29 @@ public final class NativeMenuScreen extends Screen {
         int barH = Math.max(12, Math.round(trackH * view / total));
         int barY = trackTop + Math.round((trackH - barH) * (scroll / place.maxScroll()));
         int x = Math.min(this.f_96543_ - 4, Math.round(place.x() + panelW * scale()) + 3);
-        fillRounded(g, x, trackTop, 3, trackH, 1, 0x40FFFFFF);
-        fillRounded(g, x, barY, 3, barH, 1, 0xC0000000 | SaiyanRoyal.GOLD_TRIM);
+        insetBox(g, x - 1, trackTop, 5, trackH, 2, 0x60000000, 0x40FFFFFF);
+        glossy(g, x, barY, 3, barH, 1, SaiyanRoyal.GOLD_TRIM);
     }
 
     /** Sub-pixel rows per design pixel for rounded corners, so curves stay smooth at GUI scale 3 and 4. */
     private static final int ROUND_Q = 4;
 
-    /**
-     * Fill a rectangle with rounded corners (radius in design pixels, capped at half the shorter side).
-     * Corners are cut row by row at a quarter-pixel step in one batched draw. Radius 0 is a plain fill.
-     */
+    /** Fill a rounded rectangle (radius in design pixels, capped at half the shorter side) in one color. */
     static void fillRounded(GuiGraphics g, int x, int y, int w, int h, int radius, int argb) {
-        if (w <= 0 || h <= 0) {
+        paint(g, x, y, w, h, radius, argb, argb, h);
+    }
+
+    /**
+     * Paint the top {@code rows} design rows of a rounded rectangle with a vertical gradient from {@code top}
+     * to {@code bottom} (ARGB). Corners are cut row by row at a quarter-pixel step; the middle goes one design
+     * row at a time (or one fill for a flat color). One batched draw.
+     */
+    static void paint(GuiGraphics g, int x, int y, int w, int h, int radius, int top, int bottom, int rows) {
+        if (w <= 0 || h <= 0 || rows <= 0) {
             return;
         }
         int r = SaiyanRoyal.radiusFor(w, h, radius);
-        if (r == 0) {
-            g.m_280509_(x, y, x + w, y + h, argb);
-            return;
-        }
+        int limit = Math.min(rows, h);
         g.m_286007_(() -> {
             PoseStack pose = g.m_280168_();
             pose.m_85836_();
@@ -659,22 +714,96 @@ public final class NativeMenuScreen extends Screen {
             int W = w * ROUND_Q;
             int H = h * ROUND_Q;
             int R = r * ROUND_Q;
-            if (H - 2 * R > 0) {
-                g.m_280509_(X, Y + R, X + W, Y + H - R, argb);
-            }
-            for (int row = 0; row < R; row++) {
-                int in = (int) Math.round(SaiyanRoyal.cornerInset(R, row + 0.5));
-                g.m_280509_(X + in, Y + row, X + W - in, Y + row + 1, argb);
-                g.m_280509_(X + in, Y + H - row - 1, X + W - in, Y + H - row, argb);
+            int L = limit * ROUND_Q;
+            boolean flat = top == bottom;
+            int q = 0;
+            while (q < L) {
+                boolean corner = q < R || q >= H - R;
+                if (corner) {
+                    int edge = q < R ? q : H - q - 1;
+                    int in = (int) Math.round(SaiyanRoyal.cornerInset(R, edge + 0.5));
+                    int c = flat ? top : SaiyanRoyal.lerpArgb(top, bottom, (q + 0.5) / L);
+                    g.m_280509_(X + in, Y + q, X + W - in, Y + q + 1, c);
+                    q++;
+                } else {
+                    int stop = Math.min(L, H - R);
+                    int next = flat ? stop : Math.min(stop, q + ROUND_Q);
+                    int c = flat ? top : SaiyanRoyal.lerpArgb(top, bottom, ((q + next) / 2.0) / L);
+                    g.m_280509_(X, Y + q, X + W, Y + next, c);
+                    q = next;
+                }
             }
             pose.m_85849_();
         });
+    }
+
+    /** Soft drop shadow: {@code rings} rounded rings around the box, offset down, fading outwards. */
+    static void shadow(GuiGraphics g, int x, int y, int w, int h, int radius, int rings, int drop, int alpha) {
+        for (int i = rings; i >= 1; i--) {
+            int a = SaiyanRoyal.ringAlpha(alpha, rings, i);
+            fillRounded(g, x - i, y - i + drop, w + 2 * i, h + 2 * i, radius + i, a << 24);
+        }
+    }
+
+    /** Colored glow around a box (no offset), fading outwards. */
+    static void glow(GuiGraphics g, int x, int y, int w, int h, int radius, int rgb, int rings, int alpha) {
+        for (int i = rings; i >= 1; i--) {
+            int a = SaiyanRoyal.ringAlpha(alpha, rings, i);
+            fillRounded(g, x - i, y - i, w + 2 * i, h + 2 * i, radius + i, (a << 24) | (rgb & 0xFFFFFF));
+        }
     }
 
     /** Rounded box with a 1px edge: the edge color underneath, the fill inset by one pixel on top. */
     static void ring(GuiGraphics g, int x, int y, int w, int h, int radius, int edge, int fill) {
         fillRounded(g, x, y, w, h, radius, edge);
         fillRounded(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, radius - 1), fill);
+    }
+
+    /** A 1px rounded outline with nothing filled inside (frames over an already painted surface). */
+    static void outlineRounded(GuiGraphics g, int x, int y, int w, int h, int radius, int argb) {
+        int r = SaiyanRoyal.radiusFor(w, h, radius);
+        fillRounded(g, x + r, y, w - 2 * r, 1, 0, argb);
+        fillRounded(g, x + r, y + h - 1, w - 2 * r, 1, 0, argb);
+        fillRounded(g, x, y + r, 1, h - 2 * r, 0, argb);
+        fillRounded(g, x + w - 1, y + r, 1, h - 2 * r, 0, argb);
+        g.m_286007_(() -> {
+            PoseStack pose = g.m_280168_();
+            pose.m_85836_();
+            pose.m_85841_(1f / ROUND_Q, 1f / ROUND_Q, 1f);
+            int R = r * ROUND_Q;
+            for (int q = 0; q < R; q++) {
+                // One sub-row of each corner arc, a pixel thick, at the shape's edge.
+                int in = (int) Math.round(SaiyanRoyal.cornerInset(R, q + 0.5));
+                int inNext = (int) Math.round(SaiyanRoyal.cornerInset(R, q + 1.5));
+                int span = Math.max(ROUND_Q, in - inNext + ROUND_Q);
+                int X = x * ROUND_Q;
+                int Y = y * ROUND_Q;
+                int W = w * ROUND_Q;
+                int H = h * ROUND_Q;
+                g.m_280509_(X + in, Y + q, X + in + span, Y + q + 1, argb);
+                g.m_280509_(X + W - in - span, Y + q, X + W - in, Y + q + 1, argb);
+                g.m_280509_(X + in, Y + H - q - 1, X + in + span, Y + H - q, argb);
+                g.m_280509_(X + W - in - span, Y + H - q - 1, X + W - in, Y + H - q, argb);
+            }
+            pose.m_85849_();
+        });
+    }
+
+    /** Inset box: a 1px edge, the fill, and an inner shadow fading down from the top edge. */
+    static void insetBox(GuiGraphics g, int x, int y, int w, int h, int radius, int edge, int fill) {
+        ring(g, x, y, w, h, radius, edge, fill);
+        int rows = Math.min(SaiyanRoyal.INSET_SHADOW_PX, Math.max(1, (h - 2) / 2));
+        paint(g, x + 1, y + 1, w - 2, h - 2, Math.max(0, radius - 1), SaiyanRoyal.INSET_SHADOW_ALPHA << 24, 0, rows);
+    }
+
+    /** Glossy fill: a gradient from a light top to a darker bottom, with a highlight along the upper third. */
+    static void glossy(GuiGraphics g, int x, int y, int w, int h, int radius, int rgb) {
+        paint(g, x, y, w, h, radius, 0xFF000000 | SaiyanRoyal.blend(rgb, 0xFFFFFF, 0.35),
+                0xFF000000 | SaiyanRoyal.blend(rgb, 0x000000, 0.25), h);
+        int r = SaiyanRoyal.radiusFor(w, h, radius);
+        if (h >= 4 && w > 2 * r + 2) {
+            fillRounded(g, x + r, y + Math.max(1, h / 3 - 1), w - 2 * r, 1, 0, 0x60FFFFFF);
+        }
     }
 
     // ------------------------------------------------------------------ input
