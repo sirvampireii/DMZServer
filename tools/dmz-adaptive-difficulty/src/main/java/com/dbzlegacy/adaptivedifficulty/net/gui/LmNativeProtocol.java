@@ -43,6 +43,25 @@ public final class LmNativeProtocol {
 
     /** Feature a stand-in figure with a worn form needs (form pieces on a made-up player). */
     public static final String FEATURE_FORMS = "combined.forms.v1";
+
+    /**
+     * Body yaw that turns a menu's model preview front-facing: the character's front toward the viewer,
+     * never the back (the in-GUI entity renderer draws with a 180-degree roll, as the vanilla inventory does).
+     */
+    public static final float PREVIEW_FRONT_YAW = 180f;
+
+    /** Body yaw for a preview spun {@code spin} degrees away from front-facing. */
+    public static float previewFacing(float spin) {
+        return PREVIEW_FRONT_YAW + spin;
+    }
+
+    /**
+     * Spin kept when a menu packet arrives: a model with {@code rotate false} resets to 0, front-facing,
+     * whatever angle it had reached; a spinning model keeps turning from where it was.
+     */
+    public static float spinAfterPacket(float spin, boolean rotate) {
+        return rotate ? spin : 0f;
+    }
     /** Feature a stand-in figure with explicit body pieces needs. */
     public static final String FEATURE_BODY_PARTS = "bodyParts";
 

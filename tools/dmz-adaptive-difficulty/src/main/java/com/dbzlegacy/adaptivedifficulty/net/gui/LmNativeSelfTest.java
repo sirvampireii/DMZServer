@@ -98,6 +98,11 @@ public final class LmNativeSelfTest {
         Set<String> client = new LinkedHashSet<>(LmNativeProtocol.CLIENT_FEATURES);
         LmNativeProtocol.Needs plain = LmNativeProtocol.analyze(withLayout("{\"center\":true}", "[]"), id -> true);
         check(broken, plain.hard().isEmpty() && plain.soft().isEmpty(), "plain menu needs " + plain);
+        // Spin stopped at any angle (here: back toward the viewer) resets to front-facing, never the back.
+        float stopped = LmNativeProtocol.previewFacing(LmNativeProtocol.spinAfterPacket(180f, false));
+        check(broken, stopped == LmNativeProtocol.PREVIEW_FRONT_YAW && LmNativeProtocol.PREVIEW_FRONT_YAW == 180f
+                && LmNativeProtocol.spinAfterPacket(97f, true) == 97f,
+                "model preview stops front-facing (body yaw 180), was " + stopped);
         LmNativeProtocol.Needs inputs = LmNativeProtocol.analyze(withLayout("{}",
                 "[{\"id\":\"a\",\"type\":\"text\"},{\"id\":\"b\",\"type\":\"paged_book\"}]"), id -> true);
         check(broken, inputs.hard().contains("textInput") && inputs.hard().contains("pagedBook")

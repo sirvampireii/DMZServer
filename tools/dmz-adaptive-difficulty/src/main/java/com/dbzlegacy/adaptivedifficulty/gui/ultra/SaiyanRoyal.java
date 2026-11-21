@@ -37,7 +37,10 @@ public final class SaiyanRoyal {
     public static final int GOLD_TRIM = rgb(GOLD_TRIM_HEX);
     public static final int TEXT = rgb(TEXT_HEX);
 
-    /** Bridge mapping onto UltraStyle's existing color letters (no new wire values). */
+    /**
+     * Bridge mapping onto UltraStyle's existing color letters (no new wire values). Every menu builder takes
+     * its header, label, value and system accent letters from here through UltraStyle.
+     */
     public static final char BRIDGE_ACCENT = 'c';
     public static final char BRIDGE_HEADER = '6';
     public static final char BRIDGE_LABEL = '7';
@@ -58,6 +61,29 @@ public final class SaiyanRoyal {
 
     private static final Pattern BAR = Pattern.compile("\\[(#*)(-*)\\]\\s*$");
     private static final Pattern DOTS = Pattern.compile("(\\[[x ]\\])(\\s\\[[x ]\\])+\\s*$");
+
+    /**
+     * Bridge accent letter of a system's menus, the same letters as 4.7.57: Difficulty red (the crimson), Rival
+     * white, Sparring dark aqua, Prestige aqua, Character green, SkillCheck yellow, Admin and config dark red.
+     * The main menu and unknown ids have none (they use the shared gold chrome).
+     */
+    public static String bridgeAccent(String screenId) {
+        if (screenId == null || screenId.isBlank()) {
+            return "";
+        }
+        return switch (screenId.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "difficulty" -> String.valueOf(BRIDGE_ACCENT);
+            // White, not dark purple: purple on the gold header and yellow button face does not read.
+            case "rival" -> "f";
+            // Dark aqua: gold is the shared action color and dark red is staff.
+            case "spar" -> "3";
+            case "prestige" -> "b";
+            case "character" -> "a";
+            case "skillcheck", "skills", "skillcheck_denied" -> "e";
+            case "admin", "config", "progression" -> "4";
+            default -> "";
+        };
+    }
 
     /** Every LM menu wears the skin in the native renderer (owner's pick, 2026-11-20). */
     public static boolean appliesTo(String screenId) {
@@ -194,20 +220,25 @@ public final class SaiyanRoyal {
             bad.add("Saiyan Royal palette must be panel #160b0d, crimson #e23b3b, gold trim #f0b429, text #f6e8e4");
         }
         String m = UltraStyle.MARK;
-        if (!UltraStyle.systemAccentCode("difficulty").equals(String.valueOf(BRIDGE_ACCENT))
-                || !UltraStyle.ACCENT_DIFFICULTY.equals(m + BRIDGE_ACCENT)
+        if (!UltraStyle.systemAccentCode("difficulty").equals("c") || !UltraStyle.ACCENT_DIFFICULTY.equals(m + "c")
                 || !"red".equals(UltraStyle.systemPaletteName("difficulty"))) {
             bad.add("Difficulty accent over the bridge must stay red (the crimson)");
         }
-        if (!UltraStyle.HEADER.equals(m + BRIDGE_HEADER + UltraStyle.BOLD) || !UltraStyle.LABEL.equals(m + BRIDGE_LABEL)
-                || !UltraStyle.VALUE.equals(m + BRIDGE_VALUE)) {
-            bad.add("headers gold + bold, labels gray, values white over the bridge");
+        if (!UltraStyle.HEADER.equals(m + "6" + m + "l") || !UltraStyle.LABEL.equals(m + "7")
+                || !UltraStyle.VALUE.equals(m + "f") || !UltraStyle.ACCENT_RIVAL.equals(m + "f")
+                || !UltraStyle.ACCENT_SPAR.equals(m + "3") || !UltraStyle.ACCENT_PRESTIGE.equals(m + "b")
+                || !UltraStyle.ACCENT_CHARACTER.equals(m + "a") || !UltraStyle.ACCENT_SKILLCHECK.equals(m + "e")
+                || !UltraStyle.ACCENT_ADMIN.equals(m + "4")) {
+            bad.add("bridge bytes as 4.7.57: headers gold + bold, labels gray, values white, system accents");
         }
         if (!UltraStyle.systemAccentCode("rival").equals("f") || !UltraStyle.systemAccentCode("spar").equals("3")
                 || !UltraStyle.systemAccentCode("prestige").equals("b")
                 || !UltraStyle.systemAccentCode("character").equals("a")
                 || !UltraStyle.systemAccentCode("skillcheck").equals("e")
-                || !UltraStyle.systemAccentCode("admin").equals("4")) {
+                || !UltraStyle.systemAccentCode("admin").equals("4")
+                || !UltraStyle.systemAccentCode("config").equals("4")
+                || !UltraStyle.systemAccentCode("skills").equals("e")
+                || !UltraStyle.systemAccentCode("hub").isEmpty()) {
             bad.add("other systems keep their bridge accents (rival white, sparring dark aqua, prestige aqua,"
                     + " character green, skillcheck yellow, admin dark red)");
         }

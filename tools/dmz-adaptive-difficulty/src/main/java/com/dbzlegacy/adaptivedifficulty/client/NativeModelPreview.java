@@ -29,7 +29,8 @@ import org.joml.Quaternionf;
  *       them, else their tab-list profile (their skin). A UUID nobody has (a made-up preview figure)
  *       is a stand-in that wears the viewer's skin, never the vanilla default.
  *   <li>{@code rotate true} turns the figure slowly. A menu that arrives with {@code rotate false}
- *       puts it back facing forward (the spin toggle no longer snaps to a stale angle).
+ *       puts it back front-facing, the character's front toward the viewer, never the back (the spin
+ *       toggle no longer snaps to a stale angle).
  *   <li>Name tags never draw over the preview.
  * </ul>
  */
@@ -44,11 +45,9 @@ final class NativeModelPreview {
     private static ClientLevel standInLevel;
     private static final Map<UUID, AbstractClientPlayer> STAND_INS = new HashMap<>();
 
-    /** A menu arrived: a still model faces forward again. */
+    /** A menu arrived: a still model is front-facing again (front toward the viewer, never the back). */
     static void onPacket(boolean rotate) {
-        if (!rotate) {
-            yaw = 0f;
-        }
+        yaw = LmNativeProtocol.spinAfterPacket(yaw, rotate);
         lastNanos = 0L;
     }
 
@@ -131,7 +130,7 @@ final class NativeModelPreview {
             }
             lastNanos = now;
         } else {
-            yaw = 0f;
+            yaw = LmNativeProtocol.spinAfterPacket(yaw, false);
             lastNanos = 0L;
         }
         int size = Math.max(8, Math.round(h * 0.42f * Math.max(0.1f, scale)));
@@ -147,7 +146,7 @@ final class NativeModelPreview {
         float head = entity.f_20885_;
         Quaternionf pose = new Quaternionf().rotateZ((float) Math.PI);
         Quaternionf camera = new Quaternionf();
-        float facing = 180f + yaw;
+        float facing = LmNativeProtocol.previewFacing(yaw);
         entity.f_20883_ = facing;
         entity.f_20884_ = facing;
         entity.m_146922_(facing);

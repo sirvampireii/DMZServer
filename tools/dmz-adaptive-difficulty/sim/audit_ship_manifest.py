@@ -1986,7 +1986,10 @@ def main() -> int:
           and "LmGuiNetwork" not in p58_client)
     check("native renderer: locked buttons inert, spin resets forward, scale-to-fit with a 0.5x floor",
           'NO_ACTION = "nav:none";' in p58_screen and "if (isNoAction(b.id())) {" in p58_screen
-          and "if (!rotate) {" in p58_model and "yaw = 0f;" in p58_model
+          # 4.7.60: front-facing is explicit (body yaw 180, front toward the viewer, never the back).
+          and "yaw = LmNativeProtocol.spinAfterPacket(yaw, rotate);" in p58_model
+          and "LmNativeProtocol.previewFacing(yaw)" in p58_model
+          and "PREVIEW_FRONT_YAW = 180f;" in p58_proto and "return rotate ? spin : 0f;" in p58_proto
           and "NativeMenuFit.place(" in p58_screen
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
@@ -2006,10 +2009,18 @@ def main() -> int:
           and "case '3' -> 0x00AAAA;" in p60_skin and "case 'f' -> 0xFFFFFF;" in p60_skin
           and "BRIDGE_ACCENT = 'c';" in p60_skin
           and "BRIDGE_HEADER = '6';" in p60_skin
-          and "ACCENT_DIFFICULTY = MARK + SaiyanRoyal.BRIDGE_ACCENT;" in p60_style
-          and 'case "difficulty" -> String.valueOf(SaiyanRoyal.BRIDGE_ACCENT);' in p60_style
-          and 'case "rival" -> "f";' in p60_style and 'case "spar" -> "3";' in p60_style
-          and "HEADER = GOLD + BOLD;" in p60_style)
+          and 'case "difficulty" -> String.valueOf(BRIDGE_ACCENT);' in p60_skin
+          and 'case "rival" -> "f";' in p60_skin and 'case "spar" -> "3";' in p60_skin
+          and 'case "prestige" -> "b";' in p60_skin and 'case "character" -> "a";' in p60_skin
+          and "BRIDGE_LABEL = '7';" in p60_skin and "BRIDGE_VALUE = 'f';" in p60_skin)
+    # Menu builders read the skin: one table for chrome letters and system accents, bytes pinned literally.
+    check("menu builders take chrome and accents from SaiyanRoyal; self-test pins the 4.7.57 bytes",
+          "return SaiyanRoyal.bridgeAccent(screenId);" in p60_style
+          and "HEADER = MARK + SaiyanRoyal.BRIDGE_HEADER + BOLD;" in p60_style
+          and "LABEL = MARK + SaiyanRoyal.BRIDGE_LABEL;" in p60_style
+          and "VALUE = MARK + SaiyanRoyal.BRIDGE_VALUE;" in p60_style
+          and 'ACCENT_RIVAL = MARK + SaiyanRoyal.bridgeAccent("rival");' in p60_style
+          and '!UltraStyle.HEADER.equals(m + "6" + m + "l")' in p60_skin)
     check("native renderer: rounded panel with shadow and gold border, rounded buttons; clicks keep the rectangle",
           "PANEL_BG" not in p60_screen and "drawSkinButton(g, b, hover, inert, style, isActiveTab(b));" in p60_screen
           and "accentRgb = sys >= 0 ? sys : paletteRgb(palette, SaiyanRoyal.GOLD_TRIM);" in p60_screen
