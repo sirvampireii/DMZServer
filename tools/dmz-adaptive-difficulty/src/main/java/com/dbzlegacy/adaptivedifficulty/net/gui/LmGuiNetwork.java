@@ -330,15 +330,17 @@ public final class LmGuiNetwork {
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.progression.Momentum.selfTest());
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.selfTest());
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.DifficultyGuide.selfTest());
+        // 4.7.60: Saiyan Royal skin constants, bridge accent mapping and the native shape math.
+        guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.SaiyanRoyal.selfTest());
         if (!guideBroken.isEmpty()) {
-            String msg = "Momentum / trial / guide self-test FAILED: " + String.join("; ", guideBroken);
+            String msg = "Momentum / trial / guide / skin self-test FAILED: " + String.join("; ", guideBroken);
             if (Boolean.getBoolean("lm.selftest.strict")) {
                 throw new IllegalStateException(msg);
             }
             AdaptiveDifficultyMod.LOGGER.error("[{}] {}", AdaptiveDifficultyMod.MOD_ID, msg);
         } else {
             AdaptiveDifficultyMod.LOGGER.info(
-                    "[{}] Momentum / free trial / guide self-test OK (timer, kill rule, hit scaling, revert, recommendation)",
+                    "[{}] Momentum / free trial / guide / skin self-test OK (timer, kill rule, hit scaling, revert, recommendation, Saiyan Royal)",
                     AdaptiveDifficultyMod.MOD_ID);
         }
         AdaptiveDifficultyMod.LOGGER.info(

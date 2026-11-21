@@ -238,7 +238,8 @@ public final class UltraStyle {
         DIM = DARK_GRAY;
         NOTICE_HEAD = HEADER;
         NOTICE_BODY = YELLOW;
-        ACCENT_DIFFICULTY = RED;
+        // 4.7.60: Saiyan Royal crimson maps to red over the bridge (same bytes as 4.7.57).
+        ACCENT_DIFFICULTY = MARK + SaiyanRoyal.BRIDGE_ACCENT;
         ACCENT_RIVAL = WHITE;
         ACCENT_SPAR = DARK_AQUA;
         ACCENT_PRESTIGE = AQUA;
@@ -682,7 +683,7 @@ public final class UltraStyle {
         }
         String id = screenId.trim().toLowerCase();
         return switch (id) {
-            case "difficulty" -> "c";
+            case "difficulty" -> String.valueOf(SaiyanRoyal.BRIDGE_ACCENT);
             // White, not dark purple. Purple on the gold header and yellow button face
             // does not read. Body copy on the dark panel may still use purple.
             case "rival" -> "f";

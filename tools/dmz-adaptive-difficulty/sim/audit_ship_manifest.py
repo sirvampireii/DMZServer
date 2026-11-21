@@ -1991,6 +1991,32 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.60 ---")
+    p60_skin = read(SRC / "gui/ultra/SaiyanRoyal.java")
+    p60_style = read(SRC / "gui/ultra/UltraStyle.java")
+    p60_screen = read(SRC / "client/NativeMenuScreen.java")
+    p60_net = read(SRC / "net/gui/LmGuiNetwork.java")
+    check("manifest row for lm 4.7.60", "lm-4760-saiyan-royal" in manifest)
+    check("Saiyan Royal palette defined once with the owner's hex values",
+          'PANEL_HEX = "#160b0d";' in p60_skin and 'CRIMSON_HEX = "#e23b3b";' in p60_skin
+          and 'GOLD_TRIM_HEX = "#f0b429";' in p60_skin and 'TEXT_HEX = "#f6e8e4";' in p60_skin
+          and 'NAME = "saiyan_royal";' in p60_skin)
+    check("skin is Difficulty only; the bridge keeps the 4.7.57 letters (red accent, gold bold headers)",
+          'SCREENS = Set.of("difficulty");' in p60_skin and "BRIDGE_ACCENT = 'c';" in p60_skin
+          and "BRIDGE_HEADER = '6';" in p60_skin
+          and "ACCENT_DIFFICULTY = MARK + SaiyanRoyal.BRIDGE_ACCENT;" in p60_style
+          and 'case "difficulty" -> String.valueOf(SaiyanRoyal.BRIDGE_ACCENT);' in p60_style
+          and 'case "rival" -> "f";' in p60_style and 'case "spar" -> "3";' in p60_style
+          and "HEADER = GOLD + BOLD;" in p60_style)
+    check("native renderer: rounded panel with shadow and gold border, rounded buttons; clicks keep the rectangle",
+          "this.skin = SaiyanRoyal.appliesTo(packet.screenId());" in p60_screen
+          and "private void drawSkinPanel(GuiGraphics g)" in p60_screen
+          and "SaiyanRoyal.SHADOW_RINGS" in p60_screen and "static void fillRounded(" in p60_screen
+          and "ring(g, b.x(), b.y(), b.w(), b.h(), SaiyanRoyal.BUTTON_RADIUS, edge, face);" in p60_screen
+          and "return x >= b.x() && x < b.x() + b.w() && y >= b.y() && y < b.y() + b.h();" in p60_screen)
+    check("skin self-test pins the palette, the accent mapping and the shape math at boot",
+          "SaiyanRoyal.selfTest()" in p60_net and "public static List<String> selfTest()" in p60_skin)
+
     print("\n--- § lm 4.7.59 ---")
     p59_mom = read(SRC / "progression/Momentum.java")
     p59_trial = read(SRC / "service/DifficultyTrial.java")

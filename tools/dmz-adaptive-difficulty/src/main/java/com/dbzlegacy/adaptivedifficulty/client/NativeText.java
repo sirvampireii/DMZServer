@@ -1,5 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.client;
 
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.SaiyanRoyal;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.Font;
 import net.minecraft.locale.Language;
@@ -46,6 +47,12 @@ final class NativeText {
         return fallback;
     }
 
+    /** Saiyan Royal ink for a code, else the usual one. */
+    static int skinRgb(char code, int fallback) {
+        int ink = SaiyanRoyal.nativeInk(code);
+        return ink >= 0 ? ink : rgb(code, fallback);
+    }
+
     /** Parse color/format codes. {@code muted} paints everything {@link #MUTED_RGB} (dim buttons). */
     static MutableComponent parse(String raw, int defaultRgb, boolean muted) {
         return parse(raw, defaultRgb, muted, false);
@@ -53,6 +60,14 @@ final class NativeText {
 
     /** As {@link #parse(String, int, boolean)}; {@code baseBold} keeps the whole text bold (titles). */
     static MutableComponent parse(String raw, int defaultRgb, boolean muted, boolean baseBold) {
+        return parse(raw, defaultRgb, muted, baseBold, false);
+    }
+
+    /**
+     * As above; {@code skin} draws the Saiyan Royal inks (4.7.60): the accent letter crimson, the header
+     * letter gold trim, the value letter the near-white text. Other letters keep their usual color.
+     */
+    static MutableComponent parse(String raw, int defaultRgb, boolean muted, boolean baseBold, boolean skin) {
         MutableComponent out = Component.m_237119_();
         if (raw == null || raw.isEmpty()) {
             return out;
@@ -69,7 +84,7 @@ final class NativeText {
                 flush(out, seg, color, bold, italic, under, strike);
                 char code = Character.toLowerCase(raw.charAt(++i));
                 if ((code >= '0' && code <= '9') || (code >= 'a' && code <= 'f')) {
-                    color = muted ? MUTED_RGB : rgb(code, defaultRgb);
+                    color = muted ? MUTED_RGB : skin ? skinRgb(code, defaultRgb) : rgb(code, defaultRgb);
                     bold = baseBold;
                     italic = under = strike = false;
                 } else if (code == 'r') {

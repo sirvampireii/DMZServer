@@ -634,3 +634,10 @@ Three classes were re-extracted from `LegacyMechanics-4.7.59.jar` after a javap 
 intended changes: `AdaptiveDifficultyMod` (version constant), `ConfigEditor` (the new Momentum
 section) and `ConfigFieldHelp` (help lines for the four momentum settings). No signature changed.
 The other 22 are unchanged.
+
+## Re-baseline (2026-11-20, 4.7.60 merge of 4.7.58 and 4.7.59, Saiyan Royal skin)
+
+Two classes were re-extracted from `LegacyMechanics-4.7.60.jar` after a javap diff showed only the
+intended changes: `AdaptiveDifficultyMod` (version constant) and `ConfigFieldHelp` (the help text now
+carries both the 4.7.58 `requireLmClient` line and the four 4.7.59 momentum lines). `ConfigEditor`
+already matched the 4.7.59 baseline. No signature changed. The other 23 are unchanged.
