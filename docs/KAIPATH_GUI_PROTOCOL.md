@@ -589,7 +589,7 @@ only requires a single Minecraft color code.
 | `x`, `y` | number | Panel-relative origin |
 | `width`, `height` | number | Bounds for the preview |
 | `scale` | number | Entity scale (default `1.0`) |
-| `rotate` | boolean | Slow turntable when `true` |
+| `rotate` | boolean | Slow turntable when `true`. `false` = front-facing: the character's front toward the viewer, never the back or a stale angle (contract since LM 4.7.60; kit `PreviewFacing`) |
 | `subject` | string | Who to draw. **`local`** (or omitted) is the player who has the screen open. Another player is their UUID (`550e8400-e29b-41d4-a716-446655440000`) or the same id as **`uuid:<uuid>`**. Any mod may set this. The client draws that player's model, skin, and synced parts. It must not substitute the viewer when the UUID is someone else. |
 | `portraitFrame` | string | Optional RL; non-empty valid RL enables preview frame chrome. LM omits this so the model has no border. Advertised + honored on KaiPath **1.3.17**. |
 | `parts` | object | Optional cosmetics snapshot for that subject — see below |
@@ -824,6 +824,24 @@ client-side and outside LM's reach:
 - `subject local` with a `form` the player is not wearing keeps the base form in the preview and
   turns the HUD portrait to that form while the screen is open. LM never sends that combination.
 - With `rotate:false`, a `local` model follows the player's facing in the world; a stand-in holds still.
+
+### Spin stop is front-facing (LM 4.7.60)
+
+No wire change. When a packet arrives with `rotate:false`, the preview resets to front-facing: the
+character's front toward the viewer, never the back, whatever angle the spin had reached and wherever the
+mouse is. A later `rotate:true` starts turning from the front. LM's own client renderer does this
+(`LmNativeProtocol.PREVIEW_FRONT_YAW`, body yaw 180 under the in-GUI renderer's roll). The kit carries the
+same rule for KaiPath in `PreviewFacing` (tested by `PreviewFacingTest`); KaiPath 1.5.6 still follows the
+world facing or the mouse until JLDK merges it.
+
+### Saiyan Royal skin (LM 4.7.60)
+
+No wire change for the bridge. LM's menus keep the 4.7.57 color letters: headers gold + bold (`§6§l`),
+labels gray (`§7`), values white (`§f`), system accents as before (Difficulty `c`, Rival `f`, Sparring `3`,
+Prestige `b`, Character `a`, SkillCheck `e`, Admin and config `4`). The LM client draws the skin natively:
+panel `#160b0d`, crimson `#e23b3b` (Difficulty's accent), gold trim `#f0b429`, text `#f6e8e4`, rounded panel
+(12px) and buttons (8px), soft shadow, 1px gold-trim border. KaiPath may adopt those hex values and shapes
+for LM's channel later; nothing in the packet asks for them, and KaiPath's square look stays correct.
 
 ---
 

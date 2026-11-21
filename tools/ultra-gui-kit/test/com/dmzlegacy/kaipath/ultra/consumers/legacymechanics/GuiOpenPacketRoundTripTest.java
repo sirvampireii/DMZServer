@@ -13,6 +13,7 @@ public final class GuiOpenPacketRoundTripTest {
     public static void main(String[] args) {
         BodyPartWireTest.main(args);
         GuiModelSyncPacketTest.main(args);
+        PreviewFacingTest.main(args);
         String inputs =
                 "[{\"id\":\"weight_value\",\"type\":\"text\",\"x\":8,\"y\":80,\"w\":200,\"h\":18,"
                         + "\"value\":\"50\",\"placeholder\":\"Weight\",\"maxLength\":8,"
