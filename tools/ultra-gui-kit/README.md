@@ -66,6 +66,7 @@ protocol. KaiPath registers one client consumer per partner mod id.
     - ASCII-only labels
     - known palette names
     - a still preview is front-facing
+    - no Java object printed as text (`[I@2feb1f5f`) in a label or line
     Refresh the corpus with `test/gen_lm_corpus.py` from an LM UI probe run (`tools/lm-ui-probe`).
 
 See [`server/HelloWorldServerSketch.java`](server/HelloWorldServerSketch.java) and

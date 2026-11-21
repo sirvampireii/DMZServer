@@ -620,71 +620,98 @@ public final class BodyPartPreview {
         }
         boolean hasPieces = extra != null && !extra.isEmpty();
         boolean hasColors = colors != null && colors.size() > 0;
-        if (!hasPieces && !hasColors) {
+        if (look == null || (!hasPieces && !hasColors)) {
             return look;
         }
         try {
-            Class<?> designC = Class.forName("com.dmzultra.client.forms.FormParts$Design");
-            Class<?> lookC = Class.forName("com.dmzultra.client.forms.FormParts$Look");
-            LinkedHashSet<String> pieces = new LinkedHashSet<>();
-            int own = 0xFFFFFF;
-            int trim = 0xE9C46A;
-            int horn = 0xEFE6CF;
-            int light = 0xFFFFFF;
-            float front = 0f;
-            float back = 0f;
-            int skin = 0xFFFFFF;
-            int second = 0xFFFFFF;
-            int hair = 0x202424;
-            if (look != null && lookC.isInstance(look)) {
-                Object design = lookC.getMethod("design").invoke(look);
-                if (design != null) {
-                    Object existing = designC.getMethod("parts").invoke(design);
-                    if (existing instanceof Set<?> set) {
-                        for (Object piece : set) {
-                            if (piece != null) {
-                                pieces.add(String.valueOf(piece));
-                            }
-                        }
-                    }
-                    own = integer(design, "own", own);
-                    trim = integer(design, "trim", trim);
-                    horn = integer(design, "horn", horn);
-                    light = integer(design, "light", light);
-                    front = decimal(design, "front", front);
-                    back = decimal(design, "back", back);
-                }
-                skin = integer(look, "skin", skin);
-                second = integer(look, "second", second);
-                hair = integer(look, "hair", hair);
+            // DMZUltra's Look and Design records grew components between versions (0.4.0 and 0.5.7 add
+            // hair rules, hidden bones, worn sets). Rebuild each record from its own components and swap
+            // only the named ones, so no fixed constructor has to match the installed version.
+            Object design = component(look, "design");
+            if (design == null) {
+                return look;
             }
-            // Server-sent colors win over the reflective read (the gray-parts fix).
-            own = color(colors, "own", own);
-            trim = color(colors, "trim", trim);
-            horn = color(colors, "horn", horn);
-            light = color(colors, "light", light);
-            skin = color(colors, "skin", skin);
-            second = color(colors, "second", second);
-            hair = color(colors, "hair", hair);
+            LinkedHashSet<String> pieces = new LinkedHashSet<>();
+            Object existing = component(design, "parts");
+            if (existing instanceof Set<?> set) {
+                for (Object piece : set) {
+                    if (piece != null) {
+                        pieces.add(String.valueOf(piece));
+                    }
+                }
+            }
             if (suppressesFromPayload(partsJson)) {
-                // A chosen tail piece is equipped. The look must not carry the race tail
-                // mesh either, or this merge would re-add what the race layer already
-                // draws. Dropped before the chosen pieces go in, so a chosen piece whose
-                // own mesh is the race mesh still renders.
+                // A chosen tail piece is equipped: the race tail mesh leaves the look before the
+                // chosen pieces go in, so a chosen piece whose own mesh is the race mesh still renders.
                 pieces.remove(BodyPartWire.SAIYAN_TAIL_MESH);
             }
             if (hasPieces) {
                 pieces.addAll(extra);
             }
-            Object design =
-                    designC.getConstructor(
-                                    Set.class, int.class, int.class, int.class, int.class, float.class, float.class)
-                            .newInstance(pieces, own, trim, horn, light, front, back);
-            return lookC.getConstructor(designC, int.class, int.class, int.class)
-                    .newInstance(design, skin, second, hair);
+            java.util.Map<String, Object> designSwap = new java.util.HashMap<>();
+            designSwap.put("parts", pieces);
+            for (String key : new String[] {"own", "trim", "horn", "light"}) {
+                putColor(designSwap, colors, key);
+            }
+            java.util.Map<String, Object> lookSwap = new java.util.HashMap<>();
+            lookSwap.put("design", rebuild(design, designSwap));
+            for (String key : new String[] {"skin", "second", "hair"}) {
+                putColor(lookSwap, colors, key);
+            }
+            return rebuild(look, lookSwap);
         } catch (Throwable ignored) {
             return look;
         }
+    }
+
+    /** Server-sent color for {@code key}, when present. */
+    private static void putColor(java.util.Map<String, Object> swap, JsonObject colors, String key) {
+        try {
+            if (colors != null && colors.has(key) && colors.get(key).isJsonPrimitive()) {
+                swap.put(key, colors.get(key).getAsInt());
+            }
+        } catch (RuntimeException ignored) {
+            // keep the record's own value
+        }
+    }
+
+    /** One record component by name, or null. */
+    static Object component(Object record, String name) throws ReflectiveOperationException {
+        if (record == null || !record.getClass().isRecord()) {
+            return null;
+        }
+        for (java.lang.reflect.RecordComponent c : record.getClass().getRecordComponents()) {
+            if (c.getName().equals(name)) {
+                Method accessor = c.getAccessor();
+                accessor.setAccessible(true);
+                return accessor.invoke(record);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Copy of {@code record} with the named components swapped. A swap whose value does not fit the
+     * component's type (Look's int {@code hair} vs Design's hair rule) is ignored.
+     */
+    static Object rebuild(Object record, java.util.Map<String, Object> swap) throws ReflectiveOperationException {
+        java.lang.reflect.RecordComponent[] comps = record.getClass().getRecordComponents();
+        Class<?>[] types = new Class<?>[comps.length];
+        Object[] values = new Object[comps.length];
+        for (int i = 0; i < comps.length; i++) {
+            types[i] = comps[i].getType();
+            Method accessor = comps[i].getAccessor();
+            accessor.setAccessible(true);
+            Object value = accessor.invoke(record);
+            Object next = swap.get(comps[i].getName());
+            if (next != null && (types[i].isInstance(next) || (types[i] == int.class && next instanceof Integer))) {
+                value = next;
+            }
+            values[i] = value;
+        }
+        java.lang.reflect.Constructor<?> ctor = record.getClass().getDeclaredConstructor(types);
+        ctor.setAccessible(true);
+        return ctor.newInstance(values);
     }
 
     /** Present numeric color from {@code colors}, else {@code fallback}. */

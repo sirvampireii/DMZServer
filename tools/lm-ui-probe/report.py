@@ -75,6 +75,13 @@ def main(out, base=None):
     shots = client.count("\nSCREEN ") + client.startswith("SCREEN ")
     row("full crawl completed", shots > 0 and not disc, f"{shots} layouts" + (f"; {disc[:3]}" if disc else ""))
 
+    # 4.7.61: with the LM client installed nothing falls back to KaiPath, Preview forms included.
+    drawn = re.findall(r"^SCREEN \d+ (\S+) (\S+) cfg=\S+ .* class=(\S+)", client, re.M)
+    not_native = sorted({(s_, p_.split(":")[0], c_) for s_, p_, c_ in drawn if c_ != "NativeMenuScreen"})
+    previews = sorted({p_ for s_, p_, c_ in drawn if s_ == "character" and p_.startswith("form_preview")})
+    row("with the LM client every menu is native (Preview forms too)", bool(drawn) and not not_native,
+        (f"{len(previews)} Preview forms pages native" if not not_native else f"fell back: {not_native[:5]}"))
+
     script = read(os.path.join(full, "uiprobe-script.txt")) or ""
     passes = len(re.findall(r"\bPASS\b", script))
     fails = [l for l in script.splitlines() if re.search(r"\bFAIL\b", l)]
@@ -209,6 +216,16 @@ def gallery(out, pk, client):
             spin += f'<figure><a href="{f}"><img src="{f}" loading="lazy"></a><figcaption>{name}</figcaption></figure>'
     if spin:
         cards.append(f"<section><h2>Model spin stop (must show the front)</h2><div class=row>{spin}</div></section>")
+    forms = ""
+    for i in sorted(pk):
+        r = pk[i]
+        if r["screen"] == "character" and r["page"].startswith("form_preview"):
+            f = f"full/ui-{r['i']:03d}-1080p-gs3.png"
+            if os.path.exists(os.path.join(out, f)):
+                forms += (f'<figure><a href="{f}"><img src="{f}" loading="lazy"></a>'
+                          f'<figcaption>{html.escape(r["page"])}</figcaption></figure>')
+    if forms:
+        cards.append(f"<section><h2>Preview forms (the figure must wear the named form)</h2><div class=row>{forms}</div></section>")
     page = ("<!doctype html><meta charset=utf-8><title>LM menu review</title><style>"
             "body{background:#111;color:#eee;font:14px system-ui;margin:16px}h1{font-size:20px}"
             "h2{font-size:15px;margin:18px 0 6px;color:#f0b429}.row{display:flex;gap:12px;flex-wrap:wrap}"

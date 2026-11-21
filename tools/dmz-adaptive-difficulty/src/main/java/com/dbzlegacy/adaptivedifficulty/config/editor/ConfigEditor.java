@@ -248,7 +248,7 @@ public final class ConfigEditor {
         if (located == null || located.value == null) {
             return "";
         }
-        return String.valueOf(located.value);
+        return valueText(located.value);
     }
 
     public static List<String> editLines(String rootId, String path) {
@@ -291,7 +291,7 @@ public final class ConfigEditor {
             return "That config is not editable.";
         }
         Located located = locate(rootId, path);
-        String before = located == null || located.value == null ? "empty" : String.valueOf(located.value);
+        String before = located == null || located.value == null ? "empty" : valueText(located.value);
         String error = mutateSet(rootId, path, raw);
         if (error != null) {
             return error;
@@ -329,7 +329,7 @@ public final class ConfigEditor {
             return "That config is not editable.";
         }
         Located located = locate(rootId, path);
-        String before = located == null || located.value == null ? "empty" : String.valueOf(located.value);
+        String before = located == null || located.value == null ? "empty" : valueText(located.value);
         String error = mutateRemove(rootId, path);
         if (error != null) {
             return error;
@@ -473,7 +473,7 @@ public final class ConfigEditor {
             return null;
         }
         String current = currentRaw == null || currentRaw.isBlank()
-                ? String.valueOf(located.value)
+                ? valueText(located.value)
                 : currentRaw.trim();
         int index = 0;
         for (int i = 0; i < constants.length; i++) {
@@ -504,8 +504,8 @@ public final class ConfigEditor {
             } else {
                 return ChangePreview.bad("That setting can't be edited here.");
             }
-            String before = located.value == null ? "empty" : String.valueOf(located.value);
-            return ChangePreview.ok(displayName(leafName(path)) + ": " + before + " -> " + next);
+            String before = located.value == null ? "empty" : valueText(located.value);
+            return ChangePreview.ok(displayName(leafName(path)) + ": " + before + " -> " + valueText(next));
         } catch (NumberFormatException e) {
             return ChangePreview.bad("That needs to be a number.");
         } catch (IllegalArgumentException e) {
@@ -1453,7 +1453,7 @@ public final class ConfigEditor {
             return "empty";
         }
         // Full text. Config menus wrap it; an ellipsis here cut the default mid-word.
-        return String.valueOf(value).replace('\n', ' ');
+        return valueText(value).replace('\n', ' ');
     }
 
     public static LastChange lastChange(String moduleId, String path) {
@@ -1937,6 +1937,10 @@ public final class ConfigEditor {
      * a plain chance field is a 0-1 fraction, and every other number falls back to its type.
      */
     public static String acceptedValues(String moduleId, String path) {
+        Located arr = locate(moduleId, path);
+        if (arr != null && arr.value() != null && arr.value().getClass().isArray()) {
+            return "numbers separated by commas, like 60, 300, 900";
+        }
         return switch (kindOf(moduleId, path)) {
             case BOOLEAN -> "true / false";
             case ENUM -> {
@@ -2075,7 +2079,7 @@ public final class ConfigEditor {
         if (located == null || located.value == null) {
             return "empty";
         }
-        return String.valueOf(located.value);
+        return valueText(located.value);
     }
 
     private static String afterText(Draft draft) {
@@ -2555,7 +2559,7 @@ public final class ConfigEditor {
         if (value == null) {
             return "empty";
         }
-        String text = String.valueOf(value).replace('\n', ' ');
+        String text = valueText(value).replace('\n', ' ');
         if (text.length() > 18) {
             return text.substring(0, 17) + "...";
         }
@@ -2673,6 +2677,19 @@ public final class ConfigEditor {
         }
         String text = raw == null ? "" : raw.trim();
         Class<?> rawClass = rawClass(type);
+        if (rawClass != null && rawClass.isArray() && rawClass.getComponentType().isPrimitive()
+                && rawClass.getComponentType() != boolean.class && rawClass.getComponentType() != char.class) {
+            // LM 4.7.61: number lists (Meditation level seconds) read "60, 300, 900".
+            String[] parts = text.replace("[", "").replace("]", "").trim().split("[,;\s]+");
+            if (parts.length == 0 || parts[0].isEmpty()) {
+                throw new IllegalArgumentException("Type numbers separated by commas, like 60, 300, 900.");
+            }
+            Object out = java.lang.reflect.Array.newInstance(rawClass.getComponentType(), parts.length);
+            for (int i = 0; i < parts.length; i++) {
+                java.lang.reflect.Array.set(out, i, coerce(rawClass.getComponentType(), parts[i]));
+            }
+            return out;
+        }
         if (rawClass == String.class || rawClass == null || rawClass == Object.class) {
             return raw == null ? "" : raw;
         }
@@ -2946,5 +2963,27 @@ public final class ConfigEditor {
     }
 
     /** {@code owner} holds {@code field}. {@code container} is the map or list when {@code key} is set. */
+    /**
+     * Config value as staff read it. LM 4.7.61: arrays read "60, 300, 900"; String.valueOf printed
+     * "[I@2feb1f5f" on the Meditation page.
+     */
+    public static String valueText(Object value) {
+        if (value == null) {
+            return "empty";
+        }
+        if (value.getClass().isArray()) {
+            int n = java.lang.reflect.Array.getLength(value);
+            StringBuilder out = new StringBuilder();
+            for (int i = 0; i < n; i++) {
+                if (i > 0) {
+                    out.append(", ");
+                }
+                out.append(valueText(java.lang.reflect.Array.get(value, i)));
+            }
+            return out.toString();
+        }
+        return String.valueOf(value);
+    }
+
     private record Located(Field field, Object owner, Object container, String key, Object value) {}
 }

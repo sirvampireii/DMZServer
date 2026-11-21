@@ -42,6 +42,23 @@ floor does the whole menu scroll. The staff config editor (`fillScreen`) scales 
 the window. Locked buttons (`nav:none`) are dim and send nothing. Spin off (`rotate:false`) puts the
 model back facing forward. Close sits in the bottom 28 px band like KaiPath's.
 
+4.7.61 Preview forms: Character Services > Preview forms is native. The made-up figure is a client-only
+stand-in that wears the race and form the page names (`NativeFormLook` sets DragonMineZ race, form and stack
+form), and its body parts join DMZUltra 0.5.7's look through the client-only mixins in
+`legacymechanics.client.mixins.json` (`FormPartsPreviewMixin`, `RaceTailSuppressMixin`). They act only while
+an LM menu draws its preview. The hello adds `combined.forms.v1` (DragonMineZ) and `bodyParts` (DMZUltra),
+so a client missing either still gets the KaiPath page.
+
+4.7.61 polish (client only, no wire change):
+- A `footer:true` button the server put on the design box's edge (the config editor sends margin 0)
+  moves into the bottom band, 10 px inside the right border. Close then takes the left end of the
+  same row at the same height. KaiPath pins the same footer itself.
+- A text field's grey hint is shortened with "..." to the field's inner width. The vanilla EditBox
+  draws hints unclipped, so "Search by name" used to run under the Search button.
+- The bridge darkens yellow and gold labels to dark gray (`§8`) for KaiPath's light button face. On a
+  live (not dim, not locked) button, the native renderer draws that label in skin text, because dark
+  gray is the locked look on the dark Saiyan Royal face.
+
 ## Server config
 
 `requireLmClient` (in `legacymechanics.json`, default **false**): when true, a player who joins

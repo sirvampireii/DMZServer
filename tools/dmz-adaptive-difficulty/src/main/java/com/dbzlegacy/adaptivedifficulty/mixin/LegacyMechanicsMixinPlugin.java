@@ -8,7 +8,9 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 /**
  * LegacyMechanics is server-primary. Client copies apply no mixins except the optional
- * KaiPath LM-consumer bootstrap fix ({@code KaiPathLmConsumerBootstrapMixin}).
+ * KaiPath LM-consumer bootstrap fix ({@code KaiPathLmConsumerBootstrapMixin}) and, from 4.7.61, the two
+ * native model-preview mixins in {@code legacymechanics.client.mixins.json}. {@code dmzRevampClassPresent}
+ * is a plain class-file lookup and is reused for those targets.
  */
 public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
 
@@ -26,6 +28,15 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
         // LM jar is also installed. Listed under mixins[] so jar audits see the registration.
         if (mixinClassName != null && mixinClassName.endsWith("KaiPathLmConsumerBootstrapMixin")) {
             return !dedicatedServer() && kaipathLmConsumerPresent();
+        }
+        // 4.7.61, legacymechanics.client.mixins.json: the LM client's native model preview. Physical client
+        // only, and only with the mod that owns the target (DMZUltra 0.5.7 FormParts, DragonMineZ bones).
+        if (mixinClassName != null && mixinClassName.endsWith(".client.mixin.FormPartsPreviewMixin")) {
+            return !dedicatedServer() && dmzRevampClassPresent("com/dmzultra/client/forms/FormParts.class");
+        }
+        if (mixinClassName != null && mixinClassName.endsWith(".client.mixin.RaceTailSuppressMixin")) {
+            return !dedicatedServer()
+                    && dmzRevampClassPresent("com/dragonminez/client/util/BoneVisibilityHandler.class");
         }
         if (!dedicatedServer()) {
             return false;

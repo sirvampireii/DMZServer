@@ -49,6 +49,7 @@ bash tools/lm-ui-probe/matrix.sh mods/LegacyMechanics-<version>.jar [<older run>
   - KaiPath-only path
   - one spec for both paths
   - the requireLmClient rejection
+  - every menu native with the LM client (Preview forms too)
 - `review.html`: a contact sheet for the owner. It shows GUI scale 3 and 4 shots of every Difficulty page, the main page
   of every other menu, and the spin-stop shots.
 
@@ -63,13 +64,17 @@ exit.
 ## Analyzers
 
 - `analyze_layout.py`: buttons inside the panel, at least 80px wide, 16px rows, 6px gaps, 426 wide, no overlaps, and
-  scale-to-fit per GUI scale. Preview forms on a made-up figure is the one expected KaiPath fallback.
+  scale-to-fit per GUI scale. With the LM client every menu is native, Preview forms included (4.7.61); `LMRIG_ALLOW_FALLBACK="character:form_preview"` re-allows that page when testing an older jar.
 - `analyze_skin.py`: Saiyan Royal and the system accent per native screen, plus the wire comparison with an older run.
 - `analyze_look.py`: what a reviewer catches by eye.
   - Label-on-face and text-on-background contrast must be at least 3:1. This is how red labels on green buttons
     would have been caught.
   - Labels the renderer had to shorten.
-  - Controls sitting on the panel's bottom edge.
+  - Controls sitting on the panel's bottom or right edge (the rounded border cuts them).
+  - Live buttons whose label is the dark-gray locked ink (they read as disabled).
+  - Text field hints wider than their field (`T ... hint="..." hintw= room=` lines, 4.7.61 client).
+  - Raw Java values printed as text (`[I@2feb1f5f`).
+  - NOTE only, not a failure: a wrapped body line that leaves one short word alone on the next line.
   - It reads the `face= ink= cut=` and `I` lines that the LM client's `debugLayout` writes.
 
 ## Kit corpus

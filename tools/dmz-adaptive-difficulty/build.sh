@@ -163,7 +163,9 @@ FORGE_C="$CLIENT_LIBS/net/minecraftforge/forge/1.20.1-47.4.10/forge-1.20.1-47.4.
 JOML="$CLIENT_LIBS/org/joml/joml/1.10.5/joml-1.10.5.jar"
 DFU="$ROOT/libraries/com/mojang/datafixerupper/6.0.8/datafixerupper-6.0.8.jar"
 FASTUTIL="$ROOT/libraries/it/unimi/dsi/fastutil/8.5.9/fastutil-8.5.9.jar"
-for f in "$CLIENT_SRG" "$FORGE_C" "$JOML" "$DFU" "$FASTUTIL"; do
+# 4.7.61: the native preview's race-tail mixin names GeckoLib types (DragonMineZ's bone pass).
+GECKOLIB="${GECKOLIB_JAR:-$ROOT/mods/geckolib-forge-1.20.1-4.8.4.jar}"
+for f in "$CLIENT_SRG" "$FORGE_C" "$JOML" "$DFU" "$FASTUTIL" "$GECKOLIB"; do
   if [[ ! -f "$f" ]]; then
     echo "Missing $f - install the Forge 1.20.1-47.4.10 client or set CLIENT_LIBS" >&2
     exit 1
@@ -180,7 +182,7 @@ if [[ -n "${WINDIR:-}" ]]; then
 else
   printf '%s\n' "${CLIENT_SOURCES[@]}" > "$CLIENT_LIST"
 fi
-javac --release 17 -encoding UTF-8 -proc:none -cp "$FORGE_C:$CLIENT_SRG:$JOML:$DFU:$FASTUTIL:$OUT:$CP" -d "$OUT" "@$CLIENT_LIST"
+javac --release 17 -encoding UTF-8 -proc:none -cp "$FORGE_C:$CLIENT_SRG:$JOML:$DFU:$FASTUTIL:$GECKOLIB:$OUT:$CP" -d "$OUT" "@$CLIENT_LIST"
 echo "Compiled ${#CLIENT_SOURCES[@]} LM client renderer sources"
 
 # For every class this compile actually overlaid, drop base-jar inner classes the
@@ -621,6 +623,8 @@ merge_onto_base_jar() {
   if [[ ! -f "$merge/legacymechanics.mixins.json" ]]; then
     cp "$RES/legacymechanics.mixins.json" "$merge/legacymechanics.mixins.json"
   fi
+  # 4.7.61: client-only native preview mixins (MANIFEST MixinConfigs names this file).
+  cp "$RES/legacymechanics.client.mixins.json" "$merge/legacymechanics.client.mixins.json"
   (cd "$merge" && jar cfm "$dest" META-INF/MANIFEST.MF .)
   if unzip -p "$dest" legacymechanics.mixins.json | grep -Eq '"StatsDataHudPoolMaxMixin"|"StatsDataOverhaulCombatScaleMixin"'; then
     echo "ERROR: shipped mixins.json must not register LM prestige scale mixins" >&2
@@ -648,6 +652,7 @@ else
       -C "$RES" META-INF/kaipath-ultra.txt \
       -C "$RES" pack.mcmeta \
       -C "$RES" legacymechanics.mixins.json \
+      -C "$RES" legacymechanics.client.mixins.json \
       -C "$RES" legacymechanics.refmap.json \
       -C "$RES" data \
       -C "$RES" character-services.default.json \
@@ -789,6 +794,22 @@ else
   echo ">> Prestige-shop 228.1 source not yet integrated (no PrestigeShopConfig.java in src/) — 25-class byte-verify dormant (harness armed)"
 fi
 python3 "$HERE/sim/audit_jar_inner_classes.py" "$JAR"
+# 4.7.61: the client preview mixin config ships, lists both mixins, and both classes are in the jar.
+for need in legacymechanics.client.mixins.json \
+    com/dbzlegacy/adaptivedifficulty/client/mixin/FormPartsPreviewMixin.class \
+    com/dbzlegacy/adaptivedifficulty/client/mixin/RaceTailSuppressMixin.class; do
+  if ! unzip -l "$JAR" "$need" > /dev/null 2>&1; then
+    echo "ERROR: $need missing from $JAR" >&2
+    exit 1
+  fi
+done
+# Manifest lines wrap at 72 bytes ("...client.mixins." + newline + " json"): unfold before matching.
+if ! unzip -p "$JAR" META-INF/MANIFEST.MF | tr -d '\r' | awk '{ if (sub(/^ /, "")) printf "%s", $0; else printf "\n%s", $0 }' \
+    | grep -q 'legacymechanics.client.mixins.json'; then
+  echo "ERROR: MANIFEST MixinConfigs does not name legacymechanics.client.mixins.json" >&2
+  exit 1
+fi
+echo "PASS client preview mixins packaged (FormPartsPreviewMixin, RaceTailSuppressMixin)"
 python3 "$ROOT/scripts/audit_jar_manifest.py" "$JAR" "$VERSION"
 python3 - "$JAR" << 'PY'
 import sys, zipfile
@@ -826,15 +847,18 @@ with zipfile.ZipFile(jar) as zf:
         if b"com/dbzlegacy/adaptivedifficulty/client/" in zf.read(name):
             bad.append(name + " (names the client package; boot it by name only)")
             continue
+        # 4.7.61: "is DMZUltra's FormParts installed?" is a class-file resource lookup (getResource), never a
+        # class load, in LegacyMechanicsMixinPlugin and LmNativeProtocol. Only that exact resource name is exempt.
+        presence_only = b"com/dmzultra/client/forms/FormParts.class"
         # net/gui + gui/ultra may reference LmGuiNetwork; that is server-side Ultra.
         if norm.startswith("com/dbzlegacy/adaptivedifficulty/net/gui/") or \
                 norm.startswith("com/dbzlegacy/adaptivedifficulty/gui/ultra/"):
-            data = zf.read(name)
+            data = zf.read(name).replace(presence_only, b"")
             if (b"com/dmzultra/client" in data or b"com.dmzultra.client" in data
                     or b"net/minecraft/client/" in data or b"LmClientBootstrap" in data):
                 bad.append(name)
             continue
-        data = zf.read(name)
+        data = zf.read(name).replace(presence_only, b"")
         if (b"com/dmzultra/client" in data or b"com.dmzultra.client" in data
                 or b"net/minecraft/client/" in data or b"LmClientBootstrap" in data):
             bad.append(name)

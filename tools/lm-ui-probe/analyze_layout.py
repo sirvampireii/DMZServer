@@ -1,5 +1,6 @@
 """analyze_layout.py <results dir>: native layout check (widths, gaps, button heights, scale-to-fit at GUI 3/4) from uiprobe-client.txt N lines + packets."""
 import json
+import os
 import re
 import sys
 from collections import Counter, defaultdict
@@ -40,12 +41,13 @@ classes = Counter(b["cls"] for b in blocks)
 print("blocks", len(blocks), "pages", len({b["i"] for b in blocks}), "classes", dict(classes))
 problems = defaultdict(list)
 scroll = defaultdict(set)
-EXPECTED_FALLBACK = {("character", "form_preview")}
+# LM 4.7.61: the LM client draws Preview forms (a made-up figure in a race form) itself, so with the LM client
+# every menu is native. LMRIG_ALLOW_FALLBACK="character:form_preview" re-allows it when testing an older jar.
+EXPECTED_FALLBACK = {tuple(x.split(":", 1)) for x in os.environ.get("LMRIG_ALLOW_FALLBACK", "").split() if ":" in x}
 fallback = set()
 scales = defaultdict(list)
 for b in blocks:
     if b["cls"] != "NativeMenuScreen":
-        # Preview forms on a made-up figure needs form pieces the LM client does not draw: KaiPath by design.
         if (b["screen"], b["page"].split(":")[0]) in EXPECTED_FALLBACK:
             fallback.add((b["screen"], b["page"]))
         else:

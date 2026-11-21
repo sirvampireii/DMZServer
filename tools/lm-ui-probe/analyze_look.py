@@ -3,8 +3,13 @@
 - Contrast: every button label against its face and every body line against its background, WCAG ratio.
   Under MIN_CONTRAST is a problem (red text on a green button was 1.6).
 - Cut labels: a button label the renderer had to shorten with "...".
-- Panel edge: a server control whose bottom sits within EDGE_GAP design px of the panel's bottom edge.
-Prints one PROBLEM line per kind (with examples) or "no look problems". Exit code 1 when anything is found.
+- Panel edge: a server control whose bottom or right side sits within EDGE_GAP design px of the panel edge
+  (the rounded border cuts it).
+- Looks disabled: a live button (normal / confirm / danger) whose label is drawn in a dark gray, the locked look.
+- Field hint overflow: a text field's grey hint wider than the field (it runs under the next control).
+- Raw value: a Java object printed as text ("[I@2feb1f5f") in a label or body line.
+- Orphan word (NOTE, not a failure): a wrapped body line that leaves one short word alone on the next line.
+Prints one PROBLEM line per kind (with examples) or "no look problems". Exit code 1 when a PROBLEM is found.
 """
 import os
 import re
@@ -38,6 +43,16 @@ def contrast(a, b):
     return (hi + 0.05) / (lo + 0.05)
 
 
+RAW = re.compile(r"\[[IJDZBCSF]@[0-9a-f]{4,}|\b[a-z]+(\.[a-z]+)+\.[A-Z]\w*@[0-9a-f]{4,}")
+
+
+def gray(hexrgb):
+    """Dark neutral gray, the locked/disabled label look."""
+    v = int(hexrgb, 16)
+    r, g, b = (v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF
+    return max(r, g, b) - min(r, g, b) <= 8 and max(r, g, b) <= 0x90
+
+
 def blocks_of(path):
     blocks, cur = [], None
     for line in open(path, encoding="utf-8", errors="replace"):
@@ -57,6 +72,7 @@ def blocks_of(path):
 def main(d):
     d = norm(d)
     problems = defaultdict(list)
+    notes = defaultdict(list)
     seen = set()
     checked = 0
     for b in blocks_of(d + "/uiprobe-client.txt"):
@@ -71,6 +87,15 @@ def main(d):
         for l in b["N"]:
             if l.startswith("L "):
                 lines[len(lines)] = l.split(" ", 3)[3] if l.count(" ") >= 3 else ""
+        if b["cfg"] == "1080p-gs3":
+            for i in range(1, len(lines)):
+                prev, cur = lines[i - 1].rstrip(), lines[i].strip()
+                if (cur and " " not in cur and len(cur) <= 12 and len(prev) >= 36
+                        and prev[-1:] not in ".:!?)" and not cur[:1].isupper()):
+                    notes["orphan word"].append((b["i"], b["screen"], b["page"], cur))
+        for idx, text in lines.items():
+            if RAW.search(text):
+                problems["raw value"].append((b["i"], b["screen"], b["page"], text[:60]))
         for l in b["N"]:
             key = None
             if l.startswith("B "):
@@ -90,8 +115,19 @@ def main(d):
                                                                round(c, 2)))
                 if cut == "true":
                     problems["label cut"].append((b["i"], b["screen"], b["page"], b["cfg"], label))
-                if aid not in ("CLOSE", "BOOK_PREV", "BOOK_NEXT") and (py + ph) - (y + h) < EDGE_GAP * scale:
+                if aid not in ("CLOSE", "BOOK_PREV", "BOOK_NEXT") and ((py + ph) - (y + h) < EDGE_GAP * scale
+                                                                     or (px + pw) - (x + w) < EDGE_GAP * scale):
                     problems["control on the panel edge"].append((b["i"], b["screen"], b["page"], b["cfg"], label))
+                style = f[5]
+                if style in ("normal", "confirm", "danger") and label.strip() and gray(ink):
+                    problems["live button looks disabled"].append((b["i"], b["screen"], b["page"], label, ink))
+                if RAW.search(label):
+                    problems["raw value"].append((b["i"], b["screen"], b["page"], label))
+            elif l.startswith("T "):
+                m = re.search(r'hint="(.*)" hintw=(\d+) room=(\d+)$', l)
+                if m and int(m.group(2)) > int(m.group(3)):
+                    problems["field hint overflow"].append((b["i"], b["screen"], b["page"], m.group(1),
+                                                            f"{m.group(2)}px in {m.group(3)}px"))
             elif l.startswith("I "):
                 m = re.match(r"I (\d+) ink=([0-9A-F]{6}) bg=([0-9A-F]{6})", l)
                 if not m:
@@ -108,6 +144,9 @@ def main(d):
             if key:
                 seen.add(key)
     print(f"look checks: {checked} labels and lines")
+    for k, v in notes.items():
+        uniq = sorted(set(v))
+        print(f"NOTE {k}: {len(uniq)} distinct", uniq[:8])
     if not problems:
         print("no look problems")
         return 0

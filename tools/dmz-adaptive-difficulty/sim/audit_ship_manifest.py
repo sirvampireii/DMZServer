@@ -1994,6 +1994,56 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.61 ---")
+    p61_screen = read(SRC / "client/NativeMenuScreen.java")
+    p61_editor = read(SRC / "config/editor/ConfigEditor.java")
+    p61_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    check("manifest row for lm 4.7.61", "lm-4761-ui-polish" in manifest)
+    check("native footer: an edge footer pins into the bottom band, Close shares its row",
+          "static int[] pinFooter(int x, int y, int w, int h, int panelW, int panelH)" in p61_screen
+          and 'if (bool(b, "footer", false)) {' in p61_screen
+          and "y = panelH - CLOSE_BAND + 6;" in p61_screen
+          and "return new int[] {EDGE, b.y(), b.h()};" in p61_screen)
+    check("native field hint is cut to the field; layout dump carries hint width and room",
+          "private String fieldHint(Field f)" in p61_screen and "box.m_257771_(Component.m_237113_(fieldHint(f)));" in p61_screen
+          and "hintw=%d room=%d" in p61_screen)
+    check("native live button never draws the dark-gray locked ink",
+          "label.charAt(1) == '8'" in p61_screen and '!"dim".equalsIgnoreCase(b.style())' in p61_screen)
+    check("config editor shows number lists as text and edits them",
+          "public static String valueText(Object value)" in p61_editor
+          and "String.valueOf(located.value)" not in p61_editor
+          and "rawClass.isArray() && rawClass.getComponentType().isPrimitive()" in p61_editor
+          and '"numbers separated by commas, like 60, 300, 900"' in p61_editor)
+    p61_look = read(SRC / "client/NativeFormLook.java")
+    p61_model = read(SRC / "client/NativeModelPreview.java")
+    p61_parts = read(SRC / "client/BodyPartPreview.java")
+    p61_proto = read(SRC / "net/gui/LmNativeProtocol.java")
+    p61_netw = read(SRC / "net/gui/LmNativeNetwork.java")
+    p61_plugin = read(SRC / "mixin/LegacyMechanicsMixinPlugin.java")
+    p61_cmix = read(SRC.parent.parent.parent.parent / "resources/legacymechanics.client.mixins.json")
+    p61_mf = read(SRC.parent.parent.parent.parent / "resources/META-INF/MANIFEST.MF")
+    check("Preview forms native: stand-in wears the named race, form and stack form",
+          "ch.setRace(race);" in p61_look and "ch.setActiveForm(group, name);" in p61_look
+          and "ch.setActiveStackForm(stackGroup, stackForm);" in p61_look
+          and "data.getStatus().setHasCreatedCharacter(true);" in p61_look
+          and p61_model.count("NativeFormLook.apply(") == 2
+          and "BodyPartPreview.begin(entity, parts);" in p61_model and "BodyPartPreview.end();" in p61_model)
+    check("Preview forms native: body parts merge into DMZUltra 0.5.7 records by component, preview only",
+          "static Object rebuild(Object record, java.util.Map<String, Object> swap)" in p61_parts
+          and "getRecordComponents()" in p61_parts and "public static boolean previewActive()" in p61_parts
+          and '"FormPartsPreviewMixin"' in p61_cmix and '"RaceTailSuppressMixin"' in p61_cmix
+          and '"client": [' in p61_cmix and "legacymechanics.client.mixins.json" in p61_mf
+          and 'endsWith(".client.mixin.FormPartsPreviewMixin")' in p61_plugin
+          and "return !dedicatedServer() && dmzRevampClassPresent(\"com/dmzultra/client/forms/FormParts.class\");" in p61_plugin)
+    check("Preview forms native: hello adds combined.forms.v1 / bodyParts only when installed",
+          "public static String clientFeaturesJson(boolean forms, boolean bodyParts)" in p61_proto
+          and "LmNativeProtocol.clientFeaturesJson(LmNativeProtocol.clientDrawsForms()," in p61_netw
+          and "LmNativeProtocol.clientDrawsBodyParts()" in p61_netw)
+    check("Difficulty guide rows read Label: value on one line",
+          '.labelValue("Stronger enemies:", "mobs near you match your tier")' in p61_diff
+          and '.labelValue("Bigger rewards:", "more TP per kill, plus Momentum")' in p61_diff
+          and '.labelValue("Change anytime:", "lowering your tier is free")' in p61_diff
+          and 'spec.labelValue("Tier:", ' in p61_diff)
     print("\n--- § lm 4.7.60 ---")
     p60_skin = read(SRC / "gui/ultra/SaiyanRoyal.java")
     p60_style = read(SRC / "gui/ultra/UltraStyle.java")

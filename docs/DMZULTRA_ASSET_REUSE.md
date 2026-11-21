@@ -36,6 +36,23 @@ verified over SFTP). Client-side only — not required in server CI.
    codecs or consumers. Ignore its 57 Screen classes, entity/block textures, combat
    animations, and VFX shaders when designing menu chrome.
 
+## LM client exception (owner decision, 2026-11-21, LM 4.7.61)
+
+The LM client (the optional `LegacyMechanics` jar on a player's PC) draws one DMZUltra look itself: the
+made-up figure on Character Services > Preview forms. Before 4.7.61 that page fell back to the KaiPath Ultra
+menu because only KaiPath could dress a stand-in. Now:
+
+- `client/NativeFormLook` sets the stand-in's DragonMineZ race, form and stack form from
+  `playerModel.parts.form` (a client-only `RemotePlayer`, never the viewer or a real player).
+- `client/mixin/FormPartsPreviewMixin` (config `legacymechanics.client.mixins.json`, client only, applied
+  only when `com/dmzultra/client/forms/FormParts` exists) unions `parts.bodyParts` into DMZUltra 0.5.7's
+  FormParts look, and only while an LM menu draws its preview. `RaceTailSuppressMixin` hides the race tail
+  bones in that preview when `suppressNaturalTail` is set.
+- Nothing is bundled from DMZUltra and no DMZUltra screen is subclassed. World rendering (message 3,
+  `bodyPartsSync`) stays KaiPath's.
+- The client advertises `combined.forms.v1` with DragonMineZ and `bodyParts` with DMZUltra, so the server
+  routes Preview forms natively only when both can be drawn.
+
 ## Already working (do not rebuild)
 
 | Client capability | Notes |

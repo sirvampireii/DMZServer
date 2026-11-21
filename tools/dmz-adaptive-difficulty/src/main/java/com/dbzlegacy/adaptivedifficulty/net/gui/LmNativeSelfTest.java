@@ -131,6 +131,12 @@ public final class LmNativeSelfTest {
         check(broken, fill.hard().contains("fillScreen") && fill.metBy(client), "config editor box not drawable");
         check(broken, !client.contains(LmNativeProtocol.FEATURE_FORMS) && !client.contains(LmNativeProtocol.FEATURE_BODY_PARTS),
                 "the client advertises form/body pieces it does not draw");
+        // 4.7.61: an LM client with DragonMineZ and DMZUltra draws the made-up figure (Preview forms) itself.
+        Set<String> dressed = LmNativeProtocol.parseFeatures(LmNativeProtocol.clientFeaturesJson(true, true));
+        Set<String> formsOnly = LmNativeProtocol.parseFeatures(LmNativeProtocol.clientFeaturesJson(true, false));
+        check(broken, offline.metBy(dressed) && !offline.metBy(formsOnly)
+                && LmNativeProtocol.parseFeatures(LmNativeProtocol.clientFeaturesJson()).equals(client),
+                "Preview forms must go native only when the client draws forms and body parts");
     }
 
     private static void routing(List<String> broken) {
