@@ -24,7 +24,61 @@ In-game test rig for LegacyMechanics menus. Never shipped, never put on the live
 - On `uirecord <label>` it also saves `ui-rec-<label>.png`. The spin check saves rot1 to rot4; rot4 is the
   preview stopped right after the back faced the viewer, and it must show the front.
 
-## Use
+## One command
+
+```bash
+export RIG_SERVER=... RIG_CLIENT=... RIG_KAIPATH_JAR=... RIG_LIVECFG=... RIG_EXTRA_MODS="..."
+bash tools/lm-ui-probe/matrix.sh mods/LegacyMechanics-<version>.jar [<older run>/full]
+```
+
+`matrix.sh` builds the probe and runs three stages. **full** uses the LM client and KaiPath with class-load logging.
+**kai** is KaiPath only. **reject** turns `requireLmClient` on with no LM client. Then `report.py` writes two files to
+`$RIG_OUT`. A baseline (an older run's `full/` folder) adds the bridge wire comparison.
+
+- `REPORT.md`: one PASS / FAIL / SKIP line per check, with the evidence:
+  - server boot and strict self-tests
+  - no client class on the dedicated server
+  - crawl completed
+  - scripted checks
+  - spin stop front-facing
+  - skin and accent per menu
+  - bridge wire vs baseline
+  - layout rules
+  - scale-to-fit
+  - look (contrast, cut labels, panel edge)
+  - KaiPath-only path
+  - one spec for both paths
+  - the requireLmClient rejection
+- `review.html`: a contact sheet for the owner. It shows GUI scale 3 and 4 shots of every Difficulty page, the main page
+  of every other menu, and the spin-stop shots.
+
+Settings:
+- `ONLY_SCRIPTED=1` screenshots only the scripted pages, a quick rerun after a client-only change.
+- `SKIP="kai reject"` drops stages.
+
+Runs are exclusive: a lock in `$RIG_OUT`. Every process a run starts carries `-Dlmrig.run=<id>`. Stale servers,
+clients and command feeds from an interrupted run are stopped before the next starts, and a run stops its own on
+exit.
+
+## Analyzers
+
+- `analyze_layout.py`: buttons inside the panel, at least 80px wide, 16px rows, 6px gaps, 426 wide, no overlaps, and
+  scale-to-fit per GUI scale. Preview forms on a made-up figure is the one expected KaiPath fallback.
+- `analyze_skin.py`: Saiyan Royal and the system accent per native screen, plus the wire comparison with an older run.
+- `analyze_look.py`: what a reviewer catches by eye.
+  - Label-on-face and text-on-background contrast must be at least 3:1. This is how red labels on green buttons
+    would have been caught.
+  - Labels the renderer had to shorten.
+  - Controls sitting on the panel's bottom edge.
+  - It reads the `face= ink= cut=` and `I` lines that the LM client's `debugLayout` writes.
+
+## Kit corpus
+
+After a release that changes menus, refresh the Ultra GUI kit's real-menu corpus from a full run:
+`python tools/ultra-gui-kit/test/gen_lm_corpus.py <run>/full tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl`.
+The kit's `LmCorpusTest` then checks every real LM menu against what KaiPath relies on.
+
+## Use (single stages)
 
 ```bash
 LM_JAR=mods/LegacyMechanics-4.7.60.jar bash tools/lm-ui-probe/build.sh

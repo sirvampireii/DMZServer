@@ -2039,6 +2039,10 @@ def main() -> int:
           and "buttonOffset(true, false) != 2" in p60_skin
           # Labels inked in the button's own accent draw in the skin text (the accent is on the edge).
           and "SaiyanRoyal.accentHex(label.charAt(1)) == buttonTint(b)" in p60_screen)
+    # tools/lm-ui-probe/analyze_look.py reads these fields; keep the dump and the analyzer in step.
+    check("native layout dump carries button face/ink/cut and body ink/background for the rig's look check",
+          'face=%06X ink=%06X cut=%s' in p60_screen and '"I %d ink=%06X bg=%06X"' in p60_screen
+          and "private int[] faceAndEdge(" in p60_screen)
     check("skin self-test pins the palette, the accent mapping and the shape math at boot",
           "SaiyanRoyal.selfTest()" in p60_net and "public static List<String> selfTest()" in p60_skin)
 

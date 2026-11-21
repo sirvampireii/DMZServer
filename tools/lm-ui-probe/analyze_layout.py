@@ -4,7 +4,19 @@ import re
 import sys
 from collections import Counter, defaultdict
 
-D = sys.argv[1]
+import os as _os
+import re as _re
+
+
+def norm(path):
+    """Accept Git Bash paths (/c/Users/...) as well as Windows ones."""
+    m = _re.match(r"^/([a-zA-Z])/(.*)$", path)
+    if m and _os.name == "nt":
+        return m.group(1) + ":/" + m.group(2)
+    return path
+
+
+D = norm(sys.argv[1])
 packets = {}
 for line in open(D + "/uiprobe-packets.jsonl", encoding="utf-8"):
     r = json.loads(line)
@@ -28,10 +40,16 @@ classes = Counter(b["cls"] for b in blocks)
 print("blocks", len(blocks), "pages", len({b["i"] for b in blocks}), "classes", dict(classes))
 problems = defaultdict(list)
 scroll = defaultdict(set)
+EXPECTED_FALLBACK = {("character", "form_preview")}
+fallback = set()
 scales = defaultdict(list)
 for b in blocks:
     if b["cls"] != "NativeMenuScreen":
-        problems["not native"].append((b["i"], b["screen"], b["page"], b["cfg"], b["cls"]))
+        # Preview forms on a made-up figure needs form pieces the LM client does not draw: KaiPath by design.
+        if (b["screen"], b["page"].split(":")[0]) in EXPECTED_FALLBACK:
+            fallback.add((b["screen"], b["page"]))
+        else:
+            problems["not native"].append((b["i"], b["screen"], b["page"], b["cfg"], b["cls"]))
         continue
     if b["cfg"].endswith("-end"):
         continue
@@ -78,6 +96,7 @@ for cfg in sorted(scales):
     v = scales[cfg]
     print(f"{cfg}: pages={len(v)} native-size={sum(1 for s in v if s >= 0.999)} scaled={sum(1 for s in v if s < 0.999)}"
           f" min-scale={min(v):.3f} scrolling={len(scroll[cfg])}")
+print("expected KaiPath fallback:", sorted(fallback))
 for k, v in problems.items():
     print(f"PROBLEM {k}: {len(v)}", v[:8])
 if not problems:

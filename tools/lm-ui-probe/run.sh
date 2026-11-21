@@ -36,6 +36,23 @@ COMMON=("$R/tools/dmz-godki-patch/out/dragonminez-2.2.1.2.jar" "${EXTRA[@]}"
       "$(ls "$R"/mods/TerraBlender-forge-1.20.1-*.jar | head -1)" "$PROBE"
       "$R/mods/CustomNPCs-1.20.1-GBPort-Unofficial-1.20.1.20260227.jar" "$R/mods/lightmanscurrency-1.20.1-2.3.0.5.jar")
 mkdir -p "$OUTROOT"
+
+# One rig run at a time. Every process a run starts carries -Dlmrig.run=<id>; a stale run's server, client or
+# command feed (left behind by an interrupted run) is stopped before this one starts, and this run's own are
+# stopped when it exits, so two runs can never share the port, the probe player name or the server folder.
+LOCK="$OUTROOT/.rig.lock"
+if [ -f "$LOCK" ] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then
+  echo "another rig run is active (pid $(cat "$LOCK")); wait for it or stop it first"; exit 2
+fi
+echo $$ > "$LOCK"
+RUNID="$L-$$"
+rig_stop() {  # $1 = regex over process command lines
+  powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { \$_.CommandLine -match '$1' -and \$_.Name -notmatch '^(bash|sh|powershell|pwsh|cmd)\.exe$' -and \$_.ProcessId -ne \$PID } | ForEach-Object { Stop-Process -Id \$_.ProcessId -Force -ErrorAction SilentlyContinue }" > /dev/null 2>&1
+}
+rig_stop 'lmrig\.run=|uiprobe\.server=|tail(\.exe)?"? -f .*cmd-'
+cleanup() { rig_stop "lmrig\.run=$RUNID|tail(\.exe)?\"? -f .*cmd-$L"; rm -f "$LOCK"; }
+trap cleanup EXIT INT TERM
+
 cd "$T" || exit 1
 rm -rf mods/*.jar world logs crash-reports config defaultconfigs legacymechanics* uiprobe-packets.jsonl uiprobe-script.txt classload.log
 sed -i "s/^level-type=.*/level-type=minecraft\:flat/" server.properties
@@ -50,7 +67,7 @@ PY
 cp "${COMMON[@]}" "$LMJAR" mods/; [ ${#SONLY[@]} -gt 0 ] && cp "${SONLY[@]}" mods/; [ "${SRVKAI:-1}" = 1 ] && cp "$KAI" mods/
 LOG="$OUTROOT/srv-$L.log"; CMD="$OUTROOT/cmd-$L"; : > "$CMD"
 before="$(ps | awk '$NF ~ /tail$/ {print $1}' | sort)"
-( tail -f "$CMD" | java -Xmx5G -Duiprobe=1 -Dlm.selftest.strict=true ${MAXSHOTS:+-Duiprobe.maxshots=$MAXSHOTS} ${SRVJVM:-} @libraries/net/minecraftforge/forge/1.20.1-47.4.10/win_args.txt nogui > "$LOG" 2>&1 ) &
+( tail -f "$CMD" | java -Xmx5G -Dlmrig.run=$RUNID -Duiprobe=1 -Dlm.selftest.strict=true ${MAXSHOTS:+-Duiprobe.maxshots=$MAXSHOTS} ${SRVJVM:-} @libraries/net/minecraftforge/forge/1.20.1-47.4.10/win_args.txt nogui > "$LOG" 2>&1 ) &
 sleep 2
 mine="$(comm -13 <(echo "$before") <(ps | awk '$NF ~ /tail$/ {print $1}' | sort))"
 for i in $(seq 1 900); do
@@ -70,7 +87,7 @@ echo "client mods: $(ls "$G/mods" | tr '\n' ' ')"
 CF="${CF_INSTALL:-$HOME/curseforge/minecraft/Install}"
 JAVA="$(ls "$CF"/runtime/*/windows-x64/*/bin/java.exe | head -1)"
 PYTHONUTF8=1 python3 "$R/tools/legacytextures/test/clientprobe/launch_client.py" "$(cygpath -w "$CF")" "$(cygpath -w "$JAVA")" \
-  "$(cygpath -w "$G")" -Xmx4G -Duiprobe.server=localhost:25600 > "$OUTROOT/uic-$L.out" 2>&1 &
+  "$(cygpath -w "$G")" -Xmx4G -Dlmrig.run=$RUNID -Duiprobe.server=localhost:25600 > "$OUTROOT/uic-$L.out" 2>&1 &
 CLI=$!
 if [ "${REJECT:-0}" = 1 ]; then
   for i in $(seq 1 900); do grep -q "requireLmClient: turning away" "$LOG" && break; sleep 1; done

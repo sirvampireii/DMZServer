@@ -78,6 +78,8 @@ if [[ -d "$TEST_SRC" ]]; then
   java -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$CLASSES")$CP_SEP$CP" \
     com.dmzlegacy.kaipath.ultra.consumers.legacymechanics.InspectPreviewSubjectTest
   java -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$CLASSES")$CP_SEP$CP"     com.dmzlegacy.kaipath.ultra.consumers.legacymechanics.UltraBridgeFitTest
+  # Real LM menus (test/fixtures/lm-specs.jsonl, refreshed by test/gen_lm_corpus.py from an LM UI probe run).
+  java -Dultragui.corpus="$(abs "$HERE/test/fixtures/lm-specs.jsonl")" -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$CLASSES")$CP_SEP$CP" com.dmzlegacy.kaipath.ultra.consumers.legacymechanics.LmCorpusTest
   java -Dultragui.fixture="$HERE/server/BridgeFutureFieldsFixture.json" \
     -Dultragui.sketch="$HERE/server/HelloWorldServerSketch.java" \
     -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$SERVER_CLASSES")$CP_SEP$(abs "$STUB_CLASSES")$CP_SEP$(abs "$GSON")" \

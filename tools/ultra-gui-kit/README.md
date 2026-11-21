@@ -59,6 +59,15 @@ protocol. KaiPath registers one client consumer per partner mod id.
 12. LM's Saiyan Royal skin (4.7.60) changes no bridge bytes: keep drawing the color letters as sent. The hex
     palette and rounded shapes for a native look are listed in `docs/KAIPATH_GUI_PROTOCOL.md` § Saiyan Royal skin.
 
+13. Real LM menus: `test/fixtures/lm-specs.jsonl` holds one recorded packet per LM menu family. `LmCorpusTest`
+    runs each through the kit's encode/decode and checks what KaiPath relies on:
+    - buttons inside the panel, at least 80px wide
+    - 16px menu rows
+    - ASCII-only labels
+    - known palette names
+    - a still preview is front-facing
+    Refresh the corpus with `test/gen_lm_corpus.py` from an LM UI probe run (`tools/lm-ui-probe`).
+
 See [`server/HelloWorldServerSketch.java`](server/HelloWorldServerSketch.java) and
 [`server/BridgeFutureFieldsFixture.json`](server/BridgeFutureFieldsFixture.json).
 

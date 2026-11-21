@@ -440,16 +440,20 @@ public final class NativeMenuScreen extends Screen {
      * control (a page that mixes rows into its text keeps plain text).
      */
     private void drawInfoBox(GuiGraphics g) {
-        int h = bodyClipped() ? bodyMaxH : bodyNaturalH();
+        if (!infoBoxShown()) {
+            return;
+        }
+        int h = (bodyClipped() ? bodyMaxH : bodyNaturalH()) - 2;
         int x = EDGE - 4;
         int w = bodyRight() - EDGE + 8;
         int y = bodyTop + 1;
-        h -= 2;
-        if (h < 12 || !free(x, y, w, h)) {
-            return;
-        }
         insetBox(g, x, y, w, h, SaiyanRoyal.BOX_RADIUS, 0xFF000000 | SaiyanRoyal.blend(SaiyanRoyal.PANEL, 0x000000, 0.5),
                 0xFF000000 | SaiyanRoyal.blend(SaiyanRoyal.PANEL, 0x000000, 0.35));
+    }
+
+    private boolean infoBoxShown() {
+        int h = (bodyClipped() ? bodyMaxH : bodyNaturalH()) - 2;
+        return !lines.isEmpty() && h >= 12 && free(EDGE - 4, bodyTop + 1, bodyRight() - EDGE + 8, h);
     }
 
     /**
@@ -582,27 +586,9 @@ public final class NativeMenuScreen extends Screen {
      */
     private void drawSkinButton(GuiGraphics g, Btn b, boolean hover, boolean pressed, boolean inert, String style,
             boolean activeTab) {
-        int face;
-        int edge;
-        switch (style) {
-            case "confirm" -> {
-                face = hover ? 0xFF2A7A3A : 0xFF1F5E2C;
-                edge = 0xFF3FAF55;
-            }
-            case "danger" -> {
-                face = hover ? 0xFF8A2A2A : 0xFF6A1F1F;
-                edge = 0xFF000000 | SaiyanRoyal.CRIMSON;
-            }
-            case "dim" -> {
-                face = hover && !inert ? 0xFF2C2425 : 0xFF221B1C;
-                edge = 0xFF3A3233;
-            }
-            default -> {
-                face = 0xFF000000 | (hover ? FACE_HOVER : FACE);
-                int tint = buttonTint(b);
-                edge = 0xFF000000 | (hover ? tint : SaiyanRoyal.blend(tint, FACE, 0.4));
-            }
-        }
+        int[] fe = faceAndEdge(b, style, hover, inert);
+        int face = fe[0];
+        int edge = fe[1];
         int accentNow = buttonTint(b);
         if (activeTab) {
             edge = 0xFF000000 | accentNow;
@@ -645,6 +631,49 @@ public final class NativeMenuScreen extends Screen {
         int tx = left + Math.max(0, (maxW - tw) / 2);
         int ty = by + (h - 8) / 2;
         g.m_280649_(this.f_96547_, seq, tx, ty, 0xFFFFFF, !muted);
+    }
+
+    /** Face and edge color (ARGB) of a button at rest or hovered, by style; the edge takes the accent. */
+    private int[] faceAndEdge(Btn b, String style, boolean hover, boolean inert) {
+        return switch (style) {
+            case "confirm" -> new int[] {hover ? 0xFF2A7A3A : 0xFF1F5E2C, 0xFF3FAF55};
+            case "danger" -> new int[] {hover ? 0xFF8A2A2A : 0xFF6A1F1F, 0xFF000000 | SaiyanRoyal.CRIMSON};
+            case "dim" -> new int[] {hover && !inert ? 0xFF2C2425 : 0xFF221B1C, 0xFF3A3233};
+            default -> {
+                int tint = buttonTint(b);
+                yield new int[] {0xFF000000 | (hover ? FACE_HOVER : FACE),
+                        0xFF000000 | (hover ? tint : SaiyanRoyal.blend(tint, FACE, 0.4))};
+            }
+        };
+    }
+
+    /** Ink (RGB) of the first visible character of {@code raw}, as the skin draws it. */
+    private static int firstInk(String raw, int fallback, boolean muted) {
+        if (muted) {
+            return NativeText.MUTED_RGB;
+        }
+        int color = fallback;
+        for (int i = 0; raw != null && i < raw.length(); i++) {
+            char c = raw.charAt(i);
+            if (c == NativeText.MARK && i + 1 < raw.length()) {
+                char code = Character.toLowerCase(raw.charAt(++i));
+                if ((code >= '0' && code <= '9') || (code >= 'a' && code <= 'f')) {
+                    color = NativeText.skinRgb(code, fallback);
+                } else if (code == 'r') {
+                    color = fallback;
+                }
+                continue;
+            }
+            if (!Character.isWhitespace(c)) {
+                return color;
+            }
+        }
+        return color;
+    }
+
+    /** Background behind body text: the info box fill when it is drawn, else the panel. */
+    private int bodyBackground() {
+        return infoBoxShown() ? SaiyanRoyal.blend(SaiyanRoyal.PANEL, 0x000000, 0.35) : SaiyanRoyal.PANEL;
     }
 
     /**
@@ -1027,7 +1056,9 @@ public final class NativeMenuScreen extends Screen {
 
     /**
      * Screen-space layout for test probes: one line per drawn control
-     * ({@code kind x y w h style "label"}), after the fit transform and scroll.
+     * ({@code kind x y w h style "label"}), after the fit transform and scroll. Button lines end with
+     * {@code face=RRGGBB ink=RRGGBB cut=true|false} (cut: the label did not fit and was shortened); body lines
+     * have a matching {@code I index ink=RRGGBB bg=RRGGBB} line, so the rig can check contrast.
      */
     public List<String> debugLayout() {
         List<String> out = new ArrayList<>();
@@ -1035,10 +1066,17 @@ public final class NativeMenuScreen extends Screen {
                 place.x(), originY(), panelW * scale(), panelH * scale(), scale(), scroll, place.maxScroll()));
         out.add(String.format(Locale.ROOT, "SKIN %s accent=%06X", SaiyanRoyal.NAME, accentRgb));
         for (Btn b : buttons) {
-            out.add(String.format(Locale.ROOT, "B %.1f %.1f %.1f %.1f %s %s \"%s\"", place.x() + b.x() * scale(),
-                    originY() + b.y() * scale(), b.w() * scale(), b.h() * scale(),
-                    b.kind() == Kind.SERVER && isNoAction(b.id()) ? "locked" : b.style(),
-                    b.kind() == Kind.SERVER ? b.id() : b.kind().name(), NativeText.plain(b.label())));
+            boolean inert = b.kind() == Kind.SERVER && isNoAction(b.id());
+            String style = inert ? "dim" : b.style().toLowerCase(Locale.ROOT);
+            String label = labelInk(b);
+            boolean muted = "dim".equals(style);
+            int room = b.w() - 2 * b.pad() - (b.icon() == null || b.icon().isBlank() ? 0 : 12);
+            boolean cut = this.f_96547_.m_92852_(NativeText.parse(label, SaiyanRoyal.TEXT, muted, false, true)) > room;
+            out.add(String.format(Locale.ROOT, "B %.1f %.1f %.1f %.1f %s %s \"%s\" face=%06X ink=%06X cut=%s",
+                    place.x() + b.x() * scale(), originY() + b.y() * scale(), b.w() * scale(), b.h() * scale(),
+                    inert ? "locked" : b.style(), b.kind() == Kind.SERVER ? b.id() : b.kind().name(),
+                    NativeText.plain(b.label()), faceAndEdge(b, style, false, inert)[0] & 0xFFFFFF,
+                    firstInk(label, SaiyanRoyal.TEXT, muted), cut));
         }
         for (Field f : fields) {
             out.add(String.format(Locale.ROOT, "T %.1f %.1f %.1f %.1f %s", place.x() + f.x() * scale(),
@@ -1059,6 +1097,8 @@ public final class NativeMenuScreen extends Screen {
         for (int i = 0; i < lines.size(); i++) {
             out.add(String.format(Locale.ROOT, "L %.1f %.1f %s", place.x() + EDGE * scale(),
                     originY() + (bodyTop + bodyPad + i * step) * scale(), NativeText.plain(lines.get(i))));
+            out.add(String.format(Locale.ROOT, "I %d ink=%06X bg=%06X", i, firstInk(lines.get(i), SaiyanRoyal.TEXT, false),
+                    bodyBackground()));
         }
         return out;
     }

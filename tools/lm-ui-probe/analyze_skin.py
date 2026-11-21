@@ -5,7 +5,19 @@ import re
 import sys
 from collections import Counter
 
-D = sys.argv[1]
+import os as _os
+import re as _re
+
+
+def norm(path):
+    """Accept Git Bash paths (/c/Users/...) as well as Windows ones."""
+    m = _re.match(r"^/([a-zA-Z])/(.*)$", path)
+    if m and _os.name == "nt":
+        return m.group(1) + ":/" + m.group(2)
+    return path
+
+
+D = norm(sys.argv[1])
 blocks = []
 cur = None
 import os
@@ -50,7 +62,7 @@ if len(sys.argv) > 2:
                               sort_keys=True)
             out.setdefault(key, TIME.sub("T", body))
         return out
-    a, b = load(sys.argv[2]), load(D)
+    a, b = load(norm(sys.argv[2])), load(D)
     common = sorted(set(a) & set(b))
     diff = [k for k in common if a[k] != b[k]]
     print("wire compare vs 4.7.59: common pages", len(common), "differ", len(diff),
