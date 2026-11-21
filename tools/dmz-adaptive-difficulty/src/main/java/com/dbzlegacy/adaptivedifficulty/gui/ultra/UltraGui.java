@@ -19,7 +19,10 @@ public final class UltraGui {
     private UltraGui() {}
 
     public static boolean preferUltra(ServerPlayer player) {
-        return player != null && LmGuiNetwork.clientHasKaiPath(player);
+        // 4.7.58: the LM client draws menus itself; KaiPath stays the bridge for everyone else.
+        return player != null
+                && (com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.hasNativeClient(player)
+                        || LmGuiNetwork.clientHasKaiPath(player));
     }
 
     /**

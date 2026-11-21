@@ -620,3 +620,10 @@ re-extracted once more for the "N favor" unit on prestige tier buttons.
 
 Only `AdaptiveDifficultyMod` was re-extracted (version constant only, javap-verified) from
 `LegacyMechanics-4.7.57.jar`. The other 24 are unchanged.
+
+## Re-baseline (2026-11-20, 4.7.58 LM client renderer)
+
+Two classes were re-extracted from `LegacyMechanics-4.7.58.jar` after a javap diff showed only the
+intended changes: `AdaptiveDifficultyMod` (version constant, and the by-name client renderer boot
+that runs only on a game client) and `ConfigFieldHelp` (the new `requireLmClient` help line). The
+other 23 are unchanged.

@@ -223,6 +223,7 @@ enableKiWeapons=Master switch for ki weapon damage in combat.
 maxScaledHealth=Highest HP a mob can have after scaling. 0 means no cap.
 maxDamageMultiplier=Ceiling on the damage multiplier from scaling. 0 means no cap.
 guiBackend=Which menu backend players see for /lm. Ultra is the in-game GUI.
+requireLmClient=On turns away players who join without the Legacy Mechanics client mod. Off lets them in with KaiPath.
 unlockTier1Cost=Ancient Coin cost to buy unlock tier 1, in copper.
 classCounterHealthMult=Extra mob HP against glass, caster, and ki classes.
 classCounterArmorMult=Extra mob armor against melee and strike classes.

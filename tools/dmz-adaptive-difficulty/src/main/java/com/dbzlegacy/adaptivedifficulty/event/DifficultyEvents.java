@@ -251,6 +251,11 @@ public final class DifficultyEvents {
     @SubscribeEvent
     public void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
+            // 4.7.58 requireLmClient (off by default): turn away a join without the LM client.
+            if (com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.rejectWithoutClient(
+                    player, DifficultyConfig.get().requireLmClient)) {
+                return;
+            }
             try {
                 com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork.logClientGuiCapability(player);
             } catch (Throwable ignored) {

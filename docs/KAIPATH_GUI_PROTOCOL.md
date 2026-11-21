@@ -797,6 +797,10 @@ implemented.
 
 ## LegacyMechanics notes
 
+**LM 4.7.58:** players who also run the LM client get LM menus on LM's own channel
+(`legacymechanics:native_ui`, see [`LM_CLIENT.md`](LM_CLIENT.md)) and KaiPath receives no LM menu
+for them, except a menu the LM client cannot fully draw. Everyone else is unchanged on this bridge.
+
 LM channel: `legacymechanics:gui`. Startup aborts on catalog errors or encode/decode
 round-trip failure (including **style** / **activeTab** survival and `GuiFeaturesPacket`).
 
