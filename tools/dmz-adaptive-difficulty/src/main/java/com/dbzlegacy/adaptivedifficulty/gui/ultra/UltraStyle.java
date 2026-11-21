@@ -238,7 +238,8 @@ public final class UltraStyle {
         DIM = DARK_GRAY;
         NOTICE_HEAD = HEADER;
         NOTICE_BODY = YELLOW;
-        // 4.7.60: Saiyan Royal crimson maps to red over the bridge (same bytes as 4.7.57).
+        // 4.7.60: Saiyan Royal crimson maps to red over the bridge (same bytes as 4.7.57). The skin's
+        // gold trim is HEADER, its text is VALUE; every system accent below is unchanged.
         ACCENT_DIFFICULTY = MARK + SaiyanRoyal.BRIDGE_ACCENT;
         ACCENT_RIVAL = WHITE;
         ACCENT_SPAR = DARK_AQUA;

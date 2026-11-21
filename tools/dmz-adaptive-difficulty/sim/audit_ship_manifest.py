@@ -2001,16 +2001,19 @@ def main() -> int:
           'PANEL_HEX = "#160b0d";' in p60_skin and 'CRIMSON_HEX = "#e23b3b";' in p60_skin
           and 'GOLD_TRIM_HEX = "#f0b429";' in p60_skin and 'TEXT_HEX = "#f6e8e4";' in p60_skin
           and 'NAME = "saiyan_royal";' in p60_skin)
-    check("skin is Difficulty only; the bridge keeps the 4.7.57 letters (red accent, gold bold headers)",
-          'SCREENS = Set.of("difficulty");' in p60_skin and "BRIDGE_ACCENT = 'c';" in p60_skin
+    check("skin on every menu natively; system accents keep their hue; bridge keeps the 4.7.57 letters",
+          "return screenId != null;" in p60_skin and "case 'c' -> CRIMSON;" in p60_skin
+          and "case '3' -> 0x00AAAA;" in p60_skin and "case 'f' -> 0xFFFFFF;" in p60_skin
+          and "BRIDGE_ACCENT = 'c';" in p60_skin
           and "BRIDGE_HEADER = '6';" in p60_skin
           and "ACCENT_DIFFICULTY = MARK + SaiyanRoyal.BRIDGE_ACCENT;" in p60_style
           and 'case "difficulty" -> String.valueOf(SaiyanRoyal.BRIDGE_ACCENT);' in p60_style
           and 'case "rival" -> "f";' in p60_style and 'case "spar" -> "3";' in p60_style
           and "HEADER = GOLD + BOLD;" in p60_style)
     check("native renderer: rounded panel with shadow and gold border, rounded buttons; clicks keep the rectangle",
-          "this.skin = SaiyanRoyal.appliesTo(packet.screenId());" in p60_screen
-          and "private void drawSkinPanel(GuiGraphics g)" in p60_screen
+          "PANEL_BG" not in p60_screen and "drawSkinButton(g, b, hover, inert, style, isActiveTab(b));" in p60_screen
+          and "accentRgb = sys >= 0 ? sys : paletteRgb(palette, SaiyanRoyal.GOLD_TRIM);" in p60_screen
+          and "private void drawPanel(GuiGraphics g)" in p60_screen
           and "SaiyanRoyal.SHADOW_RINGS" in p60_screen and "static void fillRounded(" in p60_screen
           and "ring(g, b.x(), b.y(), b.w(), b.h(), SaiyanRoyal.BUTTON_RADIUS, edge, face);" in p60_screen
           and "return x >= b.x() && x < b.x() + b.w() && y >= b.y() && y < b.y() + b.h();" in p60_screen)

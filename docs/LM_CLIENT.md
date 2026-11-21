@@ -58,19 +58,24 @@ outside `client/` references the client package. `AdaptiveDifficultyMod` starts 
 by name, only on a physical client. Boot self-test: `LmNativeSelfTest` (channel, codecs, routing,
 scale-to-fit, every builder packet drawable).
 
-## Saiyan Royal skin (4.7.60, Difficulty first)
+## Saiyan Royal skin (4.7.60, every menu)
 
 Defined once in `gui/ultra/SaiyanRoyal.java`; both render paths read it. Hex is the source of truth.
 
 | Name | Hex | Native LM client | KaiPath bridge (same letters as 4.7.57) |
 |---|---|---|---|
 | Panel | `#160b0d` | Panel fill | Not expressible; KaiPath draws its dark default |
-| Crimson | `#e23b3b` | Accent: button edges, hover, danger edge, red text | Difficulty accent `c` (red) |
-| Gold trim | `#f0b429` | Title, headers, 1px panel border, divider, active tab, bar fill, done dots | Headers `6` + bold (gold) |
+| Crimson | `#e23b3b` | Difficulty's accent, danger edges, red text | Difficulty accent `c` (red) |
+| Gold trim | `#f0b429` | Title, headers, 1px panel border, divider, bar fill, done dots; the accent on menus without one | Headers `6` + bold (gold) |
 | Text | `#f6e8e4` | Body text and values | Values `f` (white); labels stay `7` (gray) |
 
-- **Which screens:** every page of the `difficulty` screen (Home steps, Tiers, tier detail, Your tier,
-  Summons, confirms, staff tabs). Rival, Sparring, Prestige, Character and the rest keep their look.
+- **Which screens:** every LM menu in the native renderer. The shared chrome (panel, gold trim, text) is the
+  skin everywhere; each system keeps its own accent on button edges, the active tab and frames, in exact hex:
+  Difficulty crimson `#e23b3b`, Rival white, Sparring dark aqua `#00aaaa`, Prestige aqua `#55ffff`, Character
+  green `#55ff55`, SkillCheck yellow `#ffff55`, Admin and config dark red `#aa0000`. Main-menu tiles take their
+  system's accent.
+- **KaiPath bridge:** unchanged bytes on every menu: headers gold bold, labels gray, values white, accents as
+  4.7.57. The panel tint and round corners cannot be sent; KaiPath keeps its square dark default.
 - **Native shapes:** rounded panel (12px) with a soft shadow, rounded buttons and tier rows (8px, never more
   than half the height), rounded Momentum bar, round progress dots, rounded scroll bar. Corners are cut at a
   quarter-pixel step so they stay smooth at GUI scale 3 and 4. Confirm stays green, danger red, dim and locked
@@ -78,5 +83,5 @@ Defined once in `gui/ultra/SaiyanRoyal.java`; both render paths read it. Hex is 
 - **Clicks:** only the drawn shape rounds. Every click area is still the full rectangle from the server
   layout.
 - **Self-test:** `SaiyanRoyal.selfTest()` runs at server boot (strict mode throws). It pins the hex values,
-  the bridge letters for Difficulty and the other systems, the corner math and the bar and dots readers. Move
+  the bridge letters and native accent hex for every system, the corner math and the bar and dots readers. Move
   a constant on purpose: update the self-test and the `§lm 4.7.60` ship-manifest check together.

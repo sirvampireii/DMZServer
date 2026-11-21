@@ -2,24 +2,24 @@ package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * LM 4.7.60 "Saiyan Royal" menu skin, Difficulty first. Defined once here; both render paths read it.
+ * LM 4.7.60 "Saiyan Royal" menu skin, on every LM menu. Defined once here; both render paths read it.
  *
  * <ul>
- *   <li><b>Native LM client:</b> draws the exact hex palette below with rounded panels, buttons, tier rows
- *       and bars, a soft panel shadow and a 1px gold-trim border. Shapes are renderer-owned, never spec
- *       fields, and the clickable bounds stay the full rectangles from the spec layout.</li>
+ *   <li><b>Native LM client:</b> every menu draws the shared chrome in the exact hex palette below (panel,
+ *       gold trim title, divider and border, near-white text) with rounded panels, buttons, tier rows and
+ *       bars and a soft panel shadow. Each system keeps its own accent ({@link #accentHex}) on button edges,
+ *       the active tab and frames. Shapes are renderer-owned, never spec fields, and the clickable bounds stay
+ *       the full rectangles from the spec layout.</li>
  *   <li><b>KaiPath bridge:</b> cannot draw a panel tint or round corners, so the palette maps onto the color
- *       letters the bridge already understands: Difficulty accent red (the crimson), headers gold + bold (the
- *       gold trim), labels gray, values white (the near-white text). These are the 4.7.57 bytes, unchanged.</li>
+ *       letters the bridge already understands: headers gold + bold (the gold trim), labels gray, values white
+ *       (the near-white text), Difficulty accent red (the crimson); the other accents are unchanged. These are
+ *       the 4.7.57 bytes.</li>
  * </ul>
- *
- * <p>Only the screens in {@link #SCREENS} wear the skin; every other system keeps its current look.
  */
 public final class SaiyanRoyal {
     private SaiyanRoyal() {}
@@ -43,8 +43,9 @@ public final class SaiyanRoyal {
     public static final char BRIDGE_LABEL = '7';
     public static final char BRIDGE_VALUE = 'f';
 
-    /** Screen ids that wear the skin. Difficulty first; no other system in 4.7.60. */
-    public static final Set<String> SCREENS = Set.of("difficulty");
+    /** Per-system accent letters (UltraStyle.systemAccentCode), unchanged by the skin. */
+    public static final Set<String> SYSTEMS = Set.of("difficulty", "rival", "spar", "prestige", "character",
+            "skillcheck", "admin");
 
     /** Native shapes, in menu design pixels (matching the UI Skin Concepts picker preview). */
     public static final int PANEL_RADIUS = 12;
@@ -58,8 +59,50 @@ public final class SaiyanRoyal {
     private static final Pattern BAR = Pattern.compile("\\[(#*)(-*)\\]\\s*$");
     private static final Pattern DOTS = Pattern.compile("(\\[[x ]\\])(\\s\\[[x ]\\])+\\s*$");
 
+    /** Every LM menu wears the skin in the native renderer (owner's pick, 2026-11-20). */
     public static boolean appliesTo(String screenId) {
-        return screenId != null && SCREENS.contains(screenId.trim().toLowerCase(Locale.ROOT));
+        return screenId != null;
+    }
+
+    /**
+     * Exact hex of a system accent letter in the native renderer: Difficulty's red is the crimson, the gold
+     * letter is the gold trim; Rival white, Sparring dark aqua, Prestige aqua, Character green, SkillCheck
+     * yellow and Admin dark red keep their Minecraft hex. -1 for no accent.
+     */
+    public static int accentHex(char code) {
+        return switch (Character.toLowerCase(code)) {
+            case 'c' -> CRIMSON;
+            case '6' -> GOLD_TRIM;
+            case 'f' -> 0xFFFFFF;
+            case '3' -> 0x00AAAA;
+            case 'b' -> 0x55FFFF;
+            case 'a' -> 0x55FF55;
+            case 'e' -> 0xFFFF55;
+            case '4' -> 0xAA0000;
+            case '2' -> 0x00AA00;
+            case '5' -> 0xAA00AA;
+            case 'd' -> 0xFF55FF;
+            case '9' -> 0x5555FF;
+            case '7' -> 0xAAAAAA;
+            default -> -1;
+        };
+    }
+
+    /** Accent hex for a bridge accent string ({@code c} or a section sign and {@code c}); -1 when blank. */
+    public static int accentHex(String code) {
+        if (code == null || code.isBlank()) {
+            return -1;
+        }
+        String c = code.trim();
+        return accentHex(c.charAt(c.length() - 1));
+    }
+
+    /** Mix {@code a} toward {@code b} by {@code t} (0..1), RGB only. */
+    public static int blend(int a, int b, double t) {
+        int r = (int) Math.round(((a >> 16) & 0xFF) * (1 - t) + ((b >> 16) & 0xFF) * t);
+        int g = (int) Math.round(((a >> 8) & 0xFF) * (1 - t) + ((b >> 8) & 0xFF) * t);
+        int bl = (int) Math.round((a & 0xFF) * (1 - t) + (b & 0xFF) * t);
+        return (r << 16) | (g << 8) | bl;
     }
 
     /**
@@ -162,12 +205,31 @@ public final class SaiyanRoyal {
         }
         if (!UltraStyle.systemAccentCode("rival").equals("f") || !UltraStyle.systemAccentCode("spar").equals("3")
                 || !UltraStyle.systemAccentCode("prestige").equals("b")
-                || !UltraStyle.systemAccentCode("character").equals("a")) {
-            bad.add("other systems keep their accents (rival white, sparring dark aqua, prestige aqua, character green)");
+                || !UltraStyle.systemAccentCode("character").equals("a")
+                || !UltraStyle.systemAccentCode("skillcheck").equals("e")
+                || !UltraStyle.systemAccentCode("admin").equals("4")) {
+            bad.add("other systems keep their bridge accents (rival white, sparring dark aqua, prestige aqua,"
+                    + " character green, skillcheck yellow, admin dark red)");
         }
-        if (!appliesTo("difficulty") || appliesTo("rival") || appliesTo("spar") || appliesTo("prestige")
-                || appliesTo("character") || appliesTo("hub")) {
-            bad.add("only Difficulty wears the skin");
+        for (String id : List.of("hub", "difficulty", "rival", "spar", "prestige", "character", "skillcheck",
+                "admin", "config", "progression", "skills")) {
+            if (!appliesTo(id)) {
+                bad.add("every menu wears the skin natively: " + id);
+            }
+        }
+        if (accentHex(UltraStyle.systemAccentCode("difficulty")) != CRIMSON
+                || accentHex(UltraStyle.systemAccentCode("rival")) != 0xFFFFFF
+                || accentHex(UltraStyle.systemAccentCode("spar")) != 0x00AAAA
+                || accentHex(UltraStyle.systemAccentCode("prestige")) != 0x55FFFF
+                || accentHex(UltraStyle.systemAccentCode("character")) != 0x55FF55
+                || accentHex(UltraStyle.systemAccentCode("skillcheck")) != 0xFFFF55
+                || accentHex(UltraStyle.systemAccentCode("admin")) != 0xAA0000
+                || accentHex(UltraStyle.systemAccentCode("hub")) != -1) {
+            bad.add("native accents: Difficulty crimson, Rival white, Sparring dark aqua, Prestige aqua,"
+                    + " Character green, SkillCheck yellow, Admin dark red, hub none");
+        }
+        if (blend(0x000000, 0xFFFFFF, 0.5) != 0x808080 || blend(CRIMSON, PANEL, 0) != CRIMSON) {
+            bad.add("accent blend");
         }
         if (nativeInk('c') != CRIMSON || nativeInk('6') != GOLD_TRIM || nativeInk('f') != TEXT || nativeInk('7') != -1
                 || nativeInk('a') != -1) {
