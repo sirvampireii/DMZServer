@@ -528,6 +528,11 @@ public final class UiProbe {
                 say(st[1]);
             }
             case "open" -> {
+                // The final checks run for minutes after the combat script: a stray mob must not kill the
+                // probe player mid-check (a death screen replaces the menu being checked).
+                player.m_150110_().f_35934_ = true;
+                player.m_6885_();
+                player.m_21153_(player.m_21233_());
                 note("FINAL open " + st[1] + " " + st[2]);
                 UltraGui.open(player, st[1], st[2]);
             }
