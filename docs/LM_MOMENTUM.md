@@ -15,20 +15,29 @@
 - **Lifetime:** per character and session-only. Cleared on logout and on a DMZ Ultra character switch.
 - **Config:** `momentumEnabled`, `momentumSecondsPerKill`, `momentumMaxBankSeconds`,
   `momentumMasteryMultiplier` in `legacymechanics.json` (staff editor section "Momentum").
-- **Visible:** time banked and a bar on the guide's Step 3 ("Your tier"); the tier detail page explains it
+- **Visible:** time banked and a bar on Difficulty Home and the guide's Step 3 ("Your tier"); the tier detail page explains it
   in one line. There is no HUD element.
 
 ## Difficulty guide
 
 | Page | What it shows |
 |---|---|
-| Step 1 of 3, What is Difficulty (`main`) | One sentence, three rows (stronger enemies, bigger rewards, change anytime), your tier, Next |
-| Step 2 of 3, Pick your level (`tiers`) | One button per tier: `You are here`, `Recommended`, dim `Locked` (still opens its detail page) |
-| Step 3 of 3, Your tier (`your_tier`) | Tier, Difficulty on/off, any free trial, Momentum with a bar; the tier tools (change tier, on/off, clear, titles, rival teams, coin messages, staff tools) |
+| Step 1 of 3, What is Difficulty (`guide`) | One sentence, three rows (stronger enemies, bigger rewards, change anytime), your tier, "This guide shows once" line, Next |
+| Step 2 of 3, Pick your level (`guide_tiers`) | One button per tier: `You are here`, `Recommended`, dim `Locked` (still opens its detail page), Next |
+| Step 3 of 3, Your tier (`guide_your_tier`) | Tier, Difficulty on/off, any free trial, Momentum with a bar; "Got it - take me to Difficulty"; the tier tools |
+| Difficulty Home (`main`, after the guide) | Same rows and tier tools as Step 3 under a plain "Your tier" header, plus "How difficulty works" (replays the guide) |
+| Tiers (`tiers`, after the guide) | The same tier list under a plain "Pick your level" header, Back to Home |
 | Tier detail (`tier_ask:<t>`) | Before/after enemy damage, enemy health and TP, mastery gain, cost, the requirement in plain words, Confirm, Try one fight free |
 
-- Back is in the left footer slot on every page. Summons keeps its 4.7.57 behaviour, with the same header
-  and Back chrome.
+- Back is in the left footer slot on every page; on the guide steps Skip guide sits in the right slot. Summons
+  keeps its 4.7.57 behaviour, with the same header and Back chrome (Back to Step 1 during the guide, Back to
+  Home after it).
+- **Shows once (4.7.63):** per account, stored in the LM player record under `lm_difficulty_tutorial`
+  (account UUID, so every character slot shares it; relog, slot switch and race change never reset it). Not
+  done: `main`, `tiers` and `your_tier` open guide Steps 1, 2 and 3. "Got it" on Step 3 or Skip guide on any
+  step marks it done and opens Home; closing the menu does not. Done: `main` and `your_tier` open Home, `tiers`
+  the plain list. The `guide*` ids always open the guide, so "How difficulty works" replays it any time without
+  clearing the mark. Routing is server side: the LM client and the KaiPath bridge behave the same.
 - **Recommended:** the highest tier whose requirement the player meets; with no tier active, Tier 1.
 - **Before/after:** enemies scale to a share of your stats, so damage and health show that share against
   your tier now. TP per kill follows the beaten enemy's health (DMZ pays 2 + 0.25 x max HP), so it moves by

@@ -33,6 +33,8 @@ KNOWN_DO: dict[str, set[str]] = {
         "clear_title",
         "toggle_title_sense",
         "toggle_coin_chat",
+        # 4.7.63: Skip guide / Got it finish the Difficulty guide (shown once per account).
+        "guide_done",
         "reload",
         "syslog",
     },
@@ -921,7 +923,8 @@ def main() -> int:
     if "MAX_WEIGHT_DIGITS" not in weight_shop:
         errors.append("UltraWeightShopScreens must define MAX_WEIGHT_DIGITS from MAX_WEIGHT_VALUE")
     # Every open* that sends must pin a footer; forbid generic "Back" / Cancel-as-back duplicates.
-    footer_call = re.compile(r"footerBack(?:Home|ToMain|Only)?\s*\(")  # 4.7.59: footerBackOnly (guide Step 1)
+    # 4.7.59: footerBackOnly (guide Step 1); 4.7.63: footerGuide (Back + Skip guide on every guide step).
+    footer_call = re.compile(r"footer(?:Back(?:Home|ToMain|Only)?|Guide)\s*\(")
     for path in sorted(ULTRA.glob("Ultra*Screens.java")):
         if path.name == "UltraHubScreens.java":
             continue

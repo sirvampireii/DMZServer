@@ -667,6 +667,16 @@ public final class UltraScreenSpec {
     }
 
     /**
+     * 4.7.63 guide footer: {@code Back to {destination}} in the left slot and {@code Skip guide} in the right slot,
+     * the same place on every step. Skip finishes the guide like "Got it" does (marks it done, opens Home).
+     */
+    public UltraScreenSpec footerGuide(String backActionId, String destination, String skipActionId) {
+        String action =
+                backActionId == null || backActionId.isBlank() ? "nav:hub" : backActionId.trim();
+        return placeFooter(action, UltraStyle.backTo(destination), skipActionId, "Skip guide");
+    }
+
+    /**
      * @deprecated use {@link #footerBackHome(String)} so the label names the destination.
      */
     @Deprecated
