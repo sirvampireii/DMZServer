@@ -326,6 +326,15 @@ public final class UltraGuiActions {
             return;
         }
 
+        // 4.7.64: spar board on Sparring Home (list, want, ask, say yes). Menu first: the result line shows on
+        // the reopened board, nothing is paid.
+        String sparArg = parts.arg == null || parts.arg.isBlank() ? stringArg(args, "arg") : parts.arg;
+        String board = com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.apply(viewer, parts.action, sparArg);
+        if (board != null) {
+            UltraSparScreens.openHome(viewer, board);
+            return;
+        }
+
         String msg = runDo(viewer, data, safeScreen, parts.action, args, rawActionId);
         // Race full-wipe / free class picker opens the DMZ editor - do not fight it with Ultra.
         if ("character".equals(safeScreen)
@@ -1068,6 +1077,12 @@ public final class UltraGuiActions {
             case "skillcheck", "skills" -> switch (t) {
                 case "skills", "core", "natural", "saga", "list" -> "skills";
                 case "help", "about" -> "help";
+                default -> "main";
+            };
+            // 4.7.64 hub tabs: Home (dashboard), Goals, More.
+            case "hub" -> switch (t) {
+                case "goals" -> UltraHubScreens.PAGE_GOALS;
+                case "more" -> UltraHubScreens.PAGE_MORE;
                 default -> "main";
             };
             default -> homePage(screen);

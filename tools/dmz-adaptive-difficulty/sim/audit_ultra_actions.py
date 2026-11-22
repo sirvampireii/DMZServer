@@ -107,6 +107,12 @@ KNOWN_DO: dict[str, set[str]] = {
         "remove",
     },
     "spar": {
+        # 4.7.64: spar board on Sparring Home.
+        "spar_list",
+        "spar_unlist",
+        "spar_want",
+        "spar_ask",
+        "spar_yes",
         "tpmsg",
         "end",
         "mentor_tpmsg",

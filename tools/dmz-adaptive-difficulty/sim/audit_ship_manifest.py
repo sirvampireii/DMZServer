@@ -1994,6 +1994,62 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.64 ---")
+    p64_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p64_dash = read(SRC / "gui/ultra/HubDashboard.java")
+    p64_board = read(SRC / "sparring/SparBoard.java")
+    p64_spar = read(SRC / "gui/ultra/UltraSparScreens.java")
+    p64_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    p64_pres = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
+    p64_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    p64_native = read(SRC / "client/NativeMenuScreen.java")
+    p64_sys = read(SRC / "sparring/SparringSystem.java")
+    p64_ev = read(SRC / "event/DifficultyEvents.java")
+    p64_gui = read(SRC / "net/gui/LmGuiNetwork.java")
+    check("manifest row for lm 4.7.64", "lm-4764-central-hub" in manifest)
+    check("hub: three tabs, Home first (Home, Goals, More)",
+          '.tabs("home|Home", PAGE_GOALS + "|Goals", PAGE_MORE + "|More")' in p64_hub
+          and 'case "goals" -> UltraHubScreens.PAGE_GOALS;' in p64_act)
+    check("hub Home: next prestige, Fastest now, Train / Compete / Progress, Prestige full width",
+          'UltraStyle.header("Your next prestige")' in p64_hub and "HubDashboard.fastestNow(player)" in p64_hub
+          and 'UltraStyle.header("Train")' in p64_hub and 'UltraStyle.header("Compete")' in p64_hub
+          and 'new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), null);' in p64_hub
+          and 'new HubTile("spar_wars", "Dojo wars"' in p64_hub)
+    check("Menu skins and Staff Admin moved to More; Goals is a placeholder with no payout",
+          'new HubTile("menu_skins", "Menu skins"' in p64_hub.split("private static void openMore(", 1)[-1]
+          and 'new HubTile("admin", "Staff Admin"' in p64_hub.split("private static void openMore(", 1)[-1]
+          and 'spec.lockedButton("No goals yet")' in p64_hub
+          and "Weekly goals arrive in the next update." in p64_hub)
+    check("LM links only to itself: no command runs from a menu, no other mod's screen",
+          all(x not in p64_hub + p64_dash + p64_board + p64_spar
+              for x in ("performPrefixedCommand", "dispatchCommand", "/home", "/spawn", "/tpa", "/empire",
+                        "/meditate", "dmzultra"))
+          and '"/lm open spar"' in p64_board)
+    check("Fastest now uses the tier table ratio (no made-up percentages) and ranks prestige first",
+          "DifficultyGuide.change(before, after)" in p64_dash and "ut.enemyScalingMultiplier()" in p64_dash
+          and '"Fastest now: T4 Veteran, +38% TP per kill."' in p64_dash
+          and "%" not in p64_dash.split("public static String fastest(", 1)[-1].split("public static String fastestNow", 1)[0].replace('" TP per kill."', ""))
+    check("spar streak line only when the player has a streak",
+          "bond.streakCurrent <= 0" in p64_dash and 'return "Your spar streak: "' in p64_dash)
+    check("spar board: 15 min listing, want cycle, ask with cooldown, say yes, cleared on spar start and logout",
+          "LIST_MS = 15L * 60L * 1000L;" in p64_board and "ASK_COOLDOWN_MS = 30_000L;" in p64_board
+          and "SparBoard.onSessionStart(a, b);" in p64_sys
+          and "SparBoard.onLogout(player.m_20148_());" in p64_ev
+          and "SparBoard.apply(viewer, parts.action, sparArg)" in p64_act
+          and "UltraSparScreens.openHome(viewer, board);" in p64_act)
+    check("spar board preview uses the real hit multiplier and pays nothing",
+          "SparCombat.buildTotalMultiplier(viewer, partner, null, a, b)" in p64_board
+          and "awardTp" not in p64_board and "grantExact" not in p64_board)
+    check("each Home shows lines from the other systems",
+          'UltraStyle.header("Beyond Difficulty")' in p64_diff and "HubDashboard.rivalLine(player)" in p64_diff
+          and "HubDashboard.fastestNow(player)" in p64_pres
+          and "HubDashboard.sparWinLine(player)" in p64_spar)
+    check("native draws one box per header group; bridge text unchanged",
+          "List<int[]> groups = bodyClipped() ? null : lineGroups(lines);" in p64_native
+          and "if (headers < 2) {" in p64_native)
+    check("hub and board self-tests at boot",
+          "HubDashboard.selfTest()" in p64_gui and "SparBoard.selfTest()" in p64_gui)
+
     print("\n--- § lm 4.7.63 ---")
     p63_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
     p63_tut = read(SRC / "gui/ultra/DifficultyTutorial.java")

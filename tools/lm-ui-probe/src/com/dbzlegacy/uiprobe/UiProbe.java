@@ -223,7 +223,7 @@ public final class UiProbe {
             "zeno_omni"};
     /** One page per system, then the picker itself. */
     static final String[][] SKIN_PAGES = {{"hub", "main"}, {"hub", "skins"}, {"difficulty", "main"},
-            {"difficulty", "your_tier"}, {"rival", "home"}, {"spar", "main"}, {"prestige", "main"},
+            {"difficulty", "your_tier"}, {"hub", "goals"}, {"hub", "more"}, {"rival", "home"}, {"spar", "main"}, {"prestige", "main"},
             {"character", "main"}, {"skills", "main"}, {"admin", "admin"}, {"config", "edit:difficulty:0:"}};
     /** Lite is checked on the picker, the Momentum page and the model page; backgrounds off on the main menu. */
     static final String[][] LITE_PAGES = {{"hub", "skins"}, {"difficulty", "your_tier"}, {"character", "main"}};
@@ -391,6 +391,154 @@ public final class UiProbe {
         } catch (Throwable ignored) {
         }
         return b.toString();
+    }
+
+    // ---- 4.7.64 central hub and spar board (test only) ----
+    /** PlayerList.playersByUUID (f_11197_): getPlayer(UUID) reads this map, not the list. */
+    @SuppressWarnings("unchecked")
+    private Map<java.util.UUID, ServerPlayer> byUuid() {
+        try {
+            java.lang.reflect.Field f = net.minecraft.server.players.PlayerList.class.getDeclaredField("f_11197_");
+            f.setAccessible(true);
+            return (Map<java.util.UUID, ServerPlayer>) f.get(player.m_20194_().m_6846_());
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private List<GuiOpenPacket> hubClick(String tag, String screen, String actionId, String page) {
+        JsonObject args = new JsonObject();
+        args.addProperty("screen", screen);
+        args.addProperty("page", page);
+        return keep(tag, () -> UltraGuiActions.dispatch(player, screen, actionId, args.toString()));
+    }
+
+    private static String where(List<GuiOpenPacket> got) {
+        if (got == null || got.isEmpty()) {
+            return "(nothing)";
+        }
+        GuiOpenPacket p = got.get(got.size() - 1);
+        return p.screenId() + "|" + p.pageId();
+    }
+
+    private void hubScript() {
+        boolean staff = com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(player);
+        for (GuiOpenPacket p : keep("hub home", () -> UltraGui.open(player, "hub", "main"))) {
+            note("HUB HOME dashboard: " + (has(p, "Your next prestige") && has(p, "Fastest now:")
+                    && (has(p, "to your next prestige") || has(p, "You can prestige now")) && has(p, "Train")
+                    && has(p, "Compete") && has(p, "Difficulty:") && has(p, "Rival:") && has(p, "Dojo:")
+                    ? "PASS" : "FAIL") + " | " + labels(p));
+            // Tabs travel as buttons (tab:<id>), in order.
+            String b = p.buttonsJson();
+            note("HUB HOME tabs Home/Goals/More, Home first: " + (b.indexOf("tab:home") >= 0
+                    && b.indexOf("tab:home") < b.indexOf("tab:goals") && b.indexOf("tab:goals") < b.indexOf("tab:more")
+                    ? "PASS" : "FAIL"));
+            note("HUB HOME tiles grouped (Prestige, Difficulty, Sparring & Dojo, Rival, Dojo wars, Character): "
+                    + (has(p, "Prestige") && has(p, "Sparring ") && has(p, "Dojo wars")
+                    && has(p, "Character Services") && !has(p, "Menu skins") && !has(p, "Staff Admin")
+                    ? "PASS" : "FAIL"));
+            note("HUB HOME no made-up numbers, no other mods: " + (!has(p, "35%") && !has(p, "/home")
+                    && !has(p, "/spawn") && !has(p, "/tpa") && !has(p, "/empire") && !has(p, "/meditate")
+                    ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : hubClick("hub goals", "hub", "tab:goals", "main")) {
+            note("GOALS placeholder, no payout: " + ("goals".equals(p.pageId())
+                    && has(p, "Weekly goals arrive in the next update.") && has(p, "No goals yet")
+                    && p.buttonsJson().contains("nav:none") ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : hubClick("hub more", "hub", "tab:more", "main")) {
+            note("MORE: meditation, Menu skins" + (staff ? ", Staff Admin" : "") + ": " + ("more".equals(p.pageId())
+                    && has(p, "Meditation") && has(p, "Menu skins") && (has(p, "Staff Admin") == staff)
+                    ? "PASS" : "FAIL"));
+        }
+        // Every hub link opens the right LM screen.
+        String[][] links = {
+            {"open:prestige", "prestige|main"}, {"open:difficulty", "difficulty|main"}, {"open:spar", "spar|main"},
+            {"open:rival", "rival|home"}, {"page:wars", "spar|dojo_war"}, {"open:character", "character|main"},
+            {"page:skins", "hub|skins"}, {"tab:home", "hub|main"},
+        };
+        for (String[] l : links) {
+            String at = where(hubClick("hub link " + l[0], "hub", l[0], "main"));
+            note("LINK " + l[0] + " -> " + at + (at.equals(l[1]) ? " PASS" : " FAIL (want " + l[1] + ")"));
+        }
+        for (GuiOpenPacket p : keep("difficulty home lines", () -> UltraGui.open(player, "difficulty", "main"))) {
+            note("DIFFICULTY HOME shows prestige + rival: " + (has(p, "Beyond Difficulty") && has(p, "Prestige:")
+                    && has(p, "Rival:") ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : keep("prestige home lines", () -> UltraGui.open(player, "prestige", "main"))) {
+            note("PRESTIGE HOME shows Fastest now: " + (has(p, "Fastest now:") ? "PASS" : "FAIL"));
+        }
+        // Streak line only with a streak.
+        var bond = com.dbzlegacy.adaptivedifficulty.sparring.SparStore.get().bond(player.m_20148_());
+        int oldCur = bond.streakCurrent;
+        long oldDay = bond.streakLastDay;
+        bond.streakCurrent = 0;
+        for (GuiOpenPacket p : keep("hub no streak", () -> UltraGui.open(player, "hub", "main"))) {
+            note("STREAK hidden without a streak: " + (!has(p, "Your spar streak") ? "PASS" : "FAIL"));
+        }
+        bond.streakCurrent = 4;
+        bond.streakLastDay = System.currentTimeMillis() / 86_400_000L;
+        for (GuiOpenPacket p : keep("hub streak", () -> UltraGui.open(player, "hub", "main"))) {
+            note("STREAK shown with a streak: " + (has(p, "Your spar streak: 4 days") ? "PASS" : "FAIL"));
+        }
+        bond.streakCurrent = oldCur;
+        bond.streakLastDay = oldDay;
+
+        // Spar board end to end with a stand-in player.
+        com.mojang.authlib.GameProfile gp = new com.mojang.authlib.GameProfile(
+                java.util.UUID.nameUUIDFromBytes("uiprobe:Sparmate".getBytes(StandardCharsets.UTF_8)), "Sparmate");
+        ServerPlayer mate = net.minecraftforge.common.util.FakePlayerFactory.get(player.m_284548_(), gp);
+        backing().add(mate);
+        byUuid().put(mate.m_20148_(), mate);
+        try {
+            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.list(mate);
+            for (GuiOpenPacket p : keep("spar board one looking", () -> UltraGui.open(player, "spar", "main"))) {
+                // JSON escapes the apostrophe in "Who's", so match the rest.
+                note("BOARD lists who is looking with TP per hit: " + (has(p, "s looking (1)")
+                        && has(p, "Sparmate: wants TP") && has(p, "TP a hit") && has(p, "Ask Sparmate")
+                        && has(p, "vs another dojo") ? "PASS" : "FAIL") + " | " + labels(p));
+            }
+            for (GuiOpenPacket p : hubClick("spar board list me", "spar", "do:spar_list", "main")) {
+                note("LIST ME: " + (has(p, "Listed for 15 minutes") && has(p, "Take me off the board")
+                        ? "PASS" : "FAIL"));
+            }
+            for (GuiOpenPacket p : hubClick("spar board want", "spar", "do:spar_want", "main")) {
+                note("WANT cycles to Potential Unlock: " + (has(p, "Looking for: Potential Unlock") ? "PASS" : "FAIL"));
+            }
+            String ask = "do:spar_ask:" + mate.m_20148_();
+            for (GuiOpenPacket p : hubClick("spar board ask", "spar", ask, "main")) {
+                note("ASK one tap: " + (has(p, "Asked Sparmate. 5 minutes to say yes.")
+                        && has(p, "Asked Sparmate") && p.buttonsJson().contains("nav:none") ? "PASS" : "FAIL"));
+            }
+            for (GuiOpenPacket p : hubClick("spar board ask again", "spar", ask, "main")) {
+                note("ASK cooldown: " + (has(p, "Just asked Sparmate") ? "PASS" : "FAIL"));
+            }
+            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.ask(mate, player.m_20148_().toString());
+            for (GuiOpenPacket p : keep("spar board asked", () -> UltraGui.open(player, "spar", "main"))) {
+                note("ASKED shows Say yes: " + (has(p, "Sparmate asked you to spar.") && has(p, "Say yes to Sparmate")
+                        ? "PASS" : "FAIL"));
+            }
+            for (GuiOpenPacket p : hubClick("spar board yes", "spar", "do:spar_yes:" + mate.m_20148_(), "main")) {
+                note("SAY YES tells the asker: " + (has(p, "Told Sparmate.") && !has(p, "Say yes to Sparmate")
+                        ? "PASS" : "FAIL"));
+            }
+            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.onSessionStart(player, mate);
+            long now = System.currentTimeMillis();
+            note("SPAR START takes both off the board: " + (com.dbzlegacy.adaptivedifficulty.sparring.SparBoard
+                    .listedLeft(player.m_20148_(), now) == 0L && com.dbzlegacy.adaptivedifficulty.sparring.SparBoard
+                    .listedLeft(mate.m_20148_(), now) == 0L ? "PASS" : "FAIL"));
+            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.list(mate);
+            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.onLogout(mate.m_20148_());
+            for (GuiOpenPacket p : keep("spar board empty", () -> UltraGui.open(player, "spar", "main"))) {
+                note("LOGOUT leaves the board, empty board is dim: " + (has(p, "s looking (0)")
+                        && has(p, "No one to ask yet") ? "PASS" : "FAIL"));
+            }
+        } finally {
+            backing().remove(mate);
+            byUuid().remove(mate.m_20148_());
+            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.onLogout(mate.m_20148_());
+            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.unlist(player.m_20148_());
+        }
     }
 
     // ---- 4.7.63 Difficulty guide shows once per account (test only) ----
@@ -586,6 +734,7 @@ public final class UiProbe {
                 note("SUMMON locked still dim+inert: " + (p.buttonsJson().contains("nav:none") && has(p, "Summon locked") ? "PASS" : "FAIL"));
             }
             guideScript();
+            hubScript();
 
             // ---------------- Momentum
             com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);
@@ -726,6 +875,13 @@ public final class UiProbe {
         {"wait", "40"},
         // 4.7.63: the guide on the real client. Fresh record: Difficulty opens Step 1; click Skip guide; Home;
         // reopen is Home; How difficulty works replays Step 1 (KaiPath-only runs log the clicks as NOT FOUND).
+        // 4.7.64: the hub on the real client: Home, a tab click, the Dojo wars tile, and the spar board list button.
+        {"open", "hub", "main"}, {"wait", "60"}, {"say", "uirecord hub1-home"}, {"wait", "20"},
+        {"say", "uiclick label:Goals"}, {"wait", "60"}, {"say", "uirecord hub2-goals"}, {"wait", "20"},
+        {"open", "hub", "main"}, {"wait", "60"}, {"say", "uiclick label:Dojo wars"}, {"wait", "60"},
+        {"say", "uirecord hub3-dojo-wars"}, {"wait", "20"},
+        {"open", "spar", "main"}, {"wait", "60"}, {"say", "uiclick label:List me for 15 min"}, {"wait", "60"},
+        {"say", "uirecord spar1-listed"}, {"wait", "20"},
         {"guidereset"}, {"open", "difficulty", "main"}, {"wait", "60"}, {"say", "uirecord guide1-first-open"},
         {"wait", "20"}, {"say", "uiclick label:Skip guide"}, {"wait", "60"}, {"say", "uirecord guide2-after-skip"},
         {"wait", "20"}, {"guidecheck"}, {"open", "difficulty", "main"}, {"wait", "60"},

@@ -2,6 +2,7 @@ package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
 import com.dbzlegacy.adaptivedifficulty.gui.RivalGuiApi;
 import com.dbzlegacy.adaptivedifficulty.gui.SparGuiApi;
+import com.dbzlegacy.adaptivedifficulty.sparring.SparBoard;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import java.util.List;
 import java.util.Locale;
@@ -176,9 +177,101 @@ public final class UltraSparScreens {
      * Mentor bonds live under Dojo → Actions. Session/partner text is staff-only.
      */
     private static void openHome(ServerPlayer player) {
-        UltraScreenSpec spec = base("main", "home")
-                .line(UltraStyle.LABEL + "Hall of Infamy, your stats, and weights.")
-                .buttonsAfterLines();
+        openHome(player, null);
+    }
+
+    /**
+     * Sparring Home (4.7.64): the spar board, then what a spar is worth to this player, then the Sparring pages.
+     * The board lists who is looking (closest match first) with the TP a spar with each would pay this player
+     * per hit at the start; one tap asks, and an asked player says yes here. {@code notice} is the result of the
+     * board button just pressed (menu first), or null.
+     */
+    public static void openHome(ServerPlayer player, String notice) {
+        UltraScreenSpec spec = base("main", "home");
+        if (notice != null && !notice.isBlank()) {
+            spec.notice(notice);
+        }
+        java.util.UUID me = player.m_20148_();
+        long left = SparBoard.listedLeft(me, System.currentTimeMillis());
+        SparBoard.Want want = SparBoard.want(me);
+        spec.line(UltraStyle.header("Looking for a spar"));
+        spec.line(UltraStyle.VALUE + (left > 0L
+                ? "Listed " + SparBoard.clock(left) + " more. Want: " + want.label + "."
+                : "Not on the board. Want: " + want.label + "."));
+        java.util.List<SparBoard.Entry> looking = SparBoard.looking(player);
+        spec.line(UltraStyle.header("Who's looking (" + looking.size() + ")"));
+        if (looking.isEmpty()) {
+            spec.line(UltraStyle.LABEL + "No one yet. List yourself so others find you.");
+        }
+        int shown = Math.min(SparBoard.SHOWN, looking.size());
+        for (int i = 0; i < shown; i++) {
+            SparBoard.Entry e = looking.get(i);
+            spec.line(UltraStyle.VALUE + e.name() + UltraStyle.LABEL + ": wants " + e.want().label + ", "
+                    + com.dbzlegacy.adaptivedifficulty.util.DmzRewards.formatWhole(e.tpPerHit()) + " TP a hit ("
+                    + SparBoard.mult(e.match()) + ")");
+        }
+        java.util.List<java.util.Map.Entry<java.util.UUID, String>> asks = SparBoard.asksFor(me);
+        for (int i = 0; i < Math.min(2, asks.size()); i++) {
+            spec.line(UltraStyle.GREEN + asks.get(i).getValue() + " asked you to spar.");
+        }
+        spec.line(UltraStyle.header("What a spar is worth to you"));
+        spec.line(UltraStyle.VALUE + HubDashboard.sparWinLine(player));
+        String potential = HubDashboard.potentialLine(player);
+        if (potential != null) {
+            spec.line(UltraStyle.VALUE + potential);
+        }
+        String streak = HubDashboard.streakLine(player);
+        if (streak != null) {
+            spec.line(UltraStyle.VALUE + streak);
+        }
+        spec.buttonsAfterLines();
+        if (left > 0L) {
+            spec.buttonLeft("do:" + SparBoard.ACT_UNLIST, "Take me off the board", UltraStyle.STYLE_NORMAL);
+        } else {
+            spec.buttonLeft("do:" + SparBoard.ACT_LIST, UltraStyle.confirm("List me for 15 min"),
+                    UltraStyle.STYLE_CONFIRM);
+        }
+        spec.buttonRight("do:" + SparBoard.ACT_WANT, "Looking for: " + want.label, UltraStyle.STYLE_NORMAL).rowGap();
+        int placed = 0;
+        for (int i = 0; i < Math.min(2, asks.size()); i++) {
+            String action = "do:" + SparBoard.ACT_YES + ":" + asks.get(i).getKey();
+            String label = UltraStyle.confirm("Say yes to " + asks.get(i).getValue());
+            if (placed % 2 == 0) {
+                spec.buttonLeft(action, label, UltraStyle.STYLE_CONFIRM);
+            } else {
+                spec.buttonRight(action, label, UltraStyle.STYLE_CONFIRM).rowGap();
+            }
+            placed++;
+        }
+        if (placed % 2 == 1) {
+            spec.rowGap();
+        }
+        placed = 0;
+        for (int i = 0; i < shown; i++) {
+            SparBoard.Entry e = looking.get(i);
+            boolean left2 = placed % 2 == 0;
+            if (SparBoard.asked(me, e.id())) {
+                if (left2) {
+                    spec.lockedButton("Asked " + e.name());
+                } else {
+                    spec.lockedButtonRight("Asked " + e.name());
+                }
+            } else if (left2) {
+                spec.buttonLeft("do:" + SparBoard.ACT_ASK + ":" + e.id(), "Ask " + e.name(), UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.buttonRight("do:" + SparBoard.ACT_ASK + ":" + e.id(), "Ask " + e.name(), UltraStyle.STYLE_NORMAL);
+            }
+            if (!left2) {
+                spec.rowGap();
+            }
+            placed++;
+        }
+        if (placed % 2 == 1) {
+            spec.rowGap();
+        }
+        if (shown == 0) {
+            spec.lockedButton("No one to ask yet").rowGap();
+        }
         UltraPickHelper.placePageButtons(
                 spec,
                 "infamy|Hall of Infamy",

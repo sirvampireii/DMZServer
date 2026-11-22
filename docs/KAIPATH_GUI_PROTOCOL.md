@@ -854,6 +854,15 @@ panel `#160b0d`, crimson `#e23b3b` (Difficulty's accent), gold trim `#f0b429`, t
 (12px) and buttons (8px), soft shadow, 1px gold-trim border. KaiPath may adopt those hex values and shapes
 for LM's channel later; nothing in the packet asks for them, and KaiPath's square look stays correct.
 
+### Header groups and the hub (LM 4.7.64)
+
+No wire change for the bridge. The main menu (`screenId` `hub`) now has three tabs, `home|Home`,
+`goals|Goals`, `more|More`; tab clicks come back as `tab:<id>` like every other system. Pages with two or more
+header lines (`§6§l...`) are meant to read as cards: the LM client draws each header on the panel and the lines
+under it in their own box. KaiPath may do the same; drawing them flat in one body is correct. New hub action
+`page:wars` (the Dojo wars tile) and Sparring actions `do:spar_list`, `do:spar_unlist`, `do:spar_want`,
+`do:spar_ask:<uuid>`, `do:spar_yes:<uuid>` are ordinary actions: send them back as-is. See `docs/LM_HUB.md`.
+
 ---
 
 ## Packaging checklist (LM jar)

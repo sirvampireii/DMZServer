@@ -450,6 +450,8 @@ public final class SparringSystem {
         bRt.partner = a.m_20148_();
         aRt.startAt = now;
         bRt.startAt = now;
+        // 4.7.64: a spar began, so both come off the spar board.
+        SparBoard.onSessionStart(a, b);
         // Seed movement window only — hits/blocks must not refresh the AFK gate.
         refreshMovementActivity(a, aRt, now);
         refreshMovementActivity(b, bRt, now);
