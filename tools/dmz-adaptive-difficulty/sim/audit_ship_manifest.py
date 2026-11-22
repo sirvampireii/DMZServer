@@ -2017,7 +2017,7 @@ def main() -> int:
           and "DifficultyTutorial.markDone(player);" in p63_dact
           and "DifficultyTutorial.ACT_DONE.equals(parts.action)" in p63_act)
     check("Step 1 says once that the guide shows once; Home replays it without clearing the mark",
-          'GUIDE_ONCE = "This guide shows once. Replay it from Home: How difficulty works.";' in p63_diff
+          'GUIDE_ONCE = "This guide shows once. Replay it from Home.";' in p63_diff
           and 'UltraStyle.plain("How difficulty works")' in p63_diff
           and "markDone" not in p63_diff and '"done", false' not in p63_tut)
 

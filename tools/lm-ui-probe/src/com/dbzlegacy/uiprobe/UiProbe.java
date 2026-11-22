@@ -547,7 +547,7 @@ public final class UiProbe {
                         && has(p, "Next: Pick your level") && has(p, "Back to main menu") ? "PASS" : "FAIL"));
                 // 4.7.63: a fresh account opens the guide; it says once that it shows once; Skip on the step.
                 note("GUIDE FIRST OPEN shows Step 1 + once line + Skip guide: " + (!guideDone()
-                        && has(p, "This guide shows once. Replay it from Home: How difficulty works.")
+                        && has(p, "This guide shows once. Replay it from Home.")
                         && has(p, "Skip guide") ? "PASS" : "FAIL"));
             }
             for (GuiOpenPacket p : keep("step2 tiers no tier", () -> UltraGui.open(player, "difficulty", "tiers"))) {

@@ -182,7 +182,7 @@ public final class UltraDifficultyScreens {
     }
 
     /** 4.7.63: said once, on Step 1. */
-    static final String GUIDE_ONCE = "This guide shows once. Replay it from Home: How difficulty works.";
+    static final String GUIDE_ONCE = "This guide shows once. Replay it from Home.";
     /** Skip (every step) and Got it (Step 3): mark the guide done, open Home. */
     private static final String GUIDE_DONE = "do:" + DifficultyTutorial.ACT_DONE;
 
