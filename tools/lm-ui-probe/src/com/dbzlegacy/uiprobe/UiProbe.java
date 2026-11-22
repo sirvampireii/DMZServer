@@ -393,6 +393,89 @@ public final class UiProbe {
         return b.toString();
     }
 
+    // ---- 4.7.63 Difficulty guide shows once per account (test only) ----
+    private boolean guideDone() {
+        return com.dbzlegacy.adaptivedifficulty.gui.ultra.DifficultyTutorial.done(player);
+    }
+
+    private void guideReset() {
+        com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.root(player)
+                .m_128473_(com.dbzlegacy.adaptivedifficulty.gui.ultra.DifficultyTutorial.KEY);
+    }
+
+    /** The real click path: a button through UltraGuiActions, as the native screen and KaiPath send it. */
+    private List<GuiOpenPacket> click(String tag, String actionId, String page) {
+        JsonObject args = new JsonObject();
+        args.addProperty("screen", "difficulty");
+        args.addProperty("page", page);
+        return keep(tag, () -> UltraGuiActions.dispatch(player, "difficulty", actionId, args.toString()));
+    }
+
+    private static boolean home(GuiOpenPacket p) {
+        return "main".equals(p.pageId()) && has(p, "How difficulty works") && has(p, "Your tier")
+                && !has(p, "Step 1 of 3") && !has(p, "Skip guide");
+    }
+
+    private void guideScript() {
+        // Finish: Step 3's "Got it" marks done and lands on Home.
+        for (GuiOpenPacket p : keep("guide step3", () -> UltraGui.open(player, "difficulty", "your_tier"))) {
+            note("GUIDE STEP3 not done yet has Got it + Skip: " + (!guideDone() && has(p, "Step 3 of 3 - Your tier")
+                    && has(p, "Got it - take me to Difficulty") && has(p, "Skip guide") ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : click("guide got it", "do:guide_done", "guide_your_tier")) {
+            note("GOT IT marks done and lands on Home: " + (guideDone() && home(p) ? "PASS" : "FAIL") + " | " + labels(p));
+        }
+        for (GuiOpenPacket p : keep("guide reopen", () -> UltraGui.open(player, "difficulty", "main"))) {
+            note("REOPEN after finish goes straight to Home: " + (home(p) ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : keep("guide your_tier done", () -> UltraGui.open(player, "difficulty", "your_tier"))) {
+            note("YOUR TIER after finish is Home: " + (home(p) ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : keep("tiers after guide", () -> UltraGui.open(player, "difficulty", "tiers"))) {
+            note("TIERS after guide is the plain list: " + ("tiers".equals(p.pageId()) && !has(p, "Step 2 of 3")
+                    && !has(p, "Next: Your tier") && has(p, "Back to Home") && has(p, "Pick your level")
+                    && has(p, "T1 Awakened") ? "PASS" : "FAIL") + " | " + labels(p));
+        }
+        for (GuiOpenPacket p : keep("summons after guide", () -> UltraGui.open(player, "difficulty", "summons"))) {
+            note("SUMMONS after guide: Back to Home: " + (has(p, "Back to Home") ? "PASS" : "FAIL"));
+        }
+        // Replay: How difficulty works opens every step; finishing again keeps it done.
+        for (GuiOpenPacket p : click("guide replay", "page:guide", "main")) {
+            note("REPLAY opens Step 1: " + (has(p, "Step 1 of 3 - What is Difficulty") && guideDone() ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : click("guide replay step2", "page:guide_tiers", "guide")) {
+            note("REPLAY Next opens Step 2: " + (has(p, "Step 2 of 3 - Pick your level") && has(p, "Skip guide")
+                    ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : click("guide replay step3", "page:guide_your_tier", "guide_tiers")) {
+            note("REPLAY Next opens Step 3: " + (has(p, "Step 3 of 3 - Your tier") ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : click("guide replay finish", "do:guide_done", "guide_your_tier")) {
+            note("REPLAY finish lands on Home, still done: " + (home(p) && guideDone() ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : keep("guide reopen after replay", () -> UltraGui.open(player, "difficulty", "main"))) {
+            note("REOPEN after replay goes straight to Home: " + (home(p) ? "PASS" : "FAIL"));
+        }
+        // Skip on Step 1 (an account that never saw the guide, as every player before 4.7.63).
+        guideReset();
+        for (GuiOpenPacket p : keep("guide existing player", () -> UltraGui.open(player, "difficulty", "main"))) {
+            note("EXISTING PLAYER (no record) sees Step 1: " + (!guideDone() && has(p, "Step 1 of 3") ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : click("guide skip step1", "do:guide_done", "guide")) {
+            note("SKIP on Step 1 marks done and lands on Home: " + (guideDone() && home(p) ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : keep("guide reopen after skip", () -> UltraGui.open(player, "difficulty", "main"))) {
+            note("REOPEN after skip goes straight to Home: " + (home(p) ? "PASS" : "FAIL"));
+        }
+        // Skip on Step 2 as well.
+        guideReset();
+        click("guide skip step2", "do:guide_done", "guide_tiers");
+        note("SKIP on Step 2 marks done: " + (guideDone() ? "PASS" : "FAIL"));
+        // Stored on disk per account: dropping the cached record and reading it back keeps it (relog).
+        com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.unload(player.m_20148_());
+        note("DONE survives a record reload (relog): " + (guideDone() ? "PASS" : "FAIL"));
+    }
+
     private String act(String action, String arg, String page) {
         com.dbzlegacy.adaptivedifficulty.service.DifficultyActions.Result r =
                 com.dbzlegacy.adaptivedifficulty.service.DifficultyActions.handleArgNoReopen(player, action, arg, page);
@@ -462,6 +545,10 @@ public final class UiProbe {
             for (GuiOpenPacket p : keep("step1 home", () -> UltraGui.open(player, "difficulty", "main"))) {
                 note("STEP1 " + (has(p, "Step 1 of 3 - What is Difficulty") && has(p, "[x] [ ] [ ]")
                         && has(p, "Next: Pick your level") && has(p, "Back to main menu") ? "PASS" : "FAIL"));
+                // 4.7.63: a fresh account opens the guide; it says once that it shows once; Skip on the step.
+                note("GUIDE FIRST OPEN shows Step 1 + once line + Skip guide: " + (!guideDone()
+                        && has(p, "This guide shows once. Replay it from Home: How difficulty works.")
+                        && has(p, "Skip guide") ? "PASS" : "FAIL"));
             }
             for (GuiOpenPacket p : keep("step2 tiers no tier", () -> UltraGui.open(player, "difficulty", "tiers"))) {
                 note("RECOMMEND no tier -> T1: " + (has(p, "T1 Awakened - Recommended") ? "PASS" : "FAIL")
@@ -498,6 +585,7 @@ public final class UiProbe {
             for (GuiOpenPacket p : keep("summon dragon", () -> UltraGui.open(player, "difficulty", "end_dragon"))) {
                 note("SUMMON locked still dim+inert: " + (p.buttonsJson().contains("nav:none") && has(p, "Summon locked") ? "PASS" : "FAIL"));
             }
+            guideScript();
 
             // ---------------- Momentum
             com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);
@@ -565,6 +653,9 @@ public final class UiProbe {
             java.util.UUID me = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter.id(player);
             sw.invoke(null, player, me, me, 0, false);
             note("SLOT SWITCH clears the bank: " + left() + (left() == 0L ? " PASS" : " FAIL"));
+            for (GuiOpenPacket p : keep("guide after slot switch", () -> UltraGui.open(player, "difficulty", "main"))) {
+                note("SLOT SWITCH keeps the guide done (per account): " + (guideDone() && home(p) ? "PASS" : "FAIL"));
+            }
 
             // ---------------- free trial
             m = act("trial", "2", "tier_ask:2");
@@ -600,6 +691,7 @@ public final class UiProbe {
                     new net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent(player));
             sessionRestore(session);
             note("LOGOUT clears the bank: " + pre + " -> " + left() + (pre > 0 && left() == 0L ? " PASS" : " FAIL"));
+            note("LOGOUT keeps the guide done (per account): " + (guideDone() ? "PASS" : "FAIL"));
             // The logout handler dropped the cached record; the trial lives in the store, so it still reverts.
         } catch (Throwable t) {
             note("ERROR script " + t);
@@ -632,6 +724,13 @@ public final class UiProbe {
         {"say", "uiclick id:model_rotate"}, {"wait", "96"}, {"say", "uirecord rot3-spun-to-back"}, {"wait", "4"},
         {"say", "uiclick id:model_rotate"}, {"wait", "60"}, {"say", "uirecord rot4-stopped-after-back"},
         {"wait", "40"},
+        // 4.7.63: the guide on the real client. Fresh record: Difficulty opens Step 1; click Skip guide; Home;
+        // reopen is Home; How difficulty works replays Step 1 (KaiPath-only runs log the clicks as NOT FOUND).
+        {"guidereset"}, {"open", "difficulty", "main"}, {"wait", "60"}, {"say", "uirecord guide1-first-open"},
+        {"wait", "20"}, {"say", "uiclick label:Skip guide"}, {"wait", "60"}, {"say", "uirecord guide2-after-skip"},
+        {"wait", "20"}, {"guidecheck"}, {"open", "difficulty", "main"}, {"wait", "60"},
+        {"say", "uirecord guide3-reopen"}, {"wait", "20"}, {"say", "uiclick label:How difficulty works"},
+        {"wait", "60"}, {"say", "uirecord guide4-replay"}, {"wait", "20"}, {"guidecheck"},
         {"trialcheck"}, {"wait", "40"}, {"say", "uiquit"},
     };
 
@@ -660,6 +759,14 @@ public final class UiProbe {
                         + (trialStart > 0L && dd.getActiveTier() == 0
                                 && com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.active(player) == null
                                 ? " PASS reverted to no tier" : " FAIL"));
+                write("uiprobe-script.txt", scriptLog.toString(), false);
+            }
+            case "guidereset" -> {
+                guideReset();
+                note("FINAL guide reset done=" + guideDone());
+            }
+            case "guidecheck" -> {
+                note("FINAL guide done=" + guideDone());
                 write("uiprobe-script.txt", scriptLog.toString(), false);
             }
             case "say" -> {

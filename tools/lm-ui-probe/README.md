@@ -7,6 +7,11 @@ In-game test rig for LegacyMechanics menus. Never shipped, never put on the live
 - Crawls every LM menu a joined player can reach through navigation buttons (never `do:` actions).
 - Runs the scripted checks and writes `uiprobe-script.txt` (PASS/FAIL lines):
   - Difficulty guide flow
+  - Guide shows once per account (4.7.63): first open is Step 1; Got it, Skip on Step 1 and on Step 2 each mark it
+    done and land on Home; reopen goes straight to Home; Tiers is the plain list; How difficulty works replays all
+    three steps without clearing the mark; a record without the key (a pre-4.7.63 player) sees it once; slot
+    switch, record reload and logout keep it. On the real client the final phase clicks Skip guide and How
+    difficulty works (`guide1`..`guide4` REC lines in `uiprobe-client.txt`).
   - Recommendation rule
   - Momentum banking and the cap
   - Mastery x1.5 inside the window, x1.0 outside

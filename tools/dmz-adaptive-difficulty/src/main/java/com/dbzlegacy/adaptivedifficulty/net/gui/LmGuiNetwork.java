@@ -330,6 +330,8 @@ public final class LmGuiNetwork {
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.progression.Momentum.selfTest());
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.selfTest());
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.DifficultyGuide.selfTest());
+        // 4.7.63: the guide shows once per account, then Difficulty opens on Home.
+        guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.DifficultyTutorial.selfTest());
         // 4.7.60: Saiyan Royal skin constants, bridge accent mapping and the native shape math.
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.SaiyanRoyal.selfTest());
         // 4.7.62: the five menu skins, their readable tones and the bridge letter rewrite.
@@ -342,7 +344,7 @@ public final class LmGuiNetwork {
             AdaptiveDifficultyMod.LOGGER.error("[{}] {}", AdaptiveDifficultyMod.MOD_ID, msg);
         } else {
             AdaptiveDifficultyMod.LOGGER.info(
-                    "[{}] Momentum / free trial / guide / skin self-test OK (timer, kill rule, hit scaling, revert, recommendation, Saiyan Royal, five menu skins)",
+                    "[{}] Momentum / free trial / guide / skin self-test OK (timer, kill rule, hit scaling, revert, recommendation, guide shows once, Saiyan Royal, five menu skins)",
                     AdaptiveDifficultyMod.MOD_ID);
         }
         AdaptiveDifficultyMod.LOGGER.info(

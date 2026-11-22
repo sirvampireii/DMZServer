@@ -837,6 +837,10 @@ public final class UltraGuiActions {
         if ("character".equals(screen) && "android_staff".equals(parts.action)) {
             return androidStaffReopen(parts.arg);
         }
+        // 4.7.63: Skip guide / Got it land on Difficulty Home, never back on the guide step they sat on.
+        if ("difficulty".equals(screen) && DifficultyTutorial.ACT_DONE.equals(parts.action)) {
+            return "main";
+        }
         String page = stringArg(args, "page");
         // Confirm pages (4.7.21): after Confirm, back to the page the spend button sat on.
         String afterConfirm = confirmReturn(screen, page);

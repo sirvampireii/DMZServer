@@ -238,6 +238,13 @@ public final class DifficultyActions {
             openGui(player, target);
             return Result.ok("");
         }
+        // 4.7.63: Skip guide (every step) and "Got it" (Step 3) both finish the guide for the account and land on
+        // Home. Before the on/off and whitelist gates: finishing the guide never needs either.
+        if (com.dbzlegacy.adaptivedifficulty.gui.ultra.DifficultyTutorial.ACT_DONE.equals(act)) {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.DifficultyTutorial.markDone(player);
+            openGui(player, "main");
+            return Result.ok("");
+        }
         if (!DifficultyConfig.isEnabled()) {
             openGui(player, page == null || page.isBlank() ? "main" : page);
             return Result.fail("Adaptive Difficulty is disabled by an admin.");

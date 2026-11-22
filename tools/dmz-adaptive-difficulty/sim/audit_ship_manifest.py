@@ -1994,6 +1994,33 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.63 ---")
+    p63_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    p63_tut = read(SRC / "gui/ultra/DifficultyTutorial.java")
+    p63_dact = read(SRC / "service/DifficultyActions.java")
+    p63_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    p63_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p63_gui = read(SRC / "net/gui/LmGuiNetwork.java")
+    check("manifest row for lm 4.7.63", "lm-4763-guide-once" in manifest)
+    check("guide done is per account in the LM record (account UUID, not the character id)",
+          'KEY = "lm_difficulty_tutorial";' in p63_tut and "LmPlayerStore.root(account)" in p63_tut
+          and "UUID id = player.m_20148_();" in p63_tut and "LmPlayerStore.flush(id);" in p63_tut
+          and "PrestigeCharacter" not in p63_tut)
+    check("opening Difficulty routes by guide state; guide ids always replay",
+          "switch (DifficultyTutorial.route(lower, DifficultyTutorial.done(player)))" in p63_diff
+          and 'case "", "main", "home", "settings", "coins":\n                return done ? View.HOME : View.STEP1;'
+              in p63_tut.replace("\r\n", "\n")
+          and "DifficultyTutorial.selfTest()" in p63_gui)
+    check("Skip guide on every step and Got it both mark done and land on Home",
+          p63_diff.count("spec.footerGuide(") == 3 and 'UltraStyle.confirm("Got it - take me to Difficulty")' in p63_diff
+          and 'placeFooter(action, UltraStyle.backTo(destination), skipActionId, "Skip guide")' in p63_spec
+          and "DifficultyTutorial.markDone(player);" in p63_dact
+          and "DifficultyTutorial.ACT_DONE.equals(parts.action)" in p63_act)
+    check("Step 1 says once that the guide shows once; Home replays it without clearing the mark",
+          'GUIDE_ONCE = "This guide shows once. Replay it from Home: How difficulty works.";' in p63_diff
+          and 'UltraStyle.plain("How difficulty works")' in p63_diff
+          and "markDone" not in p63_diff and '"done", false' not in p63_tut)
+
     print("\n--- § lm 4.7.62 ---")
     p62_reg = read(SRC / "gui/ultra/MenuSkins.java")
     p62_prefs = read(SRC / "gui/ultra/MenuPrefs.java")
@@ -2199,7 +2226,7 @@ def main() -> int:
           and "DifficultyGuide.recommend(active, highestEligible)" in p59_diff)
     check("guide flow: 3 steps with dots, Back in the left slot, detail page with before/after and trial",
           'stepHeader(spec, 1, "What is Difficulty")' in p59_diff and 'stepHeader(spec, 2, "Pick your level")' in p59_diff
-          and 'stepHeader(spec, 3, "Your tier")' in p59_diff and 'footerBackOnly("nav:hub", "main menu")' in p59_diff
+          and 'stepHeader(spec, 3, "Your tier")' in p59_diff and 'spec.footerGuide("nav:hub", "main menu", GUIDE_DONE);' in p59_diff
           and '"Try one fight free"' in p59_diff and 'labelValue("Enemy damage"' in p59_diff
           and 'labelValue("TP earned"' in p59_diff and 'labelValue("Mastery gain"' in p59_diff
           and 'spec.lockedButton("Summon locked")' in p59_diff)

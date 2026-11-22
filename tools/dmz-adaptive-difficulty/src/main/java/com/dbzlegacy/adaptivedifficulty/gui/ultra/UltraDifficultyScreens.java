@@ -91,22 +91,44 @@ public final class UltraDifficultyScreens {
             openTitles(player, Math.max(0, pageIndex));
             return;
         }
+        // 4.7.63: the 3-step guide shows once per account. Not done: Home / Tiers / Your tier open the matching
+        // guide step. Done (finished or skipped): Home and the plain Tiers list. The guide's own page ids always
+        // open the guide, so "How difficulty works" replays it without clearing the mark.
+        switch (DifficultyTutorial.route(lower, DifficultyTutorial.done(player))) {
+            case STEP1 -> {
+                openGuideStep1(player);
+                return;
+            }
+            case STEP2 -> {
+                openTiers(player, true);
+                return;
+            }
+            case STEP3 -> {
+                openYourTier(player, true);
+                return;
+            }
+            case HOME -> {
+                openYourTier(player, false);
+                return;
+            }
+            case TIERS -> {
+                openTiers(player, false);
+                return;
+            }
+            default -> {
+            }
+        }
         switch (lower) {
-            case "tiers", "buy", "tier", "purchase", "unlock", "adjust", "change", "set", "lower" ->
-                    openTiers(player);
             case "summons", "summon" -> openSummons(player);
             case "end_dragon", "dragon", "summon_dragon", "summon_confirm" -> openSummonConfirm(player);
             case "wither" -> openBossSummonConfirm(player, PlayerBossSummons.Boss.WITHER);
             case "warden" -> openBossSummonConfirm(player, PlayerBossSummons.Boss.WARDEN);
             case "team", "teams" -> openTeam(player);
             case "titles", "title", "titles_p0" -> openTitles(player, 0);
-            case "settings", "coins" -> openHome(player);
-            // 4.7.59 guide Step 3: your tier, Momentum, and the tier tools.
-            case "your_tier", "yourtier", "momentum" -> openYourTier(player);
             case "stats", "statistics", "details", "cr", "combat_rating" -> openStats(player);
             case "admin", "staff" -> openStaffAdmin(player);
             case "eventlog", "event_log", "logs", "syslog" -> openEventLog(player);
-            default -> openHome(player);
+            default -> open(player, "main");
         }
     }
 
@@ -136,12 +158,13 @@ public final class UltraDifficultyScreens {
 
     /**
      * Guide Step 1 (4.7.59): what Difficulty is, in one sentence and three rows. Next goes to Step 2 (the
-     * Tiers list). Back sits in the left footer slot on every step.
+     * Tiers list). Back sits in the left footer slot on every step; 4.7.63 adds Skip guide in the right slot and
+     * one line saying the guide shows once.
      */
-    private static void openHome(ServerPlayer player) {
+    private static void openGuideStep1(ServerPlayer player) {
         DifficultySnapshot snap = DifficultyCache.refresh(player);
         String tierName = snap == null || snap.activeTier <= 0 ? "No tier yet. Pick one in Step 2." : "T" + snap.activeTier + " " + snap.activeTierName;
-        UltraScreenSpec spec = base(player, "main", "home");
+        UltraScreenSpec spec = base(player, DifficultyTutorial.PAGE_STEP1, "home");
         stepHeader(spec, 1, "What is Difficulty");
         spec.line(UltraStyle.VALUE + "Difficulty makes the mobs near you fight at a level you pick, and pays you more for it.")
                 // 4.7.61: "Label: value" rows that each fit one line (the colon separates the gray label from the
@@ -150,10 +173,22 @@ public final class UltraDifficultyScreens {
                 .labelValue("Bigger rewards:", "more TP per kill, plus Momentum")
                 .labelValue("Change anytime:", "lowering your tier is free")
                 .labelValue("Your tier:", tierName)
+                .line(UltraStyle.LABEL + GUIDE_ONCE)
                 .buttonsAfterLines();
-        spec.button("page:tiers", UltraStyle.confirm("Next: Pick your level"), UltraStyle.STYLE_CONFIRM).rowGap();
-        spec.footerBackOnly("nav:hub", "main menu");
+        spec.button("page:" + DifficultyTutorial.PAGE_STEP2, UltraStyle.confirm("Next: Pick your level"),
+                UltraStyle.STYLE_CONFIRM).rowGap();
+        spec.footerGuide("nav:hub", "main menu", GUIDE_DONE);
         spec.send(player);
+    }
+
+    /** 4.7.63: said once, on Step 1. */
+    static final String GUIDE_ONCE = "This guide shows once. Replay it from Home: How difficulty works.";
+    /** Skip (every step) and Got it (Step 3): mark the guide done, open Home. */
+    private static final String GUIDE_DONE = "do:" + DifficultyTutorial.ACT_DONE;
+
+    /** "Back to Home" once the guide is done; "Back to Step 1" while it is not. */
+    private static String homeLabel(ServerPlayer player) {
+        return DifficultyTutorial.done(player) ? "Home" : "Step 1";
     }
 
     /** {@code Step N of 3 - Title} header, then the progress dots. */
@@ -183,15 +218,24 @@ public final class UltraDifficultyScreens {
     /**
      * Guide Step 3 (4.7.59): your tier, any free trial, Momentum, and the tier tools that used to sit on
      * Home (difficulty on/off, clear tier, titles, rival teams, coin messages, staff tools).
+     *
+     * <p>4.7.63: with {@code guide} false this is Difficulty Home, where a player lands once the guide is done:
+     * the same tier, trial and Momentum rows and tools under a plain header, plus "How difficulty works" to
+     * replay the guide. In the guide, "Got it - take me to Difficulty" finishes it.
      */
-    private static void openYourTier(ServerPlayer player) {
+    private static void openYourTier(ServerPlayer player, boolean guide) {
         DifficultySnapshot snap = DifficultyCache.refresh(player);
         PlayerDifficultyData data = DifficultyCache.data(player);
         boolean personal = data != null && data.isPersonalEnabled();
         int active = data == null ? 0 : data.getActiveTier();
-        UltraScreenSpec spec = base(player, "your_tier", "home");
-        stepHeader(spec, 3, "Your tier");
-        spec.labelValue("Tier:", active <= 0 || snap == null ? "No tier yet. Pick one in Step 2."
+        UltraScreenSpec spec = base(player, guide ? DifficultyTutorial.PAGE_STEP3 : "main", "home");
+        if (guide) {
+            stepHeader(spec, 3, "Your tier");
+        } else {
+            spec.line(UltraStyle.header("Your tier"));
+        }
+        spec.labelValue("Tier:", active <= 0 || snap == null
+                        ? (guide ? "No tier yet. Pick one in Step 2." : "No tier yet. Tap Change tier.")
                         : "T" + active + " " + snap.activeTierName)
                 .labelValue("Difficulty:", personal ? "ON" : "OFF");
         com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.Active trial =
@@ -204,6 +248,10 @@ public final class UltraDifficultyScreens {
         }
         momentumLines(spec, player);
         spec.buttonsAfterLines();
+        if (guide) {
+            spec.button(GUIDE_DONE, UltraStyle.confirm("Got it - take me to Difficulty"), UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
+        }
         spec.buttonLeft("page:tiers", UltraStyle.confirm("Change tier"), UltraStyle.STYLE_CONFIRM);
         placeDifficultyToggle(spec, personal);
         spec.rowGap();
@@ -216,11 +264,22 @@ public final class UltraDifficultyScreens {
             // Staff entry reads red, like Staff Admin on the Rival and Sparring homes.
             spec.buttonLeft("page:admin", UltraStyle.LABEL + "Server tools", UltraStyle.STYLE_NORMAL).rowGap();
         }
-        spec.footerBack("page:tiers", "Step 2");
+        if (guide) {
+            spec.footerGuide("page:" + DifficultyTutorial.PAGE_STEP2, "Step 2", GUIDE_DONE);
+        } else {
+            // Replay on demand, with the other Home actions; never clears the done mark.
+            spec.button("page:" + DifficultyTutorial.PAGE_STEP1, UltraStyle.plain("How difficulty works"),
+                    UltraStyle.STYLE_NORMAL).rowGap();
+            spec.footerBackOnly("nav:hub", "main menu");
+        }
         spec.send(player);
     }
 
-    private static void openTiers(ServerPlayer player) {
+    /**
+     * Tiers list. {@code guide} true: guide Step 2 (step header, Next: Your tier, Back to Step 1, Skip guide).
+     * {@code guide} false (4.7.63, guide done): the same list under a plain header, Back to Home.
+     */
+    private static void openTiers(ServerPlayer player, boolean guide) {
         if (!DifficultyConfig.isEnabled()) {
             openFeatureLocked(
                     player,
@@ -255,8 +314,12 @@ public final class UltraDifficultyScreens {
             }
         }
         int recommended = DifficultyGuide.recommend(active, highestEligible);
-        UltraScreenSpec spec = base(player, "tiers", "tiers");
-        stepHeader(spec, 2, "Pick your level");
+        UltraScreenSpec spec = base(player, guide ? DifficultyTutorial.PAGE_STEP2 : "tiers", "tiers");
+        if (guide) {
+            stepHeader(spec, 2, "Pick your level");
+        } else {
+            spec.line(UltraStyle.header("Pick your level"));
+        }
         spec.line(UltraStyle.VALUE + "Tap a tier to see what changes. Nothing is bought until you confirm.");
         if (!personal) {
             spec.line(UltraStyle.danger("Difficulty is off. Turn it on to use a tier."));
@@ -285,8 +348,13 @@ public final class UltraDifficultyScreens {
             placeDifficultyToggle(spec, false);
             spec.rowGap();
         }
-        spec.button("page:your_tier", UltraStyle.confirm("Next: Your tier"), UltraStyle.STYLE_CONFIRM).rowGap();
-        spec.footerBack("page:main", "Step 1");
+        if (guide) {
+            spec.button("page:" + DifficultyTutorial.PAGE_STEP3, UltraStyle.confirm("Next: Your tier"),
+                    UltraStyle.STYLE_CONFIRM).rowGap();
+            spec.footerGuide("page:" + DifficultyTutorial.PAGE_STEP1, "Step 1", GUIDE_DONE);
+        } else {
+            spec.footerBack("page:main", "Home");
+        }
         spec.send(player);
     }
 
@@ -371,7 +439,7 @@ public final class UltraDifficultyScreens {
                         wardenReady ? UltraStyle.confirm(wardenLabel) : UltraStyle.dim(wardenLabel),
                         wardenReady ? "confirm" : "dim")
                 .rowGap();
-        spec.footerBack("page:main", "Step 1");
+        spec.footerBack("page:main", homeLabel(player));
         spec.send(player);
     }
 
@@ -486,7 +554,7 @@ public final class UltraDifficultyScreens {
         PlayerDifficultyData data = DifficultyCache.data(player);
         UnlockTier tier = UnlockTier.byId(t);
         if (tier == null || data == null) {
-            openTiers(player);
+            open(player, "tiers");
             return;
         }
         int active = data.getActiveTier();
@@ -582,7 +650,7 @@ public final class UltraDifficultyScreens {
     /** Ask before flushing the event log (4.7.56): it writes out and closes the open log files. */
     private static void openFlushAsk(ServerPlayer player) {
         if (!StaffAccess.isStaff(player)) {
-            openHome(player);
+            open(player, "main");
             return;
         }
         UltraScreenSpec spec = sub("flush_ask")
@@ -951,7 +1019,7 @@ public final class UltraDifficultyScreens {
 
     private static void openStats(ServerPlayer player) {
         if (!StaffAccess.isStaff(player)) {
-            openHome(player);
+            open(player, "main");
             return;
         }
         DifficultySnapshot snap = DifficultyCache.refresh(player);
@@ -997,7 +1065,7 @@ public final class UltraDifficultyScreens {
 
     private static void openStaffAdmin(ServerPlayer player) {
         if (!StaffAccess.isStaff(player)) {
-            openHome(player);
+            open(player, "main");
             return;
         }
         UltraScreenSpec spec = sub("admin")
@@ -1016,7 +1084,7 @@ public final class UltraDifficultyScreens {
 
     private static void openEventLog(ServerPlayer player) {
         if (!StaffAccess.isStaff(player)) {
-            openHome(player);
+            open(player, "main");
             return;
         }
         UltraScreenSpec spec = sub("eventlog")
