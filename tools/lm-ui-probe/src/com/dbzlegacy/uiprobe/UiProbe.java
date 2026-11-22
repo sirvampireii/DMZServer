@@ -237,6 +237,23 @@ public final class UiProbe {
      * An LM jar without menu skins (4.7.61 and older) gets one default pass: same pages, for the FPS baseline.
      */
     private void skinPass() {
+        // 4.7.64 rig: the screenshots that follow run for minutes after the combat script. A zombie left over from
+        // it killed the probe player mid-shot (a death screen replaced Prestige Home), so protect the player and
+        // clear the script's mobs before any screenshot.
+        try {
+            player.m_150110_().f_35934_ = true;
+            player.m_6885_();
+            player.m_21153_(player.m_21233_());
+            List<net.minecraft.world.entity.Entity> mobs = new ArrayList<>();
+            for (net.minecraft.world.entity.Entity e : player.m_284548_().m_142646_().m_142273_()) {
+                if (e instanceof net.minecraft.world.entity.monster.Monster) {
+                    mobs.add(e);
+                }
+            }
+            mobs.forEach(net.minecraft.world.entity.Entity::m_146870_);
+        } catch (Throwable t) {
+            LOG.warn("uiprobe could not protect the probe player: {}", t.toString());
+        }
         boolean skins = cls("com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs") != null;
         try {
             com.dbzlegacy.adaptivedifficulty.progression.Momentum.bank(player);
@@ -419,6 +436,45 @@ public final class UiProbe {
         }
         GuiOpenPacket p = got.get(got.size() - 1);
         return p.screenId() + "|" + p.pageId();
+    }
+
+    /** 4.7.64: the two-meditating-NPCs path is gone; the player path credits the full rate. */
+    private void meditationScript() {
+        try {
+            Class<?> med = com.dbzlegacy.adaptivedifficulty.progression.skills.LivingWorldNearbyMeditation.class;
+            java.lang.reflect.Method credited = med.getDeclaredMethod("creditedMs", ServerPlayer.class, long.class,
+                    boolean.class);
+            credited.setAccessible(true);
+            long withPlayer = (long) credited.invoke(null, player, 10_000L, true);
+            long other = (long) credited.invoke(null, player, 10_000L, false);
+            int held = Math.max(0, Math.min(10,
+                    com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.heldCountForNeed(player)));
+            long want = 10_000L + 10_000L * held * 10L / 100L;
+            note("MEDITATION full rate with a player partner (" + held + " held): " + withPlayer
+                    + (withPlayer == want && other == want ? " PASS (no 75% NPC rate left)" : " FAIL want " + want));
+            boolean noFighter = true;
+            for (java.lang.reflect.Field f : med.getDeclaredFields()) {
+                if (f.getName().toLowerCase(java.util.Locale.ROOT).contains("fighter")
+                        || f.getName().contains("NPC") || f.getName().contains("CircleMember")) {
+                    noFighter = false;
+                }
+            }
+            for (java.lang.reflect.Method m : med.getDeclaredMethods()) {
+                if (m.getName().contains("Npc") || m.getName().contains("Fighter") || m.getName().equals("circleMember")) {
+                    noFighter = false;
+                }
+            }
+            note("MEDITATION no NPC / fighter code left: " + (noFighter ? "PASS" : "FAIL"));
+            java.util.List<String> lines = new java.util.ArrayList<>();
+            var stats = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player);
+            com.dbzlegacy.adaptivedifficulty.progression.skills.LivingWorldNearbyMeditation.appendLines(lines, player,
+                    stats.getSkills());
+            String all = String.join(" | ", lines).replaceAll("§.", "");
+            note("MEDITATION skill lines are player-only: " + (all.contains("Meditate near another player.")
+                    && !all.contains("NPC") ? "PASS" : "FAIL") + " | " + all);
+        } catch (Throwable t) {
+            note("MEDITATION check FAIL " + t);
+        }
     }
 
     private void hubScript() {
@@ -735,6 +791,7 @@ public final class UiProbe {
             }
             guideScript();
             hubScript();
+            meditationScript();
 
             // ---------------- Momentum
             com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);

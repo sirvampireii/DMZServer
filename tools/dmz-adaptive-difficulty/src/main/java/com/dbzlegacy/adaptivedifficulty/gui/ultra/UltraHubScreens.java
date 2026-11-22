@@ -170,7 +170,7 @@ public final class UltraHubScreens {
         spec.line(UltraStyle.header("Meditation"));
         String med = HubDashboard.meditationLine(player);
         spec.line(med != null ? med : UltraStyle.LABEL + "Meditation progress is off on this server.");
-        spec.line(UltraStyle.LABEL + "Meditate near a player or two living NPCs.");
+        spec.line(UltraStyle.LABEL + "Meditate near another player.");
         spec.line(UltraStyle.header("Your menus"));
         spec.line(UltraStyle.LABEL + "Pick a skin, backgrounds, and Full or Lite.");
         spec.buttonsAfterLines();

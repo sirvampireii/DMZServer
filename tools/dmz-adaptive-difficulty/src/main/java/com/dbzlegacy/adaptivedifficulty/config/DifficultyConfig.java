@@ -235,9 +235,8 @@ public final class DifficultyConfig {
     public boolean enablePotential = true;
     /**
      * Players in Living World's meditation state gain DragonMineZ Meditation
-     * while another meditating player is in range, or while two living NPCs
-     * that are meditating are in range. One NPC is not enough. Standing
-     * nearby without meditating does not count.
+     * while another meditating player is in range (4.7.64: meditating NPCs no
+     * longer count). Standing nearby without meditating does not count.
      */
     public boolean enableLivingWorldMeditation = true;
     /** Blocks from another meditating player or a meditating living NPC. */

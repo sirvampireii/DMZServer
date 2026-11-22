@@ -2047,6 +2047,16 @@ def main() -> int:
     check("native draws one box per header group; bridge text unchanged",
           "List<int[]> groups = bodyClipped() ? null : lineGroups(lines);" in p64_native
           and "if (headers < 2) {" in p64_native)
+    p64_med = read(SRC / "progression/skills/LivingWorldNearbyMeditation.java")
+    p64_help = read(SRC / "config/editor/ConfigFieldHelp.java")
+    check("meditation: two-NPCs path removed, player path kept at full rate",
+          "AmbientFighterEntity" not in p64_med and "nearTwoLivingCircleNpcs" not in p64_med
+          and "withNpcs" not in p64_med and "long base = deltaMs;" in p64_med
+          and "if (!withPlayer) {" in p64_med and "nearMeditatingPlayer(player, players, r2)" in p64_med
+          and '"lm.lw_med.progress_ms"' in p64_med
+          and "Meditate near another player.\");" in p64_med and "NPCs count at 75%" not in p64_med
+          and "or two meditating NPCs" not in p64_help
+          and "two living NPCs" not in p64_hub)
     check("hub and board self-tests at boot",
           "HubDashboard.selfTest()" in p64_gui and "SparBoard.selfTest()" in p64_gui)
 
@@ -4163,16 +4173,17 @@ def main() -> int:
           and "enableMeditation" not in diff_cfg
           and "enablePotential = true" in diff_cfg)
     nearby = read(skill_dir / "LivingWorldNearbyMeditation.java")
-    check("nearby living world meditation",
+    # 4.7.64: player partners only; the two-meditating-NPCs path and its fighter scan are gone.
+    check("nearby living world meditation (player partners only)",
           "class LivingWorldNearbyMeditation" in nearby
-          and "AmbientFighterEntity" in nearby
-          and "isMeditating" in nearby
-          and "isMeditationCircleMember" in nearby
+          and "AmbientFighterEntity" not in nearby
+          and "isMeditationCircleMember" not in nearby
+          and "nearTwoLivingCircleNpcs" not in nearby
+          and "meditatingFightersNear" not in nearby
+          and "NPC_RATE_PERCENT" not in nearby
           and "isPlayerMeditating" in nearby
           and "nearMeditatingPlayer" in nearby
-          and "nearTwoLivingCircleNpcs" in nearby
-          and "found >= 2" in nearby
-          and "NPC_RATE_PERCENT = 75" in nearby
+          and "if (isPlayerMeditating != null) {" in nearby
           and "HELD_RATE_PERCENT = 10" in nearby
           and "heldCountForNeed" in nearby
           and "startPlayerMeditation" not in nearby

@@ -12,6 +12,15 @@ In-game test rig for LegacyMechanics menus. Never shipped, never put on the live
     three steps without clearing the mark; a record without the key (a pre-4.7.63 player) sees it once; slot
     switch, record reload and logout keep it. On the real client the final phase clicks Skip guide and How
     difficulty works (`guide1`..`guide4` REC lines in `uiprobe-client.txt`).
+  - Central hub (4.7.64): Home dashboard (next prestige, Fastest now, Train / Compete / Progress), tabs Home /
+    Goals / More in order, grouped tiles, no made-up numbers or other mods' commands; Goals placeholder pays
+    nothing; More has meditation, Menu skins and Staff Admin for staff; every hub link lands on the right screen
+    (`LINK` lines); Difficulty and Prestige Homes show their lines from other systems; the spar streak line only
+    with a streak; the spar board end to end with a stand-in player (listed, want cycle, ask, cooldown, asked,
+    say yes, spar start and logout take players off). The final phase clicks the Goals tab, the Dojo wars tile
+    and "List me for 15 min" on the real client (`hub1`..`hub3`, `spar1` REC lines). Before the screenshots the
+    probe player is made invulnerable and the script's mobs are cleared (a leftover zombie once killed it
+    mid-shot).
   - Recommendation rule
   - Momentum banking and the cap
   - Mastery x1.5 inside the window, x1.0 outside
