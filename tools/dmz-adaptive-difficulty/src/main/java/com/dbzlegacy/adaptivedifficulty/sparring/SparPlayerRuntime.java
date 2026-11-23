@@ -45,8 +45,6 @@ public final class SparPlayerRuntime {
     /** When {@link #moveValidUntil} was last refreshed. */
     public long moveStampAt;
     public long heavyMotionUntil;
-    /** Friendly Fist knockdown heal latch (script spar.ff.kdHealed). */
-    public boolean ffKdHealed;
 
     public int combo;
     public long comboUntil;
@@ -147,7 +145,6 @@ public final class SparPlayerRuntime {
         moveValidUntil = 0L;
         moveStampAt = 0L;
         heavyMotionUntil = 0L;
-        ffKdHealed = false;
         tpPending = 0;
         tpPendingMelee = 0;
         tpPendingKi = 0;

@@ -1994,6 +1994,35 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.65 ---")
+    p65_sys = read(SRC / "sparring/SparringSystem.java")
+    p65_rt = read(SRC / "sparring/SparPlayerRuntime.java")
+    p65_ev = read(SRC / "event/DifficultyEvents.java")
+    check("manifest row for lm 4.7.65", "lm-4765-ff-never-kills" in manifest)
+    check("Friendly Fist guard: active spar partner only, not a rival challenge, either fighter's switch",
+          "public static boolean friendlyFistGuards(ServerPlayer victim, ServerPlayer attacker)" in p65_sys
+          and "!vRt.partner.equals(attacker.m_20148_())" in p65_sys
+          and "return isFriendlyFistOn(victim) || isFriendlyFistOn(attacker);" in p65_sys
+          and p65_sys.split("public static boolean friendlyFistGuards(", 1)[-1].split("public static float", 1)[0]
+          .count("RivalChallengeManager.get().isInChallenge(") == 2)
+    check("a lethal partner hit is cut to leave 1 HP at the final damage step (no 1.5 HP pre-hit gate)",
+          "if (amount < hp || !friendlyFistGuards(victim, attacker)) {" in p65_sys
+          and "return Math.max(0.0f, hp - 1.0f);" in p65_sys
+          and "@SubscribeEvent(priority = EventPriority.LOWEST)\n    public void onSparLethalDamage(LivingDamageEvent event)" in p65_ev
+          and "SparringSystem.capLethalSparDamage(victim, attacker, event.getAmount())" in p65_ev)
+    check("backstop: a guarded spar death is cancelled at HIGHEST (1 HP, healed), so it never records death",
+          "@SubscribeEvent(priority = EventPriority.HIGHEST)\n    public void onSparLethalDeath(LivingDeathEvent event)" in p65_ev
+          and "SparringSystem.catchLethalSparDeath(victim, attacker)) {\n            event.setCanceled(true);" in p65_ev
+          and "victim.m_21153_(1.0f);" in p65_sys)
+    check("protected every time: the once-per-session heal latch is gone; heal runs after the hit, spar continues",
+          "ffKdHealed" not in p65_sys and "ffKdHealed" not in p65_rt
+          and "server.m_6937_(new net.minecraft.server.TickTask(server.m_129921_(), heal));" in p65_sys
+          and "friendlyFistHeal(victim, attacker, vRt);" in p65_sys
+          and "endSession(" not in p65_sys.split("public static boolean friendlyFistGuards(", 1)[-1]
+          .split("private static boolean isFriendlyFistOn(", 1)[0])
+    check("Friendly Fist off: a spar death still ends the session as death",
+          'endSession(victim, partner, "death");' in p65_sys)
+
     print("\n--- § lm 4.7.64 ---")
     p64_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
     p64_dash = read(SRC / "gui/ultra/HubDashboard.java")
