@@ -339,6 +339,8 @@ public final class LmGuiNetwork {
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.SaiyanRoyal.selfTest());
         // 4.7.62: the five menu skins, their readable tones and the bridge letter rewrite.
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.selfTest());
+        // 4.7.66: the custom skin's color wheel geometry and conversions.
+        guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.ColorWheel.selfTest());
         if (!guideBroken.isEmpty()) {
             String msg = "Momentum / trial / guide / skin self-test FAILED: " + String.join("; ", guideBroken);
             if (Boolean.getBoolean("lm.selftest.strict")) {

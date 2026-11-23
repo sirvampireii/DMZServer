@@ -321,8 +321,13 @@ public final class UltraGuiActions {
         }
 
         // 4.7.62: Menu skins. Free and instant: save, push the look to the LM client, reopen the picker.
+        // 4.7.66: My colors (the Custom skin's editor): keep the typed fields, only Apply saves.
+        if (UltraHubScreens.applyCustomAction(viewer, parts.action, stringArg(args, "arg"), args)) {
+            UltraHubScreens.openCustomDraft(viewer);
+            return;
+        }
         if (UltraHubScreens.applySkinAction(viewer, parts.action, stringArg(args, "arg"))) {
-            UltraGui.open(viewer, "hub", UltraHubScreens.PAGE_SKINS);
+            UltraGui.open(viewer, "hub", UltraHubScreens.pageAfterSkinAction(parts.action, stringArg(args, "arg")));
             return;
         }
 

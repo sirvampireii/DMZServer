@@ -276,7 +276,23 @@ public final class LmNativeNetwork {
         return f != null && f.contains(LmNativeProtocol.FEATURE_MENU_SKINS);
     }
 
-    /** Server: send the player's menu look to their LM client (no-op for a client that cannot take it). */
+    /** 4.7.66: this player's LM client edits a custom skin (many fields per click, live swatch). */
+    public static boolean takesCustomSkin(ServerPlayer player) {
+        Set<String> f = player == null ? null : FEATURES.get(player.m_20148_());
+        return f != null && f.contains(LmNativeProtocol.FEATURE_CUSTOM_SKIN);
+    }
+
+    /** 4.7.66: this player's LM client draws the color wheel. */
+    public static boolean takesColorWheel(ServerPlayer player) {
+        Set<String> f = player == null ? null : FEATURES.get(player.m_20148_());
+        return f != null && f.contains(com.dbzlegacy.adaptivedifficulty.gui.ultra.ColorWheel.FEATURE);
+    }
+
+    /**
+     * Server: send the player's menu look to their LM client (no-op for a client that cannot take it). The skin
+     * string is the preset id, or for Custom the palette token (4.7.66, {@code MenuSkins.customToken}): the same
+     * message 3 wire, so an LM client before 4.7.66 reads an unknown id and draws Saiyan Royal.
+     */
     public static void sendPrefs(ServerPlayer player) {
         if (channel == null || player == null || !takesPrefs(player)) {
             return;
@@ -284,7 +300,7 @@ public final class LmNativeNetwork {
         com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.Prefs p =
                 com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.get(player);
         channel.send(PacketDistributor.PLAYER.with(() -> player),
-                new NativePrefsPacket(p.skin(), p.backgrounds(), p.lite()));
+                new NativePrefsPacket(p.skinOrDefault().id(), p.backgrounds(), p.lite()));
     }
 
     /** Forget the per-session hello (logout). */
@@ -292,6 +308,7 @@ public final class LmNativeNetwork {
         if (player != null) {
             FEATURES.remove(player.m_20148_());
             CLIENT_VERSION.remove(player.m_20148_());
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraHubScreens.forgetDraft(player);
         }
     }
 

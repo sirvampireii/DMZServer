@@ -1994,6 +1994,78 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.66 ---")
+    p66_reg = read(SRC / "gui/ultra/MenuSkins.java")
+    p66_prefs = read(SRC / "gui/ultra/MenuPrefs.java")
+    p66_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p66_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    p66_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p66_wheel = read(SRC / "gui/ultra/ColorWheel.java")
+    p66_proto = read(SRC / "net/gui/LmNativeProtocol.java")
+    p66_netw = read(SRC / "net/gui/LmNativeNetwork.java")
+    p66_pkt = read(SRC / "net/gui/NativePrefsPacket.java")
+    p66_screen = read(SRC / "client/NativeMenuScreen.java")
+    p66_look = read(SRC / "client/MenuLook.java")
+    check("manifest row for lm 4.7.66", "lm-4766-custom-skin" in manifest)
+    check("Custom is a sixth choice after Zeno Omni, outside the five-skin registry; 'custom' is a known id",
+          "if (ALL.size() != 5) {" in p66_reg and 'CUSTOM_ID = "custom";' in p66_reg
+          and "return CUSTOM_ID.equals(k) || parseCustom(k) != null;" in p66_reg
+          and 'String customAction = "do:" + ACTION_SKIN + ":" + MenuSkins.customToken(prefs.custom());' in p66_hub
+          and p66_hub.index("for (MenuSkins.Skin skin : MenuSkins.ALL) {") < p66_hub.index("String customAction ="))
+    check("picking Custom is free and opens My colors; Edit my colors while it is worn",
+          "UltraHubScreens.pageAfterSkinAction(parts.action, stringArg(args, \"arg\"))" in p66_act
+          and "return ACTION_SKIN.equals(action) && MenuSkins.isCustom(arg) ? PAGE_CUSTOM : PAGE_SKINS;" in p66_hub
+          and 'spec.buttonLeft("page:" + PAGE_CUSTOM, "Edit my colors", UltraStyle.STYLE_NORMAL);' in p66_hub)
+    check("editor: five hex fields, Style and Scene, Apply with live swatch, From presets, Reset; only Apply saves",
+          'TONE_NAMES = {"Panel", "Primary", "Trim", "Text", "Confirm"};' in p66_hub
+          and 'spec.lockedButtonRight("Preview");' in p66_hub and '":dark"' in p66_hub and '":motif"' in p66_hub
+          and '":from:"' in p66_hub and '":reset"' in p66_hub
+          and 'case "apply" -> next = applyDraft(' in p66_hub
+          and p66_hub.count("MenuPrefs.setCustom(player, c);") == 1
+          and "spec.bindInputsToButtons(fields).enterClicks(apply);" in p66_hub)
+    check("hex: #RRGGBB or RRGGBB any case; a bad field applies nothing and keeps every field; empty keeps the color",
+          'BAD_HEX = "That doesn\'t look like a color - use 6 hex digits, like #e23b3b";' in p66_hub
+          and "if (!bad.isEmpty()) {\n            return new Draft(d.raw(), d.dark(), d.motif()," in p66_hub
+          and "if (v.isEmpty()) {\n                continue;" in p66_hub
+          and 'parseHex("#gggggg") != -1' in p66_reg and 'parseHex("red") != -1' in p66_reg)
+    check("readability: custom text made readable on the panel last (3:1 dark, 4.5:1 light); the page says so",
+          "return readable(t, c.panel(), min);" in p66_reg and "return dark ? 3.0 : 4.5;" in p66_reg
+          and '"Text color adjusted so it stays readable (now "' in p66_hub
+          and "contrast(s.text(), s.panel()) < textTarget(dark)" in p66_reg)
+    check("derived tones: background and motif colors blend from the custom panel / primary / trim",
+          "bgTop = blend(x.panel(), x.primary(), 0.10);" in p66_reg and "bgBottom = blend(x.panel(), BLACK, 0.75);" in p66_reg
+          and "motifA = blend(x.primary(), BLACK, 0.40);" in p66_reg)
+    check("bridge: nearest readable color letters; starting tones keep the Saiyan Royal bytes; no panel tint",
+          "public static char nearestBridgeLetter(int rgb, boolean primary)" in p66_reg
+          and "contrast(v, BRIDGE_PANEL) >= 4.5" in p66_reg
+          and "if (skin.bridgePrimary() == SAIYAN_ROYAL.bridgePrimary() && skin.bridgeText() == SAIYAN_ROYAL.bridgeText()) {" in p66_reg)
+    check("storage: lm_menu_prefs gains a custom object, kept when switching to a preset and back",
+          'static final String CUSTOM_KEY = "custom";' in p66_prefs and "t.m_128365_(CUSTOM_KEY, ct);" in p66_prefs
+          and "now.custom()" in p66_prefs.split("public static Prefs setSkin(", 1)[1].split("}", 1)[0]
+          and "MenuSkins.isCustom(skin) ? MenuSkins.custom(custom) : MenuSkins.byId(skin)" in p66_prefs)
+    check("no protocol change: the custom look rides message 3's skin string as a token (an old client draws Saiyan Royal)",
+          "new NativePrefsPacket(p.skinOrDefault().id(), p.backgrounds(), p.lite())" in p66_netw
+          and "GuiOpenPacket.trim(skin == null ? \"\" : skin, 64)" in p66_pkt
+          and 'PROTOCOL_VERSION = "1";' in p66_proto and "MSG_PREFS = 3;" in p66_proto
+          and "tok.length() > 64" in p66_reg and "if (!next.equals(skin)) {" in p66_look)
+    check("clients that cannot edit (KaiPath, an older LM client) get a plain note and can still wear Custom",
+          "return com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player)\n                && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesCustomSkin(player);" in p66_hub
+          and '"Editing your colors needs the Legacy Mechanics client, 4.7.66 or newer."' in p66_hub
+          and 'FEATURE_CUSTOM_SKIN = "customSkin";' in p66_proto and "a.add(FEATURE_CUSTOM_SKIN);" in p66_proto)
+    check("color wheel: additive input type, never routes a page, sent only to clients that draw it",
+          'TYPE = "color_wheel";' in p66_wheel and 'FEATURE = "colorWheel";' in p66_wheel
+          and "case com.dbzlegacy.adaptivedifficulty.gui.ultra.ColorWheel.TYPE -> { }" in p66_proto
+          and "boolean wheels = editing && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesColorWheel(player);" in p66_hub
+          and 'o.addProperty("target", in.target == null ? "" : in.target);' in p66_spec
+          and "} else if (ColorWheel.TYPE.equals(type)) {" in p66_screen and "private boolean pickWheel(" in p66_screen
+          and "ColorWheel.selfTest()" in read(SRC / "net/gui/LmGuiNetwork.java"))
+    check("LM client sends every listed field with a click; Enter applies; field color squares; live swatch",
+          'for (String fid : str(args, "bindInputs", "").split(' in p66_screen
+          and "Btn onEnter = enterButton(f.id());" in p66_screen and "private void drawFieldColor(" in p66_screen
+          and "CUSTOM_PAGE.equalsIgnoreCase(packet.pageId())" in p66_screen)
+    check("system accents stay fixed in every skin",
+          "case 'c' -> 0xE23B3B;" in p66_reg and "case '3' -> 0x00AAAA;" in p66_reg and "case '4' -> 0xAA0000;" in p66_reg)
+
     print("\n--- § lm 4.7.65 ---")
     p65_sys = read(SRC / "sparring/SparringSystem.java")
     p65_rt = read(SRC / "sparring/SparPlayerRuntime.java")

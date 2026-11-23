@@ -41,6 +41,12 @@ public final class LmNativeProtocol {
      * the server assumes that list before a hello arrives, and only a client that said this id may get message 3.
      */
     public static final String FEATURE_MENU_SKINS = "menuSkins";
+    /**
+     * LM 4.7.66: the client draws a custom menu skin from its token (message 3's skin string, no new message),
+     * sends every field of a page with a click ({@code args.bindInputs}) and draws the editor's live swatch.
+     * Like {@link #FEATURE_MENU_SKINS} it is hello-only, never in {@link #CLIENT_FEATURES}.
+     */
+    public static final String FEATURE_CUSTOM_SKIN = "customSkin";
 
     /** Feature ids (bridge spelling) the protocol-1 LM client draws natively. */
     public static final List<String> CLIENT_FEATURES = List.of(
@@ -118,6 +124,8 @@ public final class LmNativeProtocol {
             switch (type) {
                 case "text" -> hard.add("textInput");
                 case "paged_book" -> hard.add("pagedBook");
+                // 4.7.66: additive and ignorable (every client skips it), so it never routes a page.
+                case com.dbzlegacy.adaptivedifficulty.gui.ultra.ColorWheel.TYPE -> { }
                 default -> hard.add("input:" + type);
             }
         }
@@ -214,6 +222,8 @@ public final class LmNativeProtocol {
             a.add(FEATURE_BODY_PARTS);
         }
         a.add(FEATURE_MENU_SKINS);
+        a.add(FEATURE_CUSTOM_SKIN);
+        a.add(com.dbzlegacy.adaptivedifficulty.gui.ultra.ColorWheel.FEATURE);
         return a.toString();
     }
 

@@ -284,6 +284,11 @@ public final class MenuSkins {
     public static Skin byId(String id) {
         if (id != null) {
             String k = id.trim().toLowerCase(Locale.ROOT);
+            if (isCustom(k)) {
+                // 4.7.66: a custom token is the palette itself; "custom" alone is the Saiyan Royal starting tones.
+                Custom c = parseCustom(k);
+                return c == null ? DEFAULT : custom(c);
+            }
             for (Skin s : ALL) {
                 if (s.id().equals(k)) {
                     return s;
@@ -298,12 +303,213 @@ public final class MenuSkins {
             return false;
         }
         String k = id.trim().toLowerCase(Locale.ROOT);
+        if (isCustom(k)) {
+            // 4.7.66: "custom" alone (the stored choice) or a full custom token.
+            return CUSTOM_ID.equals(k) || parseCustom(k) != null;
+        }
         for (Skin s : ALL) {
             if (s.id().equals(k)) {
                 return true;
             }
         }
         return false;
+    }
+
+    // ------------------------------------------------------------------ 4.7.66 custom skin
+
+    /** Stored skin id of the player's own palette (Menu skins &gt; Custom). Never in {@link #ALL}. */
+    public static final String CUSTOM_ID = "custom";
+    public static final String CUSTOM_NAME = "Custom";
+
+    /**
+     * A player's own palette: the five base tones, dark or light, and a motif. Every other tone of the skin
+     * (faces, muted, fills, glow, background) is derived from these by {@link #custom(Custom)}.
+     */
+    public record Custom(boolean dark, Motif motif, int panel, int primary, int trim, int text, int confirm) {
+        /** Saiyan Royal's tones: what a player gets who picks Custom without ever editing it. */
+        public static final Custom DEFAULT = from(SAIYAN_ROYAL);
+
+        public static Custom from(Skin s) {
+            return new Custom(s.dark(), s.motif(), s.panel(), s.primary(), s.trim(), s.text(), s.confirm());
+        }
+
+        /** Base tones in editor order: panel, primary, trim, text, confirm. */
+        public int[] tones() {
+            return new int[] {panel, primary, trim, text, confirm};
+        }
+
+        public Custom withTones(int[] t) {
+            return new Custom(dark, motif, t[0] & RGB_MASK, t[1] & RGB_MASK, t[2] & RGB_MASK, t[3] & RGB_MASK,
+                    t[4] & RGB_MASK);
+        }
+    }
+
+    /** True for {@code custom} and for a {@code custom.} token. */
+    public static boolean isCustom(String id) {
+        if (id == null) {
+            return false;
+        }
+        String k = id.trim().toLowerCase(Locale.ROOT);
+        return CUSTOM_ID.equals(k) || k.startsWith(CUSTOM_ID + ".");
+    }
+
+    /**
+     * Wire form of a custom palette, used as the custom skin's id: {@code custom.d.banner.160b0d.e23b3b.f0b429.f6e8e4.3faf55}
+     * (dark {@code d} or light {@code l}, motif, then panel, primary, trim, text, confirm). At most 50 characters, so
+     * it fits message 3's skin string (64) and an action id; an older LM client that does not know it draws Saiyan
+     * Royal ({@link #byId}).
+     */
+    public static String customToken(Custom c) {
+        Custom x = c == null ? Custom.DEFAULT : c;
+        StringBuilder sb = new StringBuilder(CUSTOM_ID).append('.').append(x.dark() ? 'd' : 'l').append('.')
+                .append(x.motif().name().toLowerCase(Locale.ROOT));
+        for (int t : x.tones()) {
+            sb.append('.').append(String.format(Locale.ROOT, "%06x", t & RGB_MASK));
+        }
+        return sb.toString();
+    }
+
+    /** The palette in a token; {@link Custom#DEFAULT} for {@code custom} alone; null for anything else. */
+    public static Custom parseCustom(String token) {
+        if (token == null) {
+            return null;
+        }
+        String k = token.trim().toLowerCase(Locale.ROOT);
+        if (CUSTOM_ID.equals(k)) {
+            return Custom.DEFAULT;
+        }
+        String[] p = k.split("\\.", -1);
+        if (p.length != 8 || !CUSTOM_ID.equals(p[0]) || !("d".equals(p[1]) || "l".equals(p[1]))) {
+            return null;
+        }
+        Motif motif = motifByName(p[2]);
+        if (motif == null) {
+            return null;
+        }
+        int[] t = new int[5];
+        for (int i = 0; i < 5; i++) {
+            t[i] = parseHex(p[3 + i]);
+            if (t[i] < 0) {
+                return null;
+            }
+        }
+        return new Custom("d".equals(p[1]), motif, t[0], t[1], t[2], t[3], t[4]);
+    }
+
+    public static Motif motifByName(String name) {
+        if (name == null) {
+            return null;
+        }
+        for (Motif m : Motif.values()) {
+            if (m.name().equalsIgnoreCase(name.trim())) {
+                return m;
+            }
+        }
+        return null;
+    }
+
+    /** {@code #RRGGBB} or {@code RRGGBB}, any case, spaces around ignored. -1 when it is not 6 hex digits. */
+    public static int parseHex(String s) {
+        if (s == null) {
+            return -1;
+        }
+        String v = s.trim();
+        if (v.startsWith("#")) {
+            v = v.substring(1);
+        }
+        if (v.length() != 6) {
+            return -1;
+        }
+        for (int i = 0; i < 6; i++) {
+            if (Character.digit(v.charAt(i), 16) < 0) {
+                return -1;
+            }
+        }
+        return Integer.parseInt(v, 16);
+    }
+
+    /** {@code #rrggbb}. */
+    public static String hex(int rgb) {
+        return String.format(Locale.ROOT, "#%06x", rgb & RGB_MASK);
+    }
+
+    /** Contrast target for body text: 3:1 on a dark skin, 4.5:1 on a light one. */
+    public static double textTarget(boolean dark) {
+        return dark ? 3.0 : 4.5;
+    }
+
+    /**
+     * The custom text ink as drawn: the chosen text run through {@link #readable} on the button face and the
+     * info box, then on the panel last, so text on the panel always reads (3:1 dark, 4.5:1 light).
+     */
+    public static int customText(Custom c) {
+        double min = textTarget(c.dark());
+        int face = blend(c.panel(), c.primary(), c.dark() ? 0.12 : 0.10);
+        int info = c.dark() ? blend(c.panel(), BLACK, 0.35) : blend(c.panel(), BLACK, 0.04);
+        int t = c.text() & RGB_MASK;
+        t = readable(t, face, min);
+        t = readable(t, info, min);
+        return readable(t, c.panel(), min);
+    }
+
+    /** True when the chosen text color had to change to stay readable (the editor says so). */
+    public static boolean customTextAdjusted(Custom c) {
+        return c != null && customText(c) != (c.text() & RGB_MASK);
+    }
+
+    /**
+     * The custom skin: the five base tones (text made readable), the background derived the way the presets
+     * darken theirs (a dark skin: panel tinted 10% toward primary on top, panel 75% toward black at the bottom,
+     * motif in primary darkened 40% and trim; a light skin: panel 30% toward primary on top, panel 30% toward
+     * white below, motif in near-white and trim), and the bridge letters nearest the primary and the text.
+     */
+    public static Skin custom(Custom c) {
+        Custom x = c == null ? Custom.DEFAULT : c;
+        int text = customText(x);
+        int bgTop;
+        int bgBottom;
+        int motifA;
+        if (x.dark()) {
+            bgTop = blend(x.panel(), x.primary(), 0.10);
+            bgBottom = blend(x.panel(), BLACK, 0.75);
+            motifA = blend(x.primary(), BLACK, 0.40);
+        } else {
+            bgTop = blend(x.panel(), x.primary(), 0.30);
+            bgBottom = blend(x.panel(), WHITE, 0.30);
+            motifA = blend(x.panel(), WHITE, 0.80);
+        }
+        return new Skin(customToken(x), CUSTOM_NAME, x.dark(), x.panel(), x.primary(), x.trim(), text, x.confirm(),
+                bgTop, bgBottom, motifA, x.trim(), x.motif(), nearestBridgeLetter(x.primary(), true),
+                nearestBridgeLetter(text, false));
+    }
+
+    /**
+     * The Minecraft color letter nearest {@code rgb} by RGB distance ({@link #vanillaRgb}), among the letters that
+     * read on KaiPath's dark bridge panel: 3:1 for the primary (accent) letter, 4.5:1 for the text letter. A light
+     * custom skin's dark text so maps to a darker readable letter, as Zeno Omni's does.
+     */
+    public static char nearestBridgeLetter(int rgb, boolean primary) {
+        char best = primary ? SaiyanRoyal.BRIDGE_ACCENT : 'f';
+        long bestD = Long.MAX_VALUE;
+        for (char c : "0123456789abcdef".toCharArray()) {
+            int v = vanillaRgb(c);
+            boolean reads = primary
+                    ? systemAccentHex(c) >= 0 && contrast(systemAccentHex(c), BRIDGE_PANEL) >= 3
+                            && contrast(v, BRIDGE_PANEL) >= 3
+                    : contrast(v, BRIDGE_PANEL) >= 4.5;
+            if (!reads) {
+                continue;
+            }
+            long dr = ((rgb >> 16) & 0xFF) - ((v >> 16) & 0xFF);
+            long dg = ((rgb >> 8) & 0xFF) - ((v >> 8) & 0xFF);
+            long db = (rgb & 0xFF) - (v & 0xFF);
+            long d = dr * dr + dg * dg + db * db;
+            if (d < bestD) {
+                bestD = d;
+                best = c;
+            }
+        }
+        return best;
     }
 
     // ------------------------------------------------------------------ system accents and named colors
@@ -411,7 +617,16 @@ public final class MenuSkins {
                 return next;
             }
         }
-        return target;
+        // 4.7.66: a mid-tone surface (a custom panel) can defeat the first pole; try the other one. Every preset
+        // ink reads before this point, so their colors are unchanged.
+        int other = target == WHITE ? BLACK : WHITE;
+        for (int i = 1; i <= 20; i++) {
+            int next = blend(rgb, other, i * 0.05);
+            if (contrast(next, bg) >= min) {
+                return next;
+            }
+        }
+        return contrast(WHITE, bg) >= contrast(BLACK, bg) ? WHITE : BLACK;
     }
 
     /** WCAG relative luminance (0..1). */
@@ -537,6 +752,10 @@ public final class MenuSkins {
         if (skin == null || skin == SAIYAN_ROYAL) {
             return null;
         }
+        if (skin.bridgePrimary() == SAIYAN_ROYAL.bridgePrimary() && skin.bridgeText() == SAIYAN_ROYAL.bridgeText()) {
+            // 4.7.66: a custom skin whose letters are Saiyan Royal's (its starting tones) keeps the same bytes.
+            return null;
+        }
         String layoutOut = layoutJson;
         String linesOut = linesJson;
         try {
@@ -657,6 +876,53 @@ public final class MenuSkins {
         }
         if (systemAccentHex('c') != SaiyanRoyal.CRIMSON || systemAccentHex('3') != 0x00AAAA || systemAccentHex('x') != -1) {
             bad.add("system accents are the same in every skin");
+        }
+        // 4.7.66 Custom.
+        if (!known(CUSTOM_ID) || !isCustom("custom") || isCustom("saiyan_royal") || known("custom.x")) {
+            bad.add("custom: 'custom' is a known skin id, a broken token is not");
+        }
+        Skin start = byId(CUSTOM_ID);
+        if (!CUSTOM_NAME.equals(start.name()) || start.panel() != SAIYAN_ROYAL.panel()
+                || start.primary() != SAIYAN_ROYAL.primary() || start.text() != SAIYAN_ROYAL.text()
+                || bridgeRewrite(start, "{\"accent\":\"\"}", "[\"x\"]") != null) {
+            bad.add("custom: picking Custom without editing gives Saiyan Royal's tones and bridge bytes");
+        }
+        for (Skin s : ALL) {
+            Custom c = Custom.from(s);
+            String tok = customToken(c);
+            if (tok.length() > 64 || !c.equals(parseCustom(tok)) || !byId(tok).equals(custom(c)) || !known(tok)) {
+                bad.add(s.id() + ": custom token must round-trip and fit message 3 (64 chars): " + tok);
+            }
+        }
+        if (parseHex("#E23B3B") != 0xE23B3B || parseHex("e23b3b") != 0xE23B3B || parseHex(" #e23b3b ") != 0xE23B3B
+                || parseHex("red") != -1 || parseHex("#12") != -1 || parseHex("#gggggg") != -1 || parseHex("") != -1
+                || parseHex(null) != -1 || parseHex("#e23b3b0") != -1) {
+            bad.add("custom: hex is #RRGGBB or RRGGBB in any case, anything else is refused");
+        }
+        int[] probe = {0x000000, 0x202020, 0x555555, 0x777777, 0x808080, 0x999999, 0xBBBBBB, 0xFFFFFF, 0xE23B3B,
+                0x2563EB, 0xFFFF55, 0x00AA00, 0x160B0D, 0xF6F9FF};
+        for (boolean dark : new boolean[] {true, false}) {
+            for (int panel : probe) {
+                for (int text : probe) {
+                    Custom c = new Custom(dark, Motif.BANNER, panel, 0xE23B3B, 0xF0B429, text, 0x3FAF55);
+                    Skin s = custom(c);
+                    if (contrast(s.text(), s.panel()) < textTarget(dark)) {
+                        bad.add(String.format(Locale.ROOT, "custom %s: text %06x on panel %06x unreadable",
+                                dark ? "dark" : "light", text, panel));
+                    }
+                    if (contrast(systemAccentHex(s.bridgePrimary()), BRIDGE_PANEL) < 3
+                            || contrast(vanillaRgb(s.bridgeText()), BRIDGE_PANEL) < 4.5) {
+                        bad.add(String.format(Locale.ROOT, "custom: bridge letters for %06x/%06x unreadable", panel, text));
+                    }
+                }
+            }
+        }
+        if (customTextAdjusted(Custom.DEFAULT)
+                || !customTextAdjusted(new Custom(true, Motif.BANNER, 0x160B0D, 0xE23B3B, 0xF0B429, 0x160B0D, 0x3FAF55))) {
+            bad.add("custom: the readability note shows only when the text color had to change");
+        }
+        if (nearestBridgeLetter(0xFFFFFF, false) != 'f' || nearestBridgeLetter(0xE23B3B, true) != 'c') {
+            bad.add("custom: bridge letters are the nearest readable Minecraft colors");
         }
         for (Skin s : ALL) {
             // Lite flattens the motif: somewhere on a coarse grid the two bakes must differ.

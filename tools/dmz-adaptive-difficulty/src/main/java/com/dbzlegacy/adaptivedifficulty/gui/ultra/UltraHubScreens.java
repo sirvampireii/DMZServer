@@ -39,6 +39,43 @@ public final class UltraHubScreens {
     /** {@code do:menu_look}: Full / Lite. */
     public static final String ACTION_LOOK = "menu_look";
 
+    /** 4.7.66: the Custom skin's editor (Menu skins &gt; Custom &gt; My colors). */
+    public static final String PAGE_CUSTOM = "skin_custom";
+    /**
+     * {@code do:menu_custom:<op>} on My colors: {@code apply:<token>}, {@code dark}, {@code motif},
+     * {@code from:<preset id>}, {@code reset}. Every click carries the five fields ({@code args.bindInputs}).
+     */
+    public static final String ACTION_CUSTOM = "menu_custom";
+    static final String[] TONE_NAMES = {"Panel", "Primary", "Trim", "Text", "Confirm"};
+    /** Plain names of the motifs on the Scene button. */
+    static final Map<MenuSkins.Motif, String> MOTIF_NAMES = Map.of(
+            MenuSkins.Motif.BANNER, "Banner", MenuSkins.Motif.NAMEK, "Namek", MenuSkins.Motif.VEINS, "Gold veins",
+            MenuSkins.Motif.WISPS, "Cosmic wisps", MenuSkins.Motif.CLOUDS, "Clouds");
+    /** The human error for a field that is not a color (4.7.66; 4.7.67 part colors uses it too). */
+    public static final String BAD_HEX = "That doesn't look like a color - use 6 hex digits, like #e23b3b";
+
+    /** What the editor shows between clicks: the fields as typed, the style and scene, and the last result. */
+    record Draft(String[] raw, boolean dark, MenuSkins.Motif motif, String message, boolean error) {
+        static Draft of(MenuSkins.Custom c, String message) {
+            int[] t = c.tones();
+            String[] raw = new String[t.length];
+            for (int i = 0; i < t.length; i++) {
+                raw[i] = MenuSkins.hex(t[i]);
+            }
+            return new Draft(raw, c.dark(), c.motif(), message, false);
+        }
+    }
+
+    private static final Map<java.util.UUID, Draft> DRAFTS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    static String toneField(int i) {
+        return "input:skin_" + MenuPrefs.TONE_KEYS[i];
+    }
+
+    static String toneWheel(int i) {
+        return "input:skin_wheel_" + MenuPrefs.TONE_KEYS[i];
+    }
+
     /** 4.7.64 hub tabs: Home (dashboard and systems), Goals (weekly goals, placeholder until 4.7.65), More. */
     public static final String PAGE_GOALS = "goals";
     public static final String PAGE_MORE = "more";
@@ -56,6 +93,11 @@ public final class UltraHubScreens {
         }
         if (PAGE_SKINS.equals(p)) {
             openSkins(player);
+            return;
+        }
+        if (PAGE_CUSTOM.equals(p)) {
+            // Arriving from a link starts from the saved colors; editor clicks keep the draft (openCustomDraft).
+            openCustom(player, false);
             return;
         }
         if (PAGE_GOALS.equals(p)) {
@@ -253,6 +295,7 @@ public final class UltraHubScreens {
                 .labelValue("Lite:", "plainer, faster menus for slow PCs");
         // Same text on both paths (one spec): true for everyone, useful for players without the client.
         spec.line(UltraStyle.LABEL + "Full skins need the Legacy Mechanics client.");
+        spec.line(UltraStyle.LABEL + "Custom: pick your own colors.");
         spec.buttonsAfterLines();
         for (MenuSkins.Skin skin : MenuSkins.ALL) {
             boolean using = skin.id().equals(prefs.skin());
@@ -266,12 +309,232 @@ public final class UltraHubScreens {
             }
             spec.rowGap();
         }
+        // 4.7.66: Custom, after Zeno Omni. The action carries the palette token so the swatch shows the player's
+        // own colors; tapping it wears Custom (free) and opens My colors.
+        String customAction = "do:" + ACTION_SKIN + ":" + MenuSkins.customToken(prefs.custom());
+        if (prefs.usingCustom()) {
+            spec.buttonLeft(customAction, UltraStyle.confirm(MenuSkins.CUSTOM_NAME), UltraStyle.STYLE_CONFIRM);
+            spec.lockedButtonRight("You are using this");
+            spec.rowGap();
+            spec.buttonLeft("page:" + PAGE_CUSTOM, "Edit my colors", UltraStyle.STYLE_NORMAL);
+            spec.rowGap();
+        } else {
+            spec.buttonLeft(customAction, MenuSkins.CUSTOM_NAME, UltraStyle.STYLE_NORMAL);
+            spec.lockedButtonRight("Tap to make your own");
+            spec.rowGap();
+        }
         spec.buttonLeft("do:" + ACTION_BACKGROUNDS, "Backgrounds - " + (prefs.backgrounds() ? "ON" : "OFF"),
                 UltraStyle.STYLE_NORMAL);
         spec.buttonRight("do:" + ACTION_LOOK, "Look - " + (prefs.lite() ? "Lite" : "Full"), UltraStyle.STYLE_NORMAL);
         spec.rowGap();
         spec.footerBackToMain();
         spec.send(player);
+    }
+
+    /**
+     * My colors (4.7.66): the Custom skin's editor. Five hex fields (Panel, Primary, Trim, Text, Confirm), each with a
+     * color wheel beside it on an LM client that draws one; Style (dark or light) and Scene (the motif); Apply with a
+     * live swatch of what is typed; "From" buttons that copy a preset's colors into the fields; Reset to the Saiyan
+     * Royal defaults. Only Apply saves. A client that cannot send the fields (KaiPath, or an LM client before
+     * 4.7.66) gets a plain note instead; it can still wear Custom from the picker.
+     */
+    static void openCustom(ServerPlayer player, boolean keepDraft) {
+        if (player == null) {
+            return;
+        }
+        MenuPrefs.Prefs prefs = MenuPrefs.get(player);
+        Draft d = keepDraft ? DRAFTS.get(player.m_20148_()) : null;
+        if (d == null) {
+            d = Draft.of(prefs.custom(), null);
+        }
+        DRAFTS.put(player.m_20148_(), d);
+        boolean editing = canEditColors(player);
+        boolean wheels = editing && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesColorWheel(player);
+        UltraScreenSpec spec = UltraScreenSpec.of("hub")
+                .fitMenu()
+                .title("My colors")
+                .page(PAGE_CUSTOM)
+                .activeTab("home");
+        if (!editing) {
+            spec.line(UltraStyle.VALUE + "Editing your colors needs the Legacy Mechanics client, 4.7.66 or newer.")
+                    .line(UltraStyle.VALUE + "You can still wear Custom with the colors you saved, and any other skin.")
+                    .buttonsAfterLines();
+            spec.footerBack("page:" + PAGE_SKINS, "Menu skins");
+            spec.send(player);
+            return;
+        }
+        spec.line(UltraStyle.VALUE + (wheels ? "Type a color like #e23b3b, or tap a wheel." : "Type a color like #e23b3b."))
+                .line(UltraStyle.VALUE + "Apply saves them and every menu uses them.")
+                .line(UltraStyle.LABEL + "From copies a skin's colors into the fields. Reset fills in the defaults.")
+                .line(UltraStyle.LABEL + "Nothing changes until you tap Apply. It is free.");
+        if (d.message() != null && !d.message().isBlank()) {
+            spec.line(d.error() ? UltraStyle.danger(d.message()) : UltraStyle.VALUE + d.message());
+        }
+        if (prefs.usingCustom() && MenuSkins.customTextAdjusted(prefs.custom())) {
+            spec.line(UltraStyle.LABEL + "Text color adjusted so it stays readable (now "
+                    + MenuSkins.hex(MenuSkins.customText(prefs.custom())) + ").");
+        }
+        spec.buttonsAfterLines();
+        String[] fields = new String[MenuPrefs.TONE_KEYS.length];
+        for (int i = 0; i < fields.length; i++) {
+            fields[i] = toneField(i);
+        }
+        String apply = "do:" + ACTION_CUSTOM + ":apply:" + MenuSkins.customToken(draftCustom(d, prefs.custom()));
+        spec.bindInputsToButtons(fields).enterClicks(apply);
+        for (int i = 0; i < fields.length; i++) {
+            int row = spec.row();
+            spec.button(UltraGuiActions.NO_ACTION, UltraStyle.dim(TONE_NAMES[i] + " color"), UltraStyle.STYLE_DIM,
+                    UltraStyle.COL_L, row, 96);
+            spec.textField(fields[i], d.raw()[i], "#rrggbb", UltraStyle.COL_L + 102, row, 96, UltraStyle.BTN_H, 9);
+            spec.colorPreview(fields[i]);
+            if (wheels) {
+                spec.colorWheel(toneWheel(i), fields[i], UltraStyle.COL_L + 204, row, 44);
+            }
+            spec.rowGap();
+        }
+        spec.buttonLeft("do:" + ACTION_CUSTOM + ":dark", "Style - " + (d.dark() ? "Dark" : "Light"),
+                UltraStyle.STYLE_NORMAL);
+        spec.buttonRight("do:" + ACTION_CUSTOM + ":motif", "Scene - " + MOTIF_NAMES.get(d.motif()),
+                UltraStyle.STYLE_NORMAL);
+        spec.rowGap();
+        // Bound to the first field the classic way too (args.value); bindInputs carries all five.
+        spec.buttonBound(apply, UltraStyle.confirm("Apply my colors"), UltraStyle.STYLE_CONFIRM, fields[0]);
+        // The LM client draws this locked label as a live swatch of the fields as typed.
+        spec.lockedButtonRight("Preview");
+        spec.rowGap();
+        String[] from = {"From Saiyan Royal", "From Namek", "From Obsidian", "From Beerus", "From Zeno Omni"};
+        for (int i = 0; i < MenuSkins.ALL.size(); i++) {
+            String action = "do:" + ACTION_CUSTOM + ":from:" + MenuSkins.ALL.get(i).id();
+            if (i % 2 == 0) {
+                spec.buttonLeft(action, from[i], UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.buttonRight(action, from[i], UltraStyle.STYLE_NORMAL);
+                spec.rowGap();
+            }
+        }
+        spec.buttonRight("do:" + ACTION_CUSTOM + ":reset", "Reset to default", UltraStyle.STYLE_NORMAL);
+        spec.rowGap();
+        spec.footerBack("page:" + PAGE_SKINS, "Menu skins");
+        spec.send(player);
+    }
+
+    /** Reopen My colors keeping what the player typed (after an editor click). */
+    public static void openCustomDraft(ServerPlayer player) {
+        openCustom(player, true);
+    }
+
+    /** Forget a player's unsaved editor fields (logout). */
+    public static void forgetDraft(ServerPlayer player) {
+        if (player != null) {
+            DRAFTS.remove(player.m_20148_());
+        }
+    }
+
+    /** The editor needs a client that types and sends all five fields with a click (the 4.7.66 LM client). */
+    public static boolean canEditColors(ServerPlayer player) {
+        return com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player)
+                && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesCustomSkin(player);
+    }
+
+    /** The draft as a palette for the preview swatch: fields that are not colors yet show the saved tone. */
+    static MenuSkins.Custom draftCustom(Draft d, MenuSkins.Custom saved) {
+        int[] t = saved.tones();
+        for (int i = 0; i < t.length; i++) {
+            int v = MenuSkins.parseHex(d.raw()[i]);
+            if (v >= 0) {
+                t[i] = v;
+            }
+        }
+        return new MenuSkins.Custom(d.dark(), d.motif(), 0, 0, 0, 0, 0).withTones(t);
+    }
+
+    /**
+     * Apply a My colors action ({@code do:menu_custom:<op>}). Returns true when it was one; the caller reopens the
+     * editor with {@link #openCustomDraft}. The five fields come in {@code args} under their own ids (the LM client's
+     * {@code bindInputs}); a field that is absent keeps the draft. Only {@code apply} saves: a field that is not
+     * 6 hex digits stops the whole apply with {@link #BAD_HEX} and leaves every field as typed; an empty field keeps
+     * the current color.
+     */
+    public static boolean applyCustomAction(ServerPlayer player, String action, String arg, JsonObject args) {
+        if (player == null || !ACTION_CUSTOM.equals(action)) {
+            return false;
+        }
+        MenuPrefs.Prefs prefs = MenuPrefs.get(player);
+        Draft d = DRAFTS.get(player.m_20148_());
+        if (d == null) {
+            d = Draft.of(prefs.custom(), null);
+        }
+        if (!canEditColors(player)) {
+            DRAFTS.put(player.m_20148_(), d);
+            return true;
+        }
+        String[] raw = d.raw().clone();
+        for (int i = 0; i < raw.length; i++) {
+            String key = "@hub:" + toneField(i);
+            if (args != null && args.has(key) && args.get(key).isJsonPrimitive()) {
+                String v = args.get(key).getAsString().trim();
+                raw[i] = v.length() > 16 ? v.substring(0, 16) : v;
+            }
+        }
+        String a = arg == null ? "" : arg.trim();
+        int colon = a.indexOf(':');
+        String op = (colon < 0 ? a : a.substring(0, colon)).toLowerCase(Locale.ROOT);
+        String rest = colon < 0 ? "" : a.substring(colon + 1);
+        Draft next;
+        switch (op) {
+            case "dark" -> next = new Draft(raw, !d.dark(), d.motif(), null, false);
+            case "motif" -> {
+                MenuSkins.Motif[] all = MenuSkins.Motif.values();
+                next = new Draft(raw, d.dark(), all[(d.motif().ordinal() + 1) % all.length], null, false);
+            }
+            case "from" -> {
+                MenuSkins.Skin preset = null;
+                for (MenuSkins.Skin s : MenuSkins.ALL) {
+                    if (s.id().equalsIgnoreCase(rest)) {
+                        preset = s;
+                    }
+                }
+                next = preset == null ? new Draft(raw, d.dark(), d.motif(), null, false)
+                        : Draft.of(MenuSkins.Custom.from(preset),
+                                "Filled in " + preset.name() + "'s colors. Tap Apply to use them.");
+            }
+            case "reset" -> next = Draft.of(MenuSkins.Custom.DEFAULT,
+                    "Filled in the default colors. Tap Apply to use them.");
+            case "apply" -> next = applyDraft(player, prefs, new Draft(raw, d.dark(), d.motif(), null, false));
+            default -> next = new Draft(raw, d.dark(), d.motif(), null, false);
+        }
+        DRAFTS.put(player.m_20148_(), next);
+        return true;
+    }
+
+    /** Validate every field, then save and push the look; a bad field saves nothing. */
+    private static Draft applyDraft(ServerPlayer player, MenuPrefs.Prefs prefs, Draft d) {
+        int[] tones = prefs.custom().tones();
+        List<String> bad = new ArrayList<>();
+        for (int i = 0; i < tones.length; i++) {
+            String v = d.raw()[i] == null ? "" : d.raw()[i].trim();
+            if (v.isEmpty()) {
+                continue;
+            }
+            int rgb = MenuSkins.parseHex(v);
+            if (rgb < 0) {
+                bad.add(TONE_NAMES[i]);
+            } else {
+                tones[i] = rgb;
+            }
+        }
+        if (!bad.isEmpty()) {
+            return new Draft(d.raw(), d.dark(), d.motif(), String.join(", ", bad) + ": " + BAD_HEX, true);
+        }
+        MenuSkins.Custom c = new MenuSkins.Custom(d.dark(), d.motif(), 0, 0, 0, 0, 0).withTones(tones);
+        MenuPrefs.setCustom(player, c);
+        com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.sendPrefs(player);
+        return Draft.of(c, "Saved. Every menu now uses your colors.");
+    }
+
+    /** Page to reopen after a Menu skins action: My colors when the player just picked Custom. */
+    public static String pageAfterSkinAction(String action, String arg) {
+        return ACTION_SKIN.equals(action) && MenuSkins.isCustom(arg) ? PAGE_CUSTOM : PAGE_SKINS;
     }
 
     /**
