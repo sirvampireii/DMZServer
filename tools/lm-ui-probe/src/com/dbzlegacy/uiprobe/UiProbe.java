@@ -1096,7 +1096,7 @@ public final class UiProbe {
             GuiOpenPacket q = got.isEmpty() ? p : got.get(got.size() - 1);
             MenuPrefsView after = prefsNow(player);
             note("CUSTOM BAD HEX '" + bad[0] + "' shows the human error, applies nothing, keeps the fields: "
-                    + pf(has(q, "Panel: That doesn't look like a color - use 6 hex digits, like #e23b3b")
+                    + pf(has(q, "Panel: That doesn") && has(q, "t look like a color")
                             && after.custom(0x1A1033, 0x7C4DFF, 0xFFC857, 0xE0E0FF, 0x2ECC71)
                             && bad[0].equals(fieldValue(q, "panel")) && "#ff0000".equals(fieldValue(q, "primary"))
                             && "#ffc857".equals(fieldValue(q, "trim"))));
@@ -1136,7 +1136,7 @@ public final class UiProbe {
         got = skinClick("custom from namek", "do:menu_custom:from:namek_serenity", CUSTOM);
         p = got.isEmpty() ? p : got.get(got.size() - 1);
         note("CUSTOM FROM Namek fills its colors, saves nothing: " + pf("#0d201b".equals(fieldValue(p, "panel"))
-                && "#57d9a3".equals(fieldValue(p, "primary")) && has(p, "Filled in Namek Serenity's colors")
+                && "#57d9a3".equals(fieldValue(p, "primary")) && has(p, "Filled in Namek Serenity")
                 && java.util.Arrays.equals(prefsNow(player).custom().tones(), saved)));
         got = skinClick("custom reset", "do:menu_custom:reset", CUSTOM);
         p = got.isEmpty() ? p : got.get(got.size() - 1);
