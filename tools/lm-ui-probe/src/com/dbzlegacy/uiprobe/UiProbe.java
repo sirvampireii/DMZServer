@@ -944,8 +944,188 @@ public final class UiProbe {
         {"wait", "20"}, {"guidecheck"}, {"open", "difficulty", "main"}, {"wait", "60"},
         {"say", "uirecord guide3-reopen"}, {"wait", "20"}, {"say", "uiclick label:How difficulty works"},
         {"wait", "60"}, {"say", "uirecord guide4-replay"}, {"wait", "20"}, {"guidecheck"},
-        {"trialcheck"}, {"wait", "40"}, {"say", "uiquit"},
+        // 4.7.65: Friendly Fist never lets a spar kill. Lethal partner hits on the real probe player, checked a
+        // few ticks later (the heal is queued after the hit), with a screenshot of the client still in game.
+        {"ff", "setup"}, {"wait", "10"},
+        {"ff", "hitV"}, {"wait", "10"}, {"ff", "checkV"}, {"ff", "hitV"}, {"wait", "10"}, {"ff", "checkV"},
+        {"ff", "hitV"}, {"wait", "10"}, {"ff", "checkV"}, {"say", "uirecord ff1-after-three-lethal-hits"},
+        {"wait", "20"}, {"ff", "hitA"}, {"wait", "10"}, {"ff", "checkA"},
+        {"trialcheck"},
+        // Last, because the probe player dies in both (stand-ins are Forge fake players, which take no damage):
+        // a zombie's lethal hit in a Friendly Fist spar still kills; with Friendly Fist off a partner's still kills.
+        {"ff", "mob"}, {"wait", "10"}, {"ff", "checkMob"}, {"ff", "respawn"}, {"wait", "40"},
+        {"ff", "off"}, {"wait", "10"}, {"ff", "checkOff"}, {"ff", "respawn"}, {"wait", "40"}, {"ff", "cleanup"},
+        {"wait", "40"}, {"say", "uiquit"},
     };
+
+    // ---- 4.7.65 Friendly Fist never lets a spar kill (test only) ----
+    private ServerPlayer ffMate;
+    private ServerPlayer ffMate2;
+    private int ffHits;
+
+    private ServerPlayer ffStandIn(String name) {
+        com.mojang.authlib.GameProfile gp = new com.mojang.authlib.GameProfile(
+                java.util.UUID.nameUUIDFromBytes(("uiprobe:" + name).getBytes(StandardCharsets.UTF_8)), name);
+        ServerPlayer p = net.minecraftforge.common.util.FakePlayerFactory.get(player.m_284548_(), gp);
+        p.m_6034_(player.m_20185_() + 2, player.m_20186_(), player.m_20189_());
+        backing().add(p);
+        byUuid().put(p.m_20148_(), p);
+        return p;
+    }
+
+    private static void ffSet(ServerPlayer p, boolean on) {
+        var data = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(p);
+        if (data != null) {
+            data.getStatus().setFriendlyFistEnabled(on);
+        }
+    }
+
+    private static void ffStart(ServerPlayer a, ServerPlayer b) throws Exception {
+        var m = com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.class
+                .getDeclaredMethod("startSession", ServerPlayer.class, ServerPlayer.class);
+        m.setAccessible(true);
+        m.invoke(null, a, b);
+        // Sessions under 30 s are not recorded; age both so an end would show in recentSessions.
+        long old = System.currentTimeMillis() - 60_000L;
+        com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(a.m_20148_()).startAt = old;
+        com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(b.m_20148_()).startAt = old;
+    }
+
+    /** One hit far above any health pool; the victim's invulnerability (rig protection, hurt time) is off for it. */
+    private boolean ffHit(ServerPlayer victim, net.minecraft.world.damagesource.DamageSource src) {
+        victim.m_150110_().f_35934_ = false;
+        victim.m_21153_(victim.m_21233_());
+        victim.f_19802_ = 0;
+        return victim.m_6469_(src, 1.0e6f);
+    }
+
+    private static boolean ffRecordedDeath(ServerPlayer p) {
+        for (var r : com.dbzlegacy.adaptivedifficulty.sparring.SparStore.get().recentFor(p.m_20148_().toString())) {
+            if ("death".equals(r.reason)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String ffState(ServerPlayer p) {
+        var rt = com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(p.m_20148_());
+        return p.m_7755_().getString() + " alive=" + p.m_6084_() + " hp=" + p.m_21223_() + "/" + p.m_21233_()
+                + " sparActive=" + rt.active + " recordedDeath=" + ffRecordedDeath(p);
+    }
+
+    private void ffStep(String s) {
+        try {
+            switch (s) {
+                case "setup" -> {
+                    com.dbzlegacy.adaptivedifficulty.sparring.SparStore.get().recentSessions.clear();
+                    ffMate = ffStandIn("Fistmate");
+                    ffStart(player, ffMate);
+                    // Friendly Fist on the victim only: DragonMineZ's own knockdown checks only the attacker's
+                    // switch, and a non-melee partner source (like a ki blast) skips its melee path entirely.
+                    ffSet(player, true);
+                    ffSet(ffMate, false);
+                    note("FF setup: " + ffState(player) + " | mate stats=" + (com.dbzlegacy.adaptivedifficulty.calc
+                            .DmzProgression.stats(ffMate) != null));
+                }
+                case "hitV" -> {
+                    ffHits++;
+                    var src = ffMate.m_269291_().m_269333_(ffMate);
+                    boolean took = ffHit(player, src);
+                    note("FF lethal partner hit " + ffHits + " (" + src.m_19385_() + ", victim FF only) took=" + took
+                            + " right after: " + ffState(player));
+                }
+                case "checkV" -> {
+                    boolean ok = player.m_6084_() && player.m_21223_() >= player.m_21233_() - 0.01f
+                            && com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(player.m_20148_()).active
+                            && !ffRecordedDeath(player);
+                    note("FF ON lethal hit " + ffHits + " -> alive, healed to full, spar continues, no death record: "
+                            + (ok ? "PASS" : "FAIL") + " | " + ffState(player));
+                }
+                case "hitA" -> {
+                    ffSet(player, false);
+                    ffSet(ffMate, true);
+                    var src = ffMate.m_269291_().m_269075_(ffMate);
+                    boolean took = ffHit(player, src);
+                    note("FF lethal partner melee (attacker FF only) took=" + took + " right after: " + ffState(player));
+                }
+                case "checkA" -> {
+                    boolean ok = player.m_6084_() && com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem
+                            .runtime(player.m_20148_()).active && !ffRecordedDeath(player);
+                    note("FF ON (attacker's switch) lethal melee -> alive, spar continues: " + (ok ? "PASS" : "FAIL")
+                            + " | " + ffState(player));
+                }
+                case "mob" -> {
+                    // A zombie's lethal hit on a fighter in a Friendly Fist spar is not guarded.
+                    com.dbzlegacy.adaptivedifficulty.sparring.SparStore.get().recentSessions.clear();
+                    ffStart(player, ffMate);
+                    ffSet(player, true);
+                    ffSet(ffMate, true);
+                    var z = spawnZombie(false, false);
+                    ffHit(player, player.m_269291_().m_269333_(z));
+                    z.m_146870_();
+                }
+                case "checkMob" -> note("FF does not guard mob damage (zombie kills the fighter, spar ends as death): "
+                        + (!player.m_6084_() && ffRecordedDeath(player) ? "PASS" : "FAIL") + " | " + ffState(player));
+                case "respawn" -> {
+                    if (!player.m_6084_()) {
+                        player = player.f_8924_.m_6846_().m_11236_(player, false);
+                        // DragonMineZ protects a freshly dead player (ZenkaiKnockout cancels every hit); the next
+                        // check needs a normal fighter, so the test clears those cooldowns.
+                        var data = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.stats(player);
+                        String cds = data == null ? "?" : String.valueOf(data.getCooldowns().getAllCooldowns().keySet());
+                        if (data != null) {
+                            data.getCooldowns().clearCooldowns();
+                        }
+                        // Vanilla also shields a respawned player: a 60-tick spawn timer and the changing-dimension
+                        // flag until the client confirms. Both are private; the test clears them.
+                        for (String f : new String[] {"f_8921_", "f_8927_"}) {
+                            var fld = ServerPlayer.class.getDeclaredField(f);
+                            fld.setAccessible(true);
+                            if (fld.getType() == int.class) {
+                                fld.setInt(player, 0);
+                            } else {
+                                fld.setBoolean(player, false);
+                            }
+                        }
+                        note("FF respawned the probe player: alive=" + player.m_6084_() + " cleared DMZ cooldowns " + cds);
+                    }
+                }
+                case "off" -> {
+                    // Friendly Fist off for both: a lethal partner hit kills and the spar ends as death.
+                    com.dbzlegacy.adaptivedifficulty.sparring.SparStore.get().recentSessions.clear();
+                    ffMate2 = ffStandIn("Fistmate2");
+                    ffSet(player, false);
+                    ffSet(ffMate2, false);
+                    ffStart(player, ffMate2);
+                    var src = ffMate2.m_269291_().m_269333_(ffMate2);
+                    boolean took = ffHit(player, src);
+                    note("FF OFF lethal partner hit (" + src.m_19385_() + ") took=" + took + " right after: " + ffState(player));
+                }
+                case "checkOff" -> {
+                    boolean ok = !player.m_6084_() && ffRecordedDeath(player);
+                    note("FF OFF lethal partner hit -> kills, spar ends as death (as before): " + (ok ? "PASS" : "FAIL")
+                            + " | probe " + ffState(player));
+                }
+                case "cleanup" -> {
+                    for (ServerPlayer p : new ServerPlayer[] {ffMate, ffMate2}) {
+                        if (p != null) {
+                            backing().remove(p);
+                            byUuid().remove(p.m_20148_());
+                        }
+                    }
+                    player.m_150110_().f_35934_ = true;
+                    player.m_6885_();
+                    player.m_21153_(player.m_21233_());
+                    write("uiprobe-script.txt", scriptLog.toString(), false);
+                }
+                default -> { }
+            }
+        } catch (Throwable t) {
+            note("FF step " + s + " ERROR " + t);
+            LOG.error("ff step", t);
+        }
+    }
 
     private void finalTick() {
         if (finalWait > 0) {
@@ -974,6 +1154,7 @@ public final class UiProbe {
                                 ? " PASS reverted to no tier" : " FAIL"));
                 write("uiprobe-script.txt", scriptLog.toString(), false);
             }
+            case "ff" -> ffStep(st[1]);
             case "guidereset" -> {
                 guideReset();
                 note("FINAL guide reset done=" + guideDone());

@@ -326,14 +326,83 @@ public final class SparringSystem {
         }
     }
 
+    /**
+     * 4.7.65: Friendly Fist never lets a spar kill. True when {@code attacker} is the victim's active spar
+     * partner, neither fighter is in a rival challenge, and either fighter has Friendly Fist on. Only
+     * damage caused by that partner is guarded; mobs, the world and anyone else are untouched.
+     */
+    public static boolean friendlyFistGuards(ServerPlayer victim, ServerPlayer attacker) {
+        if (!DifficultyConfig.get().enableSparringSystem || victim == null || attacker == null
+                || victim.m_20148_().equals(attacker.m_20148_())) {
+            return false;
+        }
+        SparPlayerRuntime vRt = RUNTIME.get(victim.m_20148_());
+        if (vRt == null || !vRt.active || vRt.partner == null || !vRt.partner.equals(attacker.m_20148_())) {
+            return false;
+        }
+        if (RivalChallengeManager.get().isInChallenge(victim.m_20148_())
+                || RivalChallengeManager.get().isInChallenge(attacker.m_20148_())) {
+            return false;
+        }
+        // Either fighter having Friendly Fist protects the victim.
+        return isFriendlyFistOn(victim) || isFriendlyFistOn(attacker);
+    }
+
+    /**
+     * 4.7.65 LivingDamageEvent (final amount, after armor and absorption): partner damage that would take
+     * the victim to 0 HP is cut so they keep 1 HP, every time, and the Friendly Fist heal runs right after
+     * the hit. 4.7.64 only healed when health before the hit was 1.5 or less, once per session, so a
+     * one-shot from higher health killed. Returns the amount to apply.
+     */
+    public static float capLethalSparDamage(ServerPlayer victim, ServerPlayer attacker, float amount) {
+        if (!(amount > 0.0f) || victim == null) {
+            return amount;
+        }
+        float hp = victim.m_21223_();
+        if (amount < hp || !friendlyFistGuards(victim, attacker)) {
+            return amount;
+        }
+        healAfterHit(victim, attacker);
+        return Math.max(0.0f, hp - 1.0f);
+    }
+
+    /**
+     * 4.7.65 backstop at LivingDeathEvent: a partner-caused death in a guarded spar (a path that set health
+     * to 0 without our damage cap, e.g. another mod rewriting the amount after it) is cancelled, the victim
+     * keeps 1 HP, and the Friendly Fist heal runs after the hit. True means the caller cancels the death, so
+     * the spar never records "death" and no death message, drops or penalty follow.
+     */
+    public static boolean catchLethalSparDeath(ServerPlayer victim, ServerPlayer attacker) {
+        if (!friendlyFistGuards(victim, attacker)) {
+            return false;
+        }
+        victim.m_21153_(1.0f);
+        healAfterHit(victim, attacker);
+        return true;
+    }
+
+    /** Heal once the current hit has finished applying (a queued task, not inside the damage event). */
+    private static void healAfterHit(ServerPlayer victim, ServerPlayer attacker) {
+        Runnable heal = () -> {
+            SparPlayerRuntime vRt = RUNTIME.get(victim.m_20148_());
+            if (vRt != null && vRt.active && attacker.m_20148_().equals(vRt.partner) && victim.m_6084_()) {
+                friendlyFistHeal(victim, attacker, vRt);
+            }
+        };
+        MinecraftServer server = victim.m_20194_();
+        if (server == null) {
+            heal.run();
+        } else {
+            server.m_6937_(new net.minecraft.server.TickTask(server.m_129921_(), heal));
+        }
+    }
+
+    /** Recovery before a hit lands: a knocked-down or nearly dead victim is healed (every time, no latch). */
     private static void maybeFriendlyFist(ServerPlayer victim, ServerPlayer attacker, SparPlayerRuntime vRt) {
         if (victim == null || attacker == null || vRt == null) {
             return;
         }
         try {
-            if (vRt.ffKdHealed) {
-                return;
-            }
             StatsData data = DmzProgression.stats(victim);
             Status status = data == null ? null : data.getStatus();
             if (status == null) {
@@ -351,13 +420,23 @@ public final class SparringSystem {
             if (!kd && !lethal) {
                 return;
             }
-            float max = victim.m_21233_();
-            victim.m_21153_(max);
+            friendlyFistHeal(victim, attacker, vRt);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** Full HP, knockdown cleared, both fighters told; the spar keeps going. */
+    private static void friendlyFistHeal(ServerPlayer victim, ServerPlayer attacker, SparPlayerRuntime vRt) {
+        try {
+            victim.m_21153_(victim.m_21233_());
             try {
-                status.setKnockedDown(false);
+                StatsData data = DmzProgression.stats(victim);
+                Status status = data == null ? null : data.getStatus();
+                if (status != null) {
+                    status.setKnockedDown(false);
+                }
             } catch (Throwable ignored) {
             }
-            vRt.ffKdHealed = true;
             long now = System.currentTimeMillis();
             stampHitActivity(vRt, attacker.m_7755_().getString(), now, "ki");
             SparPlayerRuntime aRt = runtime(attacker.m_20148_());

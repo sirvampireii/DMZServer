@@ -1150,6 +1150,37 @@ public final class DifficultyEvents {
     }
 
     /**
+     * 4.7.65: Friendly Fist never lets a spar kill. A hit from the active spar partner that would take the
+     * victim to 0 HP (either fighter has Friendly Fist, not a rival challenge) is cut so they keep 1 HP,
+     * then healed to full; the spar continues. Lowest priority so it sees the final amount; other damage is
+     * untouched. Independent of the AD master gate (Sparring has its own flag).
+     */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onSparLethalDamage(LivingDamageEvent event) {
+        if (event.getEntity() instanceof ServerPlayer victim && event.getSource() != null
+                && event.getSource().m_7639_() instanceof ServerPlayer attacker) {
+            float capped = SparringSystem.capLethalSparDamage(victim, attacker, event.getAmount());
+            if (capped != event.getAmount()) {
+                event.setAmount(capped);
+            }
+        }
+    }
+
+    /**
+     * 4.7.65 backstop: if a guarded spar hit still kills (a path that rewrote the amount after the cap),
+     * the death is cancelled before anything else sees it. The victim keeps 1 HP and is healed; the spar
+     * does not end, so it never records "death", and there is no death message, drop or TP penalty.
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onSparLethalDeath(LivingDeathEvent event) {
+        if (event.getEntity() instanceof ServerPlayer victim && !victim.m_9236_().f_46443_
+                && event.getSource() != null && event.getSource().m_7639_() instanceof ServerPlayer attacker
+                && SparringSystem.catchLethalSparDeath(victim, attacker)) {
+            event.setCanceled(true);
+        }
+    }
+
+    /**
      * Rival + Sparring death / KO / mob-kill hooks.
      * Independent of AD master gate — these systems have their own config flags.
      */

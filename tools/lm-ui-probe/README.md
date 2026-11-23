@@ -21,6 +21,12 @@ In-game test rig for LegacyMechanics menus. Never shipped, never put on the live
     and "List me for 15 min" on the real client (`hub1`..`hub3`, `spar1` REC lines). Before the screenshots the
     probe player is made invulnerable and the script's mobs are cleared (a leftover zombie once killed it
     mid-shot).
+  - Friendly Fist never lets a spar kill (4.7.65), in the final phase on the real probe player with a stand-in
+    partner: three lethal partner hits (a non-melee source, Friendly Fist on the victim only, the case DMZ's own
+    knockdown misses) each leave the player alive, healed to full, the spar still on and no "death" record; a
+    lethal melee hit with only the attacker's switch on is caught too; a zombie's lethal hit on a fighter is not
+    guarded; with Friendly Fist off for both a lethal partner hit kills and the spar ends as death. The
+    `ff1-after-three-lethal-hits` REC shot shows the client still in game.
   - Recommendation rule
   - Momentum banking and the cap
   - Mastery x1.5 inside the window, x1.0 outside
