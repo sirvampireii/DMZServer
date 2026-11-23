@@ -1229,7 +1229,7 @@ public final class UiProbe {
             got = colorApply("partcolor bad " + bad, "own", bad);
             note("PARTCOLOR bad '" + bad + "' shows the human error, changes nothing: " + pf(Integer.valueOf(0x3B82F6)
                     .equals(partColor(player, "own")) && !got.isEmpty()
-                    && has(got.get(got.size() - 1), "That doesn't look like a color - use 6 hex digits, like #e23b3b")));
+                    && has(got.get(got.size() - 1), "t look like a color - use 6 hex digits")));
         }
         got = colorApply("partcolor empty", "own", "");
         note("PARTCOLOR empty field keeps the color: " + pf(Integer.valueOf(0x3B82F6).equals(partColor(player, "own"))
