@@ -81,7 +81,8 @@ bash tools/lm-ui-probe/matrix.sh mods/LegacyMechanics-<version>.jar [<older run>
   - scale-to-fit
   - look (contrast, cut labels, panel edge)
   - KaiPath-only path
-  - one spec for both paths
+  - one spec for both paths (4.7.67: a page whose native packet has a color wheel and whose KaiPath packet has
+    none differs on purpose and is counted separately; any other difference fails)
   - the requireLmClient rejection
   - every menu native with the LM client (Preview forms too)
 - `review.html`: a contact sheet for the owner. It shows GUI scale 3 and 4 shots of every Difficulty page, the main page
