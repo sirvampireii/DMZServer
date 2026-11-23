@@ -1281,6 +1281,10 @@ public final class UltraCharacterScreens {
         spec.send(player);
     }
 
+    /** 4.7.67 "Pick any color" field and wheel on a part color swatch page. */
+    static final String PICK_INPUT = "input:bodycolor_hex";
+    static final String PICK_WHEEL = "input:bodycolor_wheel";
+
     /** Preset swatch grid for one channel, laid out like the shop's card pages. */
     private static void openBodyColorSwatches(ServerPlayer player, String channel, int page) {
         int pages = CosmeticBodyPartService.colorPageCount();
@@ -1291,12 +1295,21 @@ public final class UltraCharacterScreens {
                                 CosmeticBodyPartService.colorChannelLabel(channel),
                                 CosmeticBodyPartService.partColorValue(player, channel));
         spec.line(UltraStyle.LABEL + "Pick a swatch. It saves immediately.");
+        // 4.7.67: any color, typed (KaiPath and the LM client) or from the wheel (LM client).
+        boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player);
+        boolean wheel = typing && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesColorWheel(player);
+        if (typing) {
+            spec.line(UltraStyle.LABEL + (wheel ? "Or pick any color: tap the wheel or type a hex like #e23b3b, then Apply."
+                    : "Or pick any color: type a hex like #e23b3b, then Apply."));
+        } else {
+            spec.line(UltraStyle.LABEL + "Typed fields need KaiPath 1.3.9 or newer. Until then pick a swatch.");
+        }
         spec.buttonsAfterLines();
         ModelPreview.rotateButton(spec, player, "bodycolors:" + channel + ":" + pg);
         int placed = 0;
         for (CosmeticBodyPartService.Preset preset : CosmeticBodyPartService.colorPresets(pg)) {
             String action =
-                    "do:bodypart_color:" + channel + ":" + Integer.toHexString(preset.rgb());
+                    "do:bodypart_color:" + channel + ":" + String.format(Locale.ROOT, "%06x", preset.rgb() & 0xFFFFFF);
             String label = UltraStyle.LABEL + UltraStyle.buttonText(preset.name());
             if (placed % 2 == 0) {
                 spec.buttonLeft(action, label, UltraStyle.STYLE_NORMAL);
@@ -1335,6 +1348,23 @@ public final class UltraCharacterScreens {
             spec.rowGap();
         } else if (pg > 0) {
             spec.rowGap();
+        }
+        if (typing) {
+            // Pick any color (4.7.67): the hex field (a color square shows what is typed), Apply through the same
+            // do:bodypart_color path as a swatch, and on the LM client a wheel that fills the field.
+            String input = PICK_INPUT;
+            Integer now = CosmeticBodyPartService.partColor(player, channel);
+            int row = spec.row();
+            spec.textField(input, now == null ? "" : CosmeticBodyPartService.hex(now), "#rrggbb", UltraStyle.COL_L, row,
+                    UltraStyle.BTN_W, UltraStyle.BTN_H, 9);
+            spec.colorPreview(input);
+            spec.buttonBound("do:bodypart_color:" + channel + ":", UltraStyle.confirm("Apply this color"),
+                    UltraStyle.STYLE_CONFIRM, UltraStyle.COL_R, row, UltraStyle.BTN_W, input);
+            spec.rowGap();
+            if (wheel) {
+                spec.colorWheel(PICK_WHEEL, input, UltraStyle.COL_L, spec.row(), 56);
+                spec.rowGap();
+            }
         }
         spec.footerBack("page:bodycolors", "Part colors");
         spec.send(player);

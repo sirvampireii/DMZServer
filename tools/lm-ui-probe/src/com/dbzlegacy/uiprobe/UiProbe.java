@@ -793,6 +793,7 @@ public final class UiProbe {
             hubScript();
             meditationScript();
             customSkinScript();
+            partColorScript();
 
             // ---------------- Momentum
             com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);
@@ -958,6 +959,12 @@ public final class UiProbe {
         {"wait", "20"}, {"say", "uiclick wheel:0"}, {"wait", "20"}, {"say", "uirecord custom3-wheel-picked"},
         {"wait", "20"}, {"say", "uiclick label:Apply my colors"}, {"wait", "60"},
         {"say", "uirecord custom4-applied"}, {"wait", "20"}, {"custom", "check"}, {"custom", "reset"}, {"wait", "20"},
+        // 4.7.67: part colors on the real client: the own channel's swatch page, a tap at the top of the wheel (red),
+        // Apply this color, the page reopened showing #FF0000 and the model in it.
+        {"part", "reset"}, {"open", "character", "bodycolors:own:0"}, {"wait", "60"}, {"say", "uirecord part1-swatches"},
+        {"wait", "20"}, {"say", "uiclick wheel:0"}, {"wait", "20"}, {"say", "uirecord part2-wheel-picked"},
+        {"wait", "20"}, {"say", "uiclick label:Apply this color"}, {"wait", "60"}, {"say", "uirecord part3-applied"},
+        {"wait", "20"}, {"part", "check"}, {"part", "reset"}, {"wait", "20"},
         {"trialcheck"},
         // Last, because the probe player dies in both (stand-ins are Forge fake players, which take no damage):
         // a zombie's lethal hit in a Friendly Fist spar still kills; with Friendly Fist off a partner's still kills.
@@ -1171,6 +1178,100 @@ public final class UiProbe {
         note("CUSTOM ACCENTS fixed: " + pf(com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.systemAccentHex('c') == 0xE23B3B));
         com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.put(player,
                 new com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.Prefs("saiyan_royal", true, false));
+    }
+
+    // ---- 4.7.67 part colors: any color (test only) ----
+    private static Integer partColor(ServerPlayer p, String ch) {
+        return com.dbzlegacy.adaptivedifficulty.character.CosmeticBodyPartService.partColor(p, ch);
+    }
+
+    /** The swatch page's Apply as a client sends it: the typed hex in args.value (bindInput). */
+    private List<GuiOpenPacket> colorApply(String tag, String ch, String typed) {
+        JsonObject args = new JsonObject();
+        args.addProperty("screen", "character");
+        args.addProperty("page", "bodycolors:" + ch + ":0");
+        args.addProperty("bindInput", "@character:input:bodycolor_hex");
+        args.addProperty("value", typed);
+        return keep(tag, () -> UltraGuiActions.dispatch(player, "character", "do:bodypart_color:" + ch + ":",
+                args.toString()));
+    }
+
+    private void partColorScript() {
+        if (!com.dbzlegacy.adaptivedifficulty.character.CosmeticBodyPartService.canUse(player)) {
+            note("PARTCOLOR model customization unavailable on this server: SKIP");
+            return;
+        }
+        boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player);
+        boolean wheels = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesColorWheel(player);
+        Integer trimBefore = partColor(player, "trim");
+        colorApply("partcolor reset own", "own", "");
+        keep("partcolor reset", () -> UltraGuiActions.dispatch(player, "character", "do:bodypart_color_reset:own",
+                "{\"screen\":\"character\",\"page\":\"bodycolors:own:0\"}"));
+        for (GuiOpenPacket p : keep("partcolor page", () -> UltraGui.open(player, "character", "bodycolors:own:0"))) {
+            note("PARTCOLOR PAGE presets kept + Pick any color (" + (wheels ? "wheel" : "no wheel") + "): "
+                    + pf(has(p, "Pick a swatch. It saves immediately.") && has(p, "Reset to natural look")
+                            && (typing ? countInputs(p, "text") == 1 && has(p, "Apply this color")
+                                    && p.buttonsJson().contains("input:bodycolor_hex")
+                                    : has(p, "Typed fields need KaiPath 1.3.9 or newer"))
+                            && countInputs(p, "color_wheel") == (wheels ? 1 : 0)
+                            && p.buttonsJson().contains("do:bodypart_color:own:ffffff") && p.buttonsJson().contains("do:bodypart_color:own:111111")) + " | " + labels(p));
+        }
+        if (!typing) {
+            return;
+        }
+        List<GuiOpenPacket> got = colorApply("partcolor typed #", "own", "#e23b3b");
+        note("PARTCOLOR typed #e23b3b + Apply saves it, the page shows it: " + pf(Integer.valueOf(0xE23B3B)
+                .equals(partColor(player, "own")) && !got.isEmpty() && has(got.get(got.size() - 1), "#E23B3B")));
+        colorApply("partcolor typed bare", "own", "3B82F6");
+        note("PARTCOLOR typed 3B82F6 (no #, upper case) saves it: " + pf(Integer.valueOf(0x3B82F6)
+                .equals(partColor(player, "own"))));
+        for (String bad : new String[] {"red", "#12", "#gggggg"}) {
+            got = colorApply("partcolor bad " + bad, "own", bad);
+            note("PARTCOLOR bad '" + bad + "' shows the human error, changes nothing: " + pf(Integer.valueOf(0x3B82F6)
+                    .equals(partColor(player, "own")) && !got.isEmpty()
+                    && has(got.get(got.size() - 1), "That doesn't look like a color - use 6 hex digits, like #e23b3b")));
+        }
+        got = colorApply("partcolor empty", "own", "");
+        note("PARTCOLOR empty field keeps the color: " + pf(Integer.valueOf(0x3B82F6).equals(partColor(player, "own"))
+                && !got.isEmpty() && has(got.get(got.size() - 1), "Nothing changed")));
+        keep("partcolor swatch", () -> UltraGuiActions.dispatch(player, "character", "do:bodypart_color:own:00aa00",
+                "{\"screen\":\"character\",\"page\":\"bodycolors:own:0\"}"));
+        note("PARTCOLOR a swatch still saves instantly: " + pf(Integer.valueOf(0x00AA00).equals(partColor(player, "own"))));
+        note("PARTCOLOR channels independent (trim untouched): " + pf(java.util.Objects.equals(trimBefore,
+                partColor(player, "trim"))));
+        try {
+            java.lang.reflect.Method sw = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter.class
+                    .getDeclaredMethod("switchedIn", ServerPlayer.class, java.util.UUID.class, java.util.UUID.class,
+                            int.class, boolean.class);
+            sw.setAccessible(true);
+            java.util.UUID me = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter.id(player);
+            sw.invoke(null, player, me, me, 0, false);
+            note("PARTCOLOR survives a character slot switch: " + pf(Integer.valueOf(0x00AA00).equals(partColor(player, "own"))));
+        } catch (Throwable t) {
+            note("PARTCOLOR slot switch ERROR " + t + " FAIL");
+        }
+        keep("partcolor reset end", () -> UltraGuiActions.dispatch(player, "character", "do:bodypart_color_reset:own",
+                "{\"screen\":\"character\",\"page\":\"bodycolors:own:0\"}"));
+        note("PARTCOLOR Reset returns the channel to Default: " + pf(partColor(player, "own") == null));
+    }
+
+    private void partFinal(String s) {
+        switch (s) {
+            case "check" -> {
+                boolean wheels = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesColorWheel(player);
+                Integer own = partColor(player, "own");
+                if (!wheels) {
+                    note("FINAL PARTCOLOR wheel tap + Apply on the real client: SKIP (no wheel on this client)");
+                } else {
+                    note("FINAL PARTCOLOR real client: wheel tap fills the field, Apply saves it: own="
+                            + (own == null ? "default" : String.format("%06x", own)) + " "
+                            + pf(Integer.valueOf(0xFF0000).equals(own)));
+                }
+                write("uiprobe-script.txt", scriptLog.toString(), false);
+            }
+            case "reset" -> com.dbzlegacy.adaptivedifficulty.character.CosmeticBodyPartService.executeColorReset(player, "own");
+            default -> { }
+        }
     }
 
     /** Final phase: wear Custom (default tones) so the real client can tap a wheel and Apply. */
@@ -1401,6 +1502,7 @@ public final class UiProbe {
             }
             case "ff" -> ffStep(st[1]);
             case "custom" -> customFinal(st[1]);
+            case "part" -> partFinal(st[1]);
             case "guidereset" -> {
                 guideReset();
                 note("FINAL guide reset done=" + guideDone());

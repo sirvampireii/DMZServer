@@ -281,7 +281,11 @@ public final class CosmeticBodyPartService {
         return COLOR_PRESETS.subList(from, to);
     }
 
-    /** Pick a swatch: {@code arg} is {@code channel:rgb} (rgb packed 0xRRGGBB, hex). */
+    /**
+     * Pick a color: {@code arg} is {@code channel:rgb}. A swatch sends six hex digits; since 4.7.67 a typed color (the
+     * swatch page's "Pick any color" field or wheel) comes the same way, so this is the one save path. {@code #RRGGBB}
+     * or {@code RRGGBB} in any case; anything else applies nothing and says so; an empty value keeps the current color.
+     */
     public static String executeColorPick(ServerPlayer player, String arg) {
         if (!canUse(player)) {
             return UltraStyle.DANGER
@@ -291,11 +295,12 @@ public final class CosmeticBodyPartService {
         if (bits.length < 2 || !isColorChannel(bits[0])) {
             return UltraStyle.DANGER + "Pick a color from the swatches.";
         }
-        int rgb;
-        try {
-            rgb = (int) Long.parseLong(bits[1].trim().replace("#", ""), 16) & 0xFFFFFF;
-        } catch (NumberFormatException e) {
-            return UltraStyle.DANGER + "That swatch is not available. Pick another from the list.";
+        if (bits[1].isBlank()) {
+            return UltraStyle.LABEL + "Nothing changed - type a color like #e23b3b, or tap a swatch.";
+        }
+        int rgb = com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.parseHex(bits[1]);
+        if (rgb < 0) {
+            return UltraStyle.DANGER + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraHubScreens.BAD_HEX;
         }
         String channel = bits[0].trim().toLowerCase(Locale.ROOT);
         persistPartColor(player, channel, rgb);
