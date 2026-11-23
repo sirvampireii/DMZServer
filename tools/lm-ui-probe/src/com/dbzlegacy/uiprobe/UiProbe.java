@@ -792,6 +792,7 @@ public final class UiProbe {
             guideScript();
             hubScript();
             meditationScript();
+            customSkinScript();
 
             // ---------------- Momentum
             com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);
@@ -950,6 +951,13 @@ public final class UiProbe {
         {"ff", "hitV"}, {"wait", "10"}, {"ff", "checkV"}, {"ff", "hitV"}, {"wait", "10"}, {"ff", "checkV"},
         {"ff", "hitV"}, {"wait", "10"}, {"ff", "checkV"}, {"say", "uirecord ff1-after-three-lethal-hits"},
         {"wait", "20"}, {"ff", "hitA"}, {"wait", "10"}, {"ff", "checkA"},
+        // 4.7.66: Custom menu skin on the real client: the picker wearing it, My colors, a tap at the top of the
+        // Panel wheel (red), Apply, the editor reopened in the new colors.
+        {"custom", "prep"}, {"open", "hub", "skins"}, {"wait", "60"}, {"say", "uirecord custom1-picker"},
+        {"wait", "20"}, {"open", "hub", "skin_custom"}, {"wait", "60"}, {"say", "uirecord custom2-editor"},
+        {"wait", "20"}, {"say", "uiclick wheel:0"}, {"wait", "20"}, {"say", "uirecord custom3-wheel-picked"},
+        {"wait", "20"}, {"say", "uiclick label:Apply my colors"}, {"wait", "60"},
+        {"say", "uirecord custom4-applied"}, {"wait", "20"}, {"custom", "check"}, {"custom", "reset"}, {"wait", "20"},
         {"trialcheck"},
         // Last, because the probe player dies in both (stand-ins are Forge fake players, which take no damage):
         // a zombie's lethal hit in a Friendly Fist spar still kills; with Friendly Fist off a partner's still kills.
@@ -957,6 +965,243 @@ public final class UiProbe {
         {"ff", "off"}, {"wait", "10"}, {"ff", "checkOff"}, {"ff", "respawn"}, {"wait", "40"}, {"ff", "cleanup"},
         {"wait", "40"}, {"say", "uiquit"},
     };
+
+    // ---- 4.7.66 Custom menu skin (test only) ----
+    private static final String[] TONE_KEYS = {"panel", "primary", "trim", "text", "confirm"};
+
+    private static MenuPrefsView prefsNow(ServerPlayer p) {
+        var pr = com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.get(p);
+        return new MenuPrefsView(pr.skin(), pr.backgrounds(), pr.custom());
+    }
+
+    private record MenuPrefsView(String skin, boolean backgrounds,
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.Custom custom) {
+        boolean custom(int... tones) {
+            return java.util.Arrays.equals(custom.tones(), tones);
+        }
+    }
+
+    /** A My colors click as the LM client sends it: the five fields under their own ids (null leaves one out). */
+    private List<GuiOpenPacket> skinClick(String tag, String actionId, String page, String... fields) {
+        JsonObject args = new JsonObject();
+        args.addProperty("screen", "hub");
+        args.addProperty("page", page);
+        for (int i = 0; fields != null && i < fields.length && i < TONE_KEYS.length; i++) {
+            if (fields[i] != null) {
+                args.addProperty("@hub:input:skin_" + TONE_KEYS[i], fields[i]);
+            }
+        }
+        return keep(tag, () -> UltraGuiActions.dispatch(player, "hub", actionId, args.toString()));
+    }
+
+    private static String fieldValue(GuiOpenPacket p, String key) {
+        try {
+            for (JsonElement el : JsonParser.parseString(p.inputsJson()).getAsJsonArray()) {
+                JsonObject o = el.getAsJsonObject();
+                if (o.get("id").getAsString().endsWith("input:skin_" + key) && o.has("value")) {
+                    return o.get("value").getAsString();
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
+    private static int countInputs(GuiOpenPacket p, String type) {
+        int n = 0;
+        try {
+            for (JsonElement el : JsonParser.parseString(p.inputsJson()).getAsJsonArray()) {
+                if (type.equals(el.getAsJsonObject().get("type").getAsString())) {
+                    n++;
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return n;
+    }
+
+    /** The Apply action on a My colors page (its id carries the preview token). */
+    private static String applyId(GuiOpenPacket p) {
+        try {
+            for (JsonElement el : JsonParser.parseString(p.buttonsJson()).getAsJsonArray()) {
+                String id = el.getAsJsonObject().get("id").getAsString();
+                if (semantic(id).startsWith("do:menu_custom:apply:")) {
+                    return semantic(id);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return "do:menu_custom:apply:custom";
+    }
+
+    private static String pf(boolean ok) {
+        return ok ? "PASS" : "FAIL";
+    }
+
+    private void customSkinScript() {
+
+        String CUSTOM = com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraHubScreens.PAGE_CUSTOM;
+        boolean editing = com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraHubScreens.canEditColors(player);
+        boolean wheels = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesColorWheel(player);
+        note("CUSTOM client can edit=" + editing + " wheels=" + wheels);
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.put(player,
+                new com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.Prefs("saiyan_royal", true, false));
+        int[] sr = com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.Custom.DEFAULT.tones();
+        for (GuiOpenPacket p : keep("custom picker", () -> UltraGui.open(player, "hub", "skins"))) {
+            note("CUSTOM PICKER row after Zeno Omni, tap to make your own: " + pf(has(p, "Custom")
+                    && has(p, "Tap to make your own") && p.buttonsJson().indexOf("menu_skin:custom.")
+                    > p.buttonsJson().indexOf("menu_skin:zeno_omni")));
+        }
+        List<GuiOpenPacket> got = hubClick("custom pick", "hub", "do:menu_skin:custom.d.banner.160b0d.e23b3b.f0b429.f6e8e4.3faf55", "skins");
+        MenuPrefsView v = prefsNow(player);
+        note("CUSTOM PICK wears Custom with Saiyan Royal tones and opens My colors: " + pf("custom".equals(v.skin())
+                && v.custom(sr) && CUSTOM.equals(got.isEmpty() ? "" : got.get(got.size() - 1).pageId())));
+        if (!editing) {
+            for (GuiOpenPacket p : got) {
+                note("CUSTOM EDITOR without the 4.7.66 LM client shows the plain note: "
+                        + pf(has(p, "Editing your colors needs the Legacy Mechanics client") && countInputs(p, "text") == 0
+                                && countInputs(p, "color_wheel") == 0));
+            }
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.put(player,
+                    new com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.Prefs("saiyan_royal", true, false));
+            return;
+        }
+        GuiOpenPacket ed = got.get(got.size() - 1);
+        note("CUSTOM EDITOR five fields, " + (wheels ? "five wheels" : "no wheels") + ", Style, Scene, Apply, Preview, From, Reset: "
+                + pf(countInputs(ed, "text") == 5 && countInputs(ed, "color_wheel") == (wheels ? 5 : 0)
+                        && has(ed, "Style - Dark") && has(ed, "Scene - Banner") && has(ed, "Apply my colors")
+                        && has(ed, "Preview") && has(ed, "From Namek") && has(ed, "Reset to default")
+                        && "#e23b3b".equals(fieldValue(ed, "primary")) && ed.buttonsJson().contains("bindInputs")
+                        && ed.buttonsJson().contains("\"onEnter\":true")) + " | " + labels(ed));
+        // Apply five colors (both spellings).
+        got = skinClick("custom apply", applyId(ed), CUSTOM, "#1A1033", "7c4dff", "#ffc857", "E0E0FF", "#2ecc71");
+        v = prefsNow(player);
+        GuiOpenPacket p = got.isEmpty() ? ed : got.get(got.size() - 1);
+        note("CUSTOM APPLY saves the five colors, reopens My colors wearing them: " + pf("custom".equals(v.skin())
+                && v.custom(0x1A1033, 0x7C4DFF, 0xFFC857, 0xE0E0FF, 0x2ECC71) && CUSTOM.equals(p.pageId())
+                && has(p, "Saved. Every menu now uses your colors.") && "#1a1033".equals(fieldValue(p, "panel"))));
+        String token = com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.get(player).skinOrDefault().id();
+        note("CUSTOM LOOK goes out as the palette token on message 3: " + token + " "
+                + pf("custom.d.banner.1a1033.7c4dff.ffc857.e0e0ff.2ecc71".equals(token)));
+        // Invalid hex: nothing applies, every field kept as typed.
+        for (String[] bad : new String[][] {{"red", null}, {"#12", null}, {"#gggggg", null}}) {
+            got = skinClick("custom bad " + bad[0], applyId(p), CUSTOM, bad[0], "#ff0000", null, null, null);
+            GuiOpenPacket q = got.isEmpty() ? p : got.get(got.size() - 1);
+            MenuPrefsView after = prefsNow(player);
+            note("CUSTOM BAD HEX '" + bad[0] + "' shows the human error, applies nothing, keeps the fields: "
+                    + pf(has(q, "Panel: That doesn") && has(q, "t look like a color")
+                            && after.custom(0x1A1033, 0x7C4DFF, 0xFFC857, 0xE0E0FF, 0x2ECC71)
+                            && bad[0].equals(fieldValue(q, "panel")) && "#ff0000".equals(fieldValue(q, "primary"))
+                            && "#ffc857".equals(fieldValue(q, "trim"))));
+            p = q;
+        }
+        // Empty field keeps the current color, never black.
+        got = skinClick("custom empty", applyId(p), CUSTOM, "", "", "", "", "#27ae60");
+        p = got.isEmpty() ? p : got.get(got.size() - 1);
+        note("CUSTOM EMPTY fields keep their colors: " + pf(prefsNow(player).custom(0x1A1033, 0x7C4DFF, 0xFFC857,
+                0xE0E0FF, 0x27AE60)));
+        // Unreadable text on a dark skin: adjusted, the page says so.
+        got = skinClick("custom low contrast dark", applyId(p), CUSTOM, "#202020", "#7c4dff", "#ffc857", "#262626", "#27ae60");
+        p = got.isEmpty() ? p : got.get(got.size() - 1);
+        var sk = com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.get(player).skinOrDefault();
+        note("CUSTOM DARK text adjusted to read 3:1, note shown: " + pf(has(p, "Text color adjusted so it stays readable")
+                && com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.contrast(sk.text(), sk.panel()) >= 3.0));
+        // Light: Style toggles to Light (draft), then apply a pale text on a pale panel.
+        got = skinClick("custom style light", "do:menu_custom:dark", CUSTOM, "#f0f0f0", null, null, "#eeeeee", null);
+        p = got.isEmpty() ? p : got.get(got.size() - 1);
+        note("CUSTOM STYLE toggles to Light and keeps the typed fields, saves nothing: " + pf(has(p, "Style - Light")
+                && "#f0f0f0".equals(fieldValue(p, "panel")) && "#eeeeee".equals(fieldValue(p, "text"))
+                && prefsNow(player).custom().dark()));
+        got = skinClick("custom light apply", applyId(p), CUSTOM, "#f0f0f0", null, null, "#eeeeee", null);
+        p = got.isEmpty() ? p : got.get(got.size() - 1);
+        sk = com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.get(player).skinOrDefault();
+        note("CUSTOM LIGHT text adjusted to read 4.5:1, note shown: " + pf(!sk.dark() && has(p, "Text color adjusted")
+                && com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.contrast(sk.text(), sk.panel()) >= 4.5));
+        note("CUSTOM BRIDGE letters readable on the dark bridge panel: " + sk.bridgePrimary() + sk.bridgeText() + " "
+                + pf(com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.contrast(
+                        com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.vanillaRgb(sk.bridgeText()),
+                        com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.BRIDGE_PANEL) >= 4.5));
+        // Scene cycles; From fills a preset's colors; Reset fills the defaults; neither saves.
+        got = skinClick("custom scene", "do:menu_custom:motif", CUSTOM);
+        p = got.isEmpty() ? p : got.get(got.size() - 1);
+        note("CUSTOM SCENE cycles to the next motif: " + pf(has(p, "Scene - Namek")));
+        int[] saved = prefsNow(player).custom().tones();
+        got = skinClick("custom from namek", "do:menu_custom:from:namek_serenity", CUSTOM);
+        p = got.isEmpty() ? p : got.get(got.size() - 1);
+        note("CUSTOM FROM Namek fills its colors, saves nothing: " + pf("#0d201b".equals(fieldValue(p, "panel"))
+                && "#57d9a3".equals(fieldValue(p, "primary")) && has(p, "Filled in Namek Serenity")
+                && java.util.Arrays.equals(prefsNow(player).custom().tones(), saved)));
+        got = skinClick("custom reset", "do:menu_custom:reset", CUSTOM);
+        p = got.isEmpty() ? p : got.get(got.size() - 1);
+        note("CUSTOM RESET fills the Saiyan Royal colors, saves nothing: " + pf("#160b0d".equals(fieldValue(p, "panel"))
+                && "#e23b3b".equals(fieldValue(p, "primary")) && "#f6e8e4".equals(fieldValue(p, "text"))
+                && java.util.Arrays.equals(prefsNow(player).custom().tones(), saved)));
+        // Save a known palette, then relog, slot switch, preset and back.
+        got = skinClick("custom final apply", applyId(p), CUSTOM, "#1a1033", "#7c4dff", "#ffc857", "#e0e0ff", "#2ecc71");
+        int[] mine = {0x1A1033, 0x7C4DFF, 0xFFC857, 0xE0E0FF, 0x2ECC71};
+        com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore.unload(player.m_20148_());
+        note("CUSTOM survives a record reload (relog): " + pf("custom".equals(prefsNow(player).skin())
+                && prefsNow(player).custom(mine)));
+        try {
+            java.lang.reflect.Method sw = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter.class
+                    .getDeclaredMethod("switchedIn", ServerPlayer.class, java.util.UUID.class, java.util.UUID.class,
+                            int.class, boolean.class);
+            sw.setAccessible(true);
+            java.util.UUID me = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter.id(player);
+            sw.invoke(null, player, me, me, 0, false);
+            note("CUSTOM survives a character slot switch: " + pf("custom".equals(prefsNow(player).skin())
+                    && prefsNow(player).custom(mine)));
+        } catch (Throwable t) {
+            note("CUSTOM slot switch ERROR " + t + " FAIL");
+        }
+        hubClick("custom to preset", "hub", "do:menu_skin:zeno_omni", "skins");
+        note("CUSTOM switch to a preset keeps the saved colors: " + pf("zeno_omni".equals(prefsNow(player).skin())
+                && prefsNow(player).custom(mine)));
+        got = hubClick("custom back", "hub", "do:menu_skin:" + com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins
+                .customToken(prefsNow(player).custom()), "skins");
+        note("CUSTOM back from a preset restores the player's colors: " + pf("custom".equals(prefsNow(player).skin())
+                && prefsNow(player).custom(mine)));
+        for (GuiOpenPacket q : keep("custom picker in use", () -> UltraGui.open(player, "hub", "skins"))) {
+            note("CUSTOM PICKER while worn: You are using this + Edit my colors: " + pf(has(q, "Edit my colors")
+                    && q.buttonsJson().contains("page:" + CUSTOM)));
+        }
+        hubClick("custom backgrounds off", "hub", "do:menu_backgrounds", "skins");
+        note("CUSTOM Backgrounds off keeps Custom: " + pf(!prefsNow(player).backgrounds() && "custom".equals(prefsNow(player).skin())));
+        hubClick("custom backgrounds on", "hub", "do:menu_backgrounds", "skins");
+        note("CUSTOM ACCENTS fixed: " + pf(com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.systemAccentHex('c') == 0xE23B3B));
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.put(player,
+                new com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.Prefs("saiyan_royal", true, false));
+    }
+
+    /** Final phase: wear Custom (default tones) so the real client can tap a wheel and Apply. */
+    private void customFinal(String s) {
+        switch (s) {
+            case "prep" -> {
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.put(player,
+                        new com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.Prefs("custom", true, false));
+                com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.sendPrefs(player);
+                note("FINAL custom prep worn=" + prefsNow(player).skin());
+            }
+            case "check" -> {
+                if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraHubScreens.canEditColors(player)) {
+                    note("FINAL CUSTOM wheel tap + Apply on the real client: SKIP (this client cannot edit colors)");
+                } else {
+                    MenuPrefsView v = prefsNow(player);
+                    boolean wheels = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesColorWheel(player);
+                    note("FINAL CUSTOM real client: wheel tap fills Panel, Apply saves it: panel="
+                            + String.format("%06x", v.custom().panel()) + " "
+                            + pf("custom".equals(v.skin()) && (!wheels || v.custom().panel() == 0xFF0000)));
+                }
+                write("uiprobe-script.txt", scriptLog.toString(), false);
+            }
+            case "reset" -> {
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.put(player,
+                        new com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.Prefs("saiyan_royal", true, false));
+                com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.sendPrefs(player);
+            }
+            default -> { }
+        }
+    }
 
     // ---- 4.7.65 Friendly Fist never lets a spar kill (test only) ----
     private ServerPlayer ffMate;
@@ -1155,6 +1400,7 @@ public final class UiProbe {
                 write("uiprobe-script.txt", scriptLog.toString(), false);
             }
             case "ff" -> ffStep(st[1]);
+            case "custom" -> customFinal(st[1]);
             case "guidereset" -> {
                 guideReset();
                 note("FINAL guide reset done=" + guideDone());

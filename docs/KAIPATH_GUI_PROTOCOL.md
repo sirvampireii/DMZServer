@@ -206,6 +206,22 @@ Over the KaiPath bridge a skin never adds a field: Saiyan Royal keeps the 4.7.57
 color letters at send time (its primary letter as the layout `accent` on menus without a system accent, and Zeno
 Omni's text letter, dark aqua, on body lines). Backgrounds are native only.
 
+LM 4.7.66 (Custom menu skin): the custom look still rides message 3. Its skin string is a palette token
+(`custom.d.banner.160b0d.e23b3b.f0b429.f6e8e4.3faf55`: dark or light, motif, then panel, primary, trim, text and
+confirm, at most 50 characters), so the wire and the protocol string are unchanged; an LM client before 4.7.66 reads
+an unknown id and draws Saiyan Royal. A 4.7.66 LM client also lists `customSkin` and `colorWheel` in its hello. Over
+the bridge a custom skin only rewrites color letters, as the presets do: the Minecraft letters nearest its primary
+and text that read on the dark bridge panel; untouched starting tones keep the Saiyan Royal bytes.
+
+LM 4.7.66 additive, ignorable elements (the bridge never needs them):
+- `inputsJson` `type=color_wheel` (`id`, `x`, `y`, `w`, `h`, `target` = a text field id): a hue ring around a
+  saturation/value square; a tap fills the target field with `#rrggbb`. KaiPath skips input types it does not know
+  (the kit's `LmDynamicScreen` does), and LM sends it only to LM clients that list `colorWheel`, so a bridge page has
+  the hex field alone. It is never a reason to route a page.
+- Button `args.bindInputs` (`id|id|...`): the LM client copies each listed field into `args.<field id>` on click.
+  `args.onEnter: true`: Enter in one of those fields clicks this button. Text field `colorPreview: true`: the LM
+  client draws a small square of the typed color. KaiPath keeps reading `bindInput` (one field) and ignores these.
+
 LM native client (channel `legacymechanics:native_ui`, LM 4.7.61): its hello lists the eighteen ids in
 `LmNativeProtocol.CLIENT_FEATURES`, plus `combined.forms.v1` when DragonMineZ is installed and `bodyParts`
 when DMZUltra's FormParts is installed. With both, Character Services > Preview forms (a made-up figure in a
@@ -373,7 +389,7 @@ but owns no partner channels): register your own channel then.
 | 8 | `panelWidth` | varint | Default **350** |
 | 9 | `panelHeight` | varint | Default **300** (grows toward **420** when needed) |
 | 10 | `layoutJson` | string | JSON object (panel + body/button metrics + optional `playerModel`) |
-| 11 | `inputsJson` | string | JSON array of input elements (`type=text` / `type=paged_book`); default `[]` |
+| 11 | `inputsJson` | string | JSON array of input elements (`type=text` / `type=paged_book`; LM-native `type=color_wheel`, 4.7.66, skip it); default `[]` |
 
 Missing trailing fields → defaults. Bytes after the last understood field ignored.
 

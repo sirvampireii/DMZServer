@@ -27,6 +27,14 @@ In-game test rig for LegacyMechanics menus. Never shipped, never put on the live
     lethal melee hit with only the attacker's switch on is caught too; a zombie's lethal hit on a fighter is not
     guarded; with Friendly Fist off for both a lethal partner hit kills and the spar ends as death. The
     `ff1-after-three-lethal-hits` REC shot shows the client still in game.
+  - Custom menu skin (4.7.66): the picker's Custom row after Zeno Omni; picking it wears Saiyan Royal tones and
+    opens My colors (five fields, five color wheels on the LM client, Style, Scene, Apply, Preview, From, Reset);
+    Apply with both hex spellings saves and reopens wearing them; the look goes out as the palette token; "red",
+    "#12" and "#gggggg" show the human error, apply nothing and keep every field; empty fields keep their colors;
+    unreadable text is adjusted (3:1 dark, 4.5:1 light) with the note; From and Reset fill fields without saving;
+    relog, slot switch, a preset and back keep the colors; Backgrounds off keeps Custom. Without the 4.7.66 LM client
+    (the kai stage) the editor is the plain note. The final phase taps the top of the Panel wheel on the real client
+    (`uiclick wheel:0`, red) and clicks Apply (`custom1`..`custom4` REC lines); `FINAL CUSTOM` checks it saved.
   - Recommendation rule
   - Momentum banking and the cap
   - Mastery x1.5 inside the window, x1.0 outside

@@ -1,5 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.client;
 
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.ColorWheel;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.SaiyanRoyal;
 import com.dbzlegacy.adaptivedifficulty.net.gui.GuiOpenPacket;
@@ -82,6 +83,12 @@ public final class NativeMenuScreen extends Screen {
     /** Menu skins picker (hub page) and its apply action. */
     private static final String SKINS_PAGE = "skins";
     private static final String SKIN_ACTION = "do:menu_skin:";
+    /** 4.7.66 My colors: its page, the Apply action prefix (then the palette token), the tone field keys. */
+    private static final String CUSTOM_PAGE = "skin_custom";
+    private static final String CUSTOM_APPLY = "do:menu_custom:apply:";
+    private static final String[] CUSTOM_TONES = {"panel", "primary", "trim", "text", "confirm"};
+    /** Side of a color field's preview square. */
+    private static final int PREVIEW_SQ = 8;
 
     /** Last Momentum-bar share shown per screen, page and line, so the next packet fills from there. */
     private static final Map<String, Double> BAR_SHOWN = new HashMap<>();
@@ -96,7 +103,22 @@ public final class NativeMenuScreen extends Screen {
     private record Book(String id, int x, int y, int w, int h, JsonArray pages) {}
 
     private record Field(String id, int x, int y, int w, int h, String value, String placeholder, int maxLength,
-            JsonObject args) {}
+            JsonObject args, boolean colorPreview) {}
+
+    /** 4.7.66 color wheel: a hue ring and saturation/value square that fill {@code target} with a hex color. */
+    private record Wheel(String id, int x, int y, int w, int h, String target) {
+        int side() {
+            return Math.max(8, Math.min(w, h));
+        }
+
+        int left() {
+            return x + (w - side()) / 2;
+        }
+
+        int top() {
+            return y + (h - side()) / 2;
+        }
+    }
 
     private final GuiOpenPacket packet;
     private final List<String> lines = new ArrayList<>();
@@ -106,6 +128,11 @@ public final class NativeMenuScreen extends Screen {
     private final List<Field> fields = new ArrayList<>();
     private final Map<String, EditBox> boxes = new LinkedHashMap<>();
     private final Map<String, Integer> bookPage = new LinkedHashMap<>();
+    private final List<Wheel> wheels = new ArrayList<>();
+    /** Wheel id to its current {h, s, v}; seeded from the target field's color. */
+    private final Map<String, double[]> wheelHsv = new HashMap<>();
+    /** The wheel a left-button drag started on, or null. */
+    private Wheel dragWheel;
     private final Map<String, String> typed = new LinkedHashMap<>();
 
     private int panelW;
@@ -287,7 +314,10 @@ public final class NativeMenuScreen extends Screen {
                 JsonObject args = in.has("args") && in.get("args").isJsonObject() ? in.getAsJsonObject("args")
                         : new JsonObject();
                 fields.add(new Field(id, x, y, w, h, str(in, "value", ""), str(in, "placeholder", ""),
-                        Math.max(1, Math.min(256, num(in, "maxLength", 64))), args));
+                        Math.max(1, Math.min(256, num(in, "maxLength", 64))), args, bool(in, "colorPreview", false)));
+            } else if (ColorWheel.TYPE.equals(type)) {
+                int h = Math.max(ColorWheel.MIN_SIZE, num(in, "h", ColorWheel.MIN_SIZE));
+                wheels.add(new Wheel(id, x, y, w, h, str(in, "target", "")));
             }
             // Other input types never reach this client: the server routes such menus to KaiPath.
         }
@@ -312,7 +342,8 @@ public final class NativeMenuScreen extends Screen {
         scroll = Math.max(0f, Math.min(scroll, place.maxScroll()));
         for (Field f : fields) {
             // The field draws its own rounded frame; the text box sits inside it.
-            EditBox box = new EditBox(this.f_96547_, f.x() + 4, f.y() + (f.h() - 8) / 2, f.w() - 8, 8,
+            EditBox box = new EditBox(this.f_96547_, f.x() + 4, f.y() + (f.h() - 8) / 2,
+                    f.w() - 8 - (f.colorPreview() ? PREVIEW_SQ + 4 : 0), 8,
                     Component.m_237113_(f.placeholder()));
             box.m_94182_(false);
             box.m_94199_(f.maxLength());
@@ -409,6 +440,9 @@ public final class NativeMenuScreen extends Screen {
         }
         for (Field f : fields) {
             taken.add(new int[] {f.x(), f.y(), f.w(), f.h()});
+        }
+        for (Wheel wl : wheels) {
+            taken.add(new int[] {wl.x(), wl.y(), wl.w(), wl.h()});
         }
         for (Book b : books) {
             taken.add(new int[] {b.x(), b.y(), b.w(), b.h()});
@@ -526,7 +560,13 @@ public final class NativeMenuScreen extends Screen {
                 if (live) {
                     box.m_88315_(g, mx, my, partialTick);
                 }
+                if (f.colorPreview()) {
+                    drawFieldColor(g, f, box.m_94155_());
+                }
             }
+        }
+        for (Wheel wl : wheels) {
+            drawWheel(g, wl);
         }
         boolean down = live && Minecraft.m_91087_().f_91067_.m_91560_();
         drawTabIndicator(g, now, true);
@@ -997,8 +1037,33 @@ public final class NativeMenuScreen extends Screen {
         }
     }
 
-    /** Menu skins picker: the skin a locked row-label previews (same row as a {@code do:menu_skin:<id>}). */
+    /**
+     * Menu skins picker: the skin a locked row-label previews (same row as a {@code do:menu_skin:<id>}; for Custom
+     * the id is the palette token). On My colors (4.7.66) the locked label beside Apply previews the fields as
+     * typed: the Apply action's token, with every field that holds a color laid over it.
+     */
     private MenuSkins.Skin swatchSkin(Btn b) {
+        if ("hub".equalsIgnoreCase(packet.screenId()) && CUSTOM_PAGE.equalsIgnoreCase(packet.pageId())) {
+            for (Btn o : serverButtons) {
+                String s = semantic(o.id());
+                if (o != b && o.y() == b.y() && s.startsWith(CUSTOM_APPLY)) {
+                    MenuSkins.Custom c = MenuSkins.parseCustom(s.substring(CUSTOM_APPLY.length()));
+                    if (c == null) {
+                        return null;
+                    }
+                    int[] t = c.tones();
+                    for (int i = 0; i < CUSTOM_TONES.length; i++) {
+                        EditBox box = boxes.get("@hub:input:skin_" + CUSTOM_TONES[i]);
+                        int v = box == null ? -1 : MenuSkins.parseHex(box.m_94155_());
+                        if (v >= 0) {
+                            t[i] = v;
+                        }
+                    }
+                    return MenuSkins.custom(c.withTones(t));
+                }
+            }
+            return null;
+        }
         if (!"hub".equalsIgnoreCase(packet.screenId()) || !SKINS_PAGE.equalsIgnoreCase(packet.pageId())) {
             return null;
         }
@@ -1035,7 +1100,110 @@ public final class NativeMenuScreen extends Screen {
     }
 
     private String swatchText(Btn b, MenuSkins.Skin s) {
-        return s == skin ? "You are using this" : "Sample text";
+        if (CUSTOM_PAGE.equalsIgnoreCase(packet.pageId())) {
+            return "Preview";
+        }
+        return s.equals(skin) ? "You are using this" : "Sample text";
+    }
+
+    /** The button Enter in field {@code fieldId} clicks (4.7.66 {@code onEnter}), or null for the plain submit. */
+    private Btn enterButton(String fieldId) {
+        for (Btn o : serverButtons) {
+            if (bool(o.args(), "onEnter", false)
+                    && java.util.Arrays.asList(str(o.args(), "bindInputs", "").split("\\|")).contains(fieldId)) {
+                return o;
+            }
+        }
+        return null;
+    }
+
+    /** Small square at a color field's right end showing the color typed in it (a dashed frame when it is not one). */
+    private void drawFieldColor(GuiGraphics g, Field f, String text) {
+        int x = f.x() + f.w() - 4 - PREVIEW_SQ;
+        int y = f.y() + (f.h() - PREVIEW_SQ) / 2;
+        int rgb = MenuSkins.parseHex(text);
+        fillRounded(g, x - 1, y - 1, PREVIEW_SQ + 2, PREVIEW_SQ + 2, 2, MenuSkins.OPAQUE | skin.fieldEdge());
+        if (rgb >= 0) {
+            fillRounded(g, x, y, PREVIEW_SQ, PREVIEW_SQ, 1, MenuSkins.OPAQUE | rgb);
+        } else {
+            fillRounded(g, x, y, PREVIEW_SQ, PREVIEW_SQ, 1, MenuSkins.OPAQUE | skin.fieldFill());
+        }
+    }
+
+    /** {h, s, v} of a wheel, seeded once from its target field. */
+    private double[] hsvOf(Wheel w) {
+        return wheelHsv.computeIfAbsent(w.id(), k -> {
+            EditBox box = boxes.get(w.target());
+            int rgb = box == null ? -1 : MenuSkins.parseHex(box.m_94155_());
+            return rgb < 0 ? new double[] {0, 1, 1} : ColorWheel.rgbToHsv(rgb);
+        });
+    }
+
+    private void drawWheel(GuiGraphics g, Wheel w) {
+        int side = w.side();
+        int x = w.left();
+        int y = w.top();
+        double[] hsv = hsvOf(w);
+        ColorWheelTex.drawRing(g, x, y, side);
+        double[] sq = ColorWheel.square(side);
+        int sx = x + (int) Math.round(sq[0]);
+        int sy = y + (int) Math.round(sq[1]);
+        int ss = (int) Math.round(sq[2]);
+        ColorWheelTex.drawSquare(g, sx, sy, ss, hsv[0]);
+        // Markers: the hue on the ring, the saturation/value in the square.
+        double c = side / 2.0;
+        double rr = c * (1 + ColorWheel.RING_INNER) / 2;
+        double a = hsv[0] * 2 * Math.PI;
+        int hx = x + (int) Math.round(c + rr * Math.sin(a));
+        int hy = y + (int) Math.round(c - rr * Math.cos(a));
+        marker(g, hx, hy);
+        marker(g, sx + (int) Math.round(hsv[1] * ss), sy + (int) Math.round((1 - hsv[2]) * ss));
+    }
+
+    private static void marker(GuiGraphics g, int x, int y) {
+        g.m_280509_(x - 2, y - 2, x + 3, y + 3, MenuSkins.OPAQUE | MenuSkins.BLACK);
+        g.m_280509_(x - 1, y - 1, x + 2, y + 2, MenuSkins.OPAQUE | MenuSkins.WHITE);
+    }
+
+    /** A tap (or drag) on a wheel: fill its target field with the color picked. True when it hit the wheel. */
+    private boolean pickWheel(Wheel w, double x, double y) {
+        int side = w.side();
+        double px = x - w.left();
+        double py = y - w.top();
+        if (px < 0 || py < 0 || px >= side || py >= side) {
+            return false;
+        }
+        int rgb = ColorWheel.pick(side, px, py, hsvOf(w));
+        if (rgb < 0) {
+            return false;
+        }
+        EditBox box = boxes.get(w.target());
+        if (box != null) {
+            String hex = MenuSkins.hex(rgb);
+            box.m_94144_(hex);
+            typed.put(w.target(), hex);
+        }
+        return true;
+    }
+
+    @Override
+    public boolean m_7979_(double mouseX, double mouseY, int button, double dragX, double dragY) {
+        if (button == 0 && dragWheel != null) {
+            Wheel w = dragWheel;
+            double x = toDesignX(mouseX);
+            double y = toDesignY(mouseY);
+            // Keep picking while the drag stays inside the wheel's box.
+            if (pickWheel(w, x, y)) {
+                return true;
+            }
+        }
+        return super.m_7979_(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean m_6348_(double mouseX, double mouseY, int button) {
+        dragWheel = null;
+        return super.m_6348_(mouseX, mouseY, button);
     }
 
     /** Face and edge color (ARGB) of a button at rest or hovered, by style; the edge takes the accent. */
@@ -1365,6 +1533,12 @@ public final class NativeMenuScreen extends Screen {
         double x = toDesignX(mouseX);
         double y = toDesignY(mouseY);
         if (button == 0) {
+            for (Wheel wl : wheels) {
+                if (pickWheel(wl, x, y)) {
+                    dragWheel = wl;
+                    return true;
+                }
+            }
             focus = -1;
             boolean anyBox = false;
             for (Field f : fields) {
@@ -1420,6 +1594,13 @@ public final class NativeMenuScreen extends Screen {
                 if (!bind.isBlank() && boxes.containsKey(bind)) {
                     args.addProperty("value", boxes.get(bind).m_94155_());
                 }
+                // 4.7.66: a page that reads several fields per click lists them in bindInputs.
+                for (String fid : str(args, "bindInputs", "").split("\\|")) {
+                    EditBox fb = fid.isBlank() ? null : boxes.get(fid);
+                    if (fb != null) {
+                        args.addProperty(fid, fb.m_94155_());
+                    }
+                }
                 LmNativeNetwork.sendAction(packet.screenId(), b.id(), args.toString());
             }
         }
@@ -1438,6 +1619,11 @@ public final class NativeMenuScreen extends Screen {
                 continue;
             }
             if (keyCode == 257 || keyCode == 335) {
+                Btn onEnter = enterButton(f.id());
+                if (onEnter != null) {
+                    click(onEnter);
+                    return true;
+                }
                 JsonObject args = f.args().deepCopy();
                 args.addProperty("value", box.m_94155_());
                 playClick("");
@@ -1579,6 +1765,11 @@ public final class NativeMenuScreen extends Screen {
             out.add(String.format(Locale.ROOT, "T %.1f %.1f %.1f %.1f %s hint=\"%s\" hintw=%d room=%d",
                     place.x() + f.x() * scale(), originY() + f.y() * scale(), f.w() * scale(), f.h() * scale(), f.id(),
                     fieldHint(f), this.f_96547_.m_92895_(fieldHint(f)), f.w() - 8));
+        }
+        for (Wheel wl : wheels) {
+            out.add(String.format(Locale.ROOT, "W %.1f %.1f %.1f %.1f %s target=%s",
+                    place.x() + wl.left() * scale(), originY() + wl.top() * scale(), wl.side() * scale(),
+                    wl.side() * scale(), wl.id(), wl.target()));
         }
         for (Book b : books) {
             out.add(String.format(Locale.ROOT, "K %.1f %.1f %.1f %.1f %s page=%d", place.x() + b.x() * scale(),

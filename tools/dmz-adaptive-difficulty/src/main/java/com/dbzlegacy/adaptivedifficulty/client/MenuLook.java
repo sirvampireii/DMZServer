@@ -25,7 +25,7 @@ final class MenuLook {
 
     static void apply(NativePrefsPacket p) {
         MenuSkins.Skin next = MenuSkins.byId(p.skin());
-        if (next != skin) {
+        if (!next.equals(skin)) {
             previous = skin;
             changedAt = System.nanoTime();
         }

@@ -49,6 +49,10 @@ public final class UltraScreenSpec {
     private final List<String> lines = new ArrayList<>();
     private final List<Button> buttons = new ArrayList<>();
     private final List<Input> inputs = new ArrayList<>();
+    /** 4.7.66: fields every button copies (args.bindInputs), the Enter button, fields with a color square. */
+    private final List<String> bindAllInputs = new ArrayList<>();
+    private String enterActionId;
+    private final java.util.Set<String> colorPreviewInputs = new java.util.HashSet<>();
     /** Compact title + tab row; content starts immediately below. */
     private int nextRow = UltraStyle.CONTENT_ROW;
     private int panelWidth = UltraStyle.PANEL_W;
@@ -784,7 +788,53 @@ public final class UltraScreenSpec {
                         Math.max(14, h),
                         Math.max(1, Math.min(256, maxLength <= 0 ? 64 : maxLength)),
                         null,
-                        0));
+                        0,
+                        null));
+        return this;
+    }
+
+    /**
+     * 4.7.66 color wheel ({@code inputsJson} {@code type=color_wheel}): a hue ring around a saturation/value square.
+     * A tap fills the text field {@code targetInputId} with {@code #rrggbb}. Additive and ignorable: KaiPath and
+     * older LM clients skip input types they do not know, and the native analyzer never routes a page on it
+     * ({@link com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeProtocol#analyze}). Callers still add it only for a
+     * client whose hello lists {@link ColorWheel#FEATURE}, so a bridge page carries the hex field alone.
+     */
+    public UltraScreenSpec colorWheel(String inputId, String targetInputId, int x, int y, int size) {
+        UltraScreenIds.requireValidActionId(screenId, inputId, "color_wheel");
+        UltraScreenIds.requireValidActionId(screenId, targetInputId, "color_wheel target");
+        if (firstButtonY < 0 || y < firstButtonY) {
+            firstButtonY = y;
+        }
+        int s = Math.max(ColorWheel.MIN_SIZE, size);
+        inputs.add(new Input(qualifyAction(inputId), ColorWheel.TYPE, "", "", x, y, s, s, 0, null, 0,
+                qualifyAction(targetInputId)));
+        return this;
+    }
+
+    /** 4.7.66: the text field {@code inputId} draws a small square of the color typed in it (LM client). */
+    public UltraScreenSpec colorPreview(String inputId) {
+        colorPreviewInputs.add(qualifyAction(inputId));
+        return this;
+    }
+
+    /**
+     * 4.7.66: every button on this page (footer excepted) carries {@code args.bindInputs}, and the LM client copies
+     * each listed field's text into {@code args.<field id>} on click, so a toggle keeps what was typed and one Apply
+     * reads several fields. KaiPath ignores the key (it reads {@code bindInput} only).
+     */
+    public UltraScreenSpec bindInputsToButtons(String... inputIds) {
+        for (String id : inputIds) {
+            if (id != null && !id.isBlank()) {
+                bindAllInputs.add(qualifyAction(id));
+            }
+        }
+        return this;
+    }
+
+    /** 4.7.66: Enter in a field clicks this button on the LM client ({@code args.onEnter}). */
+    public UltraScreenSpec enterClicks(String actionId) {
+        enterActionId = actionId == null ? null : qualifyAction(actionId);
         return this;
     }
 
@@ -813,7 +863,8 @@ public final class UltraScreenSpec {
                         Math.max(40, h),
                         0,
                         copy,
-                        Math.max(0, startPage)));
+                        Math.max(0, startPage),
+                        null));
         return this;
     }
 
@@ -1017,7 +1068,12 @@ public final class UltraScreenSpec {
             if ("paged_book".equalsIgnoreCase(in.type)) {
                 o.add("pages", in.pages == null ? new JsonArray() : in.pages);
                 o.addProperty("page", Math.max(0, in.page));
+            } else if (ColorWheel.TYPE.equalsIgnoreCase(in.type)) {
+                o.addProperty("target", in.target == null ? "" : in.target);
             } else {
+                if (colorPreviewInputs.contains(in.id)) {
+                    o.addProperty("colorPreview", true);
+                }
                 o.addProperty("value", UltraStyle.wireText(in.value == null ? "" : in.value));
                 o.addProperty(
                         "placeholder",
@@ -1138,6 +1194,9 @@ public final class UltraScreenSpec {
         }
         if ("paged_book".equalsIgnoreCase(c.input().type)) {
             return Math.max(40, Math.round(c.h() * 0.75f));
+        }
+        if (ColorWheel.TYPE.equalsIgnoreCase(c.input().type)) {
+            return c.h();
         }
         return UltraStyle.MENU_BTN_H + 2;
     }
@@ -1437,10 +1496,15 @@ public final class UltraScreenSpec {
         if ("paged_book".equalsIgnoreCase(in.type)) {
             o.add("pages", in.pages == null ? new JsonArray() : in.pages);
             o.addProperty("page", Math.max(0, in.page));
+        } else if (ColorWheel.TYPE.equalsIgnoreCase(in.type)) {
+            o.addProperty("target", in.target == null ? "" : in.target);
         } else {
             o.addProperty("value", UltraStyle.wireText(in.value == null ? "" : in.value));
             o.addProperty("placeholder", UltraStyle.wireText(in.placeholder == null ? "" : in.placeholder));
             o.addProperty("maxLength", in.maxLength);
+            if (colorPreviewInputs.contains(in.id)) {
+                o.addProperty("colorPreview", true);
+            }
         }
         JsonObject args = new JsonObject();
         args.addProperty("screen", screenId);
@@ -1713,6 +1777,13 @@ public final class UltraScreenSpec {
         if (b.bindInput != null && !b.bindInput.isBlank()) {
             args.addProperty("bindInput", b.bindInput);
         }
+        if (!bindAllInputs.isEmpty() && !b.footer) {
+            // 4.7.66: the LM client copies every listed field into args under its own id.
+            args.addProperty("bindInputs", String.join("|", bindAllInputs));
+        }
+        if (enterActionId != null && enterActionId.equals(b.actionId)) {
+            args.addProperty("onEnter", true);
+        }
         o.add("args", args);
         btnArr.add(o);
     }
@@ -1746,7 +1817,9 @@ public final class UltraScreenSpec {
             int h,
             int maxLength,
             JsonArray pages,
-            int page) {}
+            int page,
+            /** 4.7.66 color_wheel: the text field id a pick fills (qualified). */
+            String target) {}
 
     private record PlayerModel(
             int x, int y, int width, int height, float scale, boolean rotate, JsonObject parts) {}

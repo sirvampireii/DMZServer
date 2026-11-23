@@ -65,6 +65,7 @@ public final class LmClient {
         NativeModelPreview.clear();
         MenuLook.reset();
         MenuBackground.clear();
+        ColorWheelTex.clear();
     }
 
     private static void onNameTag(RenderNameTagEvent event) {
