@@ -197,6 +197,13 @@ def main() -> int:
     check("DMZFaceHdMixin: both skin overlay render types take HdFace.key, require = 0",
           '"skinOverlayCutout", "skinOverlayTranslucent"' in face_hd and "HdFace.key(loc)" in face_hd
           and "require = 0" in face_hd)
+    print("--- GeckoLib animation files are never redirected (0.2.9)")
+    hooks = re.sub(r"/\*.*?\*/|//[^\n]*", "", (SRC / "client" / "LtHooks.java").read_text(encoding="utf-8"), flags=re.S)
+    check("lookupTarget leaves animations/ alone: an HD-only animation made DMZ name a file GeckoLib never baked "
+          "(Master Roshi in the U6/U7 arena crashed HD viewers)",
+          re.search(r"lookupTarget\(ResourceManager self, ResourceLocation loc\) \{\s*if \(loc == null \|\| RAW\.get\(\)\[0\] > 0 "
+                    r"\|\| isAnimation\(loc\)\) \{\s*return null;", hooks) is not None
+          and 'return loc.m_135815_().startsWith("animations/");' in hooks)
     morph = re.sub(r"/\*.*?\*/|//[^\n]*", "", (SRC / "mixin" / "ModelMorphMixin.java").read_text(encoding="utf-8"), flags=re.S)
     check("ModelMorphMixin: the blend's baked-model lookups take LtHooks.modelTarget, require = 0",
           'method = "baked"' in morph and "Ljava/util/Map;get(Ljava/lang/Object;)Ljava/lang/Object;" in morph
