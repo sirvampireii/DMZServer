@@ -50,9 +50,20 @@ public final class LtHooks {
         return loc;
     }
 
-    /** Client resource manager: the file to read instead of {@code loc}, or null to read {@code loc}. */
+    /**
+     * Client resource manager: the file to read instead of {@code loc}, or null to read {@code loc}.
+     *
+     * <p>Never for a GeckoLib animation file (0.2.9). GeckoLib plays animations only from what it baked
+     * at reload, under each file's own key, and this mod has no animation hook, so a redirected
+     * animation lookup never draws anything HD. It only made an existence check say "yes" for a DMZ
+     * key GeckoLib never baked: DragonMineZ's quest NPC model then named
+     * dragonminez:animations/entity/master/master_roshi.animation.json (only the HD set has it) and
+     * GeckoLib threw "Unable to find animation file", crashing every HD viewer near Master Roshi in
+     * DMZ Ultra's U6/U7 arena stands. Models keep their own hook ({@link #modelTarget}), which only
+     * redirects to an HD model GeckoLib actually baked.
+     */
     public static ResourceLocation lookupTarget(ResourceManager self, ResourceLocation loc) {
-        if (loc == null || RAW.get()[0] > 0) {
+        if (loc == null || RAW.get()[0] > 0 || isAnimation(loc)) {
             return null;
         }
         lookups++;
@@ -62,6 +73,11 @@ public final class LtHooks {
         }
         ResourceLocation v = ClientState.RESOLVER.variant(loc);
         return v == loc ? null : v;
+    }
+
+    /** A GeckoLib animation file: read only from GeckoLib's baked cache, never through a set redirect. */
+    static boolean isAnimation(ResourceLocation loc) {
+        return loc.m_135815_().startsWith("animations/");
     }
 
     /** GeckoLib: the baked model to use; an HD model only when GeckoLib actually baked it. */

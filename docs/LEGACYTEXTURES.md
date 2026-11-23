@@ -4,8 +4,8 @@ A Forge 1.20.1 mod that carries the HD textures for DragonMineZ and NB Armors, a
 switch between HD and the standard look for their own game. It is a new mod, separate from
 LegacyMechanics. Source: `tools/legacytextures/`.
 
-- **Identity:** modId `legacytextures`, version 0.2.8, `displayTest = MATCH_VERSION`.
-- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.8). See
+- **Identity:** modId `legacytextures`, version 0.2.9, `displayTest = MATCH_VERSION`.
+- **NB Armors is inside (0.2.0).** The jar also declares the mod `nbarmors` (version 0.2.9). See
   [NB Armors inside Legacy Textures](#nb-armors-inside-legacy-textures). The separate
   `nbarmors-0.1.0.jar` must not be installed next to it, because two copies of a mod id will not load.
 - **Dependencies:**
@@ -287,10 +287,20 @@ animation one is described under Face animation:
 | Hook | Target (checked against) | What it does |
 |---|---|---|
 | `TextureManagerMixin` | `TextureManager.getTexture(RL)`, `getTexture(RL, AbstractTexture)`, `bindForSetup` (MC 1.20.1, SRG) | Binds the active set's file. HD and vanilla are different keys, so both stay loaded and a switch is instant. A DMZ or NB texture missing from every set draws transparent instead of the purple-black checkerboard. |
-| `ReloadableResourceManagerMixin` | `ReloadableResourceManager.getResource` (MC 1.20.1, SRG), client manager only | Answers "does this file exist / read it" from the active set. See the list below. |
+| `ReloadableResourceManagerMixin` | `ReloadableResourceManager.getResource` (MC 1.20.1, SRG), client manager only | Answers "does this file exist / read it" from the active set. See the list below. Never for an `animations/` file (0.2.9, see below). |
 | `GeoModelMixin` | GeckoLib `GeoModel.getBakedModel(RL)` (geckolib-forge-1.20.1-4.8.4; skipped if GeckoLib is absent) | Uses the HD model when GeckoLib baked one. GeckoLib bakes every `geo/` file of every namespace at each resource reload, the 11 HD geos included, so both variants are always in its cache and switching is instant. `DMZPlayerModel` overrides `getBakedModel` but calls `super` for every steady-state model, so it goes through this hook. DMZ's transformation blend (`ModelMorph`) reads GeckoLib's cache directly; since 0.2.7 `ModelMorphMixin` routes it through the same choice. The client probe checks the drawn geometry (cube counts) of `master_roshi` and `frostdemon_fifth` in each mode and across three toggles. |
 | `ModelMorphMixin` (0.2.7) | DMZ `ModelMorph.baked(RL)`, both `Map.get` reads of `GeckoLibCache.getBakedModels()` (DragonMineZ 2.2.1.2) | The transform blend takes its from and to models through `LtHooks.modelTarget`, like the steady-state hook. Before 0.2.7 an HD viewer saw the blend use the vanilla model shape under the HD texture. Of the HD models compared (Frost Demon base, third, fifth), `frostdemon_fifth` differs most (19 cubes with other UVs, 15 more or fewer, mostly the head; third differs by one cube), so it showed while charging out of a fifth-form-model form into another model. |
 | `DMZFaceHdMixin` (0.2.7) | DMZ `ModRenderTypes.skinOverlayCutout` / `skinOverlayTranslucent(RL)` (DragonMineZ 2.2.1.2) | Inside a face marked by `HdFace` (see One set per character), the face layer's texture key becomes its HD file. Outside such a face the key passes through. |
+
+**Animation files are not redirected (0.2.9).** GeckoLib plays animations only from what it baked at the
+reload, under each file's own key, and Legacy Textures has no animation hook. Redirecting an
+`animations/` lookup therefore never drew anything HD. It only made an existence check say "yes" for a
+`dragonminez:` file GeckoLib never baked. The HD set ships six animations that DragonMineZ itself
+lacks (`master_roshi`, `master_dende`, `battle_jacket`, `giant_fish`, `pirate_robot`, `pterosaur`).
+DMZ's quest NPC model checks that its `animations/entity/master/<model>.animation.json` exists before it
+uses it, so on 0.2.8 an HD viewer near Master Roshi in DMZ Ultra's U6/U7 arena stands (a quest NPC with
+model `master_roshi`) crashed with "Unable to find animation file". The lookup hook now leaves
+`animations/` paths alone; HD models and textures are unchanged. The audit pins the guard.
 
 The resource-manager hook covers every place DMZ 2.2.1.1 checks or reads a file before drawing:
 
