@@ -156,7 +156,11 @@ def main(out, base=None):
         idx = {}
         for r in crawled(b):
             idx.setdefault((r["screen"], r["page"], r["title"], r["tab"]), r)
-        same = differ = 0
+        same = differ = wheel = 0
+        # 4.7.67: a page with a color wheel differs on purpose. The wheel (and its row and hint) goes only to LM
+        # clients that draw it; KaiPath gets the hex field alone. Such a page counts as "by design" when the native
+        # packet has a color_wheel input and the KaiPath packet has none; any other difference still fails.
+        has_wheel = lambda r: any(i.get("type") == "color_wheel" for i in (r.get("inputs") or []))
         seen_keys = set()
         for r in crawled(a):
             k = (r["screen"], r["page"], r["title"], r["tab"])
@@ -169,9 +173,12 @@ def main(out, base=None):
             if json.dumps([r["layout"], r["buttons"], r["lines"]], sort_keys=True) == json.dumps(
                     [o["layout"], o["buttons"], o["lines"]], sort_keys=True):
                 same += 1
+            elif has_wheel(o) and not has_wheel(r):
+                wheel += 1
             elif not re.search(r"\[I@[0-9a-f]+", json.dumps(r["buttons"])):
                 differ += 1
-        row("one spec for both render paths (KaiPath run == native run)", differ == 0, f"{same} identical, {differ} differ")
+        row("one spec for both render paths (KaiPath run == native run)", differ == 0,
+            f"{same} identical, {differ} differ" + (f", {wheel} differ only by the LM-client color wheel" if wheel else ""))
 
     rj = read(os.path.join(out, "srv-reject.log"))
     if rj is None:

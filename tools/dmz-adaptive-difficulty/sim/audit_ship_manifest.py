@@ -1994,6 +1994,33 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.67 ---")
+    p67_svc = read(SRC / "character/CosmeticBodyPartService.java")
+    p67_scr = read(SRC / "gui/ultra/UltraCharacterScreens.java")
+    p67_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    check("manifest row for lm 4.7.67", "lm-4767-part-colors-wheel" in manifest)
+    check("presets unchanged: the 16 swatches, two pages of 8, instant save; actions carry six hex digits",
+          p67_svc.count("new Preset(") == 16 and '"Pick a swatch. It saves immediately."' in p67_scr
+          and '"do:bodypart_color:" + channel + ":" + String.format(Locale.ROOT, "%06x", preset.rgb() & 0xFFFFFF);' in p67_scr
+          and '"do:bodypart_color_reset:" + channel,' in p67_scr)
+    check("Pick any color: hex field with a color square, Apply bound to it, the wheel on LM clients that draw one",
+          'PICK_INPUT = "input:bodycolor_hex";' in p67_scr and "spec.colorPreview(input);" in p67_scr
+          and 'spec.buttonBound("do:bodypart_color:" + channel + ":", UltraStyle.confirm("Apply this color"),' in p67_scr
+          and "boolean wheel = typing && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesColorWheel(player);" in p67_scr
+          and "spec.colorWheel(PICK_WHEEL, input, UltraStyle.COL_L, spec.row(), 56);" in p67_scr)
+    check("one save path: Apply joins the typed hex to do:bodypart_color and executeColorPick checks it",
+          '"bodypart_color".equals(parts.action) && parts.arg != null && parts.arg.endsWith(":")' in p67_act
+          and 'args.addProperty("arg", parts.arg + (typed.length() > 16 ? typed.substring(0, 16) : typed));' in p67_act
+          and "int rgb = com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.parseHex(bits[1]);" in p67_svc
+          and "persistPartColor(player, channel, rgb);" in p67_svc)
+    check("bad hex shows the human error and applies nothing; the old swatch message is gone; empty keeps the color",
+          "return UltraStyle.DANGER + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraHubScreens.BAD_HEX;" in p67_svc
+          and "That swatch is not available" not in p67_svc
+          and '"Nothing changed - type a color like #e23b3b, or tap a swatch."' in p67_svc)
+    check("no text input: the config editor's plain note; storage, cost and channels unchanged",
+          '"Typed fields need KaiPath 1.3.9 or newer. Until then pick a swatch."' in p67_scr
+          and "LmGuiNetwork.sendModelSync(" in p67_svc and "GuiModelSyncPacket.REASON_COLOR" in p67_svc)
+
     print("\n--- § lm 4.7.66 ---")
     p66_reg = read(SRC / "gui/ultra/MenuSkins.java")
     p66_prefs = read(SRC / "gui/ultra/MenuPrefs.java")

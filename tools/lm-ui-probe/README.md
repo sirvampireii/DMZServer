@@ -35,6 +35,12 @@ In-game test rig for LegacyMechanics menus. Never shipped, never put on the live
     relog, slot switch, a preset and back keep the colors; Backgrounds off keeps Custom. Without the 4.7.66 LM client
     (the kai stage) the editor is the plain note. The final phase taps the top of the Panel wheel on the real client
     (`uiclick wheel:0`, red) and clicks Apply (`custom1`..`custom4` REC lines); `FINAL CUSTOM` checks it saved.
+  - Part colors, any color (4.7.67): the own channel's swatch page keeps its presets (six-digit swatch actions) and
+    adds Pick any color (one hex field, Apply this color, a wheel on the LM client; the plain note without text
+    input); typed `#e23b3b` and `3B82F6` save through the swatch path; "red", "#12", "#gggggg" show the human error
+    and change nothing; empty keeps the color; a swatch still saves instantly; trim is untouched; a slot switch keeps
+    it; Reset returns Default. The final phase taps the page's wheel (red) and clicks Apply this color
+    (`part1`..`part3` REC lines); `FINAL PARTCOLOR` checks it saved.
   - Recommendation rule
   - Momentum banking and the cap
   - Mastery x1.5 inside the window, x1.0 outside
@@ -75,7 +81,8 @@ bash tools/lm-ui-probe/matrix.sh mods/LegacyMechanics-<version>.jar [<older run>
   - scale-to-fit
   - look (contrast, cut labels, panel edge)
   - KaiPath-only path
-  - one spec for both paths
+  - one spec for both paths (4.7.67: a page whose native packet has a color wheel and whose KaiPath packet has
+    none differs on purpose and is counted separately; any other difference fails)
   - the requireLmClient rejection
   - every menu native with the LM client (Preview forms too)
 - `review.html`: a contact sheet for the owner. It shows GUI scale 3 and 4 shots of every Difficulty page, the main page

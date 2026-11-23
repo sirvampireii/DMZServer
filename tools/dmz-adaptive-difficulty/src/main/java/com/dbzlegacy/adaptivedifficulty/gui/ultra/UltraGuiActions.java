@@ -312,6 +312,13 @@ public final class UltraGuiActions {
         } else if (!args.has("arg") || args.get("arg") == null || args.get("arg").isJsonNull()) {
             args.addProperty("arg", "");
         }
+        // 4.7.67: "Pick any color" Apply is do:bodypart_color:<channel>: with the typed hex in args.value (bindInput);
+        // it joins the arg so the swatch save path (executeColorPick) checks and saves it.
+        if ("bodypart_color".equals(parts.action) && parts.arg != null && parts.arg.endsWith(":")
+                && args.has("value") && args.get("value").isJsonPrimitive()) {
+            String typed = args.get("value").getAsString().trim();
+            args.addProperty("arg", parts.arg + (typed.length() > 16 ? typed.substring(0, 16) : typed));
+        }
         // Spin toggle (4.7.48): one action on every model screen; the arg is the page to send again.
         if (ModelPreview.ROTATE_ACTION.equals(parts.action)) {
             ModelPreview.flipRotate(viewer);
