@@ -448,6 +448,8 @@ public final class DifficultyEvents {
             com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.onLogout(player);
             // 4.7.59: Momentum is session-only.
             com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);
+            // 4.7.64: the spar board is session-only.
+            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.onLogout(player.m_20148_());
             com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.onLogout(player);
             com.dbzlegacy.adaptivedifficulty.util.TpBossNotify.onLogout(player);
             // Flush player AD data only — do NOT clear active tier on disconnect.

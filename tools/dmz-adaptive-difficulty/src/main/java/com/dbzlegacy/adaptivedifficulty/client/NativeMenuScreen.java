@@ -619,6 +619,8 @@ public final class NativeMenuScreen extends Screen {
             g.m_280588_(x1, y1, x2, y2);
         }
         NativeText.Ink ink = NativeText.Ink.on(skin, bodyBackground());
+        // 4.7.64: on a card page the headers sit on the panel in the skin's trim, like editorial labels.
+        boolean cards = !clip && lineGroups(lines) != null;
         for (int i = 0; i < lines.size(); i++) {
             String raw = lines.get(i);
             if (raw == null || NativeText.plain(raw).isBlank()) {
@@ -631,8 +633,9 @@ public final class NativeMenuScreen extends Screen {
             if (drawSkinLine(g, raw, i, y, maxW, ink, now)) {
                 continue;
             }
+            int base = cards && headerLine(raw) ? skin.trim() : skin.text();
             FormattedCharSequence seq = NativeText.fit(this.f_96547_,
-                    NativeText.parse(raw, skin.text(), false, false, ink), maxW);
+                    NativeText.parse(raw, base, false, false, ink), maxW);
             g.m_280649_(this.f_96547_, seq, EDGE, y, MenuSkins.INK_FROM_TEXT, false);
         }
         if (clip) {
@@ -652,8 +655,65 @@ public final class NativeMenuScreen extends Screen {
         int x = EDGE - 4;
         int w = bodyRight() - EDGE + 8;
         int y = bodyTop + 1;
+        // 4.7.64: a page with two or more header lines reads as cards: each header sits on the panel like an
+        // editorial label and the lines under it get their own box. Same wire text; KaiPath shows it flat.
+        List<int[]> groups = bodyClipped() ? null : lineGroups(lines);
+        if (groups != null) {
+            int step = lineH + lineGap;
+            for (int[] gr : groups) {
+                int top = bodyTop + bodyPad + gr[0] * step - 3;
+                int bottom = bodyTop + bodyPad + gr[1] * step + lineH + 2;
+                insetBox(g, x, top, w, bottom - top, SaiyanRoyal.BOX_RADIUS, MenuSkins.OPAQUE | skin.insetEdge(),
+                        MenuSkins.OPAQUE | skin.infoFill(), skin);
+            }
+            return;
+        }
         insetBox(g, x, y, w, h, SaiyanRoyal.BOX_RADIUS, MenuSkins.OPAQUE | skin.insetEdge(),
                 MenuSkins.OPAQUE | skin.infoFill(), skin);
+    }
+
+    /**
+     * The header line marks: UltraStyle.header writes the header letter then bold; the spec drops the header
+     * letter on the way out, so a header usually arrives as a line that starts bold.
+     */
+    private static final String HEADER_MARK = "" + NativeText.MARK + SaiyanRoyal.BRIDGE_HEADER + NativeText.MARK + 'l';
+    private static final String BOLD_MARK = "" + NativeText.MARK + 'l';
+
+    private static boolean headerLine(String l) {
+        return l != null && (l.startsWith(HEADER_MARK) || l.startsWith(BOLD_MARK));
+    }
+
+    /**
+     * 4.7.64: {first, last} line index of each run of lines under a header (and of the lines before the first
+     * header), or null when the page has fewer than two headers (one box behind the whole body, as before).
+     */
+    static List<int[]> lineGroups(List<String> body) {
+        int headers = 0;
+        for (String l : body) {
+            if (headerLine(l)) {
+                headers++;
+            }
+        }
+        if (headers < 2) {
+            return null;
+        }
+        List<int[]> out = new java.util.ArrayList<>();
+        int start = -1;
+        for (int i = 0; i < body.size(); i++) {
+            String l = body.get(i);
+            if (headerLine(l)) {
+                if (start >= 0 && i - 1 >= start) {
+                    out.add(new int[] {start, i - 1});
+                }
+                start = i + 1;
+            } else if (start < 0) {
+                start = i;
+            }
+        }
+        if (start >= 0 && start <= body.size() - 1) {
+            out.add(new int[] {start, body.size() - 1});
+        }
+        return out;
     }
 
     private boolean infoBoxShown() {

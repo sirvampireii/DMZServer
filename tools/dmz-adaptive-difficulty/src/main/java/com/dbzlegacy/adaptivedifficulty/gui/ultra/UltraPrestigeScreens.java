@@ -168,6 +168,8 @@ public final class UltraPrestigeScreens {
             } else {
                 spec.line(UltraStyle.dim("Reach level " + ph.getOrDefault("required_fmt", "0") + " first."));
             }
+            // 4.7.64: the nearest way to earn toward it, from the systems that feed leveling.
+            spec.line(UltraStyle.VALUE + HubDashboard.fastestNow(player));
         }
         spec.buttonsAfterLines();
         spec.footerBackToMain();

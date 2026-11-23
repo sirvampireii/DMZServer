@@ -411,6 +411,12 @@ public final class UltraScreenSpec {
         return button(actionId, label, style, UltraStyle.COL_L, nextRow, UltraStyle.BTN_W);
     }
 
+    /** 4.7.64: one button across both columns on the current row (the hub's Prestige tile). */
+    public UltraScreenSpec buttonWide(String actionId, String label, String style, String accent) {
+        return button(actionId, label, style, UltraStyle.COL_L, nextRow, UltraStyle.BTN_W * 2 + UltraStyle.BTN_GAP,
+                null, accent);
+    }
+
     public UltraScreenSpec buttonRight(String actionId, String label, String style) {
         return button(actionId, label, style, UltraStyle.COL_R, nextRow, UltraStyle.BTN_W);
     }

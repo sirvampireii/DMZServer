@@ -247,6 +247,15 @@ public final class UltraDifficultyScreens {
                     + (trial.prev() > 0 ? "back to T" + trial.prev() : "back to no tier"));
         }
         momentumLines(spec, player);
+        if (!guide) {
+            // 4.7.64: two lines from the systems this one feeds (next prestige, rival standing).
+            HubDashboard.Prestige pr = HubDashboard.prestige(player);
+            spec.line(UltraStyle.header("Beyond Difficulty"));
+            if (pr.enabled()) {
+                spec.labelValue("Prestige:", HubDashboard.levelsToGo(pr.level(), pr.required(), pr.ready()));
+            }
+            spec.line(UltraStyle.VALUE + HubDashboard.rivalLine(player));
+        }
         spec.buttonsAfterLines();
         if (guide) {
             spec.button(GUIDE_DONE, UltraStyle.confirm("Got it - take me to Difficulty"), UltraStyle.STYLE_CONFIRM)

@@ -11,40 +11,23 @@ import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dragonminez.common.stats.skills.Skills;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.phys.AABB;
 
 /**
  * DragonMineZ Meditation levels while the player is already in Living World's
- * meditation state and either another meditating player is within range, or
- * two living NPCs that are meditating are within range. One NPC is not
- * enough. Standing nearby without meditating does not count. This class does
- * not start meditation for them.
+ * meditation state and another meditating player is within range. Standing
+ * nearby without meditating does not count. This class does not start
+ * meditation for them.
  *
- * <p>Living World 2.4.3 {@code beginSharedMeditation} calls
- * {@code beginMeditation}, which clears {@code MEDITATION_CIRCLE_MEMBER}.
- * The pose a player can stand next to is {@code isMeditating}. The circle
- * flag is resolved so a Living World build without it disables this pulse,
- * but it is not required. Mohist can load {@code AmbientFighterEntity} on
- * another class loader than {@code Class.forName}, so a fighter is also
- * recognized by class name and {@code isMeditating} is invoked on that
- * entity's own class. Player meditation is
- * {@code MeditationCompat.isPlayerMeditating}. Two players, or two NPCs,
- * still credit one sample. Extra players do not raise it. Two living NPCs
- * credit 75% of the player rate. Each held prestige adds 10% on top of
- * whichever rate is already in use.
+ * <p>Player meditation is {@code MeditationCompat.isPlayerMeditating}. Two
+ * players credit one sample. Extra players do not raise it. Each held prestige
+ * adds 10%. LM 4.7.64 removed the two-meditating-NPCs path (Living World
+ * fighters no longer count, and nothing scans for them).
  */
 public final class LivingWorldNearbyMeditation {
-    private static final String FIGHTER = "com.dmzlivingworld.entity.AmbientFighterEntity";
     private static final String PLAYER_STATE = "com.dmzlivingworld.compat.MeditationCompat";
     private static final String SKILL = "meditation";
     static final String KEY_PROGRESS = "lm.lw_med.progress_ms";
@@ -54,20 +37,11 @@ public final class LivingWorldNearbyMeditation {
     private static final String TEMP_LAST = "lm.lw_med.last_ms";
     /** Ignore a stalled pulse longer than this so a hung tick cannot dump hours. */
     private static final long MAX_DELTA_MS = 60_000L;
-    /** Two living NPCs credit this percent of the same time spent with a player. */
-    private static final int NPC_RATE_PERCENT = 75;
     /** Each held prestige adds this percent. More nearby players do not. */
     private static final int HELD_RATE_PERCENT = 10;
 
     private static volatile boolean lookupFailed;
-    private static Class<?> fighterClass;
-    private static Method isMeditating;
-    private static Method isMeditationCircleMember;
     private static Method isPlayerMeditating;
-    /** Methods from the entity's own class when Mohist split the fighter class. */
-    private static final Map<Class<?>, Method> meditatingOnClass = new HashMap<>();
-    /** Class-name walk result. Hot entities otherwise repeat the hierarchy walk. */
-    private static final Map<Class<?>, Boolean> fighterType = new HashMap<>();
 
     private LivingWorldNearbyMeditation() {}
 
@@ -96,11 +70,9 @@ public final class LivingWorldNearbyMeditation {
         if (meditating.isEmpty()) {
             return;
         }
-        List<Entity> circles = meditatingFightersNear(meditating, radius);
         for (ServerPlayer player : meditating) {
             boolean withPlayer = nearMeditatingPlayer(player, players, r2);
-            boolean withNpcs = nearTwoLivingCircleNpcs(player, circles, r2);
-            if (!withPlayer && !withNpcs) {
+            if (!withPlayer) {
                 clearNear(player);
                 continue;
             }
@@ -129,8 +101,8 @@ public final class LivingWorldNearbyMeditation {
         out.add("§5Meditation§7: §f" + level + "/" + cap);
         out.add("§8  - §7Progress §f" + compact(progress) + " / " + compact(need));
         out.add("§8  - §7Remaining §f" + compact(left));
-        out.add("§8  - §7Meditate near another player, or near two living NPCs.");
-        out.add("§8  - §7NPCs count at 75%. More players do not add time.");
+        out.add("§8  - §7Meditate near another player.");
+        out.add("§8  - §7More players do not add time.");
         out.add("§8  - §7Each held prestige adds 10%.");
     }
 
@@ -157,106 +129,22 @@ public final class LivingWorldNearbyMeditation {
     }
 
     private static boolean resolveApi() {
-        if (isMeditating != null && isMeditationCircleMember != null
-                && isPlayerMeditating != null && fighterClass != null) {
+        if (isPlayerMeditating != null) {
             return true;
         }
         if (lookupFailed) {
             return false;
         }
         try {
-            Class<?> cls = Class.forName(FIGHTER);
             Class<?> compat = Class.forName(PLAYER_STATE);
-            isMeditating = cls.getMethod("isMeditating");
-            isMeditationCircleMember = cls.getMethod("isMeditationCircleMember");
             isPlayerMeditating = compat.getMethod("isPlayerMeditating", ServerPlayer.class);
-            fighterClass = cls;
             return true;
         } catch (Throwable t) {
             lookupFailed = true;
             AdaptiveDifficultyMod.LOGGER.warn(
-                    "[{}] Living World meditation circle API unavailable: {}",
+                    "[{}] Living World player meditation API unavailable: {}",
                     AdaptiveDifficultyMod.MOD_ID,
                     t.toString());
-            return false;
-        }
-    }
-
-    /** Fighters inside the detection box of a meditating player. Not every entity in every level. */
-    private static List<Entity> meditatingFightersNear(List<ServerPlayer> meditating, double radius) {
-        List<Entity> centers = new ArrayList<>();
-        Set<Entity> seen = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
-        double reach = Math.max(1.0, radius);
-        for (ServerPlayer player : meditating) {
-            if (player == null || !(player.m_9236_() instanceof ServerLevel level)) {
-                continue;
-            }
-            AABB box = player.m_20191_().m_82400_(reach);
-            for (LivingEntity entity : level.m_45976_(LivingEntity.class, box)) {
-                if (entity == null || !seen.add(entity)) {
-                    continue;
-                }
-                if (circleMember(entity)) {
-                    centers.add(entity);
-                }
-            }
-        }
-        return centers;
-    }
-
-    /**
-     * True while this living fighter is meditating. One nearby fighter is not
-     * a pair. {@code isMeditationCircleMember} is not the gate: shared
-     * meditation clears that flag inside {@code beginMeditation}.
-     */
-    private static boolean circleMember(Entity entity) {
-        if (entity == null || !entity.m_6084_() || !isFighter(entity)) {
-            return false;
-        }
-        return fighterMeditating(entity);
-    }
-
-    private static boolean isFighter(Entity entity) {
-        if (fighterClass != null && fighterClass.isInstance(entity)) {
-            return true;
-        }
-        Class<?> type = entity.getClass();
-        Boolean known = fighterType.get(type);
-        if (known != null) {
-            return known;
-        }
-        boolean match = false;
-        for (Class<?> cursor = type; cursor != null && cursor != Object.class; cursor = cursor.getSuperclass()) {
-            if (FIGHTER.equals(cursor.getName())) {
-                match = true;
-                break;
-            }
-        }
-        fighterType.put(type, match);
-        return match;
-    }
-
-    private static boolean fighterMeditating(Entity entity) {
-        if (fighterClass != null && fighterClass.isInstance(entity) && isMeditating != null) {
-            try {
-                return Boolean.TRUE.equals(isMeditating.invoke(entity));
-            } catch (Throwable ignored) {
-                // The resolved class is not this entity's class. Use its own method.
-            }
-        }
-        Class<?> type = entity.getClass();
-        Method live = meditatingOnClass.get(type);
-        if (live == null) {
-            try {
-                live = type.getMethod("isMeditating");
-                meditatingOnClass.put(type, live);
-            } catch (Throwable ignored) {
-                return false;
-            }
-        }
-        try {
-            return Boolean.TRUE.equals(live.invoke(entity));
-        } catch (Throwable ignored) {
             return false;
         }
     }
@@ -287,28 +175,6 @@ public final class LivingWorldNearbyMeditation {
                 continue;
             }
             if (dist2(player, other) <= r2) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** One living NPC is not enough. Both must be alive, meditating, and in range. */
-    private static boolean nearTwoLivingCircleNpcs(
-            ServerPlayer player, List<Entity> circles, double r2) {
-        if (circles == null) {
-            return false;
-        }
-        int found = 0;
-        for (Entity npc : circles) {
-            if (npc == null || !npc.m_6084_() || player.m_9236_() != npc.m_9236_()) {
-                continue;
-            }
-            if (dist2(player, npc) > r2) {
-                continue;
-            }
-            found++;
-            if (found >= 2) {
                 return true;
             }
         }
@@ -350,12 +216,11 @@ public final class LivingWorldNearbyMeditation {
     }
 
     /**
-     * A player partner is full time. Two living NPCs are {@value #NPC_RATE_PERCENT}%
-     * of that. Each held prestige then adds {@value #HELD_RATE_PERCENT}%.
-     * A player nearby wins over NPCs, so the two rates are not added together.
+     * A player partner is full time; credit only happens with one (4.7.64: the NPC rate is gone). Each held
+     * prestige then adds {@value #HELD_RATE_PERCENT}%.
      */
     private static long creditedMs(ServerPlayer player, long deltaMs, boolean withPlayer) {
-        long base = withPlayer ? deltaMs : (deltaMs * NPC_RATE_PERCENT) / 100L;
+        long base = deltaMs;
         int held = 0;
         try {
             held = PrestigeSystem.heldCountForNeed(player);

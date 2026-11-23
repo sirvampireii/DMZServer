@@ -39,6 +39,12 @@ public final class UltraHubScreens {
     /** {@code do:menu_look}: Full / Lite. */
     public static final String ACTION_LOOK = "menu_look";
 
+    /** 4.7.64 hub tabs: Home (dashboard and systems), Goals (weekly goals, placeholder until 4.7.65), More. */
+    public static final String PAGE_GOALS = "goals";
+    public static final String PAGE_MORE = "more";
+    /** Hub link into Sparring's Wars tab (the Dojo wars tile). */
+    static final String PAGE_WARS = "wars";
+
     public static void open(ServerPlayer player, String page) {
         if (player == null) {
             return;
@@ -52,6 +58,18 @@ public final class UltraHubScreens {
             openSkins(player);
             return;
         }
+        if (PAGE_GOALS.equals(p)) {
+            openGoals(player);
+            return;
+        }
+        if (PAGE_MORE.equals(p)) {
+            openMore(player);
+            return;
+        }
+        if (PAGE_WARS.equals(p)) {
+            UltraGui.open(player, "spar", "wars");
+            return;
+        }
         if (PAGE_PRESTIGE_SHOP_EDIT.equals(p)) {
             if (StaffAccess.isStaff(player)) {
                 UltraGui.open(player, "config", "edit:prestige-shop:0:");
@@ -63,6 +81,22 @@ public final class UltraHubScreens {
         openMain(player);
     }
 
+    private static UltraScreenSpec base(String page, String tab) {
+        return UltraScreenSpec.of("hub")
+                .fitMenu()
+                .title("Legacy Mechanics")
+                .page(page)
+                .activeTab(tab)
+                .tabs("home|Home", PAGE_GOALS + "|Goals", PAGE_MORE + "|More");
+    }
+
+    /**
+     * Hub Home (4.7.64): the dashboard, then the systems grouped by what they are for. Prestige is the spine: the
+     * first group is the next prestige (level bar, levels to go) and "Fastest now", the one existing thing that
+     * moves the player toward it quickest. Then one snapshot line per system under Train, Compete and Progress.
+     * Buttons follow the same order: Prestige full width, then Train, Compete and Progress pairs. The LM client
+     * draws each header's lines in their own box; KaiPath shows the same lines flat.
+     */
     private static void openMain(ServerPlayer player) {
         if (player == null) {
             return;
@@ -72,19 +106,38 @@ public final class UltraHubScreens {
             ph = Map.of();
         }
         boolean staff = StaffAccess.isStaff(player);
-        UltraScreenSpec spec = UltraScreenSpec.of("hub")
-                .fitMenu()
-                .title("Legacy Mechanics")
-                .page("main")
-                .activeTab("home");
+        UltraScreenSpec spec = base("main", "home");
+        spec.line(UltraStyle.header("Your next prestige"));
+        for (String l : HubDashboard.prestigeLines(player)) {
+            spec.line(l);
+        }
+        spec.line(UltraStyle.VALUE + HubDashboard.fastestNow(player));
+        spec.line(UltraStyle.header("Train"));
+        spec.line(UltraStyle.VALUE + HubDashboard.difficultyLine(player));
+        String streak = HubDashboard.streakLine(player);
+        if (streak != null) {
+            spec.line(UltraStyle.VALUE + streak);
+        }
+        spec.line(UltraStyle.header("Compete"));
+        spec.line(UltraStyle.VALUE + HubDashboard.rivalLine(player));
+        spec.line(UltraStyle.VALUE + HubDashboard.dojoLine(player));
+        String potential = HubDashboard.potentialLine(player);
+        if (potential != null) {
+            spec.line(UltraStyle.header("Progress"));
+            spec.line(UltraStyle.VALUE + potential);
+        }
+        spec.buttonsAfterLines();
 
+        // Prestige: the payoff, full width.
+        placeTile(spec, ph, new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), null);
+        spec.rowGap();
         // Hub tiles: normal (dark) + per-system accent. Nothing is "selected" on the hub.
         List<HubTile> tiles = new ArrayList<>();
         tiles.add(new HubTile("difficulty", "Difficulty", UltraStyle.STYLE_NORMAL, true));
+        tiles.add(new HubTile("spar", "Sparring & Dojo", UltraStyle.STYLE_NORMAL, false));
         tiles.add(new HubTile("rival", "Rival", UltraStyle.STYLE_NORMAL, false));
-        tiles.add(new HubTile("spar", "Sparring", UltraStyle.STYLE_NORMAL, false));
-        tiles.add(new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false));
-
+        tiles.add(new HubTile("spar_wars", "Dojo wars", UltraStyle.STYLE_NORMAL, false));
+        tiles.add(new HubTile("character", "Character Services", UltraStyle.STYLE_NORMAL, true));
         boolean skillCheck = SkillCheckService.canUse(player);
         if (skillCheck) {
             tiles.add(new HubTile("skillcheck", "Skill Check", UltraStyle.STYLE_NORMAL, true));
@@ -94,16 +147,39 @@ public final class UltraHubScreens {
             // Dim locked tile - still occupies a slot so layout stays predictable.
             tiles.add(new HubTile("skillcheck_denied", "Skill Check", UltraStyle.STYLE_DIM, true));
         }
-        tiles.add(new HubTile("character", "Character Services", UltraStyle.STYLE_NORMAL, true));
+        placeTiles(spec, ph, tiles);
+        // Menu skins and Staff Admin moved to More (4.7.64); Find body parts lives on the Body parts shop.
+        spec.send(player);
+    }
+
+    /** Goals (4.7.64): weekly goals arrive with 4.7.65; the tab is here so the hub's shape does not move. */
+    private static void openGoals(ServerPlayer player) {
+        UltraScreenSpec spec = base(PAGE_GOALS, PAGE_GOALS);
+        spec.line(UltraStyle.header("Weekly goals"))
+                .line(UltraStyle.VALUE + "Weekly goals arrive in the next update.")
+                .line(UltraStyle.LABEL + "Each week: three goals across your systems.")
+                .buttonsAfterLines();
+        spec.lockedButton("No goals yet").rowGap();
+        spec.send(player);
+    }
+
+    /** More (4.7.64): meditation progress, menu skins, and Staff Admin for staff. */
+    private static void openMore(ServerPlayer player) {
+        boolean staff = StaffAccess.isStaff(player);
+        UltraScreenSpec spec = base(PAGE_MORE, PAGE_MORE);
+        spec.line(UltraStyle.header("Meditation"));
+        String med = HubDashboard.meditationLine(player);
+        spec.line(med != null ? med : UltraStyle.LABEL + "Meditation progress is off on this server.");
+        spec.line(UltraStyle.LABEL + "Meditate near another player.");
+        spec.line(UltraStyle.header("Your menus"));
+        spec.line(UltraStyle.LABEL + "Pick a skin, backgrounds, and Full or Lite.");
+        spec.buttonsAfterLines();
+        List<HubTile> tiles = new ArrayList<>();
+        tiles.add(new HubTile("menu_skins", "Menu skins", UltraStyle.STYLE_NORMAL, true));
         if (staff) {
             tiles.add(new HubTile("admin", "Staff Admin", UltraStyle.STYLE_NORMAL, true));
         }
-
-        // 4.7.62: everyone can pick a menu skin; it is free and per account.
-        tiles.add(new HubTile("menu_skins", "Menu skins", UltraStyle.STYLE_NORMAL, true));
-
-        placeTiles(spec, ph, tiles);
-        // System tiles only (4.7.49): Find body parts lives on the Body parts shop.
+        placeTiles(spec, Map.of(), tiles);
         spec.send(player);
     }
 
@@ -243,16 +319,19 @@ public final class UltraHubScreens {
         }
     }
 
+    /** {@code left} true/false: a half-width tile in that column; null: full width (Prestige, 4.7.64). */
     private static void placeTile(
-            UltraScreenSpec spec, Map<String, String> ph, HubTile tile, boolean left) {
+            UltraScreenSpec spec, Map<String, String> ph, HubTile tile, Boolean left) {
         String system = tile.system();
+        // Dojo wars lives in Sparring: same availability and accent.
+        String owner = "spar_wars".equals(system) ? "spar" : system;
         boolean on = tile.alwaysOn()
                 || "difficulty".equals(system)
-                || (ph != null && "true".equalsIgnoreCase(ph.get(system)));
+                || (ph != null && "true".equalsIgnoreCase(ph.get(owner)));
         String action = actionFor(system);
         // Per-system identity on the label text (chrome stays default). fitAsciiLabel strips
         // section-sign; UltraScreenSpec re-applies via the accent letter + UltraStyle.color.
-        String ink = UltraStyle.systemAccent(system);
+        String ink = UltraStyle.systemAccent(owner);
         String base = UltraStyle.plain(tile.label());
         String styled = on ? (ink.isEmpty() ? base : ink + base) : UltraStyle.dim(base);
         String style = on
@@ -261,8 +340,10 @@ public final class UltraHubScreens {
                         : tile.onStyle())
                 : UltraStyle.STYLE_DIM;
         // hubTileAccentCode == systemAccentCode; letter re-applied after fitAsciiLabel.
-        String accent = on ? UltraStyle.hubTileAccentCode(system) : "";
-        if (left) {
+        String accent = on ? UltraStyle.hubTileAccentCode(owner) : "";
+        if (left == null) {
+            spec.buttonWide(action, styled, style, accent);
+        } else if (left) {
             spec.buttonLeft(action, styled, style, accent);
         } else {
             spec.buttonRight(action, styled, style, accent);
@@ -281,6 +362,7 @@ public final class UltraHubScreens {
             case "admin" -> "open:admin";
             case "character" -> "open:character";
             case "menu_skins" -> "page:" + PAGE_SKINS;
+            case "spar_wars" -> "page:" + PAGE_WARS;
             default -> "open:" + system;
         };
     }
