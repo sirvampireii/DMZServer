@@ -39,6 +39,19 @@ public final class UltraSparScreens {
         }
         String raw = page == null || page.isBlank() ? "main" : page.trim();
         String lower = raw.toLowerCase(Locale.ROOT);
+        // 4.7.68: the Spar Board tab, results, and the Dojo tab (upgrades, style, elites, wars) live in
+        // UltraDojoScreens. The 4.7.64 dojo-challenge pages are gone: wars are declared from the Dojo tab.
+        if (lower.startsWith("dojo_war_pending") || lower.startsWith("pick_dojo_challenge")) {
+            UltraDojoScreens.open(player, "dojo_wars", null);
+            return;
+        }
+        if ("dojo_roster".equals(lower)) {
+            openDojo(player, "home");
+            return;
+        }
+        if (UltraDojoScreens.open(player, raw, null)) {
+            return;
+        }
         if (lower.startsWith("pending_decide:")) {
             openPendingDecide(player, raw.substring("pending_decide:".length()).trim());
             return;
@@ -126,7 +139,7 @@ public final class UltraSparScreens {
                 .title("Sparring")
                 .page(page)
                 .activeTab(tab)
-                .tabs("home|Home", "dojo|Dojo", "wars|Wars");
+                .tabs("home|Home", "dojo|Dojo", "sparboard|Spar Board");
     }
 
     /** Subpage: no tab row — dual footer (Back + Main menu). */
@@ -144,7 +157,10 @@ public final class UltraSparScreens {
         }
         String p = page.toLowerCase(Locale.ROOT);
         if (p.startsWith("dojo_war") || "pick_dojo_challenge".equals(p) || p.contains("dojo_challenge")) {
-            return "wars";
+            return "dojo";
+        }
+        if ("sparboard".equals(p) || "result".equals(p) || p.startsWith("pick_challenge") || "watch".equals(p)) {
+            return "sparboard";
         }
         if (p.startsWith("dojo_top")
                 || "dojo_rank".equals(p)
@@ -191,29 +207,11 @@ public final class UltraSparScreens {
         if (notice != null && !notice.isBlank()) {
             spec.notice(notice);
         }
-        java.util.UUID me = player.m_20148_();
-        long left = SparBoard.listedLeft(me, System.currentTimeMillis());
-        SparBoard.Want want = SparBoard.want(me);
-        spec.line(UltraStyle.header("Looking for a spar"));
-        spec.line(UltraStyle.VALUE + (left > 0L
-                ? "Listed " + SparBoard.clock(left) + " more. Want: " + want.label + "."
-                : "Not on the board. Want: " + want.label + "."));
-        java.util.List<SparBoard.Entry> looking = SparBoard.looking(player);
-        spec.line(UltraStyle.header("Who's looking (" + looking.size() + ")"));
-        if (looking.isEmpty()) {
-            spec.line(UltraStyle.LABEL + "No one yet. List yourself so others find you.");
-        }
-        int shown = Math.min(SparBoard.SHOWN, looking.size());
-        for (int i = 0; i < shown; i++) {
-            SparBoard.Entry e = looking.get(i);
-            spec.line(UltraStyle.VALUE + e.name() + UltraStyle.LABEL + ": wants " + e.want().label + ", "
-                    + com.dbzlegacy.adaptivedifficulty.util.DmzRewards.formatWhole(e.tpPerHit()) + " TP a hit ("
-                    + SparBoard.mult(e.match()) + ")");
-        }
-        java.util.List<java.util.Map.Entry<java.util.UUID, String>> asks = SparBoard.asksFor(me);
-        for (int i = 0; i < Math.min(2, asks.size()); i++) {
-            spec.line(UltraStyle.GREEN + asks.get(i).getValue() + " asked you to spar.");
-        }
+        // 4.7.68: the board has its own tab; Home says where formal spars start.
+        int onBoard = SparBoard.looking(player).size();
+        spec.line(UltraStyle.header("Spar Board"));
+        spec.line(UltraStyle.VALUE + "Formal spars start on the Spar Board and are fought in a dojo arena.");
+        spec.line(UltraStyle.LABEL + (onBoard == 0 ? "Nobody is posted right now." : onBoard + " posts up now."));
         spec.line(UltraStyle.header("What a spar is worth to you"));
         spec.line(UltraStyle.VALUE + HubDashboard.sparWinLine(player));
         String potential = HubDashboard.potentialLine(player);
@@ -225,53 +223,7 @@ public final class UltraSparScreens {
             spec.line(UltraStyle.VALUE + streak);
         }
         spec.buttonsAfterLines();
-        if (left > 0L) {
-            spec.buttonLeft("do:" + SparBoard.ACT_UNLIST, "Take me off the board", UltraStyle.STYLE_NORMAL);
-        } else {
-            spec.buttonLeft("do:" + SparBoard.ACT_LIST, UltraStyle.confirm("List me for 15 min"),
-                    UltraStyle.STYLE_CONFIRM);
-        }
-        spec.buttonRight("do:" + SparBoard.ACT_WANT, "Looking for: " + want.label, UltraStyle.STYLE_NORMAL).rowGap();
-        int placed = 0;
-        for (int i = 0; i < Math.min(2, asks.size()); i++) {
-            String action = "do:" + SparBoard.ACT_YES + ":" + asks.get(i).getKey();
-            String label = UltraStyle.confirm("Say yes to " + asks.get(i).getValue());
-            if (placed % 2 == 0) {
-                spec.buttonLeft(action, label, UltraStyle.STYLE_CONFIRM);
-            } else {
-                spec.buttonRight(action, label, UltraStyle.STYLE_CONFIRM).rowGap();
-            }
-            placed++;
-        }
-        if (placed % 2 == 1) {
-            spec.rowGap();
-        }
-        placed = 0;
-        for (int i = 0; i < shown; i++) {
-            SparBoard.Entry e = looking.get(i);
-            boolean left2 = placed % 2 == 0;
-            if (SparBoard.asked(me, e.id())) {
-                if (left2) {
-                    spec.lockedButton("Asked " + e.name());
-                } else {
-                    spec.lockedButtonRight("Asked " + e.name());
-                }
-            } else if (left2) {
-                spec.buttonLeft("do:" + SparBoard.ACT_ASK + ":" + e.id(), "Ask " + e.name(), UltraStyle.STYLE_NORMAL);
-            } else {
-                spec.buttonRight("do:" + SparBoard.ACT_ASK + ":" + e.id(), "Ask " + e.name(), UltraStyle.STYLE_NORMAL);
-            }
-            if (!left2) {
-                spec.rowGap();
-            }
-            placed++;
-        }
-        if (placed % 2 == 1) {
-            spec.rowGap();
-        }
-        if (shown == 0) {
-            spec.lockedButton("No one to ask yet").rowGap();
-        }
+        spec.button("page:sparboard", UltraStyle.confirm("Open the Spar Board"), UltraStyle.STYLE_CONFIRM).rowGap();
         UltraPickHelper.placePageButtons(
                 spec,
                 "infamy|Hall of Infamy",

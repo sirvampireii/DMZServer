@@ -100,7 +100,15 @@ public final class SparPlayerRuntime {
     public long releaseCtrlNext;
     public long messageNext;
 
+    /** 4.7.68 board bout: its id, ranked or friendly, and whether this fight earned ranked credit. */
+    public String boardBout = "";
+    public boolean boardRanked;
+    public boolean boardCredit;
+
     public void resetSession() {
+        boardBout = "";
+        boardRanked = false;
+        boardCredit = false;
         partner = null;
         active = false;
         startAt = 0L;

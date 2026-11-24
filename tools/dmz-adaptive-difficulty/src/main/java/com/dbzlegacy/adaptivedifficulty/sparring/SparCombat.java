@@ -653,6 +653,10 @@ public final class SparCombat {
                 || RivalChallengeManager.get().isInChallenge(partner.m_20148_())) {
             return 0;
         }
+        // 4.7.68: friendly board spars pay nothing; only ranked board spars pay spar TP.
+        if (!rt.boardRanked) {
+            return 0;
+        }
         float base = Math.min(MAX_BASE_TP_PER_HIT, Math.max(0.0f, baseAmount));
         if (!(base > 0.0f)) {
             return 0;
@@ -670,6 +674,11 @@ public final class SparCombat {
                 : (withDojoPeer ? DOJO_PEER_SPAR_BONUS_PCT : 0.0f);
         if (bondBonus > 0.0f) {
             amount = (float) Math.floor(amount * (1.0f + bondBonus));
+        }
+        // 4.7.68: the dojo's style bonus, only on hits of the dojo's style (a small share, inside the hit cap).
+        double styleBonus = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.styleBonus(player, hitKind);
+        if (styleBonus > 0.0) {
+            amount = (float) Math.floor(amount * (1.0 + styleBonus));
         }
         float bpMult = battlePowerMultiplier(earnerBattlePower(a));
         // The hit cap used to ignore the closeness bonus, so a full rival
@@ -729,7 +738,7 @@ public final class SparCombat {
         long now = System.currentTimeMillis();
         if (now <= atkRt.heavyMotionUntil) {
             atkRt.sessionKb++;
-            awardCombatTp(attacker, victim, atkRt, KNOCKBACK_RECOVERY_TP, "melee");
+            awardCombatTp(attacker, victim, atkRt, KNOCKBACK_RECOVERY_TP, "strike");
             atkRt.heavyMotionUntil = 0L;
         }
         float eff = ki ? kiEfficiency(kiKind) : MELEE_EFF;
@@ -766,7 +775,7 @@ public final class SparCombat {
         }
         rt.tpPending += amount;
         String kind = hitKind == null ? "" : hitKind.toLowerCase();
-        if ("melee".equals(kind)) {
+        if ("melee".equals(kind) || "block".equals(kind) || "strike".equals(kind)) {
             rt.tpPendingMelee += amount;
         } else if ("beam".equals(kind) || "clash".equals(kind) || "beam-clash".equals(kind)) {
             rt.tpPendingClash += amount;

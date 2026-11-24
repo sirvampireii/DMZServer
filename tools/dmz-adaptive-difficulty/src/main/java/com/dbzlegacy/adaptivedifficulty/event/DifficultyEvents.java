@@ -145,6 +145,18 @@ public final class DifficultyEvents {
             com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings.ensureSeason();
         } catch (Throwable ignored) {
         }
+        // 4.7.68: dojos, the Spar Board's records, wars; existing mentors get their dojo; a crash refunds wagers.
+        try {
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().load();
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoService.migrate();
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.refundStaleEscrow();
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.prune();
+            long nowMs = System.currentTimeMillis();
+            SparStore.get().dojoChallenges.values().removeIf(c -> c == null || c.expiresAt < nowMs);
+            SparStore.get().markDirty();
+        } catch (Throwable t) {
+            AdaptiveDifficultyMod.LOGGER.error("[{}] dojo data load failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
+        }
         try {
             com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.load();
         } catch (Throwable ignored) {
@@ -209,6 +221,7 @@ public final class DifficultyEvents {
         try {
             RivalStore.get().save();
             SparStore.get().save();
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().save();
             RivalProgression.get().save();
             com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.save();
         } catch (Throwable ignored) {
@@ -281,6 +294,7 @@ public final class DifficultyEvents {
             TitleSystem.syncTierTitles(player, false);
             RivalSystem.onLogin(player);
             SparringSystem.onLogin(player);
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.onLogin(player);
             ProgressionSystem.onLogin(player);
             // One-time God Ki Effects refund (4.7.22): marker-guarded, retried until DMZ attaches.
             try {
@@ -450,6 +464,7 @@ public final class DifficultyEvents {
             com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);
             // 4.7.64: the spar board is session-only.
             com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.onLogout(player.m_20148_());
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.onLogout(player.m_20148_());
             com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.onLogout(player);
             com.dbzlegacy.adaptivedifficulty.util.TpBossNotify.onLogout(player);
             // Flush player AD data only — do NOT clear active tier on disconnect.
@@ -755,6 +770,15 @@ public final class DifficultyEvents {
         safePulse("mob-scaling", () -> BehaviorScheduler.pulse(server, tick));
         safePulse("rival", () -> RivalSystem.pulse(server, tick));
         safePulse("sparring", () -> SparringSystem.pulse(server, tick));
+        if (tick % 20 == 0) {
+            // 4.7.68: board bouts (ring-outs, timeouts), war phases, the dojo world's galleries and void catch.
+            safePulse("board-bouts", () -> com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.pulse(server));
+            safePulse("dojo-wars", () -> com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.pulse(server));
+            safePulse("dojo-world", () -> com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.pulse(server));
+        }
+        if (tick % 1200 == 0) {
+            safePulse("dojo-save", () -> com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().saveIfNeeded());
+        }
         safePulse("progression", () -> ProgressionSystem.pulse(server, tick));
         safePulse("level-pull", () -> DifficultyActions.pulseLevelPulls(server));
         if (DRAGON_BALL_PROBE != null) {
@@ -1159,6 +1183,14 @@ public final class DifficultyEvents {
     public void onSparLethalDamage(LivingDamageEvent event) {
         if (event.getEntity() instanceof ServerPlayer victim && event.getSource() != null
                 && event.getSource().m_7639_() instanceof ServerPlayer attacker) {
+            // 4.7.68: a war bout counts damage for the timeout and turns a lethal blow into a KO.
+            if (com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.inBoutTogether(victim, attacker)) {
+                float war = com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.onBoutDamage(victim, attacker, event.getAmount());
+                if (war != event.getAmount()) {
+                    event.setAmount(war);
+                }
+                return;
+            }
             float capped = SparringSystem.capLethalSparDamage(victim, attacker, event.getAmount());
             if (capped != event.getAmount()) {
                 event.setAmount(capped);
@@ -1171,8 +1203,54 @@ public final class DifficultyEvents {
      * the death is cancelled before anything else sees it. The victim keeps 1 HP and is healed; the spar
      * does not end, so it never records "death", and there is no death message, drop or TP penalty.
      */
+    /**
+     * 4.7.68 dojo world rules: no fall or void deaths there; spectators can't be hit and can't hit; waiting war
+     * fighters are untouchable; a board bout or war bout fighter only trades hits with their opponent.
+     */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onDojoAttack(LivingAttackEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer victim) || victim.m_9236_().f_46443_) {
+            return;
+        }
+        boolean inDojo = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.inDojoWorld(victim);
+        Entity causing = event.getSource() == null ? null : event.getSource().m_7639_();
+        ServerPlayer attacker = causing instanceof ServerPlayer sp ? sp : null;
+        if (inDojo && event.getSource() != null) {
+            String id = event.getSource().m_19385_();
+            if ("fall".equals(id) || "outOfWorld".equals(id)) {
+                event.setCanceled(true);
+                return;
+            }
+        }
+        if (com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.spectating(victim.m_20148_())
+                || (attacker != null && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.spectating(attacker.m_20148_()))) {
+            event.setCanceled(true);
+            return;
+        }
+        if (com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.blocksDamage(victim, attacker)) {
+            event.setCanceled(true);
+            return;
+        }
+        com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.Bout bout = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.boutOf(victim.m_20148_());
+        if (bout != null && attacker != null && !com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.isBoutPair(victim, attacker)) {
+            event.setCanceled(true);
+            return;
+        }
+        if (attacker != null && com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.inBout(attacker.m_20148_()) && !com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.isBoutPair(victim, attacker)) {
+            event.setCanceled(true);
+        }
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onSparLethalDeath(LivingDeathEvent event) {
+        if (event.getEntity() instanceof ServerPlayer warVictim && !warVictim.m_9236_().f_46443_
+                && event.getSource() != null && event.getSource().m_7639_() instanceof ServerPlayer warAttacker
+                && com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.inBoutTogether(warVictim, warAttacker)) {
+            warVictim.m_21153_(1.0f);
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.onBoutDamage(warVictim, warAttacker, Float.MAX_VALUE);
+            event.setCanceled(true);
+            return;
+        }
         if (event.getEntity() instanceof ServerPlayer victim && !victim.m_9236_().f_46443_
                 && event.getSource() != null && event.getSource().m_7639_() instanceof ServerPlayer attacker
                 && SparringSystem.catchLethalSparDeath(victim, attacker)) {

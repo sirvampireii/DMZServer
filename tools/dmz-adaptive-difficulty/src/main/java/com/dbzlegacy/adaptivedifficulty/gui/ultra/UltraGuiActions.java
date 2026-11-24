@@ -338,12 +338,10 @@ public final class UltraGuiActions {
             return;
         }
 
-        // 4.7.64: spar board on Sparring Home (list, want, ask, say yes). Menu first: the result line shows on
-        // the reopened board, nothing is paid.
+        // 4.7.68: Spar Board (post, challenge, accept, forfeit, rematch), dojo (found, upgrades, style, elites,
+        // visit, watch) and war buttons. Menu first: the result shows on the reopened page.
         String sparArg = parts.arg == null || parts.arg.isBlank() ? stringArg(args, "arg") : parts.arg;
-        String board = com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.apply(viewer, parts.action, sparArg);
-        if (board != null) {
-            UltraSparScreens.openHome(viewer, board);
+        if (UltraDojoScreens.handle(viewer, parts.action, sparArg)) {
             return;
         }
 
