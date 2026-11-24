@@ -1277,7 +1277,7 @@ def main() -> int:
         errors.append("UltraSparScreens.openHome must label the board Hall of Infamy")
     if "stats|Your stats" not in spar_home_body:
         errors.append("UltraSparScreens.openHome must offer Your stats")
-    if 'danger("Staff Admin")' not in spar_home_body or '"danger"' not in spar_home_body:
+    if 'danger("Staff Admin")' not in spar_home_body or 'UltraStyle.STYLE_DANGER' not in spar_home_body:
         errors.append("UltraSparScreens.openHome Staff Admin must be danger/red")
     if "admin|Staff Admin" in spar_home_body:
         errors.append("UltraSparScreens.openHome must not use the default Staff Admin button")
