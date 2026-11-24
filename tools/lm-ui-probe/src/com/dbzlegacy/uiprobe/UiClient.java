@@ -142,6 +142,23 @@ final class UiClient {
     private void doClick(Minecraft mc, String spec) {
         Screen sc = mc.f_91080_;
         String found = null;
+        if (spec.startsWith("field:")) {
+            // 4.7.82: tap the Nth text field (the shared color wheel then colors it).
+            int want = Integer.parseInt(spec.substring(6).trim());
+            int n = 0;
+            for (String l : nativeLayout(sc)) {
+                if (l.startsWith("T ") && n++ == want) {
+                    String[] f = l.split(" ");
+                    sc.m_6375_(Double.parseDouble(f[1]) + Double.parseDouble(f[3]) / 2,
+                            Double.parseDouble(f[2]) + Double.parseDouble(f[4]) / 2, 0);
+                    found = l;
+                    break;
+                }
+            }
+            UiProbe.write("uiprobe-client.txt", "CLICK " + spec + " -> " + (found == null ? "NOT FOUND" : found) + "\n",
+                    true);
+            return;
+        }
         if (spec.startsWith("wheel:")) {
             // 4.7.66: tap the top of the Nth color wheel's ring (pure red).
             int want = Integer.parseInt(spec.substring(6).trim());

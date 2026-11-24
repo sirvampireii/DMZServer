@@ -2032,6 +2032,19 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.82 ---")
+    p82_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p82_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p82_menu = read(SRC / "client/NativeMenuScreen.java")
+    check("manifest row for lm 4.7.82", "lm-4782-color-wheel" in manifest)
+    check("My colors: five name | hex rows and ONE wheel shared by the five fields",
+          "spec.sharedColorWheel(SHARED_WHEEL, fields," in p82_hub
+          and "spec.colorWheel(toneWheel(i)" not in p82_hub
+          and "public UltraScreenSpec sharedColorWheel(String inputId, String[] targetInputIds, int x, int y, int size)" in p82_spec)
+    check("LM client: a shared wheel colors the field tapped last and outlines it",
+          "private String wheelTarget(Wheel w)" in p82_menu and "lastBox = f.id();" in p82_menu
+          and "String target = wheelTarget(w);" in p82_menu and "// A shared wheel outlines the field it colors." in p82_menu)
+
     print("\n--- § lm 4.7.81 ---")
     p81_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     p81_style = read(SRC / "gui/ultra/UltraStyle.java")

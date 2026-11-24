@@ -1816,6 +1816,9 @@ public final class UiProbe {
         {"custom", "prep"}, {"open", "hub", "skins"}, {"wait", "60"}, {"say", "uirecord custom1-picker"},
         {"wait", "20"}, {"open", "hub", "skin_custom"}, {"wait", "60"}, {"say", "uirecord custom2-editor"},
         {"wait", "20"}, {"say", "uiclick wheel:0"}, {"wait", "20"}, {"say", "uirecord custom3-wheel-picked"},
+        // 4.7.82: the wheel is shared: tap the Primary field, then the wheel colors Primary (Panel stays red).
+        {"wait", "20"}, {"say", "uiclick field:1"}, {"wait", "10"}, {"say", "uiclick wheel:0"}, {"wait", "20"},
+        {"say", "uirecord custom3b-wheel-second-field"},
         {"wait", "20"}, {"say", "uiclick label:Apply my colors"}, {"wait", "60"},
         {"say", "uirecord custom4-applied"}, {"wait", "20"}, {"custom", "check"}, {"custom", "reset"}, {"wait", "20"},
         // 4.7.67: part colors on the real client: the own channel's swatch page, a tap at the top of the wheel (red),
@@ -1943,8 +1946,10 @@ public final class UiProbe {
             return;
         }
         GuiOpenPacket ed = got.get(got.size() - 1);
-        note("CUSTOM EDITOR five fields, " + (wheels ? "five wheels" : "no wheels") + ", Style, Scene, Apply, Preview, From, Reset: "
-                + pf(countInputs(ed, "text") == 5 && countInputs(ed, "color_wheel") == (wheels ? 5 : 0)
+        // 4.7.82: one wheel shared by the five fields (it colors the field tapped last).
+        note("CUSTOM EDITOR five fields, " + (wheels ? "one shared wheel" : "no wheels") + ", Style, Scene, Apply, Preview, From, Reset: "
+                + pf(countInputs(ed, "text") == 5 && countInputs(ed, "color_wheel") == (wheels ? 1 : 0)
+                        && (!wheels || ed.inputsJson().contains("skin_panel,@hub:input:skin_primary,"))
                         && has(ed, "Style - Dark") && has(ed, "Scene - Banner") && has(ed, "Apply my colors")
                         && has(ed, "Preview") && has(ed, "From Namek") && has(ed, "Reset to default")
                         && "#e23b3b".equals(fieldValue(ed, "primary")) && ed.buttonsJson().contains("bindInputs")
@@ -2161,6 +2166,9 @@ public final class UiProbe {
                     note("FINAL CUSTOM real client: wheel tap fills Panel, Apply saves it: panel="
                             + String.format("%06x", v.custom().panel()) + " "
                             + pf("custom".equals(v.skin()) && (!wheels || v.custom().panel() == 0xFF0000)));
+                    note("FINAL CUSTOM real client: after tapping the Primary field the shared wheel colors Primary: primary="
+                            + String.format("%06x", v.custom().primary()) + " "
+                            + pf("custom".equals(v.skin()) && (!wheels || v.custom().primary() == 0xFF0000)));
                 }
                 write("uiprobe-script.txt", scriptLog.toString(), false);
             }
