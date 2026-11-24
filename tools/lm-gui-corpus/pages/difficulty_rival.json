@@ -1,0 +1,2752 @@
+{
+ "system": "Difficulty + Rival",
+ "pages": [
+  {
+   "id": "difficulty_home",
+   "screen": "difficulty",
+   "page": "main",
+   "title": "Difficulty",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "tiers",
+     "Tiers"
+    ],
+    [
+     "summons",
+     "Summons"
+    ]
+   ],
+   "activeTab": "home",
+   "lines": [
+    "&6&lYour tier",
+    "&7Tier: &fT6 Legendary",
+    "&7Difficulty: &fON",
+    "&7Free trial: &fT7 for 4:59 more, then back to T6",
+    "&7Momentum: &f4:50 banked of 5:00",
+    "&a[#######################-]",
+    "&7Beat difficulty mobs to bank Mastery Boost time (+10s each).",
+    "&7Mastery from hitting them: +50% while Momentum time is banked.",
+    "&6&lBeyond Difficulty",
+    "&7Prestige: &f1,250,000 levels to your next prestige",
+    "&fRival: Mythic Rival, 1,250,000 RP, #1"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:difficulty_off_ask",
+      "label": "&aDifficulty - ON",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:titles_p0",
+      "label": "Titles",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:toggle_coin_chat",
+      "label": "&aCoin messages - ON",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:admin",
+      "label": "&7Server tools",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:stats",
+      "label": "&7Combat rating",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:guide",
+      "label": "Replay the difficulty guide",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": false,
+   "footer": "backOnly",
+   "footerLabels": [
+    "Back to main menu"
+   ],
+   "staff": true,
+   "source": "UltraDifficultyScreens.java openYourTier(guide=false) (approx line 214)",
+   "notes": "Staff view, trial active, difficulty ON (worst case). Non-staff: no Server tools / Combat rating row. Difficulty OFF: the toggle moves to the LEFT (x=16) as '&8Difficulty - OFF', style dim, action do:toggle_personal; Coin messages OFF is '&8Coin messages - OFF' dim. ISSUES: (1) the ON toggle sits alone in the RIGHT column (placeDifficultyToggle uses buttonRight when enabled), leaving the left cell empty; (2) 'Titles' and 'Coin messages' each take a whole row alone; (3) 'Replay the difficulty guide' is 27 chars on a 150px button (fits ~22), so it clips; (4) Home uses footerBackOnly, so 'Back to main menu' sits in the LEFT footer slot, while back() puts a system Home's single footer on the RIGHT (Rival Home); (5) the code comment says the staff entry 'reads red', but the label uses LABEL gray &7 with style normal; (6) Home rows use 'Label:' with a colon, other Difficulty pages use 'Label value' without one. Page id 'your_tier' renders this same page once the guide is done (skipped as a repeat).",
+   "fit": true,
+   "mock": {
+    "footer": null,
+    "back": true,
+    "why": "footerBackOnly puts the lone \"Back to main menu\" bottom LEFT; every other system Home has it bottom right (use back()); rows: today \"Difficulty - ON\" sits alone in the right column and Titles, Coin messages and Replay each take a whole row (openYourTier); pair them: [Difficulty - ON | Coin messages - ON] [Titles | Replay the difficulty guide] [Server tools | Combat rating]",
+    "rows": [
+     [
+      {
+       "action": "page:difficulty_off_ask",
+       "label": "&aDifficulty - ON",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:toggle_coin_chat",
+       "label": "&aCoin messages - ON",
+       "style": "confirm",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:titles_p0",
+       "label": "Titles",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:guide",
+       "label": "Replay the difficulty guide",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:admin",
+       "label": "&7Server tools",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:stats",
+       "label": "&7Combat rating",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ]
+    ]
+   }
+  },
+  {
+   "id": "difficulty_tiers",
+   "screen": "difficulty",
+   "page": "tiers",
+   "title": "Difficulty",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "tiers",
+     "Tiers"
+    ],
+    [
+     "summons",
+     "Summons"
+    ]
+   ],
+   "activeTab": "tiers",
+   "lines": [
+    "&6&lPick your level",
+    "&fTap a tier to see what changes. Nothing is bought until you confirm."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:tier_ask:1",
+      "label": "&fT1 Awakened",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:tier_ask:2",
+      "label": "&fT2 Enhanced",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:tier_ask:3",
+      "label": "&fT3 Elite - You are here",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:tier_ask:4",
+      "label": "&fT4 Advanced",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:tier_ask:5",
+      "label": "&fT5 Master",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:tier_ask:6",
+      "label": "&aT6 Legendary - Recommended",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:tier_ask:7",
+      "label": "&8T7 God - Locked",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:clear_tier_ask",
+      "label": "&cClear active tier",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openTiers(guide=false) (approx line 267)",
+   "notes": "Difficulty ON, active T3, recommended T6 (highest eligible), T7 locked. ISSUES: these labels are longer than the ~22 chars a 150px button holds and will clip: 'T6 Legendary - Recommended' (26), 'T3 Elite - You are here' (23), 'T6 Legendary - You are here' (27), 'T5 Master - Recommended' (23). placeTierButton has no fitsButton fallback (the Titles page has one). Footer via back(): a non-first tab gives 'Back to Difficulty' + 'Main menu'.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_tiers_off",
+   "screen": "difficulty",
+   "page": "tiers",
+   "title": "Difficulty",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "tiers",
+     "Tiers"
+    ],
+    [
+     "summons",
+     "Summons"
+    ]
+   ],
+   "activeTab": "tiers",
+   "lines": [
+    "&6&lPick your level",
+    "&cDifficulty is off.",
+    "&7Turn it on from Difficulty Home, then pick a tier here."
+   ],
+   "rows": [
+    [
+     {
+      "action": "nav:home",
+      "label": "&aGo to Difficulty Home",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openTiers (difficulty off branch, approx line 300)",
+   "notes": "Shown when personal difficulty is off and the guide is done. The feature-locked variant (openFeatureLocked: '&cTiers locked' + a reason + an optional '&8Difficulty - OFF' dim toggle) is similar and skipped.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_summons",
+   "screen": "difficulty",
+   "page": "summons",
+   "title": "Difficulty",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "tiers",
+     "Tiers"
+    ],
+    [
+     "summons",
+     "Summons"
+    ]
+   ],
+   "activeTab": "summons",
+   "lines": [
+    "&6&lBoss summons",
+    "&7Each boss needs a personal difficulty tier to summon.",
+    "&7Different bosses unlock at different tiers - open a boss for its requirements.",
+    "&7Select a boss, then confirm.",
+    "&7Cost &f25x Netherite Ancient"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:end_dragon",
+      "label": "&aEnd Dragon",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:wither",
+      "label": "&aWither",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:warden",
+      "label": "&8Warden locked",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openSummons (approx line 416)",
+   "notes": "Locked boss buttons are dim but still navigate (page:warden); this is intended, since the boss page explains what is missing. ISSUES: the single 'Cost' line is the End Dragon's cost but sits above all three bosses (Wither and Warden cost something else), which is misleading. The cost reads '25x Netherite Ancient' (formatExactCost gives '<n>x <Kind> Ancient', an odd word order). End Dragon is alone in a row, then Wither/Warden share one.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_end_dragon",
+   "screen": "difficulty",
+   "page": "end_dragon",
+   "title": "Difficulty",
+   "lines": [
+    "&7End Dragon",
+    "&7Cost &f25x Netherite Ancient",
+    "&7Status &fRequirements not met",
+    "&7The dragon matches your difficulty. Only you can damage it.",
+    "&7You need a tier from &fT4&7 through &fT7&7, and you must be in The End.",
+    "&7Activate a tier in that range on the Tiers tab first.",
+    "&fHigher tiers drop more: +25% chance per kill to double every drop, per tier above T4.",
+    "&8Clear the notes above, then return here to confirm."
+   ],
+   "rows": [
+    [
+     {
+      "action": "nav:none",
+      "label": "&8Summon locked",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openSummonConfirm (approx line 456)",
+   "notes": "Not-ready state shown (worst case). Ready: button page:summon_ask:end_dragon '&aSummon End Dragon', style confirm, x16. The page name is a gray &7 line, not a header. The 'Cost'/'Status' labels have no colon, unlike Home's 'Tier:'.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_wither",
+   "screen": "difficulty",
+   "page": "wither",
+   "title": "Difficulty",
+   "lines": [
+    "&7Wither",
+    "&7Cost &f5x Netherite Ancient (5 Ancient Netherite)",
+    "&7Tiers &fT3 - T7",
+    "&7Where &fthe Nether",
+    "&7Status &fRequirements not met",
+    "&7The Wither matches your difficulty. Only you can damage it.",
+    "&7You need a tier from &fT3&7 through &fT7&7, personal difficulty ON, and you must be in the Nether.",
+    "&7One living Wither at a time per player.",
+    "&7Higher tiers drop more: +25% chance per kill to double every drop, per tier above T3.",
+    "&7Turn on personal difficulty on the Tiers tab first.",
+    "&8Clear the notes above, then return here to confirm."
+   ],
+   "rows": [
+    [
+     {
+      "action": "nav:none",
+      "label": "&8Summon locked",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openBossSummonConfirm (approx line 488); lines from PlayerBossSummons.statusLines",
+   "notes": "The Warden page has the same layout (skipped). ISSUES: 'Turn on personal difficulty on the Tiers tab first.' is out of date. Since 4.7.78 the on/off toggle lives on Difficulty Home, not on Tiers (see PlayerBossSummons.statusLines and UltraDifficultyScreens.summonStatusLines). The cost reads '5x Netherite Ancient (5 Ancient Netherite)', naming the same coin twice in two word orders. 'Where' shows 'the Nether' with a lowercase 'the'.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_summon_ask",
+   "screen": "difficulty",
+   "page": "summon_ask:end_dragon",
+   "title": "Difficulty",
+   "lines": [
+    "&7Confirm summon",
+    "&7Boss &fEnd Dragon",
+    "&7Cost &f25x Netherite Ancient",
+    "&7Ancient Coins &fCopper 999 - Iron 999 - Gold 999 - Emerald 999 - Diamond 999 - Netherite 999",
+    "&7The End Dragon spawns near you right away. You get its drops and the loot bonus below.",
+    "&fLoot bonus at T7: every drop is doubled on each kill.",
+    "&8Coins are taken when it spawns and are not refunded."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:summon_end_dragon",
+      "label": "&aSummon End Dragon",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openSummonAsk (approx line 715)",
+   "notes": "Ready state. When not ready, the page adds '&cRequirements not met - the End Dragon page lists what is missing.' and shows NO button, only the footer. That breaks the 4.7.57 rule of showing a dim locked button. The Ancient Coins line is very long (six coin kinds).",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_tier_ask",
+   "screen": "difficulty",
+   "page": "tier_ask:6",
+   "title": "Difficulty",
+   "lines": [
+    "&6&lT6 Legendary - Move up to this tier",
+    "&7Enemy damage &f85% of your power (now 42%, +102%)",
+    "&7Enemy health &f85% of your power (now 42%, +102%)",
+    "&7TP earned &f+102% per kill vs now (follows enemy health)",
+    "&7Mastery gain &f+50% while Momentum time is banked",
+    "&7Cost &f5x Diamond Ancient",
+    "&7Ancient Coins &fCopper 999 - Iron 999 - Gold 999 - Emerald 999 - Diamond 999 - Netherite 999",
+    "&7Needs &fLevel 50000 or Prestige 6 - you have it",
+    "&7Beat difficulty mobs to bank Mastery Boost time.",
+    "&8Coins spent are not refunded. Switching to a lower tier later is free."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:activate:6",
+      "label": "&aPay 5 Diamond",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:trial:6",
+      "label": "&aTry one fight free",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openTierAsk (approx line 563)",
+   "notes": "Affordable move-up. The Pay label becomes 'Confirm' if it would not fit. Moving down: 'Switch to T#' and the line '&8Switching down is free. Going back up later costs Ancient Coins again.' ISSUES: 'Needs Level 50000' prints the raw number with no thousands separator. Enemy damage and Enemy health always show the same value (both come from enemyScalingMultiplier), so one row is redundant.",
+   "fit": true,
+   "staff": false,
+   "variants": [
+    {
+     "look": "lite",
+     "suffix": "lite"
+    }
+   ]
+  },
+  {
+   "id": "difficulty_tier_ask_locked",
+   "screen": "difficulty",
+   "page": "tier_ask:7",
+   "title": "Difficulty",
+   "lines": [
+    "&6&lT7 God - Move up to this tier",
+    "&7Enemy damage &f120% of your power (now 85%, +41%)",
+    "&7Enemy health &f120% of your power (now 85%, +41%)",
+    "&7TP earned &f+41% per kill vs now (follows enemy health)",
+    "&7Mastery gain &f+50% while Momentum time is banked",
+    "&7Cost &f15x Diamond Ancient",
+    "&7Ancient Coins &fCopper 999 - Iron 999 - Gold 999 - Emerald 999 - Diamond 999 - Netherite 999",
+    "&7Needs &fLevel 100000 or Prestige 7 - not yet",
+    "&7Beat difficulty mobs to bank Mastery Boost time.",
+    "&8Coins spent are not refunded. Switching to a lower tier later is free.",
+    "&cT7 is locked. Reach level 100,000 or prestige 7.",
+    "&8Free trial: you need the tier's level or prestige first."
+   ],
+   "rows": [
+    [
+     {
+      "action": "nav:none",
+      "label": "&8Tier locked",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "nav:none",
+      "label": "&8Free trial locked",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openTierAsk (blocked branch)",
+   "notes": "Blocked variant: lockedButton + lockedButtonRight. The lock reason and trial reason are sample text (from UltraDifficultyTierUi.lockedReason and DifficultyTrial.blockReason). ISSUE: when difficulty is off, the block reads 'Turn on difficulty on the Your tier step first.' That is out of date since 4.7.78: the toggle is on Difficulty Home, and the 'Your tier step' exists only inside the guide. The can't-afford block uses AncientCoinEconomy.missingText, a very long line ending 'Overpaying is fine; change is returned.'",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_clear_tier_ask",
+   "screen": "difficulty",
+   "page": "clear_tier_ask",
+   "title": "Difficulty",
+   "lines": [
+    "&7Clear active tier",
+    "&7Active tier &fT6",
+    "&6&lNotice &eClear your active tier? Team mode resets to Personal. You will need Ancient Coins to activate a tier again."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:lower_tier:0",
+      "label": "&cClear active tier",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openClearTierAsk (approx line 641)",
+   "notes": "ISSUE: the notice still says 'Team mode resets to Personal', but rival teams and team mode were removed in 4.7.78, so this text is out of date. title_unequip_ask (included below) and flush_ask (staff, skipped) use the same layout: label line, notice, one danger button.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_off_ask",
+   "screen": "difficulty",
+   "page": "difficulty_off_ask",
+   "title": "Difficulty",
+   "lines": [
+    "&7Turn Difficulty off",
+    "&6&lNotice &eTurning Difficulty off releases your scaled mobs and despawns your summoned End Dragon. You can turn it back on any time."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:toggle_personal",
+      "label": "&cTurn Difficulty off",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openDifficultyOffAsk (approx line 676)",
+   "notes": "ISSUES: askReturn('difficulty_off_ask') returns 'tiers', but the ON toggle that opens this page has been on Difficulty Home since 4.7.78 (PageRegistry parent is difficulty|main), so after confirming the player lands on the wrong page. The notice names only the End Dragon, not a summoned Wither or Warden.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_guide_step1",
+   "screen": "difficulty",
+   "page": "guide",
+   "title": "Difficulty",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "tiers",
+     "Tiers"
+    ],
+    [
+     "summons",
+     "Summons"
+    ]
+   ],
+   "activeTab": "home",
+   "lines": [
+    "&6&lStep 1 of 3 - What is Difficulty",
+    "&7Progress [x] [ ] [ ]",
+    "&fDifficulty makes the mobs near you fight at a level you pick, and pays you more for it.",
+    "&7Stronger enemies: &fmobs near you match your tier",
+    "&7Bigger rewards: &fmore TP per kill, plus Momentum",
+    "&7Change anytime: &flowering your tier is free",
+    "&7Your tier: &fNo tier yet. Pick one in Step 2.",
+    "&7This guide shows once. Replay it from Home."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:guide_tiers",
+      "label": "&aNext: Pick your level",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": false,
+   "footer": "guide",
+   "footerLabels": [
+    "Back to main menu",
+    "Skip guide"
+   ],
+   "source": "UltraDifficultyScreens.java openGuideStep1 (approx line 160)",
+   "notes": "The tab row stays visible during the guide (activeTab home). Step 2 is a guide variant of the Tiers page (below).",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_guide_step2",
+   "screen": "difficulty",
+   "page": "guide_tiers",
+   "title": "Difficulty",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "tiers",
+     "Tiers"
+    ],
+    [
+     "summons",
+     "Summons"
+    ]
+   ],
+   "activeTab": "tiers",
+   "lines": [
+    "&6&lStep 2 of 3 - Pick your level",
+    "&7Progress [x] [x] [ ]",
+    "&fTap a tier to see what changes. Nothing is bought until you confirm.",
+    "&cDifficulty is off. Turn it on to use a tier."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:tier_ask:1",
+      "label": "&aT1 Awakened - Recommended",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:tier_ask:2",
+      "label": "&fT2 Enhanced",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:tier_ask:3",
+      "label": "&8T3 Elite - Locked",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:tier_ask:4",
+      "label": "&8T4 Advanced - Locked",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:tier_ask:5",
+      "label": "&8T5 Master - Locked",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:tier_ask:6",
+      "label": "&8T6 Legendary - Locked",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:tier_ask:7",
+      "label": "&8T7 God - Locked",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:toggle_personal",
+      "label": "&8Difficulty - OFF",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:guide_your_tier",
+      "label": "&aNext: Your tier",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": false,
+   "footer": "guide",
+   "footerLabels": [
+    "Back to Step 1",
+    "Skip guide"
+   ],
+   "source": "UltraDifficultyScreens.java openTiers(guide=true) (approx line 267)",
+   "notes": "New player, difficulty off. ISSUES: 'T1 Awakened - Recommended' (25 chars) clips on a 150px button. 'Difficulty - OFF' is a working button drawn dim, and dim is the project's disabled look. Rival settings changed its OFF toggles to normal in 4.7.77 for this reason, but Difficulty still draws 'Difficulty - OFF' and 'Coin messages - OFF' dim.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_guide_step3",
+   "screen": "difficulty",
+   "page": "guide_your_tier",
+   "title": "Difficulty",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "tiers",
+     "Tiers"
+    ],
+    [
+     "summons",
+     "Summons"
+    ]
+   ],
+   "activeTab": "home",
+   "lines": [
+    "&6&lStep 3 of 3 - Your tier",
+    "&7Progress [x] [x] [x]",
+    "&7Tier: &fNo tier yet. Pick one in Step 2.",
+    "&7Difficulty: &fOFF",
+    "&7Momentum: &f0:00 banked of 5:00",
+    "&8[------------------------]",
+    "&7Beat difficulty mobs to bank Mastery Boost time (+10s each).",
+    "&7Mastery from hitting them: +50% while Momentum time is banked."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:guide_done",
+      "label": "&aGot it - take me to Difficulty",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": false,
+   "footer": "guide",
+   "footerLabels": [
+    "Back to Step 2",
+    "Skip guide"
+   ],
+   "source": "UltraDifficultyScreens.java openYourTier(guide=true) (approx line 214)",
+   "notes": "ISSUES: 'Got it - take me to Difficulty' is 30 chars on a 150px button (fits ~22), so it clips. Step 3 can show 'Difficulty: OFF' with no way to turn it on here (only Step 2 has the toggle). 'Got it' and the 'Skip guide' footer run the same action (do:guide_done).",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_titles",
+   "screen": "difficulty",
+   "page": "titles_p0",
+   "title": "Difficulty",
+   "lines": [
+    "&7Equipped &fGodslayer",
+    "&7Title score &f1250000",
+    "&7Equip a title you have unlocked.",
+    "&7Titles page &f1/2"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:title_detail:t1_awakened",
+      "label": "Awakened",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:title_detail:t2_enhanced",
+      "label": "Enhanced",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:title_detail:t3_elite",
+      "label": "Elite",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:title_detail:t4_advanced",
+      "label": "Advanced",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:title_detail:t5_master",
+      "label": "Master",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:title_detail:t6_legendary",
+      "label": "&8Legendary - Locked",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:title_detail:t7_god",
+      "label": "&aGodslayer - Equipped",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:title_detail:boss_slayer",
+      "label": "&8Boss Slayer - Locked",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:titles_p1",
+      "label": "&7Next titles page",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:toggle_title_sense",
+      "label": "&aTitle Sense - ON",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:title_unequip_ask",
+      "label": "&cUnequip title",
+      "style": "danger",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openTitles (approx line 825)",
+   "notes": "16 titles at 8 per page, so 2 pages; page 2 has '&7Prev titles page' on the left instead. Earned titles carry no color code (system accent applies). ISSUES: 'Title score' has no thousands separator (String.valueOf). 'Titles page 1/2' is a body line, while every other pager says 'Page 1 of 2'. 'Unequip title' is red and clickable even when nothing is equipped. No line explains what 'Title Sense' does. A long locked name such as 'Mutation Hunter - Locked' (24) falls back to the bare name, leaving dim as the only locked marker.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_title_detail",
+   "screen": "difficulty",
+   "page": "title_detail:ascendant",
+   "title": "Difficulty",
+   "lines": [
+    "&7Ascendant III",
+    "&7Kind &fCombat challenge",
+    "&aYou have this title.",
+    "",
+    "&7How to earn &fEver unlocked T7 + 100 T7 elites + 25 T7 bosses + 100 no-death T7 kills + all mutations",
+    "&7Bonus when equipped &f+4.0% Ancient Coin quantity | +5% aura presence",
+    "&7Title score &f+100",
+    "&7About &fThe rarest combat honour: a fighter who has conquered everything the top tier can throw at them."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:equip_title:ascendant",
+      "label": "&aEquip this title",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openTitleDetail (approx line 896)",
+   "notes": "Earned, not equipped. The presence tip is sample text. ISSUES: '.line(equipped ? ... : \"\")' adds an EMPTY body line when the title is not equipped, leaving a blank gap. The title name is a gray &7 line, not a header. The 'Already equipped' variant is a dim button that still fires do:equip_title (dim looks disabled but the button works). DifficultyTitle.perkTip has a raw section sign ('§8|'), which plain() strips here.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_title_unequip_ask",
+   "screen": "difficulty",
+   "page": "title_unequip_ask",
+   "title": "Difficulty",
+   "lines": [
+    "&7Unequip title",
+    "&7Equipped &fGodslayer",
+    "&6&lNotice &eUnequip your title? You can equip it again for free any time."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:clear_title",
+      "label": "&cUnequip title",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraDifficultyScreens.java openUnequipTitleAsk (approx line 696)",
+   "notes": "Same confirm layout as clear_tier_ask.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "difficulty_admin",
+   "screen": "difficulty",
+   "page": "admin",
+   "title": "Difficulty",
+   "lines": [
+    "&7Server tools - typed admin: /difficulty admin",
+    "&7Reload config, event log, and LM Staff Admin hub"
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:reload",
+      "label": "&aReload Legacy Mechanics config",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:stats",
+      "label": "&7Staff details",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "open:admin",
+      "label": "&7LM Staff Admin",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:eventlog",
+      "label": "&7Event log",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "staff": true,
+   "source": "UltraDifficultyScreens.java openStaffAdmin (approx line 1002)",
+   "notes": "ISSUES: 'Reload Legacy Mechanics config' (30 chars) clips on a 150px button. 'Staff details' opens the page that Home and PageRegistry call 'Combat rating', so one page has two names. The copy uses the word 'hub' ('LM Staff Admin hub') and the abbreviation 'LM'.",
+   "fit": true
+  },
+  {
+   "id": "difficulty_eventlog",
+   "screen": "difficulty",
+   "page": "eventlog",
+   "title": "Difficulty",
+   "lines": [
+    "&7Unified system event log",
+    "&7Use the toggles, or typed: /lm admin syslog ..."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:syslog:status",
+      "label": "&7Status",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:syslog:on",
+      "label": "&aEvent log - ON",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:syslog:off",
+      "label": "&cEvent log - OFF",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:flush_ask",
+      "label": "&cFlush",
+      "style": "danger",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "staff": true,
+   "source": "UltraDifficultyScreens.java openEventLog (approx line 1021)",
+   "notes": "Log ON state. ISSUES: ON and OFF are two separate buttons that are always shown, instead of one toggle. While the log is ON, 'Event log - OFF' is red, which reads like the current state. 'Status' does not say what it does. The flush_ask confirm page is skipped (same layout as clear_tier_ask).",
+   "fit": true
+  },
+  {
+   "id": "difficulty_stats",
+   "screen": "difficulty",
+   "page": "stats",
+   "title": "Difficulty",
+   "lines": [
+    "&7Combat rating and scaled stats",
+    "&7Tier &fLegendary (Personal active)",
+    "&7Combat rating &f1,250,000 - unlocked up to T7",
+    "&7Level &f100000 - Prestige 12",
+    "&7Title &fGodslayer",
+    "&7Scaled stats (Overhaul x1.25) &fMelee 1250000 - Strike 1250000",
+    "&7Ki / Defense &f1250000 / 1250000",
+    "&7Class / Style &fMartial Artist / Hybrid",
+    "&7Top stats &fStrength, Energy, Defense",
+    "&7Ancient Coins &fCopper 999 - Iron 999 - Gold 999 - Emerald 999 - Diamond 999 - Netherite 999"
+   ],
+   "rows": [],
+   "back": true,
+   "staff": true,
+   "source": "UltraDifficultyScreens.java openStats (approx line 956)",
+   "notes": "Staff only; no buttons. The state, class and top-stats values are samples. The Tier value has no 'T#' prefix, unlike other pages. Level and stat numbers have no thousands separator.",
+   "fit": true
+  },
+  {
+   "id": "rival_home",
+   "screen": "rival",
+   "page": "home",
+   "title": "Rivals",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "actions",
+     "Rival"
+    ],
+    [
+     "challenge",
+     "Challenge"
+    ]
+   ],
+   "activeTab": "home",
+   "lines": [
+    "&7Your stats, leaderboard, records, and TP chat."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:info",
+      "label": "My rival stats",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:top",
+      "label": "Leaderboard",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:records",
+      "label": "Records",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:settings",
+      "label": "TP Chat",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:admin",
+      "label": "&cStaff Admin",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "staff": true,
+   "source": "UltraRivalScreens.java openHome (approx line 121)",
+   "notes": "Staff view (non-staff: no Staff Admin row). ISSUES: the 'TP Chat' button opens 'Rival settings', which also holds Instinct, so the label undersells the page. 'Staff Admin' uses the danger style for a navigation button (Difficulty's staff entry is gray). Home is a bare list of links with no status lines.",
+   "fit": true
+  },
+  {
+   "id": "rival_actions",
+   "screen": "rival",
+   "page": "actions",
+   "title": "Rivals",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "actions",
+     "Rival"
+    ],
+    [
+     "challenge",
+     "Challenge"
+    ]
+   ],
+   "activeTab": "actions",
+   "lines": [
+    "&7Your rivals. Pick a player, then choose Silent, Declare, or Accept.",
+    "&7Incoming requests &f5",
+    "&7Awaiting reply &f3",
+    "&7Free a Mutual slot to accept xXDragonSlayerXx",
+    "&7Page 1 of 2",
+    "&7xXDragonSlayerXx",
+    "&7SuperSaiyanGod99",
+    "&7VegetaPrince4Evr",
+    "&7FriezaEmperor007"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:list_detail:uuid:<uuid>",
+      "label": "&axXDragonSlayerXx",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:list_detail:uuid:<uuid>",
+      "label": "&aSuperSaiyanGod99",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:list_detail:uuid:<uuid>",
+      "label": "&aVegetaPrince4Evr",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:list_detail:uuid:<uuid>",
+      "label": "&aFriezaEmperor007",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:list_detail:uuid:<uuid>",
+      "label": "&aPiccoloNamekian1",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:list_detail:uuid:<uuid>",
+      "label": "&aGohanBeastMode22",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:list_detail:uuid:<uuid>",
+      "label": "&aKakarotTheGreat1",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:list_detail:uuid:<uuid>",
+      "label": "&aBrolyLegendary77",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:accept:uuid:<uuid>",
+      "label": "&aAccept",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:decline:uuid:<uuid>",
+      "label": "&cDecline",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:accept:uuid:<uuid>",
+      "label": "&aAccept",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:decline:uuid:<uuid>",
+      "label": "&cDecline",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:accept:uuid:<uuid>",
+      "label": "&aAccept",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:decline:uuid:<uuid>",
+      "label": "&cDecline",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:accept:uuid:<uuid>",
+      "label": "&aAccept",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:decline:uuid:<uuid>",
+      "label": "&cDecline",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:actions:1",
+      "label": "&7Next",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_rival",
+      "label": "Pick player",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:requests",
+      "label": "Requests",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_replace_mutual",
+      "label": "&cDrop Mutual",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openActions (approx line 152)",
+   "notes": "Worst case: 8 rivals and 4 incoming declares on page 1 of 2, mutual slots full. With 16-char names, rivalListLabel drops the '(Status)' tag, so no status shows on the list. ISSUES: (1) the per-declare name lines ('&7<name>', added by stackAcceptDecline because 'Accept xXDragonSlayerXx' is 23 chars) and the empty-state line are added with line() AFTER buttonsAfterLines(). The button origin was computed without them, so body text can run under the buttons. The same pattern is in openChallenge, openRequests and openReplacePick. The name lines also all gather at the end of the body instead of beside their Accept/Decline pair, so with 4 requests the player cannot tell which Accept belongs to whom. (2) Accept/Decline also appear on the Requests page. (3) 'Drop Mutual' is a vague label for 'pick a Mutual rival to demote'.",
+   "fit": true,
+   "staff": false,
+   "mock": {
+    "lines": [
+     "&7Your rivals. Pick one to choose Silent, Declare or Accept.",
+     "&7Requests &f5 incoming, 3 waiting on a reply",
+     "&7Free a Mutual slot to accept xXDragonSlayerXx."
+    ],
+    "rows": [
+     [
+      {
+       "action": "page:list_detail:uuid:<uuid>",
+       "label": "xXDragonSlayerXx",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:list_detail:uuid:<uuid>",
+       "label": "SuperSaiyanGod99",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:list_detail:uuid:<uuid>",
+       "label": "VegetaPrince4Evr",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:list_detail:uuid:<uuid>",
+       "label": "FriezaEmperor007",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:list_detail:uuid:<uuid>",
+       "label": "PiccoloNamekian1",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:list_detail:uuid:<uuid>",
+       "label": "GohanBeastMode22",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "nav:none",
+       "label": "Page 1 of 2",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:actions:1",
+       "label": "Next page",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:pick_rival",
+       "label": "Pick a player",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:requests",
+       "label": "Requests (5)",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:pick_replace_mutual",
+       "label": "Drop a Mutual",
+       "style": "danger",
+       "x": 16,
+       "w": 150
+      }
+     ]
+    ],
+    "why": "openActions / placeRivalListButtons + stackAcceptDecline: 8 rival buttons in confirm green, then 4 anonymous Accept/Decline pairs stacked one per row, while the names they belong to sit in the body far above, and the body repeats the names a third time. The page is 576 px tall. Target: 6 rivals per page in the normal style, a pager row, and incoming requests only on the Requests page (the button says how many)."
+   }
+  },
+  {
+   "id": "rival_challenge",
+   "screen": "rival",
+   "page": "challenge",
+   "title": "Rivals",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "actions",
+     "Rival"
+    ],
+    [
+     "challenge",
+     "Challenge"
+    ]
+   ],
+   "activeTab": "challenge",
+   "lines": [
+    "&7Wins &f1250000",
+    "&7Losses &f1250000",
+    "&7Timed fights against a rival. Challenge deaths can raise Nemesis.",
+    "&eYou are in an active challenge.",
+    "&e7 pending challenge requests below.",
+    "&ePending challenges",
+    "&aIncoming &fxXDragonSlayerXx&8 - &f10 min &8(online)",
+    "&6Outgoing &fSuperSaiyanGod99&8 - &f10 min &8(offline)",
+    "&aIncoming &fVegetaPrince4Evr&8 - &f10 min &8(online)",
+    "&6Outgoing &fFriezaEmperor007&8 - &f10 min &8(offline)",
+    "&aIncoming &fPiccoloNamekian1&8 - &f10 min &8(online)",
+    "&6Outgoing &fGohanBeastMode22&8 - &f10 min &8(offline)",
+    "&7Page 1 of 2",
+    "&7xXDragonSlayerXx",
+    "&7SuperSaiyanGod99",
+    "&7VegetaPrince4Evr",
+    "&7FriezaEmperor007",
+    "&7PiccoloNamekian1",
+    "&7GohanBeastMode22"
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:challenge_accept:uuid:<uuid>",
+      "label": "&aAccept",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:challenge_decline:uuid:<uuid>",
+      "label": "&cDecline",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:challenge_cancel:uuid:<uuid>",
+      "label": "&cCancel",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:challenge_accept:uuid:<uuid>",
+      "label": "&aAccept",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:challenge_decline:uuid:<uuid>",
+      "label": "&cDecline",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:challenge_cancel:uuid:<uuid>",
+      "label": "&cCancel",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:challenge_accept:uuid:<uuid>",
+      "label": "&aAccept",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:challenge_decline:uuid:<uuid>",
+      "label": "&cDecline",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:challenge_cancel:uuid:<uuid>",
+      "label": "&cCancel",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:challenge:1",
+      "label": "&7Next",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_challenge",
+      "label": "Send challenge",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_spectate",
+      "label": "Spectate",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:spectate_stop",
+      "label": "&aStop spectate",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openChallenge (approx line 345)",
+   "notes": "Worst case: 7 pending challenges (6 on page 1) with 16-char names, so every pair falls back to a name line plus a bare Accept/Decline/Cancel. ISSUES: the name lines are added after buttonsAfterLines (overlap risk) and do not sit beside their buttons. 'Stop spectate' is always green, even when the player is not spectating. 'Send challenge' is alone in a row. The page shows Wins/Losses but not Draws, though Records shows W/L/D.",
+   "fit": true,
+   "staff": false,
+   "mock": {
+    "lines": [
+     "&7Wins &f1,250,000  &7Losses &f1,250,000",
+     "&7Timed fights against a rival. Challenge deaths can raise Nemesis.",
+     "&eYou are in an active challenge.",
+     "&6&lPending challenges (7)"
+    ],
+    "rows": [
+     [
+      {
+       "action": "do:challenge_accept:uuid:<uuid>",
+       "label": "Accept xXDragonSlayerXx",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:challenge_decline:uuid:<uuid>",
+       "label": "Decline",
+       "style": "danger",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "nav:none",
+       "label": "To SuperSaiyanGod99 - 10 min",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:challenge_cancel:uuid:<uuid>",
+       "label": "Cancel",
+       "style": "danger",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:challenge_accept:uuid:<uuid>",
+       "label": "Accept VegetaPrince4Evr",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:challenge_decline:uuid:<uuid>",
+       "label": "Decline",
+       "style": "danger",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "nav:none",
+       "label": "Page 1 of 3",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:challenge:1",
+       "label": "Next page",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:pick_challenge",
+       "label": "Send a challenge",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:pick_spectate",
+       "label": "Spectate",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:spectate_stop",
+       "label": "Stop spectating",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      }
+     ]
+    ],
+    "why": "openChallenge / placePerChallengeButtons: 9 anonymous Accept/Decline/Cancel buttons stacked one per row under a body that lists the names twice (640 px tall). \"Stop spectate\" is green even when not spectating. Target: one challenge per row with the name on the button, 3 per page, Stop spectating only while spectating (normal style)."
+   }
+  },
+  {
+   "id": "rival_info",
+   "screen": "rival",
+   "page": "info",
+   "title": "Rivals",
+   "lines": [
+    "&7My rival stats",
+    "&7Current RP &f1250000",
+    "&7Rival tier &fMythic Rival",
+    "&7Nemesis &fxXDragonSlayerXx",
+    "&7Mutual rivals &fSuperSaiyanGod99, VegetaPrince4Evr, FriezaEmperor007",
+    "&7Mutual slots &f3/3"
+   ],
+   "rows": [],
+   "back": true,
+   "source": "UltraRivalScreens.java openInfo (approx line 136)",
+   "notes": "Read-only. The first line repeats the page title. RP has no thousands separator ((int) totalRp).",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "rival_top",
+   "screen": "rival",
+   "page": "top",
+   "title": "Rivals",
+   "lines": [
+    "&7Rival leaderboard",
+    "&6&lRival Leaderboard",
+    "&e#1 &fxXDragonSlayerXx &71250000 &8(&4Mythic Rival&8)",
+    "&e#2 &fSuperSaiyanGod99 &71250000 &8(&4Mythic Rival&8)",
+    "&e#3 &fVegetaPrince4Evr &71250000 &8(&4Mythic Rival&8)",
+    "&e#4 &fFriezaEmperor007 &71250000 &8(&4Mythic Rival&8)",
+    "&e#5 &fPiccoloNamekian1 &71250000 &8(&4Mythic Rival&8)",
+    "&e#6 &fGohanBeastMode22 &71250000 &8(&4Mythic Rival&8)",
+    "&e#7 &fKakarotTheGreat1 &71250000 &8(&4Mythic Rival&8)",
+    "&e#8 &fBrolyLegendary77 &71250000 &8(&4Mythic Rival&8)",
+    "&e#9 &fxXDragonSlayerXx &71250000 &8(&4Mythic Rival&8)",
+    "&e#10 &fSuperSaiyanGod99 &71250000 &8(&4Mythic Rival&8)"
+   ],
+   "rows": [],
+   "back": true,
+   "source": "UltraRivalScreens.java openTop (approx line 563); RivalSystem.topLines(10)",
+   "notes": "ISSUE: the page line '&7Rival leaderboard' and RivalSystem's header '&6&lRival Leaderboard' say the same thing twice. Ranked by RP only; there is no way to switch category, though topLines supports wins/streak/damage. Names repeat in the sample only to fill 10 rows.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "rival_records_history",
+   "screen": "rival",
+   "page": "records:history",
+   "title": "Rivals",
+   "lines": [
+    "&7Records - History",
+    "&7RP &f1250000 &8(&4Mythic Rival&8)",
+    "&7Mutual &f3&8/&f3",
+    "&7Record &a1250&7/&c980&7/&e12",
+    "&7TP &fON",
+    "&eChallenge active"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:records:history",
+      "label": "History",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:records:stats",
+      "label": "Stats",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:records:season",
+      "label": "Season",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:records:quests",
+      "label": "Quests",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:records:achievements",
+      "label": "Achievements",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:records:hof",
+      "label": "Hall of fame",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:records:journal",
+      "label": "Journal",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:records:title",
+      "label": "Title",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openRecords('history') (approx line 575); RivalGuiApi.linesForPage default branch",
+   "notes": "BUG: openRecords' default branch calls RivalGuiApi.linesForPage(player, \"records:history\"). linesForPage matches 'history' but not 'records:history', so it falls to the default case. The History page therefore shows the generic RP/Mutual/Record/TP summary instead of RivalSystem.historyLines (past rivals). Mocked as the code builds it. If fixed, historyLines shows '&6&lPrevious Rivals' and rows like '&fxXDragonSlayerXx &8[PAST] &4Mythic Rival &7RP &f15000 &8- &a12&7/&c9&7/&e1', which have a raw '[PAST]' tag and a non-ASCII middle dot in RivalSystem.java. The current page's own button (History) is not marked.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "rival_records_stats",
+   "screen": "rival",
+   "page": "records:stats",
+   "title": "Rivals",
+   "lines": [
+    "&7Records - Stats",
+    "&6&lRival Stats &8- &fxXDragonSlayerXx",
+    "&7Total RP &f1250000 &8(&4Mythic Rival&8)",
+    "&7Title perk &eMythic title + 100% rival TP",
+    "&7Rival TP bonus &a+200%",
+    "&7Record &a1250&7/&c980&7/&e12 &8(KO 640)",
+    "&7Streak &f12 &8(best 48)",
+    "&7Challenges &f2242 &7Surpass &f31",
+    "&7Career dmg &f1250000 &8| combo &f312 &8| hits &f98000",
+    "&7Mutual slots &f3&8/&f3",
+    "&7TP chat &fON &8(/rival tpmsg)",
+    "&6Combat (after Overhaul)",
+    "&7Overhaul scale &fx1.25",
+    "&7Melee &f1250000 &8- &7Strike &f1250000",
+    "&7Ki &f1250000 &8- &7Defense &f1250000"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:records:history",
+      "label": "History",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:records:stats",
+      "label": "Stats",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:records:season",
+      "label": "Season",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:records:quests",
+      "label": "Quests",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:records:achievements",
+      "label": "Achievements",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:records:hof",
+      "label": "Hall of fame",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:records:journal",
+      "label": "Journal",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:records:title",
+      "label": "Title",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openRecords('stats'); RivalSystem.statsLines",
+   "notes": "Representative sub-record page. Season, Quests, Achievements, Hall of fame, Journal and Title share this layout (lines plus the same 8 record buttons) and are skipped. ISSUES: 'Rival TP bonus +200%' prints the multiplier (2.00 shown as 200%), while the tier perk says '+100% rival TP', so the two numbers contradict. Player copy includes a typed command '(/rival tpmsg)' and the abbreviation 'Career dmg'. RivalSystem.statsLines uses an em dash, and LmOverhaulScaledCombat.compactLines uses raw '§' and middle dots (wireText fixes them on the wire, but raw § in LM sources breaks the UltraStyle rule).",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "rival_settings",
+   "screen": "rival",
+   "page": "settings",
+   "title": "Rivals",
+   "lines": [
+    "&7TP Chat: a chat line for each rival TP award.",
+    "&7Instinct: alerts when a mutual rival or nemesis is near."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:tpmsg:toggle",
+      "label": "&aTP Chat - ON",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:instinct",
+      "label": "Instinct - OFF",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openSettings (approx line 666)",
+   "notes": "OFF toggles are style normal by design (4.7.77).",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "rival_pick_rival",
+   "screen": "rival",
+   "page": "pick_rival",
+   "title": "Rivals",
+   "lines": [
+    "&7Choose a player",
+    "&7Next you choose Silent, Declare, or Accept a mutual request.",
+    "&7Players &f42",
+    "&7Page 1 of 3"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter001",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter002",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter003",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter004",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter005",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter006",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter007",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter008",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter009",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter010",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter011",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter012",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter013",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter014",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter015",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter016",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter017",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter018",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter019",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:rival_type:uuid:<uuid>",
+      "label": "&aSaiyanFighter020",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_rival:1",
+      "label": "&7Next",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openNamePick('rival_pick') (approx line 691)",
+   "notes": "20 per page (10 rows). The Send-a-challenge picker (pick_challenge, actions page:challenge_time:<arg>, heading 'Challenge rival', explainer 'Pick who to challenge. Next step chooses length.') and the Spectate picker (UltraPickHelper.placeNameButtons, count label 'In a fight') use the same layout and are skipped. ISSUES: the first line 'Choose a player' is gray body text, not a header. Every name is green, so all of them look like confirm actions.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "rival_rival_type",
+   "screen": "rival",
+   "page": "rival_type:uuid:<uuid>",
+   "title": "Rivals",
+   "lines": [
+    "&7How do you want to rival xXDragonSlayerXx?",
+    "&7Player &fxXDragonSlayerXx",
+    "&7They already declared you - Accept becomes Mutual."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:silent:uuid:<uuid>",
+      "label": "&aSilent (private)",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:accept_confirm:uuid:<uuid>",
+      "label": "&aAccept their declare",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:decline:uuid:<uuid>",
+      "label": "&cDecline their declare",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openRivalType (approx line 311)",
+   "notes": "Variant with an incoming declare (3 stacked buttons). Without one: 'Silent (private)' plus '&aDeclare (send invite)', and the line '&7Silent is private. Declare sends an invite for Mutual.'. The player name appears in both line 1 and line 2.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "rival_requests",
+   "screen": "rival",
+   "page": "requests",
+   "title": "Rivals",
+   "lines": [
+    "&7Incoming and outgoing rival requests.",
+    "&7Accept a declare to become Mutual. Decline leaves them Declared only.",
+    "&fxXDragonSlayerXx &a*",
+    "&aIncoming declare",
+    "&7Accept to become Mutual - Decline to ignore.",
+    "&fSuperSaiyanGod99 &8?",
+    "&aIncoming declare",
+    "&7Accept to become Mutual - Decline to ignore.",
+    "&fVegetaPrince4Evr &a*",
+    "&aIncoming declare",
+    "&7Accept to become Mutual - Decline to ignore.",
+    "&fFriezaEmperor007 &8?",
+    "&aIncoming declare",
+    "&7Accept to become Mutual - Decline to ignore.",
+    "&fPiccoloNamekian1 &a*",
+    "&6Outgoing declare",
+    "&7Waiting for them to Accept or Decline.",
+    "&7Page 1 of 2",
+    "&7xXDragonSlayerXx",
+    "&7SuperSaiyanGod99",
+    "&7VegetaPrince4Evr",
+    "&7FriezaEmperor007"
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:accept:uuid:<uuid>",
+      "label": "&aAccept",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:decline:uuid:<uuid>",
+      "label": "&cDecline",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:accept:uuid:<uuid>",
+      "label": "&aAccept",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:decline:uuid:<uuid>",
+      "label": "&cDecline",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:accept:uuid:<uuid>",
+      "label": "&aAccept",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:decline:uuid:<uuid>",
+      "label": "&cDecline",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:accept:uuid:<uuid>",
+      "label": "&aAccept",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:decline:uuid:<uuid>",
+      "label": "&cDecline",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:requests:1",
+      "label": "&7Next",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openRequests (approx line 625)",
+   "notes": "ISSUES: the invite detail lines list EVERY pending card, unpaged, while the buttons are paged 4 at a time, so lines and buttons disagree past 4. The name lines from stackAcceptDecline and the empty-state line are added after buttonsAfterLines (overlap risk). The online marker is a bare '*' or '?' with no legend. Two lines contradict each other: 'Decline leaves them Declared only' and 'Decline to ignore'.",
+   "fit": true,
+   "staff": false,
+   "mock": {
+    "lines": [
+     "&7Accept a declare to become Mutual. Decline leaves them Declared only.",
+     "&a* online  &8? offline"
+    ],
+    "rows": [
+     [
+      {
+       "action": "do:accept:uuid:<uuid>",
+       "label": "Accept xXDragonSlayerXx *",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:decline:uuid:<uuid>",
+       "label": "Decline",
+       "style": "danger",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:accept:uuid:<uuid>",
+       "label": "Accept SuperSaiyanGod99 ?",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:decline:uuid:<uuid>",
+       "label": "Decline",
+       "style": "danger",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:accept:uuid:<uuid>",
+       "label": "Accept VegetaPrince4Evr *",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:decline:uuid:<uuid>",
+       "label": "Decline",
+       "style": "danger",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "nav:none",
+       "label": "Waiting on PiccoloNamekian1",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:declare_cancel:uuid:<uuid>",
+       "label": "Take it back",
+       "style": "danger",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "nav:none",
+       "label": "Page 1 of 2",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:requests:1",
+       "label": "Next page",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ]
+    ],
+    "why": "openRequests: the body lists every invite (3 lines each) but the buttons show 4 anonymous Accept/Decline pairs stacked one per row (607 px tall). Target: one request per row, the name on its Accept button, Decline beside it."
+   }
+  },
+  {
+   "id": "rival_list_detail",
+   "screen": "rival",
+   "page": "list_detail:uuid:<uuid>",
+   "title": "Rivals",
+   "lines": [
+    "&7Rival profile",
+    "&7Target &fxXDragonSlayerXx",
+    "&7Model &fxXDragonSlayerXx",
+    "&7Status &fMutual",
+    "&7Rival tier &fMythic Rival",
+    "&7RP &f1250000",
+    "&7Record &f1250 wins, 980 losses, 12 draws",
+    "&7Challenge deaths &f2/3 toward Nemesis",
+    "&8    Grounds  &eKame House Plains &8(Legendary)",
+    "&8    Champion  &fxXDragonSlayerXx &8  Battles  &f128"
+   ],
+   "model": {
+    "x": 248,
+    "y": 60,
+    "w": 86,
+    "h": 120
+   },
+   "rows": [
+    [
+     {
+      "action": "do:model_rotate:list_detail:uuid:<uuid>",
+      "label": "Spin model",
+      "style": "normal",
+      "x": 248,
+      "w": 86,
+      "fixed": true,
+      "y": 184
+     }
+    ],
+    [
+     {
+      "action": "page:remove_confirm:uuid:<uuid>",
+      "label": "&cRemove rival",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:list_detail:uuid:<uuid>|you",
+      "label": "Show you",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openListDetail (approx line 445)",
+   "notes": "Rival online, Mutual. The spin toggle is a fixedButton (ModelPreview.rotateButton) under the model box at legacy y=184, and the button flow starts below it. A Silent rival also gets '&aDeclare' (do:declare) or '&aAccept their declare' above Remove rival. An offline rival shows 'Model You, <form>' plus '&8They are offline, so the model shows you.' and no Show-you button. ISSUES: 'Model <name>' is odd player copy. The Proving Grounds lines come from ProvingGrounds.listLines with leading spaces and raw '§' codes (rival/ProvingGrounds.java) and have no heading. The 'Remove rival' button opens a page whose button says 'End rivalry', so one action has two names.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "rival_challenge_time",
+   "screen": "rival",
+   "page": "challenge_time:uuid:<uuid>",
+   "title": "Rivals",
+   "lines": [
+    "&7Challenge length",
+    "&7Rival &fxXDragonSlayerXx",
+    "&7Challenge xXDragonSlayerXx to a spar. Pick how many minutes - the challenge is sent right away."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:challenge_send:uuid:<uuid>@1",
+      "label": "&a1 min",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:challenge_send:uuid:<uuid>@2",
+      "label": "&a2 min",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:challenge_send:uuid:<uuid>@3",
+      "label": "&a3 min",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:challenge_send:uuid:<uuid>@4",
+      "label": "&a4 min",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:challenge_send:uuid:<uuid>@5",
+      "label": "&a5 min",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:challenge_send:uuid:<uuid>@6",
+      "label": "&a6 min",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:challenge_send:uuid:<uuid>@7",
+      "label": "&a7 min",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:challenge_send:uuid:<uuid>@8",
+      "label": "&a8 min",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:challenge_send:uuid:<uuid>@9",
+      "label": "&a9 min",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:challenge_send:uuid:<uuid>@10",
+      "label": "&a10 min",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openChallengeTime (approx line 794)",
+   "notes": "10 buttons that each send the challenge in one click (the copy warns). 'Rival' row repeats the name used in the next line.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "rival_remove_confirm",
+   "screen": "rival",
+   "page": "remove_confirm:uuid:<uuid>",
+   "title": "Rivals",
+   "lines": [
+    "&7End rivalry",
+    "&7Rival &fxXDragonSlayerXx",
+    "&6&lNotice &eEnd your rivalry with xXDragonSlayerXx? They drop to Declared - you can declare again any time."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:remove:uuid:<uuid>",
+      "label": "&cEnd rivalry",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openRemoveConfirm (approx line 826)",
+   "notes": "Representative confirm page. accept_confirm ('They already declared you', Player, notice, '&aAccept mutual rivalry' confirm) uses the same layout and is skipped.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "rival_replace_pick",
+   "screen": "rival",
+   "page": "pick_replace_mutual",
+   "title": "Rivals",
+   "lines": [
+    "&7Drop a Mutual to accept xXDragonSlayerXx",
+    "&6&lNotice &eMutual slots are full. Pick who to demote to Declared so you can accept xXDragonSlayerXx."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:replace_confirm:uuid:<uuid>",
+      "label": "&cDrop SuperSaiyanGod99",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:replace_confirm:uuid:<uuid>",
+      "label": "&cDrop VegetaPrince4Evr",
+      "style": "danger",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:replace_confirm:uuid:<uuid>",
+      "label": "&cDrop FriezaEmperor007",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:cancel_mutual_replace",
+      "label": "&8Decline instead",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openReplacePick (approx line 876)",
+   "notes": "Mutual slots max out at 3 in practice (MUTUALS_PER_PAGE is 6). ISSUES: 'Decline instead' is a working action drawn dim (the disabled look), and its label does not say whose request it declines. The buttons say 'Drop' while the notice and the confirm page say 'demote'.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "rival_replace_confirm",
+   "screen": "rival",
+   "page": "replace_confirm:uuid:<uuid>",
+   "title": "Rivals",
+   "lines": [
+    "&7Confirm Mutual demotion",
+    "&7Accept &fxXDragonSlayerXx",
+    "&7Demote &fSuperSaiyanGod99",
+    "&6&lNotice &eThis demotes SuperSaiyanGod99 from Mutual to Declared so you can accept xXDragonSlayerXx."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:accept_replace:uuid:<uuid>",
+      "label": "&cDemote SuperSaiyanGod99",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "source": "UltraRivalScreens.java openReplaceConfirm (approx line 927)",
+   "notes": "ISSUE: the fallback label 'Demote SuperSaiyanGod99' is 23 chars and still does not fit a 150px button (~22), and there is no further fallback, so it clips.",
+   "fit": true,
+   "staff": false
+  },
+  {
+   "id": "rival_admin",
+   "screen": "rival",
+   "page": "admin",
+   "title": "Rivals",
+   "lines": [
+    "&7Staff rival tools"
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:admin:save",
+      "label": "&aSave data",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:admin:refresh",
+      "label": "&aReload data",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:admin:status",
+      "label": "&7Status",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "staff": true,
+   "source": "UltraRivalScreens.java openAdmin (approx line 976)",
+   "notes": "'Reload data' reloads rival data from disk with no warning or confirm page (unsaved changes may be lost). 'Status' does not say where its output goes.",
+   "fit": true
+  }
+ ]
+}

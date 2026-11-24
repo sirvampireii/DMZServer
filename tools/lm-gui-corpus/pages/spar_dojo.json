@@ -1,0 +1,3312 @@
+{
+ "system": "Sparring and Dojo",
+ "pages": [
+  {
+   "id": "spar_home",
+   "screen": "spar",
+   "page": "main",
+   "title": "Sparring",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "leaderboard",
+     "Leaderboard"
+    ],
+    [
+     "sparboard",
+     "Spar Board"
+    ]
+   ],
+   "activeTab": "home",
+   "lines": [
+    "&6&lWhat a spar is worth to you",
+    "&fWin vs another dojo: +12 season RP (x2 in a war).",
+    "&7Potential Unlock trains in the world, and in friendly spars when you look for it.",
+    "&fYour spar streak: 365 days"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:weights",
+      "label": "Weights",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:settings",
+      "label": "TP Chat",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openHome(player, notice) (approx line 174)",
+   "notes": "Page id is 'main' but the tab id is 'home' (both route to Home). Staff see one more row: [Staff Admin danger page:admin x16 w150] (see spar_admin). Line 2 comes from HubDashboard.sparWinLine, which still quotes pre-4.7.68 'season RP' from DojoRankings and checks dojo membership through the old mentor-bond key (DojoRankings.homeDojoKey), not DojoService; with no old dojo it reads 'Join a dojo: each win vs another dojo adds 12 RP.' The streak line only shows when a streak multiplier applies. Button 'TP Chat' opens the page the registry titles 'Spar settings'. A notice line (&6&lNotice &e...) can be prepended."
+  },
+  {
+   "id": "spar_leaderboard",
+   "screen": "spar",
+   "page": "leaderboard",
+   "title": "Sparring",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "leaderboard",
+     "Leaderboard"
+    ],
+    [
+     "sparboard",
+     "Spar Board"
+    ]
+   ],
+   "activeTab": "leaderboard",
+   "lines": [
+    "&6&lLeaderboard",
+    "&7Hall of Infamy &fthe top sparrers by TP, sessions and combos",
+    "&7Your stats &fyour spar record and your last three fights"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:infamy",
+      "label": "Hall of Infamy",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:stats",
+      "label": "Your stats",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openLeaderboard (approx line 202)",
+   "notes": ""
+  },
+  {
+   "id": "spar_board",
+   "screen": "spar",
+   "page": "sparboard",
+   "title": "Sparring",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "leaderboard",
+     "Leaderboard"
+    ],
+    [
+     "sparboard",
+     "Spar Board"
+    ]
+   ],
+   "activeTab": "sparboard",
+   "lines": [
+    "&6&lYour post",
+    "&fFriendly, 5× Netherite, within 100 levels, looking for Potential Unlock, for NimbusRiderKid99. 14:59 left.",
+    "&7Looking for Potential Unlock trains it in friendly spars. Ranked spars never do.",
+    "&7Ranked &f12 of 30 friendly spars done, 18 to go",
+    "&6&lOn the board (14)",
+    "&fxXDragonSlayerXx&7 Lv 250, friendly, Friendly Fist on, 5× Netherite, looking for Potential Unlock, waiting 14:59&a - challenges you",
+    "&fxXDragonSlayerXx&7 Lv 250, friendly, Friendly Fist on, 5× Netherite, looking for Potential Unlock, waiting 14:59",
+    "&fxXDragonSlayerXx&7 Lv 250, friendly, Friendly Fist on, 5× Netherite, looking for Potential Unlock, waiting 14:59",
+    "&fxXDragonSlayerXx&7 Lv 250, friendly, Friendly Fist on, 5× Netherite, looking for Potential Unlock, waiting 14:59",
+    "&fxXDragonSlayerXx&7 Lv 250, friendly, Friendly Fist on, 5× Netherite, looking for Potential Unlock, waiting 14:59"
+   ],
+   "rows": [
+    [
+     {
+      "action": "nav:none",
+      "label": "Ranked: locked",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:board_wager",
+      "label": "Wager - 5 Netherite",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:board_range",
+      "label": "Range - +/- 100 Lv",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:board_unpost",
+      "label": "Take my post down",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:board_want",
+      "label": "Looking for - Potential Unlock",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:board_accept:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Accept xXDragonSlayerXx",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "nav:none",
+      "label": "Accept NimbusRiderKid99",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:board_accept:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Accept xXDragonSlayerXx",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:board_accept:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Accept NimbusRiderKid99",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Accept xXDragonSlayerXx",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_challenge",
+      "label": "Challenge a player",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:watch",
+      "label": "Watch spars",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:result",
+      "label": "Last fight",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openBoard (approx line 160)",
+   "notes": "This is the post page: the post settings (Kind, Wager, Range, Looking for) and Post live on the Spar Board itself; there is no separate post page in code. Variants: ranked unlocked -> row 1 left is [Kind - Friendly|Kind - Ranked, do:board_mode, normal]; nothing posted -> row 2 right is [Post for 15 min, do:board_post, confirm] and line 2 reads '&7Nothing posted. Fights happen in Grand Kame House Dojo 99's arena.'; an empty board shows '&7No posts yet. Post one, or challenge a player.'. Up to 5 posts (BOARD_SHOWN) each get an Accept button, 2 per row: a wagered post opens page:board_accept:<uuid>, an unwagered one is do:board_accept:<uuid>, one the viewer can't take is locked. 'Last fight' only when a result exists. PROBLEM: 'Looking for - Potential Unlock' (30 chars) does not fit a 150px button and gets clipped. 'Accept xXDragonSlayerXx' (23 chars) is at the edge.",
+   "variants": [
+    {
+     "look": "lite",
+     "suffix": "lite"
+    }
+   ]
+  },
+  {
+   "id": "spar_board_nodojo",
+   "screen": "spar",
+   "page": "sparboard",
+   "title": "Sparring",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "leaderboard",
+     "Leaderboard"
+    ],
+    [
+     "sparboard",
+     "Spar Board"
+    ]
+   ],
+   "activeTab": "sparboard",
+   "lines": [
+    "&6&lSpar Board",
+    "&fJoin a dojo first. No dojo, no spar.",
+    "&7Spars happen in a dojo's arena. Join one, or found your own in the Dojo section."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:dojo_list",
+      "label": "Find a dojo",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "go:dojo|home",
+      "label": "Open the Dojo",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Post a spar",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openBoard, mine == null branch (approx line 182)",
+   "notes": "Matches the 4.7.80 target (no 'Found a dojo' here). 'Find a dojo' opens the dojo leaderboard, which only has 'Visit <dojo>' buttons; nothing there lets a player join (joining is a training bond: Dojo > Training bonds > Request master). The same page is called 'Browse dojos' on Dojo Home."
+  },
+  {
+   "id": "spar_board_fighting",
+   "screen": "spar",
+   "page": "sparboard",
+   "title": "Sparring",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "leaderboard",
+     "Leaderboard"
+    ],
+    [
+     "sparboard",
+     "Spar Board"
+    ]
+   ],
+   "activeTab": "sparboard",
+   "lines": [
+    "&6&lYou're fighting",
+    "&7Opponent &fxXDragonSlayerXx",
+    "&7Where &fGrand Kame House Dojo 99, arena 6",
+    "&7Time left &f4:59",
+    "&7Forfeiting gives the win away. Any wager is refunded to both."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:board_forfeit",
+      "label": "Forfeit this spar",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openBoard, bout != null branch (approx line 165)",
+   "notes": ""
+  },
+  {
+   "id": "spar_wager",
+   "screen": "spar",
+   "page": "board_wager",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lWager",
+    "&7Your next post &f5× Netherite",
+    "&7Pick what to stake, then how much.",
+    "&7Whoever accepts stakes exactly the same. The winner takes both stakes.",
+    "&7A forfeit or the clock running out refunds both."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:board_wager_coins",
+      "label": "Ancient Coins",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:board_wager_points",
+      "label": "Dojo Points",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:board_wager_set:0",
+      "label": "No wager",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openWager (approx line 297)",
+   "notes": "Real id board_wager (registry title 'Wager', parent spar|sparboard). Shown for a master/elite. Others get one more line '&7Only a master or an elite can wager Dojo Points.' and the right button is locked (dim, nav:none). 'No wager' turns confirm style when no wager is set. The kind buttons don't mark which kind is current."
+  },
+  {
+   "id": "spar_wager_amount_coins",
+   "screen": "spar",
+   "page": "board_wager_coins",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lWager Ancient Coins",
+    "&7Taken from the coins on you when a fight starts, up to 5× Netherite.",
+    "&7The winner takes both stakes. A forfeit or the clock running out refunds both."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:board_wager_set:1",
+      "label": "1 Emerald",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:board_wager_set:2",
+      "label": "1 Diamond",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:board_wager_set:3",
+      "label": "1 Netherite",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:board_wager_set:4",
+      "label": "3 Netherite",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:board_wager_set:5",
+      "label": "5 Netherite",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openWagerAmounts(COINS) (approx line 325)",
+   "notes": "Amounts are preset buttons (DojoCatalog.COIN_STEPS 1,000 / 10,000 / 100,000 / 300,000 / 500,000 copper), two per row, current one in confirm style; code chose buttons, not a text field like weights_input. A pick applies and reopens the Spar Board with a notice. Labels say '1 Emerald' with no 'coin' word, so they read like vanilla emeralds/diamonds.",
+   "mock": {
+    "relabel": {
+     "1 Emerald": "1 Emerald coin",
+     "1 Diamond": "1 Diamond coin",
+     "1 Netherite": "1 Netherite coin",
+     "3 Netherite": "3 Netherite coins",
+     "5 Netherite": "5 Netherite coins"
+    },
+    "why": "openBoardWagerCoins: \"1 Emerald\" / \"5 Netherite\" read like vanilla items; say coin(s)."
+   }
+  },
+  {
+   "id": "spar_wager_amount_points",
+   "screen": "spar",
+   "page": "board_wager_points",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lWager Dojo Points",
+    "&7Taken from your dojo's points when a fight starts, up to 20.",
+    "&7The winner takes both stakes. A forfeit or the clock running out refunds both."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:board_wager_set:6",
+      "label": "5 Dojo Points",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:board_wager_set:7",
+      "label": "10 Dojo Points",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:board_wager_set:8",
+      "label": "20 Dojo Points",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openWagerAmounts(POINTS) (approx line 325)",
+   "notes": "DojoCatalog.POINT_STEPS 5/10/20. Non-master/elite: the line '&7Only a master or an elite can wager Dojo Points.' and no buttons, just Back."
+  },
+  {
+   "id": "spar_accept_ask",
+   "screen": "spar",
+   "page": "board_accept:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lAccept xXDragonSlayerXx's spar",
+    "&7Kind &fFriendly",
+    "&7You stake &f5× Netherite (the same as xXDragonSlayerXx)",
+    "&7Taken from the coins on you when the fight starts.",
+    "&7The winner takes both stakes. A forfeit or the clock running out refunds both."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:board_accept:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Accept and stake",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openAcceptAsk (approx line 369)",
+   "notes": "When the viewer can't accept: a red reason line (&c...) and the button is locked 'Accept and stake'. A gone post: one line '&7That post is gone. Pick another one on the Spar Board.' and Back only."
+  },
+  {
+   "id": "spar_result",
+   "screen": "spar",
+   "page": "result",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lYou won - knockout",
+    "&7Opponent &fxXDragonSlayerXx",
+    "&7Kind &fRanked",
+    "&7Fight time &f299s",
+    "&7TP earned &f1234567",
+    "&7Wager &fxXDragonSlayerXx took both stakes (5× Netherite x2)",
+    "&7Potential Unlock &foff (ranked spars never train it)",
+    "&7No ranked credit: you two had a ranked spar in the last 15 minutes.",
+    "&7Friendly spars &f29 of 30 for ranked"
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:board_rematch",
+      "label": "Rematch xXDragonSlayerXx",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openResult (approx line 421); lines from BoardSpar (approx line 694)",
+   "notes": "'Rematch xXDragonSlayerXx' (24 chars) will likely clip in 150px. 'TP earned' prints a raw long with no thousands separators. The 'No ranked credit' and 'Friendly spars' lines are alternatives in practice; both shown for worst case."
+  },
+  {
+   "id": "spar_pick_challenge",
+   "screen": "spar",
+   "page": "pick_challenge",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Challenge one player to a friendly spar (5× Netherite).",
+    "&7Change kind and wager on the Spar Board first."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:board_challenge:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "xXDragonSlayerXx",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:board_challenge:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "NimbusRiderKid99",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:board_challenge:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "SuperSaiyanBlue7",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:board_challenge:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "KamehamehaMaster",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:board_challenge:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "FriezaForceElite",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:board_challenge:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "PiccoloSpecialBm",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:board_challenge:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "VegetaPrinceOfAl",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:board_challenge:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "GohanBeastMode01",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Previous",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_challenge:1",
+      "label": "Next",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openChallengePick (approx line 438)",
+   "notes": "8 names per page (only online players in a dojo), normal style. Pager uses 'Previous'/'Next' with a locked placeholder (UltraDojoScreens.pager), while the Sparring/Dojo bond pickers use UltraPickHelper 'Prev'/'Next' with no placeholder: two pager styles. No page-number line on this picker. Empty: '&7Nobody online is in a dojo right now.'"
+  },
+  {
+   "id": "spar_watch",
+   "screen": "spar",
+   "page": "watch",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Watch from a dojo's spectator room. Only dojos that built one can be watched."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:dojo_spectate:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Watch Grand Kame House Dojo 99",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Watch Crane School of the West (no room)",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_spectate:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Watch Grand Kame House Dojo 99",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_leave",
+      "label": "Stop watching",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openWatch (approx line 476)",
+   "notes": "One row per dojo with a running bout (unbounded list, no pager). 'Watch <24-char name>' (30 chars) and 'Watch <name> (no room)' (40 chars) clip in 150px; should be buttonWide. 'Stop watching' only while spectating. Empty: '&7No spars are running right now.'",
+   "mock": {
+    "widen": [
+     "Watch Grand Kame House Dojo 99",
+     "Watch Crane School of the West (no room)",
+     "Watch Grand Kame House Dojo 99"
+    ],
+    "why": "a 24-character dojo name or a banner description does not fit a half-width button: the server cuts it with \"...\"; with one wide, all the watch rows go wide so they line up"
+   }
+  },
+  {
+   "id": "spar_top_tp",
+   "screen": "spar",
+   "page": "top_tp",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Hall of Infamy - Training points",
+    "&6&lHall of Infamy &8- &fTraining points",
+    "&e#1 &fxXDragonSlayerXx &79,999,999,999 TP",
+    "&e#2 &fxXDragonSlayerXx &79,999,999,999 TP",
+    "&e#3 &fxXDragonSlayerXx &79,999,999,999 TP",
+    "&e#4 &fxXDragonSlayerXx &79,999,999,999 TP",
+    "&e#5 &fxXDragonSlayerXx &79,999,999,999 TP",
+    "&e#6 &fxXDragonSlayerXx &79,999,999,999 TP",
+    "&e#7 &fxXDragonSlayerXx &79,999,999,999 TP",
+    "&e#8 &fxXDragonSlayerXx &79,999,999,999 TP",
+    "&e#9 &fxXDragonSlayerXx &79,999,999,999 TP",
+    "&e#10 &fxXDragonSlayerXx &79,999,999,999 TP"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:top_tp",
+      "label": "Training points",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:top_sessions",
+      "label": "Sessions",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:top_perfect",
+      "label": "Perfect spars",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:top_combo",
+      "label": "Combo",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:top_time",
+      "label": "Time",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openTop (approx line 273); lines SparringSystem.topLines",
+   "notes": "Hall of Infamy (registry title; parent spar|leaderboard). Other categories (sessions, perfect, combo, time) are the same layout. PROBLEMS: the heading appears twice (openTop adds '&7Hall of Infamy - Training points' and topLines starts with its own header); the category buttons never mark the one being shown; locals backPage/backLabel are dead (also 'Spar Home' copy). The dojoBoard branch (dojo_top_rp/wars) is unreachable: UltraDojoScreens.open catches dojo_top_* first."
+  },
+  {
+   "id": "spar_stats",
+   "screen": "spar",
+   "page": "stats",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Your spar stats",
+    "&bTraining bonds",
+    "&8  - &7Mentor &fxXDragonSlayerXx",
+    "&8  - &7Apprentices &f8&8/&f8 &8- &fNimbusRiderKid99, SuperSaiyanBlue7, +6 more",
+    "&8  - &7Streak &f365 &8(best 999)",
+    "&eLifetime",
+    "&8  - &7Total TP &a9,999,999,999",
+    "&8  - &7Sessions &f99999 &8| best combo &f999",
+    "&8  - &7Best payout &a1,234,567 &8| perfects &f9999",
+    "&7Last three fights:"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:fight_report:1",
+      "label": "vs xXDragonSlayerXx",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:fight_report:2",
+      "label": "vs NimbusRiderKid99",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:fight_report:3",
+      "label": "vs SuperSaiyanBlue7",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openStats (approx line 213); SparringSystem.statsOverviewLines",
+   "notes": "Fight buttons are full left-column (button()), confirm style, one per row, label 'vs <name>' (time suffix cut). Uses raw color codes (&b, &e, &8 '  - ' bullets) from SparringSystem rather than UltraStyle.header/labelValue, so it looks unlike the newer pages. No fights: '&8No finished spars yet. Fight someone, then check back.'",
+   "mock": {
+    "styles": {
+     "page:fight_report:1": "normal",
+     "page:fight_report:2": "normal",
+     "page:fight_report:3": "normal"
+    },
+    "why": "openStats: the three fight-report buttons are green confirm; they only open a report (normal)."
+   }
+  },
+  {
+   "id": "spar_fight_report",
+   "screen": "spar",
+   "page": "fight_report:1",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Fight report",
+    "&6Spar Report #1 &8vs &fxXDragonSlayerXx",
+    "&8  - &7TP &a+1,234,567",
+    "&8  - &7Time &f59m 59s",
+    "&8  - &7Melee &f999,999 &8| &7Ki &f999,999",
+    "&8  - &7Combo &f999 &6Perfect",
+    "&8  - &7Ended &fpartner left the area",
+    "&8  - &7When &f47h ago"
+   ],
+   "rows": [],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openFightReport (approx line 254); SparringSystem.appendRecentReport",
+   "notes": "Body only, Back footer. 'Ended' reason text is free-form from the session; the Perfect tag is on the Combo line."
+  },
+  {
+   "id": "spar_weights",
+   "screen": "spar",
+   "page": "weights",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Training weights - 1 Ancient Copper per weight value.",
+    "&7Copper &f9999",
+    "&7Ancient Coins &fCopper 128 &8· &fIron 128 &8· &fGold 128 &8· &fEmerald 128 &8· &fDiamond 128 &8· &fNetherite 128",
+    "&7Max value &f10,000,000",
+    "&7Pick a type, type the weight value, then confirm."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:weights_input:turtle_shell",
+      "label": "Turtle Shell",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:weights_input:workout_weights",
+      "label": "Workout Weights",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:weights_input:piccolo_cape",
+      "label": "Piccolo Cape",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraWeightShopScreens.java openShop (approx line 76)",
+   "notes": "Three type buttons in confirm style (green) although they only open the next page. The 'Ancient Coins' value is built in AncientCoinEconomy.inventoryBreakdown with raw section signs ('§f', ' §8· §f') in an LM Java source, against the no-raw-section-sign rule.",
+   "mock": {
+    "styles": {
+     "page:weights_input:turtle_shell": "normal",
+     "page:weights_input:workout_weights": "normal",
+     "page:weights_input:piccolo_cape": "normal"
+    },
+    "why": "openWeights: the three weight types are green confirm; picking a type only opens the amount page (normal)."
+   }
+  },
+  {
+   "id": "spar_weights_input",
+   "screen": "spar",
+   "page": "weights_input:turtle_shell",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Turtle Shell",
+    "&7Copper &f9999",
+    "&7Ancient Coins &fCopper 128 &8· &fIron 128 &8· &fGold 128 &8· &fEmerald 128 &8· &fDiamond 128 &8· &fNetherite 128",
+    "&7Price &f1 Ancient Copper per weight value",
+    "&7Max value &f10,000,000",
+    "&7Type how much weight value you want (1-10,000,000)."
+   ],
+   "rows": [
+    [
+     {
+      "input": "weight_value",
+      "x": 16,
+      "w": 318
+     }
+    ],
+    [
+     {
+      "action": "do:weight_quote:turtle_shell",
+      "label": "Continue",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraWeightShopScreens.java openInput (approx line 101)",
+   "notes": "Field: textField(input:weight_value, x16, w = PANEL_W - 2*COL_L = 318, h18, maxLength 8). 'Continue' is buttonBound to the field. Width 318 is from the fixed 350 panel constant, not the fitted menu width - other rows use 306 for full width (16+306=322), so the field overhangs the button grid by 12px. Old clients without text input see '&cTyped weight entry needs a newer KaiPath client.' plus a help line and no field.",
+   "inputs": [
+    {
+     "id": "weight_value",
+     "type": "text",
+     "placeholder": "e.g. 500000",
+     "value": "",
+     "maxLength": 8,
+     "row": 0
+    }
+   ]
+  },
+  {
+   "id": "spar_weights_confirm",
+   "screen": "spar",
+   "page": "weights_confirm:turtle_shell:10000000",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Confirm weight purchase",
+    "&7Type &fTurtle Shell",
+    "&7Weight value &f10,000,000",
+    "&7Cost &f100× Netherite Ancient",
+    "&7Copper &f9999",
+    "&7Ancient Coins &fCopper 128 &8· &fIron 128 &8· &fGold 128 &8· &fEmerald 128 &8· &fDiamond 128 &8· &fNetherite 128"
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:weight_buy:turtle_shell:10000000",
+      "label": "Buy 100 Netherite",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:weights_input:turtle_shell",
+      "label": "Change value",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraWeightShopScreens.java openConfirm (approx line 154)",
+   "notes": "Can't afford: a '&c<missing text>' line and only [Change value] (button(), normal). 'Cost' reads '100× Netherite Ancient' (formatExactCost word order is odd). The Buy button does not warn the purchase is final; the page never says the item goes to the weights slot / inventory / floor."
+  },
+  {
+   "id": "spar_settings",
+   "screen": "spar",
+   "page": "settings",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Training point messages"
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:tpmsg:toggle",
+      "label": "TP Chat - ON",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:mentor_tpmsg:toggle",
+      "label": "Mentor TP - OFF",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openSettings (approx line 681)",
+   "notes": "Toggles: ON = confirm style, OFF = dim style with a real action (not nav:none). Neither line says what the toggles do (chat messages for TP from spars / from apprentices). Registry title 'Spar settings', Home button 'TP Chat'."
+  },
+  {
+   "id": "spar_admin",
+   "screen": "spar",
+   "page": "admin",
+   "title": "Sparring",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Staff spar tools",
+    "&7Session &fin progress",
+    "&7Partner &fxXDragonSlayerXx"
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:admin:save",
+      "label": "Save data",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:admin:status",
+      "label": "Show status",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openAdmin (approx line 950)",
+   "notes": "Staff only. Reached from Home's extra row [Staff Admin, danger, page:admin, x16 w150]."
+  },
+  {
+   "id": "dojo_home",
+   "screen": "dojo",
+   "page": "home",
+   "title": "Dojo",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "dojo_upgrades",
+     "Upgrades"
+    ],
+    [
+     "dojo_wars",
+     "Wars"
+    ]
+   ],
+   "activeTab": "home",
+   "lines": [
+    "&6&lGrand Kame House Dojo 99",
+    "&7Master &fxXDragonSlayerXx (you)",
+    "&7Style &fStrike Moves",
+    "&7Bonus &fFrost Demon tradition",
+    "&7Dojo Points &f99999",
+    "&7Clout this season &f99999",
+    "&7Members &f30 of 30",
+    "&7Hall &fmasterwork, 6 of 6 rings",
+    "&7Wars &f999 won, 999 lost",
+    "&7Elites &fNimbusRiderKid99, SuperSaiyanBlue7",
+    "&7Banner &fLight blue, 6 patterns",
+    "&7Upgrades build into your hall.",
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:dojo_rename",
+      "label": "Rename - 20",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_banner",
+      "label": "Change banner - 20",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:dojo_roster",
+      "label": "Roster and bonds",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_elites",
+      "label": "Members and elites",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mentor",
+      "label": "Training bonds",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Visit dojo",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:dojo_list",
+      "label": "Dojo leaderboard",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_close",
+      "label": "Close dojo",
+      "style": "danger",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openDojo (approx line 507); DojoFounding.identityButtons, bannerLines",
+   "notes": "Master view. pictures: hallPlan(text=['Upgrades build into your hall.'], minRows 7, side 400) - lines 11-17 (one text line + 6 empty rows) carry the floor plan on the right for LM picture clients; KaiPath shows just the one text line. Identity row variants: no banner yet -> an extra full row first [Choose your dojo's banner, confirm, page:dojo_banner]; cooldown -> [Rename in 11h 59m (locked)][Banner in 11h 59m (locked)]; too few points -> 'Rename - needs 20' / 'Banner - needs 20' locked. Non-master: no identity row and row 4 right is empty. Inside the dojo world the 'Visit dojo' cell becomes [Leave dojo, do:dojo_leave]. PROBLEMS: 'Roster and bonds' and 'Training bonds' both lead to the training-bond actions (the roster page's 'Actions' button opens page:mentor, the same as 'Training bonds'). 'Dojo leaderboard' here opens the clout board while the same label on Wars opens the war-wins board.",
+   "pictures": {
+    "line": 11,
+    "rows": 7,
+    "side": 400
+   },
+   "variants": [
+    {
+     "skin": "zeno_omni"
+    }
+   ]
+  },
+  {
+   "id": "dojo_home_nodojo",
+   "screen": "dojo",
+   "page": "home",
+   "title": "Dojo",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "dojo_upgrades",
+     "Upgrades"
+    ],
+    [
+     "dojo_wars",
+     "Wars"
+    ]
+   ],
+   "activeTab": "home",
+   "lines": [
+    "&6&lNo dojo yet",
+    "&fA dojo is your home for spars, wars and training.",
+    "&7Found your own (free, you become its master), or join one.",
+    "&7Founding asks for a name, a style and a banner you made at a loom."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:found",
+      "label": "Found a dojo (free)",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:dojo_list",
+      "label": "Browse dojos",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:mentor",
+      "label": "Training bonds",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openDojo, d == null branch (approx line 512)",
+   "notes": "Closed-dojo variant: lines '&6&lNo dojo yet', '&fGrand Kame House Dojo 99 is closed.', '&7Reopening keeps your members and style, but every upgrade drops one tier.' and row 1 is [Reopen Grand Kame House Dojo 99, confirm, do:dojo_reopen] ('Reopen <24 chars>' = 31 chars, clips). 'Browse dojos' is the same page the Spar Board calls 'Find a dojo'; 'join one' is promised but the leaderboard has no join button."
+  },
+  {
+   "id": "dojo_upgrades",
+   "screen": "dojo",
+   "page": "dojo_upgrades",
+   "title": "Dojo",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "dojo_upgrades",
+     "Upgrades"
+    ],
+    [
+     "dojo_wars",
+     "Wars"
+    ]
+   ],
+   "activeTab": "dojo_upgrades",
+   "lines": [
+    "&7Dojo Points &f99999",
+    "&7Earn points by hosting",
+    "&7spars, winning war bouts",
+    "&7and training disciples.",
+    "&7Each upgrade builds into",
+    "&7your hall. Tap one to see",
+    "&7it before you buy."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:dojo_up:arena",
+      "label": "Sparring arenas - 200",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_up:training_hall",
+      "label": "Training hall - 120",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:dojo_up:meditation",
+      "label": "Meditation room - 120",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_up:spectator",
+      "label": "Spectator balcony - 120",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:dojo_up:trophy_hall",
+      "label": "Trophy hall - 120",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_up:quarters",
+      "label": "Master quarters - 120",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:dojo_up:garden",
+      "label": "Garden grounds - 120",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_up:capacity",
+      "label": "Disciple capacity - 125",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:dojo_style",
+      "label": "Style and bonus",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openUpgrades (approx line 598)",
+   "notes": "LM picture clients: lines 1-6 are short on purpose (plan on the right 40%); pictures rows=7 (6 text + 1 pad). KaiPath/older: two long lines '&7Earn points by hosting spars, winning war bouts and training disciples.' and '&7Each upgrade builds into your hall. Tap one to see it before you buy.' then 5 text-map lines (e.g. '&f[Balcony]', '&f[Ring 1] &f[Ring 2] &8[Ring 3 - empty]'...). Labels are '<name> - <next cost>' or '<name> (max)'. Worst-case costs: arena 40*5=200 at tier 5, rooms 120, capacity 125. 'Spectator balcony - 120' and 'Disciple capacity - 125' (23 chars) are at the edge of a 150px button. No dojo: one line '&7Join or found a dojo first.' and no buttons.",
+   "pictures": {
+    "line": 1,
+    "rows": 7,
+    "side": 400
+   }
+  },
+  {
+   "id": "dojo_upgrade_arena",
+   "screen": "dojo",
+   "page": "dojo_up:arena",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lSparring arenas",
+    "&fAnother ring on the hall floor, so more board spars can run at once.",
+    "&7Now &f5 rings, masterwork hall",
+    "&7After &f6 rings, masterwork hall",
+    "&7Map: the starred part is the one this builds.",
+    "&f[Balcony]",
+    "&f[Ring 1] &f[Ring 2] &f[Ring 3]",
+    "&f[Ring 4] &f[Ring 5] &a*Ring 6*",
+    "&f[Training] &f[Meditation] &f[Trophies] &f[Quarters]",
+    "&f[Garden]",
+    "",
+    "",
+    "",
+    "",
+    "&7Cost &f200 Dojo Points (you have 150)",
+    "&7Points are spent at once. An upgrade can't be undone.",
+    "&7Your dojo needs 50 more points."
+   ],
+   "rows": [
+    [
+     {
+      "action": "nav:none",
+      "label": "Buy for 200 points",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Visit dojo",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openUpgrade (approx line 675)",
+   "notes": "pictures(text, PICTURE_ROWS=10, side 0): lines 4-13 (map caption + 5 map rows + 4 empty) are replaced by the Now / After / Where pictures across the full width on LM clients (the text is hidden there). A look-change upgrade adds '&7This ring refits the whole hall in the <look> look.' after the After line. Affordable + master/elite: left is [Buy for 200 points, confirm, do:dojo_buy:arena]. Maxed: 'Cost already at its best', no map/pictures, locked 'Fully upgraded'. Not master/elite: '&7Only the master or an elite can buy upgrades.'",
+   "pictures": {
+    "line": 4,
+    "rows": 10,
+    "side": 0
+   }
+  },
+  {
+   "id": "dojo_style",
+   "screen": "dojo",
+   "page": "dojo_style",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Style &fStrike Moves (strike clashes and heavy blows)",
+    "&7Members get the bonus when they fight in the dojo's style.",
+    "&7Changing style ends the current bonus.",
+    "&7Bonus &fFrost Demon tradition: +8% spar TP from strike clashes and heavy blows, Frost Demon members only.",
+    "&7The bonus can change again in 7 days.",
+    "&7A bonus costs &f40 Dojo Points (you have 99999)"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:dojo_style_ask:KI",
+      "label": "Ki Masters",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_style_ask:MELEE",
+      "label": "Melee",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Using Strike Moves",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_style_ask:EVASION",
+      "label": "Evasion",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Strike Moves focus",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "nav:none",
+      "label": "Human tradition",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Saiyan tradition",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "nav:none",
+      "label": "Namekian tradition",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Active: Frost Demon tradition",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "nav:none",
+      "label": "Bio-Android tradition",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Majin tradition",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openStyle (approx line 750)",
+   "notes": "Shown with the bonus on cooldown, so all 7 bonus buttons are locked. Style buttons: current = locked 'Using <style>'; during the identity cooldown the others read '<style> - 11h 59m' locked; short of 40 points '<style> - needs 40' locked; a first pick (no style) is do:dojo_style:<ID> directly. Bonus buttons, when allowed, are page:dojo_bonus_ask:<style>:focus / <style>:race:<race>. Non-master: every button locked and a line '&7Only the master picks the style and the bonus.' PROBLEMS: 'Active: Frost Demon tradition' (29 chars) clips; action ids carry the raw enum (KI/MELEE) - fine as ids, not shown. Registry parent is Upgrades."
+  },
+  {
+   "id": "dojo_style_ask",
+   "screen": "dojo",
+   "page": "dojo_style_ask:EVASION",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lChange style to Evasion?",
+    "&7New style &fEvasion (blocking and guarding)",
+    "&cThe Frost Demon tradition bonus ends now.",
+    "&7Its 40 Dojo Points are not refunded.",
+    "&7This change costs &f40 Dojo Points (you have 99999)",
+    "&7After it, the name, style and banner can't change for 12 hours.",
+    "&7A new bonus costs &f40 Dojo Points",
+    "&7You can pick the new bonus right away."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:dojo_style:EVASION",
+      "label": "Change style, end the bonus",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openStyleAsk (approx line 844)",
+   "notes": "Variants: no active bonus -> [Change style for 40 points, confirm]; first pick -> [Use this style, confirm]; blocked -> locked 'Changes again in 11h 59m' / 'Needs 40 points'. PROBLEM: with an active bonus the danger button 'Change style, end the bonus' (27 chars) clips and does not name the 40-point cost (only the line does)."
+  },
+  {
+   "id": "dojo_bonus_ask",
+   "screen": "dojo",
+   "page": "dojo_bonus_ask:strike:race:frost_demon",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lBuy Frost Demon tradition?",
+    "&7+8% spar TP from strike clashes and heavy blows, Frost Demon members only.",
+    "&7Cost &f40 Dojo Points (you have 99999)",
+    "&7After this the bonus can't change for 7 days.",
+    "&cIt replaces Strike Moves focus."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:dojo_bonus:strike:race:frost_demon",
+      "label": "Buy for 40 points",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openBonusAsk (approx line 888)",
+   "notes": "Short of points: locked 'Needs 40 points'."
+  },
+  {
+   "id": "dojo_elites",
+   "screen": "dojo",
+   "page": "dojo_elites",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Members &f30 of 30",
+    "&7Elites (2 at most) invite members, buy upgrades and declare wars.",
+    "&7An elite's war needs your sign-off unless you give them war rights.",
+    "&7An elite needs 3 days in the dojo first."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:dojo_demote:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Step down NimbusRiderKid99",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:dojo_warrights:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "War rights - ON",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_demote:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Step down SuperSaiyanBlue7",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:dojo_warrights:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "War rights - OFF",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Make xXDragonSlayerXx elite",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Make KamehamehaMaster elite",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Make FriezaForceElite elite",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openElites (approx line 918)",
+   "notes": "One row per disciple (up to 29; no pager, the page scrolls). With 2 elites every other disciple is a locked 'Make <name> elite'; with fewer it is [Make <name> elite, normal, do:dojo_promote:<uuid>]. Non-master: each row is a locked '<name>' / '<name> (elite)'. PROBLEMS: 'Step down <16-char name>' (26) and 'Make <16> elite' (26) clip in 150px; the War rights toggle does not say whose rights it is once the left label is clipped; 'War rights - OFF' uses normal style, unlike other OFF toggles (dim). The 3-day elite rule is not shown per player, so a locked Make button can't say why. Empty: '&7No disciples yet. Invite players from Roster and bonds.' - but recruiting is under Training bonds > Recruit."
+  },
+  {
+   "id": "dojo_wars",
+   "screen": "dojo",
+   "page": "dojo_wars",
+   "title": "Dojo",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "dojo_upgrades",
+     "Upgrades"
+    ],
+    [
+     "dojo_wars",
+     "Wars"
+    ]
+   ],
+   "activeTab": "dojo_wars",
+   "lines": [
+    "&6&lDojo wars",
+    "&7A war is a knockout tournament: bracket or gauntlet, KO or ring-out wins.",
+    "&7Record &f999 won, 999 lost",
+    "&fGrand Kame House Dojo 99 vs Crane School of the West&7 - Grand Kame House Dojo 99 won 99-99",
+    "&fCrane School of the West vs Grand Kame House Dojo 99&7 - turned down",
+    "&fGrand Kame House Dojo 99 vs Crane School of the West&7 - expired",
+    "&fGrand Kame House Dojo 99 vs Crane School of the West&7 - called off"
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:war_join:<id>",
+      "label": "Join the war",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_war_view:<id>",
+      "label": "Bracket vs Crane School of the West",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:war_accept:<id>",
+      "label": "Accept vs Crane School of the West",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:war_decline:<id>",
+      "label": "Turn down",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:war_signoff:<id>",
+      "label": "Sign off vs Crane School of the West",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:war_cancel:<id>",
+      "label": "Call it off",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Waiting on Crane School of the West",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:war_cancel:<id>",
+      "label": "Call it off",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:dojo_war_pick",
+      "label": "Declare a war",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:dojo_list_wars",
+      "label": "Dojo leaderboard",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openWars (approx line 963)",
+   "notes": "Up to 4 history lines; one row per open war (running / challenged / pending sign-off / waiting). Not master/elite: '&7Only the master or an elite can declare or accept a war.' and 'Declare a war' locked. Running war with sign-up closed: left is locked 'Signed up' / 'Sign-up closed'. PROBLEMS: 'Bracket vs <24>' (35), 'Accept vs <24>' (34), 'Sign off vs <24>' (36), 'Waiting on <24>' (35), 'Awaiting sign-off: <24>' (43) all clip in 150px. 'Dojo leaderboard' here opens the war-wins board; on Home the same label opens the clout board. Accept/Turn down sit side by side (the bond and old war pages stack Accept over Decline to avoid misclicks).",
+   "mock": {
+    "rows": [
+     [
+      {
+       "action": "do:war_join:<id>",
+       "label": "Join the war",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:dojo_war_view:<id>",
+       "label": "View the bracket",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:war_accept:<id>",
+       "label": "Accept the war",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:war_decline:<id>",
+       "label": "Turn it down",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:war_signoff:<id>",
+       "label": "Sign off the war",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:war_cancel:<id>",
+       "label": "Call it off",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "nav:none",
+       "label": "Waiting on them",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:war_cancel:<id>",
+       "label": "Call it off",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:dojo_war_pick",
+       "label": "Declare a war",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:dojo_list_wars",
+       "label": "Dojo leaderboard",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ]
+    ],
+    "lines": [
+     "&6&lDojo wars",
+     "&7A war is a knockout tournament: bracket or gauntlet, KO or ring-out wins.",
+     "&7Record &f999 won, 999 lost",
+     "&6&lNow",
+     "&fIn progress: Crane School of the West - bracket, round 2",
+     "&fInvite from Crane School of the West - accept or turn it down",
+     "&fYour elite declared on Crane School of the West - needs your sign-off",
+     "&fDeclared on Crane School of the West - waiting on them",
+     "&6&lPast wars",
+     "&7vs Crane School of the West - won 99-99",
+     "&7vs Crane School of the West - turned down"
+    ],
+    "why": "openWars: \"Bracket vs <dojo>\", \"Accept vs <dojo>\", \"Sign off vs <dojo>\" and \"Waiting on <dojo>\" are cut with \"...\" for a 24-character dojo name; the body lists past wars but not which open war each button acts on. Target: one open war per row with a short action label (\"Accept the war | Turn it down\"), each named in a \"Now\" card in the same order, past wars in their own card."
+   }
+  },
+  {
+   "id": "dojo_war_pick",
+   "screen": "dojo",
+   "page": "dojo_war_pick",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Pick the dojo to declare war on."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:dojo_war_fmt:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Crane School of the West",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_war_fmt:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Turtle School",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:dojo_war_fmt:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Red Ribbon Gym",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_war_fmt:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Capsule Corp Fighters",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:dojo_war_fmt:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Namek Elders",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_war_fmt:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Saiyan Pride",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:dojo_war_fmt:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Frieza Force Academy",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_war_fmt:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Kai Temple",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Previous",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_war_pick:1",
+      "label": "Next",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openWarPick (approx line 1041)",
+   "notes": "8 dojos per page by clout. 24-char dojo names ('Crane School of the West') fit only just, if at all. No page-number line. Empty: '&7There are no other open dojos yet.'"
+  },
+  {
+   "id": "dojo_war_fmt",
+   "screen": "dojo",
+   "page": "dojo_war_fmt:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lWar on Crane School of the West",
+    "&7Bracket &fsingle elimination; winners advance to the final",
+    "&7Gauntlet &fthe winner stays on and faces the next fighter",
+    "&7Members of both dojos sign up for one minute once they accept."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:war_declare:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90:BRACKET",
+      "label": "Declare: bracket",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:war_declare:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90:GAUNTLET",
+      "label": "Declare: gauntlet",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openWarFormat (approx line 1073)",
+   "notes": "Neither the page nor the buttons warn that an elite's declaration waits for the master's sign-off, or what a war costs/risks; the click declares at once."
+  },
+  {
+   "id": "dojo_war_view",
+   "screen": "dojo",
+   "page": "dojo_war_view:<id>",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Grand Kame House Dojo 99 vs Crane School of the West &fbracket, 99-99",
+    "&7Now &fBout: xXDragonSlayerXx vs NimbusRiderKid99, 4:59 left",
+    "&6&lRound 1",
+    "&fxXDragonSlayerXx vs NimbusRiderKid99&7 - xXDragonSlayerXx by knockout",
+    "&fSuperSaiyanBlue7 vs KamehamehaMaster&7 - KamehamehaMaster by ring-out",
+    "&fFriezaForceElite vs PiccoloSpecialBm&7 - PiccoloSpecialBm by time ran out",
+    "&fVegetaPrinceOfAl vs GohanBeastMode01&7 - GohanBeastMode01 by forfeit",
+    "&6&lRound 2",
+    "&fxXDragonSlayerXx vs KamehamehaMaster&7 - xXDragonSlayerXx by knockout",
+    "&fPiccoloSpecialBm vs GohanBeastMode01&7 - GohanBeastMode01 by disconnect",
+    "&6&lRound 3",
+    "&fxXDragonSlayerXx vs GohanBeastMode01&7 - xXDragonSlayerXx by knockout",
+    "&7Winner &fGrand Kame House Dojo 99 (champion xXDragonSlayerXx)"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:dojo_war_view:<id>",
+      "label": "Refresh",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openWarView (approx line 1089); DojoWar.bracketLines",
+   "notes": "Gauntlet uses '&6&lChallenger N' headers instead of 'Round N'. The format shows lower-case raw enum ('bracket'/'gauntlet') - fine. A finished war's 'Now' line is absent. Unknown war: '&7That war is gone.'"
+  },
+  {
+   "id": "dojo_list",
+   "screen": "dojo",
+   "page": "dojo_list",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lDojo leaderboard (clout this season)",
+    "&f1. Grand Kame House Dojo 99&7 - 99999 clout, 30 members, Strike Moves",
+    "&f2. Crane School of the West&7 - 99999 clout, 30 members, Strike Moves",
+    "&f3. Grand Kame House Dojo 99&7 - 99999 clout, 30 members, Strike Moves",
+    "&f4. Crane School of the West&7 - 99999 clout, 30 members, Strike Moves",
+    "&f5. Grand Kame House Dojo 99&7 - 99999 clout, 30 members, Strike Moves",
+    "&f6. Crane School of the West&7 - 99999 clout, 30 members, Strike Moves"
+   ],
+   "rows": [
+    [
+     {
+      "action": "nav:none",
+      "label": "By clout",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_list_wars",
+      "label": "By war wins",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Visit Grand Kame House Dojo 99",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Visit Crane School of the West",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Visit Grand Kame House Dojo 99",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Visit Crane School of the West",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Visit Grand Kame House Dojo 99",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Visit Crane School of the West",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Previous",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_list:1",
+      "label": "Next",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openList (approx line 1110)",
+   "notes": "6 per page. The active sort is shown as a LOCKED dim button ('By clout'), while Members uses confirm style for the active toggle - inconsistent. War-wins variant: header '(war wins)', lines '... - 999 war wins, ...', row 1 [By clout normal page:dojo_list][By war wins locked]. PROBLEMS: each dojo is listed twice (a line and a 'Visit <name>' button); 'Visit <24 chars>' (30) clips at 150px - should be buttonWide; no join/request action although Spar Board sends no-dojo players here as 'Find a dojo'. Pre-4.7.68 dojo_top_*/dojo_hof links land here too. Empty: '&7No dojos yet. Found the first one!'",
+   "mock": {
+    "rows": [
+     [
+      {
+       "action": "nav:none",
+       "label": "By clout",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:dojo_list_wars",
+       "label": "By war wins",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+       "label": "Visit Grand Kame House Dojo 99",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+       "label": "Visit Crane School of the West",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+       "label": "Visit Grand Kame House Dojo 99",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+       "label": "Visit Crane School of the West",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+       "label": "Visit Grand Kame House Dojo 99",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:dojo_visit:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+       "label": "Visit Crane School of the West",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "nav:none",
+       "label": "Previous",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:dojo_list:1",
+       "label": "Next",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ]
+    ],
+    "why": "openList: six Visit buttons each alone in the left column; pair them (two per row)."
+   }
+  },
+  {
+   "id": "dojo_roster",
+   "screen": "dojo",
+   "page": "dojo_roster",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&bTraining bonds",
+    "&7Your mentor &fxXDragonSlayerXx",
+    "&7Your apprentices &f8&8/&f8",
+    "&8  &fNimbusRiderKid99, SuperSaiyanBlue7, +6 more",
+    "&7Mentor share &f1.9% &8each (dojo split)",
+    "&7Dojo peers spar &a+10% TP",
+    "&7Spar mentor &a+18% &8- peers +10%",
+    "&7Streak &f365 &8best &f999",
+    "&ePending invites &f8 &8- open Bond invites (&f1h&8)"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:dojo_members",
+      "label": "Dojo members",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_previous_members",
+      "label": "Previous members",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mentor",
+      "label": "Actions",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openDojo -> page dojo_roster (approx line 332); SparGuiApi.mentorLines",
+   "notes": "Registry title 'Roster and bonds'. PROBLEMS: the body is exactly the same mentorLines text as the Training bonds page (page:mentor); the 'Actions' button opens Training bonds under a different name; mentorLines tells players to 'Open Actions' / 'ask a mentor from Actions' while Dojo Home calls it 'Training bonds'; 'Your apprentices x/8' uses MAX_APPRENTICES=8 although dojos now hold up to 29 disciples (DojoCatalog.disciplesAllowed). The page is drawn by UltraSparScreens with the old bond system while Dojo Home uses DojoService. No-bond variant lines: '&7Invite apprentices or ask a mentor from Actions.', '&8Dojo: up to &f8 &8apprentices - one master', ..."
+  },
+  {
+   "id": "dojo_members_own",
+   "screen": "dojo",
+   "page": "dojo_members_own",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6Your dojo",
+    "&7Dojo &fGrand Kame House Dojo 99",
+    "&8  - &7Master &fxXDragonSlayerXx",
+    "&8    &799999 RP &8| &f9,999,999 TP &8| &a999W &c999L",
+    "&8  - &7Apprentice &fNimbusRiderKid99",
+    "&8    &799999 RP &8| &f9,999,999 TP &8| &a999W &c999L",
+    "&8  - &7Apprentice &fSuperSaiyanBlue7",
+    "&8    &799999 RP &8| &f9,999,999 TP &8| &a999W &c999L",
+    "&8  - &7Apprentice &fKamehamehaMaster",
+    "&8    &799999 RP &8| &f9,999,999 TP &8| &a999W &c999L",
+    "&8  - &7Apprentice &fFriezaForceElite",
+    "&8    &799999 RP &8| &f9,999,999 TP &8| &a999W &c999L"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:dojo_members_own",
+      "label": "Your dojo",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:dojo_members_joined",
+      "label": "Your mentor's dojo",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openDojoMembers (approx line 382); DojoRankings.ownedDojoMemberLines",
+   "notes": "Up to 30 roster entries x 2 lines; the page scrolls (lines shown truncated to 5 members). Toggle: active side confirm, other side dim but still clickable (dim + real action, not nav:none). Previous members (dojo_previous_members_own/_joined) is the same layout with '&8Players who left this dojo, with what they earned for it this season.' and '&e#1 &f<name> <contribution>' rows. PROBLEMS: 'RP' is the pre-4.7.68 season RP (DojoRankings) that the current dojos no longer update; 'Your mentor's dojo' is old bond wording; the 'No rival-dojo spars logged this season.' line refers to the retired ladder."
+  },
+  {
+   "id": "dojo_mentor",
+   "screen": "dojo",
+   "page": "mentor",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Actions - recruit, request, or manage training bonds",
+    "&bTraining bonds",
+    "&7Your mentor &fxXDragonSlayerXx",
+    "&7Your apprentices &f8&8/&f8",
+    "&8  &fNimbusRiderKid99, SuperSaiyanBlue7, +6 more",
+    "&7Mentor share &f1.9% &8each (dojo split)",
+    "&7Dojo peers spar &a+10% TP",
+    "&7Spar mentor &a+18% &8- peers +10%",
+    "&7Streak &f365 &8best &f999",
+    "&ePending invites &f8 &8- open Bond invites (&f1h&8)"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:pick_apprentice",
+      "label": "Recruit",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_mentor",
+      "label": "Request master",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pending",
+      "label": "Bond invites",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_release",
+      "label": "Release",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_confirm:mentor|mentor|leave",
+      "label": "Leave mentor",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openMentor (approx line 421)",
+   "notes": "Registry title 'Training bonds'. The first line still calls the page 'Actions'. 'Leave mentor' is shown even with no mentor (no locked state) and 'Release' even with no apprentices."
+  },
+  {
+   "id": "dojo_pick_apprentice",
+   "screen": "dojo",
+   "page": "pick_apprentice",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Invite apprentice",
+    "&7Choose an online player.",
+    "&7Page 1 of 2"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|xXDragonSlayerXx",
+      "label": "xXDragonSlayerXx",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|NimbusRiderKid99",
+      "label": "NimbusRiderKid99",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|SuperSaiyanBlue7",
+      "label": "SuperSaiyanBlue7",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|KamehamehaMaster",
+      "label": "KamehamehaMaster",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|FriezaForceElite",
+      "label": "FriezaForceElite",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|PiccoloSpecialBm",
+      "label": "PiccoloSpecialBm",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|VegetaPrinceOfAl",
+      "label": "VegetaPrinceOfAl",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|GohanBeastMode01",
+      "label": "GohanBeastMode01",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|TrunksFutureSwrd",
+      "label": "TrunksFutureSwrd",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|KrillinBaldHero",
+      "label": "KrillinBaldHero",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|YamchaWolfFang99",
+      "label": "YamchaWolfFang99",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|TienTriBeamShot",
+      "label": "TienTriBeamShot",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|ChiaotzuPsychic1",
+      "label": "ChiaotzuPsychic1",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|BulmaCapsuleTech",
+      "label": "BulmaCapsuleTech",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|MasterRoshiTurtl",
+      "label": "MasterRoshiTurtl",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|AndroidEighteen8",
+      "label": "AndroidEighteen8",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|CellPerfectForm1",
+      "label": "CellPerfectForm1",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|MajinBuuCandyMan",
+      "label": "MajinBuuCandyMan",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|BeerusDestroyer1",
+      "label": "BeerusDestroyer1",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pick_confirm:mentor_invite|pick_apprentice|WhisAngelTrainer",
+      "label": "WhisAngelTrainer",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pick_apprentice:1",
+      "label": "Next",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openOnlinePick (approx line 837)",
+   "notes": "20 names per page (scrolls). Same layout for pick_mentor ('Ask as apprentice'). Release picker (pick_release) is the same with 8 per page. Names are confirm (green) style although a tap only opens the confirm page. Pager is UltraPickHelper: page 1 shows only [Next] on the left; later pages [Prev][Next] - differs from the board/dojo pager. Empty: '&8Nobody else is online right now - try again when other players are on.'"
+  },
+  {
+   "id": "dojo_pending",
+   "screen": "dojo",
+   "page": "pending",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Mentor / apprentice requests only",
+    "&e&lPending Mentor Invites",
+    "&aIncoming &fxXDragonSlayerXx &8(online) &8-> you as Mentor",
+    "&aIncoming &fNimbusRiderKid99 &8(online) &8-> you as Mentor",
+    "&aIncoming &fSuperSaiyanBlue7 &8(online) &8-> you as Mentor",
+    "&aIncoming &fKamehamehaMaster &8(online) &8-> you as Mentor",
+    "&6Outgoing &fFriezaForceElite &8(offline) &8-> them as Apprentice",
+    "&6Outgoing &fPiccoloSpecialBm &8(offline) &8-> them as Apprentice",
+    "&6Outgoing &fVegetaPrinceOfAl &8(offline) &8-> them as Apprentice",
+    "&6Outgoing &fGohanBeastMode01 &8(offline) &8-> them as Apprentice",
+    "&7Page 1 of 2"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:pending_decide:IN|uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "xXDragonSlayerXx",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pending_decide:IN|uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "NimbusRiderKid99",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pending_decide:IN|uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "SuperSaiyanBlue7",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pending_decide:IN|uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "KamehamehaMaster",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pending_decide:IN|uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "FriezaForceElite",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pending_decide:IN|uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "PiccoloSpecialBm",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pending_decide:IN|uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "VegetaPrinceOfAl",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:pending_decide:IN|uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "GohanBeastMode01",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:pending:1",
+      "label": "Next",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openPending (approx line 486)",
+   "notes": "Registry title 'Bond invites'. 8 per page. Lines use '->' arrows and '&e&l' header from SparGuiApi, not UltraStyle.header. Empty: '&8No bond invites waiting. Send one from Actions, or wait for someone to invite you.' (again 'Actions')."
+  },
+  {
+   "id": "dojo_pending_decide",
+   "screen": "dojo",
+   "page": "pending_decide:IN|uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Training bond invite",
+    "&7Player &fxXDragonSlayerXx",
+    "&7Accept to form this training bond.",
+    "&7Decline to dismiss the invite."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:mentor_accept:uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Accept",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:mentor_decline:uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Decline",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openPendingDecide (approx line 548)",
+   "notes": "Accept stacked above Decline. Outgoing: '&7You invited this player.' and one [Withdraw invite, danger]. The page doesn't say whether the invite makes the player your mentor or apprentice."
+  },
+  {
+   "id": "dojo_pick_confirm",
+   "screen": "dojo",
+   "page": "pick_confirm:mentor_release|pick_release|uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&7Release apprentice",
+    "&7Target &fxXDragonSlayerXx",
+    "&7Release xXDragonSlayerXx as your apprentice? A 12-hour cooldown starts."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:mentor_release:uuid:3f2b9c1e-7a4d-4e8b-9c11-2d5e6f7a8b90",
+      "label": "Release",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSparScreens.java openPickConfirm (approx line 585)",
+   "notes": "Shared confirm for invite/ask/release/leave. The button tries 'Release <name>' and falls back to the verb alone ('Release') when the full label does not fit; 'Leave mentor' for leave. Unused local backLabel (dead code with 'Spar Home' copy)."
+  },
+  {
+   "id": "dojo_found_name",
+   "screen": "dojo",
+   "page": "found",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lFound a dojo - step 1 of 3: name",
+    "&fName your dojo. Other players see it on the leaderboard and in wars.",
+    "&73 to 24 letters, numbers or spaces. Next you pick a style, then a banner."
+   ],
+   "rows": [
+    [
+     {
+      "input": "dojo_found_name",
+      "x": 16,
+      "w": 220
+     },
+     {
+      "action": "do:dojo_found_name",
+      "label": "Next",
+      "style": "confirm",
+      "x": 242,
+      "w": 80
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "DojoFounding.java openName + inputRow (approx lines 106-129)",
+   "notes": "Field and bound 'Next' button share one row (field x16 w220, button x242 w80, BTN_MIN_W). Value keeps the draft name when coming back. A bad name reopens this page with the reason as a notice ('Pick a name of 3 to 24 letters, numbers or spaces.'). PROBLEM: textFieldRow leaves maxLength at 128, so the field accepts far more than the 24-character limit (same on Rename). Blocked players (already in a dojo / closed dojo) get '&6&lFound a dojo' + the reason and Back only.",
+   "inputs": [
+    {
+     "id": "dojo_found_name",
+     "type": "text",
+     "placeholder": "Your dojo's name",
+     "value": "",
+     "maxLength": 128,
+     "row": 0
+    }
+   ]
+  },
+  {
+   "id": "dojo_found_style",
+   "screen": "dojo",
+   "page": "found_style",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lFound a dojo - step 2 of 3: style",
+    "&7Name &fGrand Kame House Dojo 99",
+    "&fPick the practice your dojo is based on. Members get its bonus when they fight in it.",
+    "&7Ki Masters &fki attacks and beams",
+    "&7Melee &fpunches and kicks",
+    "&7Strike Moves &fstrike clashes and heavy blows",
+    "&7Evasion &fblocking and guarding",
+    "&7You can change it later on the style page (it costs Dojo Points)."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:dojo_found_style:KI",
+      "label": "Ki Masters",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:dojo_found_style:MELEE",
+      "label": "Melee",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_found_style:STRIKE",
+      "label": "Strike Moves",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:dojo_found_style:EVASION",
+      "label": "Evasion",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "DojoFounding.java openStyle (approx line 131)",
+   "notes": "The style already in the draft is confirm style (shown: Strike Moves after coming back). A tap goes straight to step 3."
+  },
+  {
+   "id": "dojo_found_banner",
+   "screen": "dojo",
+   "page": "found_banner",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lFound a dojo - step 3 of 3: banner",
+    "&7Name &fGrand Kame House Dojo 99",
+    "&7Style &fStrike Moves",
+    "&fPick a banner you made. The dojo copies its design; the banner stays yours."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:dojo_found_banner:hand",
+      "label": "Use: Light blue, 6 patterns (in hand)",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_found_banner:off",
+      "label": "Use: Light gray, 6 patterns (off hand)",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_found_banner:slot:0",
+      "label": "Use: Magenta, 6 patterns",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_found_banner:slot:1",
+      "label": "Use: Black, 1 pattern",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_found_banner:slot:2",
+      "label": "Use: Red, plain",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_found_banner:slot:3",
+      "label": "Use: White, 3 patterns",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "DojoFounding.java openBanner + bannerPicker (approx lines 169, 270)",
+   "notes": "Up to 6 banners (BANNERS_SHOWN), one button() per row (150px). No banner: '&cYou have no banner.' + '&7Make one at a loom (a banner, dyes and patterns), then come back.' and no buttons. PROBLEM: 'Use: Light blue, 6 patterns (in hand)' (37 chars) clips badly in 150px; should be buttonWide (306). Banners are described in words only; no picture of the design.",
+   "mock": {
+    "widen": [
+     "Use: Light blue, 6 patterns (in hand)",
+     "Use: Light gray, 6 patterns (off hand)",
+     "Use: Magenta, 6 patterns",
+     "Use: Black, 1 pattern",
+     "Use: Red, plain",
+     "Use: White, 3 patterns"
+    ],
+    "why": "a 24-character dojo name or a banner description does not fit a half-width button: the server cuts it with \"...\"; all banner rows go wide so they line up"
+   }
+  },
+  {
+   "id": "dojo_found_confirm",
+   "screen": "dojo",
+   "page": "found_confirm",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lFound Grand Kame House Dojo 99?",
+    "&7Name &fGrand Kame House Dojo 99",
+    "&7Style &fStrike Moves (strike clashes and heavy blows)",
+    "&7Banner &fLight blue, 6 patterns",
+    "&7Founding is free. Your banner item stays in your inventory.",
+    "&7You become the master. Your hall starts with one sparring mat."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:dojo_found_confirm",
+      "label": "Found Grand Kame House Dojo 99",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "DojoFounding.java openConfirm (approx line 188)",
+   "notes": "A 4th page after the three steps (target says founding is three pages: name, style, banner; code adds this confirm). 'Found <24-char name>' (30 chars) clips in 150px. No step marker, and no way back to a step except Back."
+  },
+  {
+   "id": "dojo_banner",
+   "screen": "dojo",
+   "page": "dojo_banner",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lChange your dojo's banner",
+    "&7Now &fLight blue, 6 patterns",
+    "&7A change costs &f20 Dojo Points (you have 99999)",
+    "&7After it, the name, style and banner can't change for 12 hours.",
+    "&fPick a banner you made. The dojo copies its design; the banner stays yours."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:dojo_banner_set:hand",
+      "label": "Use for 20: Light gray, 6 patterns (in hand)",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_banner_set:off",
+      "label": "Use for 20: Magenta, 6 patterns (off hand)",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_banner_set:slot:0",
+      "label": "Use for 20: Black, 1 pattern",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_banner_set:slot:1",
+      "label": "Use for 20: Red, plain",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_banner_set:slot:2",
+      "label": "Use for 20: White, 3 patterns",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:dojo_banner_set:slot:3",
+      "label": "Use for 20: Light blue, 6 patterns",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "DojoFounding.java openPickBanner (approx line 212)",
+   "notes": "First pick: header 'Choose your dojo's banner', line '&7Your first banner is free.', buttons 'Use: ...'. Blocked (cooldown/points): a '&c...' reason line and no buttons. PROBLEMS: 'Use for 20: Light gray, 6 patterns (in hand)' (44 chars) clips badly in 150px; the cost button is normal style, not confirm, and spends points on one tap.",
+   "mock": {
+    "widen": [
+     "Use for 20: Light gray, 6 patterns (in hand)",
+     "Use for 20: Magenta, 6 patterns (off hand)",
+     "Use for 20: Black, 1 pattern",
+     "Use for 20: Red, plain",
+     "Use for 20: White, 3 patterns",
+     "Use for 20: Light blue, 6 patterns"
+    ],
+    "why": "a 24-character dojo name or a banner description does not fit a half-width button: the server cuts it with \"...\"; all banner rows go wide so they line up"
+   }
+  },
+  {
+   "id": "dojo_rename",
+   "screen": "dojo",
+   "page": "dojo_rename",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&6&lRename Grand Kame House Dojo 99",
+    "&7A rename costs &f20 Dojo Points (you have 99999)",
+    "&73 to 24 letters, numbers or spaces.",
+    "&7After it, the name, style and banner can't change for 12 hours."
+   ],
+   "rows": [
+    [
+     {
+      "input": "dojo_rename",
+      "x": 16,
+      "w": 220
+     },
+     {
+      "action": "do:dojo_rename_set",
+      "label": "Rename",
+      "style": "confirm",
+      "x": 242,
+      "w": 80
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "DojoFounding.java openRename (approx line 244)",
+   "notes": "Blocked: a '&c...' reason line and no field. Result (success or error) opens Dojo Home with a notice, so a bad name throws away what was typed. maxLength 128 vs the 24-char rule.",
+   "inputs": [
+    {
+     "id": "dojo_rename",
+     "type": "text",
+     "placeholder": "New name",
+     "value": "",
+     "maxLength": 128,
+     "row": 0
+    }
+   ]
+  },
+  {
+   "id": "dojo_close",
+   "screen": "dojo",
+   "page": "dojo_close",
+   "title": "Dojo",
+   "tabs": [],
+   "activeTab": "",
+   "lines": [
+    "&cClose Grand Kame House Dojo 99?",
+    "&7Members can't spar or fight wars while it is closed.",
+    "&7Reopening keeps members and style, but every upgrade drops one tier."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:dojo_close",
+      "label": "Yes, close the dojo",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraDojoScreens.java openCloseConfirm (approx line 582)",
+   "notes": "Not master: '&7Only the master can close the dojo.' and Back only."
+  }
+ ]
+}

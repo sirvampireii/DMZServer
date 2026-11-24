@@ -1,0 +1,10 @@
+{
+  "_comment": "GuiKit project for the LegacyMechanics menu corpus. Only GuiKit uses it. Paths are relative to this folder (tools/lm-gui-corpus).",
+  "name": "LegacyMechanics menus",
+  "modid": "legacymechanics",
+  "toolkit": "../../../mod-toolkit",
+  "javaDirs": [],
+  "out": "build/fx",
+  "assets": "../dmz-adaptive-difficulty/src/main/resources/assets",
+  "preview": "build/preview"
+}
