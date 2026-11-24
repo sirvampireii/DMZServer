@@ -931,8 +931,8 @@ public final class UltraDifficultyScreens {
         if (page > 0) {
             spec.buttonLeft(
                     "page:titles_p" + (page - 1),
-                    UltraStyle.dim("Prev titles page"),
-                    UltraStyle.STYLE_DIM);
+                    UltraStyle.LABEL + "Prev titles page",
+                    UltraStyle.STYLE_NORMAL);
         }
         if (page + 1 < pages) {
             if (page > 0) {

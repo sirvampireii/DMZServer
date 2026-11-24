@@ -195,6 +195,37 @@ final class UiClient {
         }
     }
 
+    /**
+     * 4.7.73: the HUD's drawn rectangles are inside the screen, do not overlap each other, and the Momentum meter ends
+     * above vanilla's action bar row (68 px from the bottom). "ok" or the first problem.
+     */
+    static String hudLayoutVerdict(List<String> layout, int gw, int gh) {
+        List<int[]> rects = new java.util.ArrayList<>();
+        List<String> names = new java.util.ArrayList<>();
+        for (String l : layout) {
+            String[] f = l.split(" ");
+            if (f.length < 6) {
+                continue;
+            }
+            int x = Integer.parseInt(f[2]), y = Integer.parseInt(f[3]), w = Integer.parseInt(f[4]), h = Integer.parseInt(f[5]);
+            if (x < 0 || y < 0 || x + w > gw || y + h > gh) {
+                return "off screen: " + f[1] + " at " + x + "," + y + " " + w + "x" + h + " in " + gw + "x" + gh;
+            }
+            if ("momentum".equals(f[1]) && y + h > gh - 68) {
+                return "momentum over the action bar: bottom " + (y + h) + " > " + (gh - 68);
+            }
+            for (int i = 0; i < rects.size(); i++) {
+                int[] r = rects.get(i);
+                if (x < r[0] + r[2] && r[0] < x + w && y < r[1] + r[3] && r[1] < y + h) {
+                    return "overlap: " + f[1] + " and " + names.get(i);
+                }
+            }
+            rects.add(new int[] {x, y, w, h});
+            names.add(f[1]);
+        }
+        return "ok (" + rects.size() + " elements, gui " + gw + "x" + gh + ")";
+    }
+
     /** Record the HUD after a few frames with no screen open, then tell the server which elements were drawn. */
     private boolean hudTick(Minecraft mc) {
         if (hudRec != null) {
@@ -211,8 +242,12 @@ final class UiClient {
             }
             UiProbe.write("uiprobe-client.txt", sb.toString(), true);
             Screenshot.m_92295_(mc.f_91069_, "ui-rec-hud-" + hudRec + ".png", mc.m_91385_(), msg -> { });
+            String verdict = hudLayoutVerdict(hudLayout(), win.m_85445_(), win.m_85446_());
+            sb.append("  LAYOUT ").append(verdict).append("\n");
+            UiProbe.write("uiprobe-client.txt", "  LAYOUT " + verdict + "\n", true);
             if (mc.f_91074_ != null && mc.f_91074_.f_108617_ != null) {
-                mc.f_91074_.f_108617_.m_246175_("uihudrec " + hudRec + " " + String.join(",", els));
+                mc.f_91074_.f_108617_.m_246175_("uihudrec " + hudRec + " "
+                        + (els.isEmpty() ? "-" : String.join(",", els)) + " " + verdict);
             }
             hudRec = null;
             return true;

@@ -333,8 +333,8 @@ public final class UltraConfigScreens {
         if (prevW > 0) {
             spec.button(
                     "page:" + editPage(module, page - 1, groupPath),
-                    UltraStyle.dim("Prev"),
-                    UltraStyle.STYLE_DIM,
+                    UltraStyle.LABEL + "Prev",
+                    UltraStyle.STYLE_NORMAL,
                     x,
                     REVIEW_Y,
                     prevW);
@@ -922,8 +922,8 @@ public final class UltraConfigScreens {
         int pages = slices.size();
         int x = MAIN_X;
         if (page > 0) {
-            spec.button("page:" + optionsPage(module, page - 1, path), UltraStyle.dim("Prev"),
-                    UltraStyle.STYLE_DIM, x, REVIEW_Y, UltraStyle.BTN_MIN_W);
+            spec.button("page:" + optionsPage(module, page - 1, path), UltraStyle.LABEL + "Prev",
+                    UltraStyle.STYLE_NORMAL, x, REVIEW_Y, UltraStyle.BTN_MIN_W);
         }
         if (page + 1 < pages) {
             spec.button("page:" + optionsPage(module, page + 1, path), UltraStyle.LABEL + "Next",
@@ -1100,8 +1100,8 @@ public final class UltraConfigScreens {
         if (prevW > 0) {
             spec.button(
                     "page:review:" + (page - 1),
-                    UltraStyle.dim("Prev"),
-                    UltraStyle.STYLE_DIM,
+                    UltraStyle.LABEL + "Prev",
+                    UltraStyle.STYLE_NORMAL,
                     x,
                     y,
                     prevW);

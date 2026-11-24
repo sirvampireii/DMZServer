@@ -95,6 +95,13 @@ public final class NativeMenuScreen extends Screen {
     /** Last active-tab rectangle per screen, so the indicator slides from it. */
     private static final Map<String, int[]> TAB_SHOWN = new HashMap<>();
 
+    /** 4.7.73: logout drops the per-page animation state and the shape cache (nothing carries to another server). */
+    static void clearCaches() {
+        BAR_SHOWN.clear();
+        TAB_SHOWN.clear();
+        SHAPES.clear();
+    }
+
     private enum Kind { SERVER, CLOSE, BOOK_PREV, BOOK_NEXT }
 
     private record Btn(Kind kind, String id, String label, String style, int x, int y, int w, int h, int pad,

@@ -67,6 +67,10 @@ public final class UltraDojoScreens {
             openUpgrade(player, p.substring("dojo_up:".length()), notice);
         } else if (lower.equals("dojo_style")) {
             openStyle(player, notice);
+        } else if (lower.startsWith("dojo_style_ask:")) {
+            openStyleAsk(player, p.substring("dojo_style_ask:".length()));
+        } else if (lower.startsWith("dojo_bonus_ask:")) {
+            openBonusAsk(player, p.substring("dojo_bonus_ask:".length()));
         } else if (lower.equals("dojo_elites")) {
             openElites(player, notice);
         } else if (lower.equals("dojo_wars") || lower.equals("wars") || lower.equals("dojo_war")) {
@@ -582,10 +586,14 @@ public final class UltraDojoScreens {
                 } else {
                     spec.lockedButtonRight(label);
                 }
-            } else if (left) {
-                spec.buttonLeft("do:dojo_style:" + s.name(), label, UltraStyle.STYLE_NORMAL);
             } else {
-                spec.buttonRight("do:dojo_style:" + s.name(), label, UltraStyle.STYLE_NORMAL);
+                // 4.7.73: a running bonus ends on a style change, so that goes through an ask page first.
+                String act = d.bonus.isBlank() ? "do:dojo_style:" + s.name() : "page:dojo_style_ask:" + s.name();
+                if (left) {
+                    spec.buttonLeft(act, label, UltraStyle.STYLE_NORMAL);
+                } else {
+                    spec.buttonRight(act, label, UltraStyle.STYLE_NORMAL);
+                }
             }
             if (!left) {
                 spec.rowGap();
@@ -605,9 +613,9 @@ public final class UltraDojoScreens {
                         spec.lockedButtonRight(label);
                     }
                 } else if (left) {
-                    spec.buttonLeft("do:dojo_bonus:" + b.id(), label, UltraStyle.STYLE_NORMAL);
+                    spec.buttonLeft("page:dojo_bonus_ask:" + b.id(), label, UltraStyle.STYLE_NORMAL);
                 } else {
-                    spec.buttonRight("do:dojo_bonus:" + b.id(), label, UltraStyle.STYLE_NORMAL);
+                    spec.buttonRight("page:dojo_bonus_ask:" + b.id(), label, UltraStyle.STYLE_NORMAL);
                 }
                 if (!left) {
                     spec.rowGap();
@@ -617,6 +625,65 @@ public final class UltraDojoScreens {
             if (placed % 2 == 1) {
                 spec.rowGap();
             }
+        }
+        spec.back();
+        spec.send(player);
+    }
+
+    /** 4.7.73: changing style ends the paid bonus; say what is lost before the click. */
+    static void openStyleAsk(ServerPlayer player, String styleId) {
+        Dojo d = DojoService.dojoOf(player);
+        DojoCatalog.Style to = DojoCatalog.Style.of(styleId);
+        UltraScreenSpec spec = sub("dojo_style_ask:" + styleId, null);
+        if (d == null || to == null || !DojoService.isMaster(player.m_20148_(), d)) {
+            spec.line(UltraStyle.LABEL + "Only your dojo's master can change its style.").buttonsAfterLines();
+            spec.back();
+            spec.send(player);
+            return;
+        }
+        DojoCatalog.Bonus active = DojoCatalog.bonus(d.bonus);
+        spec.line(UltraStyle.header("Change style to " + to.label + "?"))
+                .line(UltraStyle.labelValue("New style", to.label + " (" + to.covers + ")"));
+        if (active != null) {
+            spec.line(UltraStyle.dangerLine("The " + active.name() + " bonus ends now."))
+                    .line(UltraStyle.LABEL + "Its " + DojoCatalog.BONUS_COST + " Dojo Points are not refunded.");
+        }
+        spec.line(UltraStyle.labelValue("A new bonus costs", DojoCatalog.BONUS_COST + " Dojo Points (you have "
+                + d.points + ")"))
+                .line(UltraStyle.LABEL + "You can pick the new bonus right away.")
+                .buttonsAfterLines();
+        spec.button("do:dojo_style:" + to.name(), UltraStyle.danger("Change style, end the bonus"), UltraStyle.STYLE_DANGER)
+                .rowGap();
+        spec.back();
+        spec.send(player);
+    }
+
+    /** 4.7.73: a bonus spends Dojo Points and locks the choice for a week; say both before the click. */
+    static void openBonusAsk(ServerPlayer player, String bonusId) {
+        Dojo d = DojoService.dojoOf(player);
+        DojoCatalog.Bonus b = DojoCatalog.bonus(bonusId);
+        UltraScreenSpec spec = sub("dojo_bonus_ask:" + bonusId, null);
+        if (d == null || b == null || !DojoService.isMaster(player.m_20148_(), d)) {
+            spec.line(UltraStyle.LABEL + "Only your dojo's master can pick its bonus.").buttonsAfterLines();
+            spec.back();
+            spec.send(player);
+            return;
+        }
+        long days = DojoCatalog.BONUS_COOLDOWN_MS / DojoService.DAY_MS;
+        DojoCatalog.Bonus active = DojoCatalog.bonus(d.bonus);
+        spec.line(UltraStyle.header("Buy " + b.name() + "?"))
+                .line(UltraStyle.LABEL + b.description())
+                .line(UltraStyle.labelValue("Cost", DojoCatalog.BONUS_COST + " Dojo Points (you have " + d.points + ")"))
+                .line(UltraStyle.LABEL + "After this the bonus can't change for " + days + " days.");
+        if (active != null) {
+            spec.line(UltraStyle.dangerLine("It replaces " + active.name() + "."));
+        }
+        spec.buttonsAfterLines();
+        if (d.points >= DojoCatalog.BONUS_COST) {
+            spec.button("do:dojo_bonus:" + b.id(), UltraStyle.confirm("Buy for " + DojoCatalog.BONUS_COST + " points"),
+                    UltraStyle.STYLE_CONFIRM).rowGap();
+        } else {
+            spec.lockedButton("Needs " + DojoCatalog.BONUS_COST + " points").rowGap();
         }
         spec.back();
         spec.send(player);
@@ -651,8 +718,9 @@ public final class UltraDojoScreens {
                 continue;
             }
             if (elite) {
-                spec.buttonLeft("do:dojo_demote:" + u, "Step down " + name, UltraStyle.STYLE_NORMAL);
-                spec.buttonRight("do:dojo_warrights:" + u, (d.warRights.contains(u) ? "War rights: on" : "War rights: off"),
+                // 4.7.73: a demote is drawn as danger; the toggle reads "Label - ON/OFF" like every other toggle.
+                spec.buttonLeft("do:dojo_demote:" + u, UltraStyle.danger("Step down " + name), UltraStyle.STYLE_DANGER);
+                spec.buttonRight("do:dojo_warrights:" + u, "War rights - " + (d.warRights.contains(u) ? "ON" : "OFF"),
                         UltraStyle.STYLE_NORMAL).rowGap();
             } else if (d.elites.size() >= DojoCatalog.MAX_ELITES) {
                 spec.lockedButton("Make " + name + " elite").rowGap();

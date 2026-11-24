@@ -561,6 +561,7 @@ public final class UiProbe {
         dojoScript();
         navScript();
         formFigureScript();
+        guideNavScript();
         hudScript();
     }
 
@@ -822,6 +823,38 @@ public final class UiProbe {
         }
         UltraHubScreens.searchFor(player, "");
         NavHistory.clear(u);
+    }
+
+    /** 4.7.73: Difficulty search results, breadcrumbs and Back never send a player into a guide step by mistake. */
+    private void guideNavScript() {
+        JsonObject args = new JsonObject();
+        args.addProperty("screen", "hub");
+        args.addProperty("page", "main");
+        args.addProperty("value", "tiers");
+        for (GuiOpenPacket p : keep("search tiers", () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", args.toString()))) {
+            String b = p.buttonsJson();
+            note("GUIDE search 'tiers' links the Tiers list, not a guide step: " + pf(b.contains("go:difficulty|tiers\"")
+                    && !b.contains("go:difficulty|guide_tiers")) + " | " + labels(p));
+        }
+        String[] up = PageRegistry.parent("difficulty", "titles_p0");
+        String[] up2 = PageRegistry.parent("difficulty", "tier_ask:3");
+        note("GUIDE Titles and a tier ask go back to Difficulty / Tiers, never a guide step: " + pf(up != null
+                && "main".equals(up[1]) && up2 != null && "tiers".equals(up2[1])));
+        UltraHubScreens.searchFor(player, "");
+        // 4.7.73: dojo style and bonus changes ask first, naming what is lost and what it costs.
+        var style = com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.Style.values()[0];
+        var bonus = com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.bonuses(style).get(0);
+        for (GuiOpenPacket p : keep("dojo bonus ask", () -> UltraGui.open(player, "spar", "dojo_bonus_ask:" + bonus.id()))) {
+            note("ASK dojo bonus names the cost and the 7-day lock before the click: " + pf(has(p, "Dojo Points")
+                    && has(p, "can't change for 7 days") && (labels(p).contains("Buy for 40 points")
+                    || labels(p).contains("Needs 40 points") || has(p, "Only your dojo's master"))) + " | " + labels(p));
+        }
+        for (GuiOpenPacket p : keep("dojo style ask", () -> UltraGui.open(player, "spar", "dojo_style_ask:" + style.name()))) {
+            note("ASK dojo style change warns before ending a bonus: " + pf(labels(p).contains("Change style, end the bonus")
+                    || has(p, "Only your dojo's master")) + " | " + labels(p));
+        }
+        String[] upAsk = PageRegistry.parent("spar", "dojo_bonus_ask:" + bonus.id());
+        note("ASK pages go back to Style and bonus: " + pf(upAsk != null && "dojo_style".equals(upAsk[1])));
     }
 
     /** Part 1: a form preview wears the viewer's own look for that form (made-up subject, never local). */
@@ -2653,7 +2686,17 @@ public final class UiProbe {
     private void hudReport(String raw) {
         String[] f = raw.split(" ", 3);
         String tag = f.length > 1 ? f[1] : "?";
-        String got = f.length > 2 ? f[2].trim() : "";
+        String rest = f.length > 2 ? f[2].trim() : "";
+        // 4.7.73: "<elements> <layout verdict>" (the client checks bounds, overlaps and the action bar row)
+        String got = rest.contains(" ") ? rest.substring(0, rest.indexOf(' ')) : rest;
+        String layout = rest.contains(" ") ? rest.substring(rest.indexOf(' ') + 1) : "";
+        if (got.equals("-")) {
+            got = "";
+        }
+        if (!layout.isEmpty()) {
+            note("HUD LAYOUT " + tag + " on screen, no overlaps, Momentum above the action bar: "
+                    + pf(layout.startsWith("ok")) + " | " + layout);
+        }
         java.util.Set<String> drawn = new java.util.HashSet<>(List.of(got.isEmpty() ? new String[0] : got.split(",")));
         java.util.Set<String> want = new java.util.HashSet<>(List.of(hudExpect.isEmpty() ? new String[0] : hudExpect.split(",")));
         note("HUD CLIENT " + tag + " drew " + (got.isEmpty() ? "nothing" : got) + ": "

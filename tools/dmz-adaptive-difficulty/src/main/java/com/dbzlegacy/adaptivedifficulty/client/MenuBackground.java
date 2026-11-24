@@ -32,6 +32,7 @@ final class MenuBackground {
 
     private record Baked(ResourceLocation id, int w, int h, DynamicTexture tex, int pad, int drop) {}
 
+    private static final java.util.Set<String> FAILED = new java.util.HashSet<>();
     private static final Map<String, Baked> BAKED = new LinkedHashMap<>(16, 0.75f, true);
     private static int counter;
 
@@ -78,8 +79,12 @@ final class MenuBackground {
         if (hit != null) {
             return hit;
         }
+        if (FAILED.contains(key)) {
+            return null;                            // a failed bake is not retried every frame
+        }
+        NativeImage img = null;
         try {
-            NativeImage img = new NativeImage(tw, th, false);
+            img = new NativeImage(tw, th, false);
             for (int y = 0; y < th; y++) {
                 double v = (y + 0.5) / th;
                 for (int x = 0; x < tw; x++) {
@@ -88,6 +93,12 @@ final class MenuBackground {
             }
             return register(key, img, 0, 0);
         } catch (Throwable t) {
+            if (img != null && !BAKED.containsKey(key)) {
+                img.close();                        // 4.7.73: no off-heap leak on a failed bake
+            }
+            if (FAILED.size() < 64) {
+                FAILED.add(key);
+            }
             AdaptiveDifficultyMod.LOGGER.warn("[{}] menu background bake failed for {}: {}",
                     AdaptiveDifficultyMod.MOD_ID, skin.id(), t.toString());
             return null;
@@ -105,8 +116,12 @@ final class MenuBackground {
         if (hit != null) {
             return hit;
         }
+        if (FAILED.contains(key)) {
+            return null;                            // a failed bake is not retried every frame
+        }
+        NativeImage img = null;
         try {
-            NativeImage img = new NativeImage(tw, th, false);
+            img = new NativeImage(tw, th, false);
             int ambA = skin.shadowAlpha(SaiyanRoyal.AMBIENT_ALPHA);
             int keyA = skin.shadowAlpha(SaiyanRoyal.KEY_ALPHA);
             for (int y = 0; y < th; y++) {
@@ -132,6 +147,12 @@ final class MenuBackground {
             }
             return register(key, img, pad, drop);
         } catch (Throwable t) {
+            if (img != null && !BAKED.containsKey(key)) {
+                img.close();                        // 4.7.73: no off-heap leak on a failed bake
+            }
+            if (FAILED.size() < 64) {
+                FAILED.add(key);
+            }
             return null;
         }
     }
@@ -176,6 +197,7 @@ final class MenuBackground {
             Minecraft.m_91087_().m_91097_().m_118513_(b.id());
         }
         BAKED.clear();
+        FAILED.clear();
     }
 
     /** Test probes: how many textures are baked right now. */

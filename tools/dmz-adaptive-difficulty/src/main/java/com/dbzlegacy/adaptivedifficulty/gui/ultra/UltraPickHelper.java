@@ -97,7 +97,7 @@ public final class UltraPickHelper {
         }
         if (page > 0) {
             spec.buttonLeft(
-                    "page:" + pageArg(pageBase, page - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
+                    "page:" + pageArg(pageBase, page - 1), UltraStyle.LABEL + "Prev", UltraStyle.STYLE_NORMAL);
         }
         if (page + 1 < pages) {
             String next = "page:" + pageArg(pageBase, page + 1);

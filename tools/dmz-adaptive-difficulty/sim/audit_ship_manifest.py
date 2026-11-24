@@ -2029,6 +2029,36 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.73 ---")
+    p73_reg = read(SRC / "gui/ultra/PageRegistry.java")
+    p73_dojo = read(SRC / "gui/ultra/UltraDojoScreens.java")
+    p73_hud = read(SRC / "client/HudOverlay.java")
+    p73_pick = read(SRC / "gui/ultra/UltraPickHelper.java")
+    p73_bg = read(SRC / "client/MenuBackground.java")
+    p73_audit = read(ROOT / "tools/dmz-adaptive-difficulty/sim/audit_page_registry.py")
+    check("manifest row for lm 4.7.73", "lm-4773-fixes" in manifest)
+    check("Difficulty pages and parents are the state-routed ids; guide steps never a parent outside the guide",
+          has(p73_reg, 'p("difficulty", "main", "Difficulty", "hub|main"', 'p("difficulty", "tiers", "Tiers", "difficulty|main"',
+              'item("difficulty", "guide_tiers", "Tiers", "difficulty|guide");', 'parent replays the guide')
+          and '"difficulty|guide_your_tier");' in p73_reg and 'p("difficulty", "guide_tiers"' not in p73_reg)
+    check("registry audit sees sub()/base() pages, page-button pairs and the pager's later pages",
+          has(p73_audit, "placePageButtons", "placePrevNext", '":2"'))
+    check("dojo style change and bonus purchase ask first, naming the loss and the cost",
+          has(p73_dojo, '"page:dojo_style_ask:" + s.name()', '"page:dojo_bonus_ask:" + b.id()',
+              "static void openStyleAsk(", "static void openBonusAsk(", "Its \" + DojoCatalog.BONUS_COST",
+              "can't change for"))
+    check("demote is danger, toggles read Label - ON/OFF, an active Prev is a normal button",
+          has(p73_dojo, 'UltraStyle.danger("Step down " + name), UltraStyle.STYLE_DANGER', '"War rights - "')
+          and 'dim("Prev")' not in p73_pick)
+    check("HUD: overlay under chat, starts below boss bars, clears effect icons, Momentum above the action bar",
+          has(p73_hud, "registerBelow(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.CHAT_PANEL.id()",
+              "BossEventProgress", "effectCols * EFFECT_COL", "Math.max(rightHeight, ACTION_BAR_UP)",
+              "UNDERDOG, PENALTY, TP")
+          and "RenderGuiEvent.Post" not in p73_hud)
+    check("HUD bake handle kept per element; failed bakes close their image and are not retried every frame",
+          has(p73_hud, "s.bakedSkin != skin", "FAILED.contains(key)", "img.close();")
+          and has(p73_bg, "FAILED.contains(key)", "img.close();"))
+
     print("\n--- § lm 4.7.72 ---")
     p72_hud = read(SRC / "gui/ultra/LmHud.java")
     p72_pkt = read(SRC / "net/gui/NativeHudPacket.java")

@@ -69,27 +69,30 @@ public final class PageRegistry {
         item(HUB, "skin:**", "Menu skin", "hub|skins");
 
         // ---- Difficulty (Home / Tiers / Summons)
-        p("difficulty", "guide", "Difficulty", "hub|main", "tier level");
-        item("difficulty", "main", "Difficulty", "hub|main");
-        p("difficulty", "guide_tiers", "Tiers", "difficulty|guide", "pick level");
-        item("difficulty", "tiers", "Tiers", "difficulty|guide");
-        p("difficulty", "summons", "Summons", "difficulty|guide", "boss dragon wither warden");
-        staff("difficulty", "stats", "Combat rating", "difficulty|guide");
-        item("difficulty", "tier_ask:*", "Tier", "difficulty|guide_tiers");
-        p("difficulty", "guide_your_tier", "Your tier", "difficulty|guide_tiers", "momentum");
-        item("difficulty", "your_tier", "Your tier", "difficulty|guide_tiers");
+        // 4.7.73: the state-routed ids (main, tiers, your_tier) are the pages and parents. The guide ids always replay
+        // the guide (DifficultyTutorial.route), so they are never a parent and only the guide itself is searchable.
+        p("difficulty", "main", "Difficulty", "hub|main", "tier level momentum your tier");
+        p("difficulty", "guide", "Difficulty guide", "difficulty|main", "how tutorial help");
+        p("difficulty", "tiers", "Tiers", "difficulty|main", "pick level");
+        item("difficulty", "guide_tiers", "Tiers", "difficulty|guide");
+        p("difficulty", "summons", "Summons", "difficulty|main", "boss dragon wither warden");
+        staff("difficulty", "stats", "Combat rating", "difficulty|main");
+        item("difficulty", "tier_ask:*", "Tier", "difficulty|tiers");
+        item("difficulty", "guide_your_tier", "Your tier", "difficulty|guide_tiers");
+        item("difficulty", "your_tier", "Your tier", "difficulty|main");
         item("difficulty", "end_dragon", "Ender Dragon", "difficulty|summons");
         item("difficulty", "summon_ask:*", "Summon", "difficulty|summons");
-        item("difficulty", "clear_tier_ask", "Clear active tier", "difficulty|guide_your_tier");
-        item("difficulty", "difficulty_off_ask", "Turn difficulty off", "difficulty|guide_your_tier");
+        item("difficulty", "clear_tier_ask", "Clear active tier", "difficulty|main");
+        item("difficulty", "difficulty_off_ask", "Turn difficulty off", "difficulty|main");
         item("difficulty", "wither", "Wither", "difficulty|summons");
         item("difficulty", "warden", "Warden", "difficulty|summons");
-        p("difficulty", "titles_p0", "Titles", "difficulty|guide_your_tier", "badge");
+        p("difficulty", "titles_p0", "Titles", "difficulty|main", "badge");
         item("difficulty", "titles_p*", "Titles", "difficulty|titles_p0");
+        item("difficulty", "titles", "Titles", "difficulty|main");
         item("difficulty", "title_detail:*", "Title", "difficulty|titles_p0");
         item("difficulty", "title_unequip_ask", "Unequip title", "difficulty|titles_p0");
-        p("difficulty", "team", "Rival teams", "difficulty|guide");
-        staff("difficulty", "admin", "Server tools", "difficulty|guide_your_tier");
+        p("difficulty", "team", "Rival teams", "difficulty|main");
+        staff("difficulty", "admin", "Server tools", "difficulty|main");
         staff("difficulty", "eventlog", "Event log", "difficulty|admin");
         item("difficulty", "flush_ask", "Flush", "difficulty|eventlog");
 
@@ -98,6 +101,9 @@ public final class PageRegistry {
         item("rival", "main", "Rivals", "hub|main");
         p("rival", "actions", "Rival", "rival|home");
         p("rival", "challenge", "Challenge", "rival|home");
+        // 4.7.73: the pager's later pages (placePrevNext adds :N).
+        item("rival", "actions:*", "Rival", "rival|home");
+        item("rival", "challenge:*", "Challenge", "rival|home");
         p("rival", "info", "My rival stats", "rival|home");
         p("rival", "top", "Leaderboard", "rival|home", "ranking");
         p("rival", "records:history", "Records", "rival|home", "history");
@@ -114,6 +120,7 @@ public final class PageRegistry {
         p("rival", "pick_rival", "Pick a rival", "rival|actions");
         item("rival", "pick_rival:**", "Pick a rival", "rival|actions");
         p("rival", "requests", "Requests", "rival|actions");
+        item("rival", "requests:*", "Requests", "rival|actions");
         p("rival", "pick_challenge", "Send a challenge", "rival|challenge");
         item("rival", "pick_challenge:**", "Send a challenge", "rival|challenge");
         p("rival", "pick_spectate", "Spectate", "rival|challenge");
@@ -146,16 +153,26 @@ public final class PageRegistry {
         p("spar", "dojo_up:garden", "Garden grounds", "spar|dojo_upgrades");
         p("spar", "dojo_up:capacity", "Disciple capacity", "spar|dojo_upgrades");
         p("spar", "dojo_style", "Style and bonus", "spar|dojo");
+        item("spar", "dojo_style_ask:*", "Change style", "spar|dojo_style");
+        item("spar", "dojo_bonus_ask:*", "Buy a bonus", "spar|dojo_style");
         p("spar", "dojo_elites", "Members and elites", "spar|dojo");
         p("spar", "dojo_wars", "Wars", "spar|dojo", "war bracket gauntlet");
         item("spar", "wars", "Wars", "spar|dojo");
         item("spar", "dojo_war", "Wars", "spar|dojo");
-        item("spar", "dojo_war_pick", "Declare a war", "spar|dojo_wars");
+        p("spar", "dojo_war_pick", "Declare a war", "spar|dojo_wars", "challenge dojo war");
         item("spar", "dojo_war_pick:**", "Declare a war", "spar|dojo_wars");
         item("spar", "dojo_war_fmt:**", "War format", "spar|dojo_wars");
         item("spar", "dojo_war_view:**", "War", "spar|dojo_wars");
-        item("spar", "dojo_war_pending", "War invites", "spar|dojo_wars");
+        p("spar", "dojo_war_pending", "War invites", "spar|dojo_wars", "war requests");
         item("spar", "dojo_war_pending:**", "War invites", "spar|dojo_wars");
+        // 4.7.73: the war pages' own buttons (Challenge dojo, Top dojos, Hall of Chosen) and the members aliases.
+        item("spar", "pick_dojo_challenge", "Challenge a dojo", "spar|dojo_wars");
+        item("spar", "pick_dojo_challenge:*", "Challenge a dojo", "spar|dojo_wars");
+        p("spar", "dojo_top_rp", "Top dojos", "spar|dojo_wars", "dojo leaderboard reputation ranking");
+        item("spar", "dojo_top_wars", "Top dojos", "spar|dojo_wars");
+        p("spar", "dojo_hof", "Hall of Chosen", "spar|dojo_wars", "past seasons champions");
+        item("spar", "dojo_members", "Dojo members", "spar|dojo_roster");
+        item("spar", "dojo_previous_members", "Previous members", "spar|dojo_roster");
         item("spar", "dojo_war_pending_decide:**", "War invite", "spar|dojo_war_pending");
         p("spar", "dojo_list", "Browse dojos", "spar|dojo", "leaderboard");
         item("spar", "dojo_list:**", "Browse dojos", "spar|dojo");
@@ -171,6 +188,7 @@ public final class PageRegistry {
         p("spar", "pick_mentor", "Request a master", "spar|mentor");
         item("spar", "pick_mentor:**", "Request a master", "spar|mentor");
         p("spar", "pending", "Bond invites", "spar|mentor");
+        item("spar", "pending:*", "Bond invites", "spar|mentor");
         item("spar", "pending_decide:**", "Bond invite", "spar|pending");
         p("spar", "pick_release", "Release", "spar|mentor");
         item("spar", "pick_release:**", "Release", "spar|mentor");
@@ -185,6 +203,7 @@ public final class PageRegistry {
         item("spar", "fight_report:*", "Fight report", "spar|stats");
         p("spar", "weights", "Weights", "spar|main", "training weights");
         item("spar", "weights_input:*", "Weights", "spar|weights");
+        item("spar", "weights_confirm:**", "Buy weights", "spar|weights");
         p("spar", "settings", "Spar settings", "spar|main", "tp chat");
         staff("spar", "admin", "Sparring staff tools", "spar|main");
 
@@ -199,6 +218,7 @@ public final class PageRegistry {
         p("prestige", "effects", "Effects", "prestige|shop", "majin mutant ultimate");
         p("prestige", "mastery_wallet", "Mastery wallet", "prestige|shop");
         p("prestige", "mastery_lines", "Apply points to a form", "prestige|mastery_wallet");
+        item("prestige", "mastery_lines:*", "Apply points to a form", "prestige|mastery_wallet");
         // mw_form:<s|n>:<group>:<form>[:<line page>] goes back to that line's page.
         item("prestige", "mw_form:*:*:*", "Form mastery", "prestige|mw_line:$1:$2");
         item("prestige", "mw_form:*:*:*:*", "Form mastery", "prestige|mw_line:$1:$2:$4");
@@ -424,6 +444,10 @@ public final class PageRegistry {
      * Every parent of a concrete entry resolves to an entry, every chain reaches the main menu without a loop, every
      * title is set, every searchable page is found by its own title. Returns the problems (empty when fine).
      */
+    /** Page ids that always open a guide step (DifficultyTutorial.route), whatever the player's state. */
+    static final java.util.Set<String> REPLAY = java.util.Set.of("difficulty|guide", "difficulty|guide_tiers",
+            "difficulty|guide_your_tier");
+
     public static List<String> problems() {
         List<String> out = new ArrayList<>();
         for (Page e : PAGES) {
@@ -446,6 +470,10 @@ public final class PageRegistry {
                         + path(e.screen(), e.pattern()) + ")");
             }
             String[] up = parent(e.screen(), e.pattern());
+            // 4.7.73: a guide step id always replays the guide; only guide steps may lead back to one.
+            if (up != null && REPLAY.contains(up[0] + "|" + up[1]) && !REPLAY.contains(e.screen() + "|" + e.pattern())) {
+                out.add("parent replays the guide: " + e.screen() + "|" + e.pattern() + " -> " + e.parent());
+            }
             if (up != null && find(up[0], up[1]) == null) {
                 out.add("parent not registered: " + e.screen() + "|" + e.pattern() + " -> " + e.parent());
             }
