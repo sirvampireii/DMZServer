@@ -57,6 +57,12 @@ public final class PotentialProgression {
         if (victim.m_20148_().equals(attacker.m_20148_())) {
             return;
         }
+        // 4.7.68: Potential Unlock training is off inside a formal spar session (a Spar Board spar in a dojo
+        // arena): neither fighter gains points from the session's hits. Session-scoped only; hits in the world
+        // train as always.
+        if (com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.inSessionTogether(victim, attacker)) {
+            return;
+        }
         try {
             // Attacker gains from hitting (script damagedEntity)
             String atkMethod = "physical_hit";

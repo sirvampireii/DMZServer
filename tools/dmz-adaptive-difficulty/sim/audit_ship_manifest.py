@@ -2095,6 +2095,14 @@ def main() -> int:
     check("no void or fall deaths in the dojo world; outsiders can't hit a fighter mid-bout",
           '"fall".equals(id) || "outOfWorld".equals(id)' in p68_ev
           and "bout != null && attacker != null && !" in p68_ev)
+    p68_pu = read(SRC / "progression/skills/PotentialProgression.java")
+    check("Potential Unlock is off inside a spar session only, normal in the world, never touched by a dojo bonus",
+          "if (com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.inSessionTogether(victim, attacker)) {" in p68_pu
+          and "public static boolean inSessionTogether(ServerPlayer a, ServerPlayer b)" in p68_sys
+          and "dojo" not in p68_pu.replace("dojo arena", "")
+          and "potential" not in (p68_svc + p68_cat + p68_board).lower()
+          and "Potential Unlock" not in p68_board + p68_ui
+          and '"Potential Unlock trains from fights in the world, not in spars."' in p68_spar)
     check("dim, never hidden: ranked before the gate, upgrades out of reach, spars without a dojo",
           'spec.lockedButton("Post a spar")' in p68_ui and 'spec.lockedButton(maxed ? "Fully upgraded" : "Buy for "' in p68_ui)
 

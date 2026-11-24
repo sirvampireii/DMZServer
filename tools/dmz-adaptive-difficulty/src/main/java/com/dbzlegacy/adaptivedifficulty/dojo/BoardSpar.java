@@ -84,6 +84,14 @@ public final class BoardSpar {
     static final Map<String, Long> PAIR = new ConcurrentHashMap<>();
     private static int seq;
 
+    /** Set what {@code id} posts next (the test rig presets a kind and a wager step without cycling buttons). */
+    public static void setDraft(UUID id, boolean ranked, int wagerStep) {
+        if (id != null) {
+            Draft d = draft(id);
+            DRAFTS.put(id, new Draft(ranked, Math.floorMod(wagerStep, wagerSteps()), d.range()));
+        }
+    }
+
     public static Draft draft(UUID id) {
         return id == null ? new Draft(false, 0, 0) : DRAFTS.getOrDefault(id, new Draft(false, 0, 0));
     }
@@ -581,9 +589,12 @@ public final class BoardSpar {
         boolean counted = decisive && dur >= DojoCatalog.MIN_FIGHT_MS && da >= DojoCatalog.MIN_FIGHT_DAMAGE
                 && db >= DojoCatalog.MIN_FIGHT_DAMAGE;
         String pair = b.a.compareTo(b.b) < 0 ? b.a + "|" + b.b : b.b + "|" + b.a;
-        Long last = PAIR.get(pair);
-        boolean pairFresh = last == null || now - last >= DojoCatalog.PAIR_COOLDOWN_MS;
-        boolean credit = b.ranked && counted && pairFresh;
+        // Two separate cooldowns: ranked credit (only ranked spars set it) and host / training points.
+        Long lastRanked = PAIR.get("ranked|" + pair);
+        boolean rankedFresh = lastRanked == null || now - lastRanked >= DojoCatalog.PAIR_COOLDOWN_MS;
+        Long lastHost = PAIR.get("host|" + pair);
+        boolean pairFresh = lastHost == null || now - lastHost >= DojoCatalog.PAIR_COOLDOWN_MS;
+        boolean credit = b.ranked && counted && rankedFresh;
         if (ra != null) {
             ra.boardCredit = credit;
         }
@@ -601,7 +612,7 @@ public final class BoardSpar {
             pb.unrankedSpars++;
         }
         if (counted && pairFresh) {
-            PAIR.put(pair, now);
+            PAIR.put("host|" + pair, now);
             if (host != null) {
                 DojoService.earn(host, DojoCatalog.Earn.HOST);
                 DojoService.clout(host, "host", DojoCatalog.CLOUT_HOST, DojoCatalog.CLOUT_HOST_DAILY);
@@ -617,6 +628,7 @@ public final class BoardSpar {
             }
         }
         if (credit) {
+            PAIR.put("ranked|" + pair, now);
             pa.rankedSpars++;
             pb.rankedSpars++;
             for (Dojo d : new Dojo[] {dojoA, dojoB}) {
@@ -651,7 +663,7 @@ public final class BoardSpar {
             lines.add(UltraStyle.labelValue("Wager", wagerLine));
             if (!counted) {
                 lines.add(UltraStyle.LABEL + "Didn't count: a spar counts after 1 minute with both fighters landing hits.");
-            } else if (b.ranked && !pairFresh) {
+            } else if (b.ranked && !rankedFresh) {
                 lines.add(UltraStyle.LABEL + "No ranked credit: you two had a ranked spar in the last 15 minutes.");
             }
             DojoStore.PlayerRecord rec = isA ? pa : pb;

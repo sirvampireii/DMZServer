@@ -541,6 +541,17 @@ public final class SparringSystem {
         // streak, Friendly Fist) starts only from the Spar Board (startBoardSession).
     }
 
+    /** 4.7.68: true when {@code a} and {@code b} are each other's partner in an active spar session. */
+    public static boolean inSessionTogether(ServerPlayer a, ServerPlayer b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        SparPlayerRuntime ra = RUNTIME.get(a.m_20148_());
+        SparPlayerRuntime rb = RUNTIME.get(b.m_20148_());
+        return ra != null && rb != null && ra.active && rb.active
+                && b.m_20148_().equals(ra.partner) && a.m_20148_().equals(rb.partner);
+    }
+
     /** 4.7.68: the only way a spar starts - a Spar Board accept, with both fighters already in the arena. */
     public static void startBoardSession(ServerPlayer a, ServerPlayer b, String boutId, boolean ranked) {
         startSession(a, b);

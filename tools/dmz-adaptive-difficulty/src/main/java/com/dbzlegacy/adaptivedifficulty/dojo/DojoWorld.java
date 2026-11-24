@@ -103,7 +103,7 @@ public final class DojoWorld {
 
     // ------------------------------------------------------------------ teleport and return
 
-    static void teleport(ServerPlayer p, ServerLevel level, double x, double y, double z, float yaw) {
+    public static void teleport(ServerPlayer p, ServerLevel level, double x, double y, double z, float yaw) {
         try {
             p.m_8999_(level, x, y, z, yaw, 0.0f);
             p.m_20256_(new Vec3(0.0, 0.0, 0.0));

@@ -16,11 +16,23 @@ In-game test rig for LegacyMechanics menus. Never shipped, never put on the live
     Goals / More in order, grouped tiles, no made-up numbers or other mods' commands; Goals placeholder pays
     nothing; More has meditation, Menu skins and Staff Admin for staff; every hub link lands on the right screen
     (`LINK` lines); Difficulty and Prestige Homes show their lines from other systems; the spar streak line only
-    with a streak; the spar board end to end with a stand-in player (listed, want cycle, ask, cooldown, asked,
-    say yes, spar start and logout take players off). The final phase clicks the Goals tab, the Dojo wars tile
-    and "List me for 15 min" on the real client (`hub1`..`hub3`, `spar1` REC lines). Before the screenshots the
-    probe player is made invulnerable and the script's mobs are cleared (a leftover zombie once killed it
-    mid-shot).
+    with a streak. The final phase clicks the Goals tab and the Dojo wars tile on the real client
+    (`hub1`..`hub3` REC lines). Before the screenshots the probe player is made invulnerable and the script's
+    mobs are cleared (a leftover zombie once killed it mid-shot).
+  - Dojos, Spar Board and wars (4.7.68), with three stand-in players: no dojo means no spar (the message, Find a
+    dojo, a dim Post); tabs Home / Dojo / Spar Board; found a dojo; the dojo dimension is loaded; a disciple
+    belongs to the master's dojo; the ranked gate (0 of 30, ranked dim); trading hits starts no spar; post,
+    the listing details, accept teleports both into the poster's arena, forfeit sends them back to the exact
+    spot; an instant forfeit doesn't count, a counted friendly spar adds to the gate and pays the host 2
+    points and no TP; a 5-netherite coin wager (both held, KO pays the winner both), ranked credit reaches the
+    leaderboard, the same pair at once gets no credit; a 20-point wager refunded on a forfeit; a second arena,
+    built in the world, two spars at once in one dojo; spectating refused without the room, then from the
+    gallery (can't be hit, put back when stepping into a ring); the upgrade map preview; capacity to 30;
+    style and bonus (+5% only on the style's hits, a race tradition only for that race); an elite's war needs
+    sign-off; close and reopen one tier down; the season reset keeps rooms; visiting another plot 4000+
+    blocks away and leaving. The final phase on the real client: board, dojo and upgrade-preview shots
+    (`board1`, `dojo1`, `dojo2`), a lethal blow in a board spar is a KO (`KO` lines), and a bracket and a
+    gauntlet war against a stand-in who leaves the ring (`WAR` lines: record, re-challenge, bracket page).
   - Friendly Fist never lets a spar kill (4.7.65), in the final phase on the real probe player with a stand-in
     partner: three lethal partner hits (a non-melee source, Friendly Fist on the victim only, the case DMZ's own
     knockdown misses) each leave the player alive, healed to full, the spar still on and no "death" record; a

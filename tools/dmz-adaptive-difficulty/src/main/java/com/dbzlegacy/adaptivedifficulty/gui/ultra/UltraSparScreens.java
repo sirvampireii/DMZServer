@@ -214,10 +214,8 @@ public final class UltraSparScreens {
         spec.line(UltraStyle.LABEL + (onBoard == 0 ? "Nobody is posted right now." : onBoard + " posts up now."));
         spec.line(UltraStyle.header("What a spar is worth to you"));
         spec.line(UltraStyle.VALUE + HubDashboard.sparWinLine(player));
-        String potential = HubDashboard.potentialLine(player);
-        if (potential != null) {
-            spec.line(UltraStyle.VALUE + potential);
-        }
+        // 4.7.68: spar sessions don't train Potential Unlock (it trains from fights in the world).
+        spec.line(UltraStyle.LABEL + "Potential Unlock trains from fights in the world, not in spars.");
         String streak = HubDashboard.streakLine(player);
         if (streak != null) {
             spec.line(UltraStyle.VALUE + streak);
