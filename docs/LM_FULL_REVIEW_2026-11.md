@@ -102,7 +102,8 @@ Copy-rule breaks found on the way:
   - `UltraStyle.buttonLabel` and `hubTilePaletteName`
   - `UltraScreenSpec.clearPlayerModel` and `menuFit`
   - `UltraScreenIds.isProtocolId`
-  - `ModelPreview.readGeoSize`
+  - ~~`ModelPreview.readGeoSize`~~: not dead, it is used as a method reference (`ModelPreview::readGeoSize`). It was
+    restored in 4.7.74.
 - Legacy code:
   - the `migrate-cnpc` actions
   - retired alias routes
