@@ -54,18 +54,19 @@ keeps "The model uses the race's default colors, not your own." until KaiPath ap
 
 ## Proof
 
-Jar: `LegacyMechanics-4.7.71.jar`, sha256 `c3e12b9f35de163bcce8f55cacefa0016107c99481890454f0d995e8bb4f0327`.
+Jar: `LegacyMechanics-4.7.71.jar`, sha256 `a5881fb03fb356541d6995770949063825683527a137f57cd1267913a555da54`.
 
 - `build.sh`: every audit passes, including the new `audit_page_registry.py` (199 entries, every declared or linked
   page id has one) and the ship manifest (8 new 4.7.71 checks).
 - Server boot, strict self-tests: 18 self-tests OK, including the page registry and history self-tests and the
   rewritten footer test (Back left, Main menu right; a Back to the main menu stands alone).
-- Scripted real client (LM client + KaiPath): 185 PASS, 0 FAIL. Includes:
+- Scripted real client (LM client + KaiPath): 190 PASS, 0 FAIL (full matrix run). Includes:
   - search "upgrades" -> Dojo upgrades (path shown) -> "Back to Search" -> the search with its results;
   - breadcrumbs on `spar|dojo_up:arena` (Main menu > Sparring > Dojo > Upgrades > Sparring arenas),
     `prestige|mastery_lines` and `rival|records:stats`, every crumb but the last a link, a crumb click opens its page;
   - recents: five kept, newest first, shown under an empty search, a tap searches again;
-  - Preview forms 0 and 1: colors, appearance, head bones, skin owner, made-up subject, never local.
+  - Preview forms 0 and 1: colors, appearance, head bones, skin owner, made-up subject, never local; the page says
+    it wears your own look; Next does not stack Back ("Back to Character", not "Back to Preview forms").
 - Navigation audit: 149 registry entries reached from the main menu (102 searchable pages), 0 orphans, 128 Backs
   checked and each landed on its registry parent, 0 search misses: PASS. Four pages need state the probe account does
   not have and are listed as NAV SKIP: Custom menu skin colors, Replace a rival (full list), the custom perk shop
@@ -73,7 +74,7 @@ Jar: `LegacyMechanics-4.7.71.jar`, sha256 `c3e12b9f35de163bcce8f55cacefa0016107c
 - Full matrix (`tools/lm-ui-probe/matrix.sh`), 3654 layouts at GUI 2/3/4: every row PASS (native everywhere, five
   skins, 60+ FPS, layout, scale-to-fit, look/contrast, KaiPath only: every menu through the bridge, requireLmClient).
   "One spec for both render paths": 18 identical, 386 differ only by LM-client navigation (history Back, breadcrumb,
-  search row), 8 by the color wheel, 0 other differences. The KaiPath packets carry no `breadcrumb` and no
+  search row, the Preview forms look line), 8 by the color wheel, 0 other differences. The KaiPath packets carry no `breadcrumb` and no
   `nav:back`. No 4.7.68 wire baseline was used: every page's footer changes on purpose this release.
 - Kit: corpus refreshed from the KaiPath stage (93 menu families); `LmCorpusTest` OK (606 buttons) with the other kit
   tests (overlay build read the KaiPath 1.5.6 jar as its base; the KaiPath jar itself is untouched).
