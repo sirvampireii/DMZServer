@@ -65,18 +65,6 @@ public final class DifficultyConfig {
 
     public double prestigeMultiplier = 10.0;
     public double levelMultiplier = 1.0;
-    public double teamBonusPercent = 10.0;
-    public double contributionPercent = 25.0;
-    /** Extra elite roll % per weighted online rival using teams (added to {@link #eliteChancePercent}). */
-    public double teamEliteChanceBonusPercent = 0.75;
-    /** Extra mutation roll % per weighted online rival. */
-    public double teamMutationChanceBonusPercent = 1.0;
-    /** Boss HP threshold reduction % per weighted rival (more mobs qualify as bosses). */
-    public double teamBossThresholdBonusPercent = 8.0;
-    /** Flat boss promotion roll % per weighted rival on T6+ claims (non-natural). */
-    public double teamBossPromotionChancePercent = 0.20;
-    /** Threshold team mode uses this fraction of team rarity bonuses (Full = 1.0). */
-    public double teamThresholdRarityMult = 0.65;
     /** Soft divisor for kill XP multiplier. */
     public double rewardScaling = 2_500.0;
     /**

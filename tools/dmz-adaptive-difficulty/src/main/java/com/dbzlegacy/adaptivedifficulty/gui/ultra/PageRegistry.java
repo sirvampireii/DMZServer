@@ -82,7 +82,7 @@ public final class PageRegistry {
         item("difficulty", "your_tier", "Your tier", "difficulty|main");
         item("difficulty", "end_dragon", "End Dragon", "difficulty|summons");
         item("difficulty", "summon_ask:*", "Summon", "difficulty|summons");
-        item("difficulty", "clear_tier_ask", "Clear active tier", "difficulty|main");
+        item("difficulty", "clear_tier_ask", "Clear active tier", "difficulty|tiers");
         item("difficulty", "difficulty_off_ask", "Turn difficulty off", "difficulty|main");
         item("difficulty", "wither", "Wither", "difficulty|summons");
         item("difficulty", "warden", "Warden", "difficulty|summons");
@@ -91,7 +91,6 @@ public final class PageRegistry {
         item("difficulty", "titles", "Titles", "difficulty|main");
         item("difficulty", "title_detail:*", "Title", "difficulty|titles_p0");
         item("difficulty", "title_unequip_ask", "Unequip title", "difficulty|titles_p0");
-        p("difficulty", "team", "Rival teams", "difficulty|main");
         staff("difficulty", "admin", "Server tools", "difficulty|main");
         staff("difficulty", "eventlog", "Event log", "difficulty|admin");
         item("difficulty", "flush_ask", "Flush", "difficulty|eventlog");

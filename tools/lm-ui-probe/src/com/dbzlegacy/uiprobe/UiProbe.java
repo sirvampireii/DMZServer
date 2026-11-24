@@ -2778,7 +2778,7 @@ public final class UiProbe {
                     LmHud.accentOf("character"), "", tpMs, false);
             LmHud.show(player, LmHud.COINS, List.of(UltraStyle.color("6", "+ "
                     + com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.formatExactCost(340L)) + " "
-                    + UltraStyle.LABEL + "Coins"), -1f, "#f0b429", "", tpMs, false);
+                    + UltraStyle.LABEL + "Coins"), -1f, LmHud.ACCENT_CURRENCY, "", tpMs, false);
             LmHud.show(player, LmHud.ELITE, List.of(eliteChip), -1f, LmHud.ACCENT_DIFFICULTY, "", 0, false);
             LmHud.show(player, LmHud.BOOST, List.of(UltraStyle.color("a", "TP x1.5") + " " + UltraStyle.LABEL + "- 42m left"),
                     -1f, LmHud.accentOf("prestige"), "open:prestige", 0, false);

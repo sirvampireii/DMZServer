@@ -3,7 +3,6 @@ package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.gui.AdminInspectSessions;
 import com.dbzlegacy.adaptivedifficulty.gui.CharacterServicesGuiApi;
-import com.dbzlegacy.adaptivedifficulty.gui.DifficultyTeamGuiApi;
 import com.dbzlegacy.adaptivedifficulty.gui.MechanicsGuiApi;
 import com.dbzlegacy.adaptivedifficulty.gui.ProgressionGuiApi;
 import com.dbzlegacy.adaptivedifficulty.gui.RivalGuiApi;
@@ -590,10 +589,6 @@ public final class UltraGuiActions {
         try {
             result = switch (safeScreen) {
                 case "difficulty" -> {
-                    if ("mode".equals(act) || "set_mode".equals(act) || "team".equals(act)) {
-                        yield nullToEmpty(
-                                DifficultyTeamGuiApi.handleDo(data, "mode", arg, page));
-                    }
                     // Staff tools on the difficulty admin sub-page.
                     if ("reload".equals(act)
                             || "reloadconfig".equals(act)
@@ -638,7 +633,6 @@ public final class UltraGuiActions {
                         nullToEmpty(UltraConfigScreens.handleAction(viewer, act, arg, page, args));
                 case "hub", "admin" -> nullToEmpty(MechanicsGuiApi.handleDo(actor, act, arg, page));
                 case "skillcheck", "skills" -> "";
-                case "team" -> nullToEmpty(DifficultyTeamGuiApi.handleDo(data, act, arg, page));
                 default -> null;
             };
         } catch (Throwable t) {

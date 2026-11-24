@@ -12,8 +12,6 @@ import com.dbzlegacy.adaptivedifficulty.gui.ProgressionMenu;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.util.PaidFeatureAccess;
 import com.dbzlegacy.adaptivedifficulty.data.PlayerDifficultyData;
-import com.dbzlegacy.adaptivedifficulty.data.TeamMode;
-import com.dbzlegacy.adaptivedifficulty.team.TeamScaling;
 import com.dbzlegacy.adaptivedifficulty.gui.DifficultyMenu;
 import com.dbzlegacy.adaptivedifficulty.scaling.MobScaling;
 import com.dbzlegacy.adaptivedifficulty.tier.UnlockSystem;
@@ -43,7 +41,6 @@ public final class DifficultyActions {
     public static final String ACT_LOWER_TIER = "lower_tier";
     /** 4.7.59: {@code do:trial:<t>} starts a 5-minute free trial of a tier ({@link DifficultyTrial}). */
     public static final String ACT_TRIAL = "trial";
-    public static final String ACT_TEAM = "team";
     public static final String ACT_RESET = "reset";
     public static final String ACT_CHARACTER_RESET = "character_reset";
     public static final String ACT_REFRESH = "refresh";
@@ -272,9 +269,6 @@ public final class DifficultyActions {
         if (ACT_CHARACTER_RESET.equals(act) || "char_reset".equals(act) || "characterreset".equals(act)) {
             return characterReset(player, page);
         }
-        if (ACT_TEAM.equals(act)) {
-            return setTeamMode(player, arg, page);
-        }
         if (ACT_TOGGLE_PERSONAL.equals(act) || "personal".equals(act)
                 || "toggle_difficulty".equals(act) || "difficulty_toggle".equals(act)) {
             return togglePersonal(player, page);
@@ -307,15 +301,12 @@ public final class DifficultyActions {
         // Personal OFF freezes buy / lower / reset until the player turns it back on.
         if (!SystemGate.participates(player)
                 && (ACT_ACTIVATE.equals(act) || ACT_PURCHASE_TIER.equals(act) || ACT_BUY.equals(act)
-                || ACT_LOWER_TIER.equals(act) || ACT_RESET.equals(act) || ACT_TEAM.equals(act)
+                || ACT_LOWER_TIER.equals(act) || ACT_RESET.equals(act)
                 || ACT_TRIAL.equals(act)
                 || "zero".equals(act) || "clear".equals(act))) {
             openGui(player, page == null || page.isBlank() ? "main" : page);
-            String hint = ACT_TEAM.equals(act)
-                    ? UltraStyle.danger(
-                            "Turn on personal difficulty on the main Difficulty page first, then pick a team mode.")
-                    : UltraStyle.danger(
-                            "Turn on personal difficulty on the main Difficulty page first, then pick a tier.");
+            String hint = UltraStyle.danger(
+                    "Turn on personal difficulty on the main Difficulty page first, then pick a tier.");
             return Result.fail(hint);
         }
 
@@ -336,61 +327,6 @@ public final class DifficultyActions {
             case ACT_TRIAL -> DifficultyTrial.start(player, (int) amount, page);
             case ACT_RESET, "zero", "clear" -> resetActive(player, page);
             default -> Result.fail("Unknown action.");
-        };
-    }
-
-    private static Result setTeamMode(ServerPlayer player, String arg, String page) {
-        PlayerDifficultyData data = DifficultyCache.data(player);
-        if (!data.isPersonalEnabled()) {
-            openGui(player, page == null || page.isBlank() ? "team" : page);
-            return Result.fail("Turn on personal difficulty on the main Difficulty page first, then pick a team mode.");
-        }
-        TeamMode next = resolveTeamModeArg(data.getTeamMode(), arg);
-        if (next != TeamMode.PERSONAL_ONLY) {
-            if (!DifficultyConfig.get().enableRivalSystem) {
-                openGui(player, page == null || page.isBlank() ? "team" : page);
-                return Result.fail("Rival system is disabled — teams need mutual rivals.");
-            }
-            if (TeamScaling.mutualRivalCount(player) < 1) {
-                openGui(player, page == null || page.isBlank() ? "team" : page);
-                return Result.fail("No mutual rivals yet — use /rival to declare and accept first.");
-            }
-        }
-        data.setTeamMode(next);
-        DifficultyCache.save(player);
-        DifficultyCache.refresh(player);
-        String returnPage = page == null || page.isBlank() ? "team" : page;
-        openGui(player, returnPage);
-        return Result.ok(teamModeMessage(next));
-    }
-
-    private static TeamMode resolveTeamModeArg(TeamMode current, String arg) {
-        if (arg == null || arg.isBlank() || "cycle".equalsIgnoreCase(arg.trim())) {
-            return cycleTeamMode(current);
-        }
-        return TeamMode.fromString(arg);
-    }
-
-    private static TeamMode cycleTeamMode(TeamMode current) {
-        if (current == null || current == TeamMode.PERSONAL_ONLY) {
-            return TeamMode.THRESHOLD_BONUS_ONLY;
-        }
-        if (current == TeamMode.THRESHOLD_BONUS_ONLY) {
-            return TeamMode.FULL_TEAM_SCALING;
-        }
-        return TeamMode.PERSONAL_ONLY;
-    }
-
-    private static String teamModeMessage(TeamMode mode) {
-        int contrib = (int) DifficultyConfig.get().contributionPercent;
-        return switch (mode) {
-            case PERSONAL_ONLY -> "Team mode: Personal — only your tier ceiling applies.";
-            case THRESHOLD_BONUS_ONLY ->
-                    "Team mode: Threshold — higher tier ceiling when rivals are online and using a team mode."
-                            + " More elites, mutants, and bosses.";
-            case FULL_TEAM_SCALING ->
-                    "Team mode: Full — threshold bonus plus " + contrib + "% of nearby rivals' spare tier room."
-                            + " Best elite, mutant, and boss spawn boost when rivals are close.";
         };
     }
 

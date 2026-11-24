@@ -1203,26 +1203,9 @@ def main() -> int:
     )
     spar_home_body = spar_home_m.group(0) if spar_home_m else ""
     diff_screens = (ULTRA / "UltraDifficultyScreens.java").read_text(encoding="utf-8")
-    team_m = re.search(
-        r"private static void openTeam\b.*?^\s*private static void ",
-        diff_screens,
-        re.S | re.M,
-    )
-    team_body = team_m.group(0) if team_m else ""
-    notice_m = re.search(
-        r"private static void openTeamNotice\b.*?^\s*private static void ",
-        diff_screens,
-        re.S | re.M,
-    )
-    notice_body = notice_m.group(0) if notice_m else ""
-    if ".back()" not in team_body:
-        errors.append("UltraDifficultyScreens.openTeam must pin Back (to Difficulty Home) + Main menu")
-    if "openFeatureLocked" in team_body:
-        errors.append(
-            "UltraDifficultyScreens.openTeam must not use the tabbed locked page (no left Back)"
-        )
-    if ".back()" not in notice_body:
-        errors.append("UltraDifficultyScreens.openTeamNotice must pin Back (to Difficulty Home) + Main menu")
+    # 4.7.78: rival teams are gone; no team page, route or mode may come back.
+    if "openTeam" in diff_screens or "team|Rival teams" in diff_screens or '"team", "teams"' in diff_screens:
+        errors.append("Difficulty must not have a Rival teams page, button or route (removed in 4.7.78)")
     diff_home_m = re.search(
         r"private static void openHome\b.*?^\s*private static void ",
         diff_screens,
@@ -1239,10 +1222,6 @@ def main() -> int:
     staff_body = staff_m.group(0) if staff_m else ""
     if "page:eventlog" not in staff_body:
         errors.append("Server tools must keep the Event log submenu")
-    if "do:toggle_personal" in team_body:
-        errors.append("Rival teams mode page must not offer the difficulty toggle")
-    if "do:mode:personal" not in team_body or "do:mode:threshold" not in team_body or "do:mode:full" not in team_body:
-        errors.append("Rival teams page must keep Personal, Threshold, and Full team")
     if "Personal ON" in diff_screens or "Personal OFF" in diff_screens:
         errors.append("Difficulty toggle must say Difficulty - ON/OFF, not Personal")
     if '"Difficulty: ' in diff_screens:

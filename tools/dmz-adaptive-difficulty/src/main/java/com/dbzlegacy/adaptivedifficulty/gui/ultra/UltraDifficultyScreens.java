@@ -7,8 +7,6 @@ import com.dbzlegacy.adaptivedifficulty.calc.PlayerCombatProfile;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy;
 import com.dbzlegacy.adaptivedifficulty.data.PlayerDifficultyData;
-import com.dbzlegacy.adaptivedifficulty.data.TeamMode;
-import com.dbzlegacy.adaptivedifficulty.gui.DifficultyTeamGuiApi;
 import com.dbzlegacy.adaptivedifficulty.calc.LmOverhaulScaledCombat;
 import com.dbzlegacy.adaptivedifficulty.progression.end.EndDimensionStrength;
 import com.dbzlegacy.adaptivedifficulty.service.DifficultyActions;
@@ -123,7 +121,6 @@ public final class UltraDifficultyScreens {
             case "end_dragon", "dragon", "summon_dragon", "summon_confirm" -> openSummonConfirm(player);
             case "wither" -> openBossSummonConfirm(player, PlayerBossSummons.Boss.WITHER);
             case "warden" -> openBossSummonConfirm(player, PlayerBossSummons.Boss.WARDEN);
-            case "team", "teams" -> openTeam(player);
             case "titles", "title", "titles_p0" -> openTitles(player, 0);
             case "stats", "statistics", "details", "cr", "combat_rating" -> openStats(player);
             case "admin", "staff" -> openStaffAdmin(player);
@@ -225,7 +222,7 @@ public final class UltraDifficultyScreens {
             spec.line(UltraStyle.header("Your tier"));
         }
         spec.labelValue("Tier:", active <= 0 || snap == null
-                        ? (guide ? "No tier yet. Pick one in Step 2." : "No tier yet. Tap Change tier.")
+                        ? (guide ? "No tier yet. Pick one in Step 2." : "No tier yet. Pick one in Tiers.")
                         : "T" + active + " " + snap.activeTierName)
                 .labelValue("Difficulty:", personal ? "ON" : "OFF");
         com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.Active trial =
@@ -248,30 +245,27 @@ public final class UltraDifficultyScreens {
         }
         spec.buttonsAfterLines();
         if (guide) {
+            // 4.7.78: the end of the guide has one action; every tool waits on Home.
             spec.button(GUIDE_DONE, UltraStyle.confirm("Got it - take me to Difficulty"), UltraStyle.STYLE_CONFIRM)
                     .rowGap();
+            spec.footerGuide("page:" + DifficultyTutorial.PAGE_STEP2, "Step 2", GUIDE_DONE);
+            spec.send(player);
+            return;
         }
-        spec.buttonLeft("page:tiers", UltraStyle.confirm("Change tier"), UltraStyle.STYLE_CONFIRM);
+        // 4.7.78: Home turns difficulty on and off; tiers (and clearing one) live in the Tiers tab.
         placeDifficultyToggle(spec, personal);
         spec.rowGap();
-        if (active > 0) {
-            spec.buttonLeft("page:clear_tier_ask", UltraStyle.danger("Clear active tier"), UltraStyle.STYLE_DANGER).rowGap();
-        }
-        UltraPickHelper.placePageButtons(spec, "titles|Titles", "team|Rival teams");
+        spec.buttonLeft("page:titles_p0", "Titles", UltraStyle.STYLE_NORMAL).rowGap();
         placeCoinMessageToggle(spec, data != null && data.isCoinDropChat());
         if (StaffAccess.isStaff(player)) {
             // Staff entry reads red, like Staff Admin on the Rival and Sparring homes.
             spec.buttonLeft("page:admin", UltraStyle.LABEL + "Server tools", UltraStyle.STYLE_NORMAL);
             spec.buttonRight("page:stats", UltraStyle.LABEL + "Combat rating", UltraStyle.STYLE_NORMAL).rowGap();
         }
-        if (guide) {
-            spec.footerGuide("page:" + DifficultyTutorial.PAGE_STEP2, "Step 2", GUIDE_DONE);
-        } else {
-            // Replay on demand, with the other Home actions; never clears the done mark.
-            spec.button("page:" + DifficultyTutorial.PAGE_STEP1, UltraStyle.plain("How difficulty works"),
-                    UltraStyle.STYLE_NORMAL).rowGap();
-            spec.footerBackOnly("nav:hub", "main menu");
-        }
+        // Replay on demand, with the other Home actions; never clears the done mark.
+        spec.button("page:" + DifficultyTutorial.PAGE_STEP1, UltraStyle.plain("Replay the difficulty guide"),
+                UltraStyle.STYLE_NORMAL).rowGap();
+        spec.footerBackOnly("nav:hub", "main menu");
         spec.send(player);
     }
 
@@ -320,6 +314,16 @@ public final class UltraDifficultyScreens {
         } else {
             spec.line(UltraStyle.header("Pick your level"));
         }
+        if (!guide && !personal) {
+            // 4.7.78: no tier rows and no toggle here; difficulty is turned on from Home.
+            spec.line(UltraStyle.dangerLine("Difficulty is off."))
+                    .line(UltraStyle.LABEL + "Turn it on from Difficulty Home, then pick a tier here.")
+                    .buttonsAfterLines();
+            spec.button("nav:home", UltraStyle.confirm("Go to Difficulty Home"), UltraStyle.STYLE_CONFIRM).rowGap();
+            spec.back();
+            spec.send(player);
+            return;
+        }
         spec.line(UltraStyle.VALUE + "Tap a tier to see what changes. Nothing is bought until you confirm.");
         if (!personal) {
             spec.line(UltraStyle.danger("Difficulty is off. Turn it on to use a tier."));
@@ -344,9 +348,15 @@ public final class UltraDifficultyScreens {
         if (placed % 2 == 1) {
             spec.rowGap();
         }
-        if (!personal) {
+        if (guide && !personal) {
+            // The guide's Step 2 is the onboarding path: it keeps its turn-on toggle.
             placeDifficultyToggle(spec, false);
             spec.rowGap();
+        }
+        if (!guide && active > 0) {
+            // 4.7.78: clearing the active tier lives in the Tiers list (same confirm page and cost warning).
+            spec.buttonLeft("page:clear_tier_ask", UltraStyle.danger("Clear active tier"), UltraStyle.STYLE_DANGER)
+                    .rowGap();
         }
         if (guide) {
             spec.button("page:" + DifficultyTutorial.PAGE_STEP3, UltraStyle.confirm("Next: Your tier"),
@@ -782,66 +792,9 @@ public final class UltraDifficultyScreens {
         return lines;
     }
 
-    private static void openTeam(ServerPlayer player) {
-        if (!DifficultyConfig.isEnabled()) {
-            openTeamNotice(
-                    player,
-                    "Teams locked",
-                    "Adaptive Difficulty is off. Ask staff to enable it before using team scaling.");
-            return;
-        }
-        if (!SystemGate.allows(player)) {
-            openTeamNotice(
-                    player,
-                    "Teams locked",
-                    "You cannot use personal difficulty yet. Ask staff to add you to the whitelist.");
-            return;
-        }
-        PlayerDifficultyData data = DifficultyCache.data(player);
-        if (data == null || !data.isPersonalEnabled()) {
-            openTeamNotice(
-                    player,
-                    "Teams locked",
-                    "Turn Difficulty on, then return here to pick a team mode.");
-            return;
-        }
-        TeamMode mode = data.getTeamMode();
-        UltraScreenSpec spec = sub("team")
-                .line(UltraStyle.LABEL + "How rival teams affect scaling");
-        for (String line : DifficultyTeamGuiApi.linesForPage(player, "team")) {
-            if (line != null && !line.isBlank()) {
-                spec.line(line);
-            }
-        }
-        spec.buttonsAfterLines();
-        spec.buttonLeft(
-                        "do:mode:personal",
-                        mode == TeamMode.PERSONAL_ONLY
-                                ? UltraStyle.confirm("Personal - ON")
-                                : UltraStyle.dim("Personal"),
-                        mode == TeamMode.PERSONAL_ONLY ? "confirm" : "dim")
-                .buttonRight(
-                        "do:mode:threshold",
-                        mode == TeamMode.THRESHOLD_BONUS_ONLY
-                                ? UltraStyle.confirm("Threshold - ON")
-                                : UltraStyle.dim("Threshold"),
-                        mode == TeamMode.THRESHOLD_BONUS_ONLY ? "confirm" : "dim")
-                .rowGap();
-        spec.buttonLeft(
-                        "do:mode:full",
-                        mode == TeamMode.FULL_TEAM_SCALING
-                                ? UltraStyle.confirm("Full team - ON")
-                                : UltraStyle.dim("Full team"),
-                        mode == TeamMode.FULL_TEAM_SCALING ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM)
-                .rowGap();
-        // "Home" fits the footer button. "Difficulty Home" truncates to "Back to Difficulty...".
-        spec.back();
-        spec.send(player);
-    }
-
     /**
      * Difficulty on/off. OFF is dim (dark gray), never confirm. This is not a team mode.
-     * The Rival teams mode page does not show it; Personal / Threshold / Full team stay there.
+     * (4.7.78: rival teams are gone; there is no team mode page.)
      */
     /** One toggle on Difficulty home. No coin submenu. */
     private static void placeCoinMessageToggle(UltraScreenSpec spec, boolean on) {
@@ -867,23 +820,6 @@ public final class UltraDifficultyScreens {
                 "do:toggle_personal",
                 UltraStyle.dim("Difficulty - OFF"),
                 UltraStyle.STYLE_DIM);
-    }
-
-    /**
-     * Rival teams is a sub-page (no tab row). Locked and open states both use the standard
-     * footer: contextual back on the left, main menu on the right.
-     */
-    private static void openTeamNotice(ServerPlayer player, String title, String body) {
-        UltraScreenSpec spec = sub("team")
-                .line(UltraStyle.danger(title))
-                .line(UltraStyle.LABEL + body)
-                .buttonsAfterLines();
-        if (DifficultyConfig.isEnabled() && SystemGate.allows(player)) {
-            placeDifficultyToggle(spec, false);
-            spec.rowGap();
-        }
-        spec.back();
-        spec.send(player);
     }
 
     private static void openTitles(ServerPlayer player, int pageIndex) {

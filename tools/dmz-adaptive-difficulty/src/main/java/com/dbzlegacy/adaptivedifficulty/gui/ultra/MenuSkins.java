@@ -277,6 +277,25 @@ public final class MenuSkins {
             0xF6F9FF, 0x2563EB, 0xF59E0B, 0x1E2A4A, 0x16A34A,
             0xB9D6FF, 0xF4F8FF, 0xFFFFFF, 0xF59E0B, Motif.CLOUDS, '9', '3');
 
+    /**
+     * 4.7.78: the skin's gold, for currency (the HUD coin toast): of the skin's trim and primary, the one whose hue is
+     * nearest gold. Saiyan Royal, Namek, Obsidian and Zeno keep gold in the trim; Beerus keeps it in the primary (its
+     * trim is pink); a custom palette gets whichever of its two accents reads as gold.
+     */
+    public static int currencyGold(Skin skin) {
+        Skin s = skin == null ? DEFAULT : skin;
+        return goldDistance(s.trim()) <= goldDistance(s.primary()) ? s.trim() : s.primary();
+    }
+
+    /** Hue distance (degrees) from gold (about 40), with low-saturation colours pushed away. */
+    private static double goldDistance(int rgb) {
+        float[] hsv = java.awt.Color.RGBtoHSB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, null);
+        double hue = hsv[0] * 360.0;
+        double d = Math.abs(hue - 40.0);
+        d = Math.min(d, 360.0 - d);
+        return d + (hsv[1] < 0.35f ? 180.0 : 0.0);
+    }
+
     /** Picker order. Saiyan Royal is the default for every player. */
     public static final List<Skin> ALL = List.of(SAIYAN_ROYAL, NAMEK_SERENITY, OBSIDIAN_GOLD, BEERUS_DESTRUCTION,
             ZENO_OMNI);
@@ -800,6 +819,12 @@ public final class MenuSkins {
         List<String> bad = new ArrayList<>();
         if (ALL.size() != 5) {
             bad.add("registry must hold exactly the five skins, has " + ALL.size());
+        }
+        // 4.7.78: the coin toast's gold follows the skin.
+        if (currencyGold(SAIYAN_ROYAL) != SAIYAN_ROYAL.trim() || currencyGold(NAMEK_SERENITY) != NAMEK_SERENITY.trim()
+                || currencyGold(ZENO_OMNI) != ZENO_OMNI.trim() || currencyGold(OBSIDIAN_GOLD) != OBSIDIAN_GOLD.trim()
+                || currencyGold(BEERUS_DESTRUCTION) != BEERUS_DESTRUCTION.primary()) {
+            bad.add("currency gold per skin: the trim (Saiyan, Namek, Zeno, Obsidian), Beerus's gold primary");
         }
         if (SAIYAN_ROYAL.panel() != SaiyanRoyal.PANEL || SAIYAN_ROYAL.primary() != SaiyanRoyal.CRIMSON
                 || SAIYAN_ROYAL.trim() != SaiyanRoyal.GOLD_TRIM || SAIYAN_ROYAL.text() != SaiyanRoyal.TEXT) {

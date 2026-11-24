@@ -690,20 +690,11 @@ public final class MobScaling {
         int unlock = Math.max(0, ownerUnlockTier);
         tag.m_128405_("dmz_ad_unlock_tier", unlock);
         long rollSeed = Math.max(1L, unlock) * 10_000L;
-        double eliteBonus = owner == null ? 0.0
-                : com.dbzlegacy.adaptivedifficulty.team.TeamScaling.rarityBonusPercent(
-                owner, com.dbzlegacy.adaptivedifficulty.team.TeamScaling.RarityBonus.ELITE);
-        double mutationBonus = owner == null ? 0.0
-                : com.dbzlegacy.adaptivedifficulty.team.TeamScaling.rarityBonusPercent(
-                owner, com.dbzlegacy.adaptivedifficulty.team.TeamScaling.RarityBonus.MUTATION);
-        double bossThresholdBonus = owner == null ? 0.0
-                : com.dbzlegacy.adaptivedifficulty.team.TeamScaling.rarityBonusPercent(
-                owner, com.dbzlegacy.adaptivedifficulty.team.TeamScaling.RarityBonus.BOSS_THRESHOLD);
-        double bossPromotionBonus = owner == null ? 0.0
-                : com.dbzlegacy.adaptivedifficulty.team.TeamScaling.rarityBonusPercent(
-                owner, com.dbzlegacy.adaptivedifficulty.team.TeamScaling.RarityBonus.BOSS_PROMOTION);
-        double bossHpThreshold = com.dbzlegacy.adaptivedifficulty.team.TeamScaling
-                .effectiveBossHealthThreshold(cfg, bossThresholdBonus);
+        // 4.7.78: rival teams are gone, so no team rarity bonuses; the boss threshold is the configured one.
+        double eliteBonus = 0.0;
+        double mutationBonus = 0.0;
+        double bossPromotionBonus = 0.0;
+        double bossHpThreshold = cfg.bossHealthThreshold;
         int rolledAt = tag.m_128441_("dmz_ad_rarity_unlock")
                 ? Math.max(0, tag.m_128451_("dmz_ad_rarity_unlock"))
                 : 0;

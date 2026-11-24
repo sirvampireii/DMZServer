@@ -184,11 +184,7 @@ public final class UltraHubScreens {
             spec.line(UltraStyle.VALUE + potential);
         }
         spec.buttonsAfterLines();
-        // 4.7.71: the search row above the tiles (LM client with the navigation layer and typing).
-        if (com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player)
-                && com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player)) {
-            placeSearchRow(spec, "");
-        }
+        // 4.7.78: the search row lives at the top of the More tab now; Home is the dashboard and the systems.
 
         // Prestige: the payoff, full width.
         placeTile(spec, ph, new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), null);
@@ -387,6 +383,12 @@ public final class UltraHubScreens {
         spec.labelValue("HUD:", hudOn ? "rival, TP and penalty info on screen" : "boss bars and chat lines");
         spec.line(UltraStyle.LABEL + "The HUD needs the Legacy Mechanics client.");
         spec.buttonsAfterLines();
+        // 4.7.78: the search row (moved from Home), first on the tab. Same field, placeholder, Search button and
+        // recents; a search lands on the Search tab with its results.
+        if (com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player)
+                && com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player)) {
+            placeSearchRow(spec, "");
+        }
         List<HubTile> tiles = new ArrayList<>();
         tiles.add(new HubTile("menu_skins", "Menu skins", UltraStyle.STYLE_NORMAL, true));
         if (staff) {

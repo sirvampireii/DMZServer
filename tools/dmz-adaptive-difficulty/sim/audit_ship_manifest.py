@@ -2610,7 +2610,7 @@ def main() -> int:
           and "DifficultyTutorial.ACT_DONE.equals(parts.action)" in p63_act)
     check("Step 1 says once that the guide shows once; Home replays it without clearing the mark",
           'GUIDE_ONCE = "This guide shows once. Replay it from Home.";' in p63_diff
-          and 'UltraStyle.plain("How difficulty works")' in p63_diff
+          and 'UltraStyle.plain("Replay the difficulty guide")' in p63_diff   # reworded in 4.7.78
           and "markDone" not in p63_diff and '"done", false' not in p63_tut)
 
     print("\n--- § lm 4.7.62 ---")
@@ -3727,7 +3727,7 @@ def main() -> int:
     check("P2 polish: Equipped, Reload Legacy Mechanics config, dash toggles, Staff only., full skill names",
           '"Equipped: " + bone' in gh_char and "Reload LM config" not in gh_diff
           and "Reload LM config" not in gh("gui/ultra/UltraHubScreens.java")
-          and "Turn event log" not in gh_diff and '"Personal - ON"' in gh_diff and '"Full team - ON"' in gh_diff
+          and "Turn event log" not in gh_diff and "Rival teams" not in gh_diff   # 4.7.78: team mode toggles removed
           and all("That menu is for staff only." not in gh(f) for f in
                   ("gui/CnpcStaffTestGui.java", "gui/ProgressionMenu.java", "gui/SkillsMenu.java"))
           and '"Def Pen"' not in gh_pres and '"Ki Manip"' not in gh_pres and '"Ki Prot"' not in gh_pres
@@ -4961,7 +4961,8 @@ def main() -> int:
           and "main Difficulty page" in cnpc_diff, retired=True)
     check("CNPC team scaling locked like tiers", "Teams locked" in cnpc_diff
           and "before using team scaling" in cnpc_diff, retired=True)
-    check("Difficulty team action gated when personal OFF", "ACT_TEAM.equals(act)" in read(SRC / "service/DifficultyActions.java"))
+    check("Difficulty team action gated when personal OFF", "ACT_TEAM.equals(act)" in read(SRC / "service/DifficultyActions.java"),
+          retired=True)  # 4.7.78: rival teams removed
     check("CNPC difficulty uses handleArgNoReopen", "handleArgNoReopen" in cnpc_diff, retired=True)
 
     print("\n--- § cnpc ---")

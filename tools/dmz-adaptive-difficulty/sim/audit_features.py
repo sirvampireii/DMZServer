@@ -300,7 +300,8 @@ def main() -> int:
 
     print("\n=== Titles / teams stub / GUI ===")
     check("title equip action", has(actions, "equipTitle", "ACT_EQUIP_TITLE") or "equip_title" in actions)
-    check("rival team mode action", "setTeamMode" in actions or "mutual rivals" in actions.lower())
+    # 4.7.78: rival teams removed; the team mode action must not come back.
+    check("rival team mode action removed (4.7.78)", "setTeamMode" not in actions and "ACT_TEAM" not in actions)
     check("GUI ABI package stable", "com.dbzlegacy.adaptivedifficulty" in bridge and "DifficultyCache" in bridge)
 
     print("\n=== Balance telemetry ===")

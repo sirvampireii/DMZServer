@@ -73,8 +73,6 @@ public final class DifficultyChatMenu {
             tiers(player);
         } else if ("titles".equalsIgnoreCase(page) || "title".equalsIgnoreCase(page)) {
             titles(player);
-        } else if ("team".equalsIgnoreCase(page) || "teams".equalsIgnoreCase(page)) {
-            teams(player);
         } else if ("stats".equalsIgnoreCase(page) || "statistics".equalsIgnoreCase(page)
                 || "details".equalsIgnoreCase(page)) {
             if (isStaff(player)) {
@@ -302,35 +300,6 @@ public final class DifficultyChatMenu {
             send(player, line);
         }
         send(player, Component.m_237113_(""));
-        send(player, btn(UltraStyle.BACK, "/difficulty do page main", "Return"));
-    }
-
-    private static void teams(ServerPlayer player) {
-        send(player, Component.m_237113_(""));
-        send(player, Component.m_237113_(
-                UltraStyle.DIM + "──────── " + UltraStyle.AQUA + "Rival Teams "
-                        + UltraStyle.DIM + "────────"));
-        for (String line : DifficultyTeamGuiApi.linesForPage(player, "team")) {
-            // API may still carry legacy marks; strip and re-label plain for chat until that API migrates.
-            send(player, Component.m_237113_(UltraStyle.LABEL + UltraStyle.plain(line)));
-        }
-        send(player, Component.m_237113_(""));
-        send(player, btn(
-                UltraStyle.LABEL + "Personal",
-                "/difficulty do team personal team",
-                "Personal ceiling only — no rival bonus."));
-        send(player, btn(
-                UltraStyle.confirm("Threshold"),
-                "/difficulty do team threshold team",
-                "Extra max + harder spawns"));
-        send(player, btn(
-                UltraStyle.DARK_GREEN + "Full team",
-                "/difficulty do team full team",
-                "Threshold + nearby spare + stronger spawn boost when rivals are close"));
-        send(player, btn(
-                UltraStyle.GOLD + "Open Rival",
-                "/rival",
-                "Manage mutual rivals"));
         send(player, btn(UltraStyle.BACK, "/difficulty do page main", "Return"));
     }
 
