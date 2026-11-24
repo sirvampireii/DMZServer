@@ -89,6 +89,12 @@ Approved proposal: `docs/LM_NATIVE_HUD_PROPOSAL.md`. The server owns every eleme
 | TP notice | the 3-second TP boss bar (`TpBossNotify`) | top centre, under the Underdog pill | none |
 | Death TP penalty | the penalty boss bar (`DeathTpPenalty`) | top centre, last row | Difficulty |
 | Momentum meter | new (the Difficulty menu's numbers) | above the hotbar, right of centre | Difficulty |
+| Fight pill (4.7.75) | rival challenge score and "Too far apart" lines, the spectator line; new for spar sessions and war bouts | top centre, under the Underdog pill | Rival / Sparring |
+| Spar chip (4.7.75) | "Perfect Training active", "Combo broken", the recover line | bottom-right row, above Momentum | Sparring |
+| Potential meter (4.7.75) | the Potential subtitles ("Switch training methods", "Move at least") | bottom-right row | none |
+| Coin toast (4.7.75) | "Dropped X Ancient Coins" per kill, summed over 5 s | right edge, above the cards | none |
+| Elite chip (4.7.75) | the title sense chat line every 45 s | top centre | none |
+| Boost chip (4.7.75) | new: global TP / mastery boosts with minutes left (purchase and end broadcasts stay chat) | top centre | Prestige |
 
 - Who gets it: `LmHud.active` = the hello listed `hud` and the player's HUD switch is on (More tab, `lm_hud` in the
   player's LM record, default on). Everyone else keeps the boss bars and chat lines exactly as before.
@@ -106,6 +112,10 @@ Approved proposal: `docs/LM_NATIVE_HUD_PROPOSAL.md`. The server owns every eleme
   action on `hub` like a menu button. Controls > Legacy Mechanics > "Open the newest HUD page" (unbound by default)
   opens the newest element's page.
 - F1 hides it with the rest of the HUD.
+- 4.7.73 placement: a GUI overlay just under chat; the top stack starts below any boss bar and stays clear of the
+  status-effect icons; the bottom row (Momentum, spar chip, Potential) sits above the action bar and the right-hand
+  status rows; cards stop above the bottom row. With everything up on a small window, elements that do not fit are
+  skipped, never overlapped (the probe's layout verdict checks this at every GUI size).
 
 ## Server config
 

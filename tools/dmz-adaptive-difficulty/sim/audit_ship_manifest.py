@@ -2029,6 +2029,38 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.75 ---")
+    p75_hud = read(SRC / "gui/ultra/LmHud.java")
+    p75_rc = read(SRC / "rival/RivalChallengeManager.java")
+    p75_spec = read(SRC / "rival/RivalSpectator.java")
+    p75_spar = read(SRC / "sparring/SparringSystem.java")
+    p75_war = read(SRC / "dojo/DojoWar.java")
+    p75_pot = read(SRC / "progression/skills/PotentialProgression.java")
+    p75_coin = read(SRC / "currency/AncientCoinEconomy.java")
+    p75_sense = read(SRC / "title/TitleSense.java")
+    p75_mom = read(SRC / "progression/Momentum.java")
+    p75_heal = read(SRC / "kube/LmHotPath.java")
+    p75_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
+    p75_over = read(SRC / "client/HudOverlay.java")
+    check("manifest row for lm 4.7.75", "lm-4775-hud-chat" in manifest)
+    check("HUD part 2 elements registered on both sides",
+          all(f'"{e}"' in p75_hud for e in ("fight", "spar", "potential", "coins", "elite", "boost"))
+          and has(p75_over, "TOP = {UNDERDOG, FIGHT, PENALTY, ELITE, BOOST, TP}", "BOTTOM = {MOMENTUM, SPAR, POTENTIAL}"))
+    check("fight pill replaces the challenge score / range chat and the spectator line for HUD players only",
+          has(p75_rc, "chatUnlessHud(a, scoreLine(ch));", "chatUnlessHud(a, LmChat.fail(\"Challenge\", TOO_FAR));",
+              "public static java.util.List<String> fightLines(", "return LmChat.tagged(\"Challenge\", scoreBody(ch));")
+          and "RivalChallengeManager.fightLines(ch, now, false)" in p75_spec and '" (starting soon)"' in p75_spec)
+    check("spar sessions and war bouts get the fight pill; spar chip replaces Perfect / combo / recover chat",
+          has(p75_spar, "sparHud(player, partner, rt, now);", "public static java.util.List<String> sparChipLines(",
+              ".active(player) || now < rt.messageNext")
+          and "static void boutHud(" in p75_war and "boutHud(server, r, now);" in p75_war)
+    check("Potential meter instead of the per-hit subtitle; coin toast sums 5 s; elite chip; boost chip",
+          "potentialHud(player, progress, required, null);" in p75_pot and "static boolean coinToast(" in p75_coin
+          and "COIN_WINDOW_MS = 5_000L" in p75_hud and "Elite nearby" in p75_sense
+          and "public static void boostHudPulse(" in p75_mom)
+    check("healing caps on Character Services Home, not at every login",
+          "HealCap.announce(player);" not in p75_heal and "HealCap.summary(player)" in p75_char)
+
     print("\n--- § lm 4.7.74 ---")
     p74_tc = read(SRC / "client/TextCache.java")
     p74_menu = read(SRC / "client/NativeMenuScreen.java")
@@ -2072,7 +2104,8 @@ def main() -> int:
     check("HUD: overlay under chat, starts below boss bars, clears effect icons, Momentum above the action bar",
           has(p73_hud, "registerBelow(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.CHAT_PANEL.id()",
               "BossEventProgress", "effectCols * EFFECT_COL", "Math.max(rightHeight, ACTION_BAR_UP)",
-              "UNDERDOG, PENALTY, TP")
+              "TOP = {UNDERDOG")
+          and ordered(p73_hud, "TOP = {UNDERDOG", "PENALTY", "TP};")
           and "RenderGuiEvent.Post" not in p73_hud)
     check("HUD bake handle kept per element; failed bakes close their image and are not retried every frame",
           has(p73_hud, "s.bakedSkin != skin", "FAILED.contains(key)", "img.close();")
