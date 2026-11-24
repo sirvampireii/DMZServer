@@ -2661,7 +2661,9 @@ public final class UiProbe {
             String sum = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.formatExactCost(50L);
             if (hud) {
                 note("HUD2 coin toast sums drops in its 5 s window: " + pf(cp.size() == 2
-                        && UltraStyle.plain(cp.get(1).lines().get(0)).contains(UltraStyle.plain(sum))
+                        && UltraStyle.plain(cp.get(1).lines().get(0)).replace('×', 'x')
+                                .contains(UltraStyle.plain(sum).replace('×', 'x'))
+                        && !UltraStyle.plain(cp.get(1).lines().get(0)).contains("Ancient Ancient")
                         && cp.get(1).durationMs() == 5000) + " | " + (cp.isEmpty() ? "none" : cp.get(1).lines()));
             } else {
                 note("HUD2 bridge: coin drops stay chat lines: " + pf(cp.isEmpty()));
@@ -2700,7 +2702,8 @@ public final class UiProbe {
             List<LmHud.Sent> b2 = LmHud.capture(() -> com.dbzlegacy.adaptivedifficulty.progression.Momentum.boostHudPulse(srv, 10));
             if (hud) {
                 note("HUD2 boost chip while a TP boost runs, gone after: " + pf(bp.size() == 1
-                        && UltraStyle.plain(bp.get(0).lines().get(0)).startsWith("TP x1.5 - 30m left")
+                        && UltraStyle.plain(bp.get(0).lines().get(0)).startsWith("TP x1.5")
+                        && UltraStyle.plain(bp.get(0).lines().get(0)).endsWith("30m left")
                         && of(b2, LmHud.BOOST).stream().anyMatch(x -> !x.show()))
                         + " | " + (bp.isEmpty() ? "none" : bp.get(0).lines()));
             } else {
@@ -2760,7 +2763,7 @@ public final class UiProbe {
                     LmHud.accentOf("character"), "", tpMs, false);
             LmHud.show(player, LmHud.COINS, List.of(UltraStyle.color("6", "+ "
                     + com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.formatExactCost(340L)) + " "
-                    + UltraStyle.LABEL + "Ancient Coins"), -1f, "#f0b429", "", tpMs, false);
+                    + UltraStyle.LABEL + "Coins"), -1f, "#f0b429", "", tpMs, false);
             LmHud.show(player, LmHud.ELITE, List.of(eliteChip), -1f, LmHud.ACCENT_DIFFICULTY, "", 0, false);
             LmHud.show(player, LmHud.BOOST, List.of(UltraStyle.color("a", "TP x1.5") + " " + UltraStyle.LABEL + "- 42m left"),
                     -1f, LmHud.accentOf("prestige"), "open:prestige", 0, false);

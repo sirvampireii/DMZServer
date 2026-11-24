@@ -104,6 +104,8 @@ final class HudOverlay {
         int dw;
         int dh;
         boolean drawn;
+        /** This frame's top-stack placement decision. */
+        boolean fits;
 
         Slot(String element) {
             this.element = element;
@@ -126,6 +128,10 @@ final class HudOverlay {
      * 4.7.75: the fight pill under the Underdog pill, then the penalty, the elite sense and the server boosts.
      */
     private static final Slot[] TOP = {UNDERDOG, FIGHT, PENALTY, ELITE, BOOST, TP};
+    /** 4.7.76: top-stack chips that wait when the stack is out of room (the core pills come first). */
+    private static final Slot[] TOP_EXTRA = {ELITE, BOOST};
+    /** 4.7.76: the top stack stays in the upper part of the screen so the right-edge cards keep their place. */
+    static final float TOP_SHARE = 0.42f;
     /** 4.7.75: the bottom-right row, stacking upward from the Momentum meter's place. */
     private static final Slot[] BOTTOM = {MOMENTUM, SPAR, POTENTIAL};
     /** Every single-slot element (cards are separate). */
@@ -366,46 +372,58 @@ final class HudOverlay {
         long now = System.currentTimeMillis();
         Font font = mc.f_91062_;
         String skinId = MenuLook.skin().id();
-        // Top centre stack, below any boss bar drawn this frame, narrow enough to clear the effect icons.
+        // Top centre stack, below any boss bar drawn this frame, narrow enough to clear the effect icons, and within
+        // the upper TOP_SHARE of the screen. 4.7.76: when not everything fits, the core pills (Underdog, fight,
+        // penalty, TP notice) keep their place and the elite and boost chips wait (they are steady, not urgent).
         int y = Math.max(EDGE, bossBottom + 2);
         int topCap = sw - 2 * Math.max(EDGE, effectCols * EFFECT_COL + EDGE);
+        int topBudget = Math.max(0, (int) (sh * TOP_SHARE) - y);
+        int used = 0;
         for (Slot s : TOP) {
             s.drawn = false;
+            s.fits = false;
             if (!live(s, now)) {
                 continue;
             }
             if (!skinId.equals(s.skinId) || topCap != s.layoutCap) {
                 layout(s, topCap);
             }
-            drawSlot(g, font, s, (sw - s.w) / 2, y, s.w, scale, now, 1f);
-            y += s.h + GAP;
+            if (s != ELITE && s != BOOST && used + s.h <= topBudget) {
+                s.fits = true;
+                used += s.h + GAP;
+            }
         }
-        // Bottom-right row: Momentum, then the spar chip and the Potential meter above it, all above the right-hand
-        // status rows and the action bar.
+        for (Slot s : TOP_EXTRA) {
+            if (live(s, now) && used + s.h <= topBudget) {
+                s.fits = true;
+                used += s.h + GAP;
+            }
+        }
+        for (Slot s : TOP) {
+            if (s.fits) {
+                drawSlot(g, font, s, (sw - s.w) / 2, y, s.w, scale, now, 1f);
+                y += s.h + GAP;
+            }
+        }
+        // 4.7.76 order of claims on the lower half: the Momentum meter's row, then the right-edge cards (coin toast and
+        // Instinct, from 45% down), then the spar chip and Potential meter above Momentum where they do not meet the
+        // cards or the top stack. On a small window the newer bottom-row elements are the ones that wait.
         int rowBottom = sh - Math.max(rightHeight, ACTION_BAR_UP) - GAP;
         int rowCap = sw / 2 - 10 - EDGE;
-        int by = rowBottom;
+        int rowX = sw / 2 + 10;
         for (Slot s : BOTTOM) {
             s.drawn = false;
-            if (!live(s, now)) {
-                continue;
-            }
-            if (!skinId.equals(s.skinId) || rowCap != s.layoutCap) {
+            if (live(s, now) && (!skinId.equals(s.skinId) || rowCap != s.layoutCap)) {
                 layout(s, rowCap);
             }
-            by -= s.h;
-            if (by < y + GAP) {
-                break;                                      // no room left above (tiny window): skip the rest
-            }
-            drawSlot(g, font, s, sw / 2 + 10, by, s.w, scale, now, 1f);
-            by -= GAP;
         }
-        int momentumY = by;
-        // Right edge: the coin toast, then the Instinct cards newest first, from 45% down (and below the top stack); a
-        // card that would reach the bottom row is not drawn (it is the oldest; it fades out on its own).
+        int momTop = live(MOMENTUM, now) ? rowBottom - MOMENTUM.h : rowBottom + GAP;
         int cy = Math.max((int) (sh * 0.45f), y + GAP);
-        int cardFloor = momentumY - CARD_FLOOR_GAP;
+        int cardFloor = momTop - GAP - CARD_FLOOR_GAP;
         int cardCap = Math.max(80, sw / 2 - 2 * EDGE);
+        int cardsTop = Integer.MAX_VALUE;
+        int cardsBottom = Integer.MIN_VALUE;
+        int cardsLeft = sw;
         COINS.drawn = false;
         if (live(COINS, now)) {
             if (!skinId.equals(COINS.skinId) || cardCap != COINS.layoutCap) {
@@ -415,7 +433,10 @@ final class HudOverlay {
                 long left = COINS.durationMs - (now - COINS.start);
                 float alpha = left >= CARD_FADE_MS ? 1f : Math.max(0f, left / (float) CARD_FADE_MS);
                 drawSlot(g, font, COINS, sw - COINS.w - EDGE, cy, COINS.w, scale, now, alpha);
+                cardsTop = Math.min(cardsTop, cy);
+                cardsLeft = Math.min(cardsLeft, sw - COINS.w - EDGE);
                 cy += COINS.h + GAP;
+                cardsBottom = cy;
             }
         }
         Iterator<Slot> it = CARDS.iterator();
@@ -435,7 +456,23 @@ final class HudOverlay {
             long left = c.durationMs - (now - c.start);
             float alpha = left >= CARD_FADE_MS ? 1f : Math.max(0f, left / (float) CARD_FADE_MS);
             drawSlot(g, font, c, sw - c.w - EDGE, cy, c.w, scale, now, alpha);
+            cardsTop = Math.min(cardsTop, cy);
+            cardsLeft = Math.min(cardsLeft, sw - c.w - EDGE);
             cy += c.h + GAP;
+            cardsBottom = cy;
+        }
+        int by = rowBottom;
+        for (Slot s : BOTTOM) {
+            if (!live(s, now)) {
+                continue;
+            }
+            int top = by - s.h;
+            boolean meetsCards = rowX + s.w > cardsLeft && top < cardsBottom && by > cardsTop;
+            if (top < y + GAP || (s != MOMENTUM && meetsCards)) {
+                continue;                                   // no room here this frame; it waits
+            }
+            drawSlot(g, font, s, rowX, top, s.w, scale, now, 1f);
+            by = top - GAP;
         }
     }
 

@@ -2029,6 +2029,16 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.76 ---")
+    p76_over = read(SRC / "client/HudOverlay.java")
+    p76_coin = read(SRC / "currency/AncientCoinEconomy.java")
+    check("manifest row for lm 4.7.76", "lm-4776-hud-fixes" in manifest)
+    check("HUD priority: core pills first within the top share, cards before the newer bottom-row elements",
+          has(p76_over, "TOP_SHARE = 0.42f", "TOP_EXTRA = {ELITE, BOOST}", "s != ELITE && s != BOOST",
+              "boolean meetsCards =", "s != MOMENTUM && meetsCards"))
+    check("coin toast reads '+ 5x Iron Ancient Coins' (no doubled Ancient)",
+          'UltraStyle.LABEL + "Coins")' in p76_coin and 'LABEL + "Ancient Coins")' not in p76_coin)
+
     print("\n--- § lm 4.7.75 ---")
     p75_hud = read(SRC / "gui/ultra/LmHud.java")
     p75_rc = read(SRC / "rival/RivalChallengeManager.java")

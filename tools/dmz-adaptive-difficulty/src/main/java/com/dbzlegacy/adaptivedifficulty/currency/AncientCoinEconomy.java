@@ -575,7 +575,7 @@ public final class AncientCoinEconomy {
     private static final java.util.Map<java.util.UUID, long[]> COIN_TOAST = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
-     * 4.7.75: a HUD player's coin drops sum into one toast ("+ 3 Silver 20 Copper Ancient Coins") that stays while
+     * 4.7.75: a HUD player's coin drops sum into one toast ("+ 5x Iron Ancient Coins") that stays while
      * drops keep coming within 5 seconds, instead of one chat line per kill. False for everyone else (chat as before).
      */
     static boolean coinToast(ServerPlayer player, long copper) {
@@ -586,7 +586,7 @@ public final class AncientCoinEconomy {
         long[] t = COIN_TOAST.compute(player.m_20148_(), (k, v) ->
                 v == null || now - v[1] > com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.COIN_WINDOW_MS ? new long[] {copper, now} : new long[] {v[0] + copper, now});
         com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.COINS, java.util.List.of(com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("6", "+ " + formatExactCost(t[0]))
-                + " " + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL + "Ancient Coins"), -1f, "#f0b429", "", (int) com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.COIN_WINDOW_MS, false);
+                + " " + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL + "Coins"), -1f, "#f0b429", "", (int) com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.COIN_WINDOW_MS, false);
         return true;
     }
 
