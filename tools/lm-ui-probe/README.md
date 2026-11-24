@@ -120,6 +120,21 @@ Runs are exclusive: a run lock and a matrix lock in the shared `$RIG_SERVER` fol
 clients and command feeds from an interrupted run are stopped before the next starts, and a run stops its own on
 exit.
 
+## Menu mockups
+
+Before a menu changes, its pages are mocked up in the current look by the real LM client, not drawn by hand:
+
+```
+SRVJVM="-Duiprobe.mock=true" bash tools/lm-ui-probe/run.sh mock <LM jar> 1 <LM jar> 1
+python -I tools/lm-ui-probe/mock_compose.py "$RIG_OUT/mock" tools/dmz-adaptive-difficulty/build/dojo/pics docs/dojo-visuals
+```
+
+Mock mode skips the crawl and the checks. `UiProbe.mockCrawl` builds the proposed pages with LM's real spec API
+(`UltraScreenSpec`; the main menu is the live hub page with its tiles renamed), the rig shoots each at GUI 2, 3 and 4,
+and the client quits. `mock_compose.py` names the shots `menu_<page>_gs<N>.png` and adds a picture where a page leaves
+room for a new element the client can't draw yet (4.7.68: the dojo floor plan). The layout and look analyzers run on
+a mock run like any other.
+
 ## Analyzers
 
 - `analyze_layout.py`: buttons inside the panel, at least 80px wide, 16px rows, 6px gaps, 426 wide, no overlaps, and

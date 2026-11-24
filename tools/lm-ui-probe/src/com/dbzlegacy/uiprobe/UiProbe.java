@@ -3,6 +3,7 @@ package com.dbzlegacy.uiprobe;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGui;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGuiActions;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraScreenSpec;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.net.gui.GuiOpenPacket;
 import com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork;
 import com.google.gson.JsonArray;
@@ -892,8 +893,9 @@ public final class UiProbe {
                 pu1 = after;
             }
             for (GuiOpenPacket p : keep("dojo board want", () -> UltraGui.open(player, "spar", "sparboard"))) {
+                // The explanation wraps after "friendly" on the LM client's line width: match the first line only.
                 note("PU WANT the board offers Looking for (TP, Potential Unlock, Anything): " + pf(has(p, "Looking for - ")
-                        && has(p, "Looking for Potential Unlock trains it in friendly spars")));
+                        && has(p, "Looking for Potential Unlock trains it in friendly")));
             }
             try {
                 Thread.sleep(600L);
@@ -1934,6 +1936,14 @@ public final class UiProbe {
     }
 
     private void finalTick() {
+        if (MOCK) {
+            if (!mockDone) {
+                mockDone = true;
+                write("uiprobe-script.txt", scriptLog.toString(), false);
+                say("uiquit");
+            }
+            return;
+        }
         if (finalWait > 0) {
             finalWait--;
             return;
@@ -1989,6 +1999,134 @@ public final class UiProbe {
         }
     }
 
+    // ---- 4.7.68 menu mockups (-Duiprobe.mock=true, test only) ----
+    // The proposed dojo menus, built with LM's real spec API and drawn by the real LM client in the current look, so
+    // a mockup is exactly what the screen will look like. No crawl and no checks: each page is shot at GUI 2, 3 and 4,
+    // then the client quits. tools/lm-ui-probe/mock_compose.py adds the floor-plan picture where the page leaves room
+    // for it (the picture element itself is Phase 2 work).
+    static final boolean MOCK = Boolean.getBoolean("uiprobe.mock");
+    private boolean mockDone;
+
+    private void mock(String tag, Runnable r) {
+        for (GuiOpenPacket p : keep("mock " + tag, r)) {
+            note("MOCK " + tag + " -> " + p.pageId());
+        }
+    }
+
+    private static UltraScreenSpec mockSpar(String page, String tab) {
+        UltraScreenSpec s = UltraScreenSpec.of("spar").fitMenu().title("Sparring").page(page);
+        return tab == null ? s : s.activeTab(tab).tabs("home|Home", "dojo|Dojo", "sparboard|Spar Board");
+    }
+
+    private void mockCrawl() {
+        firstScript = 0;
+        // 1. The main menu: the real hub page, with its two dojo tiles renamed.
+        List<GuiOpenPacket> hub;
+        try {
+            hub = UltraScreenSpec.captureSends(() -> UltraGui.open(player, "hub", "main"));
+        } catch (Throwable t) {
+            note("ERROR mock hub " + t);
+            hub = List.of();
+        }
+        for (GuiOpenPacket p : hub) {
+            String b = p.buttonsJson().replace("Sparring \\u0026 Dojo", "Spar Board").replace("Sparring & Dojo", "Spar Board")
+                    .replace("Dojo wars", "My dojo");
+            packets.add(new GuiOpenPacket(p.screenId(), p.title(), "mock_main_menu", p.tabsJson(), p.activeTab(),
+                    p.linesJson(), b, p.panelWidth(), p.panelHeight(), p.layoutJson(), p.inputsJson()));
+            origin.add("script mock main menu");
+            note("MOCK main menu -> " + labels(packets.get(packets.size() - 1)));
+        }
+        // 2. The Spar Board with posts on it.
+        mock("spar board", () -> {
+            UltraScreenSpec s = mockSpar("mock_spar_board", "sparboard");
+            s.line(UltraStyle.header("Your post"))
+                    .line(UltraStyle.LABEL + "Nothing posted. Fights happen in Crane School's arena.")
+                    .line(UltraStyle.LABEL + "Looking for Potential Unlock trains it in friendly spars. Ranked spars never do.")
+                    .line(UltraStyle.labelValue("Ranked", "unlocked"))
+                    .line(UltraStyle.header("On the board (3)"))
+                    .line(UltraStyle.VALUE + "Kaito" + UltraStyle.LABEL + " Lv 412, ranked, 50 TP wager, looking for TP")
+                    .line(UltraStyle.VALUE + "Mira" + UltraStyle.LABEL + " Lv 388, friendly, looking for Potential Unlock")
+                    .line(UltraStyle.VALUE + "Ren" + UltraStyle.LABEL + " Lv 401, friendly, looking for Anything")
+                    .buttonsAfterLines();
+            s.buttonLeft("do:mock", "Kind - Friendly", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Wager - none", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Range - any level", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", UltraStyle.confirm("Post for 15 min"), UltraStyle.STYLE_CONFIRM).rowGap();
+            s.buttonLeft("do:mock", "Looking for - TP", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", UltraStyle.confirm("Accept Kaito"), UltraStyle.STYLE_CONFIRM);
+            s.buttonRight("do:mock", UltraStyle.confirm("Accept Mira"), UltraStyle.STYLE_CONFIRM).rowGap();
+            s.buttonLeft("do:mock", UltraStyle.confirm("Accept Ren"), UltraStyle.STYLE_CONFIRM).rowGap();
+            s.buttonLeft("do:mock", "Challenge a player", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Watch spars", UltraStyle.STYLE_NORMAL).rowGap();
+            s.footerBackToMain();
+            s.send(player);
+        });
+        // 3. My dojo (the Dojo tab), with the hall's tier and rings.
+        mock("my dojo", () -> {
+            UltraScreenSpec s = mockSpar("mock_my_dojo", "dojo");
+            s.line(UltraStyle.header("Crane School"))
+                    .line(UltraStyle.labelValue("Master", "Kaito (you)"))
+                    .line(UltraStyle.labelValue("Style", "Ki Masters"))
+                    .line(UltraStyle.labelValue("Bonus", "Ki focus"))
+                    .line(UltraStyle.labelValue("Hall", "refined, 4 of 6 rings"))
+                    .line(UltraStyle.labelValue("Dojo Points", "240"))
+                    .line(UltraStyle.labelValue("Clout this season", "1,280"))
+                    .line(UltraStyle.labelValue("Members", "6 of 11"))
+                    .line(UltraStyle.labelValue("Wars", "4 won, 1 lost"))
+                    .buttonsAfterLines();
+            s.button("do:mock", UltraStyle.confirm("Visit dojo"), UltraStyle.STYLE_CONFIRM).rowGap();
+            s.buttonLeft("do:mock", "Upgrades", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Style and bonus", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Wars", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Members and elites", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Dojo leaderboard", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Roster and bonds", UltraStyle.STYLE_NORMAL).rowGap();
+            s.footerBackToMain();
+            s.send(player);
+        });
+        // 4. Upgrades: the list, with room on the right for the floor-plan picture.
+        mock("upgrades", () -> {
+            UltraScreenSpec s = mockSpar("mock_dojo_upgrades", null);
+            s.line(UltraStyle.labelValue("Dojo Points", "240"))
+                    .line(UltraStyle.LABEL + "Earn points by hosting spars,")
+                    .line(UltraStyle.LABEL + "winning war bouts and")
+                    .line(UltraStyle.LABEL + "training disciples.")
+                    .line("")
+                    .line(UltraStyle.LABEL + "Tap an upgrade to see it")
+                    .line(UltraStyle.LABEL + "on the map, and its cost.")
+                    .line("").line("")
+                    .buttonsAfterLines();
+            s.buttonLeft("do:mock", "Ring 5 - 200", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Training area (max)", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Meditation - 120", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Trophy hall - 60", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Master quarters - 60", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Balcony - 120", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Garden - 60", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Capacity - 75", UltraStyle.STYLE_NORMAL).rowGap();
+            s.footerBack("page:dojo", "Dojo");
+            s.send(player);
+        });
+        // 5. One upgrade: what it builds (green on the map), the cost before the click.
+        mock("upgrade ring", () -> {
+            UltraScreenSpec s = mockSpar("mock_dojo_up_ring", null);
+            s.line(UltraStyle.header("Ring 5"))
+                    .line(UltraStyle.LABEL + "Another ring on the hall floor,")
+                    .line(UltraStyle.LABEL + "so more spars run at once.")
+                    .line(UltraStyle.labelValue("Now", "4 rings"))
+                    .line(UltraStyle.labelValue("After", "5 rings"))
+                    .line(UltraStyle.labelValue("Cost", "200 of your 240 points"))
+                    .line(UltraStyle.LABEL + "Points are spent at once.")
+                    .line(UltraStyle.LABEL + "An upgrade can't be undone.")
+                    .line(UltraStyle.LABEL + "Green on the map: the new ring.")
+                    .buttonsAfterLines();
+            s.buttonLeft("do:mock", UltraStyle.confirm("Buy for 200 points"), UltraStyle.STYLE_CONFIRM);
+            s.buttonRight("do:mock", "Visit dojo", UltraStyle.STYLE_NORMAL).rowGap();
+            s.footerBack("page:dojo_upgrades", "Upgrades");
+            s.send(player);
+        });
+    }
+
     private void say(String s) {
         player.m_213846_(Component.m_237113_(s));
     }
@@ -2003,7 +2141,11 @@ public final class UiProbe {
                 return;
             }
             crawled = true;
-            crawl();
+            if (MOCK) {
+                mockCrawl();
+            } else {
+                crawl();
+            }
             advance = true;
             return;
         }

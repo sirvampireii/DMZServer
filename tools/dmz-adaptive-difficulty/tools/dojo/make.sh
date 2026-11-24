@@ -8,7 +8,8 @@
 #    writes the plot structures and renders the pictures with BlockRender.
 # 3. BuildLint checks every structure that ships (the 12 plots; the bare shells are build inputs only).
 # 4. The structures are copied into the mod (data/legacymechanics/structures/dojo), the pictures into docs/dojo-visuals.
-# 5. GuiKit mocks up the dojo menus from tools/guikit.json at every window size and GUI scale.
+# 5. The menu mockups come from the real LM client, not from here: a mock rig run (tools/lm-ui-probe, see its README,
+#    "Menu mockups") shoots the proposed menus in the current look and mock_compose.py adds the map from step 2.
 set -euo pipefail
 LM="$(cd "$(dirname "$0")/../.." && pwd)"
 REPO="$(cd "$LM/../.." && pwd)"
@@ -43,6 +44,4 @@ for f in glob.glob(os.path.join(sys.argv[1],'*.png')):
     if os.path.basename(f).startswith('menu_plan_'): continue
     Image.open(f).convert('RGB').save(os.path.join(sys.argv[2], os.path.basename(f)[:-4]+'.jpg'), quality=88)" "$OUT/pics" "$DOCS"
 cp "$OUT/lint.txt" "$DOCS/buildlint.txt"
-powershell -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$REPO/../mod-toolkit/scripts/guikit.ps1")" -Project "$(cygpath -w "$LM")" || true
-for f in "$LM"/build/preview/guikit/*_sheet.png; do cp "$f" "$DOCS/menu_$(basename "$f")"; done
 echo "done: structures in $RES, pictures in $DOCS, lint in $OUT/lint.txt"

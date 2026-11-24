@@ -473,8 +473,8 @@ public final class DojoKit {
 
     BufferedImage plan(String title) { return plan(title, 1100, 1000, -1); }
 
-    /** The floor plan, roof off. {@code ring} >= 0 tints that ring space gold (the menu's "what this builds"); a
-     *  picture under 400 px wide gets no labels (the menu draws its own). */
+    /** The floor plan, roof off. {@code ring} >= 0 tints that ring space green (the Buy button's colour) (the menu's "what this builds"); a
+     *  picture with no title gets no labels (the menu's map: the menu says what it shows). */
     BufferedImage plan(String title, int w, int h, int ring) {
         Structure c = s.copy();
         c.fill(0, floorY + 2, 0, c.sx - 1, c.sy - 1, c.sz - 1, Structure.AIR);
@@ -492,12 +492,12 @@ public final class DojoKit {
             o.highlight = new java.util.HashMap<>();
             int rr = L.ringSize / 2, rcx = L.rings.get(ring)[0] + 1, rcz = L.rings.get(ring)[1] + 1;
             for (int x = rcx - rr; x <= rcx + rr; x++) for (int z = rcz - rr; z <= rcz + rr; z++)
-                for (int y = floorY - 1; y <= floorY + 1; y++) o.highlight.put(Structure.pack(x, y, z), 0xFFC83C);
+                for (int y = floorY - 1; y <= floorY + 1; y++) o.highlight.put(Structure.pack(x, y, z), 0x3CD25A);
         }
         BlockRender r = new BlockRender(crop, LIB, o);
         BlockRender.Camera cam = r.fitOrtho(180, 89.9);
         BufferedImage img = r.render(cam);
-        if (w < 400) return img;
+        if (title.isEmpty()) return img;
         Graphics2D g = img.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
@@ -552,7 +552,10 @@ public final class DojoKit {
         Map<String, BufferedImage> out = new LinkedHashMap<>();
         String who = STYLE_NAMES.get(style) + ", " + TIER_NAMES[tier].toLowerCase(Locale.ROOT);
         out.put("plan", plan("Floor plan - " + who));
-        out.put("menu_plan", plan("", 182, 132, 4));
+        if (style.equals("ki") && tier == 2) {           // the menu mockups' map (tools/lm-ui-probe/mock_compose.py)
+            out.put("menu_plan", plan("", 600, 545, 4));
+            out.put("menu_plan_plain", plan("", 600, 545, -1));
+        }
         BlockRender.Options o = new BlockRender.Options();
         o.width = 1100; o.height = 640;
         BlockRender r = new BlockRender(s, LIB, o);

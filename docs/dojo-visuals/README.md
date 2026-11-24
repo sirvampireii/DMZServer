@@ -22,8 +22,11 @@ bash tools/dmz-adaptive-difficulty/tools/dojo/make.sh          # or: make.sh ki_
    also places the style banners, the grounds (path, stone lanterns, SceneKit trees, torii) and a DetailKit weathering
    pass, and renders the pictures with BlockRender.
 3. **BuildLint** checks every structure that ships (`buildlint.txt`).
-4. **GuiKit** mocks up the dojo menus from `tools/guikit.json` in Minecraft's font, at 5 window sizes and GUI scales
-   2, 3 and auto.
+4. **The menu mockups come from the real LM client**, in the current look (Saiyan Royal, the Sparring accent). The
+   UI probe's mock mode (`tools/lm-ui-probe`, "Menu mockups" in its README) builds the proposed pages with LM's own
+   screen-spec API, the real client draws them, and the rig shoots each one at GUI scales 2, 3 and 4.
+   `mock_compose.py` then puts the floor-plan picture into the room the upgrade pages leave for it. That picture is
+   the one new menu element; everything else in the shots is the client as it is today.
 
 The structures are committed to `tools/dmz-adaptive-difficulty/src/main/resources/data/legacymechanics/structures/dojo/`:
 
@@ -73,8 +76,10 @@ and the training pieces. It never changes the building.
 - `sheet_arena.jpg`: the hall floor from the spectator balcony (`arena_*.jpg`).
 - `sheet_training.jpg`: the training area from its door (`training_*.jpg`).
 - `sheet_outside.jpg`, `sheet_front.jpg`, `sheet_night.jpg`: the plot from above, from the path, and at night.
-- `menu_*_sheet.png`: GuiKit menu mockups (main menu, Spar Board, My dojo, Upgrades) at every window size and scale.
-  `menu_plan_ki_t2.png` is the map on the upgrade screen: a BlockRender top view with the ring being bought in gold.
+- `menu_main_menu.png`, `menu_spar_board.png`, `menu_my_dojo.png`, `menu_upgrades.png`, `menu_upgrade_ring.png`:
+  the menus at GUI scale 3, drawn by the real LM client. `menu_<page>_gs2.png` and `_gs4.png` are the other scales.
+- `menu_plan_ki_t2.png` and `menu_plan_plain_ki_t2.png`: the upgrade pages' map, a BlockRender top view of the hall
+  (with the ring being bought in green, and plain).
 - `buildlint.txt`: BuildLint's findings for every structure.
 
 ## Navigation (3 taps or fewer)

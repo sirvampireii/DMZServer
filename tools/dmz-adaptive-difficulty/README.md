@@ -71,7 +71,7 @@ In game they load as `legacymechanics:dojo/dojo_<style>_t<tier>` through `Struct
 
 - Sources: the BuildKit hall recipes `tools/dojo/hall_t1.json`..`hall_t3.json` (japanese style; the `"dojo"` section
   holds the ring anchors, rooms, balcony, doors and landing points) and `tools/fx/DojoKit.java` (interior and grounds).
-- Rebuild: `bash tools/dojo/make.sh` (BuildKit, DojoKit, BuildLint, GuiKit; pictures go to `docs/dojo-visuals`).
+- Rebuild: `bash tools/dojo/make.sh` (BuildKit, DojoKit, BuildLint; pictures go to `docs/dojo-visuals`).
 - A structure file must never ship from a recipe or DojoKit change that is not committed.
 
 ## Commands
