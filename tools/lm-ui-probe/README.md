@@ -80,8 +80,10 @@ navigation audit, the HUD checks on both stages. It exits non-zero on any failur
 folder.
 
 Version steps that go with it: `bash tools/dmz-adaptive-difficulty/bump-version.sh <new>` (all four version spots,
-refuses reused or retired numbers), then after the build `bash tools/dmz-adaptive-difficulty/rebaseline-version-class.sh`
-(re-extracts the reference `AdaptiveDifficultyMod.class`, refuses if any other reference class drifted).
+refuses reused or retired numbers). The prestige-shop reference check accepts `AdaptiveDifficultyMod.class` when it
+differs only by the version string (`OK-VER`), so a bump no longer needs a second build;
+`rebaseline-version-class.sh` re-extracts it when you want the reference current (refuses if any other class drifted).
+`report.py` adds per-section scripted totals, a native HUD row and a KaiPath "no HUD over the bridge" row.
 
 ## One command
 

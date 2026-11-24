@@ -86,6 +86,27 @@ def main(out, base=None):
     passes = len(re.findall(r"\bPASS\b", script))
     fails = [l for l in script.splitlines() if re.search(r"\bFAIL\b", l)]
     row("scripted checks", passes > 0 and not fails, f"{passes} PASS" + (f"; FAIL: {fails[:5]}" if fails else ""))
+    # Per-section totals (first word of each verdict line: HUD, NAV, DOJO, FORM, ...), so a section that stops
+    # running shows up as a missing or smaller count instead of hiding inside one total.
+    sect = {}
+    for l in script.splitlines():
+        v = re.search(r"\b(PASS|FAIL)\b", l)
+        if v and not l.startswith("PACKET"):
+            k = l.split(" ", 1)[0]
+            p_, f_ = sect.get(k, (0, 0))
+            sect[k] = (p_ + (v.group(1) == "PASS"), f_ + (v.group(1) == "FAIL"))
+    if sect:
+        row("scripted checks by section", not any(f_ for _, f_ in sect.values()),
+            ", ".join(f"{k} {p_}/{p_ + f_}" for k, (p_, f_) in sorted(sect.items())))
+    # 4.7.72 native HUD: every HUD check passes and the real client reported drawing all five elements.
+    hud = [l for l in script.splitlines() if l.startswith("HUD ") and re.search(r"\b(PASS|FAIL)\b", l)]
+    drew = re.search(r"^HUD CLIENT \S+ drew (\S+): PASS", script, re.M)
+    if hud:
+        row("native HUD on the LM client: same text as the bars, all five elements drawn",
+            all("PASS" in l for l in hud) and bool(drew) and len(drew.group(1).split(",")) == 5,
+            f"{sum('PASS' in l for l in hud)}/{len(hud)} HUD checks; client drew {drew.group(1) if drew else 'nothing'}")
+    else:
+        row("native HUD on the LM client: same text as the bars, all five elements drawn", None, "no HUD checks ran")
 
     rec = {}
     for m in re.finditer(r"^REC (\S+) .*?\n(?:  .*\n)*?  N M .* rotate=(\w+) yaw=([\d.-]+)", client, re.M):
@@ -143,6 +164,12 @@ def main(out, base=None):
         " ".join(txt.split())[:400])
 
     kai = os.path.join(out, "kai")
+    kscript = read(os.path.join(kai, "uiprobe-script.txt")) or ""
+    khud = [l for l in kscript.splitlines() if l.startswith("HUD ") and re.search(r"\b(PASS|FAIL)\b", l)]
+    if khud:
+        row("KaiPath keeps the boss bars and chat lines (no HUD over the bridge)",
+            "client takes hud=false" in kscript and all("PASS" in l for l in khud),
+            f"{sum('PASS' in l for l in khud)}/{len(khud)} bridge HUD checks")
     kc = read(os.path.join(kai, "uiprobe-client.txt"))
     if kc is None:
         row("KaiPath only: every menu through the bridge", None, "kai stage not run")

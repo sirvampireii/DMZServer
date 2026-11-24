@@ -79,6 +79,10 @@ if [ $MATRIX = 1 ]; then
     RIG_OUT="$OUT/matrix" bash "$HERE/matrix.sh" "$SNAP" > "$OUT/matrix.log" 2>&1
   fi
   log "matrix done $(date +%T)"
+  # The kit corpus JLDK copies from comes from the KaiPath stage, so it never falls behind LM's real wire.
+  if [ -d "$OUT/matrix/kai" ]; then
+    python tools/ultra-gui-kit/test/gen_lm_corpus.py "$OUT/matrix/kai" tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl       >> "$OUT/release.log" 2>&1 && log "kit corpus refreshed: $(git diff --stat -- tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl | tail -1)"
+  fi
 fi
 
 # ---- summary
@@ -96,6 +100,7 @@ ROWFAIL=$(grep -c -E '^FAIL ' "$OUT/matrix.log" 2>/dev/null || true)
   if [ $MATRIX = 1 ]; then
     echo "- Scripted checks (full stage): **$P PASS, $F FAIL**"
     echo "- Matrix rows failing: **${ROWFAIL:-0}**"
+    echo "- Kit corpus: $(git diff --stat -- tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl | tail -1 | sed 's/^ *//') (commit it with the release)"
     echo
     echo "## Matrix rows"
     echo

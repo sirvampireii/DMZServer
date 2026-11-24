@@ -18,6 +18,7 @@ Keep the CLASS list in sync with sim/extract_pristige_shop_reference.py.
 from __future__ import annotations
 
 import hashlib
+import re
 import os
 import sys
 import zipfile
@@ -68,6 +69,20 @@ def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+VERSION_CLASS = "com/dbzlegacy/adaptivedifficulty/AdaptiveDifficultyMod.class"
+_VER = re.compile(rb"\d+\.\d+\.\d+")
+
+
+def _mask_versions(data: bytes) -> bytes:
+    """Digits of every x.y.z string set to 0 (same length, so constant-pool lengths stay valid)."""
+    return _VER.sub(lambda m: re.sub(rb"\d", b"0", m.group(0)), data)
+
+
+def _same_but_version(built: bytes, ref: bytes) -> bool:
+    """AdaptiveDifficultyMod.class differs from its reference only by the ship version string."""
+    return len(built) == len(ref) and _mask_versions(built) == _mask_versions(ref)
+
+
 def main() -> int:
     if len(sys.argv) != 2:
         print("usage: audit_prestige_shop_classes.py <jar>", file=sys.stderr)
@@ -106,9 +121,13 @@ def main() -> int:
                 built_missing.append(cls)
                 print(f"{'-':16} {ref_sha[:16]:16}  MISSING  {cls}")
                 continue
-            built_sha = _sha(zf.read(cls))
+            built = zf.read(cls)
+            built_sha = _sha(built)
             if built_sha == ref_sha:
                 print(f"{built_sha[:16]:16} {ref_sha[:16]:16}  OK       {cls}")
+            elif cls == VERSION_CLASS and _same_but_version(built, (ref_dir / cls).read_bytes()):
+                # A version bump alone: same class with only the ship version string changed.
+                print(f"{built_sha[:16]:16} {ref_sha[:16]:16}  OK-VER   {cls} (differs only by the version string)")
             else:
                 mismatched.append(cls)
                 print(f"{built_sha[:16]:16} {ref_sha[:16]:16}  DRIFT    {cls}")

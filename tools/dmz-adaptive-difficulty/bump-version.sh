@@ -3,8 +3,8 @@
 # mods.toml, MANIFEST.MF and plugin.yml). Refuses a version that is not higher than the current one, so a
 # number is never reused, and refuses retired numbers listed in RETIRED below or in docs/LM_*_BUILD_NOTES.md.
 #   bash tools/dmz-adaptive-difficulty/bump-version.sh 4.7.73
-# After the next build, run rebaseline-version-class.sh (the reference copy of AdaptiveDifficultyMod.class
-# carries the version string).
+# The prestige-shop reference check ignores the version string in AdaptiveDifficultyMod.class, so the build passes
+# right after a bump; rebaseline-version-class.sh is optional tidying.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 R="$(cd "$HERE/../.." && pwd)"
@@ -40,4 +40,4 @@ grep -q "^Implementation-Version: $NEW" "$MF" || { echo "MANIFEST.MF not updated
 grep -q "^version: $NEW" "$YML" || { echo "plugin.yml not updated" >&2; bad=1; }
 [ $bad = 0 ] || exit 1
 echo "version $CUR -> $NEW in AdaptiveDifficultyMod.java, mods.toml, MANIFEST.MF, plugin.yml"
-echo "next: build, then bash tools/dmz-adaptive-difficulty/rebaseline-version-class.sh"
+echo "next: bash tools/lm-ui-probe/release-check.sh (builds, tests, SUMMARY.md)"
