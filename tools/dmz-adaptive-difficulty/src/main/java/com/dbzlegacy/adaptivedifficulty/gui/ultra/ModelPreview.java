@@ -388,7 +388,8 @@ public final class ModelPreview {
 
     /**
      * Schema-1 parts for a made-up figure of {@code owner}'s race in {@code form}. Body parts are
-     * the form's pieces from the active Ultra catalog. The subject id is fixed per owner, not per
+     * the form's pieces from the active Ultra catalog plus the owner's equipped Body Parts Shop
+     * pieces ({@link PlayerModelParts#bodyPartsFor}); the base form sends {@code <race>/base/base}. The subject id is fixed per owner, not per
      * form, and stays a made-up id (never {@code local}: a form on the local subject would leak
      * into the player's own HUD portrait).
      *
@@ -413,20 +414,9 @@ public final class ModelPreview {
         parts.addProperty("schema", PlayerModelParts.SCHEMA);
         parts.addProperty("subject", "uuid:" + UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8)));
         parts.add("form", formJson(form.race(), form.group(), form.form()));
-        JsonArray body = new JsonArray();
-        try {
-            for (BodyPartCatalog.Part part : BodyPartCatalog.resolve(form.race(), form.group(), form.form(), "", "")) {
-                if (part == null || part.id() == null || part.id().isBlank()) {
-                    continue;
-                }
-                JsonObject entry = new JsonObject();
-                entry.addProperty("id", part.id());
-                entry.addProperty("source", part.source());
-                entry.addProperty("slot", part.slot());
-                body.add(entry);
-            }
-        } catch (Throwable ignored) {
-        }
+        // The previewed form's pieces plus the owner's Body Parts Shop pieces, one builder with the
+        // live sync (dedupe and single-tail rule included); the base form resolves as race/base/base.
+        JsonArray body = PlayerModelParts.bodyPartsFor(owner, form.race(), form.group(), form.form(), "", "", null);
         parts.add("bodyParts", body);
         parts.addProperty("suppressNaturalTail", PlayerModelParts.hasChosenTail(body));
         JsonObject colors = PlayerModelParts.previewColors(owner, form.race(), form.group(), form.form());

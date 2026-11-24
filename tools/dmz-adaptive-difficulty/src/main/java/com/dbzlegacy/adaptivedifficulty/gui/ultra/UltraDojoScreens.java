@@ -101,6 +101,14 @@ public final class UltraDojoScreens {
             openBoard(player, notice);
         } else if (lower.equals("result")) {
             openResult(player, notice);
+        } else if (lower.equals(PAGE_WAGER)) {
+            openWager(player, notice);
+        } else if (lower.equals(PAGE_WAGER_COINS)) {
+            openWagerAmounts(player, "COINS", notice);
+        } else if (lower.equals(PAGE_WAGER_POINTS)) {
+            openWagerAmounts(player, "POINTS", notice);
+        } else if (lower.startsWith(PAGE_ACCEPT)) {
+            openAcceptAsk(player, p.substring(PAGE_ACCEPT.length()), notice);
         } else if (lower.startsWith("pick_challenge")) {
             openChallengePick(player, UltraPickHelper.pageIndex(lower), notice);
         } else if (lower.equals("watch")) {
@@ -174,11 +182,11 @@ public final class UltraDojoScreens {
         if (mine == null) {
             spec.line(UltraStyle.header("Spar Board"))
                     .line(UltraStyle.VALUE + "Join a dojo first. No dojo, no spar.")
-                    .line(UltraStyle.LABEL + "Spars happen in a dojo's arena. Found your own (free) or join one.")
+                    .line(UltraStyle.LABEL + "Spars happen in a dojo's arena. Join one, or found your own in the Dojo section.")
                     .buttonsAfterLines();
+            // 4.7.80: founding lives only in the Dojo section; the board links there.
             spec.buttonLeft("page:dojo_list", "Find a dojo", UltraStyle.STYLE_NORMAL);
-            spec.buttonRight("page:" + DojoFounding.PAGE_NAME, UltraStyle.confirm("Found a dojo"),
-                    UltraStyle.STYLE_CONFIRM).rowGap();
+            spec.buttonRight("go:dojo|home", "Open the Dojo", UltraStyle.STYLE_NORMAL).rowGap();
             spec.lockedButton("Post a spar").rowGap();
             spec.back();
             spec.send(player);
@@ -225,7 +233,8 @@ public final class UltraDojoScreens {
         } else {
             spec.buttonLeft("do:" + BoardSpar.ACT_MODE, "Kind - " + mode, UltraStyle.STYLE_NORMAL);
         }
-        spec.buttonRight("do:" + BoardSpar.ACT_WAGER, "Wager - " + shortWager(d), UltraStyle.STYLE_NORMAL).rowGap();
+        // 4.7.80: the wager is a sub-menu (kind, then amount).
+        spec.buttonRight("page:" + PAGE_WAGER, "Wager - " + shortWager(d), UltraStyle.STYLE_NORMAL).rowGap();
         spec.buttonLeft("do:" + BoardSpar.ACT_RANGE, "Range - " + shortRange(d), UltraStyle.STYLE_NORMAL);
         if (mineUp != null) {
             spec.buttonRight("do:" + BoardSpar.ACT_UNPOST, "Take my post down", UltraStyle.STYLE_NORMAL).rowGap();
@@ -247,12 +256,15 @@ public final class UltraDojoScreens {
                 } else {
                     spec.lockedButtonRight(label);
                 }
-            } else if (left) {
-                spec.buttonLeft("do:" + BoardSpar.ACT_ACCEPT + ":" + p.poster(), UltraStyle.confirm(label),
-                        UltraStyle.STYLE_CONFIRM);
             } else {
-                spec.buttonRight("do:" + BoardSpar.ACT_ACCEPT + ":" + p.poster(), UltraStyle.confirm(label),
-                        UltraStyle.STYLE_CONFIRM);
+                // 4.7.80: a post with a wager asks first and says the stake the accepter matches.
+                String act = p.wager() > 0L && p.wagerKind() != null && !p.wagerKind().isBlank()
+                        ? "page:" + PAGE_ACCEPT + p.poster() : "do:" + BoardSpar.ACT_ACCEPT + ":" + p.poster();
+                if (left) {
+                    spec.buttonLeft(act, UltraStyle.confirm(label), UltraStyle.STYLE_CONFIRM);
+                } else {
+                    spec.buttonRight(act, UltraStyle.confirm(label), UltraStyle.STYLE_CONFIRM);
+                }
             }
             if (!left) {
                 spec.rowGap();
@@ -266,6 +278,126 @@ public final class UltraDojoScreens {
         spec.buttonRight("page:watch", "Watch spars", UltraStyle.STYLE_NORMAL).rowGap();
         if (BoardSpar.result(me) != null) {
             spec.buttonLeft("page:result", "Last fight", UltraStyle.STYLE_NORMAL).rowGap();
+        }
+        spec.back();
+        spec.send(player);
+    }
+
+    static final String PAGE_WAGER = "board_wager";
+    static final String PAGE_WAGER_COINS = "board_wager_coins";
+    static final String PAGE_WAGER_POINTS = "board_wager_points";
+    static final String PAGE_ACCEPT = "board_accept:";
+
+    static boolean canWagerPoints(ServerPlayer player) {
+        Dojo mine = DojoService.dojoOf(player);
+        return mine != null && DojoService.canManage(player.m_20148_(), mine);
+    }
+
+    /** 4.7.80 Wager: pick the kind first (Ancient Coins, Dojo Points, or none), then the amount. */
+    static void openWager(ServerPlayer player, String notice) {
+        UltraScreenSpec spec = sub(PAGE_WAGER, notice);
+        BoardSpar.Draft d = BoardSpar.draft(player.m_20148_());
+        boolean points = canWagerPoints(player);
+        spec.line(UltraStyle.header("Wager"))
+                .line(UltraStyle.labelValue("Your next post", BoardSpar.wagerText(BoardSpar.wagerKind(d.wager()),
+                        BoardSpar.wagerAmount(d.wager()))))
+                .line(UltraStyle.LABEL + "Pick what to stake, then how much.")
+                .line(UltraStyle.LABEL + "Whoever accepts stakes exactly the same. The winner takes both stakes.")
+                .line(UltraStyle.LABEL + "A forfeit or the clock running out refunds both.");
+        if (!points) {
+            spec.line(UltraStyle.LABEL + "Only a master or an elite can wager Dojo Points.");
+        }
+        spec.buttonsAfterLines();
+        spec.buttonLeft("page:" + PAGE_WAGER_COINS, "Ancient Coins", UltraStyle.STYLE_NORMAL);
+        if (points) {
+            spec.buttonRight("page:" + PAGE_WAGER_POINTS, "Dojo Points", UltraStyle.STYLE_NORMAL).rowGap();
+        } else {
+            spec.lockedButtonRight("Dojo Points").rowGap();
+        }
+        boolean none = BoardSpar.wagerKind(d.wager()).isBlank();
+        spec.buttonLeft("do:" + BoardSpar.ACT_WAGER_SET + ":0", none ? UltraStyle.confirm("No wager") : "No wager",
+                none ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL).rowGap();
+        spec.back();
+        spec.send(player);
+    }
+
+    /** 4.7.80 Wager amount for one kind, within the caps (5 Netherite coins, 20 Dojo Points). */
+    static void openWagerAmounts(ServerPlayer player, String kind, String notice) {
+        boolean pts = "POINTS".equals(kind);
+        UltraScreenSpec spec = sub(pts ? PAGE_WAGER_POINTS : PAGE_WAGER_COINS, notice);
+        BoardSpar.Draft d = BoardSpar.draft(player.m_20148_());
+        spec.line(UltraStyle.header(pts ? "Wager Dojo Points" : "Wager Ancient Coins"))
+                .line(UltraStyle.LABEL + (pts ? "Taken from your dojo's points when a fight starts, up to "
+                        + DojoCatalog.MAX_POINT_WAGER + "."
+                        : "Taken from the coins on you when a fight starts, up to "
+                        + com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.format(DojoCatalog.MAX_COIN_WAGER) + "."))
+                .line(UltraStyle.LABEL + "The winner takes both stakes. A forfeit or the clock running out refunds both.");
+        if (pts && !canWagerPoints(player)) {
+            spec.line(UltraStyle.LABEL + "Only a master or an elite can wager Dojo Points.").buttonsAfterLines();
+            spec.back();
+            spec.send(player);
+            return;
+        }
+        spec.buttonsAfterLines();
+        int placed = 0;
+        for (int step = 1; step < BoardSpar.wagerSteps(); step++) {
+            if (!kind.equals(BoardSpar.wagerKind(step))) {
+                continue;
+            }
+            long amt = BoardSpar.wagerAmount(step);
+            String label = pts ? amt + " Dojo Points"
+                    : com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.compactCost(amt);
+            boolean cur = d.wager() == step;
+            String action = "do:" + BoardSpar.ACT_WAGER_SET + ":" + step;
+            String text = cur ? UltraStyle.confirm(label) : label;
+            String style = cur ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL;
+            if (placed % 2 == 0) {
+                spec.buttonLeft(action, text, style);
+            } else {
+                spec.buttonRight(action, text, style).rowGap();
+            }
+            placed++;
+        }
+        if (placed % 2 == 1) {
+            spec.rowGap();
+        }
+        spec.back();
+        spec.send(player);
+    }
+
+    /** 4.7.80: accepting a wagered post says the stake first (the same kind and amount as the poster's). */
+    static void openAcceptAsk(ServerPlayer player, String posterRaw, String notice) {
+        UltraScreenSpec spec = sub(PAGE_ACCEPT + posterRaw, notice);
+        UUID posterId;
+        try {
+            posterId = UUID.fromString(posterRaw.trim());
+        } catch (IllegalArgumentException e) {
+            posterId = null;
+        }
+        BoardSpar.Post post = posterId == null ? null : BoardSpar.postOf(posterId);
+        if (post == null) {
+            spec.line(UltraStyle.LABEL + "That post is gone. Pick another one on the Spar Board.").buttonsAfterLines();
+            spec.back();
+            spec.send(player);
+            return;
+        }
+        String stake = BoardSpar.wagerText(post.wagerKind(), post.wager());
+        String why = BoardSpar.whyNot(player, post);
+        spec.line(UltraStyle.header("Accept " + post.name() + "'s spar"))
+                .line(UltraStyle.labelValue("Kind", post.ranked() ? "Ranked" : "Friendly"))
+                .line(UltraStyle.labelValue("You stake", stake + " (the same as " + post.name() + ")"))
+                .line(UltraStyle.LABEL + ("POINTS".equals(post.wagerKind()) ? "Taken from your dojo's points"
+                        : "Taken from the coins on you") + " when the fight starts.")
+                .line(UltraStyle.LABEL + "The winner takes both stakes. A forfeit or the clock running out refunds both.");
+        if (why != null) {
+            spec.line(UltraStyle.RED + why);
+        }
+        spec.buttonsAfterLines();
+        if (why == null) {
+            spec.button("do:" + BoardSpar.ACT_ACCEPT + ":" + post.poster(), UltraStyle.confirm("Accept and stake"),
+                    UltraStyle.STYLE_CONFIRM).rowGap();
+        } else {
+            spec.lockedButton("Accept and stake").rowGap();
         }
         spec.back();
         spec.send(player);
@@ -1039,6 +1171,11 @@ public final class UltraDojoScreens {
             return false;
         }
         String a = arg == null ? "" : arg.trim();
+        if (BoardSpar.ACT_WAGER.equals(action)) {
+            // 4.7.80: the old cycling Wager button opens the wager sub-menu.
+            openWager(p, null);
+            return true;
+        }
         String board = BoardSpar.apply(p, action, a);
         if (board != null) {
             openBoard(p, board);

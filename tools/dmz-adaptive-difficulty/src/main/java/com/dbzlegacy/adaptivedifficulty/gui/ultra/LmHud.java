@@ -87,6 +87,40 @@ public final class LmHud {
     /** One captured send (self-test and UI probe). */
     public record Sent(UUID player, NativeHudPacket packet) {}
 
+    /**
+     * 4.7.80 no-doubling check: one chat line, boss bar, subtitle or action bar sent to a player. The chat, boss bar
+     * and subtitle senders report here (only while a capture runs), so the probe can prove that a HUD player gets
+     * each element once, on the HUD, and a HUD-off or bridge player gets the vanilla version as before.
+     */
+    public record Vanilla(UUID player, String channel, String text) {}
+
+    /** HUD packets and vanilla notices from one run. */
+    public record Both(List<Sent> hud, List<Vanilla> vanilla) {}
+
+    private static volatile List<Vanilla> vanillaCapture;
+
+    /** A vanilla notice went to {@code player} (no-op unless a capture runs). */
+    public static void vanilla(net.minecraft.server.level.ServerPlayer player, String channel, String text) {
+        List<Vanilla> cap = vanillaCapture;
+        if (cap != null && player != null) {
+            cap.add(new Vanilla(player.m_20148_(), channel, text == null ? "" : text));
+        }
+    }
+
+    /** Run {@code r}; return its HUD packets and its vanilla notices. */
+    public static Both captureBoth(Runnable r) {
+        List<Vanilla> out = new CopyOnWriteArrayList<>();
+        List<Vanilla> prev = vanillaCapture;
+        vanillaCapture = out;
+        List<Sent> hud;
+        try {
+            hud = capture(r);
+        } finally {
+            vanillaCapture = prev;
+        }
+        return new Both(hud, new ArrayList<>(out));
+    }
+
     // ------------------------------------------------------------------ the switch
 
     /** The player's HUD switch (default on). */

@@ -611,8 +611,11 @@ public final class BodyPartPreview {
      * When the payload carried {@code colors}, each present key <b>overrides</b> the
      * reflective value — a remote player's reflective {@code FormParts$Look} read comes
      * back gray (0x808080 matches none of the fallbacks), and the server's values are the
-     * authoritative mirror of {@code FormParts.of}. Returns the original look when
-     * DMZUltra's types are missing, or when there is neither a piece nor a color to apply.
+     * authoritative mirror of {@code FormParts.of}. {@code FormParts.of} returns null for a
+     * form with no design, set or extras (base form, SSJ); then a fresh Look is built from the
+     * pieces and colors ({@link #newLook}), as KaiPath 1.5.6 does, so Body Parts Shop pieces
+     * still draw. Returns the original look when DMZUltra's types are missing, or when there
+     * is neither a piece nor a color to apply.
      */
     public static Object mergeLook(Object look, Set<String> extra) {
         return mergeLook(look, extra, null, null);
@@ -642,8 +645,16 @@ public final class BodyPartPreview {
         }
         boolean hasPieces = extra != null && !extra.isEmpty();
         boolean hasColors = colors != null && colors.size() > 0;
-        if (look == null || (!hasPieces && !hasColors)) {
+        if (!hasPieces && !hasColors) {
             return look;
+        }
+        if (look == null) {
+            // No form look (base form, SSJ): build one so the pieces still draw.
+            try {
+                return newLook(extra, colors);
+            } catch (Throwable ignored) {
+                return null;
+            }
         }
         try {
             // DMZUltra's Look and Design records grew components between versions (0.4.0 and 0.5.7 add
@@ -684,6 +695,93 @@ public final class BodyPartPreview {
         } catch (Throwable ignored) {
             return look;
         }
+    }
+
+    static final String DESIGN_CLASS = "com.dmzultra.client.forms.FormParts$Design";
+    static final String LOOK_CLASS = "com.dmzultra.client.forms.FormParts$Look";
+
+    /**
+     * A fresh {@code FormParts$Look} wearing {@code extra}, for a form whose {@code FormParts.of}
+     * is null. Mirrors KaiPath 1.5.6 (createDesign / createLook): the widest public constructor
+     * of each record (DMZUltra 0.4.0 to 0.5.7: Design(Set, int own, int trim, int horn, int light,
+     * float front, float back, FormHairRule$Rule, Set hideBase, boolean lightFromBody3) and
+     * Look(Design, int skin, int second, int hair, List sets, int third, List more, String model,
+     * Set hidden)), server colors where sent, else DMZUltra's own defaults; every later
+     * component empty.
+     */
+    static Object newLook(Set<String> extra, JsonObject colors) throws ReflectiveOperationException {
+        ClassLoader loader = BodyPartPreview.class.getClassLoader();
+        Class<?> designClass = Class.forName(DESIGN_CLASS, false, loader);
+        Class<?> lookClass = Class.forName(LOOK_CLASS, false, loader);
+        LinkedHashSet<String> pieces = new LinkedHashSet<>();
+        if (extra != null) {
+            pieces.addAll(extra);
+        }
+        Object design = null;
+        for (java.lang.reflect.Constructor<?> ctor : widestFirst(designClass)) {
+            Class<?>[] types = ctor.getParameterTypes();
+            if (types.length < 7 || types[0] != Set.class) {
+                continue;
+            }
+            Object[] args = defaults(types);
+            args[0] = Set.copyOf(pieces);
+            args[1] = color(colors, "own", 0xFFFFFF);
+            args[2] = color(colors, "trim", 0xE9C46A);
+            args[3] = color(colors, "horn", 0xEFE6CF);
+            args[4] = color(colors, "light", 0xFFFFFF);
+            args[5] = 0f;
+            args[6] = 0f;
+            design = ctor.newInstance(args);
+            break;
+        }
+        if (design == null) {
+            throw new NoSuchMethodException("No supported FormParts$Design constructor");
+        }
+        for (java.lang.reflect.Constructor<?> ctor : widestFirst(lookClass)) {
+            Class<?>[] types = ctor.getParameterTypes();
+            if (types.length < 4 || types[0] != designClass) {
+                continue;
+            }
+            Object[] args = defaults(types);
+            args[0] = design;
+            args[1] = color(colors, "skin", 0xFFFFFF);
+            args[2] = color(colors, "second", 0xFFFFFF);
+            args[3] = color(colors, "hair", 0x202424);
+            return ctor.newInstance(args);
+        }
+        throw new NoSuchMethodException("No supported FormParts$Look constructor");
+    }
+
+    /** Public constructors of {@code type}, most parameters first. */
+    private static java.lang.reflect.Constructor<?>[] widestFirst(Class<?> type) {
+        java.lang.reflect.Constructor<?>[] ctors = type.getConstructors();
+        java.util.Arrays.sort(ctors, java.util.Comparator.comparingInt(
+                (java.lang.reflect.Constructor<?> c) -> c.getParameterCount()).reversed());
+        return ctors;
+    }
+
+    /** Empty value per parameter type: empty Set / List, "", false, 0; null for anything else (hair rule). */
+    private static Object[] defaults(Class<?>[] types) {
+        Object[] args = new Object[types.length];
+        for (int i = 0; i < types.length; i++) {
+            Class<?> t = types[i];
+            if (t == Set.class) {
+                args[i] = Set.of();
+            } else if (t == List.class) {
+                args[i] = List.of();
+            } else if (t == String.class) {
+                args[i] = "";
+            } else if (t == boolean.class) {
+                args[i] = Boolean.FALSE;
+            } else if (t == int.class) {
+                args[i] = 0;
+            } else if (t == float.class) {
+                args[i] = 0f;
+            } else {
+                args[i] = null;
+            }
+        }
+        return args;
     }
 
     /** Server-sent color for {@code key}, when present. */

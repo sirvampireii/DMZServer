@@ -65,6 +65,15 @@ public final class TitleSense {
                 break;
             }
         }
+        deliver(player, equipped, eliteNear, bossNear, now);
+    }
+
+    /**
+     * What the sense says for the title worn: a chip on the HUD (while it holds), or a chat line every 45 seconds
+     * without the HUD. Public for the UI probe (4.7.80 no-doubling check).
+     */
+    public static void deliver(ServerPlayer player, DifficultyTitle equipped, boolean eliteNear, boolean bossNear, long now) {
+        UUID id = player.m_20148_();
         if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
             // 4.7.75: a chip that stays while the sense holds, instead of a chat line every 45 seconds.
             String chip = null;
@@ -85,18 +94,21 @@ public final class TitleSense {
         if (equipped == DifficultyTitle.ELITE_HUNTER && eliteNear
                 && now - LAST_ELITE_MSG.getOrDefault(id, 0L) >= COOLDOWN_MS) {
             LAST_ELITE_MSG.put(id, now);
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.vanilla(player, "chat", "title sense");
             player.m_213846_(Component.m_237113_(
                     "§e✦ Your Elite Hunter title senses a powerful enemy nearby."));
         }
         if (equipped == DifficultyTitle.BOSS_SLAYER && bossNear
                 && now - LAST_BOSS_MSG.getOrDefault(id, 0L) >= COOLDOWN_MS) {
             LAST_BOSS_MSG.put(id, now);
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.vanilla(player, "chat", "title sense");
             player.m_213846_(Component.m_237113_(
                     "§c☠ Your Boss Slayer title recognizes a worthy opponent."));
         }
         if (equipped == DifficultyTitle.T7_GOD && bossNear
                 && now - LAST_GOD_MSG.getOrDefault(id, 0L) >= COOLDOWN_MS * 2L) {
             LAST_GOD_MSG.put(id, now);
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.vanilla(player, "chat", "title sense");
             player.m_213846_(Component.m_237113_(
                     com.dbzlegacy.adaptivedifficulty.util.LmChat.note(
                             "Difficulty", "§6Godslayer senses a boss nearby.")));

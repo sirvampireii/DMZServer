@@ -108,7 +108,7 @@ public final class DeathTpPenalty {
             return;
         }
         applyEffect(player);
-        msg(player, LmChat.note(
+        tellUnlessHud(player, LmChat.note(
                 "TP",
                 "§cDeath penalty §7is still on. §c" + EFFECT_LABEL
                         + " §7for §f" + remainingLabel(player) + "§7."));
@@ -194,13 +194,13 @@ public final class DeathTpPenalty {
         String body = refreshed
                 ? "§cDeath penalty refreshed. §7" + EFFECT_LABEL + " §7stays for §f10 minutes§7."
                 : "§cDeath penalty. §c" + EFFECT_LABEL + " §7for §f10 minutes§7.";
-        msg(player, LmChat.note("TP", body));
+        tellUnlessHud(player, LmChat.note("TP", body));
         flashBar(player, "10 minutes");
     }
 
     /** What the player who is actually on screen sees, including a copied timer. */
     private static void tellSeen(ServerPlayer player) {
-        msg(player, LmChat.note(
+        tellUnlessHud(player, LmChat.note(
                 "TP",
                 "§cDeath penalty. §c" + EFFECT_LABEL + " §7for §f"
                         + remainingLabel(player) + "§7."));
@@ -289,6 +289,7 @@ public final class DeathTpPenalty {
                 return;
             }
             com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.PENALTY);
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.vanilla(player, "bossbar", barText(player));
             Component name = Component.m_237113_(barText(player)).m_130940_(ChatFormatting.RED);
             ServerBossEvent bar = BARS.get(id);
             if (bar == null) {
@@ -336,6 +337,13 @@ public final class DeathTpPenalty {
             bar.m_6539_(player);
             bar.m_7706_();
         } catch (Throwable ignored) {
+        }
+    }
+
+    /** 4.7.80: a HUD player reads the penalty on its pill (same words); chat only for everyone else. */
+    private static void tellUnlessHud(ServerPlayer player, String text) {
+        if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+            msg(player, text);
         }
     }
 

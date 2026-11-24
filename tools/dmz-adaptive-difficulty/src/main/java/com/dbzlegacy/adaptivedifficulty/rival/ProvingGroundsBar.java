@@ -108,6 +108,7 @@ public final class ProvingGroundsBar {
     }
 
     private static void show(ServerPlayer player, String text) {
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.vanilla(player, "bossbar", text);
         try {
             UUID id = player.m_20148_();
             ServerBossEvent bar = BARS.get(id);

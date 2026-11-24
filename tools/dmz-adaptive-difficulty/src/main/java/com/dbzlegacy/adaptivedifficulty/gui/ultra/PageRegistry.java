@@ -62,8 +62,8 @@ public final class PageRegistry {
     static {
         // ---- the hub (Home / Goals / More)
         p(HUB, HUB_MAIN, "Main menu", null, "home hub start");
-        p(HUB, "more", "More", "hub|main", "settings meditation");
-        p(HUB, "search", "Search", "hub|main", "find");
+        p(HUB, "more", "More", "hub|main", "settings meditation search find hud");
+        p(HUB, "goals", "Weekly goals", "hub|main", "goals week weekly progress");
         p(HUB, "skins", "Menu skins", "hub|more", "theme look colors background");
         p(HUB, "skin_custom", "My colors", "hub|skins", "custom skin hex");
         item(HUB, "skin:**", "Menu skin", "hub|skins");
@@ -138,6 +138,10 @@ public final class PageRegistry {
         p("spar", "leaderboard", "Leaderboard", "spar|main", "hall of infamy stats ranking");
         p("spar", "sparboard", "Spar Board", "spar|main", "post accept fight");
         p("spar", "result", "Last fight", "spar|sparboard", "rematch");
+        p("spar", "board_wager", "Wager", "spar|sparboard", "stake bet coins points");
+        p("spar", "board_wager_coins", "Wager Ancient Coins", "spar|board_wager", "stake coins");
+        p("spar", "board_wager_points", "Wager Dojo Points", "spar|board_wager", "stake points");
+        item("spar", "board_accept:**", "Accept a spar", "spar|sparboard");
         p("spar", "pick_challenge", "Challenge a player", "spar|sparboard");
         item("spar", "pick_challenge:**", "Challenge a player", "spar|sparboard");
         p("spar", "watch", "Watch spars", "spar|sparboard", "spectate");

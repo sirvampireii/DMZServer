@@ -113,6 +113,7 @@ KNOWN_DO: dict[str, set[str]] = {
         "board_unpost",
         "board_mode",
         "board_wager",
+        "board_wager_set",
         "board_range",
         "board_accept",
         "board_challenge",

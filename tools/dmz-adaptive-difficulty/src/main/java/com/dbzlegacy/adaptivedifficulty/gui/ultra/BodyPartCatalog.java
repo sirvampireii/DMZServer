@@ -93,7 +93,8 @@ public final class BodyPartCatalog {
         public List<Part> resolve(String race, String group, String form, String stackGroup, String stackForm) {
             LinkedHashMap<String, Part> out = new LinkedHashMap<>();
             try {
-                addForm(out, race, group, form);
+                String[] worn = wornForm(group, form);
+                addForm(out, race, worn[0], worn[1]);
                 addForm(out, race, stackGroup, stackForm);
             } catch (Throwable ignored) {
                 return List.of();
@@ -137,8 +138,9 @@ public final class BodyPartCatalog {
     }
 
     /**
-     * Form pieces for the active form and the stack form. The race tail is never added here -
-     * the client's race layer already draws it. Never throws. An empty list means "send no
+     * Form pieces for the active form and the stack form. An empty group and form resolve as
+     * the base form ({@code <race>/base/base}, see {@link #wornForm}). The race tail is never
+     * added here - the client's race layer already draws it. Never throws. An empty list means "send no
      * bodyParts".
      */
     public static List<Part> resolve(
@@ -210,6 +212,23 @@ public final class BodyPartCatalog {
     /** How many form color entries the active catalog loaded. Zero when the resource is missing. */
     public static int designCount() {
         return active().designs().size();
+    }
+
+    /** Group and form DMZUltra uses for a player with no active form ({@code FormParts.body}). */
+    public static final String BASE_FORM = "base";
+
+    /**
+     * The worn form's group and form for a part lookup. No active form (empty group and form)
+     * is {@code base/base}, as DMZUltra FormParts keys it, so {@code <race>/base/base} pieces
+     * reach the live sync and the base-form preview alike. Applies to the worn form only: an
+     * empty stack form means "no stack form". Colors ({@link #design}) keep their own base
+     * palette and do not use this.
+     */
+    static String[] wornForm(String group, String form) {
+        if (norm(group).isEmpty() && norm(form).isEmpty()) {
+            return new String[] {BASE_FORM, BASE_FORM};
+        }
+        return new String[] {group, form};
     }
 
     static String formKey(String race, String group, String form) {

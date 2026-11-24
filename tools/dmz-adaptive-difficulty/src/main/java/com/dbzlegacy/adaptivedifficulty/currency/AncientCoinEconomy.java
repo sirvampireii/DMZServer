@@ -606,6 +606,7 @@ public final class AncientCoinEconomy {
             return;
         }
         boolean plural = loot.hasBonus() || (loot.hasPrimary() && loot.primary().count() != 1);
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.vanilla(player, "chat", "Dropped " + loot.display());
         player.m_213846_(Component.m_237113_("§6Dropped " + loot.display() + " §7Ancient Coin"
                 + (plural ? "s" : "")));
     }

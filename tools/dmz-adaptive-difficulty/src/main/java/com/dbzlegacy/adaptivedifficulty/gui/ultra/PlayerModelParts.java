@@ -366,15 +366,11 @@ public final class PlayerModelParts {
     }
 
     /**
-     * Explicit pieces for {@code parts.bodyParts}. Resolves the worn form (and stack form)
-     * through {@link BodyPartCatalog}, which mirrors DMZUltra FormParts, then adds the Body
-     * Parts Shop pieces the player equipped. The race tail is never named here: DMZ draws it
-     * from the tail flag through the client's race layer, and naming it too showed a second
-     * tail to other players. Single-tail rule: the array never carries two {@code SLOT_TAIL}
-     * entries — a form tail beats a shop tail. Empty when nothing applies. Never throws.
+     * Explicit pieces for {@code parts.bodyParts} of {@code player} as they stand: the worn
+     * form (and stack form) through {@link #bodyPartsFor}. Empty when nothing applies. Never
+     * throws.
      */
     private static JsonArray bodyParts(ServerPlayer player, String candidatePart) {
-        JsonArray out = new JsonArray();
         try {
             Character ch = null;
             try {
@@ -398,8 +394,45 @@ public final class PlayerModelParts {
                 } catch (Throwable ignored) {
                 }
             }
-            // Custom Body Parts Shop pieces the player turned on.
-            List<String> custom = CosmeticBodyPartService.equippedParts(player);
+            return bodyPartsFor(player, race, group, form, stackGroup, stackForm, candidatePart);
+        } catch (Throwable ignored) {
+            return new JsonArray();
+        }
+    }
+
+    /**
+     * Explicit pieces for {@code parts.bodyParts}: the given form (and stack form) through
+     * {@link BodyPartCatalog}, which mirrors DMZUltra FormParts, then the Body Parts Shop pieces
+     * {@code owner} equipped (plus {@code candidatePart} when it is a known shop piece). The live
+     * sync passes the worn form; a form preview ({@link ModelPreview#formFigure}) passes the
+     * previewed form, so the figure wears the owner's shop pieces too. An empty group and form is
+     * the base form ({@code <race>/base/base}, {@link BodyPartCatalog#wornForm}). The race tail is
+     * never named here: DMZ draws it from the tail flag through the client's race layer, and
+     * naming it too showed a second tail to other players. Single-tail rule: the array never
+     * carries two {@code SLOT_TAIL} entries — a form tail beats a shop tail. Callers derive
+     * {@code suppressNaturalTail} from this array ({@link #hasChosenTail}). Empty when nothing
+     * applies. Never throws.
+     */
+    static JsonArray bodyPartsFor(
+            ServerPlayer owner,
+            String race,
+            String group,
+            String form,
+            String stackGroup,
+            String stackForm,
+            String candidatePart) {
+        JsonArray out = new JsonArray();
+        try {
+            race = safe(race);
+            group = safe(group);
+            form = safe(form);
+            stackGroup = safe(stackGroup);
+            stackForm = safe(stackForm);
+            // Custom Body Parts Shop pieces the owner turned on.
+            List<String> custom = owner == null ? List.of() : CosmeticBodyPartService.equippedParts(owner);
+            if (custom == null) {
+                custom = List.of();
+            }
             if (candidatePart != null && CosmeticBodyPartService.isPartKnown(candidatePart)) {
                 String id = candidatePart.trim().toLowerCase(Locale.ROOT);
                 if (!custom.contains(id)) {

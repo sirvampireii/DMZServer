@@ -238,7 +238,7 @@ public final class UiProbe {
             "zeno_omni"};
     /** One page per system, then the picker itself. */
     static final String[][] SKIN_PAGES = {{"hub", "main"}, {"hub", "skins"}, {"difficulty", "main"},
-            {"difficulty", "your_tier"}, {"hub", "search"}, {"hub", "more"}, {"rival", "home"}, {"spar", "main"}, {"prestige", "main"},
+            {"difficulty", "your_tier"}, {"hub", "goals"}, {"hub", "more"}, {"rival", "home"}, {"spar", "main"}, {"prestige", "main"},
             {"character", "main"}, {"skills", "main"}, {"admin", "admin"}, {"config", "edit:difficulty:0:"}};
     /** Lite is checked on the picker, the Momentum page and the model page; backgrounds off on the main menu. */
     static final String[][] LITE_PAGES = {{"hub", "skins"}, {"difficulty", "your_tier"}, {"character", "main"}};
@@ -501,9 +501,9 @@ public final class UiProbe {
                     ? "PASS" : "FAIL") + " | " + labels(p));
             // Tabs travel as buttons (tab:<id>), in order.
             String b = p.buttonsJson();
-            note("HUB HOME tabs Home/Search/More, Home first: " + (b.indexOf("tab:home") >= 0
-                    && b.indexOf("tab:home") < b.indexOf("tab:search") && b.indexOf("tab:search") < b.indexOf("tab:more")
-                    && !b.contains("tab:goals") ? "PASS" : "FAIL"));
+            note("HUB HOME tabs Home/Goals/More, Home first, no Search tab (4.7.80): " + (b.indexOf("tab:home") >= 0
+                    && b.indexOf("tab:home") < b.indexOf("tab:goals") && b.indexOf("tab:goals") < b.indexOf("tab:more")
+                    && !b.contains("tab:search") ? "PASS" : "FAIL"));
             note("HUB HOME has no search row (4.7.78: it moved to More): " + pf(p.inputsJson() == null
                     || !p.inputsJson().contains("hub_search")));
             note("HUB HOME tiles grouped (Prestige, Difficulty, Sparring, Rival, Dojo, Character): "
@@ -515,10 +515,11 @@ public final class UiProbe {
                     && !has(p, "/spawn") && !has(p, "/tpa") && !has(p, "/empire") && !has(p, "/meditate")
                     ? "PASS" : "FAIL"));
         }
-        // 4.7.71: Goals waits for real goals; the old goals link opens Search.
-        for (GuiOpenPacket p : hubClick("hub search tab", "hub", "tab:search", "main")) {
-            note("SEARCH tab replaces Goals, no placeholder: " + ("search".equals(p.pageId())
-                    && !has(p, "No goals yet") && has(p, "Search") ? "PASS" : "FAIL"));
+        // 4.7.80: Goals is the weekly goals board; search lives on More.
+        for (GuiOpenPacket p : hubClick("hub goals tab", "hub", "tab:goals", "main")) {
+            note("GOALS tab is the weekly goals board (3 goals, progress, Go to buttons, no rewards): " + pf("goals".equals(p.pageId())
+                    && has(p, "Weekly goals") && has(p, "Resets in") && !has(p, "No goals yet")
+                    && labels(p).split("\\[Go to ", -1).length - 1 == 3 && !has(p, "Reward")) + " | " + labels(p));
         }
         for (GuiOpenPacket p : hubClick("hub more", "hub", "tab:more", "main")) {
             note("MORE: meditation, Menu skins" + (staff ? ", Staff Admin" : "") + ": " + ("more".equals(p.pageId())
@@ -566,12 +567,14 @@ public final class UiProbe {
         hudScript();
         hud75Script();
         v78Script();
+        v80Script();
     }
 
     // ---- 4.7.71 navigation audit and scripted checks (test only) ----
     /** Registry pages a fresh probe account cannot reach (the page needs state the crawl does not make). */
     static final Map<String, String> NAV_STATEFUL = Map.ofEntries(
             Map.entry("spar|result", "needs a finished spar"),
+            Map.entry("dojo|found", "needs an account with no dojo (founding starts on Dojo Home)"),
             Map.entry("dojo|pending", "needs a bond invite"),
             Map.entry("rival|requests", "needs a rival request"),
             Map.entry("prestige|confirm", "needs enough prestige to turn in"),
@@ -769,24 +772,24 @@ public final class UiProbe {
         java.util.UUID u = player.m_20148_();
         NavHistory.clear(u);
         UltraHubScreens.searchFor(player, "");
-        keep("nav hub main", () -> UltraGui.open(player, "hub", "main"));
+        keep("nav hub more", () -> UltraGui.open(player, "hub", "more"));
         JsonObject args = new JsonObject();
         args.addProperty("screen", "hub");
-        args.addProperty("page", "main");
+        args.addProperty("page", "more");
         args.addProperty("value", "upgrades");
         for (GuiOpenPacket p : keep("nav search upgrades",
                 () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", args.toString()))) {
-            note("SEARCH 'upgrades' lists Dojo upgrades with its path: " + ("search".equals(p.pageId())
-                    && p.buttonsJson().contains("go:spar|dojo_upgrades") && labels(p).contains("Sparring > Dojo") ? "PASS" : "FAIL")
+            note("SEARCH 'upgrades' on More lists Dojo upgrades with its path: " + ("more".equals(p.pageId())
+                    && p.buttonsJson().contains("go:dojo|dojo_upgrades") && labels(p).contains("Upgrades  -  Dojo") ? "PASS" : "FAIL")
                     + " | " + labels(p));
         }
-        for (GuiOpenPacket p : hubClick("nav search result", "hub", "go:spar|dojo_upgrades", "search")) {
+        for (GuiOpenPacket p : hubClick("nav search result", "hub", "go:dojo|dojo_upgrades", "more")) {
             note("SEARCH result opens the page: " + (p.screenId() + "|" + p.pageId()) + " Back reads "
-                    + (has(p, "Back to Search") ? "Back to Search PASS" : "FAIL") + " | crumbs " + crumbText(crumbs(p)));
+                    + (has(p, "Back to More") ? "Back to More PASS" : "FAIL") + " | crumbs " + crumbText(crumbs(p)));
         }
-        for (GuiOpenPacket p : hubClick("nav back to search", "spar", "nav:back", "dojo_upgrades")) {
-            note("BACK returns to the search with its results: " + ("hub".equals(p.screenId()) && "search".equals(p.pageId())
-                    && p.buttonsJson().contains("go:spar|dojo_upgrades") ? "PASS" : "FAIL"));
+        for (GuiOpenPacket p : hubClick("nav back to search", "dojo", "nav:back", "dojo_upgrades")) {
+            note("BACK returns to More with the search results: " + ("hub".equals(p.screenId()) && "more".equals(p.pageId())
+                    && p.buttonsJson().contains("go:dojo|dojo_upgrades") ? "PASS" : "FAIL"));
         }
         // Breadcrumbs on three deep pages, one a dojo upgrade; each crumb but the last is a link.
         String[][] deep = {{"dojo", "dojo_up:arena", "Main menu > Dojo > Upgrades > Sparring arenas"},
@@ -817,11 +820,11 @@ public final class UiProbe {
         note("RECENTS keep five, newest first: " + recent + (recent.size() == 5 && "prestige".equals(recent.get(0))
                 && !recent.contains("skin") ? " PASS" : " FAIL"));
         UltraHubScreens.searchFor(player, "");
-        for (GuiOpenPacket p : hubClick("nav search recents", "hub", "tab:search", "main")) {
+        for (GuiOpenPacket p : hubClick("nav search recents", "hub", "tab:more", "main")) {
             note("RECENTS shown under an empty search: " + (p.buttonsJson().contains("do:hub_search_recent:0")
                     && has(p, "Recent: prestige") ? "PASS" : "FAIL"));
         }
-        for (GuiOpenPacket p : hubClick("nav search recent tap", "hub", "do:hub_search_recent:2", "search")) {
+        for (GuiOpenPacket p : hubClick("nav search recent tap", "hub", "do:hub_search_recent:2", "more")) {
             note("RECENT tap searches again: " + (labels(p).contains("Results for 'weights'") ? "PASS" : "FAIL") + " | " + labels(p));
         }
         UltraHubScreens.searchFor(player, "");
@@ -957,16 +960,19 @@ public final class UiProbe {
             // ---- no dojo, no spar
             store.dojos.remove(me);
             for (GuiOpenPacket p : keep("dojo board no dojo", () -> UltraGui.open(player, "spar", "sparboard"))) {
-                note("DOJO NO DOJO: board says join a dojo, with Find a dojo and a dim Post: " + pf(
+                note("DOJO NO DOJO: board says join a dojo, with Find a dojo, Open the Dojo (no founding here) and a dim Post: " + pf(
                         has(p, "Join a dojo first. No dojo, no spar.") && has(p, "Find a dojo")
-                                && has(p, "Found a dojo") && p.buttonsJson().contains("nav:none")) + " | " + labels(p));
+                                && !has(p, "Found a dojo") && labels(p).contains("[Open the Dojo]")
+                                && p.buttonsJson().contains("go:dojo|home") && !p.buttonsJson().contains("dojo_found")
+                                && p.buttonsJson().contains("nav:none")) + " | " + labels(p));
             }
             for (GuiOpenPacket p : keep("dojo tabs", () -> UltraGui.open(player, "spar", "main"))) {
                 note("SPAR TABS Home, Leaderboard, Spar Board; Home does not advertise the board: " + pf(has(p, "Spar Board")
                         && p.buttonsJson().contains("tab:sparboard") && !p.buttonsJson().contains("tab:wars")
                         && has(p, "Leaderboard") && !has(p, "Open the Spar Board")));
             }
-            hubClick("dojo found", "spar", "do:dojo_found", "dojo");
+            // 4.7.78: founding is a flow (name, style, banner), tested in v78Script; here the dojo is made directly.
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoService.found(player);
             note("DOJO FOUND alone (free), one ring: " + pf(dojoOf(player) != null
                     && com.dbzlegacy.adaptivedifficulty.dojo.DojoService.arenas(dojoOf(player)) == 1));
             com.dbzlegacy.adaptivedifficulty.dojo.DojoService.found(dMate);
@@ -1076,15 +1082,30 @@ public final class UiProbe {
             // ---- wagers: coins (KO pays the winner both) and points (forfeit refunds both)
             store.player(me, "").unrankedSpars = 30;
             store.player(dMate.m_20148_().toString(), "Sparmate").unrankedSpars = 30;
-            for (ServerPlayer w : new ServerPlayer[] {player, dMate}) {
-                com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.grantExact(w,
-                        com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.CoinKind.NETHERITE, 5);
+            com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.grantExact(player,
+                    com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.CoinKind.NETHERITE, 5);
+            long strip = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(dMate);
+            if (strip > 0L) {
+                com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.charge(dMate, strip);
             }
-            long coinsP = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(player);
-            long coinsM = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(dMate);
-            draft(player, true, com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.COIN_STEPS.length);
+            // 4.7.80: the wager is set from the sub-menu (kind, then amount), not a cycling button.
+            draft(player, true, 0);
+            hubClick("dojo wager set", "spar", "do:board_wager_set:"
+                    + com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.COIN_STEPS.length, "board_wager_coins");
+            note("DOJO WAGER set from the Wager sub-menu (5 netherite coins): " + pf(com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar
+                    .draft(player.m_20148_()).wager() == com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.COIN_STEPS.length));
             String posted = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(player, "board_post", "");
             com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+            var wpost = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.postOf(player.m_20148_());
+            String cant = wpost == null ? null : com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.whyNot(dMate, wpost);
+            String refused = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_accept", me);
+            note("DOJO WAGER an accepter who can't stake the same kind and amount can't accept: " + pf(cant != null
+                    && cant.contains("needs") && com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.boutOf(player.m_20148_()) == null)
+                    + " | " + cant + " / " + refused);
+            com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.grantExact(dMate,
+                    com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.CoinKind.NETHERITE, 5);
+            long coinsP = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(player);
+            long coinsM = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(dMate);
             String acc = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_accept", me);
             long heldP = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(player);
             long heldM = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(dMate);
@@ -2784,7 +2805,7 @@ public final class UiProbe {
         sa.addProperty("page", "more");
         sa.addProperty("value", "dojo");
         for (GuiOpenPacket p : keep("v78 search from more", () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", sa.toString()))) {
-            note("V78 search typed in More lands on Search results: " + pf("search".equals(p.pageId()) && has(p, "Results for")));
+            note("V78 search typed in More lands on the results, on More (4.7.80): " + pf("more".equals(p.pageId()) && has(p, "Results for")));
         }
         UltraHubScreens.searchFor(player, "");
         // C: Difficulty off -> Tiers locked, no rows, no toggle; on -> rows; Home keeps the toggle.
@@ -2902,7 +2923,8 @@ public final class UiProbe {
                 && made.bannerPatterns.size() == 1 && bannersOf(f, bannerItem) == before && made.identityChangedAt == 0L)
                 + " | " + (made == null ? "no dojo" : made.name + "/" + made.style + "/" + made.bannerBase));
         if (made != null) {
-            List<GuiOpenPacket> home = UltraScreenSpec.captureSends(() -> UltraGui.open(f, "dojo", "home"));
+            List<GuiOpenPacket> home = UltraScreenSpec.captureSends(() ->
+                    com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraDojoScreens.openSystem(f, "home"));
             note("V78 Dojo Home shows name, style and banner: " + pf(!home.isEmpty() && has(home.get(0), "Probe Hall")
                     && has(home.get(0), "Ki") && has(home.get(0), "Red, 1 pattern")));
             // Amendment: changes cost Dojo Points and share one 12-hour cooldown.
@@ -2916,12 +2938,316 @@ public final class UiProbe {
             String again = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.setStyle(f, "MELEE");
             note("V78 style change refused during the 12-hour cooldown: " + pf(again.contains("can change again")
                     && "KI".equals(made.style) && made.points == 80));
-            List<GuiOpenPacket> cdHome = UltraScreenSpec.captureSends(() -> UltraGui.open(f, "dojo", "home"));
+            List<GuiOpenPacket> cdHome = UltraScreenSpec.captureSends(() ->
+                    com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraDojoScreens.openSystem(f, "home"));
             note("V78 Dojo Home shows the changes dim with the time left: " + pf(!cdHome.isEmpty()
                     && labels(cdHome.get(0)).contains("Rename in")));
             com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().dojos.remove(f.m_20148_().toString());
             com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().markDirty();
         }
+    }
+
+    // ---- 4.7.80 hub Goals, search on More, board founding, wager sub-menu, HUD no-doubling (test only) ----
+    private void v80Script() {
+        java.util.UUID u = player.m_20148_();
+        // 1: hub tabs Home | Goals | More, no Search tab anywhere; search lives on More.
+        for (String pg : new String[] {"main", "goals", "more"}) {
+            for (GuiOpenPacket p : keep("v80 hub " + pg, () -> UltraGui.open(player, "hub", pg))) {
+                String b = p.buttonsJson();
+                note("V80 hub " + pg + " tabs Home/Goals/More, no Search tab: " + pf(b.contains("tab:home") && b.contains("tab:goals")
+                        && b.contains("tab:more") && !b.contains("tab:search")));
+            }
+        }
+        for (GuiOpenPacket p : keep("v80 old search link", () -> UltraGui.open(player, "hub", "search"))) {
+            note("V80 the old Search page id opens More: " + pf("more".equals(p.pageId())));
+        }
+        UltraHubScreens.searchFor(player, "");
+        JsonObject sa = new JsonObject();
+        sa.addProperty("screen", "hub");
+        sa.addProperty("page", "more");
+        sa.addProperty("value", "wager");
+        for (GuiOpenPacket p : keep("v80 search on more", () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", sa.toString()))) {
+            note("V80 search typed in More lands on the results on More: " + pf("more".equals(p.pageId()) && has(p, "Results for 'wager'")
+                    && p.buttonsJson().contains("go:spar|board_wager")) + " | " + labels(p));
+        }
+        UltraHubScreens.searchFor(player, "");
+        for (GuiOpenPacket p : keep("v80 more recents", () -> UltraGui.open(player, "hub", "more"))) {
+            note("V80 More shows the 5 recents under an empty search: " + pf(p.buttonsJson().contains("do:hub_search_recent:0")
+                    || !com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player)));
+        }
+        // 1: Goals: this week's three goals, from three systems, with progress; a hook counts toward one.
+        var goals = com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.thisWeek();
+        note("V80 Goals: three goals this week from three systems: " + pf(goals.size() == 3
+                && goals.stream().map(com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.Goal::system).distinct().count() == 3)
+                + " | " + goals.stream().map(com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.Goal::id).toList());
+        if (!goals.isEmpty()) {
+            var g = goals.get(0);
+            long before = com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.progress(u, g.id());
+            com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.note(u, g.id(), g.minutes() ? 60_000L : 1L);
+            long after = com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.progress(u, g.id());
+            note("V80 Goals: progress counts toward this week's goal: " + pf(after > before || after >= g.target()));
+            for (GuiOpenPacket p : keep("v80 goals", () -> UltraGui.open(player, "hub", "goals"))) {
+                boolean links = true;
+                for (var x : goals) {
+                    links &= p.buttonsJson().contains(x.go()) && has(p, x.title());
+                }
+                note("V80 Goals board shows each goal, its progress bar and its Go to button: " + pf(links && has(p, "[#")
+                        || links && has(p, "[-")) + " | " + labels(p));
+            }
+        }
+        // 2 + 3: the Wager sub-menu (kind first, then the amount) and the accept page that says the stake.
+        boolean hadDojo = dojoOf(player) != null;
+        if (!hadDojo) {
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoService.found(player);
+        }
+        JsonObject sp = new JsonObject();
+        sp.addProperty("screen", "spar");
+        sp.addProperty("page", "sparboard");
+        for (GuiOpenPacket p : keep("v80 board", () -> UltraGui.open(player, "spar", "sparboard"))) {
+            note("V80 board Wager button opens the sub-menu (no cycling): " + pf(p.buttonsJson().contains("page:board_wager")
+                    && !p.buttonsJson().contains("do:board_wager\"")));
+        }
+        for (GuiOpenPacket p : keep("v80 wager menu", () -> UltraGuiActions.dispatch(player, "spar", "do:board_wager", sp.toString()))) {
+            note("V80 Wager sub-menu: Ancient Coins, Dojo Points or No wager: " + pf("board_wager".equals(p.pageId())
+                    && labels(p).contains("[Ancient Coins]") && labels(p).contains("[Dojo Points]") && labels(p).contains("No wager")
+                    && has(p, "stakes exactly the same")) + " | " + labels(p));
+        }
+        int coinSteps = com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.COIN_STEPS.length;
+        int steps = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.wagerSteps();
+        for (GuiOpenPacket p : keep("v80 wager coins", () -> UltraGui.open(player, "spar", "board_wager_coins"))) {
+            boolean all = true;
+            for (int i = 1; i <= coinSteps; i++) {
+                all &= p.buttonsJson().contains("do:board_wager_set:" + i + "\"");
+            }
+            note("V80 Wager coins: every coin step up to 5 netherite, no point steps: " + pf(all
+                    && !p.buttonsJson().contains("do:board_wager_set:" + (coinSteps + 1) + "\"")) + " | " + labels(p));
+        }
+        for (GuiOpenPacket p : keep("v80 wager points", () -> UltraGui.open(player, "spar", "board_wager_points"))) {
+            boolean all = true;
+            for (int i = coinSteps + 1; i < steps; i++) {
+                all &= p.buttonsJson().contains("do:board_wager_set:" + i + "\"");
+            }
+            note("V80 Wager Dojo Points (master): every point step up to 20: " + pf(all && labels(p).contains("20 Dojo Points")));
+        }
+        JsonObject wc = new JsonObject();
+        wc.addProperty("screen", "spar");
+        wc.addProperty("page", "board_wager_coins");
+        for (GuiOpenPacket p : keep("v80 wager pick", () -> UltraGuiActions.dispatch(player, "spar", "do:board_wager_set:2", wc.toString()))) {
+            String want = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.compactCost(
+                    com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.wagerAmount(2));
+            note("V80 picking an amount sets the next post's wager and returns to the board: " + pf("sparboard".equals(p.pageId())
+                    && com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.draft(u).wager() == 2 && labels(p).contains("Wager - " + want))
+                    + " | " + labels(p));
+        }
+        for (GuiOpenPacket p : keep("v80 wager bad", () -> UltraGuiActions.dispatch(player, "spar", "do:board_wager_set:99", wc.toString()))) {
+            note("V80 an unknown wager step changes nothing and says why: " + pf(com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.draft(u).wager() == 2
+                    && has(p, "isn't on the list")));
+        }
+        ServerPlayer w = dojoStandIn("Wager80");
+        com.dbzlegacy.adaptivedifficulty.dojo.DojoService.found(w);
+        com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.setDraft(w.m_20148_(), false, 1);
+        String wp = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(w, "board_post", "");
+        var post = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.postOf(w.m_20148_());
+        if (post == null) {
+            note("V80 wager accept page NAV SKIP (the stand-in could not post: " + wp + ")");
+        } else {
+            String stake = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.wagerText(post.wagerKind(), post.wager());
+            for (GuiOpenPacket p : keep("v80 board listing", () -> UltraGui.open(player, "spar", "sparboard"))) {
+                note("V80 the listing shows the wager and Accept asks first: " + pf(has(p, stake)
+                        && p.buttonsJson().contains("page:board_accept:" + w.m_20148_())) + " | " + labels(p));
+            }
+            for (GuiOpenPacket p : keep("v80 accept ask", () -> UltraGui.open(player, "spar", "board_accept:" + w.m_20148_()))) {
+                note("V80 the accept page says the stake (the same kind and amount) before the click: " + pf(has(p, "You stake")
+                        && has(p, stake) && has(p, "The winner takes both stakes") && has(p, "refunds both")
+                        && (p.buttonsJson().contains("do:board_accept:" + w.m_20148_()) || labels(p).contains("Accept and stake")))
+                        + " | " + labels(p));
+            }
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(w, "board_unpost", "");
+        }
+        com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().dojos.remove(w.m_20148_().toString());
+        com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.setDraft(u, false, 0);
+        // 2: no founding from the board (no dojo state).
+        var mine = dojoOf(player);
+        if (mine != null) {
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().dojos.remove(mine.masterUuid);
+        }
+        for (GuiOpenPacket p : keep("v80 board no dojo", () -> UltraGui.open(player, "spar", "sparboard"))) {
+            note("V80 Spar Board without a dojo: Find a dojo and Open the Dojo, no Found a dojo: " + pf(labels(p).contains("[Find a dojo]")
+                    && labels(p).contains("[Open the Dojo]") && !has(p, "Found a dojo") && !p.buttonsJson().contains("dojo_found")));
+        }
+        JsonObject bd = new JsonObject();
+        bd.addProperty("screen", "spar");
+        bd.addProperty("page", "sparboard");
+        for (GuiOpenPacket p : keep("v80 open the dojo", () -> UltraGuiActions.dispatch(player, "spar", "go:dojo|home", bd.toString()))) {
+            note("V80 Open the Dojo lands on Dojo Home, where founding lives: " + pf("dojo".equals(p.screenId())
+                    && "home".equals(p.pageId())) + " | " + p.screenId() + "|" + p.pageId());
+        }
+        if (mine != null) {
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().dojos.put(mine.masterUuid, mine);
+        }
+        if (!hadDojo && dojoOf(player) != null) {
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().dojos.remove(dojoOf(player).masterUuid);
+        }
+        com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().markDirty();
+        // 4: every HUD element once, on the HUD only, for a HUD player; the vanilla version for everyone else.
+        v80HudMatrix();
+    }
+
+    static final String[] HUD_ELEMENTS = {LmHud.UNDERDOG, LmHud.INSTINCT, LmHud.TP, LmHud.PENALTY, LmHud.MOMENTUM,
+            LmHud.FIGHT, LmHud.SPAR, LmHud.POTENTIAL, LmHud.COINS, LmHud.ELITE, LmHud.BOOST};
+
+    /** Fire one element through the code that sends it in game (both versions: HUD and chat / boss bar / subtitle). */
+    private void trigger80(String el, long now) throws Exception {
+        var srv = player.m_20194_();
+        switch (el) {
+            case LmHud.UNDERDOG -> {
+                groundsLink(true);
+                com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.tick(player);
+            }
+            case LmHud.INSTINCT -> {
+                String body = instinctBody();
+                com.dbzlegacy.adaptivedifficulty.rival.RivalInstinct.deliver(player, "charge",
+                        com.dbzlegacy.adaptivedifficulty.util.LmChat.fail("Instinct", body), body, PROBE_RIVAL);
+            }
+            case LmHud.TP -> com.dbzlegacy.adaptivedifficulty.util.TpBossNotify.show(player, "+7 TP (probe)",
+                    net.minecraft.ChatFormatting.GREEN, "", 0L);
+            case LmHud.PENALTY -> com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.onDeath(player);
+            case LmHud.MOMENTUM -> {
+                com.dbzlegacy.adaptivedifficulty.progression.Momentum.bank(player);
+                com.dbzlegacy.adaptivedifficulty.progression.Momentum.markFight(player);
+                com.dbzlegacy.adaptivedifficulty.progression.Momentum.hudPulse(srv, 20);
+            }
+            case LmHud.FIGHT -> {
+                var ch = probeChallenge(now);
+                ch.a = player.m_20148_();
+                ch.b = PROBE_RIVAL;
+                com.dbzlegacy.adaptivedifficulty.rival.RivalChallengeManager.announceStart(srv, ch);
+                com.dbzlegacy.adaptivedifficulty.rival.RivalChallengeManager.fightHud(player, ch, now, false);
+                com.dbzlegacy.adaptivedifficulty.rival.RivalChallengeManager.chatUnlessHud(player,
+                        com.dbzlegacy.adaptivedifficulty.rival.RivalChallengeManager.scoreLine(ch));
+            }
+            case LmHud.SPAR -> {
+                var rt = probeSparRuntime(now);
+                call(com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.class, "sparHud", new Class<?>[] {ServerPlayer.class,
+                        ServerPlayer.class, com.dbzlegacy.adaptivedifficulty.sparring.SparPlayerRuntime.class, long.class},
+                        player, null, rt, now);
+                rt.messageNext = 0L;
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.breakCombo(player, rt, "probe");
+            }
+            case LmHud.POTENTIAL -> call(com.dbzlegacy.adaptivedifficulty.progression.skills.PotentialProgression.class,
+                    "potentialSubtitle", new Class<?>[] {ServerPlayer.class, String.class, net.minecraft.ChatFormatting.class,
+                            long.class}, player, "Switch training methods to continue progressing.",
+                    net.minecraft.ChatFormatting.YELLOW, 0L);
+            case LmHud.COINS -> com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.notifyGrant(player,
+                    new com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.KillLoot(
+                            new com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.Drop(
+                                    com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.CoinKind.IRON, 2), null));
+            case LmHud.ELITE -> {
+                com.dbzlegacy.adaptivedifficulty.title.TitleSense.clear(player.m_20148_());
+                com.dbzlegacy.adaptivedifficulty.title.TitleSense.deliver(player,
+                        com.dbzlegacy.adaptivedifficulty.title.DifficultyTitle.ELITE_HUNTER, true, false, now);
+            }
+            case LmHud.BOOST -> {
+                com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.startBoostMinutes(null, 1.5, 30, "Probe");
+                com.dbzlegacy.adaptivedifficulty.progression.Momentum.boostHudPulse(srv, 10);
+            }
+            default -> throw new IllegalArgumentException(el);
+        }
+    }
+
+    private void cleanup80(String el) {
+        var srv = player.m_20194_();
+        switch (el) {
+            case LmHud.UNDERDOG -> groundsLink(false);
+            case LmHud.PENALTY -> {
+                com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess.putLong(player,
+                        com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.KEY, System.currentTimeMillis() - 1000L);
+                com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.pulse(srv, 20);
+            }
+            case LmHud.MOMENTUM -> {
+                com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);
+                com.dbzlegacy.adaptivedifficulty.progression.Momentum.hudPulse(srv, 20);
+            }
+            case LmHud.BOOST -> com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.endBoost(false);
+            default -> {
+            }
+        }
+        LmHud.hideAll(player);
+    }
+
+    /**
+     * 4.7.80 no doubling: for each of the 11 elements, through the code that sends it in game, a HUD player gets it
+     * once on the HUD and nothing in chat, as a boss bar or as a subtitle; a HUD-off player (and a bridge client) gets
+     * the chat / boss bar / subtitle version as before and nothing on the HUD. The Momentum meter has no vanilla
+     * version (the Difficulty menu shows the bank), so HUD off it sends nothing at all. The boost headline
+     * ("GLOBAL TP BOOST ACTIVATED!") is an announcement, not the chip: a HUD player keeps it, without the multiplier
+     * and time the chip shows.
+     */
+    private void v80HudMatrix() {
+        java.util.UUID u = player.m_20148_();
+        boolean takes = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesHud(player);
+        boolean wasOn = LmHud.enabled(player);
+        boolean momOn = com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig.get().momentumEnabled;
+        int checked = 0;
+        int passed = 0;
+        for (boolean on : new boolean[] {true, false}) {
+            LmHud.set(player, on);
+            boolean hudMode = on && takes;
+            String mode = hudMode ? "HUD on" : takes ? "HUD off" : on ? "bridge" : "bridge, HUD off";
+            for (String el : HUD_ELEMENTS) {
+                LmHud.hideAll(player);
+                long now = System.currentTimeMillis();
+                LmHud.Both b;
+                try {
+                    b = LmHud.captureBoth(() -> {
+                        try {
+                            trigger80(el, now);
+                        } catch (Exception ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    });
+                } catch (Throwable t) {
+                    note("V80 HUD once " + mode + " " + el + ": ERROR " + t + " FAIL");
+                    cleanup80(el);
+                    checked++;
+                    continue;
+                }
+                cleanup80(el);
+                long hudN = b.hud().stream().filter(x -> x.player().equals(u) && x.packet().element().equals(el)
+                        && x.packet().show()).count();
+                List<String> van = new ArrayList<>();
+                for (LmHud.Vanilla v : b.vanilla()) {
+                    if (v.player().equals(u)) {
+                        van.add(v.channel() + ":" + UltraStyle.plain(v.text()));
+                    }
+                }
+                boolean skip = el.equals(LmHud.MOMENTUM) && !momOn
+                        || el.equals(LmHud.BOOST) && !com.dbzlegacy.adaptivedifficulty.progression.ProgressionConfig.globalTpBoost();
+                if (skip) {
+                    note("V80 HUD once " + mode + " " + el + ": NAV SKIP (off in the test config)");
+                    continue;
+                }
+                boolean ok;
+                if (hudMode) {
+                    List<String> doubled = new ArrayList<>(van);
+                    if (el.equals(LmHud.BOOST)) {
+                        doubled.removeIf(t -> !t.contains("1.5") && !t.contains("30") && !t.toLowerCase(java.util.Locale.ROOT).contains("remaining"));
+                    }
+                    ok = hudN >= 1 && doubled.isEmpty();
+                } else {
+                    boolean vanillaExpected = !el.equals(LmHud.MOMENTUM);
+                    ok = hudN == 0 && (vanillaExpected ? !van.isEmpty() : van.isEmpty());
+                }
+                checked++;
+                if (ok) {
+                    passed++;
+                }
+                note("V80 HUD once " + mode + " " + el + ": " + pf(ok) + " | hud=" + hudN + " vanilla=" + van);
+            }
+        }
+        LmHud.set(player, wasOn);
+        note("V80 HUD no-doubling matrix: " + passed + " of " + checked + " element checks pass (" + (takes ? "LM client" : "bridge")
+                + "): " + pf(passed == checked && checked > 0));
     }
 
     /** Put every HUD element up (the HUD on the LM client; boss bars and chat on a bridge stage). */
@@ -3241,14 +3567,18 @@ public final class UiProbe {
         mock("dojo wars", () -> UltraGui.open(player, "dojo", "dojo_wars"));
         mock("difficulty home", () -> UltraGui.open(player, "difficulty", "main"));
         mock("difficulty tiers", () -> UltraGui.open(player, "difficulty", "tiers"));
+        // 4.7.80: the Goals tab, the Wager sub-menu (kind, then amount).
+        mock("hub goals", () -> UltraGui.open(player, "hub", "goals"));
+        mock("board wager", () -> UltraGui.open(player, "spar", "board_wager"));
+        mock("board wager coins", () -> UltraGui.open(player, "spar", "board_wager_coins"));
         JsonObject args = new JsonObject();
         args.addProperty("screen", "hub");
-        args.addProperty("page", "main");
+        args.addProperty("page", "more");
         args.addProperty("value", "dojo");
         mock("search results", () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", args.toString()));
         JsonObject a2 = new JsonObject();
         a2.addProperty("screen", "hub");
-        a2.addProperty("page", "search");
+        a2.addProperty("page", "more");
         mock("breadcrumb dojo upgrade", () -> UltraGuiActions.dispatch(player, "hub", "go:spar|dojo_up:arena", a2.toString()));
         NavHistory.clear(u);
         mock("breadcrumb deep page", () -> UltraGui.open(player, "prestige", "mastery_lines"));

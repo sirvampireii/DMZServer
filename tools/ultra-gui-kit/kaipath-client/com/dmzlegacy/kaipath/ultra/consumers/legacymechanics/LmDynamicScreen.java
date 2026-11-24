@@ -871,13 +871,18 @@ public class LmDynamicScreen extends UltraScreen {
             UltraUiAccess.fillRect(g, theme(), fx, fy, 2, fh, edge);
             UltraUiAccess.fillRect(g, theme(), fx + fw - 2, fy, 2, fh, edge);
         }
-        // bodyParts attach while the entity renderer asks DMZUltra FormParts for a look.
-        BodyPartPreview.begin(entity, parts);
+        // parts.form / headBones go on the figure for this draw (KaiPath 1.5.6 PreviewAppearance): a
+        // made-up uuid: subject is a blank stand-in, so without this DMZUltra FormParts.of sees no race or
+        // form. Then bodyParts attach while the entity renderer asks FormParts for a look; when that look
+        // is null (base form, SSJ) BodyPartPreview.mergeLook builds one so shop pieces still draw.
         boolean drew;
-        try {
-            drew = renderEntityPreview(g, centerX, centerY, scale, lookX, lookY, entity);
-        } finally {
-            BodyPartPreview.end();
+        try (PreviewAppearance.Scope appearance = PreviewAppearance.begin(entity, parts)) {
+            BodyPartPreview.begin(entity, parts);
+            try {
+                drew = renderEntityPreview(g, centerX, centerY, scale, lookX, lookY, entity);
+            } finally {
+                BodyPartPreview.end();
+            }
         }
         if (!drew) {
             UltraUiAccess.fillRect(

@@ -308,24 +308,24 @@ public final class GlobalMasteryBoost {
         applyToAll(keptAmp, newEnd - now);
         broadcast(UltraStyle.GOLD + UltraStyle.BOLD + "GLOBAL MASTERY BOOST ACTIVATED!");
         if (extending) {
-            broadcast(UltraStyle.YELLOW + purchaser + UltraStyle.GRAY + " added " + UltraStyle.WHITE
+            broadcastStatus(UltraStyle.YELLOW + purchaser + UltraStyle.GRAY + " added " + UltraStyle.WHITE
                     + formatDuration(durationMs) + UltraStyle.GRAY + " to the global mastery boost.");
             if (keptMult > prevMult + 0.0001) {
-                broadcast(UltraStyle.GRAY + "Boost raised to " + UltraStyle.GREEN + formatMult(keptMult)
+                broadcastStatus(UltraStyle.GRAY + "Boost raised to " + UltraStyle.GREEN + formatMult(keptMult)
                         + "x" + UltraStyle.GRAY + ".");
             } else {
-                broadcast(UltraStyle.GRAY + "Boost stays " + UltraStyle.GREEN + formatMult(keptMult)
+                broadcastStatus(UltraStyle.GRAY + "Boost stays " + UltraStyle.GREEN + formatMult(keptMult)
                         + "x " + UltraStyle.DARK_GRAY + "(highest wins; lower packs only add time).");
             }
-            broadcast(UltraStyle.GRAY + "Total remaining: " + UltraStyle.WHITE + formatDuration(newEnd - now)
+            broadcastStatus(UltraStyle.GRAY + "Total remaining: " + UltraStyle.WHITE + formatDuration(newEnd - now)
                     + UltraStyle.GRAY + ".");
             return UltraStyle.GREEN + "Stacked +" + formatDuration(durationMs) + " " + UltraStyle.SEP
                     + " active " + UltraStyle.WHITE + formatMult(keptMult) + "x " + UltraStyle.GRAY
                     + "(" + formatDuration(newEnd - now) + " left).";
         }
-        broadcast(UltraStyle.YELLOW + purchaser + UltraStyle.GRAY + " activated a " + UltraStyle.GREEN
+        broadcastStatus(UltraStyle.YELLOW + purchaser + UltraStyle.GRAY + " activated a " + UltraStyle.GREEN
                 + formatMult(keptMult) + "x Mastery Boost" + UltraStyle.GRAY + "!");
-        broadcast(UltraStyle.GRAY + "All online players gain form mastery faster for " + UltraStyle.WHITE
+        broadcastStatus(UltraStyle.GRAY + "All online players gain form mastery faster for " + UltraStyle.WHITE
                 + formatDuration(newEnd - now) + UltraStyle.GRAY + ".");
         return UltraStyle.GREEN + formatMult(keptMult) + "x mastery activated for "
                 + formatDuration(durationMs) + ".";
@@ -452,6 +452,22 @@ public final class GlobalMasteryBoost {
             return -1;
         }
         return amplifier;
+    }
+
+    /**
+     * 4.7.80: who added the boost, the multiplier and the time left. A HUD player reads the multiplier and time on
+     * the boost chip, so they get only the headline; everyone else gets these lines as before.
+     */
+    private static void broadcastStatus(String msg) {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            return;
+        }
+        for (ServerPlayer player : server.m_6846_().m_11314_()) {
+            if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+                DmzRewards.msg(player, msg);
+            }
+        }
     }
 
     private static void broadcast(String msg) {

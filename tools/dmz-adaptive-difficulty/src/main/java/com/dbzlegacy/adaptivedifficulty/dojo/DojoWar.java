@@ -516,6 +516,9 @@ public final class DojoWar {
             com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(u == null ? null : server.m_6846_().m_11259_(u), com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT);
         }
         UUID loser = winner.equals(r.x) ? r.y : r.x;
+        // 4.7.80 weekly goal: both fighters of a war bout took part.
+        com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.note(r.x, com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.DOJO_WAR, 1);
+        com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.note(r.y, com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.DOJO_WAR, 1);
         WarFight f = new WarFight();
         f.round = "GAUNTLET".equals(r.rec.format) ? r.nextIdx - 1 : r.roundNo;
         f.a = r.x.toString();

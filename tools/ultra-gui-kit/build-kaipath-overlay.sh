@@ -78,6 +78,9 @@ if [[ -d "$TEST_SRC" ]]; then
   java -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$CLASSES")$CP_SEP$CP" \
     com.dmzlegacy.kaipath.ultra.consumers.legacymechanics.InspectPreviewSubjectTest
   java -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$CLASSES")$CP_SEP$CP"     com.dmzlegacy.kaipath.ultra.consumers.legacymechanics.UltraBridgeFitTest
+  # Form preview: Saiyan base form + one shop piece on a made-up subject (KaiPath 1.5.6 behaviour).
+  java -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$CLASSES")$CP_SEP$CP" \
+    com.dmzlegacy.kaipath.ultra.consumers.legacymechanics.PreviewAppearanceTest
   # Real LM menus (test/fixtures/lm-specs.jsonl, refreshed by test/gen_lm_corpus.py from an LM UI probe run).
   java -Dultragui.corpus="$(abs "$HERE/test/fixtures/lm-specs.jsonl")" -cp "$(abs "$TEST_CLASSES")$CP_SEP$(abs "$CLASSES")$CP_SEP$CP" com.dmzlegacy.kaipath.ultra.consumers.legacymechanics.LmCorpusTest
   java -Dultragui.fixture="$HERE/server/BridgeFutureFieldsFixture.json" \

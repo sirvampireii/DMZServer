@@ -295,7 +295,8 @@ public final class RivalChallengeManager {
         activeByPlayer.put(ch.b, ch.id);
         broadcast(server, "§e" + ch.nameA + " §7vs §e" + ch.nameB
                 + " §8— challenge starts in 5s.");
-        DmzRewards.msg(challenger, LmChat.ok("Challenge", "Challenge accepted. Countdown started."));
+        // 4.7.80: a HUD challenger sees the countdown on the fight pill.
+        chatUnlessHud(challenger, LmChat.ok("Challenge", "Challenge accepted. Countdown started."));
         return "§aChallenge accepted. Countdown started.";
     }
 
@@ -490,8 +491,7 @@ public final class RivalChallengeManager {
                     ch.status = RivalChallenge.Phase.ACTIVE;
                     ch.startAt = now;
                     ch.endsAt = now + ch.durationMs;
-                    broadcast(server, "§6Fight: §e" + ch.nameA + " §7vs §e" + ch.nameB
-                            + " §8(" + (ch.durationMs / 1000L) + "s)");
+                    announceStart(server, ch);
                     Grounds startPg = pairGroundsOf(ch.a, ch.b);
                     ProvingGrounds.underdogNotice(a, startPg);
                     ProvingGrounds.underdogNotice(b, startPg);
@@ -842,6 +842,7 @@ public final class RivalChallengeManager {
         RivalPlayerRecord winRec = winner.toString().equals(recA.uuid) ? recA : recB;
         RivalPlayerRecord loseRec = loser.toString().equals(recA.uuid) ? recA : recB;
         winRec.officialWins++;
+        com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.note(winner, com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.RIVAL_WIN, 1);
         loseRec.officialLosses++;
         winRec.currentWinStreak++;
         if (winRec.currentWinStreak > winRec.bestWinStreak) {
@@ -1153,7 +1154,7 @@ public final class RivalChallengeManager {
         return false;
     }
 
-    private static String scoreLine(RivalChallenge ch) {
+    public static String scoreLine(RivalChallenge ch) {
         return LmChat.tagged("Challenge", scoreBody(ch));
     }
 
@@ -1164,8 +1165,25 @@ public final class RivalChallengeManager {
 
     static final String TOO_FAR = "Too far apart. Return within range.";
 
-    /** Chat for players without the HUD; a HUD player has it on the fight pill. */
-    private static void chatUnlessHud(ServerPlayer p, String line) {
+    /**
+     * 4.7.80: "Fight: A vs B (60s)" to everyone online, except a fighter with the HUD (the fight pill shows both names
+     * and the clock).
+     */
+    public static void announceStart(MinecraftServer server, RivalChallenge ch) {
+        if (server == null || ch == null) {
+            return;
+        }
+        String text = "§6Fight: §e" + ch.nameA + " §7vs §e" + ch.nameB + " §8(" + (ch.durationMs / 1000L) + "s)";
+        for (ServerPlayer p : server.m_6846_().m_11314_()) {
+            boolean fighter = p.m_20148_().equals(ch.a) || p.m_20148_().equals(ch.b);
+            if (!fighter || !com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(p)) {
+                DmzRewards.msg(p, LmChat.tagged("Rival", text));
+            }
+        }
+    }
+
+    /** Chat for players without the HUD; a HUD player has it on the fight pill (public for the UI probe). */
+    public static void chatUnlessHud(ServerPlayer p, String line) {
         if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(p)) {
             DmzRewards.msg(p, line);
         }
@@ -1192,7 +1210,8 @@ public final class RivalChallengeManager {
         return lines;
     }
 
-    private static void fightHud(ServerPlayer p, RivalChallenge ch, long now, boolean far) {
+    /** The fight pill for one fighter (public for the UI probe). */
+    public static void fightHud(ServerPlayer p, RivalChallenge ch, long now, boolean far) {
         if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(p)) {
             return;
         }

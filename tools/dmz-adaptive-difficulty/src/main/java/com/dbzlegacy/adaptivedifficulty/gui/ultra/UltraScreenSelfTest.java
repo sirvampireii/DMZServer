@@ -144,7 +144,16 @@ public final class UltraScreenSelfTest {
                             .title("Sparring")
                             .page("main")
                             .activeTab("home")
-                            .tabs("home|Home", "dojo|Dojo", "dojo_war|Wars")
+                            .tabs("home|Home", "leaderboard|Leaderboard", "sparboard|Spar Board")
+                            .line("self-test")
+                            .back();
+                    // 4.7.78: Dojo is its own system.
+                    case "dojo" -> UltraScreenSpec.of("dojo")
+                            .fitMenu()
+                            .title("Dojo")
+                            .page("home")
+                            .activeTab("home")
+                            .tabs("home|Home", "dojo_upgrades|Upgrades", "dojo_wars|Wars")
                             .line("self-test")
                             .back();
                     case "prestige" -> UltraScreenSpec.of("prestige")

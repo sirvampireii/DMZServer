@@ -146,6 +146,7 @@ public final class DifficultyTrial {
         t.m_128356_("endsAt", System.currentTimeMillis() + TRIAL_MILLIS);
         LmPlayerStore.root(player).m_128365_(KEY_ACTIVE, t);
         markUsed(player, tier);
+        com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.note(player.m_20148_(), com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.TRY_TIER, 1);
         LmPlayerStore.flush(player.m_20148_());
         DifficultyActions.openGui(player, "your_tier");
         return DifficultyActions.Result.ok("Free trial: T" + tier + " " + ut.display + " for 5 minutes, no cost. "

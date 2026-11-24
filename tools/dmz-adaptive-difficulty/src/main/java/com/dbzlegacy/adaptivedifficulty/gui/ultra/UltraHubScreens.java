@@ -1,5 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
+import com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals;
 import com.dbzlegacy.adaptivedifficulty.gui.MechanicsGuiApi;
 import com.dbzlegacy.adaptivedifficulty.progression.shop.SkillCheckService;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
@@ -77,8 +78,8 @@ public final class UltraHubScreens {
     }
 
     /**
-     * 4.7.71 hub tabs: Home (dashboard and systems), Search (every page and setting by name), More. Goals waits until
-     * it has real goals (a placeholder tab taught a dead end); its old page id opens Home.
+     * 4.7.80 hub tabs: Home (dashboard and systems), Goals (the weekly goals board), More (search, meditation, menus,
+     * HUD). The old Search page id (4.7.71-4.7.79) opens More, where search lives now.
      */
     public static final String PAGE_GOALS = "goals";
     public static final String PAGE_SEARCH = "search";
@@ -107,11 +108,12 @@ public final class UltraHubScreens {
             openCustom(player, false);
             return;
         }
-        if (PAGE_SEARCH.equals(p)) {
-            openSearch(player);
+        if (PAGE_GOALS.equals(p)) {
+            openGoals(player);
             return;
         }
-        if (PAGE_MORE.equals(p)) {
+        // 4.7.80: search lives on More; the old Search page id opens More.
+        if (PAGE_SEARCH.equals(p) || PAGE_MORE.equals(p)) {
             openMore(player);
             return;
         }
@@ -144,7 +146,7 @@ public final class UltraHubScreens {
                 .title("Legacy Mechanics")
                 .page(page)
                 .activeTab(tab)
-                .tabs("home|Home", PAGE_SEARCH + "|Search", PAGE_MORE + "|More");
+                .tabs("home|Home", PAGE_GOALS + "|Goals", PAGE_MORE + "|More");
     }
 
     /**
@@ -259,23 +261,24 @@ public final class UltraHubScreens {
     }
 
     /**
-     * Search (4.7.71): type part of a name - a menu, a page, a setting, a system - and the matching pages show as
-     * buttons, each with its path ("Sparring > Dojo > Upgrades"). Pages come from the page registry
-     * ({@link PageRegistry}) and nothing else; staff also get the matching settings (the config editor's own search).
-     * The 5 most recent searches show under the box while it is empty. A client that cannot type browses the
-     * systems instead.
+     * The search section of More (4.7.80; search was its own tab 4.7.71-4.7.79): type part of a name - a menu, a page,
+     * a setting, a system - and the matching pages show as buttons, each with its path ("Sparring > Dojo >
+     * Upgrades"). Pages come from the page registry ({@link PageRegistry}) and nothing else; staff also get the
+     * matching settings (the config editor's own search). The 5 most recent searches show under the box while it is
+     * empty. A client that cannot type gets a line saying so. Lines go in first; {@link #placeSearchButtons} adds the
+     * field and the results after {@code buttonsAfterLines}.
      */
-    private static void openSearch(ServerPlayer player) {
-        UltraScreenSpec spec = base(PAGE_SEARCH, PAGE_SEARCH);
+    private record SearchState(boolean typing, String query, List<PageRegistry.Hit> hits,
+            List<com.dbzlegacy.adaptivedifficulty.config.editor.ConfigEditor.SearchHit> settings) {}
+
+    private static SearchState searchLines(UltraScreenSpec spec, ServerPlayer player) {
         boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player);
         boolean staff = StaffAccess.isStaff(player);
-        String query = QUERY.getOrDefault(player.m_20148_(), "");
+        String query = typing ? QUERY.getOrDefault(player.m_20148_(), "") : "";
         spec.line(UltraStyle.header("Search"));
         if (!typing) {
             spec.line(UltraStyle.LABEL + "Typing a search needs a newer client. Open a system from Home instead.");
-            spec.buttonsAfterLines();
-            spec.send(player);
-            return;
+            return new SearchState(false, "", List.of(), List.of());
         }
         List<PageRegistry.Hit> hits = PageRegistry.search(query, staff, RESULTS_MAX);
         List<com.dbzlegacy.adaptivedifficulty.config.editor.ConfigEditor.SearchHit> settings = staff && !query.isBlank()
@@ -288,7 +291,14 @@ public final class UltraHubScreens {
             spec.labelValue("Results for '" + query + "'", hits.size() + (hits.size() == 1 ? " page" : " pages")
                     + (settings.isEmpty() ? "" : ", " + settings.size() + (settings.size() == 1 ? " setting" : " settings")));
         }
-        spec.buttonsAfterLines();
+        return new SearchState(true, query, hits, settings);
+    }
+
+    private static void placeSearchButtons(UltraScreenSpec spec, ServerPlayer player, SearchState st) {
+        if (!st.typing()) {
+            return;
+        }
+        String query = st.query();
         placeSearchRow(spec, query);
         if (query.isBlank()) {
             List<String> recent = recentSearches(player);
@@ -304,28 +314,27 @@ public final class UltraHubScreens {
             if (recent.size() % 2 == 1) {
                 spec.rowGap();
             }
-        } else {
-            for (PageRegistry.Hit h : hits) {
-                // Where the page lives: its path without "Main menu" in front and without its own name at the end.
-                String where = h.path().startsWith("Main menu > ") ? h.path().substring("Main menu > ".length()) : h.path();
-                if (where.endsWith(" > " + h.page().title())) {
-                    where = where.substring(0, where.length() - (" > " + h.page().title()).length());
-                } else if (where.equals(h.page().title())) {
-                    where = "Main menu";
-                }
-                String label = UltraStyle.VALUE + h.page().title() + UltraStyle.LABEL + "  -  " + where;
-                int room = UltraStyle.labelMaxWidth(UltraStyle.BTN_W * 2 + UltraStyle.BTN_GAP);
-                spec.buttonWide("go:" + h.page().screen() + "|" + h.page().pattern(),
-                        UltraStyle.textWidthPx(UltraStyle.plain(label)) <= room ? label : UltraStyle.VALUE + h.page().title(),
-                        UltraStyle.STYLE_NORMAL, null).rowGap();
-            }
-            if (!settings.isEmpty()) {
-                spec.buttonWide("do:hub_search_settings", UltraStyle.LABEL + "Settings matching '" + query + "' ("
-                        + settings.size() + ")", UltraStyle.STYLE_NORMAL, null).rowGap();
-            }
-            spec.buttonLeft("do:hub_search_clear", UltraStyle.LABEL + "Clear", UltraStyle.STYLE_NORMAL).rowGap();
+            return;
         }
-        spec.send(player);
+        for (PageRegistry.Hit h : st.hits()) {
+            // Where the page lives: its path without "Main menu" in front and without its own name at the end.
+            String where = h.path().startsWith("Main menu > ") ? h.path().substring("Main menu > ".length()) : h.path();
+            if (where.endsWith(" > " + h.page().title())) {
+                where = where.substring(0, where.length() - (" > " + h.page().title()).length());
+            } else if (where.equals(h.page().title())) {
+                where = "Main menu";
+            }
+            String label = UltraStyle.VALUE + h.page().title() + UltraStyle.LABEL + "  -  " + where;
+            int room = UltraStyle.labelMaxWidth(UltraStyle.BTN_W * 2 + UltraStyle.BTN_GAP);
+            spec.buttonWide("go:" + h.page().screen() + "|" + h.page().pattern(),
+                    UltraStyle.textWidthPx(UltraStyle.plain(label)) <= room ? label : UltraStyle.VALUE + h.page().title(),
+                    UltraStyle.STYLE_NORMAL, null).rowGap();
+        }
+        if (!st.settings().isEmpty()) {
+            spec.buttonWide("do:hub_search_settings", UltraStyle.LABEL + "Settings matching '" + query + "' ("
+                    + st.settings().size() + ")", UltraStyle.STYLE_NORMAL, null).rowGap();
+        }
+        spec.buttonLeft("do:hub_search_clear", UltraStyle.LABEL + "Clear search", UltraStyle.STYLE_NORMAL).rowGap();
     }
 
     /** The search buttons: search, a recent search, clear, the matching settings. False for any other action. */
@@ -363,14 +372,18 @@ public final class UltraHubScreens {
                 return false;
             }
         }
-        openSearch(player);
+        openMore(player);
         return true;
     }
 
-    /** More (4.7.64): meditation progress, menu skins, and Staff Admin for staff. */
+    /**
+     * More (4.7.64; 4.7.80 search): search (field, results or recents), meditation progress, menu skins, the HUD
+     * switch, and Staff Admin for staff.
+     */
     private static void openMore(ServerPlayer player) {
         boolean staff = StaffAccess.isStaff(player);
         UltraScreenSpec spec = base(PAGE_MORE, PAGE_MORE);
+        SearchState search = searchLines(spec, player);
         spec.line(UltraStyle.header("Meditation"));
         String med = HubDashboard.meditationLine(player);
         spec.line(med != null ? med : UltraStyle.LABEL + "Meditation progress is off on this server.");
@@ -383,12 +396,8 @@ public final class UltraHubScreens {
         spec.labelValue("HUD:", hudOn ? "rival, TP and penalty info on screen" : "boss bars and chat lines");
         spec.line(UltraStyle.LABEL + "The HUD needs the Legacy Mechanics client.");
         spec.buttonsAfterLines();
-        // 4.7.78: the search row (moved from Home), first on the tab. Same field, placeholder, Search button and
-        // recents; a search lands on the Search tab with its results.
-        if (com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player)
-                && com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player)) {
-            placeSearchRow(spec, "");
-        }
+        // 4.7.80: search lives here entirely (field, results, recents); there is no Search tab.
+        placeSearchButtons(spec, player, search);
         List<HubTile> tiles = new ArrayList<>();
         tiles.add(new HubTile("menu_skins", "Menu skins", UltraStyle.STYLE_NORMAL, true));
         if (staff) {
@@ -397,6 +406,40 @@ public final class UltraHubScreens {
         placeTiles(spec, Map.of(), tiles);
         spec.buttonLeft("do:" + LmHud.ACTION_TOGGLE, UltraStyle.toggle("HUD", hudOn), UltraStyle.STYLE_NORMAL);
         spec.rowGap();
+        spec.send(player);
+    }
+
+    /**
+     * Goals (4.7.80; the approved 4.7.64 concept, item 8): this week's three goals, each from a different system,
+     * with the player's progress and a button to where it is done. Progress only: no rewards in this build.
+     */
+    private static void openGoals(ServerPlayer player) {
+        UltraScreenSpec spec = base(PAGE_GOALS, PAGE_GOALS);
+        long now = System.currentTimeMillis();
+        List<WeeklyGoals.Goal> goals = WeeklyGoals.goals(WeeklyGoals.week(now));
+        spec.line(UltraStyle.header("Weekly goals"));
+        spec.labelValue("Resets in", WeeklyGoals.resetsIn(now));
+        spec.line(UltraStyle.LABEL + "Everyone gets the same three goals. Progress counts from the start of the week.");
+        for (WeeklyGoals.Goal g : goals) {
+            long have = WeeklyGoals.progress(player.m_20148_(), g.id());
+            boolean done = have >= g.target();
+            spec.line(UltraStyle.header(g.title()));
+            spec.line((done ? UltraStyle.GREEN : UltraStyle.VALUE) + WeeklyGoals.progressText(g, have) + " "
+                    + DifficultyGuide.bar(Math.min(have, g.target()), g.target(), 12));
+        }
+        spec.buttonsAfterLines();
+        for (int i = 0; i < goals.size(); i++) {
+            WeeklyGoals.Goal g = goals.get(i);
+            String label = UltraStyle.plain("Go to " + g.goTitle());
+            if (i % 2 == 0) {
+                spec.buttonLeft(g.go(), label, UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.buttonRight(g.go(), label, UltraStyle.STYLE_NORMAL).rowGap();
+            }
+        }
+        if (goals.size() % 2 == 1) {
+            spec.rowGap();
+        }
         spec.send(player);
     }
 

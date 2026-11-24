@@ -61,6 +61,7 @@ public final class TpBossNotify {
                         (int) SHOW_MS, true);
                 return;
             }
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.vanilla(player, "bossbar", plain);
             Component name = Component.m_237113_(plain).m_130940_(ink);
             BossEvent.BossBarColor barColor = barColor(ink);
             Held held = BARS.get(id);

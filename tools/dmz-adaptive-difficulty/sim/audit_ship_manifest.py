@@ -2029,6 +2029,79 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.80 ---")
+    p80_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p80_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    p80_reg = read(SRC / "gui/ultra/PageRegistry.java")
+    p80_goals = read(SRC / "goals/WeeklyGoals.java")
+    p80_dojo = read(SRC / "gui/ultra/UltraDojoScreens.java")
+    p80_board = read(SRC / "dojo/BoardSpar.java")
+    p80_hud = read(SRC / "gui/ultra/LmHud.java")
+    p80_chat = read(SRC / "util/LmChat.java")
+    p80_note = read(SRC / "util/ScreenNotify.java")
+    p80_pen = read(SRC / "progression/tp/DeathTpPenalty.java")
+    p80_rcm = read(SRC / "rival/RivalChallengeManager.java")
+    p80_tpb = read(SRC / "progression/tp/GlobalTpBoost.java")
+    p80_mb = read(SRC / "progression/tp/GlobalMasteryBoost.java")
+    p80_sense = read(SRC / "title/TitleSense.java")
+    p80_probe = (ROOT / "tools/lm-ui-probe/src/com/dbzlegacy/uiprobe/UiProbe.java").read_text(encoding="utf-8")
+    p80_more = _after(p80_hub, "private static void openMore(").split("\n    }\n", 1)[0]
+    check("manifest row for lm 4.7.80", "lm-4780-hub-goals-wager" in manifest)
+    check("1: hub tabs Home, Goals, More; no Search tab; the search page id opens More; search lives on More",
+          '.tabs("home|Home", PAGE_GOALS + "|Goals", PAGE_MORE + "|More");' in p80_hub and '"|Search"' not in p80_hub
+          and "openSearch" not in p80_hub and "if (PAGE_SEARCH.equals(p) || PAGE_MORE.equals(p)) {" in p80_hub
+          and has(p80_more, "searchLines(spec, player)", "placeSearchButtons(spec, player, search);")
+          and 'case "search", "more" -> UltraHubScreens.PAGE_MORE;' in p80_act
+          and 'p(HUB, "goals", "Weekly goals", "hub|main"' in p80_reg and 'p(HUB, "search"' not in p80_reg)
+    check("1: Goals is the weekly goals board: 3 goals from 3 systems, weekly clock, progress and Go to; no rewards",
+          "private static void openGoals(ServerPlayer player)" in p80_hub and '"Go to " + g.goTitle()' in p80_hub
+          and "DifficultyGuide.bar(" in _after(p80_hub, "private static void openGoals(")
+          and has(p80_goals, "WEEK_MS = 7L * 86_400_000L", "!systems.contains(g.system())", "public static void note(UUID id")
+          and "reward" not in p80_goals.lower().replace("no rewards", "").replace("no rewards or payouts", "")
+          and all(("WeeklyGoals.note(" in read(SRC / f)) for f in ("dojo/BoardSpar.java", "sparring/SparringSystem.java",
+                  "dojo/DojoWar.java", "rival/RivalChallengeManager.java", "title/TitleSystem.java",
+                  "service/DifficultyTrial.java", "progression/skills/LivingWorldNearbyMeditation.java")))
+    check("2: no founding from the Spar Board; the no-dojo board opens the Dojo section and keeps Find a dojo",
+          '"Open the Dojo"' in p80_dojo and '"go:dojo|home"' in p80_dojo and '"page:dojo_list", "Find a dojo"' in p80_dojo
+          and 'UltraStyle.confirm("Found a dojo")' not in p80_dojo)
+    check("3: Wager is a sub-menu (kind, then amount within the caps); accept says the stake; accepter matches",
+          has(p80_dojo, "static void openWager(", "static void openWagerAmounts(", "static void openAcceptAsk(",
+              '"page:" + PAGE_WAGER, "Wager - "', "BoardSpar.ACT_WAGER.equals(action)")
+          and '"do:" + BoardSpar.ACT_WAGER, "Wager - "' not in p80_dojo
+          and has(p80_board, 'ACT_WAGER_SET = "board_wager_set"', "case ACT_WAGER_SET ->")
+          and "(d.wager() + 1) % wagerSteps()" not in p80_board
+          and has(p80_board, "String afford = canStake(viewer, post.wagerKind(), post.wager());", "if (!escrow(post, poster, acceptor)) {")
+          and 'p("spar", "board_wager", "Wager", "spar|sparboard"' in p80_reg)
+    check("4: no doubling: vanilla notices report to the capture; HUD players get no penalty chat, fight start, boost status",
+          has(p80_hud, "public record Vanilla(", "public static Both captureBoth(Runnable r)")
+          and 'LmHud.vanilla(player, "chat", line);' in p80_chat and 'LmHud.vanilla(player, "subtitle", subtitle);' in p80_note
+          and "tellUnlessHud(player, LmChat.note(\"TP\", body));" in p80_pen
+          and "public static void announceStart(MinecraftServer server, RivalChallenge ch)" in p80_rcm
+          and "announceStart(server, ch);" in p80_rcm
+          and "private static void broadcastStatus(String msg)" in p80_tpb and "private static void broadcastStatus(String msg)" in p80_mb
+          and "public static void deliver(ServerPlayer player, DifficultyTitle equipped" in p80_sense)
+    p80_pmp = read(SRC / "gui/ultra/PlayerModelParts.java")
+    p80_mp = read(SRC / "gui/ultra/ModelPreview.java")
+    p80_cat = read(SRC / "gui/ultra/BodyPartCatalog.java")
+    p80_bpp = read(SRC / "client/BodyPartPreview.java")
+    check("5: form previews send the form's pieces (base form = base/base) plus the owner's shop pieces; LM client builds a Look",
+          "static JsonArray bodyPartsFor(" in p80_pmp
+          and "return bodyPartsFor(player, race, group, form, stackGroup, stackForm, candidatePart);" in p80_pmp
+          and 'JsonArray body = PlayerModelParts.bodyPartsFor(owner, form.race(), form.group(), form.form(), "", "", null);' in p80_mp
+          and has(p80_cat, 'public static final String BASE_FORM = "base";', "String[] worn = wornForm(group, form);")
+          and "return newLook(extra, colors);" in p80_bpp and "if (look == null || (!hasPieces && !hasColors))" not in p80_bpp)
+    check("4: the probe checks every HUD element on and off through the code that sends it",
+          "private void v80HudMatrix()" in p80_probe and all(f"LmHud.{e}" in _after(p80_probe, "static final String[] HUD_ELEMENTS")
+              .split(";", 1)[0] for e in ("UNDERDOG", "INSTINCT", "TP", "PENALTY", "MOMENTUM", "FIGHT", "SPAR", "POTENTIAL",
+                                          "COINS", "ELITE", "BOOST")))
+
+    print("\n--- § lm 4.7.79 ---")
+    p79_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    check("manifest row for lm 4.7.79", "lm-4779-dojo-selftest" in manifest)
+    check("boot menu-fit self-test has a Dojo sample with the new tabs (and Sparring's new tabs)",
+          has(p79_test, 'case "dojo" -> UltraScreenSpec.of("dojo")', '.tabs("home|Home", "dojo_upgrades|Upgrades", "dojo_wars|Wars")',
+              '.tabs("home|Home", "leaderboard|Leaderboard", "sparboard|Spar Board")'))
+
     print("\n--- § lm 4.7.78 ---")
     p78_coin = read(SRC / "currency/AncientCoinEconomy.java")
     p78_skins = read(SRC / "gui/ultra/MenuSkins.java")
@@ -2050,7 +2123,7 @@ def main() -> int:
           "LmHud.ACCENT_CURRENCY" in p78_coin and '"#f0b429"' not in p78_coin
           and "public static int currencyGold(Skin skin)" in p78_skins and "MenuSkins.currencyGold(skin)" in p78_over)
     check("B: search row on More, not Home",
-          "placeSearchRow(spec" in _after(p78_hub, "private static void openMore(").split("\n    }\n", 1)[0]
+          "placeSearchButtons(spec, player, search);" in _after(p78_hub, "private static void openMore(").split("\n    }\n", 1)[0]
           and "placeSearchRow(spec" not in _after(p78_hub, "private static void openMain(").split("\n    }\n", 1)[0])
     check("C: Home has no Change tier / Clear tier; Tiers locked when off, clears the tier; Step 3 only Got it; replay label",
           'UltraStyle.confirm("Change tier")' not in p78_diff and "No tier yet. Pick one in Tiers." in p78_diff
@@ -2286,8 +2359,8 @@ def main() -> int:
     check("breadcrumb and search only for clients whose hello lists nav",
           'FEATURE_NAV = "nav"' in p71_proto and "drawBreadcrumb(" in p71_menu and "clickCrumb(" in p71_menu
           and '"breadcrumb"' in p71_spec and 'action.startsWith("go:")' in p71_act)
-    check("hub: Home, Search, More; search row on Home; 5 recents; no Goals placeholder",
-          '.tabs("home|Home", PAGE_SEARCH + "|Search", PAGE_MORE + "|More");' in p71_hub
+    check("hub search: field row, 5 recents, no Goals placeholder (4.7.80: tabs Home, Goals, More; search on More)",
+          '.tabs("home|Home", PAGE_GOALS + "|Goals", PAGE_MORE + "|More");' in p71_hub
           and "placeSearchRow(spec" in p71_hub and "RECENT_MAX = 5" in p71_hub
           and "No goals yet" not in p71_hub)
 
@@ -2592,9 +2665,9 @@ def main() -> int:
     p64_gui = read(SRC / "net/gui/LmGuiNetwork.java")
     check("manifest row for lm 4.7.64", "lm-4764-central-hub" in manifest)
     # 4.7.71: Goals waits for real weekly goals; the hub tabs are Home, Search, More and old goals links open Search.
-    check("hub: three tabs, Home first (Home, Search, More)",
-          '.tabs("home|Home", PAGE_SEARCH + "|Search", PAGE_MORE + "|More")' in p64_hub
-          and 'case "search", "goals" -> UltraHubScreens.PAGE_SEARCH;' in p64_act)
+    check("hub: three tabs, Home first (4.7.80: Home, Goals, More)",
+          '.tabs("home|Home", PAGE_GOALS + "|Goals", PAGE_MORE + "|More")' in p64_hub
+          and 'case "search", "more" -> UltraHubScreens.PAGE_MORE;' in p64_act)
     check("hub Home: next prestige, Fastest now, Train / Compete / Progress, Prestige full width",
           'UltraStyle.header("Your next prestige")' in p64_hub and "HubDashboard.fastestNow(player)" in p64_hub
           and 'UltraStyle.header("Train")' in p64_hub and 'UltraStyle.header("Compete")' in p64_hub
