@@ -175,7 +175,126 @@ public final class DojoService {
         return s == null ? 1 : Math.max(1, s.seasonId);
     }
 
-    /** Found a dojo alone (free). Returns the line for the menu. */
+    /** The name rule for a dojo (founding and rename): 3 to 24 letters, numbers, spaces and a few marks. */
+    public static String nameProblem(String name) {
+        String n = name == null ? "" : name.trim();
+        if (n.length() < 3 || n.length() > 24 || !n.matches("[A-Za-z0-9 '&.-]+")) {
+            return "Pick a name of 3 to 24 letters, numbers or spaces.";
+        }
+        return null;
+    }
+
+    /** Why this player cannot found a dojo right now, or null. */
+    public static String foundProblem(ServerPlayer p) {
+        UUID id = p.m_20148_();
+        if (dojoOf(id) != null) {
+            return "You're already in a dojo.";
+        }
+        Dojo mine = store().dojos.get(id.toString());
+        if (mine != null && !mine.open) {
+            return "Your dojo is closed. Reopen it from the Dojo tab (every upgrade drops one tier).";
+        }
+        SparStore.MentorBond b = SparStore.get().bondsByPlayer.get(id.toString());
+        if (b != null && b.mentorUuid != null && !b.mentorUuid.isBlank()) {
+            return "Your master's dojo is closed. Ask them to reopen it, or leave the bond to found your own.";
+        }
+        return null;
+    }
+
+    /**
+     * 4.7.78: found a dojo with its first identity: the name the player typed, the style they picked and the banner
+     * design they chose (copied, the item is not taken). Free, and starts no cooldown. The old guards run here.
+     */
+    public static String found(ServerPlayer p, String name, String styleId, String bannerBase, List<String> patterns) {
+        String bad = foundProblem(p);
+        if (bad != null) {
+            return bad;
+        }
+        String nameBad = nameProblem(name);
+        if (nameBad != null) {
+            return nameBad;
+        }
+        DojoCatalog.Style s = DojoCatalog.Style.of(styleId);
+        if (s == null) {
+            return "Pick one of the four styles.";
+        }
+        if (bannerBase == null || bannerBase.isBlank()) {
+            return "Pick a banner you made at a loom first.";
+        }
+        UUID id = p.m_20148_();
+        Dojo d = fresh(id.toString(), p.m_7755_().getString(), System.currentTimeMillis());
+        d.name = name.trim();
+        d.style = s.name();
+        d.bannerBase = bannerBase;
+        d.bannerPatterns = new ArrayList<>(patterns == null ? List.of() : patterns);
+        store().dojos.put(d.masterUuid, d);
+        store().player(d.masterUuid, p.m_7755_().getString());
+        store().markDirty();
+        DojoWorld.ensureBuilt(p.m_20194_(), d);
+        return "You founded " + d.name + ". Your hall starts empty with one sparring mat; upgrades build into it. "
+                + "Spar on the board to start earning Dojo Points.";
+    }
+
+    /** Milliseconds until the name, style or banner may change again (0 when free to change). */
+    public static long identityCooldownLeft(Dojo d) {
+        if (d == null || d.identityChangedAt <= 0L) {
+            return 0L;
+        }
+        return Math.max(0L, d.identityChangedAt + DojoCatalog.IDENTITY_COOLDOWN_MS - System.currentTimeMillis());
+    }
+
+    /** "5h 12m" for the cooldown left. */
+    public static String cooldownText(long ms) {
+        long m = Math.max(1L, (ms + 59_999L) / 60_000L);
+        return m >= 60 ? (m / 60) + "h " + (m % 60) + "m" : m + "m";
+    }
+
+    /** Why an identity change costing {@code cost} cannot happen now, or null (master check is the caller's). */
+    public static String identityChangeProblem(Dojo d, int cost) {
+        long left = identityCooldownLeft(d);
+        if (left > 0L) {
+            return "Your dojo's name, style and banner can change again in " + cooldownText(left) + ".";
+        }
+        if (d.points < cost) {
+            return "That costs " + cost + " Dojo Points. Your dojo has " + d.points + ".";
+        }
+        return null;
+    }
+
+    /** Charge an identity change and start the shared cooldown. Never takes the balance below zero. */
+    static void chargeIdentityChange(Dojo d, int cost) {
+        d.points = Math.max(0, d.points - cost);
+        d.identityChangedAt = System.currentTimeMillis();
+    }
+
+    /**
+     * 4.7.78: set the dojo's banner design (master only). The first banner of a dojo that has none is free and starts
+     * no cooldown; a change costs {@link DojoCatalog#BANNER_CHANGE_COST} and starts the shared cooldown.
+     */
+    public static String setBanner(ServerPlayer p, String bannerBase, List<String> patterns) {
+        Dojo d = dojoOf(p);
+        if (d == null || !isMaster(p.m_20148_(), d)) {
+            return "Only the master can pick the dojo's banner.";
+        }
+        if (bannerBase == null || bannerBase.isBlank()) {
+            return "Hold or carry a banner you made at a loom, then pick it.";
+        }
+        boolean first = d.bannerBase == null || d.bannerBase.isBlank();
+        if (!first) {
+            String bad = identityChangeProblem(d, DojoCatalog.BANNER_CHANGE_COST);
+            if (bad != null) {
+                return bad;
+            }
+            chargeIdentityChange(d, DojoCatalog.BANNER_CHANGE_COST);
+        }
+        d.bannerBase = bannerBase;
+        d.bannerPatterns = new ArrayList<>(patterns == null ? List.of() : patterns);
+        store().markDirty();
+        return first ? "Your dojo flies its new banner." : "Your dojo's banner changed (" + DojoCatalog.BANNER_CHANGE_COST
+                + " Dojo Points).";
+    }
+
+    /** Found a dojo alone (free). Before 4.7.78 this was one tap; the menu now uses the founding flow. */
     public static String found(ServerPlayer p) {
         UUID id = p.m_20148_();
         if (dojoOf(id) != null) {
@@ -236,12 +355,22 @@ public final class DojoService {
             return "Only the master can rename the dojo.";
         }
         String n = name == null ? "" : name.trim();
-        if (n.length() < 3 || n.length() > 24 || !n.matches("[A-Za-z0-9 '&.-]+")) {
-            return "Pick a name of 3 to 24 letters, numbers or spaces.";
+        String nameBad = nameProblem(n);
+        if (nameBad != null) {
+            return nameBad;
         }
+        if (n.equals(d.name)) {
+            return "Your dojo is already called " + n + ".";
+        }
+        // 4.7.78: a rename costs Dojo Points and starts the shared 12-hour identity cooldown.
+        String bad = identityChangeProblem(d, DojoCatalog.NAME_CHANGE_COST);
+        if (bad != null) {
+            return bad;
+        }
+        chargeIdentityChange(d, DojoCatalog.NAME_CHANGE_COST);
         d.name = n;
         store().markDirty();
-        return "Your dojo is now called " + n + ".";
+        return "Your dojo is now called " + n + " (" + DojoCatalog.NAME_CHANGE_COST + " Dojo Points).";
     }
 
     // ------------------------------------------------------------------ Dojo Points and clout
@@ -398,6 +527,15 @@ public final class DojoService {
         }
         if (s.name().equalsIgnoreCase(d.style)) {
             return "Your dojo already trains " + s.label + ".";
+        }
+        // 4.7.78: changing a picked style costs Dojo Points and starts the shared 12-hour identity cooldown; the first
+        // pick (an older dojo with no style yet) is free.
+        if (d.style != null && !d.style.isBlank()) {
+            String bad = identityChangeProblem(d, DojoCatalog.STYLE_CHANGE_COST);
+            if (bad != null) {
+                return bad;
+            }
+            chargeIdentityChange(d, DojoCatalog.STYLE_CHANGE_COST);
         }
         boolean had = !d.bonus.isBlank();
         d.style = s.name();

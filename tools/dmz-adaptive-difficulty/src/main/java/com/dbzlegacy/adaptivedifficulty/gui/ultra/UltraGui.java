@@ -90,6 +90,7 @@ public final class UltraGui {
                 case "difficulty" -> UltraDifficultyScreens.open(data, pg);
                 case "rival" -> UltraRivalScreens.open(data, pg);
                 case "spar" -> UltraSparScreens.open(data, pg);
+                case "dojo" -> UltraDojoScreens.openSystem(data, pg);
                 case "prestige" -> UltraPrestigeScreens.open(data, pg);
                 case "character" -> UltraCharacterScreens.open(data, pg);
                 case "skillcheck" -> UltraSkillCheckScreens.open(data, pg);

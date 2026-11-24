@@ -1252,10 +1252,15 @@ def main() -> int:
         errors.append("UltraSparScreens.openHome must not show Session/Partner (staff Admin only)")
     if "mentor|Mentor bonds" in spar_home_body or "top|Rankings" in spar_home_body:
         errors.append("UltraSparScreens.openHome must not offer Mentor bonds or a Rankings label")
-    if "infamy|Hall of Infamy" not in spar_home_body:
-        errors.append("UltraSparScreens.openHome must label the board Hall of Infamy")
-    if "stats|Your stats" not in spar_home_body:
-        errors.append("UltraSparScreens.openHome must offer Your stats")
+    # 4.7.78: Hall of Infamy and Your stats live on the Leaderboard tab, not Home.
+    spar_lb_m = re.search(r"private static void openLeaderboard\b.*?^\s*private static void ", spar_home, re.S | re.M)
+    spar_lb_body = spar_lb_m.group(0) if spar_lb_m else ""
+    if "infamy|Hall of Infamy" not in spar_lb_body:
+        errors.append("UltraSparScreens Leaderboard tab must label the board Hall of Infamy")
+    if "stats|Your stats" not in spar_lb_body:
+        errors.append("UltraSparScreens Leaderboard tab must offer Your stats")
+    if "infamy|Hall of Infamy" in spar_home_body or "stats|Your stats" in spar_home_body:
+        errors.append("UltraSparScreens.openHome must not offer Hall of Infamy or Your stats (Leaderboard tab)")
     if 'danger("Staff Admin")' not in spar_home_body or 'UltraStyle.STYLE_DANGER' not in spar_home_body:
         errors.append("UltraSparScreens.openHome Staff Admin must be danger/red")
     if "admin|Staff Admin" in spar_home_body:

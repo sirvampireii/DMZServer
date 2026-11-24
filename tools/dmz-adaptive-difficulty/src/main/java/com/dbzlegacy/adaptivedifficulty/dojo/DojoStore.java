@@ -88,6 +88,15 @@ public final class DojoStore {
         public Map<String, Integer> daily = new LinkedHashMap<>();
         /** Upgrade tiers the plot was last built at, so a change rebuilds it. */
         public String builtSignature = "";
+        /**
+         * 4.7.78: the dojo's banner, copied from a loom-made banner the master picked (the item is never taken):
+         * the base colour id ({@code red}, {@code light_blue}, ...) and the patterns as {@code code:colour id}, in order.
+         * Blank base: no banner picked yet.
+         */
+        public String bannerBase = "";
+        public List<String> bannerPatterns = new ArrayList<>();
+        /** 4.7.78: when the name, style or banner last changed after founding (one shared 12-hour cooldown). */
+        public long identityChangedAt;
     }
 
     /** One player's dojo-side record. */

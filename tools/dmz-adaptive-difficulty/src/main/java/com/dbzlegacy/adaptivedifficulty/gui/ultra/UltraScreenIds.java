@@ -31,6 +31,7 @@ public final class UltraScreenIds {
             "difficulty",
             "rival",
             "spar",
+            "dojo",
             "prestige",
             "character",
             "skillcheck",
@@ -54,6 +55,7 @@ public final class UltraScreenIds {
             "difficulty",
             "rival",
             "spar",
+            "dojo",
             "prestige",
             "character",
             "skillcheck",
@@ -73,6 +75,7 @@ public final class UltraScreenIds {
             "difficulty",
             "rival",
             "spar",
+            "dojo",
             "prestige",
             "character",
             "skillcheck",
@@ -163,6 +166,7 @@ public final class UltraScreenIds {
             case "difficulty" -> "difficulty";
             case "rival" -> "rival";
             case "spar" -> "spar";
+            case "dojo", "my_dojo", "mydojo" -> "dojo";
             case "prestige" -> "prestige";
             case "character" -> "character";
             case "saga", "sagareset", "saga_reset" -> "character";

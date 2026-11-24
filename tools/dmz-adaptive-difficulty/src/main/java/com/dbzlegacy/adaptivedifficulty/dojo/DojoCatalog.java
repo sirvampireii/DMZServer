@@ -171,6 +171,12 @@ public final class DojoCatalog {
     /** Race tradition bonus: spar TP on that style's hits, members of one race only. */
     public static final double RACE_PCT = 0.08;
     public static final int BONUS_COST = 40;
+    /** 4.7.78: changing the dojo's identity after founding (master only), from the Dojo Points balance. */
+    public static final int STYLE_CHANGE_COST = 40;
+    public static final int NAME_CHANGE_COST = 20;
+    public static final int BANNER_CHANGE_COST = 20;
+    /** One cooldown for all three identity changes, from the moment any of them is confirmed. */
+    public static final long IDENTITY_COOLDOWN_MS = 12L * 60L * 60L * 1000L;
     public static final long BONUS_COOLDOWN_MS = 7L * 24L * 60L * 60L * 1000L;
     public static final int STYLE_COST = 0;
 
