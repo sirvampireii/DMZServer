@@ -871,6 +871,15 @@ client-side and outside LM's reach:
   turns the HUD portrait to that form while the screen is open. LM never sends that combination.
 - With `rotate:false`, a `local` model follows the player's facing in the world; a stand-in holds still.
 
+### Native HUD (LM 4.7.72): no bridge change
+
+The native HUD is LM-client only (native message 4, hello feature `hud`; `docs/LM_CLIENT.md`). A KaiPath player keeps
+the Underdog boss bar, the TP and death penalty boss bars and the Instinct chat lines exactly as before; nothing new is
+sent on `legacymechanics:gui`. The one visible change on the bridge is the main menu's More tab: a line
+`HUD: rival, TP and penalty info on screen` (or `boss bars and chat lines`), the line "The HUD needs the
+Legacy Mechanics client." and a button `do:hud_toggle` labelled `HUD - ON` / `HUD - OFF`. On KaiPath the button only
+saves the choice for when the player uses the LM client.
+
 ### Form previews in the viewer's look (LM 4.7.71)
 
 Additive fields on the made-up figure's `playerModel.parts` (subject stays `uuid:<id>`, never `local`):

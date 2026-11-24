@@ -139,6 +139,18 @@ Mock sets (4.7.71): the default set (`-Duiprobe.mockset=nav`) draws the live nav
 its search row, a search with results, a dojo upgrade opened from the search (Back to Search, breadcrumb) and a deep
 Prestige page with its breadcrumb. `-Duiprobe.mockset=dojo` draws the 4.7.68 dojo mockups.
 
+## Native HUD (4.7.72)
+
+- Scripted (`hudScript`, both stages): on the LM client every element goes to the HUD with the bar or chat text and
+  no boss bar (TP notice, penalty and its end, Underdog lines joined read as the bar, an Instinct card that opens that
+  rival, the Momentum meter and its hide); on the KaiPath stage nothing goes to the HUD and the bars stay. Instinct
+  off sends no cards, HUD OFF brings the TP bar back, and the More tab switch reads and saves.
+- Real client (FINAL `hud show`): every element up, then `uirecordhud all`: the client closes any menu, records
+  `HudOverlay.debugLayout()` (`HUDREC` in `uiprobe-client.txt`, shot `ui-rec-hud-all.png`) and answers
+  `uihudrec all <elements>`; the server scores it (`HUD CLIENT ... PASS`: all five on the LM client, none on KaiPath).
+- Mock (`-Duiprobe.mock=true -Duiprobe.mockset=hud`): the More tab with the switch, then the HUD at GUI 2/3/4
+  (`ui-hud-hud-on-*.png`) and the same moment as boss bars and chat lines (`ui-hud-hud-off-*.png`).
+
 ## Navigation audit (4.7.71)
 
 Every full run checks the page registry (`gui/ultra/PageRegistry.java`) against the real menus before the scripted

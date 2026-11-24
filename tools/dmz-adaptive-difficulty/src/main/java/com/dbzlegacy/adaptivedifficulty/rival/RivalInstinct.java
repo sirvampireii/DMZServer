@@ -122,15 +122,15 @@ public final class RivalInstinct {
             String tag = st == RivalStatus.NEMESIS ? "Nemesis" : "Mutual";
 
             if (!wasNear) {
-                String arrive = LmChat.note("Instinct", "§e" + link.name
-                        + " §7arrived (" + (int) dist + "m)");
-                arrive += " §7— feels " + relative(myReleased, theirReleased);
-                arrive += " §8[" + tag + "]";
-                alert(nearKey + ":arrive", arrive, player, now, RivalConstants.INSTINCT_ARRIVE_CD_MS);
+                String arriveHead = "§e" + link.name + " §7arrived (" + (int) dist + "m)";
+                String arriveTail = " §7— feels " + relative(myReleased, theirReleased) + " §8[" + tag + "]";
+                String arrive = LmChat.note("Instinct", arriveHead) + arriveTail;
+                alert(nearKey + ":arrive", "arrive", arrive, arriveHead + arriveTail, rivalId,
+                        player, now, RivalConstants.INSTINCT_ARRIVE_CD_MS);
             } else {
-                alert(nearKey + ":bp",
-                        LmChat.info("Instinct", "§e" + link.name
-                                + " §7still nearby — released BP ~ §f" + DmzRewards.formatWhole(theirReleased)),
+                String bp = "§e" + link.name + " §7still nearby — released BP ~ §f"
+                        + DmzRewards.formatWhole(theirReleased);
+                alert(nearKey + ":bp", "status", LmChat.info("Instinct", bp), bp, rivalId,
                         player, now, RivalConstants.INSTINCT_STATUS_CD_MS);
             }
 
@@ -139,20 +139,20 @@ public final class RivalInstinct {
                 Status status = data == null ? null : data.getStatus();
                 if (status != null) {
                     if (status.isChargingKi() || status.isActionCharging()) {
-                        alert(nearKey + ":charge",
-                                LmChat.fail("Instinct", "§e" + link.name + " §cis charging ki!"),
+                        String body = "§e" + link.name + " §cis charging ki!";
+                        alert(nearKey + ":charge", "charge", LmChat.fail("Instinct", body), body, rivalId,
                                 player, now, RivalConstants.INSTINCT_EVENT_CD_MS);
                     }
                     if (status.isAuraActive()) {
-                        alert(nearKey + ":aura",
-                                LmChat.note("Instinct", "§e" + link.name + " §dtransformation / aura surge!"),
+                        String body = "§e" + link.name + " §dtransformation / aura surge!";
+                        alert(nearKey + ":aura", "surge", LmChat.note("Instinct", body), body, rivalId,
                                 player, now, RivalConstants.INSTINCT_EVENT_CD_MS);
                     }
                     if (status.getFusionPartnerUUID() != null || status.isFusionLeader()) {
                         String fname = status.getFusionName();
-                        alert(nearKey + ":fusion",
-                                LmChat.note("Instinct", "§e" + link.name + " §5is fused"
-                                        + (fname == null || fname.isBlank() ? "!" : " (" + fname + ")!")),
+                        String body = "§e" + link.name + " §5is fused"
+                                + (fname == null || fname.isBlank() ? "!" : " (" + fname + ")!");
+                        alert(nearKey + ":fusion", "fusion", LmChat.note("Instinct", body), body, rivalId,
                                 player, now, RivalConstants.INSTINCT_EVENT_CD_MS);
                     }
                 }
@@ -161,8 +161,8 @@ public final class RivalInstinct {
                 // Detect real form spikes via form⊕stack mult (not CR/BP) so Android
                 // Inf BP and released-stat CR cannot false-trigger or miss surges.
                 if (prev != null && formMult > prev * 1.15 && formMult > 1.12) {
-                    alert(nearKey + ":form",
-                            LmChat.note("Instinct", "§e" + link.name + " §dpower surged!"),
+                    String body = "§e" + link.name + " §dpower surged!";
+                    alert(nearKey + ":form", "power", LmChat.note("Instinct", body), body, rivalId,
                             player, now, RivalConstants.INSTINCT_EVENT_CD_MS);
                 }
             } catch (Throwable ignored) {
@@ -170,12 +170,28 @@ public final class RivalInstinct {
         }
     }
 
-    private static void alert(String key, String message, ServerPlayer player, long now, long cd) {
+    /**
+     * One Instinct alert, on the same cooldowns as always. A native HUD player gets a card (kind, then the chat
+     * line's text without the "Instinct" tag; a click opens that rival) instead of the chat line.
+     */
+    private static void alert(String key, String kind, String message, String card, UUID rivalId,
+            ServerPlayer player, long now, long cd) {
         Long last = COOLDOWNS.get(key);
         if (last != null && now - last < cd) {
             return;
         }
         COOLDOWNS.put(key, now);
+        deliver(player, kind, message, card, rivalId);
+    }
+
+    /** Chat line or HUD card for one alert (the UI probe calls this to compare the two). */
+    public static void deliver(ServerPlayer player, String kind, String message, String card, UUID rivalId) {
+        if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.INSTINCT, java.util.List.of(kind, card), -1f,
+                    com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ACCENT_RIVAL, rivalId == null ? "open:rival" : "go:rival|list_detail:" + rivalId,
+                    com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.INSTINCT_MS, false);
+            return;
+        }
         DmzRewards.msg(player, message);
     }
 

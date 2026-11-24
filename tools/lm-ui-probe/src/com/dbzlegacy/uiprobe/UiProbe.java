@@ -1,5 +1,6 @@
 package com.dbzlegacy.uiprobe;
 
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.NavHistory;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.PageRegistry;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGui;
@@ -79,6 +80,9 @@ public final class UiProbe {
         if (e.getRawText().startsWith("uinext")) {
             advance = true;
             e.setCanceled(true);
+        } else if (e.getRawText().startsWith("uihudrec")) {
+            e.setCanceled(true);
+            hudReport(e.getRawText());
         }
     }
 
@@ -557,6 +561,7 @@ public final class UiProbe {
         dojoScript();
         navScript();
         formFigureScript();
+        hudScript();
     }
 
     // ---- 4.7.71 navigation audit and scripted checks (test only) ----
@@ -1753,6 +1758,9 @@ public final class UiProbe {
         {"dojo", "warstart"}, {"wait", "1700"}, {"say", "uirecord war1-bout"}, {"dojo", "warringout"}, {"wait", "100"},
         {"dojo", "warcheck"}, {"dojo", "warstart2"}, {"wait", "1700"}, {"dojo", "warringout"}, {"wait", "100"},
         {"dojo", "warcheck"},
+        // 4.7.72: the native HUD on the real client: every element up, the client reports what it drew (nothing on
+        // a KaiPath-only stage, where the bars and chat lines stay), a screenshot, then everything down.
+        {"hud", "show"}, {"wait", "30"}, {"say", "uirecordhud all"}, {"wait", "60"}, {"hud", "hide"}, {"wait", "20"},
         {"trialcheck"},
         // Last, because the probe player dies in both (stand-ins are Forge fake players, which take no damage):
         // a zombie's lethal hit in a Friendly Fist spar still kills; with Friendly Fist off a partner's still kills.
@@ -2263,6 +2271,9 @@ public final class UiProbe {
 
     private void finalTick() {
         if (MOCK) {
+            if ("hud".equals(System.getProperty("uiprobe.mockset", "nav")) && mockHudTick()) {
+                return;
+            }
             if (!mockDone) {
                 mockDone = true;
                 write("uiprobe-script.txt", scriptLog.toString(), false);
@@ -2300,6 +2311,7 @@ public final class UiProbe {
             case "custom" -> customFinal(st[1]);
             case "part" -> partFinal(st[1]);
             case "dojo" -> dojoFinal(st[1]);
+            case "hud" -> hudFinal(st[1]);
             case "guidereset" -> {
                 guideReset();
                 note("FINAL guide reset done=" + guideDone());
@@ -2325,6 +2337,367 @@ public final class UiProbe {
         }
     }
 
+    // ---- 4.7.72 native HUD (test only) ----
+    private static final String HUD_PKG = "com.dbzlegacy.adaptivedifficulty.";
+    /** Elements the client must report drawn after the FINAL "hud show" step (empty on a bridge stage). */
+    private String hudExpect = "";
+    private int mockHudStep;
+    private boolean mockHudWaiting;
+
+    private static boolean mapHas(Class<?> c, String field, Object key) {
+        try {
+            java.lang.reflect.Field f = c.getDeclaredField(field);
+            f.setAccessible(true);
+            return ((Map<?, ?>) f.get(null)).containsKey(key);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** The probe player's captured packets for {@code element} (stand-ins are skipped). */
+    private List<com.dbzlegacy.adaptivedifficulty.net.gui.NativeHudPacket> of(List<LmHud.Sent> sent, String element) {
+        List<com.dbzlegacy.adaptivedifficulty.net.gui.NativeHudPacket> out = new ArrayList<>();
+        for (LmHud.Sent s : sent) {
+            if (s.player().equals(player.m_20148_()) && s.packet().element().equals(element)) {
+                out.add(s.packet());
+            }
+        }
+        return out;
+    }
+
+    private static com.dbzlegacy.adaptivedifficulty.rival.ProvingGrounds.Grounds probeGrounds(ServerPlayer p) {
+        var g = new com.dbzlegacy.adaptivedifficulty.rival.ProvingGrounds.Grounds();
+        g.active = true;
+        g.name = "Probe Grounds";
+        g.tier = 3;
+        g.championUuid = java.util.UUID.nameUUIDFromBytes("uiprobe:champion".getBytes(StandardCharsets.UTF_8)).toString();
+        g.championName = "Kaito";
+        g.battles = 7;
+        return g;
+    }
+
+    /** A rival link whose Proving Grounds sit under the probe player, so the real once-a-second check shows it. */
+    private void groundsLink(boolean on) {
+        var rec = com.dbzlegacy.adaptivedifficulty.rival.RivalStore.get().ensurePlayer(player);
+        if (rec == null) {
+            return;
+        }
+        if (!on) {
+            rec.rivals.remove(PROBE_RIVAL.toString());
+            com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.tick(player);
+            return;
+        }
+        var link = new com.dbzlegacy.adaptivedifficulty.rival.RivalLink();
+        link.name = "Kaito";
+        var g = probeGrounds(player);
+        g.x = player.m_20185_();
+        g.y = player.m_20186_();
+        g.z = player.m_20189_();
+        g.radius = 48;
+        link.provingGrounds = g;
+        rec.rivals.put(PROBE_RIVAL.toString(), link);
+    }
+
+    private static final java.util.UUID PROBE_RIVAL =
+            java.util.UUID.nameUUIDFromBytes("uiprobe:rival".getBytes(StandardCharsets.UTF_8));
+
+    private static String instinctBody() {
+        return UltraStyle.color("e", "Kaito") + " " + UltraStyle.color("c", "is charging ki!");
+    }
+
+    /**
+     * The HUD on this stage's client: on the LM client every element goes to the HUD with the bar or chat text and
+     * no boss bar; on a bridge client (KaiPath) nothing goes to the HUD and the boss bars stay. Instinct off sends no
+     * cards, HUD off brings the bars back, and the More tab switch reads and saves.
+     */
+    private void hudScript() {
+        var srv = player.m_20194_();
+        java.util.UUID u = player.m_20148_();
+        boolean hud = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesHud(player);
+        String stage = hud ? "LM client" : "bridge";
+        LmHud.set(player, true);
+        note("HUD stage " + stage + ": client takes hud=" + hud);
+
+        // TP notice
+        String tpText = "+12 TP (probe notice)";
+        List<LmHud.Sent> tp = LmHud.capture(() -> com.dbzlegacy.adaptivedifficulty.util.TpBossNotify.show(player, tpText,
+                net.minecraft.ChatFormatting.GREEN, "", 0L));
+        boolean tpBar = mapHas(com.dbzlegacy.adaptivedifficulty.util.TpBossNotify.class, "BARS", u);
+        var tpP = of(tp, LmHud.TP);
+        if (hud) {
+            note("HUD TP notice on the HUD with the bar's text, drains 3 s, no boss bar: " + pf(tpP.size() == 1
+                    && tpP.get(0).lines().equals(List.of(tpText)) && tpP.get(0).drain()
+                    && tpP.get(0).durationMs() == 3000 && !tpBar));
+        } else {
+            note("HUD bridge TP notice stays a boss bar, nothing for the HUD: " + pf(tp.isEmpty() && tpBar));
+        }
+
+        // Death TP penalty
+        String key = com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.KEY;
+        com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess.putLong(player, key,
+                System.currentTimeMillis() + com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.DURATION_MS);
+        String penBefore = com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.currentText(player);
+        List<LmHud.Sent> pen = LmHud.capture(() -> com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.pulse(srv, 20));
+        boolean penBar = mapHas(com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.class, "BARS", u);
+        String penText = com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.currentText(player);
+        var penP = of(pen, LmHud.PENALTY);
+        if (hud) {
+            note("HUD penalty on the HUD with the bar's text and fraction, opens Difficulty, no boss bar: "
+                    + pf(penP.size() == 1 && (penP.get(0).lines().equals(List.of(penText))
+                    || penP.get(0).lines().equals(List.of(penBefore)))
+                    && penP.get(0).progress() > 0.95f && "open:difficulty".equals(penP.get(0).action()) && !penBar)
+                    + " | sent " + (penP.isEmpty() ? "none" : penP.size() + "x " + penP.get(0).lines() + " p="
+                    + penP.get(0).progress() + " " + penP.get(0).action()) + " bar=" + penBar + " | now " + penText);
+        } else {
+            note("HUD bridge penalty stays a boss bar: " + pf(pen.isEmpty() && penBar) + " | " + penText);
+        }
+        com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess.putLong(player, key, System.currentTimeMillis() - 1000L);
+        List<LmHud.Sent> penEnd = LmHud.capture(() -> com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.pulse(srv, 20));
+        boolean penGone = !mapHas(com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.class, "BARS", u);
+        note("HUD penalty end hides it (" + stage + "): " + pf(penGone && (hud
+                ? of(penEnd, LmHud.PENALTY).stream().anyMatch(x -> !x.show()) : penEnd.isEmpty())));
+
+        // Underdog through the real grounds check: a pill with the bar's parts on the HUD, else the boss bar
+        groundsLink(true);
+        List<LmHud.Sent> ud = LmHud.capture(() -> com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.tick(player));
+        boolean udBar = mapHas(com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.class, "BARS", u);
+        var udP = of(ud, LmHud.UNDERDOG);
+        if (hud) {
+            note("HUD Underdog pill on the grounds, the bar's text, opens Rival, no boss bar: " + pf(udP.size() == 1
+                    && udP.get(0).lines().size() == 3 && LmHud.joined(udP.get(0).lines()).contains("Champion Kaito - 7 battles")
+                    && "open:rival".equals(udP.get(0).action()) && !udBar)
+                    + " | " + (udP.isEmpty() ? "none" : LmHud.joined(udP.get(0).lines())));
+        } else {
+            note("HUD bridge Underdog stays a boss bar: " + pf(ud.isEmpty() && udBar));
+        }
+        groundsLink(false);
+        note("HUD Underdog leaves with the grounds (" + stage + "): " + pf(!mapHas(
+                com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.class, "BARS", u)
+                && !LmHud.showing(player, LmHud.UNDERDOG)));
+
+        // Underdog: the pill's lines read as the bar
+        String[] parts = com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.barParts(probeGrounds(player), u.toString());
+        List<String> lines = com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.hudLines(parts);
+        note("HUD Underdog pill lines read exactly as the bar: " + pf(LmHud.joined(lines)
+                .equals(com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.join(parts))
+                && "You are the underdog challenger".equals(parts[4]) && lines.size() == 3)
+                + " | " + com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.join(parts));
+
+        // Rival Instinct
+        String body = instinctBody();
+        String chatLine = com.dbzlegacy.adaptivedifficulty.util.LmChat.fail("Instinct", body);
+        List<LmHud.Sent> ins = LmHud.capture(() -> com.dbzlegacy.adaptivedifficulty.rival.RivalInstinct.deliver(player,
+                "charge", chatLine, body, PROBE_RIVAL));
+        var insP = of(ins, LmHud.INSTINCT);
+        if (hud) {
+            note("HUD Instinct card instead of the chat line, same text, opens that rival, 4 s: " + pf(insP.size() == 1
+                    && insP.get(0).lines().equals(List.of("charge", body))
+                    && UltraStyle.plain(chatLine).endsWith(UltraStyle.plain(body))
+                    && ("go:rival|list_detail:" + PROBE_RIVAL).equals(insP.get(0).action())
+                    && insP.get(0).durationMs() == 4000));
+        } else {
+            note("HUD bridge Instinct stays a chat line: " + pf(ins.isEmpty()));
+        }
+        var rec = com.dbzlegacy.adaptivedifficulty.rival.RivalStore.get().ensurePlayer(player);
+        boolean wasOn = rec == null || rec.instinctEnabled;
+        if (rec != null) {
+            rec.instinctEnabled = false;
+        }
+        List<LmHud.Sent> insOff = LmHud.capture(() -> com.dbzlegacy.adaptivedifficulty.rival.RivalInstinct.pulse(srv,
+                System.currentTimeMillis() + 120_000L));
+        note("HUD Instinct off sends no cards: " + pf(of(insOff, LmHud.INSTINCT).isEmpty()));
+        if (rec != null) {
+            rec.instinctEnabled = wasOn;
+        }
+
+        // Momentum meter
+        boolean momOn = com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig.get().momentumEnabled;
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.bank(player);
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.markFight(player);
+        List<LmHud.Sent> mom = LmHud.capture(() -> com.dbzlegacy.adaptivedifficulty.progression.Momentum.hudPulse(srv, 20));
+        var momP = of(mom, LmHud.MOMENTUM);
+        long left = com.dbzlegacy.adaptivedifficulty.progression.Momentum.remainingMillis(player);
+        if (hud && momOn) {
+            String want = com.dbzlegacy.adaptivedifficulty.progression.Momentum.meterText(left);
+            note("HUD Momentum meter while banked and fighting, the menu's clock: " + pf(momP.size() == 1
+                    && momP.get(0).show() && momP.get(0).lines().size() == 1
+                    && momP.get(0).lines().get(0).startsWith("Momentum ")
+                    && Math.abs(clockSecs(momP.get(0).lines().get(0)) - clockSecs(want)) <= 1
+                    && momP.get(0).progress() > 0f) + " | " + (momP.isEmpty() ? "none" : momP.get(0).lines()));
+        } else {
+            note("HUD Momentum meter not sent (" + stage + ", momentum " + (momOn ? "on" : "off") + "): "
+                    + pf(momP.isEmpty()));
+        }
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);
+        List<LmHud.Sent> momEnd = LmHud.capture(() -> com.dbzlegacy.adaptivedifficulty.progression.Momentum.hudPulse(srv, 20));
+        if (hud && momOn) {
+            note("HUD Momentum meter hides when the bank is empty: "
+                    + pf(of(momEnd, LmHud.MOMENTUM).stream().anyMatch(x -> !x.show())));
+        }
+
+        // HUD off brings the bars back
+        if (hud) {
+            LmHud.set(player, false);
+            List<LmHud.Sent> tp2 = LmHud.capture(() -> com.dbzlegacy.adaptivedifficulty.util.TpBossNotify.show(player,
+                    "+3 TP (probe, HUD off)", net.minecraft.ChatFormatting.GREEN, "", 0L));
+            note("HUD OFF: the TP notice is a boss bar again, nothing for the HUD: " + pf(tp2.isEmpty()
+                    && mapHas(com.dbzlegacy.adaptivedifficulty.util.TpBossNotify.class, "BARS", u)));
+            LmHud.set(player, true);
+        }
+
+        // The More tab switch
+        for (GuiOpenPacket p : keep("hud more tab", () -> UltraGui.open(player, "hub", "more"))) {
+            note("HUD switch on the More tab reads HUD - ON: " + pf(labels(p).contains("HUD - ON")) + " | " + labels(p));
+        }
+        JsonObject a = new JsonObject();
+        a.addProperty("screen", "hub");
+        a.addProperty("page", "more");
+        for (GuiOpenPacket p : keep("hud switch off", () -> UltraGuiActions.dispatch(player, "hub",
+                "do:" + LmHud.ACTION_TOGGLE, a.toString()))) {
+            note("HUD switch flips to OFF and saves: " + pf(labels(p).contains("HUD - OFF") && !LmHud.enabled(player)));
+        }
+        LmHud.set(player, true);
+    }
+
+    private static int clockSecs(String text) {
+        try {
+            String c = text.substring(text.lastIndexOf(' ') + 1);
+            String[] mmss = c.split(":");
+            return Integer.parseInt(mmss[0]) * 60 + Integer.parseInt(mmss[1]);
+        } catch (Exception e) {
+            return -100;
+        }
+    }
+
+    /** Put every HUD element up (the HUD on the LM client; boss bars and chat on a bridge stage). */
+    private void hudShowAll(int tpMs) {
+        var srv = player.m_20194_();
+        boolean hud = LmHud.active(player);
+        // The real grounds check shows the Underdog (pill or bar) within a second.
+        groundsLink(true);
+        com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.tick(player);
+        if (hud) {
+            LmHud.show(player, LmHud.TP, List.of("+12 TP (Rival win)"), 1f, "#55ff55", "", tpMs, true);
+        } else {
+            hudBar("+12 TP (Rival win)", net.minecraft.world.BossEvent.BossBarColor.GREEN, 1f);
+        }
+        String body = instinctBody();
+        com.dbzlegacy.adaptivedifficulty.rival.RivalInstinct.deliver(player, "charge",
+                com.dbzlegacy.adaptivedifficulty.util.LmChat.fail("Instinct", body), body, PROBE_RIVAL);
+        String arrive = UltraStyle.color("e", "Mira") + " " + UltraStyle.color("7", "arrived (24m) - feels stronger")
+                + " " + UltraStyle.color("8", "[Nemesis]");
+        com.dbzlegacy.adaptivedifficulty.rival.RivalInstinct.deliver(player, "arrive",
+                com.dbzlegacy.adaptivedifficulty.util.LmChat.note("Instinct", arrive), arrive, PROBE_RIVAL);
+        com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess.putLong(player,
+                com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.KEY, System.currentTimeMillis() + 552_000L);
+        com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.pulse(srv, 20);
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.bank(player);
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.bank(player);
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.bank(player);
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.bank(player);
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.markFight(player);
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.hudPulse(srv, 20);
+    }
+
+    private final List<net.minecraft.server.level.ServerBossEvent> hudBars = new ArrayList<>();
+
+    private void hudBar(String text, net.minecraft.world.BossEvent.BossBarColor color, float progress) {
+        var bar = new net.minecraft.server.level.ServerBossEvent(Component.m_237113_(text), color,
+                net.minecraft.world.BossEvent.BossBarOverlay.PROGRESS);
+        bar.m_142711_(progress);
+        bar.m_6543_(player);
+        hudBars.add(bar);
+    }
+
+    /** Take everything down again (penalty expired, bank cleared, HUD elements hidden, mock bars removed). */
+    private void hudHideAll() {
+        var srv = player.m_20194_();
+        com.dbzlegacy.adaptivedifficulty.util.PersistentDataAccess.putLong(player,
+                com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.KEY, System.currentTimeMillis() - 1000L);
+        com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.pulse(srv, 20);
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);
+        com.dbzlegacy.adaptivedifficulty.progression.Momentum.hudPulse(srv, 20);
+        groundsLink(false);
+        LmHud.hideAll(player);
+        for (var bar : hudBars) {
+            bar.m_7706_();
+        }
+        hudBars.clear();
+    }
+
+    /** FINAL steps: put the HUD up for the client to record, then take it down. */
+    private void hudFinal(String step) {
+        try {
+            switch (step) {
+                case "show" -> {
+                    player.m_150110_().f_35934_ = true;
+                    player.m_6885_();
+                    LmHud.set(player, true);
+                    hudShowAll(20_000);
+                    hudExpect = LmHud.active(player) ? "underdog,tp,penalty,instinct,momentum" : "";
+                    note("FINAL hud show expect=" + (hudExpect.isEmpty() ? "nothing (bridge)" : hudExpect));
+                }
+                case "hide" -> {
+                    hudHideAll();
+                    write("uiprobe-script.txt", scriptLog.toString(), false);
+                }
+                default -> { }
+            }
+        } catch (Throwable t) {
+            note("HUD step " + step + " ERROR " + t);
+            LOG.error("hud step", t);
+        }
+    }
+
+    /** The client's report of what its HUD drew ("uihudrec tag element,element,..."). */
+    private void hudReport(String raw) {
+        String[] f = raw.split(" ", 3);
+        String tag = f.length > 1 ? f[1] : "?";
+        String got = f.length > 2 ? f[2].trim() : "";
+        java.util.Set<String> drawn = new java.util.HashSet<>(List.of(got.isEmpty() ? new String[0] : got.split(",")));
+        java.util.Set<String> want = new java.util.HashSet<>(List.of(hudExpect.isEmpty() ? new String[0] : hudExpect.split(",")));
+        note("HUD CLIENT " + tag + " drew " + (got.isEmpty() ? "nothing" : got) + ": "
+                + pf(drawn.equals(want)) + (want.isEmpty() ? " (bridge: no HUD, bars and chat as before)" : ""));
+        write("uiprobe-script.txt", scriptLog.toString(), false);
+    }
+
+    /** Mock (-Duiprobe.mockset=hud): the HUD on, then the same moment as boss bars and chat (HUD off). */
+    private boolean mockHudTick() {
+        if (mockHudWaiting) {
+            if (!advance) {
+                return true;
+            }
+            advance = false;
+            mockHudWaiting = false;
+        }
+        switch (mockHudStep++) {
+            case 0 -> {
+                LmHud.set(player, true);
+                hudShowAll(60_000);
+                note("MOCK hud on");
+                say("uihudshot hud-on");
+                mockHudWaiting = true;
+            }
+            case 1 -> {
+                hudHideAll();
+                LmHud.set(player, false);
+                hudShowAll(60_000);
+                note("MOCK hud off (boss bars and chat)");
+                say("uihudshot hud-off");
+                mockHudWaiting = true;
+            }
+            case 2 -> {
+                hudHideAll();
+                LmHud.set(player, true);
+                return false;
+            }
+            default -> {
+                return false;
+            }
+        }
+        return true;
+    }
+
     // ---- 4.7.68 menu mockups (-Duiprobe.mock=true, test only) ----
     // The proposed dojo menus, built with LM's real spec API and drawn by the real LM client in the current look, so
     // a mockup is exactly what the screen will look like. No crawl and no checks: each page is shot at GUI 2, 3 and 4,
@@ -2346,6 +2719,11 @@ public final class UiProbe {
 
     private void mockCrawl() {
         firstScript = 0;
+        if ("hud".equals(System.getProperty("uiprobe.mockset", "nav"))) {
+            // 4.7.72: the More tab with the HUD switch; the HUD itself is shot in finalTick (mockHudTick).
+            mock("more tab hud switch", () -> UltraGui.open(player, "hub", "more"));
+            return;
+        }
         if (!"dojo".equals(System.getProperty("uiprobe.mockset", "nav"))) {
             mockNav();
             return;

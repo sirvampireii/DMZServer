@@ -27,11 +27,17 @@ public final class ProvingGroundsBar {
         if (player == null) {
             return;
         }
-        String text = DifficultyConfig.get().enableRivalSystem ? textFor(player) : null;
-        if (text == null) {
+        String[] parts = DifficultyConfig.get().enableRivalSystem ? partsFor(player) : null;
+        if (parts == null) {
             hide(player);
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.UNDERDOG);
+        } else if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+            // 4.7.72: the native HUD draws the same text as a pill; no boss bar for this player.
+            hide(player);
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.UNDERDOG, hudLines(parts), -1f, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ACCENT_RIVAL, "open:rival", 0, false);
         } else {
-            show(player, text);
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.UNDERDOG);
+            show(player, join(parts));
         }
     }
 
@@ -41,6 +47,12 @@ public final class ProvingGroundsBar {
 
     /** Bar text for the first own-pair claim the player stands in, or null when none. */
     static String textFor(ServerPlayer player) {
+        String[] parts = partsFor(player);
+        return parts == null ? null : join(parts);
+    }
+
+    /** The bar's five parts (grounds, tier, champion, battles, role) for the claim the player stands in, or null. */
+    static String[] partsFor(ServerPlayer player) {
         String myUuid = player.m_20148_().toString();
         RivalPlayerRecord me = RivalStore.get().get(myUuid);
         if (me == null || me.rivals == null || me.rivals.isEmpty()) {
@@ -54,12 +66,33 @@ public final class ProvingGroundsBar {
             if (!pg.active || !ProvingGrounds.onGrounds(player, pg)) {
                 continue;
             }
-            return barText(pg, myUuid);
+            return barParts(pg, myUuid);
         }
         return null;
     }
 
     static String barText(ProvingGrounds.Grounds pg, String myUuid) {
+        return join(barParts(pg, myUuid));
+    }
+
+    /** The bar text: the parts joined with " - ". */
+    public static String join(String[] parts) {
+        return String.join(" - ", parts);
+    }
+
+    /**
+     * 4.7.72 HUD pill lines from the same parts: the grounds (names run long), then tier (Legendary in gold),
+     * champion and battles, then the role.
+     * Joined with " - " (colour codes aside) they read exactly as the bar.
+     */
+    public static java.util.List<String> hudLines(String[] parts) {
+        String tier = "Legendary".equals(parts[1])
+                ? com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("6", parts[1]) : parts[1];
+        return java.util.List.of(parts[0], tier + " - " + parts[2] + " - " + parts[3], parts[4]);
+    }
+
+    /** The bar's parts: grounds, tier, "Champion name", "n battles", role. */
+    public static String[] barParts(ProvingGrounds.Grounds pg, String myUuid) {
         String tier = pg.tier >= 3 ? "Legendary" : (pg.tier >= 2 ? "Dominant" : "Claimed");
         String champion = pg.championName == null || pg.championName.isBlank() ? "-" : pg.championName;
         String role;
@@ -70,8 +103,8 @@ public final class ProvingGroundsBar {
         } else {
             role = "You are the underdog challenger";
         }
-        return ProvingGrounds.displayName(pg) + " - " + tier + " - Champion " + champion
-                + " - " + pg.battles + (pg.battles == 1 ? " battle" : " battles") + " - " + role;
+        return new String[] {ProvingGrounds.displayName(pg), tier, "Champion " + champion,
+                pg.battles + (pg.battles == 1 ? " battle" : " battles"), role};
     }
 
     private static void show(ServerPlayer player, String text) {

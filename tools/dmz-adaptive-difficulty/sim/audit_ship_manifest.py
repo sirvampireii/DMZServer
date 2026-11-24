@@ -474,7 +474,8 @@ def main() -> int:
           and "!text.equals(TEXT.get(id))" in pg_bar and "BARS.remove(id)" in pg_bar)
     check("bar text names the grounds, tier, champion, battles, and the viewer's role",
           "ProvingGrounds.displayName(pg)" in pg_bar and '"Legendary"' in pg_bar and '"Dominant"' in pg_bar
-          and '"Claimed"' in pg_bar and '" - Champion "' in pg_bar and "pg.battles" in pg_bar
+          and '"Claimed"' in pg_bar and '"Champion " + champion' in pg_bar and 'String.join(" - ", parts)' in pg_bar
+          and "pg.battles" in pg_bar
           and '"You are the champion"' in pg_bar and '"You are the underdog challenger"' in pg_bar)
 
     # Mirror of ProvingGrounds.challengeTpMultiplier and the reclaim payout.
@@ -643,7 +644,8 @@ def main() -> int:
           and "PENALTY_AMPLIFIER = -3;" in dp and "Death penalty ended. TP gain is back to normal." in dp
           and "Death penalty refreshed." in dp)
     check("pulse hides a bar with no timer; expiry hides; showBar never raises an inactive penalty",
-          "if (BARS.containsKey(player.m_20148_())) {\n                    hideBar(player);" in dp_pulse
+          # 4.7.72: a HUD pill with no timer is hidden the same way.
+          "if (BARS.containsKey(player.m_20148_())\n                        || com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.showing(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.PENALTY)) {\n                    hideBar(player);" in dp_pulse
           and "clearExpired(player, true);" in dp_pulse and dp_clear.count("hideBar(player);") == 2
           and "if (!active(player)) {\n                return;" in dp_show)
     check("respawn instance swap: bar moves to the new player; hide removes every holder",
@@ -1999,6 +2001,52 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.72 ---")
+    p72_hud = read(SRC / "gui/ultra/LmHud.java")
+    p72_pkt = read(SRC / "net/gui/NativeHudPacket.java")
+    p72_net = read(SRC / "net/gui/LmNativeNetwork.java")
+    p72_proto = read(SRC / "net/gui/LmNativeProtocol.java")
+    p72_over = read(SRC / "client/HudOverlay.java")
+    p72_client = read(SRC / "client/LmClient.java")
+    p72_pg = read(SRC / "rival/ProvingGroundsBar.java")
+    p72_ins = read(SRC / "rival/RivalInstinct.java")
+    p72_tp = read(SRC / "util/TpBossNotify.java")
+    p72_pen = read(SRC / "progression/tp/DeathTpPenalty.java")
+    p72_mom = read(SRC / "progression/Momentum.java")
+    p72_prog = read(SRC / "progression/ProgressionSystem.java")
+    p72_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p72_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    p72_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    check("manifest row for lm 4.7.72", "lm-4772-native-hud" in manifest)
+    check("native HUD: message 4 only to LM clients whose hello lists hud; never on the bridge",
+          "MSG_HUD = 4" in p72_proto and 'FEATURE_HUD = "hud"' in p72_proto and "a.add(FEATURE_HUD);" in p72_proto
+          and "LmNativeProtocol.MSG_HUD, NetworkDirection.PLAY_TO_CLIENT" in p72_net
+          and "takesHud(player)) {" in p72_net
+          and "return player != null && LmNativeNetwork.takesHud(player) && enabled(player);" in p72_hud)
+    check("HUD switch per account, default on; Off hides the HUD so bars and chat come back",
+          'static final String KEY = "lm_hud";' in p72_hud and "return !t.m_128441_(\"on\") || t.m_128471_(\"on\");" in p72_hud
+          and "hideAll(player);" in p72_hud and "LmHud.ACTION_TOGGLE" in p72_hub and "LmHud.applyAction(viewer" in p72_act)
+    check("Underdog: same parts as the bar, no bar for a HUD player",
+          "hudLines(parts)" in p72_pg and "show(player, join(parts));" in p72_pg
+          and 'return String.join(" - ", parts);' in p72_pg)
+    check("Instinct: a card instead of the chat line, same cooldowns, a click opens that rival",
+          "public static void deliver(ServerPlayer player" in p72_ins and '"go:rival|list_detail:" + rivalId' in p72_ins
+          and "DmzRewards.msg(player, message);" in p72_ins and "COOLDOWNS.put(key, now);" in p72_ins)
+    check("TP notice: same text, drains over SHOW_MS on the client, no boss bar for a HUD player",
+          "(int) SHOW_MS, true);" in p72_tp and "hide(id);" in p72_tp)
+    check("Death penalty: same text and fraction as the bar",
+          "java.util.List.of(barText(player)), progress(player)" in p72_pen and "bar.m_142711_(progress(player));" in p72_pen)
+    check("Momentum meter: the menu's clock, banked against the cap, only while fighting in the last 10 s",
+          "MOMENTUM_FIGHT_MS = 10_000L" in p72_hud and "meterText(left)" in p72_mom
+          and "Momentum.hudPulse(server, tick)" in p72_prog and "LAST_FIGHT.put(" in p72_mom)
+    check("client: baked chrome per size/scale/skin, text laid out on arrival, clicks in chat, unbound key",
+          "class HudChrome" in p72_over and "layout(s);" in p72_over and "instanceof ChatScreen" in p72_over
+          and "GLFW.GLFW_KEY_UNKNOWN" in p72_over and "GLFW_HAND_CURSOR" in p72_over
+          and "HudOverlay.init();" in p72_client and "HudOverlay.clear();" in p72_client)
+    check("HUD self-test at boot (wire round trip, bar text rule)",
+          "LmHud.selfTest()" in p72_test and "NativeHudPacket.decode(buf)" in p72_hud
+          and "public static NativeHudPacket decode(FriendlyByteBuf buf)" in p72_pkt)
+
     print("\n--- § lm 4.7.71 ---")
     p71_reg = read(SRC / "gui/ultra/PageRegistry.java")
     p71_nav = read(SRC / "gui/ultra/NavHistory.java")

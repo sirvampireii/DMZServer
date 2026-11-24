@@ -26,6 +26,8 @@ public final class LmClient {
         LmNativeNetwork.register(LmClient::open);
         // 4.7.62: the player's menu look (message 3).
         LmNativeNetwork.onPrefs(MenuLook::apply);
+        // 4.7.72: the native HUD (message 4).
+        HudOverlay.init();
         MinecraftForge.EVENT_BUS.addListener(LmClient::onLoggingIn);
         MinecraftForge.EVENT_BUS.addListener(LmClient::onLoggingOut);
         MinecraftForge.EVENT_BUS.addListener(LmClient::onNameTag);
@@ -55,6 +57,7 @@ public final class LmClient {
         helloSent = false;
         NativeModelPreview.clear();
         MenuLook.reset();
+        HudOverlay.clear();
         if (LmNativeNetwork.serverHasChannel(event.getConnection())) {
             sayHello();
         }
@@ -66,6 +69,7 @@ public final class LmClient {
         MenuLook.reset();
         MenuBackground.clear();
         ColorWheelTex.clear();
+        HudOverlay.clear();
     }
 
     private static void onNameTag(RenderNameTagEvent event) {

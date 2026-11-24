@@ -29,6 +29,9 @@ draw at all, and no KaiPath, is refused with "This menu needs a newer Legacy Mec
 - Message 1 (C→S): a click, the same `GuiActionPacket` bytes; the server runs the same handler.
 - Message 2 (C→S): hello, the LM client version and the JSON list of features it draws
   (`LmNativeProtocol.CLIENT_FEATURES`). Until it arrives the server assumes the protocol-1 list.
+- Message 3 (S→C, 4.7.62): the player's menu look (`NativePrefsPacket`), only when the hello listed `menuSkins`.
+- Message 4 (S→C, 4.7.72): one native HUD element (`NativeHudPacket`), only when the hello listed `hud`. See
+  "Native HUD" below.
 - The server knows at login: the client's channel list from the Forge handshake.
 - The KaiPath bridge is untouched (protocol `"1"`, no new fields). The LM client never registers
   `legacymechanics:gui`; KaiPath owns that name on a client.
@@ -73,6 +76,36 @@ so a client missing either still gets the KaiPath page.
 - The bridge darkens yellow and gold labels to dark gray (`§8`) for KaiPath's light button face. On a
   live (not dim, not locked) button, the native renderer draws that label in skin text, because dark
   gray is the locked look on the dark Saiyan Royal face.
+
+## Native HUD (4.7.72)
+
+Approved proposal: `docs/LM_NATIVE_HUD_PROPOSAL.md`. The server owns every element (`gui/ultra/LmHud`); the client
+(`client/HudOverlay`) draws what message 4 says and nothing else.
+
+| Element | Replaces (for HUD players only) | Where | Click (chat open) |
+|---|---|---|---|
+| Underdog pill | the Proving Grounds boss bar (`ProvingGroundsBar`) | top centre | Rival page |
+| Rival Instinct cards | the "Instinct" chat lines (`RivalInstinct.deliver`) | right edge, 45% down, 3 at most, 4 s | that rival's profile |
+| TP notice | the 3-second TP boss bar (`TpBossNotify`) | top centre, under the Underdog pill | none |
+| Death TP penalty | the penalty boss bar (`DeathTpPenalty`) | top centre, last row | Difficulty |
+| Momentum meter | new (the Difficulty menu's numbers) | above the hotbar, right of centre | Difficulty |
+
+- Who gets it: `LmHud.active` = the hello listed `hud` and the player's HUD switch is on (More tab, `lm_hud` in the
+  player's LM record, default on). Everyone else keeps the boss bars and chat lines exactly as before.
+- Same text and numbers: the HUD lines are the bar or chat strings (`ProvingGroundsBar.barParts` / `hudLines`,
+  `DeathTpPenalty.barText`, the Instinct chat body, the TP notice text); the bar fraction is the boss bar's.
+- Sends only on change (`LmHud.show` keeps each element's last packet per player); Instinct cards and TP notices are
+  events and always go. A TP notice is one message: the client drains its bar over 3 s and hides it.
+- Momentum shows while time is banked and the player hit or was hit by a difficulty mob in the last 10 s
+  (`Momentum.markFight` from the DMZ hit handler, `Momentum.hudPulse` once a second).
+- Drawing: each element's chrome (rounded panel in the skin's panel colour, accent edge and left strip; soft shadow in
+  Full, none in Lite) is baked once per size, GUI scale, skin and accent into a texture (`HudOverlay.HudChrome`, LRU
+  of 24, released on logout). Text is laid out when a message arrives or the skin changes. A frame blits, draws the
+  laid-out text and fills the bar: no allocation.
+- Clicks: while the chat screen is open, an element with a page under the mouse shows a hand cursor; a click sends its
+  action on `hub` like a menu button. Controls > Legacy Mechanics > "Open the newest HUD page" (unbound by default)
+  opens the newest element's page.
+- F1 hides it with the rest of the HUD.
 
 ## Server config
 

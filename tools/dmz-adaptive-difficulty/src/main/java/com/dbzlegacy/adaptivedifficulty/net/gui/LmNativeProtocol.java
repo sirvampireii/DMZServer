@@ -58,6 +58,14 @@ public final class LmNativeProtocol {
      * hub's search row. Hello-only; bridge clients keep the registry's parent pages and no search row.
      */
     public static final String FEATURE_NAV = "nav";
+    /** LM 4.7.72: server to client, one native HUD element ({@link NativeHudPacket}). */
+    public static final int MSG_HUD = 4;
+    /**
+     * LM 4.7.72: the client draws the native HUD (message 4): the Underdog pill, Rival Instinct cards, TP notices,
+     * the death TP penalty and the Momentum meter. Hello-only; for a client that said it (and has the HUD on) the
+     * server sends those elements here instead of boss bars and chat lines.
+     */
+    public static final String FEATURE_HUD = "hud";
 
     /** Feature ids (bridge spelling) the protocol-1 LM client draws natively. */
     public static final List<String> CLIENT_FEATURES = List.of(
@@ -237,6 +245,7 @@ public final class LmNativeProtocol {
         a.add(com.dbzlegacy.adaptivedifficulty.gui.ultra.ColorWheel.FEATURE);
         a.add(FEATURE_PICTURES);
         a.add(FEATURE_NAV);
+        a.add(FEATURE_HUD);
         return a.toString();
     }
 

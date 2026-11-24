@@ -126,7 +126,8 @@ public final class DeathTpPenalty {
             long until = PersistentDataAccess.getLong(player, KEY, 0L);
             if (until <= 0L) {
                 // No timer (or unreadable data) but a bar is up: take it down.
-                if (BARS.containsKey(player.m_20148_())) {
+                if (BARS.containsKey(player.m_20148_())
+                        || com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.showing(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.PENALTY)) {
                     hideBar(player);
                 }
                 continue;
@@ -276,6 +277,18 @@ public final class DeathTpPenalty {
                 return;
             }
             UUID id = player.m_20148_();
+            if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+                // 4.7.72: the native HUD pill, same text and fraction; no boss bar for this player.
+                ServerBossEvent old = BARS.remove(id);
+                if (old != null) {
+                    old.m_6539_(player);
+                    old.m_7706_();
+                }
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.PENALTY, java.util.List.of(barText(player)), progress(player),
+                        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ACCENT_DIFFICULTY, "open:difficulty", 0, false);
+                return;
+            }
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.PENALTY);
             Component name = Component.m_237113_(barText(player)).m_130940_(ChatFormatting.RED);
             ServerBossEvent bar = BARS.get(id);
             if (bar == null) {
@@ -293,17 +306,27 @@ public final class DeathTpPenalty {
                 bar.m_6543_(player);
             }
             bar.m_6456_(name);
-            long rem = Math.max(0L, PersistentDataAccess.getLong(player, KEY, 0L) - System.currentTimeMillis());
-            float progress = (float) Math.max(0d, Math.min(1d, rem / (double) DURATION_MS));
-            bar.m_142711_(progress);
+            bar.m_142711_(progress(player));
         } catch (Throwable ignored) {
         }
+    }
+
+    /** The bar's fill: time left of the 10 minutes. */
+    static float progress(ServerPlayer player) {
+        long rem = Math.max(0L, PersistentDataAccess.getLong(player, KEY, 0L) - System.currentTimeMillis());
+        return (float) Math.max(0d, Math.min(1d, rem / (double) DURATION_MS));
+    }
+
+    /** The text the bar (or the HUD pill) shows right now; the UI probe compares the two. */
+    public static String currentText(ServerPlayer player) {
+        return barText(player);
     }
 
     private static void hideBar(ServerPlayer player) {
         if (player == null) {
             return;
         }
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.PENALTY);
         try {
             ANNOUNCE.remove(player.m_20148_());
             ServerBossEvent bar = BARS.remove(player.m_20148_());
