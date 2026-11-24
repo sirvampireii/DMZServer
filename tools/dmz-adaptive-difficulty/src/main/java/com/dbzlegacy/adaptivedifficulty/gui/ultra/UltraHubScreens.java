@@ -381,6 +381,11 @@ public final class UltraHubScreens {
         spec.line(UltraStyle.LABEL + "Meditate near another player.");
         spec.line(UltraStyle.header("Your menus"));
         spec.line(UltraStyle.LABEL + "Pick a skin, backgrounds, and Full or Lite.");
+        // 4.7.72: the native HUD switch. Same lines for every client (one spec); it only changes anything for
+        // players with the Legacy Mechanics client.
+        boolean hudOn = LmHud.enabled(player);
+        spec.labelValue("HUD:", hudOn ? "rival, TP and penalty info on screen" : "boss bars and chat lines");
+        spec.line(UltraStyle.LABEL + "The HUD needs the Legacy Mechanics client.");
         spec.buttonsAfterLines();
         List<HubTile> tiles = new ArrayList<>();
         tiles.add(new HubTile("menu_skins", "Menu skins", UltraStyle.STYLE_NORMAL, true));
@@ -388,6 +393,8 @@ public final class UltraHubScreens {
             tiles.add(new HubTile("admin", "Staff Admin", UltraStyle.STYLE_NORMAL, true));
         }
         placeTiles(spec, Map.of(), tiles);
+        spec.buttonLeft("do:" + LmHud.ACTION_TOGGLE, "HUD - " + (hudOn ? "ON" : "OFF"), UltraStyle.STYLE_NORMAL);
+        spec.rowGap();
         spec.send(player);
     }
 

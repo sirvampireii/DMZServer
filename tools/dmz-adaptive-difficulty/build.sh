@@ -165,7 +165,10 @@ DFU="$ROOT/libraries/com/mojang/datafixerupper/6.0.8/datafixerupper-6.0.8.jar"
 FASTUTIL="$ROOT/libraries/it/unimi/dsi/fastutil/8.5.9/fastutil-8.5.9.jar"
 # 4.7.61: the native preview's race-tail mixin names GeckoLib types (DragonMineZ's bone pass).
 GECKOLIB="${GECKOLIB_JAR:-$ROOT/mods/geckolib-forge-1.20.1-4.8.4.jar}"
-for f in "$CLIENT_SRG" "$FORGE_C" "$JOML" "$DFU" "$FASTUTIL" "$GECKOLIB"; do
+# 4.7.72: the native HUD's hand cursor and unbound key name GLFW (compile only; Minecraft ships LWJGL 3.3.1).
+LWJGL="$CLIENT_LIBS/org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1.jar"
+LWJGL_GLFW="$CLIENT_LIBS/org/lwjgl/lwjgl-glfw/3.3.1/lwjgl-glfw-3.3.1.jar"
+for f in "$CLIENT_SRG" "$FORGE_C" "$JOML" "$DFU" "$FASTUTIL" "$GECKOLIB" "$LWJGL" "$LWJGL_GLFW"; do
   if [[ ! -f "$f" ]]; then
     echo "Missing $f - install the Forge 1.20.1-47.4.10 client or set CLIENT_LIBS" >&2
     exit 1
@@ -182,7 +185,7 @@ if [[ -n "${WINDIR:-}" ]]; then
 else
   printf '%s\n' "${CLIENT_SOURCES[@]}" > "$CLIENT_LIST"
 fi
-javac --release 17 -encoding UTF-8 -proc:none -cp "$FORGE_C:$CLIENT_SRG:$JOML:$DFU:$FASTUTIL:$GECKOLIB:$OUT:$CP" -d "$OUT" "@$CLIENT_LIST"
+javac --release 17 -encoding UTF-8 -proc:none -cp "$FORGE_C:$CLIENT_SRG:$JOML:$DFU:$FASTUTIL:$GECKOLIB:$LWJGL:$LWJGL_GLFW:$OUT:$CP" -d "$OUT" "@$CLIENT_LIST"
 echo "Compiled ${#CLIENT_SOURCES[@]} LM client renderer sources"
 
 # For every class this compile actually overlaid, drop base-jar inner classes the

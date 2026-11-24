@@ -364,6 +364,11 @@ public final class UltraGuiActions {
             UltraHubScreens.openCustomDraft(viewer);
             return;
         }
+        // 4.7.72: the native HUD switch on the main menu's More tab.
+        if (LmHud.applyAction(viewer, parts.action)) {
+            UltraGui.open(viewer, "hub", UltraHubScreens.PAGE_MORE);
+            return;
+        }
         if (UltraHubScreens.applySkinAction(viewer, parts.action, stringArg(args, "arg"))) {
             UltraGui.open(viewer, "hub", UltraHubScreens.pageAfterSkinAction(parts.action, stringArg(args, "arg")));
             return;

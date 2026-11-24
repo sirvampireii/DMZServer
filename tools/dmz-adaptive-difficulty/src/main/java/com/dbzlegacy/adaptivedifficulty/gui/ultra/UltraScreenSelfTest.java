@@ -1234,6 +1234,10 @@ public final class UltraScreenSelfTest {
         if (!"OK".equals(nav)) {
             broken.add("nav-history: " + nav);
         }
+        // 4.7.72: the native HUD wire and the bar/HUD text rule.
+        for (String problem : LmHud.selfTest()) {
+            broken.add("native-hud: " + problem);
+        }
 
         if (broken.isEmpty()) {
             LmLog.event(

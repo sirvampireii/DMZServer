@@ -1,7 +1,9 @@
 # LM native HUD: proposal (LM 4.7.71 Part 2, Phase 1)
 
-Status: **proposal, waiting for approval.** No HUD code is written until the owner approves this page (or a changed
-version of it). Phase 2 builds exactly what is approved.
+Status: **approved 2026-11-24 as written ("go ahead and make native HUD"); built in LM 4.7.72.** The decisions at the
+end took the proposed answers: Instinct cards replace the chat lines, clicks while chat is open plus an unbound LM key,
+the Momentum meter on screen, and exactly these five elements. Build details: `docs/LM_CLIENT.md` "Native HUD" and
+`docs/LM_4772_BUILD_NOTES.md`.
 
 ## What it replaces
 

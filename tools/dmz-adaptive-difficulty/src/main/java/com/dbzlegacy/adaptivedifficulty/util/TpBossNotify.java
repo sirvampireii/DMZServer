@@ -54,6 +54,13 @@ public final class TpBossNotify {
             }
             UUID id = player.m_20148_();
             ChatFormatting ink = color == null ? ChatFormatting.GREEN : color;
+            if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+                // 4.7.72: the native HUD pill drains over the same 3 seconds on the client; no boss bar.
+                hide(id);
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.TP, java.util.List.of(plain), 1f, hudAccent(ink), "",
+                        (int) SHOW_MS, true);
+                return;
+            }
             Component name = Component.m_237113_(plain).m_130940_(ink);
             BossEvent.BossBarColor barColor = barColor(ink);
             Held held = BARS.get(id);
@@ -122,6 +129,12 @@ public final class TpBossNotify {
             held.event.m_7706_();
         } catch (Throwable ignored) {
         }
+    }
+
+    /** The HUD pill's edge: the notice colour as {@code #rrggbb} (the same colour family as the bar). */
+    static String hudAccent(ChatFormatting color) {
+        Integer rgb = color == null ? null : color.m_126665_();
+        return String.format("#%06x", (rgb == null ? 0x55FF55 : rgb) & 0xFFFFFF);
     }
 
     private static BossEvent.BossBarColor barColor(ChatFormatting color) {

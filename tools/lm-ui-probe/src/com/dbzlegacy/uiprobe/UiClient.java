@@ -67,6 +67,19 @@ final class UiClient {
             }
             UiProbe.write("uiprobe-client.txt", sb.toString(), true);
             pendingShot = "ui-rec-" + s.substring(9).trim() + ".png";
+        } else if (s.startsWith("uirecordhud ")) {
+            // 4.7.72: close any menu, let the HUD draw a few frames, record it and report back.
+            e.setCanceled(true);
+            Minecraft.m_91087_().m_91152_(null);
+            hudRec = s.substring(12).trim();
+            hudRecWait = 10;
+        } else if (s.startsWith("uihudshot ")) {
+            // 4.7.72 mock: the HUD (or the same moment as bars and chat) at each GUI size, no menu open.
+            e.setCanceled(true);
+            Minecraft.m_91087_().m_91152_(null);
+            hudShot = s.substring(10).trim();
+            hudCfg = -1;
+            hudWait = 10;
         } else if (s.startsWith("uifps")) {
             // 4.7.62: the next cue is a skins-pass page: let each GUI size settle a full second so the frame
             // counter (one value per second) reflects the menu at rest, then record it.
@@ -163,6 +176,77 @@ final class UiClient {
                 + (sc == null ? "null" : sc.getClass().getName()) : found) + "\n", true);
     }
 
+    // ---- 4.7.72 native HUD records and shots ----
+    private String hudRec;
+    private int hudRecWait;
+    private String hudShot;
+    private int hudCfg = -1;
+    private int hudWait;
+
+    /** The LM client's HUD layout ("H element x y w h action \"lines\""), or empty. */
+    @SuppressWarnings("unchecked")
+    static List<String> hudLayout() {
+        try {
+            var m = Class.forName("com.dbzlegacy.adaptivedifficulty.client.HudOverlay").getDeclaredMethod("debugLayout");
+            m.setAccessible(true);
+            return (List<String>) m.invoke(null);
+        } catch (Throwable t) {
+            return List.of();
+        }
+    }
+
+    /** Record the HUD after a few frames with no screen open, then tell the server which elements were drawn. */
+    private boolean hudTick(Minecraft mc) {
+        if (hudRec != null) {
+            if (hudRecWait-- > 0) {
+                return true;
+            }
+            var win = mc.m_91268_();
+            StringBuilder sb = new StringBuilder("HUDREC " + hudRec + " gui=" + win.m_85445_() + "x" + win.m_85446_()
+                    + " scale=" + win.m_85449_() + "\n");
+            java.util.LinkedHashSet<String> els = new java.util.LinkedHashSet<>();
+            for (String l : hudLayout()) {
+                sb.append("  ").append(l).append("\n");
+                els.add(l.split(" ")[1]);
+            }
+            UiProbe.write("uiprobe-client.txt", sb.toString(), true);
+            Screenshot.m_92295_(mc.f_91069_, "ui-rec-hud-" + hudRec + ".png", mc.m_91385_(), msg -> { });
+            if (mc.f_91074_ != null && mc.f_91074_.f_108617_ != null) {
+                mc.f_91074_.f_108617_.m_246175_("uihudrec " + hudRec + " " + String.join(",", els));
+            }
+            hudRec = null;
+            return true;
+        }
+        if (hudShot == null) {
+            return false;
+        }
+        if (hudWait > 0) {
+            hudWait--;
+            return true;
+        }
+        int[][] cfgs = use == null ? CONFIGS : use;
+        if (hudCfg >= 0) {
+            var win = mc.m_91268_();
+            StringBuilder sb = new StringBuilder("HUDSHOT " + hudShot + " cfg=" + NAMES[hudCfg] + " gui="
+                    + win.m_85445_() + "x" + win.m_85446_() + " scale=" + win.m_85449_() + "\n");
+            for (String l : hudLayout()) {
+                sb.append("  ").append(l).append("\n");
+            }
+            UiProbe.write("uiprobe-client.txt", sb.toString(), true);
+            Screenshot.m_92295_(mc.f_91069_, "ui-hud-" + hudShot + "-" + NAMES[hudCfg] + ".png", mc.m_91385_(), msg -> { });
+        }
+        hudCfg++;
+        if (hudCfg >= cfgs.length) {
+            hudShot = null;
+            hudCfg = -1;
+            next(mc);
+            return true;
+        }
+        apply(mc, cfgs[hudCfg]);
+        hudWait = 12;
+        return true;
+    }
+
     private void record(Minecraft mc, Screen s, String cfgName) {
         var win = mc.m_91268_();
         int gw = win.m_85445_(), gh = win.m_85446_();
@@ -217,6 +301,10 @@ final class UiClient {
                 && mc.f_91080_ instanceof net.minecraft.client.gui.screens.DisconnectedScreen && joins < 3) {
             joins++;
             join(mc);
+            return;
+        }
+        if (hudTick(mc)) {
+            timeout = 0;
             return;
         }
         if (cue == null) {

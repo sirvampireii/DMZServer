@@ -55,6 +55,7 @@ public final class LmNativeNetwork {
     private static SimpleChannel channel;
     private static volatile Consumer<GuiOpenPacket> clientOpener;
     private static volatile Consumer<NativePrefsPacket> clientPrefs;
+    private static volatile Consumer<NativeHudPacket> clientHud;
     private static final Map<UUID, Set<String>> FEATURES = new ConcurrentHashMap<>();
     private static final Map<UUID, String> CLIENT_VERSION = new ConcurrentHashMap<>();
 
@@ -100,9 +101,16 @@ public final class LmNativeNetwork {
                 .decoder(NativePrefsPacket::decode)
                 .consumerMainThread(LmNativeNetwork::onClientPrefs)
                 .add();
+        // 4.7.72: native HUD elements, only to clients whose hello listed hud.
+        ch.messageBuilder(NativeHudPacket.class, LmNativeProtocol.MSG_HUD, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(NativeHudPacket::encode)
+                .decoder(NativeHudPacket::decode)
+                .consumerMainThread(LmNativeNetwork::onClientHud)
+                .add();
         channel = ch;
         AdaptiveDifficultyMod.LOGGER.info(
-                "[{}] native menu channel {} protocol={} (msg0 open S>C, msg1 action C>S, msg2 hello C>S, msg3 look S>C)",
+                "[{}] native menu channel {} protocol={} (msg0 open S>C, msg1 action C>S, msg2 hello C>S, msg3 look S>C,"
+                        + " msg4 hud S>C)",
                 AdaptiveDifficultyMod.MOD_ID, CHANNEL_ID, LmNativeProtocol.PROTOCOL_VERSION);
     }
 
@@ -142,6 +150,19 @@ public final class LmNativeNetwork {
     /** Client: where the menu look goes (the LM client's MenuLook). */
     public static void onPrefs(Consumer<NativePrefsPacket> consumer) {
         clientPrefs = consumer;
+    }
+
+    /** Client: where HUD elements go (the LM client's HudOverlay). */
+    public static void onHud(Consumer<NativeHudPacket> consumer) {
+        clientHud = consumer;
+    }
+
+    private static void onClientHud(NativeHudPacket msg, Supplier<NetworkEvent.Context> ctx) {
+        Consumer<NativeHudPacket> c = clientHud;
+        if (c != null && msg != null) {
+            c.accept(msg);
+        }
+        ctx.get().setPacketHandled(true);
     }
 
     private static void onClientPrefs(NativePrefsPacket msg, Supplier<NetworkEvent.Context> ctx) {
@@ -288,6 +309,19 @@ public final class LmNativeNetwork {
         return f != null && f.contains(LmNativeProtocol.FEATURE_NAV);
     }
 
+    /** 4.7.72: this player's LM client draws the native HUD (message 4). */
+    public static boolean takesHud(ServerPlayer player) {
+        Set<String> f = player == null ? null : FEATURES.get(player.m_20148_());
+        return f != null && f.contains(LmNativeProtocol.FEATURE_HUD);
+    }
+
+    /** Server: send one HUD element (callers check {@link #takesHud} first; {@code LmHud} does). */
+    public static void sendHud(ServerPlayer player, NativeHudPacket packet) {
+        if (channel != null && player != null && packet != null && takesHud(player)) {
+            channel.send(PacketDistributor.PLAYER.with(() -> player), packet);
+        }
+    }
+
     /** 4.7.68: this player's LM client draws pictures in a page's body (the dojo upgrade previews). */
     public static boolean takesPictures(ServerPlayer player) {
         Set<String> f = player == null ? null : FEATURES.get(player.m_20148_());
@@ -320,6 +354,7 @@ public final class LmNativeNetwork {
         if (player != null) {
             FEATURES.remove(player.m_20148_());
             CLIENT_VERSION.remove(player.m_20148_());
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.forget(player);
             com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraHubScreens.forgetDraft(player);
         }
     }

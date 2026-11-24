@@ -47,6 +47,8 @@ public final class Momentum {
     private record Mark(Entity attacker, double factor) {}
 
     private static final Map<UUID, Bank> BANKS = new ConcurrentHashMap<>();
+    /** 4.7.72: when each player last hit or was hit by a difficulty mob (the HUD meter shows for 10 s after). */
+    private static final Map<UUID, Long> LAST_FIGHT = new ConcurrentHashMap<>();
     private static final ThreadLocal<Mark> ACTIVE = new ThreadLocal<>();
 
     // ------------------------------------------------------------------ pure rules (self-tested)
@@ -141,6 +143,51 @@ public final class Momentum {
     public static void clear(ServerPlayer player) {
         if (player != null) {
             BANKS.remove(player.m_20148_());
+            LAST_FIGHT.remove(player.m_20148_());
+        }
+    }
+
+    /** The HUD meter shows: time banked and a fight within {@code fightMs}. */
+    public static boolean meterShows(long left, long lastFight, long now, long fightMs) {
+        return left > 0L && lastFight > 0L && now - lastFight <= fightMs;
+    }
+
+    /** HUD meter text (the menu's own clock). */
+    public static String meterText(long left) {
+        return "Momentum " + clock(left);
+    }
+
+    /** Mark that {@code player} is fighting a difficulty mob now (tests use it too). */
+    public static void markFight(ServerPlayer player) {
+        if (player != null) {
+            LAST_FIGHT.put(player.m_20148_(), System.currentTimeMillis());
+        }
+    }
+
+    /**
+     * 4.7.72: once a second, the native HUD's Momentum meter for players who take it: "Momentum m:ss" and the
+     * bank against its cap (the Difficulty menu's numbers), while banked and in a fight in the last 10 s.
+     */
+    public static void hudPulse(net.minecraft.server.MinecraftServer server, int tick) {
+        if (server == null || tick % 20 != 0) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (ServerPlayer player : server.m_6846_().m_11314_()) {
+            if (player == null) {
+                continue;
+            }
+            boolean hud = com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player);
+            long left = hud && enabled() ? remainingMillis(player) : 0L;
+            Long fight = LAST_FIGHT.get(player.m_20148_());
+            if (hud && meterShows(left, fight == null ? 0L : fight, now, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.MOMENTUM_FIGHT_MS)) {
+                long max = Math.max(1L, DifficultyConfig.get().momentumMaxBankSeconds * 1000L);
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.MOMENTUM, java.util.List.of(meterText(left)),
+                        (float) Math.min(1.0, left / (double) max), com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ACCENT_DIFFICULTY, "open:difficulty", 0,
+                        false);
+            } else {
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.MOMENTUM);
+            }
         }
     }
 
@@ -148,10 +195,22 @@ public final class Momentum {
     public static void begin(LivingHurtEvent event) {
         ACTIVE.remove();
         try {
-            if (!enabled() || event == null || !qualifies(event.getEntity())) {
+            if (!enabled() || event == null) {
+                return;
+            }
+            // 4.7.72: a difficulty mob hitting a player is a fight too (the HUD meter only).
+            if (event.getEntity() instanceof ServerPlayer victim && event.getSource() != null
+                    && event.getSource().m_7639_() instanceof LivingEntity src && qualifies(src)) {
+                LAST_FIGHT.put(victim.m_20148_(), System.currentTimeMillis());
+                return;
+            }
+            if (!qualifies(event.getEntity())) {
                 return;
             }
             ServerPlayer attacker = ChamberKillMastery.killer(event.getSource());
+            if (attacker != null) {
+                LAST_FIGHT.put(attacker.m_20148_(), System.currentTimeMillis());
+            }
             if (attacker != null && remainingMillis(attacker) > 0L) {
                 ACTIVE.set(new Mark(attacker, DifficultyConfig.get().momentumMasteryMultiplier));
             }
@@ -202,6 +261,13 @@ public final class Momentum {
         if (scale(attacker, attacker, 1.5, 2.0) != 3.0 || scale(attacker, other, 1.5, 2.0) != 2.0
                 || scale(null, attacker, 1.5, 2.0) != 2.0) {
             bad.add("only the marked attacker's hit mastery is multiplied");
+        }
+        if (!meterShows(5_000L, now - 9_000L, now, 10_000L) || meterShows(0L, now, now, 10_000L)
+                || meterShows(5_000L, now - 11_000L, now, 10_000L) || meterShows(5_000L, 0L, now, 10_000L)) {
+            bad.add("HUD meter shows only while banked and fighting in the last 10 s");
+        }
+        if (!"Momentum 0:42".equals(meterText(41_200L))) {
+            bad.add("HUD meter text");
         }
         if (!"5:00".equals(clock(300_000L)) || !"0:09".equals(clock(8_200L)) || !"0:00".equals(clock(0L))) {
             bad.add("clock text");
