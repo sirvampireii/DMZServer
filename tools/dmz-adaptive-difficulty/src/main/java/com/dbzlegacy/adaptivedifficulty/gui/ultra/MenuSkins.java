@@ -88,7 +88,8 @@ public final class MenuSkins {
 
         /** Label ink on a dim or locked button. Still readable (3:1), never mistaken for live text. */
         public int muted() {
-            return blend(text, panel, dark ? 0.52 : 0.42);
+            // 4.7.81 (GuiKit): light skins blend less (0.30), so inactive tabs read 4.5:1 on Zeno Omni.
+            return blend(text, panel, dark ? 0.52 : 0.30);
         }
 
         public int confirmFace() {

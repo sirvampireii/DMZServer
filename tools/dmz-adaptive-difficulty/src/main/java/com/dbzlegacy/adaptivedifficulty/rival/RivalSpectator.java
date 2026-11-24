@@ -58,6 +58,11 @@ public final class RivalSpectator {
         return "§7Spectate ended.";
     }
 
+    /** 4.7.81: true while {@code uuid} watches a rival challenge (the Challenge page shows Stop spectate then). */
+    public static boolean isSpectating(UUID uuid) {
+        return uuid != null && ACTIVE.containsKey(uuid);
+    }
+
     public static void clear(UUID uuid) {
         if (uuid != null) {
             ACTIVE.remove(uuid);

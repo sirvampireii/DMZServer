@@ -1229,8 +1229,9 @@ def main() -> int:
         errors.append("Difficulty toggle must use the dash pattern (Difficulty - ON/OFF), not a colon")
     if 'UltraStyle.confirm("Difficulty - OFF")' in diff_screens or 'UltraStyle.confirm("Turn personal ON")' in diff_screens:
         errors.append("Difficulty OFF must use dim, not confirm/gold")
-    if 'UltraStyle.dim("Difficulty - OFF")' not in diff_screens or "STYLE_DIM" not in diff_screens:
-        errors.append("Difficulty OFF toggle must be dim")
+    # 4.7.81 (GuiKit): an OFF toggle is a live control: normal style, plain label (dim reads as disabled).
+    if 'UltraStyle.plain("Difficulty - OFF")' not in diff_screens:
+        errors.append("Difficulty OFF toggle must be a live (normal) button")
     if '"Log ON"' in diff_screens or '"Turn ON"' in diff_screens or '"Turn OFF"' in diff_screens or '"Log OFF"' in diff_screens:
         errors.append("Event log toggles must use the state pattern, not verb labels (Turn ON/OFF, Log ON/OFF)")
     if '"Event log - ON"' not in diff_screens or '"Event log - OFF"' not in diff_screens:
@@ -1288,16 +1289,17 @@ def main() -> int:
     wars_body = wars_m.group(0) if wars_m else ""
     if "dojoHallOfFameLines" in wars_body:
         errors.append("UltraSparScreens.openWars must not bury Hall of Chosen in the wars body")
-    if "dojo_hof|Hall of Chosen" not in wars_body or "dojo_top_rp|Top dojos" not in wars_body:
-        errors.append("UltraSparScreens.openWars must offer Hall of Chosen beside Top dojos")
+    # 4.7.81: UltraSparScreens.openWars / openHallOfChosen were unreachable (Dojo owns wars and the boards since
+    # 4.7.77/4.7.78) and are deleted.
+    if "private static void openWars(" in spar_home or "private static void openHallOfChosen(" in spar_home:
+        errors.append("UltraSparScreens must not keep the unreachable openWars / openHallOfChosen")
     hof_m = re.search(
         r"private static void openHallOfChosen\b.*?^\s*private static void ",
         spar_home,
         re.S | re.M,
     )
     hof_body = hof_m.group(0) if hof_m else ""
-    if "dojoHallOfFameLines" not in hof_body:
-        errors.append("UltraSparScreens.openHallOfChosen must show Hall of Chosen season lines")
+    del hof_body
     dojo_m = re.search(
         r"private static void openDojo\b.*?^\s*private static void ",
         spar_home,
@@ -1308,8 +1310,8 @@ def main() -> int:
         errors.append("UltraSparScreens Dojo tab must not duplicate Hall of Chosen")
     if "dojo_members|Dojo members" not in dojo_body:
         errors.append("UltraSparScreens Dojo tab must offer Dojo members")
-    if "mentor|Actions" not in dojo_body:
-        errors.append("UltraSparScreens Dojo tab must offer Actions")
+    if "mentor|Training bonds" not in dojo_body:
+        errors.append("UltraSparScreens Dojo tab must offer Training bonds")
     members_m = re.search(
         r"private static void openDojoMembers\b.*?^\s*private static void ",
         spar_home,
@@ -1577,8 +1579,10 @@ def main() -> int:
         errors.append("UltraScreenSpec must clipPlain before fitAsciiLabel so buttons do not grow ...")
     # 4.6.235: a clipped dynamic name ends in "..." so it never reads as a shorter name.
     style_src = (ULTRA / "UltraStyle.java").read_text(encoding="utf-8")
-    clip_body = style_src.split("public static String clipPlain(", 1)[-1].split("\n    }\n", 1)[0]
-    if 'text.substring(0, maxChars - 3).trim() + "..."' not in clip_body:
+    clip_body = style_src.split("static String clipByWidth(", 1)[-1].split("\n    }\n", 1)[0]
+    # 4.7.81 (GuiKit): cut by measured width; still ends in "..." (trimmed) when cut.
+    if ('(trim ? head.trim() : head) + "..."' not in clip_body
+            or "clipByWidth(text, Math.max(CHAR_W_EST, maxWidthPx), true)" not in style_src):
         errors.append("UltraStyle.clipPlain must end a clipped name with ... (never a bare cut)")
     # 4.6.240: Requests moved to the Rival tab. 4.6.241: the Rival list page is gone.
     rival_home = (ULTRA / "UltraRivalScreens.java").read_text(encoding="utf-8")
@@ -1586,7 +1590,7 @@ def main() -> int:
     rival_tab_body = rival_home.split("private static void openActions(", 1)[-1].split("\n    }\n", 1)[0]
     if '"list|Rival list"' in rival_home_body or '"requests|Requests"' in rival_home_body:
         errors.append("UltraRivalScreens.openHome must not link page:list or page:requests")
-    if '"requests|Requests"' not in rival_tab_body:
+    if '"requests|" + (incoming > 0 ? "Requests (" + incoming + ")" : "Requests")' not in rival_tab_body:
         errors.append("UltraRivalScreens.openActions must link page:requests")
     # 4.6.235: staff settings open the Ultra config editor, not a chat page.
     diff_menu = (ULTRA.parent / "DifficultyMenu.java").read_text(encoding="utf-8")
@@ -1601,11 +1605,13 @@ def main() -> int:
         re.S | re.M,
     )
     chal_body = chal_m.group(0) if chal_m else ""
+    # 4.7.81 (GuiKit): Spectate beside Send a challenge; Stop spectate only while spectating.
     if (
-        'buttonLeft("page:pick_spectate"' not in chal_body
-        or 'buttonRight("do:spectate_stop"' not in chal_body
+        '"pick_spectate|Spectate"' not in chal_body
+        or "RivalSpectator.isSpectating(player.m_20148_())" not in chal_body
+        or '"do:spectate_stop", "Stop spectate", UltraStyle.STYLE_NORMAL' not in chal_body
     ):
-        errors.append("Rival Challenge must pair Spectate with Stop spectate on one row")
+        errors.append("Rival Challenge must offer Spectate, and Stop spectate only while spectating")
     if "Send challenge..." in chal_body or "Spectate..." in chal_body:
         errors.append("Rival Challenge labels must not trail an ellipsis")
     if "Challenge history" in chal_body or "records:history" in chal_body:

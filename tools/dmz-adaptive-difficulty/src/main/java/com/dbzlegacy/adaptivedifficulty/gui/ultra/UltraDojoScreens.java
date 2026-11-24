@@ -321,6 +321,16 @@ public final class UltraDojoScreens {
         spec.send(player);
     }
 
+    /** {@code 1 Emerald coin}, {@code 3 Netherite coins}: the coin count and kind, said as coins. */
+    static String coinLabel(long copper) {
+        String cost = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.compactCost(copper);
+        int sp = cost.indexOf(' ');
+        if (sp <= 0) {
+            return cost;
+        }
+        return cost + ("1".equals(cost.substring(0, sp)) ? " coin" : " coins");
+    }
+
     /** 4.7.80 Wager amount for one kind, within the caps (5 Netherite coins, 20 Dojo Points). */
     static void openWagerAmounts(ServerPlayer player, String kind, String notice) {
         boolean pts = "POINTS".equals(kind);
@@ -345,8 +355,7 @@ public final class UltraDojoScreens {
                 continue;
             }
             long amt = BoardSpar.wagerAmount(step);
-            String label = pts ? amt + " Dojo Points"
-                    : com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.compactCost(amt);
+            String label = pts ? amt + " Dojo Points" : coinLabel(amt);
             boolean cur = d.wager() == step;
             String action = "do:" + BoardSpar.ACT_WAGER_SET + ":" + step;
             String text = cur ? UltraStyle.confirm(label) : label;
@@ -487,12 +496,14 @@ public final class UltraDojoScreens {
             spec.line(UltraStyle.LABEL + "No spars are running right now.");
         }
         spec.buttonsAfterLines();
+        // Full-width rows: "Watch <24-character dojo> (no room)" is cut on a half-width button.
         for (Dojo d : withBouts) {
             String label = "Watch " + d.name;
             if (DojoService.tier(d, DojoCatalog.SPECTATOR) <= 0) {
-                spec.lockedButton(label + " (no room)").rowGap();
+                spec.buttonWide(UltraGuiActions.NO_ACTION, UltraStyle.dim(label + " (no room)"), UltraStyle.STYLE_DIM,
+                        null).rowGap();
             } else {
-                spec.button("do:dojo_spectate:" + d.masterUuid, label, UltraStyle.STYLE_NORMAL).rowGap();
+                spec.buttonWide("do:dojo_spectate:" + d.masterUuid, label, UltraStyle.STYLE_NORMAL, null).rowGap();
             }
         }
         if (DojoWorld.spectating(player.m_20148_())) {
@@ -974,15 +985,29 @@ public final class UltraDojoScreens {
         spec.line(UltraStyle.header("Dojo wars"))
                 .line(UltraStyle.LABEL + "A war is a knockout tournament: bracket or gauntlet, KO or ring-out wins.")
                 .line(UltraStyle.labelValue("Record", d.warWins + " won, " + d.warLosses + " lost"));
+        // GuiKit 4.7.81: the buttons carry short action labels (a 24-character dojo name cut "Accept vs ..."), so the
+        // "Now" block names each open war, in the same order as its button row. Past wars get their own block.
         List<DojoStore.WarRecord> wars = DojoWar.warsOf(d.masterUuid);
         List<DojoStore.WarRecord> open = new ArrayList<>();
-        int history = 0;
+        List<DojoStore.WarRecord> past = new ArrayList<>();
         for (DojoStore.WarRecord w : wars) {
             if ("PENDING_SIGNOFF".equals(w.status) || "CHALLENGED".equals(w.status) || "RUNNING".equals(w.status)) {
                 open.add(w);
-            } else if (history < 4) {
+            } else if (past.size() < 4) {
+                past.add(w);
+            }
+        }
+        boolean master = DojoService.isMaster(player.m_20148_(), d);
+        if (!open.isEmpty()) {
+            spec.line(UltraStyle.header("Now"));
+            for (DojoStore.WarRecord w : open) {
+                spec.line(UltraStyle.VALUE + openWarLine(w, d, manage, master));
+            }
+        }
+        if (!past.isEmpty()) {
+            spec.line(UltraStyle.header("Past wars"));
+            for (DojoStore.WarRecord w : past) {
                 spec.line(UltraStyle.VALUE + w.fromName + " vs " + w.toName + UltraStyle.LABEL + " - " + warStatus(w));
-                history++;
             }
         }
         if (!manage) {
@@ -990,7 +1015,6 @@ public final class UltraDojoScreens {
         }
         spec.buttonsAfterLines();
         for (DojoStore.WarRecord w : open) {
-            String vs = w.fromDojo.equals(d.masterUuid) ? w.toName : w.fromName;
             if ("RUNNING".equals(w.status)) {
                 if (DojoWar.signupOpen(w.id) && !DojoWar.signedUp(w.id, player.m_20148_())) {
                     spec.buttonLeft("do:" + DojoWar.ACT_JOIN + ":" + w.id, UltraStyle.confirm("Join the war"),
@@ -998,19 +1022,19 @@ public final class UltraDojoScreens {
                 } else {
                     spec.lockedButton(DojoWar.signedUp(w.id, player.m_20148_()) ? "Signed up" : "Sign-up closed");
                 }
-                spec.buttonRight("page:dojo_war_view:" + w.id, "Bracket vs " + vs, UltraStyle.STYLE_NORMAL).rowGap();
+                spec.buttonRight("page:dojo_war_view:" + w.id, "View the bracket", UltraStyle.STYLE_NORMAL).rowGap();
             } else if ("CHALLENGED".equals(w.status) && w.toDojo.equals(d.masterUuid) && manage) {
-                spec.buttonLeft("do:" + DojoWar.ACT_ACCEPT + ":" + w.id, UltraStyle.confirm("Accept vs " + vs),
+                spec.buttonLeft("do:" + DojoWar.ACT_ACCEPT + ":" + w.id, UltraStyle.confirm("Accept the war"),
                         UltraStyle.STYLE_CONFIRM);
-                spec.buttonRight("do:" + DojoWar.ACT_DECLINE + ":" + w.id, "Turn down", UltraStyle.STYLE_NORMAL)
+                spec.buttonRight("do:" + DojoWar.ACT_DECLINE + ":" + w.id, "Turn it down", UltraStyle.STYLE_NORMAL)
                         .rowGap();
-            } else if ("PENDING_SIGNOFF".equals(w.status) && DojoService.isMaster(player.m_20148_(), d)) {
-                spec.buttonLeft("do:" + DojoWar.ACT_SIGNOFF + ":" + w.id, UltraStyle.confirm("Sign off vs " + vs),
+            } else if ("PENDING_SIGNOFF".equals(w.status) && master) {
+                spec.buttonLeft("do:" + DojoWar.ACT_SIGNOFF + ":" + w.id, UltraStyle.confirm("Sign off the war"),
                         UltraStyle.STYLE_CONFIRM);
                 spec.buttonRight("do:" + DojoWar.ACT_CANCEL + ":" + w.id, "Call it off", UltraStyle.STYLE_NORMAL)
                         .rowGap();
             } else {
-                spec.lockedButton(("PENDING_SIGNOFF".equals(w.status) ? "Awaiting sign-off: " : "Waiting on ") + vs);
+                spec.lockedButton("PENDING_SIGNOFF".equals(w.status) ? "Awaiting sign-off" : "Waiting on them");
                 if (manage && w.fromDojo.equals(d.masterUuid)) {
                     spec.buttonRight("do:" + DojoWar.ACT_CANCEL + ":" + w.id, "Call it off", UltraStyle.STYLE_NORMAL);
                 }
@@ -1026,6 +1050,23 @@ public final class UltraDojoScreens {
         spec.button("page:dojo_list_wars", "Dojo leaderboard", UltraStyle.STYLE_NORMAL).rowGap();
         spec.back();
         spec.send(player);
+    }
+
+    /** One "Now" line for an open war: who it is against and what its button row does (same branches as openWars). */
+    static String openWarLine(DojoStore.WarRecord w, Dojo d, boolean manage, boolean master) {
+        boolean ours = w.fromDojo.equals(d.masterUuid);
+        String vs = ours ? w.toName : w.fromName;
+        if ("RUNNING".equals(w.status)) {
+            return "In progress: " + vs + " - " + ("GAUNTLET".equals(w.format) ? "gauntlet" : "bracket");
+        }
+        if ("CHALLENGED".equals(w.status) && !ours) {
+            return "Invite from " + vs + (manage ? " - accept or turn it down" : " - the master or an elite answers");
+        }
+        if ("PENDING_SIGNOFF".equals(w.status)) {
+            return (master ? "Your elite declared on " + vs + " - needs your sign-off"
+                    : "Declared on " + vs + " - waiting on the master's sign-off");
+        }
+        return "Declared on " + vs + " - waiting on them";
     }
 
     static String warStatus(DojoStore.WarRecord w) {
@@ -1134,9 +1175,20 @@ public final class UltraDojoScreens {
             spec.buttonRight("page:dojo_list_wars", "By war wins", UltraStyle.STYLE_NORMAL);
         }
         spec.rowGap();
+        // Two Visit buttons a row (GuiKit 4.7.81), in leaderboard order.
+        int placed = 0;
         for (int i = pg * per; i < Math.min(all.size(), (pg + 1) * per); i++) {
             Dojo d = all.get(i);
-            spec.button("do:dojo_visit:" + d.masterUuid, "Visit " + d.name, UltraStyle.STYLE_NORMAL).rowGap();
+            String action = "do:dojo_visit:" + d.masterUuid;
+            if (placed % 2 == 0) {
+                spec.buttonLeft(action, "Visit " + d.name, UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.buttonRight(action, "Visit " + d.name, UltraStyle.STYLE_NORMAL).rowGap();
+            }
+            placed++;
+        }
+        if (placed % 2 == 1) {
+            spec.rowGap();
         }
         pager(spec, base, pg, pages);
         spec.back();

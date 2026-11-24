@@ -738,7 +738,7 @@ public final class DojoRankings {
     public static List<String> memberLines(ServerPlayer player) {
         String key = homeDojoKey(player);
         if (key == null) {
-            return guidance("Dojo members", "Join a dojo to see its members.", "Request a master from Actions.");
+            return guidance("Dojo members", "Join a dojo to see its members.", "Request a master from Training bonds.");
         }
         return key.equals(selfKey(player)) ? ownedRosterLines(player, "Dojo members")
                 : joinedRosterLines(player, "Dojo members");
@@ -746,7 +746,12 @@ public final class DojoRankings {
 
     /** Current roster of the dojo the player owns (master), each with their season contribution. */
     public static List<String> ownedDojoMemberLines(ServerPlayer player) {
-        return ownedRosterLines(player, "Your dojo");
+        List<String> lines = ownedRosterLines(player, "Your dojo");
+        // GuiKit 4.7.81: the page's first line is a real heading, not plain gold text.
+        if (!lines.isEmpty()) {
+            lines.set(0, UltraStyle.header("Your dojo"));
+        }
+        return lines;
     }
 
     /** Current roster of the dojo the player joined (has a mentor), each with their season contribution. */
@@ -762,7 +767,7 @@ public final class DojoRankings {
         if (key == null) {
             key = selfKey(player);
             if (key == null || entry(key) == null) {
-                return guidance("Previous members", "Join a dojo to see who left it.", "Request a master from Actions.");
+                return guidance("Previous members", "Join a dojo to see who left it.", "Request a master from Training bonds.");
             }
         }
         return previousMemberLinesForKey(key, "Previous members");
@@ -940,11 +945,11 @@ public final class DojoRankings {
     }
 
     private static List<String> notOwned(String heading) {
-        return guidance(heading, "You do not own a dojo yet.", "Recruit apprentices from Actions to start one.");
+        return guidance(heading, "You do not own a dojo yet.", "Recruit apprentices from Training bonds to start one.");
     }
 
     private static List<String> notJoined(String heading) {
-        return guidance(heading, "You are not in a mentor's dojo.", "Request a master from Actions.");
+        return guidance(heading, "You are not in a mentor's dojo.", "Request a master from Training bonds.");
     }
 
     private static List<String> guidance(String heading, String what, String hint) {
@@ -995,7 +1000,7 @@ public final class DojoRankings {
         String key = homeDojoKey(player);
         if (key == null) {
             lines.add(UltraStyle.LABEL + "Join a dojo to compete on the ladder.");
-            lines.add(UltraStyle.DIM + "Invite apprentices or ask a mentor from Actions.");
+            lines.add(UltraStyle.DIM + "Invite apprentices or ask a mentor from Training bonds.");
             return lines;
         }
         SparStore.DojoProfile prof = profile(key);

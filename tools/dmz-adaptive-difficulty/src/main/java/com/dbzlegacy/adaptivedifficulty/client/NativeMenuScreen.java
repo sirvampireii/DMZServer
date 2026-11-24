@@ -913,7 +913,16 @@ public final class NativeMenuScreen extends Screen {
     private static final String BOLD_MARK = "" + NativeText.MARK + 'l';
 
     private static boolean headerLine(String l) {
-        return l != null && (l.startsWith(HEADER_MARK) || l.startsWith(BOLD_MARK));
+        // 4.7.81 (GuiKit): a Notice line also starts bold, but it is not a heading: its text stays in its card.
+        return l != null && (l.startsWith(HEADER_MARK) || l.startsWith(BOLD_MARK)) && !notice(l);
+    }
+
+    private static boolean notice(String l) {
+        String t = l;
+        while (t.length() >= 2 && t.charAt(0) == NativeText.MARK) {
+            t = t.substring(2);
+        }
+        return t.startsWith("Notice ");
     }
 
     /**

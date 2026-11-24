@@ -348,9 +348,10 @@ public final class UltraStyle {
     /**
      * Widest default-font advance we budget for body copy. KaiPath {@code fitLabel} appends
      * {@code ...} (and can cut mid-word) when a line is wider than the text box. Wrapping at
-     * this advance keeps every line inside that box.
+     * this advance keeps every line inside that box. 4.7.81 (GuiKit): 7, not 8 - every ASCII glyph is at most
+     * 6 px (7 bold), so 8 stopped lines at about 60% of the box.
      */
-    public static final int BODY_GLYPH_PX = 8;
+    public static final int BODY_GLYPH_PX = 7;
 
     /** Horizontal inset KaiPath uses for the body list ({@code panelWidth - 16}). */
     public static final int BODY_LIST_INSET = 16;
@@ -538,15 +539,31 @@ public final class UltraStyle {
         if (text.isEmpty()) {
             return "";
         }
-        int maxPx = Math.max(CHAR_W_EST, maxWidthPx);
-        int maxChars = Math.max(1, maxPx / CHAR_W_EST);
-        if (text.length() <= maxChars) {
+        return clipByWidth(text, Math.max(CHAR_W_EST, maxWidthPx), true);
+    }
+
+    /**
+     * 4.7.81 (GuiKit): cut by measured width ({@link #textWidthPx}), not the 6 px estimate, so a label that fits
+     * ("Reach level 150,000 first") is not cut.
+     */
+    static String clipByWidth(String text, int maxPx, boolean trim) {
+        if (textWidthPx(text) <= maxPx) {
             return text;
         }
-        if (maxChars <= 3) {
-            return text.substring(0, maxChars);
+        int dots = textWidthPx("...");
+        int n = text.length();
+        while (n > 0 && textWidthPx(text.substring(0, n)) + dots > maxPx) {
+            n--;
         }
-        return text.substring(0, maxChars - 3).trim() + "...";
+        if (n <= 0) {
+            int k = text.length();
+            while (k > 1 && textWidthPx(text.substring(0, k)) > maxPx) {
+                k--;
+            }
+            return text.substring(0, k);
+        }
+        String head = text.substring(0, n);
+        return (trim ? head.trim() : head) + "...";
     }
 
     /** {@link #clipPlain} for a standard {@link #BTN_W} button. */
@@ -568,15 +585,7 @@ public final class UltraStyle {
         if (text.isEmpty()) {
             return "";
         }
-        int maxPx = Math.max(CHAR_W_EST, maxWidthPx);
-        int maxChars = Math.max(1, maxPx / CHAR_W_EST);
-        if (text.length() <= maxChars) {
-            return text;
-        }
-        if (maxChars <= 3) {
-            return text.substring(0, maxChars);
-        }
-        return text.substring(0, maxChars - 3) + "...";
+        return clipByWidth(text, Math.max(CHAR_W_EST, maxWidthPx), false);
     }
 
     /**

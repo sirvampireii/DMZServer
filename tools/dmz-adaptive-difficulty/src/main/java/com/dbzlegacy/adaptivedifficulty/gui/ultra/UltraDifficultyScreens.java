@@ -253,19 +253,21 @@ public final class UltraDifficultyScreens {
             return;
         }
         // 4.7.78: Home turns difficulty on and off; tiers (and clearing one) live in the Tiers tab.
-        placeDifficultyToggle(spec, personal);
+        // 4.7.81 (GuiKit): paired rows - [Difficulty | Coin messages] [Titles | Replay guide] [Server tools | Combat rating].
+        placeDifficultyToggle(spec, personal, true);
+        placeCoinMessageToggle(spec, data != null && data.isCoinDropChat(), false);
         spec.rowGap();
-        spec.buttonLeft("page:titles_p0", "Titles", UltraStyle.STYLE_NORMAL).rowGap();
-        placeCoinMessageToggle(spec, data != null && data.isCoinDropChat());
+        spec.buttonLeft("page:titles_p0", "Titles", UltraStyle.STYLE_NORMAL);
+        // Replay on demand, with the other Home actions; never clears the done mark.
+        spec.buttonRight("page:" + DifficultyTutorial.PAGE_STEP1, UltraStyle.plain("Replay the difficulty guide"),
+                UltraStyle.STYLE_NORMAL).rowGap();
         if (StaffAccess.isStaff(player)) {
             // Staff entry reads red, like Staff Admin on the Rival and Sparring homes.
             spec.buttonLeft("page:admin", UltraStyle.LABEL + "Server tools", UltraStyle.STYLE_NORMAL);
             spec.buttonRight("page:stats", UltraStyle.LABEL + "Combat rating", UltraStyle.STYLE_NORMAL).rowGap();
         }
-        // Replay on demand, with the other Home actions; never clears the done mark.
-        spec.button("page:" + DifficultyTutorial.PAGE_STEP1, UltraStyle.plain("Replay the difficulty guide"),
-                UltraStyle.STYLE_NORMAL).rowGap();
-        spec.footerBackOnly("nav:hub", "main menu");
+        // A system Home: the one Back to main menu sits bottom right, like every other Home.
+        spec.back();
         spec.send(player);
     }
 
@@ -460,7 +462,7 @@ public final class UltraDifficultyScreens {
                 ? "Free for staff"
                 : AncientCoinEconomy.formatExactCost(EndDimensionStrength.summonCopperCost());
         UltraScreenSpec spec = sub("end_dragon")
-                .line(UltraStyle.LABEL + "End Dragon")
+                .line(UltraStyle.header("End Dragon"))
                 .labelValue("Cost", cost)
                 .labelValue("Status", ready ? "Ready" : "Requirements not met");
         for (String line : summonStatusLines(player, ready)) {
@@ -490,7 +492,7 @@ public final class UltraDifficultyScreens {
         String page = boss == PlayerBossSummons.Boss.WITHER ? "wither" : "warden";
         String action = "page:summon_ask:" + page;
         UltraScreenSpec spec = sub(page)
-                .line(UltraStyle.LABEL + boss.display)
+                .line(UltraStyle.header(boss.display))
                 .labelValue("Cost", PlayerBossSummons.costText(player, boss)
                         + (PaidFeatureAccess.bypassAncientCoinCost(player)
                                 ? ""
@@ -642,9 +644,9 @@ public final class UltraDifficultyScreens {
         PlayerDifficultyData data = DifficultyCache.data(player);
         int active = data == null ? 0 : data.getActiveTier();
         UltraScreenSpec spec = sub("clear_tier_ask")
-                .line(UltraStyle.LABEL + "Clear active tier")
+                .line(UltraStyle.header("Clear active tier"))
                 .labelValue("Active tier", active <= 0 ? "No tier active" : "T" + active)
-                .notice("Clear your active tier? Team mode resets to Personal. You will need Ancient Coins to activate a tier again.");
+                .notice("Clear your active tier? You will need Ancient Coins to activate a tier again.");
         if (active <= 0) {
             spec.line(UltraStyle.dim("No tier is active, so there is nothing to clear."));
         }
@@ -664,7 +666,7 @@ public final class UltraDifficultyScreens {
             return;
         }
         UltraScreenSpec spec = sub("flush_ask")
-                .line(UltraStyle.LABEL + "Flush the event log")
+                .line(UltraStyle.header("Flush the event log"))
                 .notice("Flush the event log? Recent entries are written out and the log is closed.")
                 .buttonsAfterLines();
         spec.button("do:syslog:flush", UltraStyle.danger("Flush the event log"), UltraStyle.STYLE_DANGER).rowGap();
@@ -677,7 +679,7 @@ public final class UltraDifficultyScreens {
         PlayerDifficultyData data = DifficultyCache.data(player);
         boolean on = data != null && data.isPersonalEnabled();
         UltraScreenSpec spec = sub("difficulty_off_ask")
-                .line(UltraStyle.LABEL + "Turn Difficulty off")
+                .line(UltraStyle.header("Turn Difficulty off"))
                 .notice("Turning Difficulty off releases your scaled mobs and despawns your summoned End Dragon."
                         + " You can turn it back on any time.");
         if (!on) {
@@ -696,7 +698,7 @@ public final class UltraDifficultyScreens {
     private static void openUnequipTitleAsk(ServerPlayer player) {
         DifficultyTitle title = DifficultyTitle.byId(TitleSystem.activeId(player));
         UltraScreenSpec spec = sub("title_unequip_ask")
-                .line(UltraStyle.LABEL + "Unequip title")
+                .line(UltraStyle.header("Unequip title"))
                 .labelValue("Equipped", title == null ? "No title equipped" : UltraStyle.plain(title.display))
                 .notice("Unequip your title? You can equip it again for free any time.");
         if (title == null) {
@@ -730,7 +732,7 @@ public final class UltraDifficultyScreens {
                 : PlayerBossSummons.costText(player, boss)
                         + (free ? "" : " (" + boss.netheriteCoins() + " Ancient Netherite)");
         UltraScreenSpec spec = sub("summon_ask:" + which)
-                .line(UltraStyle.LABEL + "Confirm summon")
+                .line(UltraStyle.header("Confirm summon"))
                 .labelValue("Boss", name)
                 .labelValue("Cost", cost)
                 .labelValue("Ancient Coins", AncientCoinEconomy.inventoryBreakdown(player))
@@ -750,6 +752,9 @@ public final class UltraDifficultyScreens {
                                     : (boss == PlayerBossSummons.Boss.WITHER ? "do:summon_wither" : "do:summon_warden"),
                             UltraStyle.confirm(UltraStyle.fitsButton(go) ? go : "Confirm summon"), UltraStyle.STYLE_CONFIRM)
                     .rowGap();
+        } else {
+            // 4.7.81: shown, never hidden; the line above says what is missing.
+            spec.lockedButton("Requirements not met").rowGap();
         }
         spec.back();
         spec.send(player);
@@ -782,7 +787,7 @@ public final class UltraDifficultyScreens {
                         + ", and you must be in The End.");
         if (!canSummon) {
             if (!SystemGate.participates(subject)) {
-                lines.add(UltraStyle.LABEL + "Turn on personal difficulty on the Tiers tab first.");
+                lines.add(UltraStyle.LABEL + "Turn on difficulty from Difficulty Home first.");
             } else {
                 lines.add(UltraStyle.LABEL + "Activate a tier in that range on the Tiers tab first.");
             }
@@ -793,33 +798,40 @@ public final class UltraDifficultyScreens {
     }
 
     /**
-     * Difficulty on/off. OFF is dim (dark gray), never confirm. This is not a team mode.
-     * (4.7.78: rival teams are gone; there is no team mode page.)
+     * One toggle on Difficulty home. No coin submenu. 4.7.81: OFF is still a live control, so it uses the
+     * normal style (dim reads as disabled). The caller ends the row.
      */
-    /** One toggle on Difficulty home. No coin submenu. */
-    private static void placeCoinMessageToggle(UltraScreenSpec spec, boolean on) {
-        spec.button(
-                        "do:toggle_coin_chat",
-                        on
-                                ? UltraStyle.confirm("Coin messages - ON")
-                                : UltraStyle.dim("Coin messages - OFF"),
-                        on ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM)
-                .rowGap();
+    private static void placeCoinMessageToggle(UltraScreenSpec spec, boolean on, boolean left) {
+        String label = on
+                ? UltraStyle.confirm("Coin messages - ON")
+                : UltraStyle.plain("Coin messages - OFF");
+        String style = on ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL;
+        if (left) {
+            spec.buttonLeft("do:toggle_coin_chat", label, style);
+        } else {
+            spec.buttonRight("do:toggle_coin_chat", label, style);
+        }
     }
 
+    /** Difficulty on/off in its usual slot: ON on the right, OFF on the left (guide Step 2, locked pages). */
     private static void placeDifficultyToggle(UltraScreenSpec spec, boolean enabled) {
-        if (enabled) {
-            // Turning it off asks first (4.7.56): the summoned End Dragon despawns.
-            spec.buttonRight(
-                    "page:difficulty_off_ask",
-                    UltraStyle.confirm("Difficulty - ON"),
-                    UltraStyle.STYLE_CONFIRM);
-            return;
+        placeDifficultyToggle(spec, enabled, !enabled);
+    }
+
+    /**
+     * Difficulty on/off. 4.7.81: OFF is a live control (it turns difficulty on), so it uses the normal style,
+     * not dim. The caller ends the row.
+     */
+    private static void placeDifficultyToggle(UltraScreenSpec spec, boolean enabled, boolean left) {
+        // Turning it off asks first (4.7.56): the summoned End Dragon despawns.
+        String action = enabled ? "page:difficulty_off_ask" : "do:toggle_personal";
+        String label = enabled ? UltraStyle.confirm("Difficulty - ON") : UltraStyle.plain("Difficulty - OFF");
+        String style = enabled ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL;
+        if (left) {
+            spec.buttonLeft(action, label, style);
+        } else {
+            spec.buttonRight(action, label, style);
         }
-        spec.buttonLeft(
-                "do:toggle_personal",
-                UltraStyle.dim("Difficulty - OFF"),
-                UltraStyle.STYLE_DIM);
     }
 
     private static void openTitles(ServerPlayer player, int pageIndex) {
@@ -885,8 +897,8 @@ public final class UltraDifficultyScreens {
         boolean sense = data != null && data.titleProgress().titleSenseChat();
         spec.buttonLeft(
                         "do:toggle_title_sense",
-                        sense ? UltraStyle.confirm("Title Sense - ON") : UltraStyle.dim("Title Sense - OFF"),
-                        sense ? "confirm" : "dim")
+                        sense ? UltraStyle.confirm("Title Sense - ON") : UltraStyle.plain("Title Sense - OFF"),
+                        sense ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL)
                 .buttonRight("page:title_unequip_ask", UltraStyle.danger("Unequip title"), UltraStyle.STYLE_DANGER)
                 .rowGap();
         spec.back();
@@ -906,7 +918,7 @@ public final class UltraDifficultyScreens {
         boolean earned = TitleSystem.has(player, title);
         boolean equipped = title.id.equals(TitleSystem.activeId(player));
         int mastery = DifficultyCache.data(player).titleProgress().masteryLevel(title.id);
-        spec.line(UltraStyle.LABEL + title.masteryDisplay(mastery))
+        spec.line(UltraStyle.header(title.masteryDisplay(mastery)))
                 .labelValue("Kind", kindLabel(title.kind))
                 .line(earned
                         ? UltraStyle.confirm("You have this title.")
@@ -964,7 +976,7 @@ public final class UltraDifficultyScreens {
         LmOverhaulScaledCombat.putPlaceholders(ph, player);
         long cr = snap == null ? 0L : (snap.combatRating > 0 ? snap.combatRating : snap.calculated);
         UltraScreenSpec spec = sub("stats")
-                .line(UltraStyle.LABEL + "Combat rating and scaled stats")
+                .line(UltraStyle.header("Combat rating and scaled stats"))
                 .labelValue(
                         "Tier",
                         (snap == null ? "-" : snap.activeTierName)
@@ -1024,7 +1036,7 @@ public final class UltraDifficultyScreens {
             return;
         }
         UltraScreenSpec spec = sub("eventlog")
-                .line(UltraStyle.LABEL + "Unified system event log")
+                .line(UltraStyle.header("Unified system event log"))
                 .line(UltraStyle.LABEL + "Use the toggles, or typed: /lm admin syslog ...")
                 .buttonsAfterLines();
         boolean logOn = DifficultyConfig.get().enableSystemTelemetry;

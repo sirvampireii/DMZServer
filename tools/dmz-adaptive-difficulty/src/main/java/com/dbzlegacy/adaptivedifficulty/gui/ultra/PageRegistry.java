@@ -154,7 +154,7 @@ public final class PageRegistry {
         p("spar", "stats", "Your spar stats", "spar|leaderboard");
         item("spar", "fight_report:*", "Fight report", "spar|stats");
         p("spar", "weights", "Weights", "spar|main", "training weights");
-        item("spar", "weights_input:*", "Weights", "spar|weights");
+        item("spar", "weights_input:*", "Weight amount", "spar|weights");
         item("spar", "weights_confirm:**", "Buy weights", "spar|weights");
         p("spar", "settings", "Spar settings", "spar|main", "tp chat");
         staff("spar", "admin", "Sparring staff tools", "spar|main");
@@ -218,9 +218,9 @@ public final class PageRegistry {
         item("dojo", "pick_confirm:**", "Confirm", "dojo|mentor");
         // founding and identity (4.7.78)
         p("dojo", "found", "Found a dojo", "dojo|home", "create start new dojo");
-        item("dojo", "found_style", "Found a dojo", "dojo|found");
-        item("dojo", "found_banner", "Found a dojo", "dojo|found");
-        item("dojo", "found_confirm", "Found a dojo", "dojo|found");
+        item("dojo", "found_style", "Style", "dojo|found");
+        item("dojo", "found_banner", "Banner", "dojo|found");
+        item("dojo", "found_confirm", "Confirm", "dojo|found");
         item("dojo", "dojo_banner", "Dojo banner", "dojo|home");
         item("dojo", "dojo_banner_ask:**", "Dojo banner", "dojo|dojo_banner");
         item("dojo", "dojo_rename", "Rename the dojo", "dojo|home");
@@ -235,7 +235,7 @@ public final class PageRegistry {
         p("prestige", "tiers", "Difficulty tiers", "prestige|shop");
         p("prestige", "effects", "Effects", "prestige|shop", "majin mutant ultimate");
         p("prestige", "mastery_wallet", "Mastery wallet", "prestige|shop");
-        p("prestige", "mastery_lines", "Apply points to a form", "prestige|mastery_wallet");
+        p("prestige", "mastery_lines", "Forms", "prestige|mastery_wallet");
         item("prestige", "mastery_lines:*", "Apply points to a form", "prestige|mastery_wallet");
         // mw_form:<s|n>:<group>:<form>[:<line page>] goes back to that line's page.
         item("prestige", "mw_form:*:*:*", "Form mastery", "prestige|mw_line:$1:$2");

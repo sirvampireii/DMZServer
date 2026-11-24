@@ -278,26 +278,31 @@ public final class UltraConfigScreens {
             String id = cat[0];
             String label = cat[1];
             boolean active = !searching && id.equalsIgnoreCase(activeModule);
-            String style = active ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM;
-            String text = active ? UltraStyle.confirm(label) : UltraStyle.dim(label);
+            // 4.7.81 (GuiKit): the rail is a picker - the open category reads normal, not green; the others stay muted.
+            String style = active ? UltraStyle.STYLE_NORMAL : UltraStyle.STYLE_DIM;
+            String text = active ? UltraStyle.plain(label) : UltraStyle.dim(label);
             // Chrome: left rail must not set firstButtonY or body text collapses onto controls.
             spec.chromeButton("do:select_module:" + id, text, style, SIDE_X, y, SIDE_W);
             y += ROW_STEP;
         }
     }
 
-    /** Search field, Search, and Clear on one row. Returns the next row Y. */
+    /**
+     * Search field, Search, and Clear on one row. Returns the next row Y. 4.7.81 (GuiKit): three 80px controls with
+     * the {@link #threeUpGap} gaps, so the field keeps the 80px minimum, and a hint that fits it.
+     */
     private static int placeSearchRow(UltraScreenSpec spec, String query, int y) {
         int btn = UltraStyle.BTN_MIN_W;
-        int fieldW = Math.max(40, MAIN_W - btn - CTRL_GAP - btn - CTRL_GAP);
+        int gap = threeUpGap(btn, btn, btn);
+        int fieldW = Math.max(btn, MAIN_W - btn - gap - btn - gap);
         String inputId = "input:search";
         spec.setRow(y);
-        spec.textFieldRow(inputId, query == null ? "" : query, "Search by name", MAIN_X, fieldW);
-        int searchX = MAIN_X + fieldW + CTRL_GAP;
+        spec.textFieldRow(inputId, query == null ? "" : query, "Search", MAIN_X, fieldW);
+        int searchX = MAIN_X + fieldW + gap;
         spec.buttonBound(
                 "do:search",
-                UltraStyle.confirm("Search"),
-                UltraStyle.STYLE_CONFIRM,
+                UltraStyle.LABEL + "Search",
+                UltraStyle.STYLE_NORMAL,
                 searchX,
                 y,
                 btn,
@@ -306,7 +311,7 @@ public final class UltraConfigScreens {
                 "do:search_clear",
                 UltraStyle.LABEL + "Clear",
                 UltraStyle.STYLE_NORMAL,
-                searchX + btn + CTRL_GAP,
+                searchX + btn + gap,
                 y,
                 btn);
         return y + ROW_STEP;
@@ -520,12 +525,13 @@ public final class UltraConfigScreens {
                     y,
                     indicatorW);
         } else {
+            // 4.7.81 (GuiKit): a changed value reads normal (the "*" on the name marks it), not green.
             putButton(
                     spec,
                     paint,
                     "do:refresh",
-                    dirty ? UltraStyle.confirm(indicator) : UltraStyle.dim(indicator),
-                    dirty ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM,
+                    dirty ? UltraStyle.plain(indicator) : UltraStyle.dim(indicator),
+                    dirty ? UltraStyle.STYLE_NORMAL : UltraStyle.STYLE_DIM,
                     MAIN_X + nameW + CTRL_GAP,
                     y,
                     indicatorW);
@@ -549,19 +555,38 @@ public final class UltraConfigScreens {
         boolean toggleRow = entry.kind() == ConfigEditor.Kind.BOOLEAN;
         int undoW = dirty ? UltraStyle.BTN_MIN_W : 0;
         int toggleW = toggleRow ? UltraStyle.BTN_MIN_W : 0;
-        int extras = (undoW == 0 ? 0 : undoW + CTRL_GAP) + (toggleW == 0 ? 0 : toggleW + CTRL_GAP);
-        int descW = Math.max(UltraStyle.BTN_MIN_W, MAIN_W - extras);
-        // What the setting does, in plain words. It stays put even when the last entry failed.
-        putButton(
-                spec,
-                paint,
-                "do:refresh",
-                UltraStyle.dim(oneLine(desc, descW)),
-                UltraStyle.STYLE_DIM,
-                MAIN_X,
-                y,
-                descW);
-        int x = MAIN_X + descW + CTRL_GAP;
+        int x;
+        if (toggleRow && dirty) {
+            // 4.7.81 (GuiKit): description + Undo + toggle with 8px gaps is 256px in the 254px column. The
+            // description gets its own row, then Undo and the toggle sit in the threeUpGap slots the number
+            // and enum rows use, so the toggle stays where an unchanged one is.
+            putButton(
+                    spec,
+                    paint,
+                    "do:refresh",
+                    UltraStyle.dim(oneLine(desc, MAIN_W)),
+                    UltraStyle.STYLE_DIM,
+                    MAIN_X,
+                    y,
+                    MAIN_W);
+            y += ROW_STEP;
+            int gap = threeUpGap(UltraStyle.BTN_MIN_W, undoW, toggleW);
+            x = MAIN_X + UltraStyle.BTN_MIN_W + gap;
+        } else {
+            int extras = (undoW == 0 ? 0 : undoW + CTRL_GAP) + (toggleW == 0 ? 0 : toggleW + CTRL_GAP);
+            int descW = Math.max(UltraStyle.BTN_MIN_W, MAIN_W - extras);
+            // What the setting does, in plain words. It stays put even when the last entry failed.
+            putButton(
+                    spec,
+                    paint,
+                    "do:refresh",
+                    UltraStyle.dim(oneLine(desc, descW)),
+                    UltraStyle.STYLE_DIM,
+                    MAIN_X,
+                    y,
+                    descW);
+            x = MAIN_X + descW + CTRL_GAP;
+        }
         if (dirty) {
             putButton(
                     spec,
@@ -572,16 +597,17 @@ public final class UltraConfigScreens {
                     x,
                     y,
                     undoW);
-            x += undoW + CTRL_GAP;
+            x += undoW + (toggleRow ? threeUpGap(UltraStyle.BTN_MIN_W, undoW, toggleW) : CTRL_GAP);
         }
         if (toggleRow) {
             boolean on = "ON".equalsIgnoreCase(value) || "true".equalsIgnoreCase(raw);
+            // 4.7.81: OFF is a live control (a click turns it on), so it uses the normal style, not dim.
             putButton(
                     spec,
                     paint,
                     "do:toggle:" + module + "|" + encodePath(path),
-                    on ? UltraStyle.confirm("ON") : UltraStyle.dim("OFF"),
-                    on ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM,
+                    on ? UltraStyle.confirm("ON") : UltraStyle.plain("OFF"),
+                    on ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL,
                     x,
                     y,
                     toggleW);
@@ -651,12 +677,13 @@ public final class UltraConfigScreens {
                 int stepW = UltraStyle.BTN_MIN_W;
                 int applyW = UltraStyle.BTN_MIN_W;
                 int gap = threeUpGap(applyW, stepW, stepW);
+                // 4.7.81 (GuiKit): Apply only stages the value (Review saves), so it is normal, not green.
                 putBound(
                         spec,
                         paint,
                         "do:set:" + module + "|" + encoded,
-                        UltraStyle.confirm("Apply"),
-                        UltraStyle.STYLE_CONFIRM,
+                        UltraStyle.LABEL + "Apply",
+                        UltraStyle.STYLE_NORMAL,
                         MAIN_X,
                         y,
                         applyW,
@@ -697,8 +724,8 @@ public final class UltraConfigScreens {
                         spec,
                         paint,
                         "do:set:" + module + "|" + encoded,
-                        UltraStyle.confirm("Apply"),
-                        UltraStyle.STYLE_CONFIRM,
+                        UltraStyle.LABEL + "Apply",
+                        UltraStyle.STYLE_NORMAL,
                         MAIN_X,
                         y,
                         w,
@@ -707,8 +734,8 @@ public final class UltraConfigScreens {
                         spec,
                         paint,
                         "do:cycle:" + module + "|" + encoded,
-                        UltraStyle.confirm("Next"),
-                        UltraStyle.STYLE_CONFIRM,
+                        UltraStyle.LABEL + "Next",
+                        UltraStyle.STYLE_NORMAL,
                         MAIN_X + w + gap,
                         y,
                         w);
@@ -739,8 +766,8 @@ public final class UltraConfigScreens {
                         if (paint && spec != null) {
                             spec.buttonBound(
                                     "do:add:" + module + "|" + encoded,
-                                    UltraStyle.confirm("Apply"),
-                                    UltraStyle.STYLE_CONFIRM,
+                                    UltraStyle.LABEL + "Apply",
+                                    UltraStyle.STYLE_NORMAL,
                                     MAIN_X,
                                     y,
                                     100,
@@ -761,8 +788,8 @@ public final class UltraConfigScreens {
                             spec,
                             paint,
                             "do:add:" + module + "|" + encoded,
-                            UltraStyle.confirm("Apply"),
-                            UltraStyle.STYLE_CONFIRM,
+                            UltraStyle.LABEL + "Apply",
+                            UltraStyle.STYLE_NORMAL,
                             MAIN_X,
                             y,
                             MAIN_W,
@@ -792,8 +819,8 @@ public final class UltraConfigScreens {
                         spec,
                         paint,
                         "do:set:" + module + "|" + encoded,
-                        UltraStyle.confirm("Apply"),
-                        UltraStyle.STYLE_CONFIRM,
+                        UltraStyle.LABEL + "Apply",
+                        UltraStyle.STYLE_NORMAL,
                         MAIN_X,
                         y,
                         MAIN_W,
@@ -1609,23 +1636,30 @@ public final class UltraConfigScreens {
                 .bodyPad(4);
     }
 
-    /** One line that fits a control of {@code widthPx}, cut on a word boundary. */
+    /**
+     * One line that fits a control of {@code widthPx}, cut on a word boundary. 4.7.81 (GuiKit): measured with real
+     * glyph widths ({@link UltraStyle#textWidthPx}), not the 6px estimate, and a cut line ends in "..." so it never
+     * reads as a whole sentence ("Extra damage scaling for each" was 156px in a 150px label).
+     */
     private static String oneLine(String text, int widthPx) {
         String plain = UltraStyle.plain(text == null ? "" : text).trim();
         if (plain.isBlank()) {
             plain = "No description.";
         }
         int labelPx = UltraStyle.labelMaxWidth(Math.max(40, widthPx));
-        int maxChars = Math.max(1, labelPx / UltraStyle.CHAR_W_EST);
-        if (plain.length() > maxChars) {
-            // Trim to the last whole word, then let fitAsciiLabel add the ellipsis, so a
-            // description never ends mid-word ("...scaling a mob (percent, e.g...").
-            int cut = plain.lastIndexOf(' ', maxChars - 4);
-            if (cut > 0) {
-                plain = plain.substring(0, cut).trim();
-            }
+        if (UltraStyle.textWidthPx(plain) <= labelPx) {
+            return plain;
         }
-        return UltraStyle.fitAsciiLabel(plain, labelPx);
+        int dots = UltraStyle.textWidthPx("...");
+        String head = plain;
+        // Drop whole words until the rest and the ellipsis fit, so a description never ends mid-word.
+        while (head.lastIndexOf(' ') > 0 && UltraStyle.textWidthPx(head) + dots > labelPx) {
+            head = head.substring(0, head.lastIndexOf(' ')).trim();
+        }
+        if (UltraStyle.textWidthPx(head) + dots <= labelPx) {
+            return head + "...";
+        }
+        return UltraStyle.fitAsciiLabel(head, labelPx);
     }
 
     /** "1 unsaved change" / "3 unsaved changes". */

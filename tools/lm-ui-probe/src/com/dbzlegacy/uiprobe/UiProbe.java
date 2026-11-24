@@ -794,7 +794,7 @@ public final class UiProbe {
         }
         // Breadcrumbs on three deep pages, one a dojo upgrade; each crumb but the last is a link.
         String[][] deep = {{"dojo", "dojo_up:arena", "Main menu > Dojo > Upgrades > Sparring arenas"},
-                {"prestige", "mastery_lines", "Main menu > Prestige > Shop > Mastery wallet > Apply points to a form"},
+                {"prestige", "mastery_lines", "Main menu > Prestige > Shop > Mastery wallet > Forms"},
                 {"rival", "records:stats", "Main menu > Rivals > Records > Record stats"}};
         for (String[] d : deep) {
             NavHistory.clear(u);
@@ -3056,12 +3056,12 @@ public final class UiProbe {
         } else {
             String stake = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.wagerText(post.wagerKind(), post.wager());
             for (GuiOpenPacket p : keep("v80 board listing", () -> UltraGui.open(player, "spar", "sparboard"))) {
-                note("V80 the listing shows the wager and Accept asks first: " + pf(has(p, stake)
+                note("V80 the listing shows the wager and Accept asks first: " + pf(has(p, "Emerald")
                         && p.buttonsJson().contains("page:board_accept:" + w.m_20148_())) + " | " + labels(p));
             }
             for (GuiOpenPacket p : keep("v80 accept ask", () -> UltraGui.open(player, "spar", "board_accept:" + w.m_20148_()))) {
                 note("V80 the accept page says the stake (the same kind and amount) before the click: " + pf(has(p, "You stake")
-                        && has(p, stake) && has(p, "The winner takes both stakes") && has(p, "refunds both")
+                        && has(p, "Emerald (the same as Wager80)") && has(p, "The winner takes both") && has(p, "refunds both")
                         && (p.buttonsJson().contains("do:board_accept:" + w.m_20148_()) || labels(p).contains("Accept and stake")))
                         + " | " + labels(p));
             }

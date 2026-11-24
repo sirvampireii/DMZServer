@@ -357,7 +357,10 @@ public final class CharacterServicesGuiApi {
             }
             return UltraStyle.LABEL + "Cost " + UltraStyle.GREEN + "free";
         }
-        return UltraStyle.LABEL + "Cost " + UltraStyle.VALUE + CharacterServicesSystem.formatCost(copperCost) + " " + UltraStyle.LABEL + "Ancient Coins";
+        // formatCost already ends in "Ancient" ("16x Gold Ancient"): add "Coins", not a second "Ancient" (4.7.81).
+        String cost = CharacterServicesSystem.formatCost(copperCost);
+        String unit = cost.endsWith(" Ancient") ? "Coins" : "Ancient Coins";
+        return UltraStyle.LABEL + "Cost " + UltraStyle.VALUE + cost + " " + UltraStyle.LABEL + unit;
     }
 
     /** Same percents {@link CharacterServicesSystem#executeRaceChange} will accept. */

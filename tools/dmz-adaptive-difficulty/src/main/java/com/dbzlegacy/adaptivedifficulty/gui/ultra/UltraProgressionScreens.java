@@ -55,8 +55,13 @@ public final class UltraProgressionScreens {
     /** Overview only - Boosts and Coins live on their tabs. */
     private static void openHome(ServerPlayer player) {
         UltraScreenSpec spec = base("main", "home")
-                .line(UltraStyle.LABEL + "Training boosts, Ancient Coins, and staff tools")
-                .line(ProgressionGuiApi.statusText())
+                .line(UltraStyle.LABEL + "Training boosts, Ancient Coins, and staff tools");
+        // 4.7.81: features by name, not config keys (the chat status keeps the keys staff type).
+        for (String line : com.dbzlegacy.adaptivedifficulty.progression.ProgressionConfig.statusLinesInWords()) {
+            spec.line(line);
+        }
+        spec.line(com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.statusLine())
+                .line(com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.statusLine())
                 .line(UltraStyle.LABEL + "Open the Boosts or Coins tab for controls.")
                 .buttonsAfterLines();
         spec.back();
@@ -95,28 +100,29 @@ public final class UltraProgressionScreens {
                 .line(mastery ? masteryBoostLine(ph) : tpBoostLine(ph))
                 .line(UltraStyle.LABEL + "Presets start a boost " + UltraStyle.SEP + " End stops it")
                 .buttonsAfterLines();
+        // 4.7.81 (GuiKit): the presets are a picker - normal style; End keeps the danger style.
         spec.buttonLeft(
                         act + "1.25:30",
-                        UltraStyle.confirm(UltraStyle.boostPreset("1.25", "30")),
-                        UltraStyle.STYLE_CONFIRM)
+                        UltraStyle.boostPreset("1.25", "30"),
+                        UltraStyle.STYLE_NORMAL)
                 .buttonRight(
                         act + "1.5:30",
-                        UltraStyle.confirm(UltraStyle.boostPreset("1.5", "30")),
-                        UltraStyle.STYLE_CONFIRM)
+                        UltraStyle.boostPreset("1.5", "30"),
+                        UltraStyle.STYLE_NORMAL)
                 .rowGap();
         spec.buttonLeft(
                         act + "2:30",
-                        UltraStyle.confirm(UltraStyle.boostPreset("2", "30")),
-                        UltraStyle.STYLE_CONFIRM)
+                        UltraStyle.boostPreset("2", "30"),
+                        UltraStyle.STYLE_NORMAL)
                 .buttonRight(
                         act + "2:60",
-                        UltraStyle.confirm(UltraStyle.boostPreset("2", "60")),
-                        UltraStyle.STYLE_CONFIRM)
+                        UltraStyle.boostPreset("2", "60"),
+                        UltraStyle.STYLE_NORMAL)
                 .rowGap();
         spec.buttonLeft(
                         act + "3:30",
-                        UltraStyle.confirm(UltraStyle.boostPreset("3", "30")),
-                        UltraStyle.STYLE_CONFIRM)
+                        UltraStyle.boostPreset("3", "30"),
+                        UltraStyle.STYLE_NORMAL)
                 .buttonRight(act + "end", UltraStyle.danger("End this boost"), UltraStyle.STYLE_DANGER)
                 .rowGap();
         spec.back();
@@ -139,13 +145,14 @@ public final class UltraProgressionScreens {
             spec.line(line);
         }
         spec.buttonsAfterLines();
+        // 4.7.81: OFF is a live control (it turns the setting on), so it uses the normal style, not dim.
         String toggle = staffFree
                 ? UltraStyle.confirm("Staff free costs - ON")
-                : UltraStyle.dim("Staff free costs - OFF");
+                : UltraStyle.plain("Staff free costs - OFF");
         spec.button(
                         "do:toggle_staff_free_coins:" + (staffFree ? "off" : "on"),
                         toggle,
-                        staffFree ? "confirm" : "dim")
+                        staffFree ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL)
                 .rowGap();
         spec.back();
         spec.send(player);

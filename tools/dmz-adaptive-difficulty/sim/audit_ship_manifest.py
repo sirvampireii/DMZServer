@@ -196,13 +196,14 @@ def main() -> int:
     check("manifest rival-requests-counts row", "rival-requests-counts" in manifest)
     check("Requests moved from Rival Home to the Rival tab next to Pick player",
           '"requests|Requests"' not in rival_home
-          and '"pick_rival|Pick player", "requests|Requests"' in rival_tab
+          and '"pick_rival|Pick a player", "requests|" + (incoming > 0 ? "Requests (" + incoming + ")" : "Requests")' in rival_tab
           and 'case "requests", "pending", "invites" -> openRequests(' in rival_ui)
-    check("Rival tab shows Incoming requests from the Accept/Decline list, Awaiting reply only when > 0",
+    # 4.7.81 (GuiKit): one Requests line (incoming from the Accept/Decline list, outgoing waiting on a reply);
+    # the Accept/Decline buttons live on the Requests page only.
+    check("Rival tab shows incoming requests from the Accept/Decline list and those waiting on a reply",
           '"Pending invites"' not in rival_ui
-          and '.labelValue("Incoming requests", String.valueOf(declares.size()))' in rival_tab
-          and "if (awaiting > 0) {" in rival_tab and '"Awaiting reply"' in rival_tab
-          and "invite" not in _after(rival_tab, "int awaiting").split("UltraPickHelper.pageLabel", 1)[0].lower())
+          and "int incoming = nonBlank(RivalGuiApi.pendingIncomingDeclareArgs(player)).size();" in rival_tab
+          and '" waiting on a reply"' in rival_tab and "placeIncomingDeclareButtons" not in rival_tab)
     check("outgoing count: invite sent, unexpired, not mutual, not a mutual confirm",
           "link.mutual || !link.inviteSent || link.needsMutualConfirm()" in out_body
           and "link.pendingExpireAt > 0L && now > link.pendingExpireAt" in out_body)
@@ -1052,8 +1053,10 @@ def main() -> int:
           and ".back()" in bs_sel  # 4.7.71: a tab page's back() reads Back to main menu
           and '.tabs("home|Home", "boosts|Boosts", "coins|Coins")' in bs_scr)
     _presets = ['act + "1.25:30"', 'act + "1.5:30"', 'act + "2:30"', 'act + "2:60"', 'act + "3:30"']
-    check("control view: own status line, five confirm presets, danger End, Back to Boosts",
-          all(p in bs_view for p in _presets) and bs_view.count('UltraStyle.STYLE_CONFIRM)') == 5
+    # 4.7.81 (GuiKit): presets are options (normal style); End stays danger.
+    check("control view: own status line, five presets (normal style), danger End, Back to Boosts",
+          all(p in bs_view for p in _presets) and bs_view.count("UltraStyle.boostPreset(") == 5
+          and "UltraStyle.STYLE_CONFIRM" not in bs_view
           and 'act + "end", UltraStyle.danger("End this boost"), UltraStyle.STYLE_DANGER' in bs_view
           and 'String act = mastery ? "do:masteryboost:" : "do:boost:";' in bs_view
           and "mastery ? masteryBoostLine(ph) : tpBoostLine(ph)" in bs_view
@@ -1185,8 +1188,8 @@ def main() -> int:
           all(s in pg_lines and s in pg_line for s in (
               "UltraPickHelper.pageCount(", "UltraPickHelper.clampPage(page, pages)",
               "UltraPickHelper.pageSlice(", "UltraPickHelper.pageLabel(spec, pg, pages);",
-              "UltraPickHelper.placePrevNext(spec, "))
-          and 'UltraPickHelper.placePrevNext(spec, "mastery_lines", pg, pages);' in pg_lines
+              ))
+          and 'pagerRow(spec, "mastery_lines", pg, pages);' in pg_lines
           and "UltraPickHelper.placePrevNext(spec, base, pg, pages);" in pg_line
           and "for (MasteryWallet.Form form : line.forms)" not in pg_line
           and "for (MasteryWallet.Line line : lines)" not in pg_lines)
@@ -1802,7 +1805,7 @@ def main() -> int:
           and 'return "Turned off on this server right now.";' in ch_scr
           and 'return "Not available for your rank. Ask staff which rank unlocks this.";' in ch_scr
           and 'return "Available again in " + cooldownWait + ".";' in ch_scr
-          and "UltraStyle.STYLE_DIM" in _after(ch_scr, "private static void indexButton(")[:600])
+          and "spec.lockedButton(locked)" in _after(ch_scr, "private static void indexButton("))
     check("Body parts reached only from Home; its Back returns to Character Home; Home footer Back to main menu",
           "page:bodyparts:0" not in ch_bones
           and 'footerBack("page:bones:0", "Model")' not in ch_scr
@@ -2029,6 +2032,43 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.81 ---")
+    p81_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p81_style = read(SRC / "gui/ultra/UltraStyle.java")
+    p81_menu = read(SRC / "client/NativeMenuScreen.java")
+    p81_skins = read(SRC / "gui/ultra/MenuSkins.java")
+    p81_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    p81_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
+    p81_dojo = read(SRC / "gui/ultra/UltraDojoScreens.java")
+    p81_found = read(SRC / "gui/ultra/DojoFounding.java")
+    p81_pres = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
+    p81_reg = read(SRC / "gui/ultra/PageRegistry.java")
+    p81_csapi = read(SRC / "gui/CharacterServicesGuiApi.java")
+    p81_corpus = ROOT / "tools/lm-gui-corpus"
+    check("manifest row for lm 4.7.81", "lm-4781-guikit-layout" in manifest)
+    check("GuiKit corpus in the repo (specs, run script, findings)",
+          (p81_corpus / "run.ps1").exists() and (p81_corpus / "tools/guikit.json").exists()
+          and (p81_corpus / "findings/layout-findings.md").exists())
+    check("every page: notices stay in their card, body wraps at 7px, labels cut by real width, footer as wide as the columns",
+          "&& !notice(l);" in p81_menu and "BODY_GLYPH_PX = 7;" in p81_style
+          and "static String clipByWidth(String text, int maxPx, boolean trim)" in p81_style
+          and "menuFooterButton(b, x, footerY, fw, bh)" in p81_spec
+          and "fillScreen && designWidth > 0 ? 8 : UltraStyle.COL_L" in p81_spec
+          and "dark ? 0.52 : 0.30" in p81_skins)
+    check("Difficulty Home: Back to main menu bottom right, paired rows, OFF toggles live",
+          "placeDifficultyToggle(spec, personal, true);" in p81_diff and 'UltraStyle.plain("Difficulty - OFF")' in p81_diff
+          and "Team mode resets to Personal" not in p81_diff)
+    check("Rival: requests named on their buttons, Requests (N), Stop spectate only while spectating",
+          '"requests|" + (incoming > 0 ? "Requests (" + incoming + ")" : "Requests")' in p81_rival
+          and "RivalSpectator.isSpectating(player.m_20148_())" in p81_rival and "placeIncomingDeclareButtons" not in p81_rival)
+    check("Dojo: short war action labels, wide watch and banner rows, coin wager labels, 24-char name field",
+          has(p81_dojo, '"View the bracket"', '"Accept the war"', '"Turn it down"') and "buttonWide(" in p81_found
+          and "DOJO_NAME_MAX" in p81_found and "coinLabel(" in p81_dojo)
+    check("Prestige: options in normal style, two columns, irreversible exchange in danger style",
+          "pagerRow(spec, \"mastery_lines\", pg, pages);" in p81_pres and "UltraStyle.STYLE_DANGER" in p81_pres
+          and 'p("prestige", "mastery_lines", "Forms", "prestige|mastery_wallet");' in p81_reg)
+    check("Character costs say Ancient Coins once", "Ancient Ancient" not in p81_csapi)
+
     print("\n--- § lm 4.7.80 ---")
     p80_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
     p80_act = read(SRC / "gui/ultra/UltraGuiActions.java")
@@ -2129,7 +2169,7 @@ def main() -> int:
           'UltraStyle.confirm("Change tier")' not in p78_diff and "No tier yet. Pick one in Tiers." in p78_diff
           and "Turn it on from Difficulty Home, then pick a tier here." in p78_diff
           and ordered(p78_diff, "if (!guide && active > 0) {", '"page:clear_tier_ask"')
-          and ordered(p78_diff, '"Got it - take me to Difficulty"', "spec.footerGuide(", "return;", "placeDifficultyToggle(spec, personal);")
+          and ordered(p78_diff, '"Got it - take me to Difficulty"', "spec.footerGuide(", "return;", "placeDifficultyToggle(spec, personal, true);")
           and 'UltraStyle.plain("Replay the difficulty guide")' in p78_diff)
     check("C: rival teams removed; every player scales personally; stored team mode dropped",
           not (SRC / "team/TeamScaling.java").exists() and not (SRC / "data/TeamMode.java").exists()
@@ -3008,7 +3048,8 @@ def main() -> int:
     check("C3 clear-tier / unequip-title ask pages act on the first Confirm",
           '!"clear_tier_ask".equals(page) && !GuiClickConfirm.confirmed' in p56_act
           and '!"title_unequip_ask".equals(page) && !GuiClickConfirm.confirmed' in p56_act
-          and "Team mode resets to Personal. You will need Ancient Coins" in p56_diff)
+          and "Clear your active tier? You will need Ancient Coins to activate a tier again." in p56_diff
+          and "Team mode resets to Personal" not in p56_diff)
     check("C1 tier rows show the reason only (no PurchaseState enum names)",
           "state.name() + \" - \"" not in g("gui/ultra/PurchaseState.java"))
     check("B2/C13 one favor sentence; coin shortfall without pay-up jargon",
@@ -3065,7 +3106,7 @@ def main() -> int:
           and '"fillScreen"' not in p55_menu and '"designWidth"' not in p55_menu
           and 'layout.addProperty("scrollBody", false);' in p55_menu
           and "bottom + UltraStyle.MENU_END_PAD + UltraStyle.MENU_CLOSE_BAND" in p55_menu
-          and "menuFooterButton(b, x, footerY, UltraStyle.BTN_W, bh)" in p55_menu
+          and "menuFooterButton(b, x, footerY, fw, bh)" in p55_menu
           and "int footerY = bottom + UltraStyle.MENU_FOOTER_GAP;" in p55_menu
           and "false, b.sound, b.buttonSkin, b.icon, b.raw);" in _after(p55_spec, "private Button menuFooterButton(")[:400])
     check("rows stay left of the pinned model; model column ends by MENU_MODEL_BOTTOM",
@@ -3449,7 +3490,7 @@ def main() -> int:
     p44_prev = _after(p44_dr, "private static List<String> previousMemberLinesForKey(").split("private static Set<String> rosterUuids", 1)[0]
     check("manifest lm-4744-dojo-roster-previous-members row", "lm-4744-dojo-roster-previous-members" in manifest)
     check("members pages render the live roster (apprenticeCards / membershipDojoCards), not the whole board",
-          "return ownedRosterLines(player, \"Your dojo\");" in p44_dr
+          "List<String> lines = ownedRosterLines(player, \"Your dojo\");" in p44_dr
           and "return joinedRosterLines(player, \"Your mentor's dojo\");" in p44_dr
           and "SparringSystem.apprenticeCards(player)" in p44_dr
           and "SparringSystem.membershipDojoCards(player)" in p44_dr
@@ -4474,7 +4515,7 @@ def main() -> int:
           and '"Progression " + flag' not in gf_prog and '"Progression " + key' not in gf_prog
           and "Usage: /progression admin" not in gf_prog and "Usage: progression do flag" not in gf_prog)
     check("Rival Challenge tab: pending lines come from the same page as their buttons",
-          "RivalGuiApi.pendingChallengeLinesFor(pageChallenges)" in gf_chal
+          "UltraPickHelper.pageSlice(challenges, CHALLENGES_PER_PAGE, pg)" in gf_chal
           and "placePerChallengeButtons(spec, player, pageChallenges);" in gf_chal)
 
     def _w(t):
@@ -4674,12 +4715,11 @@ def main() -> int:
           and '"Page " + (page + 1) + " of " + pages' in pick_helper
           and "placePrevNext(spec, pageBase, pg, pages)" in pick_helper)
     spar_ui = read(ultra_dir / "UltraSparScreens.java")
-    war = _after(spar_ui, "private static void openDojoWarPending(").split("\n    }\n", 1)[0]
-    check("war requests: lines and Accept/Deny buttons share one page slice",
-          war.count("for (String card : shown)") == 2 and "pageSlice(cards, CARDS_PER_PAGE, pg)" in war)
-    check("Spar picker confirm Back returns to the picker page",
-          '"page:pick_confirm:" + action + "|" + here + "|" + name' in spar_ui
-          and 'case "pick_apprentice", "pick_mentor" -> "Players"' in spar_ui)
+    # 4.7.81: UltraSparScreens.openDojoWarPending was unreachable (Dojo owns war requests) and is deleted.
+    check("war requests: the unreachable Sparring copy is gone",
+          "private static void openDojoWarPending(" not in spar_ui)
+    check("Spar picker confirm Back returns to the picker page (history Back)",
+          '"page:pick_confirm:" + action + "|" + here + "|" + name' in spar_ui)
     check("picker paging self-test runs at startup",
           boot_self_test("verifyPickerPaging"))
     pend = _after(spar_ui, "private static void openPending(").split("\n    }\n", 1)[0]
