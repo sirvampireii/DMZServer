@@ -2029,6 +2029,27 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.77 ---")
+    p77_over = read(SRC / "client/HudOverlay.java")
+    p77_spec = read(SRC / "rival/RivalSpectator.java")
+    p77_sense = read(SRC / "title/TitleSense.java")
+    p77_ev = read(SRC / "event/DifficultyEvents.java")
+    p77_pot = read(SRC / "progression/skills/PotentialProgression.java")
+    p77_hud = read(SRC / "gui/ultra/LmHud.java")
+    p77_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
+    check("manifest row for lm 4.7.77", "lm-4777-bugfixes" in manifest)
+    check("HUD panels re-bake after the cache releases them (no missing-texture checkerboard)",
+          has(p77_over, "boolean[] gone", "old.gone()[0] = true;", "b == null || b.gone()[0]"))
+    check("stop spectate and difficulty off hide their HUD elements",
+          ordered(p77_spec, "public static String stop(", "ACTIVE.remove(spectator.m_20148_());", ".hide(spectator,")
+          and ordered(p77_sense, "if (!SystemGate.participates(player)) {", ".hide(player,")
+          and ordered(p77_ev, "SystemGate.isDisabled() || !SystemGate.allows(player)", "LmHud.ELITE);"))
+    check("Potential notices stack, a reset clears the shown numbers, HUD maps forgotten on logout",
+          has(p77_pot, "HUD_HINTS", "HUD_LAST.remove(player.m_20148_());", "public static void forgetHud(")
+          and "PotentialProgression.forgetHud(" in p77_hud and "AncientCoinEconomy.forgetToast(" in p77_hud)
+    check("top pills keep a readable width; Rival settings show each state once",
+          "TOP_MIN_W = 160" in p77_over and 'labelValue("TP Chat"' not in p77_rival)
+
     print("\n--- § lm 4.7.76 ---")
     p76_over = read(SRC / "client/HudOverlay.java")
     p76_coin = read(SRC / "currency/AncientCoinEconomy.java")

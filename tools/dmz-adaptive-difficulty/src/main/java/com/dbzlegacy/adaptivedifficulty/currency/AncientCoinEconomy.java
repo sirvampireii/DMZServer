@@ -578,6 +578,13 @@ public final class AncientCoinEconomy {
      * 4.7.75: a HUD player's coin drops sum into one toast ("+ 5x Iron Ancient Coins") that stays while
      * drops keep coming within 5 seconds, instead of one chat line per kill. False for everyone else (chat as before).
      */
+    /** 4.7.77: drop a player's coin toast window on logout. */
+    public static void forgetToast(java.util.UUID id) {
+        if (id != null) {
+            COIN_TOAST.remove(id);
+        }
+    }
+
     static boolean coinToast(ServerPlayer player, long copper) {
         if (copper <= 0L || !com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
             return false;
