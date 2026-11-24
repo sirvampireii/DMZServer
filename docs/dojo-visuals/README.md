@@ -20,34 +20,40 @@ bash tools/dmz-adaptive-difficulty/tools/dojo/make.sh          # or: make.sh ki_
    rooms inside one hall. It reads every position from the recipe's `"dojo"` section: ring anchors, the south-wing
    rooms, the balcony, the doors and the landing points. Phase 2's placement code reads the same section. DojoKit
    also places the style banners, the grounds (path, stone lanterns, SceneKit trees, torii) and a DetailKit weathering
-   pass, and renders the pictures with BlockRender.
+   pass, and renders the pictures with BlockRender. It builds a dojo from its state, the one LM keeps (rings, each
+   room's level, the style), so a new dojo, a grown one and every upgrade in between come from the same code.
+   `DojoKit upgrade <state> <upgrade>` renders what one upgrade adds: Now, After and Where (see below).
 3. **BuildLint** checks every structure that ships (`buildlint.txt`).
 4. **The menu mockups come from the real LM client**, in the current look (Saiyan Royal, the Sparring accent). The
    UI probe's mock mode (`tools/lm-ui-probe`, "Menu mockups" in its README) builds the proposed pages with LM's own
    screen-spec API, the real client draws them, and the rig shoots each one at GUI scales 2, 3 and 4.
-   `mock_compose.py` then puts the floor-plan picture into the room the upgrade pages leave for it. That picture is
-   the one new menu element; everything else in the shots is the client as it is today.
+   `mock_compose.py` then puts DojoKit's pictures into the room the pages leave for them. Those pictures are the one
+   new menu element; everything else in the shots is the client as it is today.
 
 The structures are committed to `tools/dmz-adaptive-difficulty/src/main/resources/data/legacymechanics/structures/dojo/`:
 
-- `hall_t1.nbt`, `hall_t2.nbt`, `hall_t3.nbt`: the bare shells.
-- `dojo_<style>_t<tier>.nbt`: the whole plot for each style and tier, 12 in all.
+- `dojo_start.nbt`: a new dojo. The hall is empty except the free sparring mat (ring 1); no style yet, so no banners.
+- `dojo_<style>_t<tier>.nbt`: a dojo with every upgrade at one tier, per style and tier, 12 in all.
+
+The bare hall shells are build inputs only (`build/dojo/hall_t*.nbt`).
 
 In game they load as `legacymechanics:dojo/...` through `StructureTemplate`.
 
-## The dojo is one Japanese hall
+## The dojo is one Japanese hall, and it starts empty
 
-Every room is inside the hall. Only the garden and grounds are outside.
+Every room is inside the hall. Only the garden and grounds are outside. A new dojo is the hall, empty except the free
+sparring mat (`plan_start.jpg`, `outside_start.jpg`); each upgrade builds its part into it:
 
-- **The hall floor:** six ring spaces in two rows of three, 17 x 17 each. A ring you haven't bought is plain tatami.
-  Pillars with lights run between the rings, and lanterns hang on chains over each ring.
-- **The spectator balcony:** a mezzanine along the north wall with a rail, benches and stairs at the west end.
-- **The south wing:** behind a shoji partition, the training area, meditation room, trophy hall and master quarters,
-  with a corridor from the main doors.
-- **The entrance porch** with the main doors and a noren of the style's colour.
-- **Outside:** a path with stone lanterns. Refined adds trees, and masterwork adds cherry trees and a torii.
-
-The pictures show tier N with 2N rings and every room and the balcony at tier N.
+- **Sparring arenas:** up to six rings in two rows of three on the hall floor, 17 x 17 each. Space for a ring you
+  haven't bought is plain floor. The hall's look follows the rings, like LM's look tier: 1-2 rings basic, 3-4 refined,
+  5-6 masterwork.
+- **Spectator balcony:** a mezzanine along the north wall with a rail, benches and stairs at the west end.
+- **Training hall, meditation room, trophy hall, master quarters:** rooms in the south wing. A room appears when it is
+  bought (shoji walls, a sliding-door gap from the hall floor) and gains something at each level: the training hall
+  more dummies, drill pieces, then mats and banners; the meditation room a gravel garden with stones, then a water
+  basin and bamboo; the trophy hall better pedestals and banners; the quarters a desk, more shelves, then rugs.
+- **Garden grounds:** the path is always there. Level 1 adds stone lanterns, 2 trees, 3 cherry trees and a torii.
+- **The entrance porch** with the main doors, and a noren in the style's colour once a style is picked.
 
 ## Tiers set the materials, styles set the accents
 
@@ -76,10 +82,18 @@ and the training pieces. It never changes the building.
 - `sheet_arena.jpg`: the hall floor from the spectator balcony (`arena_*.jpg`).
 - `sheet_training.jpg`: the training area from its door (`training_*.jpg`).
 - `sheet_outside.jpg`, `sheet_front.jpg`, `sheet_night.jpg`: the plot from above, from the path, and at night.
-- `menu_main_menu.png`, `menu_spar_board.png`, `menu_my_dojo.png`, `menu_upgrades.png`, `menu_upgrade_ring.png`:
-  the menus at GUI scale 3, drawn by the real LM client. `menu_<page>_gs2.png` and `_gs4.png` are the other scales.
-- `menu_plan_ki_t2.png` and `menu_plan_plain_ki_t2.png`: the upgrade pages' map, a BlockRender top view of the hall
-  (with the ring being bought in green, and plain).
+- `*_start.jpg`: a new dojo (plan, outside, front, night, the hall floor).
+- `upgrade_<name>_now.jpg`, `_after.jpg`, `_map.jpg`: what one upgrade adds. Now and After are close-ups of that part
+  of the dojo with the roof off; Where is the floor plan with the part in green. From a new dojo: `ring2`,
+  `training1`, `balcony1`, `garden1`; from a grown Ki Masters dojo (4 rings, every room at level 1): `ring5` (the hall
+  becomes masterwork) and `meditation2`.
+- The menus at GUI scale 3, drawn by the real LM client (`menu_<page>_gs2.png` and `_gs4.png` are the other scales):
+  - `menu_main_menu.png`: the main menu with the Spar Board and My dojo tiles.
+  - `menu_spar_board.png`: the Spar Board with posts.
+  - `menu_my_dojo.png`: My dojo for a new dojo, with its floor plan.
+  - `menu_upgrades.png`: the upgrade list with LM's names and costs, and the plan.
+  - `menu_upgrade_ring2.png`, `menu_upgrade_training1.png`: one upgrade, with Now, After and Where above the cost
+    and the Buy button.
 - `buildlint.txt`: BuildLint's findings for every structure.
 
 ## Navigation (3 taps or fewer)

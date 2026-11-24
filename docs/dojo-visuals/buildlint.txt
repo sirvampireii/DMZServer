@@ -1,22 +1,22 @@
 == dojo_evasion_t1
-Structure 119x50x113, 65 states: 0 errors, 3 warnings, 1 notes
-  WARN  DARK     3301 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
-  WARN  CUT-OFF  4 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks spruce_planks/dark_oak_planks at 33 25 40; 6 blocks dark_oak_planks/spruce_planks at 43 29 40; 9 blocks andesite/oak_planks at 52 2 87
+Structure 119x50x113, 64 states: 0 errors, 3 warnings, 1 notes
+  WARN  DARK     3352 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+  WARN  CUT-OFF  6 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks spruce_planks/dark_oak_planks at 33 25 40; 6 blocks dark_oak_planks/spruce_planks at 43 29 40; 9 blocks andesite/oak_planks at 52 2 87
   WARN  PLAIN    6 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x3 spruce_planks at 19 8 19; 81x21 spruce_planks at 19 14 63; 10x3 spruce_planks at 50 35 50
   info  GRADIENT 2 walls get DARKER toward the top (rule: darkest at the base): the wall facing north at z=65 (L* 50 at the base, 37 at the top); the wall facing east at x=21 (L* 45 at the base, 32 at the top)
   -> build/dojo/lint_dojo_evasion_t1.png
 == dojo_evasion_t2
-Structure 119x50x113, 101 states: 0 errors, 9 warnings, 0 notes
-  WARN  DARK     2605 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
-  WARN  CUT-OFF  11 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks gravel/grass_block at 61 0 104; 17 blocks spruce_planks/stripped_bamboo_block at 51 2 44; 17 blocks spruce_planks/stripped_bamboo_block at 77 2 44
+Structure 119x50x113, 102 states: 0 errors, 9 warnings, 0 notes
+  WARN  DARK     2573 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+  WARN  CUT-OFF  3 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks gravel/grass_block at 61 0 104; 9 blocks andesite/spruce_planks at 52 2 87; 9 blocks spruce_planks/stone_bricks at 65 2 87
   WARN  PLAIN    6 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x3 dark_oak_planks at 19 8 19; 81x21 spruce_planks at 19 14 63; 8x3 cobbled_deepslate at 50 35 50
   WARN  LAG      80% of the visible faces in chunk column 7,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   WARN  LAG      78% of the visible faces in chunk column 0,0 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   WARN  LAG      70% of the visible faces in chunk column 0,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   -> build/dojo/lint_dojo_evasion_t2.png
 == dojo_evasion_t3
-Structure 119x50x113, 98 states: 0 errors, 12 warnings, 1 notes
-  WARN  DARK     2084 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+Structure 119x50x113, 103 states: 0 errors, 12 warnings, 1 notes
+  WARN  DARK     1988 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
   WARN  CUT-OFF  51 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks polished_andesite/grass_block at 61 0 104; 15 blocks dark_oak_planks/emerald_block at 26 2 23; 15 blocks dark_oak_planks/emerald_block at 52 2 23
   WARN  PLAIN    7 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x3 stripped_dark_oak_wood at 19 8 19; 81x21 dark_oak_planks at 19 14 63; 8x3 cobbled_deepslate at 50 35 50
   WARN  LAG      76% of the visible faces in chunk column 7,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
@@ -24,24 +24,24 @@ Structure 119x50x113, 98 states: 0 errors, 12 warnings, 1 notes
   WARN  LAG      77% of the visible faces in chunk column 0,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   -> build/dojo/lint_dojo_evasion_t3.png
 == dojo_ki_t1
-Structure 119x50x113, 67 states: 0 errors, 3 warnings, 1 notes
-  WARN  DARK     3237 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
-  WARN  CUT-OFF  4 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks spruce_planks/dark_oak_planks at 33 25 40; 6 blocks dark_oak_planks/spruce_planks at 43 29 40; 9 blocks andesite/oak_planks at 52 2 87
+Structure 119x50x113, 66 states: 0 errors, 3 warnings, 1 notes
+  WARN  DARK     3288 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+  WARN  CUT-OFF  6 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks spruce_planks/dark_oak_planks at 33 25 40; 6 blocks dark_oak_planks/spruce_planks at 43 29 40; 9 blocks andesite/oak_planks at 52 2 87
   WARN  PLAIN    6 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x3 spruce_planks at 19 8 19; 81x21 spruce_planks at 19 14 63; 10x3 spruce_planks at 50 35 50
   info  GRADIENT 2 walls get DARKER toward the top (rule: darkest at the base): the wall facing north at z=65 (L* 50 at the base, 37 at the top); the wall facing east at x=21 (L* 47 at the base, 32 at the top)
   -> build/dojo/lint_dojo_ki_t1.png
 == dojo_ki_t2
-Structure 119x50x113, 101 states: 0 errors, 9 warnings, 0 notes
-  WARN  DARK     4275 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
-  WARN  CUT-OFF  11 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks gravel/grass_block at 61 0 104; 17 blocks spruce_planks/stripped_bamboo_block at 51 2 44; 17 blocks spruce_planks/stripped_bamboo_block at 77 2 44
+Structure 119x50x113, 102 states: 0 errors, 9 warnings, 0 notes
+  WARN  DARK     4073 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+  WARN  CUT-OFF  3 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks gravel/grass_block at 61 0 104; 9 blocks andesite/spruce_planks at 52 2 87; 9 blocks spruce_planks/stone_bricks at 65 2 87
   WARN  PLAIN    6 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x3 dark_oak_planks at 19 8 19; 81x21 spruce_planks at 19 14 63; 8x3 cobbled_deepslate at 50 35 50
   WARN  LAG      80% of the visible faces in chunk column 7,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   WARN  LAG      78% of the visible faces in chunk column 0,0 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   WARN  LAG      70% of the visible faces in chunk column 0,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   -> build/dojo/lint_dojo_ki_t2.png
 == dojo_ki_t3
-Structure 119x50x113, 98 states: 0 errors, 12 warnings, 1 notes
-  WARN  DARK     3638 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+Structure 119x50x113, 103 states: 0 errors, 12 warnings, 1 notes
+  WARN  DARK     3414 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
   WARN  CUT-OFF  51 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks polished_andesite/grass_block at 61 0 104; 15 blocks dark_oak_planks/cyan_concrete at 26 2 23; 15 blocks dark_oak_planks/cyan_concrete at 52 2 23
   WARN  PLAIN    7 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x3 stripped_dark_oak_wood at 19 8 19; 81x21 dark_oak_planks at 19 14 63; 8x3 cobbled_deepslate at 50 35 50
   WARN  LAG      76% of the visible faces in chunk column 7,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
@@ -49,49 +49,55 @@ Structure 119x50x113, 98 states: 0 errors, 12 warnings, 1 notes
   WARN  LAG      77% of the visible faces in chunk column 0,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   -> build/dojo/lint_dojo_ki_t3.png
 == dojo_melee_t1
-Structure 119x50x113, 67 states: 0 errors, 3 warnings, 1 notes
-  WARN  DARK     3301 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
-  WARN  CUT-OFF  4 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks spruce_planks/dark_oak_planks at 33 25 40; 6 blocks dark_oak_planks/spruce_planks at 43 29 40; 9 blocks andesite/oak_planks at 52 2 87
+Structure 119x50x113, 66 states: 0 errors, 3 warnings, 1 notes
+  WARN  DARK     3352 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+  WARN  CUT-OFF  6 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks spruce_planks/dark_oak_planks at 33 25 40; 6 blocks dark_oak_planks/spruce_planks at 43 29 40; 9 blocks andesite/oak_planks at 52 2 87
   WARN  PLAIN    6 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x3 spruce_planks at 19 8 19; 81x21 spruce_planks at 19 14 63; 10x3 spruce_planks at 50 35 50
   info  GRADIENT 1 walls get DARKER toward the top (rule: darkest at the base): the wall facing north at z=65 (L* 50 at the base, 37 at the top)
   -> build/dojo/lint_dojo_melee_t1.png
 == dojo_melee_t2
-Structure 119x50x113, 101 states: 0 errors, 9 warnings, 0 notes
-  WARN  DARK     2601 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
-  WARN  CUT-OFF  11 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks gravel/grass_block at 61 0 104; 17 blocks spruce_planks/stripped_bamboo_block at 51 2 44; 17 blocks spruce_planks/stripped_bamboo_block at 77 2 44
+Structure 119x50x113, 102 states: 0 errors, 9 warnings, 0 notes
+  WARN  DARK     2569 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+  WARN  CUT-OFF  3 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks gravel/grass_block at 61 0 104; 9 blocks andesite/spruce_planks at 52 2 87; 9 blocks spruce_planks/stone_bricks at 65 2 87
   WARN  PLAIN    6 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x3 dark_oak_planks at 19 8 19; 81x21 spruce_planks at 19 14 63; 8x3 cobbled_deepslate at 50 35 50
   WARN  LAG      80% of the visible faces in chunk column 7,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   WARN  LAG      78% of the visible faces in chunk column 0,0 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   WARN  LAG      70% of the visible faces in chunk column 0,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   -> build/dojo/lint_dojo_melee_t2.png
 == dojo_melee_t3
-Structure 119x50x113, 97 states: 0 errors, 12 warnings, 1 notes
-  WARN  DARK     2080 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+Structure 119x50x113, 102 states: 0 errors, 12 warnings, 1 notes
+  WARN  DARK     1984 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
   WARN  CUT-OFF  51 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks polished_andesite/grass_block at 61 0 104; 15 blocks dark_oak_planks/red_concrete at 26 2 23; 15 blocks dark_oak_planks/red_concrete at 52 2 23
   WARN  PLAIN    7 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x3 stripped_dark_oak_wood at 19 8 19; 81x21 dark_oak_planks at 19 14 63; 8x3 cobbled_deepslate at 50 35 50
   WARN  LAG      76% of the visible faces in chunk column 7,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   WARN  LAG      76% of the visible faces in chunk column 0,0 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   WARN  LAG      77% of the visible faces in chunk column 0,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   -> build/dojo/lint_dojo_melee_t3.png
+== dojo_start
+Structure 119x50x113, 47 states: 0 errors, 3 warnings, 0 notes
+  WARN  DARK     3086 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+  WARN  CUT-OFF  4 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks spruce_planks/dark_oak_planks at 33 25 40; 6 blocks dark_oak_planks/spruce_planks at 43 29 40; 9 blocks andesite/oak_planks at 52 2 87
+  WARN  PLAIN    4 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x21 spruce_planks at 19 14 63; 10x3 spruce_planks at 50 35 50; 81x24 oak_planks at 19 2 60
+  -> build/dojo/lint_dojo_start.png
 == dojo_strike_t1
 Structure 119x50x113, 65 states: 0 errors, 3 warnings, 1 notes
-  WARN  DARK     3301 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
-  WARN  CUT-OFF  4 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks spruce_planks/dark_oak_planks at 33 25 40; 6 blocks dark_oak_planks/spruce_planks at 43 29 40; 9 blocks andesite/oak_planks at 52 2 87
+  WARN  DARK     3352 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+  WARN  CUT-OFF  6 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks spruce_planks/dark_oak_planks at 33 25 40; 6 blocks dark_oak_planks/spruce_planks at 43 29 40; 9 blocks andesite/oak_planks at 52 2 87
   WARN  PLAIN    6 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x3 spruce_planks at 19 8 19; 81x21 spruce_planks at 19 14 63; 10x3 spruce_planks at 50 35 50
   info  GRADIENT 1 walls get DARKER toward the top (rule: darkest at the base): the wall facing north at z=65 (L* 50 at the base, 37 at the top)
   -> build/dojo/lint_dojo_strike_t1.png
 == dojo_strike_t2
-Structure 119x50x113, 100 states: 0 errors, 9 warnings, 0 notes
-  WARN  DARK     2606 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
-  WARN  CUT-OFF  11 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks gravel/grass_block at 61 0 104; 17 blocks spruce_planks/stripped_bamboo_block at 51 2 44; 17 blocks spruce_planks/stripped_bamboo_block at 77 2 44
+Structure 119x50x113, 101 states: 0 errors, 9 warnings, 0 notes
+  WARN  DARK     2574 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+  WARN  CUT-OFF  3 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks gravel/grass_block at 61 0 104; 9 blocks andesite/spruce_planks at 52 2 87; 9 blocks spruce_planks/stone_bricks at 65 2 87
   WARN  PLAIN    6 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x3 dark_oak_planks at 19 8 19; 81x21 spruce_planks at 19 14 63; 8x3 cobbled_deepslate at 50 35 50
   WARN  LAG      80% of the visible faces in chunk column 7,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   WARN  LAG      78% of the visible faces in chunk column 0,0 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   WARN  LAG      70% of the visible faces in chunk column 0,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)
   -> build/dojo/lint_dojo_strike_t2.png
 == dojo_strike_t3
-Structure 119x50x113, 98 states: 0 errors, 12 warnings, 1 notes
-  WARN  DARK     2085 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
+Structure 119x50x113, 103 states: 0 errors, 12 warnings, 1 notes
+  WARN  DARK     1989 floor blocks inside are lit below 8 (unlit-looking, and monsters spawn there in normal worlds) - add lanterns / glowstone, e.g. 21 2 21
   WARN  CUT-OFF  51 straight material lines of 6+ blocks with no trim over them (stagger them, dither, or trim with slabs / stairs / trapdoors): 6 blocks polished_andesite/grass_block at 61 0 104; 15 blocks dark_oak_planks/orange_concrete at 26 2 23; 15 blocks dark_oak_planks/orange_concrete at 52 2 23
   WARN  PLAIN    7 flat faces of one block, 24+ blocks, no relief (add trim, recess / protrude, or a texture change): 81x3 stripped_dark_oak_wood at 19 8 19; 81x21 dark_oak_planks at 19 14 63; 8x3 cobbled_deepslate at 50 35 50
   WARN  LAG      76% of the visible faces in chunk column 7,6 (structure x/z / 16) are see-through (leaves / panes / bars / fences overdraw)

@@ -89,7 +89,7 @@
     }
   ],
   "dojo": {
-    "_comment": "Foundation coordinates: x / z from the north-west corner of parts[0] (the 89 x 73 foundation terrace). LM places rings, rooms and landing points from these; DojoKit (tools/fx) builds the interior from them.",
+    "_comment": "Foundation coordinates: x / z from the north-west corner of parts[0] (the 89 x 73 foundation terrace). LM places rings, rooms and landing points from these; DojoKit (tools/fx) builds the interior from them. Room keys are LM's upgrade ids (DojoCatalog).",
     "hall": [
       3,
       3,
@@ -129,7 +129,7 @@
       48
     ],
     "rooms": {
-      "training": [
+      "training_hall": [
         4,
         22
       ],
@@ -137,7 +137,7 @@
         24,
         38
       ],
-      "trophy": [
+      "trophy_hall": [
         50,
         64
       ],

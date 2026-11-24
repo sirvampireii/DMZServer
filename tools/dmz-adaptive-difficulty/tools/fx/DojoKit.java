@@ -27,11 +27,20 @@ import javax.imageio.ImageIO;
  *   doors     main [x0, x1] in the south wall, porch [z0, z1] (the entrance porch BuildKit builds)
  *   spawn / spectate   [x, z] landing points (outside the porch / on the balcony)
  * </pre>
- * Tiers set the materials (BuildKit's style per recipe + the interior palettes below); styles set only the accents
- * (banners, ring inlays, cushions, room dressing). Output per style and tier: the whole plot as a structure file, and
- * the pictures (floor plan, arena from the balcony, training area, outside by day and night).
+ * A dojo is built from its STATE, the same one LM keeps (DojoCatalog): the number of rings (a new dojo has one, the
+ * free sparring mat), the level of each room (training hall, meditation, spectator balcony, trophy hall, master
+ * quarters, garden; 0 = not bought: the space stays empty), and the style (none until the master picks one). The hall's
+ * look follows the rings like LM's look tier (1-2 rings basic, 3-4 refined, 5-6 masterwork). Tiers set the materials
+ * (BuildKit's style per recipe + the interior palettes below); styles set only the accents (banners, ring inlays,
+ * cushions, room dressing).
  * <pre>
- *   DojoKit make &lt;hall_t1.nbt,hall_t2.nbt,hall_t3.nbt&gt; &lt;recipe.json&gt; &lt;outNbtDir&gt; &lt;outPictureDir&gt; [-only style_tier] [-noviews]
+ *   DojoKit make &lt;hall_t1.nbt,hall_t2.nbt,hall_t3.nbt&gt; &lt;recipe.json&gt; &lt;outNbtDir&gt; &lt;outPictureDir&gt; [-only name] [-noviews]
+ *      dojo_start.nbt (a new dojo) and dojo_&lt;style&gt;_t&lt;tier&gt;.nbt (everything at one tier), their pictures, and the
+ *      upgrade previews below for the menus (-only start | style_tN | upgrades)
+ *   DojoKit upgrade &lt;halls&gt; &lt;recipe.json&gt; &lt;state&gt; &lt;upgrade id&gt; &lt;out prefix&gt;
+ *      what one upgrade adds: &lt;prefix&gt;_now.png and _after.png (a close-up of that part of the dojo before and after,
+ *      roof off) and _map.png (the floor plan with the new blocks green). A state is "start" or
+ *      "[style:]arenas=4,training_hall=1,..." ("all=1" sets every room).
  * </pre>
  */
 public final class DojoKit {
@@ -78,15 +87,72 @@ public final class DojoKit {
                 acc("lime", "emerald_block", "moss_block", "lantern[hanging=false]", "lime_carpet", "bamboo_block[axis=y]", "flowering_azalea", "cherry_leaves")));
     }
 
+    /** A new dojo has no style yet: plain accents, no banners. */
+    static final List<Map<String, String>> NEUTRAL = List.of(Map.of(),
+            acc("white", "light_gray_concrete", "smooth_stone", "lantern[hanging=false]", "white_carpet", "hay_block[axis=y]", "target", "oak_leaves"),
+            acc("white", "light_gray_concrete", "polished_andesite", "lantern[hanging=false]", "white_carpet", "hay_block[axis=y]", "target", "oak_leaves"),
+            acc("white", "gray_concrete", "polished_andesite", "lantern[hanging=false]", "white_carpet", "hay_block[axis=y]", "target", "cherry_leaves"));
+
     static Map<String, String> acc(String colour, String b, String i, String l, String m, String d, String e, String v) {
         String k = switch (colour) {                    // K: the light set flush into a ring floor, in the style's colour
             case "light_blue", "cyan" -> "sea_lantern";
-            case "red" -> "ochre_froglight[axis=y]";
+            case "red", "white" -> "ochre_froglight[axis=y]";
             case "orange" -> "shroomlight";
             default -> "verdant_froglight[axis=y]";
         };
         return Map.of("A", colour + "_wool", "colour", colour, "B", b, "I", i, "L", l, "M", m, "D", d, "E", e,
                 "V", v + "[distance=7,persistent=true,waterlogged=false]", "K", k);
+    }
+
+    // ------------------------------------------------------------------ state (what LM keeps per dojo)
+    static final class State {
+        static final List<String> PARTS = List.of("training_hall", "meditation", "spectator", "trophy_hall", "quarters", "garden");
+        String style;                                   // null: not picked yet
+        int arenas = 1;                                 // a new dojo has one ring, the free sparring mat
+        final Map<String, Integer> lv = new LinkedHashMap<>();
+
+        State() { for (String p : PARTS) lv.put(p, 0); }
+
+        static State start() { return new State(); }
+
+        static State showcase(String style, int tier) {
+            State s = new State();
+            s.style = style;
+            s.arenas = 2 * tier;
+            for (String p : PARTS) s.lv.put(p, tier);
+            return s;
+        }
+
+        /** "start", or "[style:]arenas=4,training_hall=1,..." ("all=n" sets every room). */
+        static State parse(String spec) {
+            State s = new State();
+            if (spec.equals("start")) return s;
+            int c = spec.indexOf(':');
+            if (c > 0) { s.style = spec.substring(0, c); spec = spec.substring(c + 1); }
+            for (String kv : spec.split(",")) {
+                if (kv.isBlank()) continue;
+                String[] p = kv.split("=");
+                int n = Integer.parseInt(p[1].trim());
+                String k = p[0].trim();
+                if (k.equals("arenas")) s.arenas = n;
+                else if (k.equals("all")) for (String q : PARTS) s.lv.put(q, n);
+                else if (s.lv.containsKey(k)) s.lv.put(k, n);
+                else throw new IllegalArgumentException("unknown part " + k + " (arenas, all, " + PARTS + ")");
+            }
+            return s;
+        }
+
+        int level(String id) { return id.equals("arena") ? arenas : lv.getOrDefault(id, 0); }
+        /** LM's look tier for the rings, which the whole hall follows. */
+        int hallTier() { return 1 + (Math.min(Math.max(arenas, 1), 6) - 1) / 2; }
+
+        State with(String id) {
+            State s = new State();
+            s.style = style; s.arenas = arenas; s.lv.putAll(lv);
+            if (id.equals("arena")) s.arenas = Math.min(6, arenas + 1);
+            else s.lv.put(id, Math.min(3, lv.get(id) + 1));
+            return s;
+        }
     }
 
     // ------------------------------------------------------------------ layout (the recipe's "dojo" section)
@@ -138,14 +204,16 @@ public final class DojoKit {
     final Structure s;          // the whole plot
     final Layout L;
     final Map<String, String> bone, accent;
+    final State st;
     final int tier;
-    final String style;
+    final String style;         // null: not picked yet
     int fx, fz, floorY, ceilY;  // the foundation's north-west corner in plot coordinates; the floor (standing level)
 
-    DojoKit(Structure hall, Layout L, int tier, String style) {
-        this.L = L; this.tier = tier; this.style = style;
+    /** {@code hall}: the BuildKit shell of the state's hall tier. */
+    DojoKit(Structure hall, Layout L, State st) {
+        this.L = L; this.st = st; this.tier = st.hallTier(); this.style = st.style;
         this.bone = BONES.get(tier);
-        this.accent = ACCENTS.get(style).get(tier);
+        this.accent = style == null ? NEUTRAL.get(tier) : ACCENTS.get(style).get(tier);
         int m = L.margin;
         s = new Structure(hall.sx + 2 * m, hall.sy + 14, hall.sz + 2 * m);
         // where the foundation sits inside the hall structure: the extent of its lowest layer
@@ -169,23 +237,26 @@ public final class DojoKit {
         if (v == null) throw new IllegalArgumentException("no block for " + k);
         return v.contains(":") ? v : "minecraft:" + v;
     }
-    void put(int x, int y, int z, String state) { s.set(fx + x, y, fz + z, state.contains(":") ? state : "minecraft:" + state); }
+    void put(int x, int y, int z, String state) { if (state == null) return; s.set(fx + x, y, fz + z, state.contains(":") ? state : "minecraft:" + state); }
     void fill(int x0, int y0, int z0, int x1, int y1, int z1, String state) {
         s.fill(fx + Math.min(x0, x1), Math.min(y0, y1), fz + Math.min(z0, z1), fx + Math.max(x0, x1), Math.max(y0, y1), fz + Math.max(z0, z1),
                 state.contains(":") ? state : "minecraft:" + state);
     }
     String air() { return Structure.AIR; }
-    String banner(String facing) { return "minecraft:" + accent.get("colour") + "_wall_banner[facing=" + facing + "]"; }
+    /** The style's banner; null (nothing placed) until a style is picked. */
+    String banner(String facing) {
+        return style == null ? null : "minecraft:" + accent.get("colour") + "_wall_banner[facing=" + facing + "]";
+    }
 
     // ------------------------------------------------------------------ the build
-    void build(int rings, int rooms, int balcony) {
+    void build() {
         interior();
-        hallFloor(rings);
-        wing(rooms);
-        if (balcony > 0) balcony(balcony);
+        hallFloor(st.arenas);
+        wing();
+        if (st.level("spectator") > 0) balcony(st.level("spectator"));
         doors();
         outside();
-        grounds();
+        grounds(st.level("garden"));
         roofHollow();
     }
 
@@ -220,9 +291,9 @@ public final class DojoKit {
         int r = L.ringSize / 2, up = floorY;
         for (int k = 0; k < L.rings.size(); k++) {
             int cx = L.rings.get(k)[0], cz = L.rings.get(k)[1];
-            if (k < rings) ring(cx, cz);
-            else fill(cx - r, up - 1, cz - r, cx + r, up - 1, cz + r, b("Y"));
-            // a lantern on a chain over each ring space
+            if (k >= rings) continue;                   // not bought: the floor stays empty
+            ring(cx, cz);
+            // a lantern on a chain over each ring
             for (int dx : new int[]{-5, 5}) {
                 fill(cx + dx, up + 6, cz, cx + dx, ceilY - 1, cz, "minecraft:chain[axis=y,waterlogged=false]");
                 put(cx + dx, up + 5, cz, b("L").replace("hanging=false", "hanging=true"));
@@ -278,30 +349,24 @@ public final class DojoKit {
         }
     }
 
-    /** The south wing: a shoji partition with a sliding-door gap into each room, the corridor from the main doors. */
-    void wing(int level) {
+    /** The south wing. A room the dojo has bought is walled off with shoji (a sliding-door gap from the hall floor) and
+     *  dressed; a room it hasn't is open, empty floor. */
+    void wing() {
         int[] h = L.hall;
         int top = floorY + L.balconyUp - 2;              // rooms are one storey; their ceiling is the balcony level
-        for (int x = h[0] + 1; x < h[2]; x++)
-            for (int y = floorY; y <= top; y++) {
-                boolean corridor = x >= L.corridor[0] && x <= L.corridor[1];
-                boolean door = false;
-                for (int[] rm : L.rooms.values()) door |= Math.abs(x - (rm[0] + rm[1]) / 2) <= 1 && y < floorY + 3;
-                if (corridor && y < floorY + 4) continue;
-                if (door) continue;
-                put(x, y, L.wingZ, shoji(x, y));
-            }
-        fill(h[0] + 1, top + 1, L.wingZ, h[2] - 1, top + 1, h[3] - 1, b("C"));
-        for (int[] rm : L.rooms.values())
-            for (int xx : new int[]{rm[0] - 1, rm[1] + 1})
-                if (xx > h[0] && xx < h[2] && (xx < L.corridor[0] || xx > L.corridor[1]))
+        for (Map.Entry<String, int[]> e : L.rooms.entrySet()) {
+            int level = st.level(e.getKey()), a = e.getValue()[0], b2 = e.getValue()[1];
+            if (level <= 0) continue;
+            int door = (a + b2) / 2;
+            for (int x = a - 1; x <= b2 + 1; x++)
+                for (int y = floorY; y <= top; y++)
+                    if (!(Math.abs(x - door) <= 1 && y < floorY + 3)) put(x, y, L.wingZ, shoji(x, y));
+            for (int xx : new int[]{a - 1, b2 + 1})
+                if (xx > h[0] && xx < h[2])
                     for (int z = L.wingZ + 1; z < h[3]; z++) for (int y = floorY; y <= top; y++) put(xx, y, z, shoji(z, y));
-        // corridor: walls each side, lanterns
-        for (int z = L.wingZ + 2; z < h[3]; z += 4) {
-            put(L.corridor[0], floorY + 3, z, "minecraft:" + (b("L").contains("soul") ? "soul_" : "") + "wall_torch[facing=east]");
-            put(L.corridor[1], floorY + 3, z, "minecraft:" + (b("L").contains("soul") ? "soul_" : "") + "wall_torch[facing=west]");
+            fill(a - 1, top + 1, L.wingZ, b2 + 1, top + 1, h[3] - 1, b("C"));
+            room(e.getKey(), a, b2, level);
         }
-        for (Map.Entry<String, int[]> e : L.rooms.entrySet()) room(e.getKey(), e.getValue()[0], e.getValue()[1], level);
     }
 
     String shoji(int along, int y) {
@@ -317,30 +382,46 @@ public final class DojoKit {
         for (int x = a + 3; x <= b2 - 2; x += 6)
             for (int z = z0 + 3; z <= z1 - 2; z += 6) put(x, floorY + L.balconyUp - 2, z, b("L").replace("hanging=false", "hanging=true"));
         switch (name) {
-            case "training" -> {
+            case "training_hall" -> {
                 fill(a, y - 1, z0, b2, y - 1, z1, b("Y"));
                 int rows = level >= 2 ? 3 : 2;
                 for (int row = 0; row < rows; row++)
-                    for (int x = a + 2; x <= b2 - 2; x += 4) dummy(x, y, z0 + 4 + row * 4);
-                for (int x = a + 1; x <= b2 - 1; x += 3) put(x, y, z1, b("E"));
-                if (level >= 3) for (int x = a + 2; x <= b2 - 2; x += 4) put(x, y + 3, z1, banner("north"));
+                    for (int x = a + 2; x <= b2 - 2; x += 4) dummy(x, y, z0 + 4 + row * 4, level);
+                if (level >= 2) for (int x = a + 1; x <= b2 - 1; x += 3) put(x, y, z1, b("E"));
+                if (level >= 3) {
+                    for (int x = a + 2; x <= b2 - 2; x += 4) put(x, y + 3, z1, banner("north"));
+                    fill(a + 1, y, z0 + 1, b2 - 1, y, z0 + 1, b("M"));
+                }
             }
             case "meditation" -> {
+                // basic: tatami and cushions; refined: a raked gravel garden with stones along the back, lanterns;
+                // masterwork: a water basin, bamboo and the style's banner
                 fill(a, y - 1, z0, b2, y - 1, z1, b("Y"));
-                for (int x = a + 2; x <= b2 - 2; x += 3) for (int z = z0 + 3; z <= z1 - 3; z += 4) put(x, y, z, b("M"));
+                int back = level >= 2 ? z1 - 4 : z1 - 1;
+                for (int x = a + 2; x <= b2 - 2; x += 3) for (int z = z0 + 3; z <= back - 2; z += 4) put(x, y, z, b("M"));
                 int cx = (a + b2) / 2;
-                put(cx, y, z1 - 1, "minecraft:potted_azalea_bush");
-                if (level >= 2) { put(cx - 2, y, z1 - 1, b("L")); put(cx + 2, y, z1 - 1, b("L")); }
-                if (level >= 3) put(cx, y + 2, z1, banner("north"));
+                if (level >= 2) {
+                    fill(a, y - 1, z1 - 3, b2, y - 1, z1, "minecraft:gravel");
+                    put(a + 2, y, z1 - 2, "minecraft:mossy_cobblestone");
+                    put(cx + 1, y, z1 - 1, "minecraft:cobblestone");
+                    put(b2 - 2, y, z1 - 2, "minecraft:mossy_cobblestone");
+                    for (int x = a + 1; x <= b2 - 1; x += 4) put(x, y, z1 - 4, b("L"));
+                } else put(cx, y, z1 - 1, "minecraft:potted_azalea_bush");
+                if (level >= 3) {
+                    put(cx - 2, y, z1 - 2, "minecraft:water_cauldron[level=3]");
+                    for (int x = a; x <= b2; x += 3) { put(x, y, z1, "minecraft:bamboo[age=0,leaves=large,stage=0]"); put(x, y + 1, z1, "minecraft:bamboo[age=0,leaves=large,stage=0]"); }
+                    put(cx, y + 3, z1, banner("north"));
+                }
             }
-            case "trophy" -> {
+            case "trophy_hall" -> {
                 fill(a, y - 1, z0, b2, y - 1, z1, b("F"));
                 for (int x = a + 2; x <= b2 - 2; x += 4)
                     for (int z = z0 + 3; z <= z1 - 3; z += 5) {
                         put(x, y, z, "minecraft:polished_andesite");
                         put(x, y + 1, z, level >= 3 ? "minecraft:gold_block" : level >= 2 ? b("I") : "minecraft:smooth_stone_slab[type=bottom]");
                     }
-                for (int x = a + 1; x <= b2 - 1; x += 3) put(x, y + 3, z1, banner("north"));
+                if (level >= 2) for (int x = a + 1; x <= b2 - 1; x += 3) put(x, y + 3, z1, banner("north"));
+                if (level >= 3) fill(a + 1, y, (z0 + z1) / 2, b2 - 1, y, (z0 + z1) / 2, b("M"));
             }
             case "quarters" -> {
                 fill(a, y - 1, z0, b2, y - 1, z1, b("Y"));
@@ -351,7 +432,12 @@ public final class DojoKit {
                 put(b2 - 2, y, z1 - 1, "minecraft:dark_oak_stairs[facing=south,half=bottom,shape=straight,waterlogged=false]");
                 put(b2 - 2, y, z1 - 2, "minecraft:dark_oak_slab[type=top,waterlogged=false]");
                 put(b2 - 2, y + 1, z1 - 2, b("L"));
-                if (level >= 3) put(cx, y + 3, z1, banner("north"));
+                if (level >= 3) {
+                    put(cx, y + 3, z1, banner("north"));
+                    fill(cx - 2, y, z1 - 4, cx + 2, y, z1 - 3, b("M"));
+                    put(a + 1, y, z0 + 1, "minecraft:potted_azalea_bush");
+                    put(b2 - 1, y, z0 + 1, "minecraft:potted_azalea_bush");
+                }
             }
             default -> { }
         }
@@ -359,9 +445,9 @@ public final class DojoKit {
 
     /** One training piece in the style: focus stones (Ki), straw dummies with arms (Melee), anvils (Strike), bamboo
      *  poles (Evasion). */
-    void dummy(int x, int y, int z) {
+    void dummy(int x, int y, int z, int level) {
         String d = b("D");
-        switch (style) {
+        switch (style == null ? "" : style) {
             case "ki" -> { put(x, y, z, d); put(x, y + 1, z, "minecraft:end_rod[facing=up]"); }
             case "melee" -> {
                 put(x, y, z, b("P"));
@@ -370,8 +456,8 @@ public final class DojoKit {
                 put(x + 1, y + 1, z, "minecraft:spruce_fence[east=false,north=false,south=false,waterlogged=false,west=true]");
                 put(x, y + 2, z, d);
             }
-            case "strike" -> { put(x, y, z, tier >= 2 ? b("E") : "minecraft:smooth_stone"); put(x, y + 1, z, d); }
-            default -> { for (int k = 0; k < 2 + tier; k++) put(x, y + k, z, d); }
+            case "strike" -> { put(x, y, z, level >= 2 ? b("E") : "minecraft:smooth_stone"); put(x, y + 1, z, d); }
+            default -> { for (int k = 0; k < 1 + level; k++) put(x, y + k, z, d); }
         }
     }
 
@@ -433,8 +519,9 @@ public final class DojoKit {
         }
     }
 
-    /** The grounds: a path to the porch with stone lanterns, trees from SceneKit (refined up), a torii (masterwork). */
-    void grounds() {
+    /** The grounds: always a path to the porch. Garden 1 adds stone lanterns, 2 trees from SceneKit, 3 cherry trees and
+     *  a torii. */
+    void grounds(int garden) {
         int px = (L.mainDoor[0] + L.mainDoor[1]) / 2;
         int zEnd = s.sz - fz - 1, zFrom = L.porch[1] + 1;
         String path = b("O");
@@ -442,24 +529,24 @@ public final class DojoKit {
             fill(px - 2, 0, z, px + 2, 0, z, path);
             for (int side : new int[]{-3, 3}) if (BuildStyle.hash(px + side, 0, z, 68) < 0.45) put(px + side, 0, z, path);
         }
-        for (int z = zFrom + 2; z <= zEnd - 1; z += 5)
+        for (int z = zFrom + 2; z <= zEnd - 1 && garden >= 1; z += 5)
             for (int x : new int[]{px - 4, px + 4}) {
                 put(x, 1, z, "minecraft:stone_brick_wall[east=none,north=none,south=none,up=true,waterlogged=false,west=none]");
                 put(x, 2, z, "minecraft:lantern[hanging=false,waterlogged=false]");
                 put(x, 3, z, "minecraft:stone_brick_slab[type=bottom,waterlogged=false]");
             }
         // trees in the four corners of the plot (refined: two kinds; masterwork: cherry)
-        if (tier >= 2) {
-            String[] kinds = tier >= 3 ? new String[]{"cherry", "cherry", "cherry", "cherry"} : new String[]{"cherry", "oak", "oak", "cherry"};
+        if (garden >= 2) {
+            String[] kinds = garden >= 3 ? new String[]{"cherry", "cherry", "cherry", "cherry"} : new String[]{"cherry", "oak", "oak", "cherry"};
             int[][] at = {{-fx + 7, -fz + 7}, {s.sx - fx - 8, -fz + 7}, {-fx + 7, s.sz - fz - 9}, {s.sx - fx - 8, s.sz - fz - 9}};
             for (int i = 0; i < 4; i++) {
-                Structure t = SceneKit.tree(SceneKit.SPECIES.get(kinds[i]), 1.35, 680 + i + tier).toStructure();
+                Structure t = SceneKit.tree(SceneKit.SPECIES.get(kinds[i]), 1.35, 680 + i + garden).toStructure();
                 int[] bb = t.bounds();
                 int tcx = (bb[0] + bb[3]) / 2, tcz = (bb[2] + bb[5]) / 2;
                 s.paste(t, fx + at[i][0] - tcx, 1 - bb[1], fz + at[i][1] - tcz, false);
             }
         }
-        if (tier >= 3) {
+        if (garden >= 3) {
             int z = zEnd - 4;
             for (int x : new int[]{px - 4, px + 4}) fill(x, 1, z, x, 7, z, b("G"));
             fill(px - 6, 8, z, px + 6, 8, z, "minecraft:polished_blackstone");
@@ -471,11 +558,11 @@ public final class DojoKit {
     // ------------------------------------------------------------------ pictures
     static BlockLib LIB;
 
-    BufferedImage plan(String title) { return plan(title, 1100, 1000, -1); }
+    BufferedImage plan(String title) { return plan(title, 1100, 1000, null); }
 
-    /** The floor plan, roof off. {@code ring} >= 0 tints that ring space green (the Buy button's colour) (the menu's "what this builds"); a
-     *  picture with no title gets no labels (the menu's map: the menu says what it shows). */
-    BufferedImage plan(String title, int w, int h, int ring) {
+    /** The floor plan, roof off. {@code green}: columns (plot x, z packed) tinted green, the Buy button's colour (the
+     *  menu's "what this adds"); a picture with no title gets no labels (the menu says what it shows). */
+    BufferedImage plan(String title, int w, int h, java.util.Set<Long> green) {
         Structure c = s.copy();
         c.fill(0, floorY + 2, 0, c.sx - 1, c.sy - 1, c.sz - 1, Structure.AIR);
         // keep the balcony floor (one layer above the cut) by drawing it into the cut
@@ -488,39 +575,47 @@ public final class DojoKit {
             crop.set(x, y, z, c.get(fx - 1 + x, y, fz - 1 + z));
         BlockRender.Options o = new BlockRender.Options();
         o.width = w; o.height = h; o.ao = true;
-        if (ring >= 0) {
+        if (green != null) {
             o.highlight = new java.util.HashMap<>();
-            int rr = L.ringSize / 2, rcx = L.rings.get(ring)[0] + 1, rcz = L.rings.get(ring)[1] + 1;
-            for (int x = rcx - rr; x <= rcx + rr; x++) for (int z = rcz - rr; z <= rcz + rr; z++)
-                for (int y = floorY - 1; y <= floorY + 1; y++) o.highlight.put(Structure.pack(x, y, z), 0x3CD25A);
+            for (long col : green) {
+                int x = (int) (col >> 32) - (fx - 1), z = (int) col - (fz - 1);
+                for (int y = 0; y <= floorY + 1; y++) o.highlight.put(Structure.pack(x, y, z), 0x3CD25A);
+            }
         }
         BlockRender r = new BlockRender(crop, LIB, o);
         BlockRender.Camera cam = r.fitOrtho(180, 89.9);
+        if (title.isEmpty()) return noSky(r, cam);
         BufferedImage img = r.render(cam);
-        if (title.isEmpty()) return img;
         Graphics2D g = img.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         java.util.function.BiFunction<Double, Double, double[]> at = (x, z) -> r.project(new double[]{x + 1, floorY + 2, z + 1, 0, 0, 0, 0, 0});
-        for (int k = 0; k < L.rings.size(); k++) label(g, at.apply((double) L.rings.get(k)[0] + .5, (double) L.rings.get(k)[1] + .5), "Ring " + (k + 1));
-        label(g, at.apply((L.hall[0] + L.hall[2]) / 2.0, (L.balconyZ[0] + L.balconyZ[1]) / 2.0 + .5), "Spectator balcony");
-        String[] names = {"Training area", "Meditation", "Trophy hall", "Master quarters"};
+        for (int k = 0; k < L.rings.size(); k++)
+            label(g, at.apply((double) L.rings.get(k)[0] + .5, (double) L.rings.get(k)[1] + .5), "Ring " + (k + 1), k < st.arenas);
+        label(g, at.apply((L.hall[0] + L.hall[2]) / 2.0, (L.balconyZ[0] + L.balconyZ[1]) / 2.0 + .5), "Spectator balcony",
+                st.level("spectator") > 0);
+        String[] names = {"Training hall", "Meditation", "Trophy hall", "Master quarters"};
         int i = 0;
-        for (int[] rm : L.rooms.values()) label(g, at.apply((rm[0] + rm[1]) / 2.0 + .5, (L.wingZ + L.hall[3]) / 2.0 + .5), names[i++]);
-        label(g, at.apply((L.corridor[0] + L.corridor[1]) / 2.0 + .5, (L.porch[0] + L.porch[1]) / 2.0 + 1), "Main doors");
+        for (Map.Entry<String, int[]> e : L.rooms.entrySet()) {
+            int[] rm = e.getValue();
+            label(g, at.apply((rm[0] + rm[1]) / 2.0 + .5, (L.wingZ + L.hall[3]) / 2.0 + .5), names[i++], st.level(e.getKey()) > 0);
+        }
+        label(g, at.apply((L.corridor[0] + L.corridor[1]) / 2.0 + .5, (L.porch[0] + L.porch[1]) / 2.0 + 1), "Main doors", true);
         title(g, img, title);
         g.dispose();
         return img;
     }
 
-    static void label(Graphics2D g, double[] p, String text) {
-        g.setFont(new Font("SansSerif", Font.BOLD, 17));
+    /** A plan label; a part the dojo hasn't bought reads "... (empty)" in grey. */
+    static void label(Graphics2D g, double[] p, String text, boolean built) {
+        if (!built) text = text + " (empty)";
+        g.setFont(new Font("SansSerif", built ? Font.BOLD : Font.PLAIN, 17));
         FontMetrics fm = g.getFontMetrics();
         int w = fm.stringWidth(text) + 14, h = fm.getHeight() + 4;
         int x = (int) p[0] - w / 2, y = (int) p[1] - h / 2;
         g.setColor(new Color(0, 0, 0, 175));
         g.fillRoundRect(x, y, w, h, 8, 8);
-        g.setColor(Color.WHITE);
+        g.setColor(built ? Color.WHITE : new Color(190, 190, 190));
         g.drawString(text, x + 7, y + fm.getAscent() + 2);
     }
 
@@ -550,12 +645,10 @@ public final class DojoKit {
 
     Map<String, BufferedImage> pictures(String name) {
         Map<String, BufferedImage> out = new LinkedHashMap<>();
-        String who = STYLE_NAMES.get(style) + ", " + TIER_NAMES[tier].toLowerCase(Locale.ROOT);
+        String who = style == null ? "a new dojo (one sparring mat, no style yet)"
+                : STYLE_NAMES.get(style) + ", " + TIER_NAMES[tier].toLowerCase(Locale.ROOT);
         out.put("plan", plan("Floor plan - " + who));
-        if (style.equals("ki") && tier == 2) {           // the menu mockups' map (tools/lm-ui-probe/mock_compose.py)
-            out.put("menu_plan", plan("", 600, 545, 4));
-            out.put("menu_plan_plain", plan("", 600, 545, -1));
-        }
+        if (style == null) out.put("menu_plan", plan("", 600, 545, null));   // the new dojo on My dojo and Upgrades
         BlockRender.Options o = new BlockRender.Options();
         o.width = 1100; o.height = 640;
         BlockRender r = new BlockRender(s, LIB, o);
@@ -563,16 +656,137 @@ public final class DojoKit {
         int midX = (L.hall[0] + L.hall[2]) / 2;
         out.put("arena", view(r, eye(midX + 3.5, eyeB + 1.3, L.balconyZ[1] + 0.4, midX + 3.5, floorY, (L.balconyZ[1] + L.wingZ) / 2.0 + 4, 84),
                 "The hall floor from the spectator balcony - " + who));
-        int[] tr = L.rooms.get("training");
+        int[] tr = L.rooms.get("training_hall");
         double tx = (tr[0] + tr[1]) / 2.0 + .5;
         out.put("training", view(r, eye(tx - 4, floorY + 2.2, L.wingZ + 1.3, tx + 1, floorY + 0.6, L.hall[3] - 2, 84),
-                "The training area from its door - " + who));
+                "The training hall from its door - " + who));
         out.put("outside", view(r, r.fitOrtho(150, 28), "Outside - " + who));
         out.put("front", view(r, r.fitPerspective(180, 10, 0), "From the path - " + who));
         o.daylight = 0;
         BlockRender rn = new BlockRender(s, LIB, o);
         out.put("night", view(rn, rn.fitOrtho(150, 28), "At night - " + who));
         return out;
+    }
+
+    // ------------------------------------------------------------------ upgrade previews (the menus)
+    /** The part of the dojo an upgrade builds, in foundation coordinates {x0, z0, x1, z1, cut, yaw}: cut is how many
+     *  layers above the floor stay in the close-up (the roof and room ceilings come off), yaw where the camera looks
+     *  from. Null: the grounds (the garden). */
+    int[] partBox(String id, State before) {
+        int[] h = L.hall;
+        switch (id) {
+            case "arena" -> {
+                int[] c = L.rings.get(Math.min(before.arenas, L.rings.size() - 1));
+                int r = L.ringSize / 2 + 2;
+                return new int[]{c[0] - r, c[1] - r, c[0] + r, c[1] + r, 4, 150};
+            }
+            case "spectator" -> { return new int[]{h[0] + 1, h[1] + 1, h[2] - 1, L.balconyZ[1] + L.balconyUp + 2, L.balconyUp + 2, 150}; }
+            case "garden" -> { return null; }
+            default -> {
+                int[] rm = L.rooms.get(id);
+                if (rm == null) throw new IllegalArgumentException("no picture for " + id);
+                return new int[]{rm[0] - 1, L.wingZ, rm[1] + 1, h[3], 3, 330};   // from the hall side, over the low partition
+            }
+        }
+    }
+
+    /** That part of the dojo, roof off, from above and to the south-east. */
+    BufferedImage closeUp(int[] box, String caption, java.util.Set<Long> green) {
+        BlockRender.Options o = new BlockRender.Options();
+        o.width = 520; o.height = 400;
+        BlockRender r;
+        if (box == null) {
+            if (green != null) {
+                o.highlight = new java.util.HashMap<>();
+                for (long c : green) {
+                    int x = (int) (c >> 32), z = (int) c;
+                    for (int y = 0; y < s.sy; y++) if (s.isBlock(x, y, z)) o.highlight.put(Structure.pack(x, y, z), 0x3CD25A);
+                }
+            }
+            r = new BlockRender(s, LIB, o);
+            return caption(noSky(r, r.fitOrtho(150, 30)), caption);
+        }
+        int m = 3, x0 = box[0] - m, z0 = box[1] - m, x1 = box[2] + m, z1 = box[3] + m, top = floorY + box[4];
+        Structure c = new Structure(x1 - x0 + 1, top + 1, z1 - z0 + 1);
+        for (int y = 0; y <= top; y++) for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++)
+            c.set(x - x0, y, z - z0, s.get(fx + x, y, fz + z));
+        r = new BlockRender(c, LIB, o);
+        return caption(noSky(r, r.fitOrtho(box[5], 45)), caption);
+    }
+
+    /** Columns (plot x, z packed) inside {@code box} where two builds of the same plot differ. */
+    static java.util.Set<Long> changed(DojoKit a, DojoKit b, int[] box) {
+        java.util.Set<Long> out = new java.util.HashSet<>();
+        int x0 = 0, z0 = 0, x1 = b.s.sx - 1, z1 = b.s.sz - 1;
+        if (box != null) { x0 = b.fx + box[0]; z0 = b.fz + box[1]; x1 = b.fx + box[2]; z1 = b.fz + box[3]; }
+        for (int z = z0; z <= z1; z++)
+            for (int x = x0; x <= x1; x++) {
+                if (box == null && x >= b.fx && x < b.fx + b.L.footW && z >= b.fz && z <= b.fz + b.L.porch[1]) continue;
+                for (int y = 0; y < b.s.sy; y++)
+                    if (!a.s.get(x, y, z).equals(b.s.get(x, y, z))) { out.add(((long) x << 32) | (z & 0xFFFFFFFFL)); break; }
+            }
+        return out;
+    }
+
+    /** Now, after and where: the three pictures an upgrade page shows. */
+    static Map<String, BufferedImage> upgradePictures(Structure[] halls, Layout L, State before, String id) {
+        State after = before.with(id);
+        DojoKit a = new DojoKit(halls[before.hallTier() - 1], L, before);
+        a.build();
+        DojoKit b = new DojoKit(halls[after.hallTier() - 1], L, after);
+        b.build();
+        int[] box = b.partBox(id, before);
+        java.util.Set<Long> green = changed(a, b, box);
+        if (box != null)                                // the whole part the upgrade builds or raises, not only what changed
+            for (int z = box[1]; z <= box[3]; z++) for (int x = box[0]; x <= box[2]; x++)
+                green.add(((long) (b.fx + x) << 32) | ((b.fz + z) & 0xFFFFFFFFL));
+        Map<String, BufferedImage> out = new LinkedHashMap<>();
+        out.put("now", a.closeUp(box, "Now", null));
+        out.put("after", b.closeUp(box, "After", null));
+        out.put("map", box == null ? b.closeUp(null, "Where", green) : caption(b.plan("", 520, 473, green), "Where"));
+        return out;
+    }
+
+    /** The render with the sky left out (transparent), so the menu's own box shows round the building. */
+    static BufferedImage noSky(BlockRender r, BlockRender.Camera cam) {
+        BufferedImage img = r.render(cam);
+        BufferedImage out = new BufferedImage(img.getWidth(), img.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < img.getHeight(); y++)
+            for (int x = 0; x < img.getWidth(); x++)
+                if (r.zb[y * img.getWidth() + x] != Float.MAX_VALUE) out.setRGB(x, y, img.getRGB(x, y) | 0xFF000000);
+        return out;
+    }
+
+    // Captions in Minecraft's own font (the toolkit's McFont, read from the installed game), like the menu around them.
+    static McFont FONT;
+    static boolean fontTried;
+
+    static BufferedImage caption(BufferedImage img, String text) {
+        if (!fontTried) {
+            fontTried = true;
+            try {
+                FONT = McFont.load(new File(System.getProperty("mc.install", "C:/Users/antho/curseforge/minecraft/Install")));
+            } catch (Exception e) {
+                System.out.println("no Minecraft font (" + e.getMessage() + "): captions in a system font");
+            }
+        }
+        Graphics2D g = img.createGraphics();
+        int k = 3;
+        int w = FONT != null ? FONT.width(text) : text.length() * 6;
+        g.setColor(new Color(0, 0, 0, 170));
+        g.fillRect(0, 0, (w + 8) * k, (McFont.LINE + 5) * k);
+        if (FONT != null) {
+            FONT.draw((x0, y0, x1, y1, argb) -> {
+                g.setColor(new Color(argb, true));
+                g.fillRect((int) Math.round(x0 * k), (int) Math.round(y0 * k), (int) Math.round((x1 - x0) * k), (int) Math.round((y1 - y0) * k));
+            }, text, 4, 3, 0xFFFFFFFF, true);
+        } else {
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("SansSerif", Font.BOLD, 9 * k));
+            g.drawString(text, 4 * k, 11 * k);
+        }
+        g.dispose();
+        return img;
     }
 
     static BufferedImage sheet(List<BufferedImage> imgs, List<String> rowNames, int cols, String title, double scale) {
@@ -596,14 +810,34 @@ public final class DojoKit {
     }
 
     // ------------------------------------------------------------------ main
+    /** The upgrade previews the menus use: from a new dojo, and from one that has grown. */
+    static final String[][] PREVIEWS = {
+        {"start", "arena", "ring2"}, {"start", "training_hall", "training1"}, {"start", "spectator", "balcony1"},
+        {"start", "garden", "garden1"}, {"ki:arenas=4,all=1", "arena", "ring5"}, {"ki:arenas=4,all=1", "meditation", "meditation2"},
+    };
+
     public static void main(String[] a) throws Exception {
-        if (a.length < 5 || !a[0].equals("make")) {
-            System.out.println("usage: DojoKit make <hall_t1.nbt,hall_t2.nbt,hall_t3.nbt> <recipe.json> <outNbtDir> <outPictureDir> [-only style_tN] [-noviews]");
+        if (a.length < 5 || !(a[0].equals("make") || a[0].equals("upgrade"))) {
+            System.out.println("usage: DojoKit make <hall_t1.nbt,hall_t2.nbt,hall_t3.nbt> <recipe.json> <outNbtDir> <outPictureDir> [-only name] [-noviews]\n"
+                    + "       DojoKit upgrade <halls> <recipe.json> <state> <upgrade id> <out prefix>");
             System.exit(2);
         }
-        String[] halls = a[1].split(",");
+        String[] hallFiles = a[1].split(",");
         Map<String, Object> recipe = ModelPreview.obj(new ModelPreview.J(Files.readString(new File(a[2]).toPath())).read());
         Layout L = Layout.of(recipe);
+        BuildStyle.lib();
+        LIB = new BlockLib(BlockLib.mods());
+        Structure[] halls = new Structure[3];
+        for (int t = 1; t <= 3; t++) {
+            halls[t - 1] = Structure.load(new File(hallFiles[t - 1]));
+            DetailKit.weather(halls[t - 1], 0.25, 68 + t);
+        }
+        if (a[0].equals("upgrade")) {
+            if (a.length < 6) { System.out.println("upgrade needs <state> <upgrade id> <out prefix>"); System.exit(2); }
+            for (Map.Entry<String, BufferedImage> e : upgradePictures(halls, L, State.parse(a[3]), a[4]).entrySet())
+                ImageIO.write(e.getValue(), "png", new File(a[5] + "_" + e.getKey() + ".png"));
+            return;
+        }
         File nbtDir = new File(a[3]), picDir = new File(a[4]);
         nbtDir.mkdirs(); picDir.mkdirs();
         String only = null;
@@ -612,31 +846,37 @@ public final class DojoKit {
             if (a[i].equals("-only")) only = a[++i];
             if (a[i].equals("-noviews")) views = false;
         }
-        BuildStyle.lib();
-        LIB = new BlockLib(BlockLib.mods());
         Map<String, List<BufferedImage>> byKind = new LinkedHashMap<>();
-        for (String style : STYLES)
-            for (int tier = 1; tier <= 3; tier++) {
-                String name = style + "_t" + tier;
-                if (only != null && !only.equals(name)) continue;
-                Structure hall = Structure.load(new File(halls[tier - 1]));
-                DetailKit.weather(hall, 0.25, 68 + tier);
-                DojoKit k = new DojoKit(hall, L, tier, style);
-                k.build(2 * tier, tier, tier);
-                File out = new File(nbtDir, "dojo_" + name + ".nbt");
-                k.s.save(out, true);
-                System.out.printf(Locale.ROOT, "%s: %dx%dx%d, floor y %d, ceiling y %d, foundation at %d %d -> %s%n", name,
-                        k.s.sx, k.s.sy, k.s.sz, k.floorY, k.ceilY, k.fx, k.fz, out);
-                if (!views) continue;
-                for (Map.Entry<String, BufferedImage> e : k.pictures(name).entrySet()) {
-                    ImageIO.write(e.getValue(), "png", new File(picDir, e.getKey() + "_" + name + ".png"));
-                    byKind.computeIfAbsent(e.getKey(), x -> new ArrayList<>()).add(e.getValue());
-                }
+        List<String[]> builds = new ArrayList<>();
+        builds.add(new String[]{"start", "start"});
+        for (String style : STYLES) for (int t = 1; t <= 3; t++) builds.add(new String[]{style + "_t" + t, style + ":" + t});
+        for (String[] bd : builds) {
+            String name = bd[0];
+            if (only != null && !only.equals(name)) continue;
+            State st = bd[1].equals("start") ? State.start()
+                    : State.showcase(bd[1].split(":")[0], Integer.parseInt(bd[1].split(":")[1]));
+            DojoKit k = new DojoKit(halls[st.hallTier() - 1], L, st);
+            k.build();
+            File out = new File(nbtDir, "dojo_" + name + ".nbt");
+            k.s.save(out, true);
+            System.out.printf(Locale.ROOT, "%s: %dx%dx%d, floor y %d, ceiling y %d, foundation at %d %d -> %s%n", name,
+                    k.s.sx, k.s.sy, k.s.sz, k.floorY, k.ceilY, k.fx, k.fz, out);
+            if (!views) continue;
+            for (Map.Entry<String, BufferedImage> e : k.pictures(name).entrySet()) {
+                ImageIO.write(e.getValue(), "png", new File(picDir, e.getKey() + "_" + name + ".png"));
+                if (!name.equals("start")) byKind.computeIfAbsent(e.getKey(), x -> new ArrayList<>()).add(e.getValue());
+            }
+        }
+        if (views && (only == null || only.equals("upgrades")))
+            for (String[] pv : PREVIEWS) {
+                for (Map.Entry<String, BufferedImage> e : upgradePictures(halls, L, State.parse(pv[0]), pv[1]).entrySet())
+                    ImageIO.write(e.getValue(), "png", new File(picDir, "upgrade_" + pv[2] + "_" + e.getKey() + ".png"));
+                System.out.println("upgrade preview " + pv[2] + ": " + pv[1] + " from " + pv[0]);
             }
         if (only == null && views) {
             Map<String, String> titles = Map.of("plan", "Floor plans (roof off) - rows: Ki Masters, Melee, Strike Moves, Evasion; columns: basic, refined, masterwork",
                     "arena", "The hall floor from the spectator balcony - rows: styles; columns: tiers",
-                    "training", "The training area from its door - rows: styles; columns: tiers",
+                    "training", "The training hall from its door - rows: styles; columns: tiers",
                     "outside", "Outside - rows: styles; columns: tiers",
                     "front", "From the path - rows: styles; columns: tiers",
                     "night", "At night - rows: styles; columns: tiers");

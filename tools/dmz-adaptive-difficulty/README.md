@@ -66,7 +66,8 @@ when touching chat or action messages.
 
 The dojo plots are structure files made with the owner's mod-toolkit (`Desktop/Repository/mod-toolkit`, plugged in by
 `tools/toolkit.json`), not by LM code. They ship in `src/main/resources/data/legacymechanics/structures/dojo/`:
-`dojo_<style>_t<tier>.nbt` for the styles ki, melee, strike and evasion and the tiers 1 to 3 (12 files, about 3 MB).
+`dojo_start.nbt` (a new dojo: the empty hall and the free sparring mat) and `dojo_<style>_t<tier>.nbt` for the
+styles ki, melee, strike and evasion and the tiers 1 to 3 (13 files, about 3 MB).
 In game they load as `legacymechanics:dojo/dojo_<style>_t<tier>` through `StructureTemplate`.
 
 - Sources: the BuildKit hall recipes `tools/dojo/hall_t1.json`..`hall_t3.json` (japanese style; the `"dojo"` section

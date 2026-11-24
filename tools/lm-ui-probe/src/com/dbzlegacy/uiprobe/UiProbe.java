@@ -2061,18 +2061,18 @@ public final class UiProbe {
             s.footerBackToMain();
             s.send(player);
         });
-        // 3. My dojo (the Dojo tab), with the hall's tier and rings.
+        // 3. My dojo for a new dojo: one sparring mat, no style yet; the dojo's floor plan goes on the right.
         mock("my dojo", () -> {
             UltraScreenSpec s = mockSpar("mock_my_dojo", "dojo");
-            s.line(UltraStyle.header("Crane School"))
+            s.line(UltraStyle.header("Kaito's Dojo"))
                     .line(UltraStyle.labelValue("Master", "Kaito (you)"))
-                    .line(UltraStyle.labelValue("Style", "Ki Masters"))
-                    .line(UltraStyle.labelValue("Bonus", "Ki focus"))
-                    .line(UltraStyle.labelValue("Hall", "refined, 4 of 6 rings"))
-                    .line(UltraStyle.labelValue("Dojo Points", "240"))
-                    .line(UltraStyle.labelValue("Clout this season", "1,280"))
-                    .line(UltraStyle.labelValue("Members", "6 of 11"))
-                    .line(UltraStyle.labelValue("Wars", "4 won, 1 lost"))
+                    .line(UltraStyle.labelValue("Style", "not picked yet"))
+                    .line(UltraStyle.labelValue("Hall", "basic, 1 sparring mat"))
+                    .line(UltraStyle.labelValue("Dojo Points", "75"))
+                    .line(UltraStyle.labelValue("Members", "1 of 6"))
+                    .line(UltraStyle.labelValue("Wars", "0 won, 0 lost"))
+                    .line(UltraStyle.LABEL + "Your hall starts empty.")
+                    .line(UltraStyle.LABEL + "Upgrades build into it.")
                     .buttonsAfterLines();
             s.button("do:mock", UltraStyle.confirm("Visit dojo"), UltraStyle.STYLE_CONFIRM).rowGap();
             s.buttonLeft("do:mock", "Upgrades", UltraStyle.STYLE_NORMAL);
@@ -2084,47 +2084,80 @@ public final class UiProbe {
             s.footerBackToMain();
             s.send(player);
         });
-        // 4. Upgrades: the list, with room on the right for the floor-plan picture.
+        // 4. Upgrades for that dojo: LM's real names and costs (DojoCatalog), the map on the right.
         mock("upgrades", () -> {
             UltraScreenSpec s = mockSpar("mock_dojo_upgrades", null);
-            s.line(UltraStyle.labelValue("Dojo Points", "240"))
-                    .line(UltraStyle.LABEL + "Earn points by hosting spars,")
-                    .line(UltraStyle.LABEL + "winning war bouts and")
-                    .line(UltraStyle.LABEL + "training disciples.")
-                    .line("")
-                    .line(UltraStyle.LABEL + "Tap an upgrade to see it")
-                    .line(UltraStyle.LABEL + "on the map, and its cost.")
-                    .line("").line("")
+            s.line(UltraStyle.labelValue("Dojo Points", "75"))
+                    .line(UltraStyle.LABEL + "Earn points by hosting")
+                    .line(UltraStyle.LABEL + "spars, winning war bouts")
+                    .line(UltraStyle.LABEL + "and training disciples.")
+                    .line(UltraStyle.LABEL)
+                    .line(UltraStyle.LABEL + "Each upgrade builds into")
+                    .line(UltraStyle.LABEL + "your hall. Tap one to see")
+                    .line(UltraStyle.LABEL + "it before you buy.")
+                    .line(UltraStyle.LABEL)
                     .buttonsAfterLines();
-            s.buttonLeft("do:mock", "Ring 5 - 200", UltraStyle.STYLE_NORMAL);
-            s.buttonRight("do:mock", "Training area (max)", UltraStyle.STYLE_NORMAL).rowGap();
-            s.buttonLeft("do:mock", "Meditation - 120", UltraStyle.STYLE_NORMAL);
-            s.buttonRight("do:mock", "Trophy hall - 60", UltraStyle.STYLE_NORMAL).rowGap();
-            s.buttonLeft("do:mock", "Master quarters - 60", UltraStyle.STYLE_NORMAL);
-            s.buttonRight("do:mock", "Balcony - 120", UltraStyle.STYLE_NORMAL).rowGap();
-            s.buttonLeft("do:mock", "Garden - 60", UltraStyle.STYLE_NORMAL);
-            s.buttonRight("do:mock", "Capacity - 75", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Sparring arenas - 40", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Training hall - 30", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Meditation room - 30", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Spectator balcony - 30", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Trophy hall - 30", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Master quarters - 30", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Garden grounds - 30", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Disciple capacity - 25", UltraStyle.STYLE_NORMAL).rowGap();
             s.footerBack("page:dojo", "Dojo");
             s.send(player);
         });
-        // 5. One upgrade: what it builds (green on the map), the cost before the click.
-        mock("upgrade ring", () -> {
-            UltraScreenSpec s = mockSpar("mock_dojo_up_ring", null);
-            s.line(UltraStyle.header("Ring 5"))
-                    .line(UltraStyle.LABEL + "Another ring on the hall floor,")
-                    .line(UltraStyle.LABEL + "so more spars run at once.")
-                    .line(UltraStyle.labelValue("Now", "4 rings"))
-                    .line(UltraStyle.labelValue("After", "5 rings"))
-                    .line(UltraStyle.labelValue("Cost", "200 of your 240 points"))
-                    .line(UltraStyle.LABEL + "Points are spent at once.")
-                    .line(UltraStyle.LABEL + "An upgrade can't be undone.")
-                    .line(UltraStyle.LABEL + "Green on the map: the new ring.")
+        // 5. Two upgrades from that dojo: Now, After and Where (green) in the band of blank lines, cost before the click.
+        mockUpgrade("mock_dojo_up_ring2", "Sparring arenas: ring 2", "Another ring, so more board spars can run at once.",
+                40, 75);
+        mockUpgrade("mock_dojo_up_training1", "Training hall: basic", "A room in your hall with training dummies.", 30, 75);
+    }
+
+    /** The spec drops lines with no visible text, so a page fills its picture band with marker lines (the server lays
+     *  the buttons out below them) and the mock blanks them in the captured packet. Phase 2 draws a picture there. */
+    static final String BAND = "PICTURE BAND";
+    static final int BAND_ROWS = 10;
+
+    private void mockUpgrade(String page, String title, String what, int cost, int have) {
+        List<GuiOpenPacket> got;
+        try {
+            got = UltraScreenSpec.captureSends(() -> mockUpgradeSpec(page, title, what, cost, have));
+        } catch (Throwable t) {
+            note("ERROR mock " + page + " " + t);
+            return;
+        }
+        for (GuiOpenPacket p : got) {
+            JsonArray out = new JsonArray();
+            for (JsonElement el : JsonParser.parseString(p.linesJson()).getAsJsonArray()) {
+                if (el.isJsonPrimitive() && el.getAsString().contains(BAND)) {
+                    out.add("");
+                } else {
+                    out.add(el);
+                }
+            }
+            packets.add(new GuiOpenPacket(p.screenId(), p.title(), p.pageId(), p.tabsJson(), p.activeTab(), out.toString(),
+                    p.buttonsJson(), p.panelWidth(), p.panelHeight(), p.layoutJson(), p.inputsJson()));
+            origin.add("script mock " + page);
+            note("MOCK " + page + " -> " + p.pageId() + " band rows " + BAND_ROWS);
+        }
+    }
+
+    private void mockUpgradeSpec(String page, String title, String what, int cost, int have) {
+        {
+            UltraScreenSpec s = mockSpar(page, null);
+            s.line(UltraStyle.header(title)).line(UltraStyle.LABEL + what);
+            for (int i = 0; i < BAND_ROWS; i++) {
+                s.line(UltraStyle.LABEL + BAND);            // blanked below: the rows the pictures go in
+            }
+            s.line(UltraStyle.labelValue("Cost", cost + " Dojo Points (you have " + have + ")"))
+                    .line(UltraStyle.LABEL + "Points are spent at once. An upgrade can't be undone.")
                     .buttonsAfterLines();
-            s.buttonLeft("do:mock", UltraStyle.confirm("Buy for 200 points"), UltraStyle.STYLE_CONFIRM);
+            s.buttonLeft("do:mock", UltraStyle.confirm("Buy for " + cost + " points"), UltraStyle.STYLE_CONFIRM);
             s.buttonRight("do:mock", "Visit dojo", UltraStyle.STYLE_NORMAL).rowGap();
             s.footerBack("page:dojo_upgrades", "Upgrades");
             s.send(player);
-        });
+        }
     }
 
     private void say(String s) {
