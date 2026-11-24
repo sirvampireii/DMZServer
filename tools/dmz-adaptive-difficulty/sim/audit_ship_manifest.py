@@ -2068,6 +2068,9 @@ def main() -> int:
           "pagerRow(spec, \"mastery_lines\", pg, pages);" in p81_pres and "UltraStyle.STYLE_DANGER" in p81_pres
           and 'p("prestige", "mastery_lines", "Forms", "prestige|mastery_wallet");' in p81_reg)
     check("Character costs say Ancient Coins once", "Ancient Ancient" not in p81_csapi)
+    check("race change menu offers keep 0/25/50/75/100 (server still accepts the configured steps)",
+          "public static final int[] MENU_KEEP_STEPS = {0, 25, 50, 75, 100};" in read(SRC / "character/CharacterServicesConfig.java")
+          and "int[] keepSteps = CharacterServicesConfig.MENU_KEEP_STEPS;" in read(SRC / "gui/ultra/UltraCharacterScreens.java"))
 
     print("\n--- § lm 4.7.80 ---")
     p80_hub = read(SRC / "gui/ultra/UltraHubScreens.java")

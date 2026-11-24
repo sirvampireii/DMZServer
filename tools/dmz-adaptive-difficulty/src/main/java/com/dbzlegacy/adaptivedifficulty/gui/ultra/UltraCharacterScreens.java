@@ -576,7 +576,8 @@ public final class UltraCharacterScreens {
                 spec, CharacterServicesGuiApi.linesForPage(player, "race_confirm:" + confirmArg), true);
         spec.line(UltraStyle.labelValue("Cost", costText));
         spec.buttonsAfterLines();
-        int[] keepSteps = CharacterServicesConfig.preservationSteps();
+        // 4.7.81: five choices (0/25/50/75/100) instead of eleven; the server still accepts the configured steps.
+        int[] keepSteps = CharacterServicesConfig.MENU_KEEP_STEPS;
         int placed = 0;
         for (int keep : keepSteps) {
             String action = "page:race_confirm:" + raceId + ":" + keep;
