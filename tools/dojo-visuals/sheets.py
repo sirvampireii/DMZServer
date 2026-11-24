@@ -44,6 +44,7 @@ def sheet(folder, prefix, cell_w, out_name, title):
 
 if __name__ == "__main__":
     folder = sys.argv[1] if len(sys.argv) > 1 else "out"
-    print(sheet(folder, "arena", 420, "sheet_arenas.png", "Sparring arena - 4 styles x 3 tiers"))
-    print(sheet(folder, "training", 420, "sheet_training_halls.png", "Training hall - 4 styles x 3 tiers"))
-    print(sheet(folder, "layout", 300, "sheet_layouts.png", "Full dojo, top-down - 4 styles x 3 tiers"))
+    print(sheet(folder, "plan", 420, "sheet_floor_plans.png", "Dojo hall floor plan (roof off) - 4 styles x 3 tiers"))
+    print(sheet(folder, "outside", 420, "sheet_outside.png", "Dojo hall from outside - 4 styles x 3 tiers"))
+    print(sheet(folder, "arena", 420, "sheet_arena_floor.png", "Arena floor from the balcony - 4 styles x 3 tiers"))
+    print(sheet(folder, "training", 420, "sheet_training_area.png", "Training area - 4 styles x 3 tiers"))

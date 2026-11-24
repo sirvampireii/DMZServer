@@ -28,7 +28,7 @@ COLORS = {
     "prismarine_bricks": (99, 171, 158), "cyan_carpet": (21, 137, 145), "beacon": (118, 221, 215),
     "spruce_planks": (114, 84, 48), "hay_block": (166, 136, 38), "stripped_spruce_log": (115, 89, 52),
     "birch_planks": (192, 175, 121), "spruce_log": (58, 37, 16), "spruce_slab": (114, 84, 48), "red_wool": (160, 39, 34),
-    "yellow_carpet": (248, 197, 39), "target": (226, 170, 157), "oak_leaves": (59, 110, 30), "stripped_birch_log": (196, 176, 118),
+    "yellow_carpet": (248, 197, 39), "target": (232, 214, 200), "oak_leaves": (59, 110, 30), "stripped_birch_log": (196, 176, 118),
     "red_concrete": (142, 32, 32), "dark_oak_log": (60, 46, 26), "dark_oak_slab": (66, 43, 20), "red_terracotta": (143, 61, 46),
     "white_stained_glass": (230, 230, 230), "red_carpet": (160, 39, 34), "stone_bricks": (122, 121, 122),
     "dark_oak_planks": (66, 43, 20), "stripped_bamboo_block": (196, 176, 82), "crimson_planks": (101, 48, 70),
@@ -50,6 +50,9 @@ COLORS = {
     "pink_stained_glass": (242, 127, 165), "gray_stained_glass": (76, 76, 76), "pink_carpet": (237, 141, 172), "flowering_azalea": (112, 121, 64),
     "poppy": (220, 40, 40), "dandelion": (245, 220, 40), "blue_orchid": (40, 160, 220), "allium": (180, 100, 220),
     "oxeye_daisy": (240, 240, 230), "cherry_log": (54, 33, 44),
+    "stripped_dark_oak_wood": (96, 76, 49), "polished_blackstone_bricks": (48, 42, 49), "iron_block": (220, 220, 220),
+    "black_concrete": (8, 10, 15), "lime_wool": (112, 185, 25), "cyan_wool": (21, 137, 145),
+    "orange_wool": (240, 118, 19), "oak_planks": (162, 130, 78),
 }
 # Blocks drawn as thin (carpet, slab cap) or small (flowers, lanterns, torches) - still solid in the views.
 EMISSIVE = {"lantern", "soul_lantern", "sea_lantern", "torch", "beacon", "redstone_lamp", "shroomlight",
@@ -124,10 +127,10 @@ def topdown(blocks, scale, bounds=None, title=None, highlight=None, labels=None)
     return img
 
 
-LAYOUT_LABELS = [(-48, -50, "Arena 1"), (0, -50, "Arena 2"), (48, -50, "Arena 3"), (-48, -90, "Arena 4"),
-                 (0, -90, "Arena 5"), (48, -90, "Arena 6"), (0, -70, "Gallery above"), (0, 0, "Garden"),
-                 (-48, 40, "Training hall"), (0, 40, "Meditation"), (48, 40, "Trophy hall"),
-                 (-30, 78, "Master quarters"), (30, 78, "Bunks"), (0, 96, "Gate")]
+PLAN_LABELS = [(18, 17, "Ring 1"), (44, 17, "Ring 2"), (70, 17, "Ring 3"), (18, 38, "Ring 4"), (44, 38, "Ring 5"),
+               (70, 38, "Ring 6"), (44, 5, "Spectator balcony (above)"), (14, 60, "Training area"),
+               (32, 60, "Meditation"), (56, 60, "Trophy hall"), (75, 60, "Master quarters"), (43, 66, "Corridor"),
+               (43, 77, "Main doors")]
 
 
 _FONTS = {}
@@ -146,7 +149,8 @@ def font(size):
     return _FONTS[size]
 
 
-def eye_level(blocks, eye, yaw_deg, pitch_deg, w=480, h=270, fov=70, title=None, sky=((120, 170, 230), (205, 225, 245))):
+def eye_level(blocks, eye, yaw_deg, pitch_deg, w=480, h=270, fov=70, title=None, sky=((120, 170, 230), (205, 225, 245)),
+              max_dist=120.0):
     """A voxel ray-cast view from {@code eye} (x, y, z) looking along yaw (0 = south, 90 = west) and pitch."""
     solid = {k: v for k, v in blocks.items() if v not in ("air", None)}
     img = Image.new("RGB", (w, h))
@@ -160,7 +164,6 @@ def eye_level(blocks, eye, yaw_deg, pitch_deg, w=480, h=270, fov=70, title=None,
     tanf = math.tan(math.radians(fov) / 2)
     aspect = w / h
     sun = (-0.45, 0.8, -0.35)
-    max_dist = 120.0
     for j in range(h):
         v = (1 - 2 * (j + 0.5) / h) * tanf
         for i in range(w):
@@ -263,38 +266,42 @@ def label_bar(img, text):
     return img
 
 
+def ground_fill(blocks, x0, z0, x1, z1):
+    for x in range(x0, x1 + 1):
+        for z in range(z0, z1 + 1):
+            blocks.setdefault((x, -1, z), "grass_block")
+
+
 def main(out):
     os.makedirs(out, exist_ok=True)
     made = []
-    # 1. Top-down layout of a whole dojo at each tier, each style (the plot with all rooms and 6 arenas).
     for style in design.STYLES:
         for tier in design.TIERS:
-            raw = design.plot(tier, style=style)
-            raw.update(design.gallery_placed(tier))
-            blocks = resolved(raw, style, tier)
-            title = f"{design.STYLE_NAMES[style]} dojo - {design.TIER_NAMES[tier]} (top-down, full plot)"
-            img = topdown(blocks, 4, bounds=design.ISLAND, title=title, labels=LAYOUT_LABELS)
-            p = os.path.join(out, f"layout_{style}_t{tier}.png")
+            name = design.STYLE_NAMES[style]
+            tn = design.TIER_NAMES[tier]
+            # 1. Floor plan: the hall from above with the roof off, every room built to this tier.
+            plan = design.full(tier, style, roof=False)
+            img = topdown(plan, 6, bounds=(-6, -6, design.W + 5, design.D + 8),
+                          title=f"{name} dojo hall - floor plan, {tn} (roof off)", labels=PLAN_LABELS)
+            p = os.path.join(out, f"plan_{style}_t{tier}.png")
             img.save(p)
             made.append(p)
-    # 2. Eye-level: the arena and the training hall at each tier, every style.
-    for style in design.STYLES:
-        for tier in design.TIERS:
-            a = resolved(design.arena(tier, style), style, tier)
-            for x in range(-12, 38):
-                for z in range(-12, 38):
-                    a.setdefault((x, 0, z), "grass")
-            img = eye_level(a, (-5.0, 13.0, -5.0), -45, 36,
-                            title=f"{design.STYLE_NAMES[style]} - sparring arena, {design.TIER_NAMES[tier]}")
+            # 2. Outside: the hall and its grounds at eye level from the south-west.
+            whole = design.full(tier, style, roof=True)
+            img = eye_level(whole, (-22.0, 16.0, design.D + 26.0), -140, 13, max_dist=260.0,
+                            title=f"{name} dojo hall - outside, {tn}")
+            p = os.path.join(out, f"outside_{style}_t{tier}.png")
+            img.save(p)
+            made.append(p)
+            # 3. The arena floor: the rings from the spectator balcony.
+            img = eye_level(whole, (44.5, design.balcony_y(tier) + 3.4, 8.2), 0, 34,
+                            title=f"{name} - arena floor from the balcony, {tn}")
             p = os.path.join(out, f"arena_{style}_t{tier}.png")
             img.save(p)
             made.append(p)
-            hall = resolved(design.hall(tier, "training", style), style, tier)
-            for x in range(-14, 34):
-                for z in range(-24, 34):
-                    hall.setdefault((x, 0, z), "grass")
-            img = eye_level(hall, (-9.0, 5.5, -13.0), -38, 8,
-                            title=f"{design.STYLE_NAMES[style]} - training hall, {design.TIER_NAMES[tier]}")
+            # 4. The training area from its door.
+            img = eye_level(whole, (14.5, design.FLOOR_Y + 2.6, design.WING_Z + 1.5), 0, 8,
+                            title=f"{name} - training area, {tn}")
             p = os.path.join(out, f"training_{style}_t{tier}.png")
             img.save(p)
             made.append(p)

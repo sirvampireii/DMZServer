@@ -1,14 +1,17 @@
-"""LM 4.7.68 dojo design data: styles, palettes, tiered room templates and the plot layout.
+"""LM 4.7.68 dojo design data: ONE traditional Japanese hall per dojo (the dojo's guild hall), every room inside it.
 
-One source for both the pictures (render.py) and the in-game generator (the templates are exported to
-src/main/resources/data/legacymechanics/dojo/ by export.py). A template is a dict {(x, y, z): symbol}; a style's
-palette maps symbols to Minecraft block ids. x runs east, z south, y up; (0, 0, 0) is the room's north-west floor
-corner, floor at y = 0.
+One source for both the pictures (render.py) and the in-game generator (the template is exported into the LM jar).
+A template is a dict {(x, y, z): symbol}; the palette resolves symbols to Minecraft block ids. x runs east, z south,
+y up; (0, 0, 0) is the north-west corner of the hall's stone foundation.
 
-Symbols
-  F floor        I floor inlay     B ring border    W wall          P pillar / beam   Q gallery glass
-  R roof         T roof trim       L light          A accent        G glass / screen
-  M mat          D decor 1         E decor 2        V greenery      S path
+The hall's bones (foundation, veranda, posts, shoji walls, sliding doors, tiled roof) are the same for every style;
+the tier (basic, refined, masterwork) sets their materials. A style shows only in its accents: banners, ring
+borders and inlays, cushions and lights, and how each room is dressed.
+
+Bones symbols (tier):  N foundation  K veranda deck  P post  W shoji wall  J shoji grid  R roof  T roof ridge / trim
+                       F floor  Y tatami  H handrail  O ground path  Q balcony floor
+Style symbols:         A accent / banner  B ring border  I ring inlay  L light  M cushion  D dressing 1  E dressing 2
+                       V greenery
 """
 
 STYLES = ["ki", "melee", "strike", "evasion"]
@@ -16,571 +19,346 @@ STYLE_NAMES = {"ki": "Ki Masters", "melee": "Melee", "strike": "Strike Moves", "
 TIERS = [1, 2, 3]
 TIER_NAMES = {1: "basic", 2: "refined", 3: "masterwork"}
 
-# Palette per style and tier: symbol -> block id. Tiers share a style's identity and get richer.
-PALETTES = {
-    "ki": {
-        1: dict(Q="glass", F="smooth_stone", I="calcite", B="light_blue_concrete", W="calcite", P="birch_log", R="smooth_stone_slab",
-                T="calcite", L="lantern", A="light_blue_terracotta", G="glass", M="white_carpet", D="white_wool",
-                E="light_blue_wool", V="azalea_leaves", S="gravel"),
-        2: dict(Q="light_blue_stained_glass", F="smooth_quartz", I="light_blue_glazed_terracotta", B="light_blue_concrete", W="quartz_bricks",
-                P="quartz_pillar", R="quartz_slab", T="smooth_quartz", L="soul_lantern", A="light_blue_concrete",
-                G="light_blue_stained_glass", M="light_blue_carpet", D="white_concrete", E="cyan_terracotta",
-                V="azalea_leaves", S="smooth_quartz"),
-        3: dict(Q="light_blue_stained_glass", F="quartz_bricks", I="diamond_block", B="cyan_concrete", W="quartz_block", P="quartz_pillar",
-                R="quartz_slab", T="sea_lantern", L="sea_lantern", A="prismarine_bricks",
-                G="light_blue_stained_glass", M="cyan_carpet", D="beacon", E="diamond_block",
-                V="flowering_azalea_leaves", S="quartz_bricks"),
-    },
-    "melee": {
-        1: dict(Q="glass", F="spruce_planks", I="hay_block", B="stripped_spruce_log", W="birch_planks", P="spruce_log",
-                R="spruce_slab", T="spruce_planks", L="lantern", A="red_wool", G="white_wool", M="yellow_carpet",
-                D="hay_block", E="target", V="oak_leaves", S="dirt_path"),
-        2: dict(Q="white_stained_glass", F="spruce_planks", I="stripped_birch_log", B="red_concrete", W="white_concrete", P="dark_oak_log",
-                R="dark_oak_slab", T="red_terracotta", L="lantern", A="red_concrete", G="white_stained_glass",
-                M="red_carpet", D="hay_block", E="target", V="oak_leaves", S="stone_bricks"),
-        3: dict(Q="white_stained_glass", F="dark_oak_planks", I="stripped_bamboo_block", B="crimson_planks", W="white_concrete",
-                P="stripped_dark_oak_log", R="dark_oak_slab", T="red_concrete", L="redstone_lamp", A="gold_block",
-                G="white_stained_glass", M="red_carpet", D="crimson_stem", E="target", V="cherry_leaves",
-                S="polished_andesite"),
-    },
-    "strike": {
-        1: dict(Q="glass", F="cobblestone", I="stone", B="andesite", W="stone_bricks", P="stone", R="stone_slab",
-                T="cobblestone", L="torch", A="terracotta", G="iron_bars", M="gray_carpet", D="anvil",
-                E="smooth_stone", V="moss_block", S="gravel"),
-        2: dict(Q="gray_stained_glass", F="stone_bricks", I="polished_andesite", B="orange_terracotta", W="deepslate_bricks",
-                P="polished_basalt", R="deepslate_brick_slab", T="orange_terracotta", L="lantern",
-                A="orange_terracotta", G="iron_bars", M="orange_carpet", D="anvil", E="blast_furnace",
-                V="moss_block", S="polished_andesite"),
-        3: dict(Q="gray_stained_glass", F="polished_deepslate", I="magma_block", B="orange_concrete", W="deepslate_tiles",
-                P="polished_basalt", R="deepslate_tile_slab", T="copper_block", L="shroomlight", A="copper_block",
-                G="iron_bars", M="black_carpet", D="anvil", E="lodestone", V="moss_block", S="polished_deepslate"),
-    },
-    "evasion": {
-        1: dict(Q="glass", F="bamboo_planks", I="moss_block", B="bamboo_block", W="bamboo_planks", P="bamboo_block",
-                R="bamboo_slab", T="bamboo_planks", L="lantern", A="green_wool", G="bamboo_mosaic",
-                M="green_carpet", D="moss_block", E="bamboo_block", V="oak_leaves", S="dirt_path"),
-        2: dict(Q="green_stained_glass", F="bamboo_mosaic", I="moss_block", B="stripped_bamboo_block", W="mangrove_planks",
-                P="stripped_bamboo_block", R="mangrove_slab", T="moss_block", L="lantern", A="lime_terracotta",
-                G="green_stained_glass", M="lime_carpet", D="moss_block", E="azalea", V="azalea_leaves",
-                S="mud_bricks"),
-        3: dict(Q="green_stained_glass", F="bamboo_mosaic", I="emerald_block", B="cherry_planks", W="cherry_planks", P="stripped_cherry_log",
-                R="cherry_slab", T="pink_terracotta", L="pearlescent_froglight", A="emerald_block",
-                G="pink_stained_glass", M="pink_carpet", D="moss_block", E="flowering_azalea",
-                V="cherry_leaves", S="mud_bricks"),
-    },
+BONES = {
+    1: dict(N="cobblestone", K="spruce_planks", P="spruce_log", W="birch_planks", J="spruce_planks", R="spruce_planks",
+            T="spruce_log", F="oak_planks", Y="oak_planks", H="spruce_planks", O="dirt_path", Q="spruce_planks"),
+    2: dict(N="stone_bricks", K="dark_oak_planks", P="dark_oak_log", W="white_concrete", J="dark_oak_planks",
+            R="deepslate_tiles", T="polished_deepslate", F="spruce_planks", Y="stripped_bamboo_block", H="dark_oak_planks",
+            O="gravel", Q="dark_oak_planks"),
+    3: dict(N="polished_blackstone_bricks", K="stripped_dark_oak_wood", P="stripped_dark_oak_log", W="white_concrete",
+            J="dark_oak_planks", R="deepslate_tiles", T="gold_block", F="dark_oak_planks", Y="stripped_bamboo_block",
+            H="red_concrete", O="polished_andesite", Q="stripped_dark_oak_wood"),
 }
 
-ARENA_R = 12      # ring radius (25 x 25 floor)
-ROOM_R = 9        # room footprint radius (19 x 19)
+ACCENTS = {
+    "ki": {1: dict(A="light_blue_wool", B="light_blue_concrete", I="calcite", L="lantern", M="light_blue_carpet",
+                   D="white_wool", E="light_blue_wool", V="azalea_leaves"),
+           2: dict(A="light_blue_wool", B="light_blue_concrete", I="light_blue_glazed_terracotta", L="soul_lantern",
+                   M="light_blue_carpet", D="calcite", E="light_blue_stained_glass", V="azalea_leaves"),
+           3: dict(A="cyan_wool", B="cyan_concrete", I="diamond_block", L="soul_lantern", M="cyan_carpet",
+                   D="beacon", E="sea_lantern", V="flowering_azalea_leaves")},
+    "melee": {1: dict(A="red_wool", B="red_wool", I="hay_block", L="lantern", M="red_carpet", D="hay_block",
+                      E="target", V="oak_leaves"),
+              2: dict(A="red_wool", B="red_concrete", I="hay_block", L="lantern", M="red_carpet", D="hay_block",
+                      E="target", V="oak_leaves"),
+              3: dict(A="red_wool", B="red_concrete", I="gold_block", L="lantern", M="red_carpet", D="hay_block",
+                      E="target", V="cherry_leaves")},
+    "strike": {1: dict(A="orange_wool", B="andesite", I="smooth_stone", L="lantern", M="gray_carpet", D="anvil",
+                       E="smooth_stone", V="oak_leaves"),
+               2: dict(A="orange_wool", B="orange_terracotta", I="polished_andesite", L="lantern", M="orange_carpet",
+                       D="anvil", E="iron_block", V="oak_leaves"),
+               3: dict(A="orange_wool", B="orange_concrete", I="copper_block", L="shroomlight", M="orange_carpet",
+                       D="anvil", E="iron_block", V="oak_leaves")},
+    "evasion": {1: dict(A="green_wool", B="bamboo_block", I="moss_block", L="lantern", M="green_carpet",
+                        D="bamboo_block", E="moss_block", V="oak_leaves"),
+                2: dict(A="green_wool", B="stripped_bamboo_block", I="moss_block", L="lantern", M="lime_carpet",
+                        D="bamboo_block", E="azalea", V="azalea_leaves"),
+                3: dict(A="lime_wool", B="emerald_block", I="moss_block", L="pearlescent_froglight", M="lime_carpet",
+                        D="bamboo_block", E="flowering_azalea", V="cherry_leaves")},
+}
+
+# Hall geometry (blocks).
+W = 89            # foundation width (x)
+D = 73            # foundation depth (z)
+VER = 3           # veranda width
+FLOOR_Y = 2       # interior floor level
+RING = 17         # ring size (square)
+RING_COLS = [18, 44, 70]          # ring centers x
+RING_ROWS = [17, 38]              # ring centers z
+WING_Z = 50                       # partition between the hall floor and the south wing
+ROOMS = {                          # south wing rooms: x range
+    "training": (4, 24),
+    "meditation": (26, 38),
+    "trophy": (48, 64),
+    "quarters": (66, 84),
+}
+CORRIDOR = (40, 46)
+BALCONY_Z = (4, 7)                 # north mezzanine
+
+
+def wall_height(tier):
+    return 7 + tier
+
+
+def balcony_y(tier):
+    return FLOOR_Y + 5
+
+
+def ring_center(k):
+    """Ring k (0..5): row 1 (k 0-2) then row 2 (k 3-5), west to east."""
+    return RING_COLS[k % 3], RING_ROWS[k // 3]
 
 
 def put(t, x, y, z, s):
     t[(x, y, z)] = s
 
 
-def box_floor(t, x0, z0, x1, z1, y, s):
-    for x in range(x0, x1 + 1):
-        for z in range(z0, z1 + 1):
-            put(t, x, y, z, s)
+def fill(t, x0, y0, z0, x1, y1, z1, s):
+    for x in range(min(x0, x1), max(x0, x1) + 1):
+        for y in range(min(y0, y1), max(y0, y1) + 1):
+            for z in range(min(z0, z1), max(z0, z1) + 1):
+                t[(x, y, z)] = s
 
 
-def ring_posts(t, size, tier, height):
-    """Corner posts with lights on top; refined adds mid-side posts, masterwork taller with trim caps."""
-    corners = [(0, 0), (0, size - 1), (size - 1, 0), (size - 1, size - 1)]
-    posts = corners + ([(size // 2, 0), (size // 2, size - 1), (0, size // 2), (size - 1, size // 2)] if tier >= 2 else [])
-    for (x, z) in posts:
-        for y in range(1, height + 1):
-            put(t, x, y, z, "P")
-        put(t, x, height + 1, z, "L" if tier < 3 else "T")
-        if tier >= 3:
-            put(t, x, height + 2, z, "L")
-
-
-def arena(tier, style="melee"):
-    """A sparring ring: flat floor, inlaid border and center mark, posts; tiers add an inlay pattern. Style touches:
-    Strike rings sit inside a low stone wall (open at the four sides), Evasion rings in a grove of bamboo posts,
-    Ki rings get glowing corner stones."""
+def hall(tier, rings=1, rooms=None, balcony=0, roof=True):
+    """The whole hall at {@code tier}: {@code rings} ring spaces built (1..6), {@code rooms} maps room name to its tier
+    (0 = not built), {@code balcony} the balcony tier (0 = none)."""
+    rooms = rooms or {}
     t = {}
-    size = 2 * ARENA_R + 1
-    box_floor(t, 0, 0, size - 1, size - 1, 0, "F")
-    for i in range(size):
-        for (x, z) in [(i, 0), (i, size - 1), (0, i), (size - 1, i)]:
-            put(t, x, 0, z, "B")
-    c = ARENA_R
-    put(t, c, 0, c, "I")
-    if tier >= 2:
-        # inner circle inlay and start lines
-        for x in range(size):
-            for z in range(size):
-                d = ((x - c) ** 2 + (z - c) ** 2) ** 0.5
-                if abs(d - 5.5) < 0.5:
-                    put(t, x, 0, z, "I")
-        for dz in (-1, 0, 1):
-            put(t, c - 6, 0, c + dz, "A")
-            put(t, c + 6, 0, c + dz, "A")
-    if tier >= 3:
-        # diagonal inlay rays and a raised rim of trim
-        for k in range(2, ARENA_R - 1):
-            for (sx, sz) in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
-                put(t, c + sx * k, 0, c + sz * k, "I")
-        for i in range(1, size - 1):
-            for (x, z) in [(i, 1), (i, size - 2), (1, i), (size - 2, i)]:
-                put(t, x, 0, z, "A")
-    ring_posts(t, size, tier, 2 if tier == 1 else (3 if tier == 2 else 4))
-    if style == "strike":
-        for i in range(1, size - 1):
-            for (x, z) in [(i, -1), (i, size), (-1, i), (size, i)]:
-                if abs(i - ARENA_R) > 2:
-                    put(t, x, 1, z, "W")
-                    if tier >= 2:
-                        put(t, x, 0, z, "F")
-    elif style == "evasion":
-        for i in range(0, size, 3):
-            for (x, z) in [(i, -2), (i, size + 1), (-2, i), (size + 1, i)]:
-                if abs(i - ARENA_R) > 2:
-                    for y in range(1, 2 + tier):
-                        put(t, x, y, z, "P")
-                    if tier >= 2:
-                        put(t, x, 2 + tier, z, "V")
-    elif style == "ki":
-        for (x, z) in [(1, 1), (1, size - 2), (size - 2, 1), (size - 2, size - 2)]:
-            put(t, x, 0, z, "L" if tier >= 2 else "I")
-    return t
-
-
-def roof(t, size, y0, tier):
-    """Stepped hip roof: a solid pyramid of roof blocks, one step in per level, with a one-block overhang;
-    refined puts a trim band at the eaves, masterwork a second band and a ridge light."""
-    k = -1
-    level = 0
-    while True:
-        lo = k
-        hi = size - 1 - k
-        if lo > hi:
-            break
-        y = y0 + level
-        for x in range(lo, hi + 1):
-            for z in range(lo, hi + 1):
-                if x in (lo, hi) or z in (lo, hi):
-                    trim = (tier >= 2 and level == 0) or (tier >= 3 and level == 2)
-                    put(t, x, y, z, "T" if trim else "R")
-        k += 1
-        level += 1
-    if tier >= 3:
-        c = size // 2
-        put(t, c, y0 + level, c, "L")
-
-
-def hall(tier, kind, style="melee"):
-    """A room in the style's architecture, props by kind; tier raises the walls and the detail.
-    Melee: a Japanese dojo, hip roof (refined and up add a second eave). Ki: an open pavilion, glass between white
-    columns, flat roof with a raised clerestory. Strike: a fortress block, buttresses, flat roof with crenellations.
-    Evasion: a stilt house on bamboo posts, lattice walls, a leafy thatch roof."""
-    if style == "ki":
-        return pavilion(tier, kind)
-    if style == "strike":
-        return fortress(tier, kind)
-    if style == "evasion":
-        return stilt_house(tier, kind)
-    t = {}
-    size = 2 * ROOM_R + 1
-    h = 4 if tier == 1 else (5 if tier == 2 else 6)
-    box_floor(t, 0, 0, size - 1, size - 1, 0, "F")
-    for i in range(size):
-        for y in range(1, h + 1):
-            for (x, z, north) in [(i, 0, True), (i, size - 1, False), (0, i, False), (size - 1, i, False)]:
-                door = north and abs(i - ROOM_R) <= 1 and y <= 3
-                if door:
-                    continue
-                window = (y in (2, 3)) and (i % 4 == 2) and (tier >= 2 or y == 3)
-                if y == 1 and tier >= 2:
-                    sym = "F"          # base course
-                elif y == 4 and tier >= 2:
-                    sym = "P"          # beam band
-                elif y == h and tier >= 3:
-                    sym = "A"          # accent band under the eaves
-                else:
-                    sym = "W"
-                put(t, x, y, z, "G" if window else sym)
-    if tier >= 2:
-        # a lintel over the door
-        for i in range(ROOM_R - 2, ROOM_R + 3):
-            put(t, i, 4, 0, "A")
-    for (x, z) in [(0, 0), (0, size - 1), (size - 1, 0), (size - 1, size - 1)] + (
-            [(ROOM_R, size - 1), (0, ROOM_R), (size - 1, ROOM_R)] if tier >= 2 else []):
-        for y in range(1, h + 1):
-            put(t, x, y, z, "P")
-    roof(t, size, h + 1, tier)
-    if tier >= 2:
-        # a second, lower eave all round (the dojo's double roof line)
-        for i in range(-2, size + 2):
-            for (x, z) in [(i, -2), (i, size + 1), (-2, i), (size + 1, i)]:
-                put(t, x, h - 1, z, "R")
-    props(t, tier, kind, size)
-    return t
-
-
-def props(t, tier, kind, size, y0=0):
-    """Lights and the furniture that says what a room is, standing on a floor at {@code y0}."""
-    # lights inside
-    for (x, z) in [(3, 3), (size - 4, 3), (3, size - 4), (size - 4, size - 4)]:
-        put(t, x, y0 + 1, z, "L")
-    if tier >= 2:
-        # floor inlay runner from the door
-        for z in range(1, size - 1):
-            put(t, ROOM_R, y0, z, "I")
-    if kind == "training":
-        for x in range(3, size - 3, 3):
-            put(t, x, y0 + 1, size - 3, "D")
-            put(t, x, y0 + 2, size - 3, "D")
-            put(t, x, y0 + 1, 5, "E")
-        if tier >= 3:
-            for x in range(4, size - 4, 3):
-                put(t, x, y0 + 3, size - 3, "A")
-    elif kind == "meditation":
-        for x in range(3, size - 3, 3):
-            for z in range(4, size - 3, 3):
-                put(t, x, y0 + 1, z, "M")
-        if tier >= 2:
-            put(t, ROOM_R, y0 + 1, size - 4, "E")
-        if tier >= 3:
-            put(t, ROOM_R, y0 + 2, size - 4, "L")
-    elif kind == "trophy":
-        for i in range(6):
-            x = 4 + (i % 3) * 5
-            z = 6 if i < 3 else 12
-            put(t, x, y0 + 1, z, "A")
-            if tier >= 2:
-                put(t, x, y0 + 2, z, "D" if tier == 2 else "E")
-    elif kind == "bunks":
-        for x in range(3, size - 3, 3):
-            put(t, x, y0 + 1, 4, "D")
-            put(t, x, y0 + 1, size - 5, "D")
-    elif kind == "quarters":
-        box_floor(t, 3, size - 5, 5, size - 3, y0 + 1, "A")
-        for x in range(size - 6, size - 2):
-            for y in (y0 + 1, y0 + 2):
-                put(t, x, y, size - 3, "E")
-        put(t, ROOM_R, y0 + 1, size - 4, "D")
-    return t
-
-
-def pavilion(tier, kind):
-    """Ki Masters: an open pavilion. A raised floor, white columns every three blocks with glass between, a flat
-    roof, and (refined up) a smaller raised clerestory box, (masterwork) a glowing crown."""
-    t = {}
-    size = 2 * ROOM_R + 1
-    h = 4 if tier == 1 else 5
-    box_floor(t, -1, -1, size, size, 0, "T" if tier >= 2 else "F")
-    box_floor(t, 0, 0, size - 1, size - 1, 1, "F")
-    for i in range(size):
-        for (x, z, north) in [(i, 0, True), (i, size - 1, False), (0, i, False), (size - 1, i, False)]:
-            column = i % 3 == 0
-            door = north and abs(i - ROOM_R) <= 1
-            for y in range(2, h + 2):
-                if column:
-                    put(t, x, y, z, "P")
-                elif not door and tier >= 2:
-                    put(t, x, y, z, "G")
-                elif not door and y == h + 1:
-                    put(t, x, y, z, "W")
-    box_floor(t, -1, -1, size, size, h + 2, "R")
-    if tier >= 2:
-        for x in range(4, size - 4):
-            for z in range(4, size - 4):
-                if x in (4, size - 5) or z in (4, size - 5):
-                    for y in (h + 3, h + 4):
-                        put(t, x, y, z, "G" if y == h + 3 else "W")
-        box_floor(t, 3, 3, size - 4, size - 4, h + 5, "R")
-    if tier >= 3:
-        for (x, z) in [(3, 3), (3, size - 4), (size - 4, 3), (size - 4, size - 4)]:
-            put(t, x, h + 6, z, "L")
-        put(t, ROOM_R, h + 6, ROOM_R, "D")
-    props(t, tier, kind, size, 1)
-    return t
-
-
-def fortress(tier, kind):
-    """Strike Moves: a fortress block. Thick walls with slit windows, buttresses outside, a flat roof with
-    crenellations; refined adds corner towers, masterwork a glowing forge crown."""
-    t = {}
-    size = 2 * ROOM_R + 1
-    h = 5 if tier == 1 else 6
-    box_floor(t, 0, 0, size - 1, size - 1, 0, "F")
-    for i in range(size):
-        for (x, z, north) in [(i, 0, True), (i, size - 1, False), (0, i, False), (size - 1, i, False)]:
-            door = north and abs(i - ROOM_R) <= 1
-            for y in range(1, h + 1):
-                if door and y <= 3:
-                    continue
-                slit = y in (2, 3) and i % 4 == 2
-                put(t, x, y, z, "G" if slit else ("F" if y == 1 else "W"))
-    for i in range(2, size - 2, 4):
-        for (x, z) in [(i, -1), (i, size), (-1, i), (size, i)]:
-            for y in range(1, h):
-                put(t, x, y, z, "P")
-    box_floor(t, 0, 0, size - 1, size - 1, h + 1, "R")
-    for i in range(0, size, 2):
-        for (x, z) in [(i, 0), (i, size - 1), (0, i), (size - 1, i)]:
-            put(t, x, h + 2, z, "W")
-    if tier >= 2:
-        for (cx, cz) in [(0, 0), (0, size - 1), (size - 1, 0), (size - 1, size - 1)]:
-            for dx in (-1, 0, 1):
-                for dz in (-1, 0, 1):
-                    for y in range(h + 1, h + 4):
-                        put(t, cx + dx, y, cz + dz, "P")
-            put(t, cx, h + 4, cz, "T")
-    if tier >= 3:
-        for x in range(ROOM_R - 2, ROOM_R + 3):
-            for z in range(ROOM_R - 2, ROOM_R + 3):
-                put(t, x, h + 2, z, "A")
-        put(t, ROOM_R, h + 3, ROOM_R, "L")
-    props(t, tier, kind, size)
-    return t
-
-
-def stilt_house(tier, kind):
-    """Evasion: a stilt house. The floor stands on bamboo posts, lattice walls (open below the eaves), a leafy
-    thatch hip roof; refined adds a veranda rail, masterwork lanterns hanging under the eaves."""
-    t = {}
-    size = 2 * ROOM_R + 1
-    lift = 2
-    for i in range(0, size, 3):
-        for (x, z) in [(i, 0), (i, size - 1), (0, i), (size - 1, i)]:
-            for y in range(0, lift + 1):
-                put(t, x, y, z, "P")
-    box_floor(t, -1, -1, size, size, lift, "F")
-    h = 3 if tier == 1 else 4
-    for i in range(size):
-        for (x, z, north) in [(i, 0, True), (i, size - 1, False), (0, i, False), (size - 1, i, False)]:
-            door = north and abs(i - ROOM_R) <= 1
-            for y in range(lift + 1, lift + h + 1):
-                if door:
-                    continue
-                lattice = (i + y) % 2 == 0
-                put(t, x, y, z, "P" if i % 3 == 0 else ("G" if lattice else "W"))
-    for z in range(-4, 0):
-        for x in range(ROOM_R - 1, ROOM_R + 2):
-            put(t, x, min(lift, (z + 4) * lift // 3), z, "F")
-    if tier >= 2:
-        for i in range(-1, size + 1):
-            for (x, z) in [(i, -1), (i, size), (-1, i), (size, i)]:
-                if not (z == -1 and abs(i - ROOM_R) <= 1):
-                    put(t, x, lift + 1, z, "P")
-    k = -2
-    level = 0
-    while True:
-        lo = k
-        hi = size - 1 - k
-        if lo > hi:
-            break
-        for x in range(lo, hi + 1):
-            for z in range(lo, hi + 1):
-                if x in (lo, hi) or z in (lo, hi):
-                    put(t, x, lift + h + 1 + level, z, "V" if tier >= 2 or level > 0 else "R")
-        k += 1
-        level += 1
-    if tier >= 3:
-        for (x, z) in [(-1, -1), (-1, size), (size, -1), (size, size)]:
-            put(t, x, lift + h, z, "L")
-    props(t, tier, kind, size, lift)
-    return t
-
-
-def gallery(tier):
-    """Spectator room: a glass-floored gallery above the arenas with a solid walkway and rails; tiers add trim."""
-    t = {}
-    w, d = 133, 83
-    for x in range(w):
-        for z in range(d):
-            put(t, x, 0, z, "Q")
-    # The walkway runs east-west over the gap between the two arena rows, so every ring is in view below.
-    mid = 40
-    for x in range(1, w - 1):
-        for z in range(mid - 2, mid + 3):
-            put(t, x, 0, z, "F")
-    for x in range(w):
-        for y in (1, 2, 3):
-            put(t, x, y, 0, "Q")
-            put(t, x, y, d - 1, "Q")
-    for z in range(d):
-        for y in (1, 2, 3):
-            put(t, 0, y, z, "Q")
-            put(t, w - 1, y, z, "Q")
-    if tier >= 2:
-        for x in range(4, w - 1, 8):
-            put(t, x, 1, mid - 3, "L")
-            put(t, x, 1, mid + 3, "L")
-    if tier >= 3:
-        for x in range(w):
-            put(t, x, 4, 0, "T")
-            put(t, x, 4, d - 1, "T")
-    return t
-
-
-def garden(tier):
-    t = {}
-    w, d = 33, 25
-    box_floor(t, 0, 0, w - 1, d - 1, 0, "V" if False else "F")
-    for x in range(w):
-        for z in range(d):
-            t[(x, 0, z)] = "grass"
-    for z in range(d):
-        for x in range(w // 2 - 2, w // 2 + 3):
-            put(t, x, 0, z, "S")
-    if tier >= 1:
-        flowers = ["poppy", "dandelion", "blue_orchid", "allium", "oxeye_daisy"]
-        k = 0
-        for x in range(2, w - 2, 3):
-            for z in range(2, d - 2, 4):
-                if abs(x - w // 2) > 3:
-                    t[(x, 1, z)] = flowers[k % len(flowers)]
-                    k += 1
-    if tier >= 2:
-        for (x, z) in [(4, 4), (w - 5, 4), (4, d - 5), (w - 5, d - 5)]:
-            for dx in (-1, 0, 1):
-                for dz in (-1, 0, 1):
-                    put(t, x + dx, 1, z + dz, "V")
-                    put(t, x + dx, 2, z + dz, "V")
-    if tier >= 3:
-        for (x, z) in [(8, d // 2), (w - 9, d // 2)]:
-            for y in range(1, 5):
-                put(t, x, y, z, "P")
-            for dx in range(-2, 3):
-                for dz in range(-2, 3):
-                    for y in (5, 6):
-                        if abs(dx) + abs(dz) < 4:
-                            put(t, x + dx, y, z + dz, "V")
-            put(t, x, 1, z + 3, "L")
-    return t
-
-
-# Plot layout: offsets of each piece's north-west corner from the plot origin (matches DojoWorld).
-def arena_origin(k):
-    cx = -48 + (k % 3) * 48
-    cz = -50 - (k // 3) * 40
-    return (cx - ARENA_R, cz - ARENA_R)
-
-
-ROOM_ORIGINS = {
-    "training": (-48 - ROOM_R, 40 - ROOM_R),
-    "meditation": (0 - ROOM_R, 40 - ROOM_R),
-    "trophy": (48 - ROOM_R, 40 - ROOM_R),
-    "quarters": (-30 - ROOM_R, 78 - ROOM_R),
-    "bunks": (30 - ROOM_R, 78 - ROOM_R),
-}
-GALLERY_ORIGIN = (-66, -110)
-GALLERY_Y = 16
-GARDEN_ORIGIN = (-16, -12)
-ISLAND = (-80, -110, 80, 100)
-
-
-def site(t, tier):
-    """The grounds every dojo shares: lawn, a perimeter wall with a south gate arch, paths linking every room and
-    arena, lamp posts along the paths and trees inside the wall. Tier raises the wall, the gate and the lights."""
-    x0, z0, x1, z1 = ISLAND
-    for x in range(x0, x1 + 1):
-        for z in range(z0, z1 + 1):
-            t[(x, 0, z)] = "grass"
-    wall_h = 1 if tier == 1 else 2
+    h = wall_height(tier)
+    top = FLOOR_Y + h
+    # Foundation and veranda deck.
+    fill(t, 0, 0, 0, W - 1, FLOOR_Y - 2, D - 1, "N")
+    fill(t, 0, FLOOR_Y - 1, 0, W - 1, FLOOR_Y - 1, D - 1, "K")
+    # Veranda posts and rail.
+    for x in range(0, W, 4):
+        for z in (0, D - 1):
+            fill(t, x, FLOOR_Y, z, x, top - 1, z, "H" if tier >= 3 else "P")
+    for z in range(0, D, 4):
+        for x in (0, W - 1):
+            fill(t, x, FLOOR_Y, z, x, top - 1, z, "H" if tier >= 3 else "P")
+    for x in range(W):
+        for z in (0, D - 1):
+            if not (z == D - 1 and abs(x - 43) <= 3):
+                put(t, x, FLOOR_Y, z, "H")
+    for z in range(D):
+        for x in (0, W - 1):
+            put(t, x, FLOOR_Y, z, "H")
+    # Steps down to the south door.
+    for i, z in enumerate(range(D, D + 3)):
+        fill(t, 40, FLOOR_Y - 2 - i, z, 46, FLOOR_Y - 2 - i, z, "N")
+    # Hall walls: posts every 4, shoji panels with grid bands, the main sliding doors on the south side.
+    x0, z0, x1, z1 = VER, VER, W - 1 - VER, D - 1 - VER
     for x in range(x0, x1 + 1):
         for z in (z0, z1):
-            for y in range(1, wall_h + 1):
-                t[(x, y, z)] = "W"
+            wall_column(t, x, z, top, door=(z == z1 and CORRIDOR[0] <= x <= CORRIDOR[1]), along_x=True)
     for z in range(z0, z1 + 1):
         for x in (x0, x1):
-            for y in range(1, wall_h + 1):
-                t[(x, y, z)] = "W"
-    for x in range(x0, x1 + 1, 10):
-        for z in (z0, z1):
-            for y in range(1, wall_h + 2):
-                t[(x, y, z)] = "P"
-            if tier >= 2:
-                t[(x, wall_h + 2, z)] = "L"
-    for z in range(z0, z1 + 1, 10):
-        for x in (x0, x1):
-            for y in range(1, wall_h + 2):
-                t[(x, y, z)] = "P"
-            if tier >= 2:
-                t[(x, wall_h + 2, z)] = "L"
-    for x in range(-3, 4):
-        for y in range(1, wall_h + 3):
-            t.pop((x, y, z1), None)
-    gate_h = 5 + tier
-    for x in (-4, 4):
-        for y in range(1, gate_h + 1):
-            t[(x, y, z1)] = "P"
-    for x in range(-5, 6):
-        t[(x, gate_h + 1, z1)] = "T" if tier >= 2 else "R"
-    if tier >= 3:
-        for x in range(-3, 4):
-            t[(x, gate_h + 2, z1)] = "R"
-        t[(0, gate_h + 3, z1)] = "L"
-
-    def path(xa, za, xb, zb, wdt=2):
-        for x in range(min(xa, xb) - wdt, max(xa, xb) + wdt + 1):
-            for z in range(min(za, zb) - wdt, max(za, zb) + wdt + 1):
-                if t.get((x, 0, z)) == "grass":
-                    t[(x, 0, z)] = "S"
-    path(0, z1 - 1, 0, -38)
-    path(-48, 24, 48, 24)
-    path(-48, 62, 48, 62, 1)
-    for x in (-48, 0, 48):
-        path(x, 24, x, 30, 1)
-        path(x, -38, x, -24, 1)
-    path(-48, -24, 48, -24, 1)
-    path(-30, 62, -30, 68, 1)
-    path(30, 62, 30, 68, 1)
-    for z in range(-30, z1 - 4, 12):
-        for x in (-4, 4):
-            t[(x, 1, z)] = "P"
-            t[(x, 2, z)] = "P" if tier >= 2 else "L"
-            if tier >= 2:
-                t[(x, 3, z)] = "L"
-    for x in range(-60, 61, 15):
-        if abs(x) <= 4:
-            continue
-        t[(x, 1, 20)] = "P"
-        t[(x, 2, 20)] = "L"
-    for (tx, tz) in [(-72, 90), (72, 90), (-72, 10), (72, 10), (-72, -70), (72, -70), (-60, 92), (60, 92)]:
-        for y in range(1, 4):
-            t[(tx, y, tz)] = "P"
-        for dx in range(-2, 3):
-            for dz in range(-2, 3):
-                for y in (4, 5):
-                    if abs(dx) + abs(dz) <= 3:
-                        t[(tx + dx, y, tz + dz)] = "V"
-        t[(tx, 6, tz)] = "V"
-
-
-def plot(tier, arenas=6, rooms=None, style="melee"):
-    """A whole dojo at one tier: grounds, arenas, rooms and garden (symbols, plus raw block ids)."""
-    rooms = rooms if rooms is not None else ["training", "meditation", "trophy", "quarters", "bunks"]
-    t = {}
-    site(t, tier)
-    g = garden(tier)
-    for (x, y, z), s in g.items():
-        t[(GARDEN_ORIGIN[0] + x, y, GARDEN_ORIGIN[1] + z)] = s
-    for k in range(arenas):
-        ox, oz = arena_origin(k)
-        for (x, y, z), s in arena(tier, style).items():
-            t[(ox + x, y, oz + z)] = s
-    for name in rooms:
-        ox, oz = ROOM_ORIGINS[name]
-        for (x, y, z), s in hall(tier, name, style).items():
-            t[(ox + x, y, oz + z)] = s
+            wall_column(t, x, z, top, door=False, along_x=False)
+    # Interior floor.
+    fill(t, x0 + 1, FLOOR_Y - 1, z0 + 1, x1 - 1, FLOOR_Y - 1, z1 - 1, "F")
+    # Hall floor: rings where built, tatami where a ring could go.
+    for k in range(6):
+        cx, cz = ring_center(k)
+        r = RING // 2
+        if k < rings:
+            ring(t, cx, cz, tier)
+        else:
+            fill(t, cx - r, FLOOR_Y - 1, cz - r, cx + r, FLOOR_Y - 1, cz + r, "Y")
+    # Two rows of interior columns between the rings.
+    for x in (31, 57):
+        for z in range(9, WING_Z, 7):
+            fill(t, x, FLOOR_Y, z, x, top - 1, z, "P")
+    # Hanging lights over the rings.
+    for k in range(6):
+        cx, cz = ring_center(k)
+        for dx in (-6, 6):
+            put(t, cx + dx, top - 2, cz, "L")
+    # Outside identity: style banners hanging from the eaves between the veranda posts (front and back; more of
+    # them and longer as the tier rises), and a noren curtain over the main doors.
+    step = 8 if tier == 1 else 4
+    drop = 2 + tier
+    for x in range(2, W - 1, step):
+        for z in (0, D - 1):
+            if z == D - 1 and abs(x - 43) <= 4:
+                continue
+            fill(t, x, top - drop, z, x, top - 1, z, "A")
+    for x in range(CORRIDOR[0], CORRIDOR[1] + 1):
+        put(t, x, FLOOR_Y + 3, D - 1 - VER, "A")
+        if x % 2 == 0:
+            put(t, x, FLOOR_Y + 2, D - 1 - VER, "A")
+    # Banners (style accent) on the north wall.
+    for x in range(8, x1, 13):
+        fill(t, x, FLOOR_Y + 2, z0 + 1, x, FLOOR_Y + 5, z0 + 1, "A")
+    # South wing partition with a sliding door into each room and the open corridor.
+    for x in range(x0 + 1, x1):
+        for y in range(FLOOR_Y, top):
+            door = any(abs(x - (a + b) // 2) <= 1 for (a, b) in ROOMS.values()) and y < FLOOR_Y + 3
+            corridor = CORRIDOR[0] <= x <= CORRIDOR[1] and y < FLOOR_Y + 4
+            if not door and not corridor:
+                put(t, x, y, WING_Z, "J" if (y - FLOOR_Y) in (3, h - 1) or x % 4 == 0 else "W")
+    for (name, (a, b)) in ROOMS.items():
+        for z in range(WING_Z + 1, z1):
+            for y in range(FLOOR_Y, top):
+                for xx in (a - 1, b + 1):
+                    if x0 < xx < x1 and not (CORRIDOR[0] <= xx <= CORRIDOR[1]):
+                        put(t, xx, y, z, "J" if z % 4 == 0 else "W")
+        room(t, name, a, b, rooms.get(name, 0))
+    # Spectator balcony: a mezzanine along the north wall with a rail, stairs down at the west end.
+    if balcony > 0:
+        by = balcony_y(tier)
+        fill(t, x0 + 1, by, BALCONY_Z[0], x1 - 1, by, BALCONY_Z[1], "Q")
+        for x in range(x0 + 1, x1):
+            put(t, x, by + 1, BALCONY_Z[1], "H")
+        for i in range(by - FLOOR_Y + 1):
+            fill(t, x0 + 1, FLOOR_Y - 1 + i, BALCONY_Z[1] + 1 + (by - FLOOR_Y) - i, x0 + 3,
+                 FLOOR_Y - 1 + i, BALCONY_Z[1] + 1 + (by - FLOOR_Y) - i, "Q")
+        if balcony >= 2:
+            for x in range(x0 + 4, x1, 8):
+                put(t, x, by + 1, BALCONY_Z[0], "L")
+        if balcony >= 3:
+            for x in range(x0 + 2, x1, 6):
+                put(t, x, by + 2, BALCONY_Z[1], "A")
+    if roof:
+        build_roof(t, tier, top)
     return t
 
 
-def gallery_placed(tier):
-    out = {}
-    for (x, y, z), s in gallery(tier).items():
-        out[(GALLERY_ORIGIN[0] + x, GALLERY_Y + y, GALLERY_ORIGIN[1] + z)] = s
-    return out
+def wall_column(t, x, z, top, door, along_x):
+    post = (x % 4 == 3) if along_x else (z % 4 == 3)
+    for y in range(FLOOR_Y, top):
+        if door and y < FLOOR_Y + 4:
+            continue
+        if post:
+            put(t, x, y, z, "P")
+        elif (y - FLOOR_Y) in (0, 3) or y == top - 1:
+            put(t, x, y, z, "J")
+        else:
+            put(t, x, y, z, "W")
+
+
+def ring(t, cx, cz, tier):
+    r = RING // 2
+    fill(t, cx - r, FLOOR_Y - 1, cz - r, cx + r, FLOOR_Y - 1, cz + r, "F" if tier < 3 else "Y")
+    for i in range(-r, r + 1):
+        for (x, z) in [(cx + i, cz - r), (cx + i, cz + r), (cx - r, cz + i), (cx + r, cz + i)]:
+            put(t, x, FLOOR_Y - 1, z, "B")
+    put(t, cx, FLOOR_Y - 1, cz, "I")
+    if tier >= 2:
+        for x in range(cx - r, cx + r + 1):
+            for z in range(cz - r, cz + r + 1):
+                d = ((x - cx) ** 2 + (z - cz) ** 2) ** 0.5
+                if abs(d - 4.5) < 0.5:
+                    put(t, x, FLOOR_Y - 1, z, "I")
+        for dz in (-1, 0, 1):
+            put(t, cx - 4, FLOOR_Y - 1, cz + dz, "A")
+            put(t, cx + 4, FLOOR_Y - 1, cz + dz, "A")
+    if tier >= 3:
+        for k in range(2, r):
+            for (sx, sz) in [(1, 1), (1, -1), (-1, 1), (-1, -1)]:
+                put(t, cx + sx * k, FLOOR_Y - 1, cz + sz * k, "I")
+    for (x, z) in [(cx - r, cz - r), (cx - r, cz + r), (cx + r, cz - r), (cx + r, cz + r)]:
+        fill(t, x, FLOOR_Y, z, x, FLOOR_Y + tier, z, "P")
+        put(t, x, FLOOR_Y + tier + 1, z, "L")
+
+
+def room(t, name, a, b, tier):
+    """A south-wing room between x = a..b. Not built: an empty floor behind its sliding door."""
+    z0 = WING_Z + 1
+    z1 = D - 1 - VER - 1
+    if tier <= 0:
+        return
+    fill(t, a, FLOOR_Y - 1, z0, b, FLOOR_Y - 1, z1, "Y" if name in ("meditation", "quarters") or tier >= 2 else "F")
+    put(t, a + 1, FLOOR_Y, z0 + 1, "L")
+    put(t, b - 1, FLOOR_Y, z0 + 1, "L")
+    if tier >= 2:
+        put(t, a + 1, FLOOR_Y, z1 - 1, "L")
+        put(t, b - 1, FLOOR_Y, z1 - 1, "L")
+    if name == "training":
+        for x in range(a + 2, b - 1, 3):
+            put(t, x, FLOOR_Y, z1 - 2, "D")
+            put(t, x, FLOOR_Y + 1, z1 - 2, "D")
+            if tier >= 2:
+                put(t, x, FLOOR_Y, z0 + 4, "E")
+        if tier >= 3:
+            for x in range(a + 3, b - 1, 3):
+                put(t, x, FLOOR_Y + 2, z1 - 2, "A")
+    elif name == "meditation":
+        for x in range(a + 2, b - 1, 3):
+            for z in range(z0 + 3, z1 - 1, 3):
+                put(t, x, FLOOR_Y, z, "M")
+        if tier >= 2:
+            put(t, (a + b) // 2, FLOOR_Y, z1 - 2, "E")
+        if tier >= 3:
+            put(t, (a + b) // 2, FLOOR_Y + 1, z1 - 2, "L")
+    elif name == "trophy":
+        for i in range(6):
+            x = a + 2 + (i % 3) * 5
+            z = z0 + 4 if i < 3 else z0 + 10
+            put(t, x, FLOOR_Y, z, "N")
+            if tier >= 2:
+                put(t, x, FLOOR_Y + 1, z, "T" if tier >= 3 else "A")
+    elif name == "quarters":
+        fill(t, b - 4, FLOOR_Y, z1 - 4, b - 2, FLOOR_Y, z1 - 2, "A")
+        put(t, a + 2, FLOOR_Y, z1 - 2, "D" if tier < 3 else "E")
+        if tier >= 2:
+            fill(t, a + 2, FLOOR_Y, z0 + 2, a + 5, FLOOR_Y + 1, z0 + 2, "J")
+
+
+def build_roof(t, tier, top):
+    """A hip roof with flared eaves over the veranda: the eave course sticks out past the foundation with turned-up
+    corners, then the roof steps in two blocks per level on the long sides and one on the short ends, up to a ridge
+    (ridge trim and, at masterwork, gold finials at both ends). Each course is a solid band, so the roof never shows
+    a gap from above."""
+    lo_x, hi_x = -2, W + 1
+    lo_z, hi_z = -2, D + 1
+    y = top
+    level = 0
+    while lo_z <= hi_z and lo_x <= hi_x:
+        for x in range(lo_x, hi_x + 1):
+            for z in range(lo_z, hi_z + 1):
+                if x in (lo_x, lo_x + 1, hi_x - 1, hi_x) or z in (lo_z, lo_z + 1, hi_z - 1, hi_z):
+                    put(t, x, y, z, "T" if (level == 0 and tier >= 2) else "R")
+        if level == 0:
+            for (x, z) in [(lo_x - 1, lo_z - 1), (hi_x + 1, lo_z - 1), (lo_x - 1, hi_z + 1), (hi_x + 1, hi_z + 1)]:
+                put(t, x, y + 1, z, "R")
+        lo_z += 2
+        hi_z -= 2
+        lo_x += 1
+        hi_x -= 1
+        y += 1
+        level += 1
+    ridge_y = y - 1
+    mid_z = D // 2
+    for x in range(lo_x - 2, hi_x + 3):
+        put(t, x, ridge_y + 1, mid_z, "T")
+    if tier >= 3:
+        for x in (lo_x - 2, hi_x + 2):
+            put(t, x, ridge_y + 2, mid_z, "T")
+            put(t, x, ridge_y + 3, mid_z, "L")
+
+
+def grounds(tier, garden=1):
+    """Outside the hall: lawn, a path to the south steps, stone lanterns, trees, and (garden tier 3) a torii gate."""
+    t = {}
+    gx0, gz0, gx1, gz1 = -16, -16, W + 15, D + 30
+    fill(t, gx0, -1, gz0, gx1, -1, gz1, "grass_block")
+    fill(t, 39, -1, D + 3, 47, -1, gz1, "O")
+    if garden >= 1:
+        for z in range(D + 6, gz1, 6):
+            for x in (36, 50):
+                put(t, x, 0, z, "N")
+                put(t, x, 1, z, "L")
+    if garden >= 2:
+        for (tx, tz) in [(-8, D + 12), (W + 7, D + 12), (-8, 20), (W + 7, 20), (-8, -8), (W + 7, -8)]:
+            fill(t, tx, 0, tz, tx, 3, tz, "spruce_log")
+            for dx in range(-2, 3):
+                for dz in range(-2, 3):
+                    for y in (4, 5):
+                        if abs(dx) + abs(dz) <= 3:
+                            put(t, tx + dx, y, tz + dz, "V")
+            put(t, tx, 6, tz, "V")
+    if garden >= 3:
+        for x in (37, 49):
+            fill(t, x, 0, D + 22, x, 6, D + 22, "red_concrete")
+        fill(t, 35, 7, D + 22, 51, 7, D + 22, "black_concrete")
+        fill(t, 37, 5, D + 22, 49, 5, D + 22, "red_concrete")
+    return t
 
 
 def resolve(sym, style, tier):
-    """Block id for a template symbol (raw block ids pass through)."""
+    """Block id for a template symbol at a tier in a style (raw block ids pass through)."""
     if len(sym) == 1 and sym.isupper():
-        return PALETTES[style][tier][sym]
+        acc = ACCENTS[style][tier]
+        if sym in acc:
+            return acc[sym]
+        return BONES[tier][sym]
     return sym
+
+
+def full(tier, style, roof=True):
+    """A dojo with everything bought to {@code tier}: all six rings, every room, the balcony, the garden."""
+    rooms = {n: tier for n in ROOMS}
+    t = grounds(tier, tier)
+    t.update(hall(tier, rings=6, rooms=rooms, balcony=tier, roof=roof))
+    return {k: resolve(v, style, tier) for k, v in t.items()}

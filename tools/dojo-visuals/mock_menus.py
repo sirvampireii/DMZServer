@@ -150,17 +150,18 @@ def mock_dojo_tab(out):
 
 def mock_upgrade(out):
     m = Menu("Sparring", None, None, 360)
-    m.line("Training hall", TRIM, 10)
-    m.line("A hall with training dummies and drill posts.", LABEL)
+    m.line("Training area", TRIM, 10)
+    m.line("A room inside your hall with training dummies and drill posts.", LABEL)
     m.kv("Now", "basic")
-    m.kv("After", "refined look (beam band, double eave, windows)")
+    m.kv("After", "refined: tatami floor, lanterns, a second row of dummies")
     m.kv("Cost", "60 Dojo Points (you have 86)")
-    cells = [(6, 6, 38, 22, "Arena 4", 0), (50, 6, 38, 22, "Arena 5", 0), (94, 6, 38, 22, "Arena 6", 0),
-             (6, 32, 38, 22, "Arena 1", 1), (50, 32, 38, 22, "Arena 2", 1), (94, 32, 38, 22, "Arena 3", 0),
-             (138, 6, 52, 48, "Gallery", 0), (6, 60, 60, 22, "Garden", 1), (72, 60, 60, 22, "Gate", 1),
-             (6, 88, 38, 24, "Training", 2), (50, 88, 38, 24, "Meditation", 1), (94, 88, 38, 24, "Trophies", 0),
-             (138, 60, 52, 24, "Quarters", 1), (138, 88, 52, 24, "Bunks", 2)]
-    m.line("Your dojo now - the outlined room is what this changes:", LABEL)
+    # The hall floor plan: the balcony strip on the north wall, two rows of three rings, the south wing rooms.
+    cells = [(6, 4, 184, 8, "Spectator balcony", 1),
+             (6, 16, 56, 30, "Ring 1", 1), (68, 16, 56, 30, "Ring 2", 1), (130, 16, 56, 30, "Ring 3", 0),
+             (6, 50, 56, 30, "Ring 4", 0), (68, 50, 56, 30, "Ring 5", 0), (130, 50, 56, 30, "Ring 6", 0),
+             (6, 86, 46, 26, "Training", 1), (56, 86, 34, 26, "Meditation", 1), (94, 86, 22, 26, "Hall", 2),
+             (120, 86, 34, 26, "Trophies", 0), (158, 86, 32, 26, "Quarters", 1)]
+    m.line("Your hall now (floor plan) - the outlined room is what this changes:", LABEL)
     dojo_map(m, 14, m.y, 196, 118, cells, "Training")
     legend_y = m.y
     for i, (t, name) in enumerate([(0, "not built"), (1, "basic"), (2, "refined"), (3, "masterwork")]):
