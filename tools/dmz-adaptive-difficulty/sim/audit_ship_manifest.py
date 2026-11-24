@@ -2029,6 +2029,13 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.79 ---")
+    p79_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    check("manifest row for lm 4.7.79", "lm-4779-dojo-selftest" in manifest)
+    check("boot menu-fit self-test has a Dojo sample with the new tabs (and Sparring's new tabs)",
+          has(p79_test, 'case "dojo" -> UltraScreenSpec.of("dojo")', '.tabs("home|Home", "dojo_upgrades|Upgrades", "dojo_wars|Wars")',
+              '.tabs("home|Home", "leaderboard|Leaderboard", "sparboard|Spar Board")'))
+
     print("\n--- § lm 4.7.78 ---")
     p78_coin = read(SRC / "currency/AncientCoinEconomy.java")
     p78_skins = read(SRC / "gui/ultra/MenuSkins.java")
