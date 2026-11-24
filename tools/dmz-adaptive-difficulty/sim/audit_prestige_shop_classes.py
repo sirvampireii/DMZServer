@@ -123,6 +123,10 @@ def main() -> int:
             f"{len(mismatched)} drifted vs reference set",
             file=sys.stderr,
         )
+        if not built_missing and mismatched == ["com/dbzlegacy/adaptivedifficulty/AdaptiveDifficultyMod.class"]:
+            print("  Only the version class drifted (expected after a version bump): run "
+                  "bash tools/dmz-adaptive-difficulty/rebaseline-version-class.sh, then build again.",
+                  file=sys.stderr)
         return 1
     print(f"PASS — all {total} prestige-shop (228.1) classes byte-identical to reference")
     return 0
