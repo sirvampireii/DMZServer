@@ -2047,6 +2047,10 @@ def main() -> int:
     check("Potential notices stack, a reset clears the shown numbers, HUD maps forgotten on logout",
           has(p77_pot, "HUD_HINTS", "HUD_LAST.remove(player.m_20148_());", "public static void forgetHud(")
           and "PotentialProgression.forgetHud(" in p77_hud and "AncientCoinEconomy.forgetToast(" in p77_hud)
+    p77_dojo = read(SRC / "gui/ultra/UltraDojoScreens.java")
+    check("dojo leaderboard by clout and war wins, on the Wars tab; old boards open it",
+          has(p77_dojo, 'lower.startsWith("dojo_list_wars")', "DojoService.byWarWins()",
+              'spec.button("page:dojo_list_wars", "Dojo leaderboard"', 'lower.equals("dojo_top_wars")'))
     check("top pills keep a readable width; Rival settings show each state once",
           "TOP_MIN_W = 160" in p77_over and 'labelValue("TP Chat"' not in p77_rival)
 

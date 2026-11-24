@@ -854,6 +854,21 @@ public final class UiProbe {
             note("ASK dojo style change warns before ending a bonus: " + pf(labels(p).contains("Change style, end the bonus")
                     || has(p, "Only your dojo's master")) + " | " + labels(p));
         }
+        // 4.7.77: the dojo leaderboard (clout and war wins); the old Top dojos and Hall of Chosen links open it.
+        for (GuiOpenPacket p : keep("dojo leaderboard wars", () -> UltraGui.open(player, "spar", "dojo_list_wars"))) {
+            note("LEADERBOARD dojo leaderboard by war wins, with a By clout switch: " + pf(has(p, "Dojo leaderboard (war wins)")
+                    && labels(p).contains("By clout")) + " | " + labels(p));
+        }
+        for (GuiOpenPacket p : keep("old top dojos", () -> UltraGui.open(player, "spar", "dojo_top_rp"))) {
+            note("LEADERBOARD old Top dojos link opens the live leaderboard: " + pf(p.pageId().startsWith("dojo_list")));
+        }
+        for (GuiOpenPacket p : keep("old hall of chosen", () -> UltraGui.open(player, "spar", "dojo_hof"))) {
+            note("LEADERBOARD old Hall of Chosen link opens the live leaderboard: " + pf(p.pageId().startsWith("dojo_list")));
+        }
+        for (GuiOpenPacket p : keep("wars tab leaderboard", () -> UltraGui.open(player, "spar", "dojo_wars"))) {
+            note("LEADERBOARD Wars tab links the dojo leaderboard: " + pf(labels(p).contains("Dojo leaderboard")
+                    || has(p, "Join or found a dojo")));
+        }
         String[] upAsk = PageRegistry.parent("spar", "dojo_bonus_ask:" + bonus.id());
         note("ASK pages go back to Style and bonus: " + pf(upAsk != null && "dojo_style".equals(upAsk[1])));
     }

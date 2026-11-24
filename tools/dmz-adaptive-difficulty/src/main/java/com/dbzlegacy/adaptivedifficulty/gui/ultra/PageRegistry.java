@@ -174,8 +174,10 @@ public final class PageRegistry {
         item("spar", "dojo_members", "Dojo members", "spar|dojo_roster");
         item("spar", "dojo_previous_members", "Previous members", "spar|dojo_roster");
         item("spar", "dojo_war_pending_decide:**", "War invite", "spar|dojo_war_pending");
-        p("spar", "dojo_list", "Browse dojos", "spar|dojo", "leaderboard");
-        item("spar", "dojo_list:**", "Browse dojos", "spar|dojo");
+        p("spar", "dojo_list", "Dojo leaderboard", "spar|dojo", "browse dojos ranking clout top");
+        item("spar", "dojo_list:**", "Dojo leaderboard", "spar|dojo");
+        p("spar", "dojo_list_wars", "Dojo leaderboard - war wins", "spar|dojo", "war wins ranking top dojos");
+        item("spar", "dojo_list_wars:**", "Dojo leaderboard - war wins", "spar|dojo");
         item("spar", "dojo_close", "Close dojo", "spar|dojo");
         p("spar", "mentor", "Training bonds", "spar|dojo", "master apprentice");
         p("spar", "dojo_roster", "Roster and bonds", "spar|dojo");

@@ -81,8 +81,16 @@ public final class UltraDojoScreens {
             openWarFormat(player, p.substring("dojo_war_fmt:".length()), notice);
         } else if (lower.startsWith("dojo_war_view:")) {
             openWarView(player, p.substring("dojo_war_view:".length()), notice);
+        } else if (lower.startsWith("dojo_list_wars")) {
+            openList(player, UltraPickHelper.pageIndex(lower), notice, true);
         } else if (lower.startsWith("dojo_list")) {
-            openList(player, UltraPickHelper.pageIndex(lower), notice);
+            openList(player, UltraPickHelper.pageIndex(lower), notice, false);
+        } else if (lower.startsWith("dojo_top_") || lower.equals("dojo_rank") || lower.equals("dojo_rankings")
+                || lower.equals("dojo_hof") || lower.equals("chosen") || lower.equals("hall_of_chosen")
+                || lower.equals("dojo_war_hof")) {
+            // 4.7.77: the pre-4.7.68 boards (reputation, war wins, Hall of Chosen) read data the current dojos no
+            // longer update; their links open the live leaderboard instead.
+            openList(player, 0, notice, lower.equals("dojo_top_wars"));
         } else if (lower.equals("dojo_close")) {
             openCloseConfirm(player);
         } else {
@@ -796,6 +804,8 @@ public final class UltraDojoScreens {
         } else {
             spec.lockedButton("Declare a war").rowGap();
         }
+        // 4.7.77: the dojo leaderboard by war wins, for every member.
+        spec.button("page:dojo_list_wars", "Dojo leaderboard", UltraStyle.STYLE_NORMAL).rowGap();
         spec.back();
         spec.send(player);
     }
@@ -875,9 +885,15 @@ public final class UltraDojoScreens {
     }
 
     static void openList(ServerPlayer player, int page, String notice) {
-        UltraScreenSpec spec = sub(UltraPickHelper.pageArg("dojo_list", page), notice);
-        List<Dojo> all = DojoService.byClout();
-        spec.line(UltraStyle.header("Dojo leaderboard (clout this season)"));
+        openList(player, page, notice, false);
+    }
+
+    /** The dojo leaderboard: by clout this season, or (4.7.77) by war wins. */
+    static void openList(ServerPlayer player, int page, String notice, boolean wars) {
+        String base = wars ? "dojo_list_wars" : "dojo_list";
+        UltraScreenSpec spec = sub(UltraPickHelper.pageArg(base, page), notice);
+        List<Dojo> all = wars ? DojoService.byWarWins() : DojoService.byClout();
+        spec.line(UltraStyle.header(wars ? "Dojo leaderboard (war wins)" : "Dojo leaderboard (clout this season)"));
         if (all.isEmpty()) {
             spec.line(UltraStyle.LABEL + "No dojos yet. Found the first one!");
         }
@@ -887,15 +903,24 @@ public final class UltraDojoScreens {
         for (int i = pg * per; i < Math.min(all.size(), (pg + 1) * per); i++) {
             Dojo d = all.get(i);
             DojoCatalog.Style s = DojoCatalog.Style.of(d.style);
-            spec.line(UltraStyle.VALUE + (i + 1) + ". " + d.name + UltraStyle.LABEL + " - " + d.clout + " clout, "
+            String score = wars ? d.warWins + (d.warWins == 1 ? " war win" : " war wins") : d.clout + " clout";
+            spec.line(UltraStyle.VALUE + (i + 1) + ". " + d.name + UltraStyle.LABEL + " - " + score + ", "
                     + (1 + DojoService.disciples(d).size()) + " members" + (s == null ? "" : ", " + s.label));
         }
         spec.buttonsAfterLines();
+        if (wars) {
+            spec.buttonLeft("page:dojo_list", "By clout", UltraStyle.STYLE_NORMAL);
+            spec.lockedButtonRight("By war wins");
+        } else {
+            spec.lockedButton("By clout");
+            spec.buttonRight("page:dojo_list_wars", "By war wins", UltraStyle.STYLE_NORMAL);
+        }
+        spec.rowGap();
         for (int i = pg * per; i < Math.min(all.size(), (pg + 1) * per); i++) {
             Dojo d = all.get(i);
             spec.button("do:dojo_visit:" + d.masterUuid, "Visit " + d.name, UltraStyle.STYLE_NORMAL).rowGap();
         }
-        pager(spec, "dojo_list", pg, pages);
+        pager(spec, base, pg, pages);
         spec.back();
         spec.send(player);
     }
