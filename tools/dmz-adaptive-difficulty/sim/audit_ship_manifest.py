@@ -2080,6 +2080,16 @@ def main() -> int:
           and "announceStart(server, ch);" in p80_rcm
           and "private static void broadcastStatus(String msg)" in p80_tpb and "private static void broadcastStatus(String msg)" in p80_mb
           and "public static void deliver(ServerPlayer player, DifficultyTitle equipped" in p80_sense)
+    p80_pmp = read(SRC / "gui/ultra/PlayerModelParts.java")
+    p80_mp = read(SRC / "gui/ultra/ModelPreview.java")
+    p80_cat = read(SRC / "gui/ultra/BodyPartCatalog.java")
+    p80_bpp = read(SRC / "client/BodyPartPreview.java")
+    check("5: form previews send the form's pieces (base form = base/base) plus the owner's shop pieces; LM client builds a Look",
+          "static JsonArray bodyPartsFor(" in p80_pmp
+          and "return bodyPartsFor(player, race, group, form, stackGroup, stackForm, candidatePart);" in p80_pmp
+          and 'JsonArray body = PlayerModelParts.bodyPartsFor(owner, form.race(), form.group(), form.form(), "", "", null);' in p80_mp
+          and has(p80_cat, 'public static final String BASE_FORM = "base";', "String[] worn = wornForm(group, form);")
+          and "return newLook(extra, colors);" in p80_bpp and "if (look == null || (!hasPieces && !hasColors))" not in p80_bpp)
     check("4: the probe checks every HUD element on and off through the code that sends it",
           "private void v80HudMatrix()" in p80_probe and all(f"LmHud.{e}" in _after(p80_probe, "static final String[] HUD_ELEMENTS")
               .split(";", 1)[0] for e in ("UNDERDOG", "INSTINCT", "TP", "PENALTY", "MOMENTUM", "FIGHT", "SPAR", "POTENTIAL",

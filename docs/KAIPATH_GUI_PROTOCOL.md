@@ -191,7 +191,7 @@ Known optional feature ids:
 | `fixedFooter` | Button `footer:true` pinned chrome (**shipped on KaiPath 1.3.17**) |
 | `combined.forms.v1` | One preview combines the base entity with optional `playerModel.parts.headBones` and `playerModel.parts.form` string ids. The strings are generic (race, group, form, stack). Any mod may send its own ids. A client that lacks the feature still draws the entity and ignores `parts.form`. |
 | `icon` | Optional button/tab `icon` (item id or texture path). **Advertised by KaiPath 1.3.22.** A client that omits it is `missingShipped=icon`, not `pendingNext`. |
-| `bodyParts` | `playerModel.parts.bodyParts` — explicit pieces (`id`, `source`, `slot`) attached to that same preview. Any mod may send its own ids. A client that lacks the feature still draws the entity and ignores the array. Unknown ids are skipped. **Advertised by KaiPath 1.3.29.** A client that omits it is `missingShipped=bodyParts`, not `pendingNext`. LM sends worn form pieces plus the player's Body Parts Shop pieces. |
+| `bodyParts` | `playerModel.parts.bodyParts` — explicit pieces (`id`, `source`, `slot`) attached to that same preview. Any mod may send its own ids. A client that lacks the feature still draws the entity and ignores the array. Unknown ids are skipped. **Advertised by KaiPath 1.3.29.** A client that omits it is `missingShipped=bodyParts`, not `pendingNext`. LM sends worn form pieces plus the player's Body Parts Shop pieces; a form preview sends the previewed form's pieces plus the viewer's shop pieces (see [Form preview body parts](#form-preview-body-parts)). |
 | `bodyPartsSync` | **Message 3** `GuiModelSyncPacket` — authoritative equipped body-parts state for *world* rendering (outside menus). **Advertised by KaiPath 1.3.31+** (live: 1.5.1). A client that omits it is `missingShipped=bodyPartsSync`. LM only sends message 3 to clients that advertise this id; a client that never registered message 3 must never advertise it (unregistered message id drops the connection). See [`#GuiModelSyncPacket`](#guimodelsyncpacket-s-client--message-3). |
 
 Advertise (KaiPath **1.5.1**, live — eighteen ids; the first fifteen shipped on 1.3.17, `icon` on 1.3.22, `bodyParts` on 1.3.29, `bodyPartsSync` on 1.3.31; see [`KAIPATH_BRIDGE_GAPS.md`](KAIPATH_BRIDGE_GAPS.md)):
@@ -907,6 +907,40 @@ Additive fields on the made-up figure's `playerModel.parts` (subject stays `uuid
 KaiPath can apply `colors` and `headBones` as it already does for real players, which fixes "colors are the race
 defaults" above; `appearance` and `skinOwner` are optional. No change to the real-player snapshot, world model sync
 or the rival figure.
+
+### Form preview body parts
+
+A form preview (`ModelPreview.formFigure`, made-up `uuid:` subject) and the real player's snapshot build
+`parts.bodyParts` with one method, `PlayerModelParts.bodyPartsFor(owner, race, group, form, stackGroup, stackForm,
+candidatePart)`:
+
+- the form's catalog pieces (`BodyPartCatalog`, the DMZUltra FormParts mirror), then the owner's equipped Body Parts
+  Shop pieces, deduped by id; single-tail rule (a form tail beats a shop tail); `suppressNaturalTail` is derived from
+  that array as before;
+- the live snapshot passes the worn form; a form preview passes the previewed form (no stack form), so the figure
+  wears the viewer's shop pieces in every form it previews;
+- an empty group and form is the base form and resolves as `<race>/base/base`, as DMZUltra `FormParts.body` keys a
+  player with no active form (catalog entries exist for sekhari, makaijin, soulreaper, bleach_hollow, bleach_quincy,
+  shadowdragon). Colours keep their own base palette; only pieces use this key.
+
+Before this, a form preview sent only the previewed form's catalog pieces, and the base form always sent an empty
+array (which `LmNativeProtocol.analyze` then dropped), so no renderer drew shop pieces on a preview.
+
+Client side, two things must hold for the pieces to draw on a made-up subject:
+
+1. The stand-in wears `parts.form` for the draw. A client-only `RemotePlayer` has a blank DragonMineZ `Character`;
+   KaiPath 1.5.6 sets race, active form, stack form and head bone from `parts.form` / `parts.headBones` for the draw
+   and restores them after (`PreviewAppearance`). The kit now carries the same class.
+2. `FormParts.of` returns null for a form with no design, set or extras (base form, SSJ). The merge must then build a
+   Look rather than bail: KaiPath 1.5.6 does (`createDesign` / `createLook`: the widest public constructor of
+   `FormParts$Design` and `FormParts$Look`, pieces and sent colours, DMZUltra defaults elsewhere). The kit's
+   `BodyPartPreview.mergeLook` and the LM client's do the same (`newLook`).
+
+**KaiPath 1.5.6 already meets this contract; it needs no change.** The kit test `PreviewAppearanceTest` covers a
+made-up subject: Saiyan base form plus one shop piece (`wings_feather`).
+
+Open: whether DragonMineZ draws the race model on a `RemotePlayer` whose `hasCreatedCharacter` is false. KaiPath 1.5.6
+does not set it; the LM client sets it on its own stand-in (`NativeFormLook`). Not verified in game.
 
 ### Page registry, Back and breadcrumbs (LM 4.7.71)
 

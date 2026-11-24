@@ -69,6 +69,12 @@ protocol. KaiPath registers one client consumer per partner mod id.
     - no Java object printed as text (`[I@2feb1f5f`) in a label or line
     Refresh the corpus with `test/gen_lm_corpus.py` from an LM UI probe run (`tools/lm-ui-probe`).
 
+14. Form preview body parts: a made-up `uuid:` figure must wear `parts.form` for the draw
+    ([`PreviewAppearance`](kaipath-client/com/dmzlegacy/kaipath/ultra/consumers/legacymechanics/PreviewAppearance.java),
+    as KaiPath 1.5.6 does), and `BodyPartPreview.mergeLook` builds a Look when DMZUltra `FormParts.of` is null (base
+    form, SSJ) instead of dropping the pieces. Test `PreviewAppearanceTest` (Saiyan base form plus one shop piece).
+    Contract: `docs/KAIPATH_GUI_PROTOCOL.md` § Form preview body parts. KaiPath 1.5.6 already meets it.
+
 See [`server/HelloWorldServerSketch.java`](server/HelloWorldServerSketch.java) and
 [`server/BridgeFutureFieldsFixture.json`](server/BridgeFutureFieldsFixture.json).
 
