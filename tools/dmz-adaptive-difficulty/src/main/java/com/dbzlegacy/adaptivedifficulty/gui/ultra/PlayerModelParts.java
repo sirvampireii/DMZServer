@@ -202,6 +202,41 @@ public final class PlayerModelParts {
             fd = ch.getActiveFormData();
         } catch (Throwable ignored) {
         }
+        return colors(player, ch, race, group, form, stackGroup, stackForm, fd);
+    }
+
+    /**
+     * 4.7.71: {@code owner}'s colors as they would be in {@code race}'s form {@code group}/{@code form} (the
+     * previewed form, not the active one): the same precedence as {@link #colors(ServerPlayer)} with the previewed
+     * form's override in place of the active form's. Null when the character is unknown.
+     */
+    public static JsonObject previewColors(ServerPlayer owner, String race, String group, String form) {
+        Character ch = null;
+        try {
+            ch = DmzProgression.character(owner);
+        } catch (Throwable ignored) {
+        }
+        if (ch == null) {
+            return null;
+        }
+        FormConfig.FormData fd = null;
+        try {
+            if (!safe(group).isEmpty() && !safe(form).isEmpty()) {
+                fd = com.dragonminez.common.config.ConfigManager.getForm(safe(race).toLowerCase(Locale.ROOT),
+                        safe(group).toLowerCase(Locale.ROOT), safe(form).toLowerCase(Locale.ROOT));
+            }
+        } catch (Throwable ignored) {
+        }
+        return colors(owner, ch, safe(race), safe(group), safe(form), "", "", fd);
+    }
+
+    /** 4.7.71: {@code owner}'s worn head bone as the parts {@code headBones} object, or null. */
+    public static JsonObject headBonesOf(ServerPlayer owner) {
+        return owner == null ? null : headBones(owner, null);
+    }
+
+    private static JsonObject colors(ServerPlayer player, Character ch, String race, String group, String form,
+            String stackGroup, String stackForm, FormConfig.FormData fd) {
 
         int skin = 0xFFFFFF;
         int second = 0xFFFFFF;

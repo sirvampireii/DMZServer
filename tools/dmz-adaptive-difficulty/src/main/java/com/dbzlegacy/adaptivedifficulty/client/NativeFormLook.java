@@ -26,7 +26,8 @@ final class NativeFormLook {
             return;
         }
         JsonObject form = parts.getAsJsonObject("form");
-        String key = form.toString();
+        String look = text(parts, "appearance");
+        String key = form.toString() + "|" + look.hashCode();
         if (key.equals(APPLIED.get(standIn))) {
             return;
         }
@@ -36,6 +37,16 @@ final class NativeFormLook {
                 return;
             }
             Character ch = data.getCharacter();
+            // 4.7.71: the owner's own look first (colors, hair, eyes, body type), then the previewed race and form,
+            // so DragonMineZ applies the form's own overrides on top of the owner's base colors.
+            if (!look.isEmpty()) {
+                try {
+                    ch.loadAppearance(net.minecraft.nbt.NbtIo.m_128939_(
+                            new java.io.ByteArrayInputStream(java.util.Base64.getDecoder().decode(look))));
+                } catch (Throwable ignored) {
+                    // an appearance this DragonMineZ cannot read: the figure keeps its defaults
+                }
+            }
             String race = text(form, "race");
             if (!race.isEmpty()) {
                 ch.setRace(race);

@@ -232,6 +232,15 @@ LM 4.7.68 additive, ignorable element (the bridge never needs it):
   their hello, so a bridge page carries the text lines alone; KaiPath ignores unknown layout keys. It is never a
   reason to route a page.
 
+LM 4.7.71 additive, ignorable element (the bridge never needs it):
+- layoutJson `breadcrumb`: `[[title, action], ...]`, the main menu first and this page last (its action `""`). The LM
+  client draws it in the header strip under the title, each crumb but the last a link that sends its action
+  (`nav:hub` or `go:<screen>|<page>`) like a button. LM sends it only to LM clients that list `nav` in their hello and
+  only on pages deeper than a system Home; a bridge page never carries it.
+- Actions `nav:back` and `go:<screen>|<page>` (the hub Search results). A bridge page's Back is still an ordinary
+  `nav:hub`, `open:<system>`, `nav:home` or `page:<id>` (from the page registry, see below), so KaiPath never needs
+  to send `nav:back`; if it does, LM treats it as Back to the page's registry parent.
+
 LM native client (channel `legacymechanics:native_ui`, LM 4.7.61): its hello lists the eighteen ids in
 `LmNativeProtocol.CLIENT_FEATURES`, plus `combined.forms.v1` when DragonMineZ is installed and `bodyParts`
 when DMZUltra's FormParts is installed. With both, Character Services > Preview forms (a made-up figure in a
@@ -862,6 +871,32 @@ client-side and outside LM's reach:
   turns the HUD portrait to that form while the screen is open. LM never sends that combination.
 - With `rotate:false`, a `local` model follows the player's facing in the world; a stand-in holds still.
 
+### Form previews in the viewer's look (LM 4.7.71)
+
+Additive fields on the made-up figure's `playerModel.parts` (subject stays `uuid:<id>`, never `local`):
+
+- `colors`: the same object a real player's snapshot carries, resolved for the previewed form: the viewer's skin,
+  second, hair, eye and own/trim/horn/light colours with that form's overrides, same precedence as the real player.
+- `headBones`: the viewer's own head bones (same `{token, pieces}` shape as a real player).
+- `appearance`: DragonMineZ's appearance record of the viewer (`Character#saveAppearance`), gzip NBT in base64.
+  The LM client loads it onto the stand-in before it sets race and form.
+- `skinOwner`: the uuid whose Minecraft skin the stand-in wears (the viewer).
+
+KaiPath can apply `colors` and `headBones` as it already does for real players, which fixes "colors are the race
+defaults" above; `appearance` and `skinOwner` are optional. No change to the real-player snapshot, world model sync
+or the rival figure.
+
+### Page registry, Back and breadcrumbs (LM 4.7.71)
+
+Every LM menu page has one entry (title, parent page, system) in `gui/ultra/PageRegistry.java`. A bridge page's Back
+goes to the registry parent: the hub (`nav:hub`), a system Home (`open:<system>` / `nav:home`) or the parent page
+(`page:<id>`); a system Home still shows one "Back to main menu". Some pages built from run-time state (paged lists,
+the rival profile's list page) now return to the first page of their list on the bridge; the LM client keeps the
+exact page through its own history. The main menu tabs are `home|Home`, `search|Search`, `more|More`. The Search tab
+works on the bridge like any page: a text field (`hub_search`) bound to `do:hub_search`, results as ordinary buttons
+whose ids are `go:<screen>|<page>`; send them back as-is. A client without text fields gets one line pointing to Home.
+Only LM's own client gets the search row on Home.
+
 ### Spin stop is front-facing (LM 4.7.60)
 
 No wire change. When a packet arrives with `rotate:false`, the preview resets to front-facing: the
@@ -883,7 +918,7 @@ for LM's channel later; nothing in the packet asks for them, and KaiPath's squar
 ### Header groups and the hub (LM 4.7.64)
 
 No wire change for the bridge. The main menu (`screenId` `hub`) now has three tabs, `home|Home`,
-`goals|Goals`, `more|More`; tab clicks come back as `tab:<id>` like every other system. Pages with two or more
+`goals|Goals`, `more|More` (4.7.71: `search|Search` replaces Goals); tab clicks come back as `tab:<id>` like every other system. Pages with two or more
 header lines (`§6§l...`) are meant to read as cards: the LM client draws each header on the panel and the lines
 under it in their own box. KaiPath may do the same; drawing them flat in one body is correct. New hub action
 `page:wars` (the Dojo wars tile) and Sparring actions `do:spar_list`, `do:spar_unlist`, `do:spar_want`,

@@ -460,6 +460,8 @@ public final class DifficultyEvents {
             } catch (Throwable ignored) {
             }
             com.dbzlegacy.adaptivedifficulty.progression.tp.DeathTpPenalty.onLogout(player);
+            // 4.7.71: the menu page history lasts the session.
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.NavHistory.clear(player.m_20148_());
             // 4.7.59: Momentum is session-only.
             com.dbzlegacy.adaptivedifficulty.progression.Momentum.clear(player);
             // 4.7.64: the spar board is session-only.

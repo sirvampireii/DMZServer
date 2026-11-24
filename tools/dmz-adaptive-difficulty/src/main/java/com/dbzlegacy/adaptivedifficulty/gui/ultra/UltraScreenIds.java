@@ -258,7 +258,8 @@ public final class UltraScreenIds {
                 || action.startsWith("nav:")
                 || action.startsWith("open:")
                 || action.startsWith("page:")
-                || action.startsWith("input:");
+                || action.startsWith("input:")
+                || action.startsWith("go:");
     }
 
     /**

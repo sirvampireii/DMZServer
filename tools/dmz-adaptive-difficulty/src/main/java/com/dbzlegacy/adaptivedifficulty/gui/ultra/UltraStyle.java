@@ -262,7 +262,7 @@ public final class UltraStyle {
 
     /**
      * Contextual back label that names its destination (e.g. {@code Back to Rival Home}).
-     * Prefer {@link UltraScreenSpec#footerBackHome(String)} / {@link UltraScreenSpec#footerBack}
+     * Footers come from {@link UltraScreenSpec#back()} (4.7.71)
      * so the control lives in the pinned footer, not the scrollable body.
      */
     public static String backTo(String destination) {
@@ -273,6 +273,12 @@ public final class UltraStyle {
         // Avoid "Back to Back to ..." if a caller already prefixed.
         if (dest.regionMatches(true, 0, "Back to ", 0, 8)) {
             return LABEL + dest;
+        }
+        // 4.7.71: a long page name drops its last words so the footer never cuts the label
+        // ("Back to Character Services" -> "Back to Character").
+        int room = labelMaxWidth(BTN_W);
+        while (textWidthPx("Back to " + dest) > room && dest.lastIndexOf(' ') > 0) {
+            dest = dest.substring(0, dest.lastIndexOf(' ')).trim();
         }
         return LABEL + "Back to " + dest;
     }
