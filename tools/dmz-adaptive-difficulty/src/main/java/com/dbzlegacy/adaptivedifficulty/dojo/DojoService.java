@@ -193,7 +193,9 @@ public final class DojoService {
         store().dojos.put(d.masterUuid, d);
         store().player(d.masterUuid, p.m_7755_().getString());
         store().markDirty();
-        return "You founded " + d.name + ". It has one sparring arena. Spar on the board to start earning Dojo Points.";
+        DojoWorld.ensureBuilt(p.m_20194_(), d);
+        return "You founded " + d.name + ". Your hall starts empty with one sparring mat; upgrades build into it. "
+                + "Spar on the board to start earning Dojo Points.";
     }
 
     /** Close the dojo (master only). Members, style and upgrades are kept for a reopen. */
@@ -393,6 +395,7 @@ public final class DojoService {
         d.style = s.name();
         d.bonus = "";
         store().markDirty();
+        DojoWorld.ensureBuilt(p.m_20194_(), d);                 // the hall takes the style's banners and colours
         return "Your dojo now trains " + s.label + "." + (had ? " The old bonus ended; pick a new one." : " Pick a bonus next.");
     }
 

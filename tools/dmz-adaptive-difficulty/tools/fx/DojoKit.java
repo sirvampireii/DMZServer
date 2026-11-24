@@ -144,11 +144,12 @@ public final class DojoKit {
 
         int level(String id) { return id.equals("arena") ? arenas : lv.getOrDefault(id, 0); }
         /** LM's look tier for the rings, which the whole hall follows. */
-        int hallTier() { return 1 + (Math.min(Math.max(arenas, 1), 6) - 1) / 2; }
+        int forceTier;                                  // export: a hall tier with no rings yet (0: from the rings)
+        int hallTier() { return forceTier > 0 ? forceTier : 1 + (Math.min(Math.max(arenas, 1), 6) - 1) / 2; }
 
         State with(String id) {
             State s = new State();
-            s.style = style; s.arenas = arenas; s.lv.putAll(lv);
+            s.style = style; s.arenas = arenas; s.lv.putAll(lv); s.forceTier = forceTier;
             if (id.equals("arena")) s.arenas = Math.min(6, arenas + 1);
             else s.lv.put(id, Math.min(3, lv.get(id) + 1));
             return s;
@@ -230,6 +231,13 @@ public final class DojoKit {
         for (int y = 1; y < s.sy && floorY < 0; y++) if (s.isAirOrVoid(cx, y, cz) && s.isBlock(cx, y - 1, cz)) floorY = y;
         if (floorY < 0) throw new IllegalStateException("no hall floor found");
         ceilY = floorY - 1 + L.hallH;                   // the top of the hall's walls: DojoKit lays the ceiling there
+        // The ground comes up to the hall's floor: the grounds, the path and the porch are one level, so nobody has to
+        // climb the foundation to get in (dirt under, grass on top, round whatever the hall already fills).
+        for (int z = 0; z < s.sz; z++)
+            for (int x = 0; x < s.sx; x++)
+                for (int y = 0; y < floorY; y++)
+                    if (s.isAirOrVoid(x, y, z))
+                        s.set(x, y, z, y == floorY - 1 ? "minecraft:grass_block[snowy=false]" : "minecraft:dirt");
     }
 
     String b(String k) {
@@ -525,15 +533,16 @@ public final class DojoKit {
         int px = (L.mainDoor[0] + L.mainDoor[1]) / 2;
         int zEnd = s.sz - fz - 1, zFrom = L.porch[1] + 1;
         String path = b("O");
+        int g = floorY - 1;                             // the ground's top layer: level with the hall floor
         for (int z = zFrom; z <= zEnd; z++) {
-            fill(px - 2, 0, z, px + 2, 0, z, path);
-            for (int side : new int[]{-3, 3}) if (BuildStyle.hash(px + side, 0, z, 68) < 0.45) put(px + side, 0, z, path);
+            fill(px - 2, g, z, px + 2, g, z, path);
+            for (int side : new int[]{-3, 3}) if (BuildStyle.hash(px + side, 0, z, 68) < 0.45) put(px + side, g, z, path);
         }
         for (int z = zFrom + 2; z <= zEnd - 1 && garden >= 1; z += 5)
             for (int x : new int[]{px - 4, px + 4}) {
-                put(x, 1, z, "minecraft:stone_brick_wall[east=none,north=none,south=none,up=true,waterlogged=false,west=none]");
-                put(x, 2, z, "minecraft:lantern[hanging=false,waterlogged=false]");
-                put(x, 3, z, "minecraft:stone_brick_slab[type=bottom,waterlogged=false]");
+                put(x, g + 1, z, "minecraft:stone_brick_wall[east=none,north=none,south=none,up=true,waterlogged=false,west=none]");
+                put(x, g + 2, z, "minecraft:lantern[hanging=false,waterlogged=false]");
+                put(x, g + 3, z, "minecraft:stone_brick_slab[type=bottom,waterlogged=false]");
             }
         // trees in the four corners of the plot (refined: two kinds; masterwork: cherry)
         if (garden >= 2) {
@@ -543,15 +552,15 @@ public final class DojoKit {
                 Structure t = SceneKit.tree(SceneKit.SPECIES.get(kinds[i]), 1.35, 680 + i + garden).toStructure();
                 int[] bb = t.bounds();
                 int tcx = (bb[0] + bb[3]) / 2, tcz = (bb[2] + bb[5]) / 2;
-                s.paste(t, fx + at[i][0] - tcx, 1 - bb[1], fz + at[i][1] - tcz, false);
+                s.paste(t, fx + at[i][0] - tcx, g + 1 - bb[1], fz + at[i][1] - tcz, false);
             }
         }
         if (garden >= 3) {
             int z = zEnd - 4;
-            for (int x : new int[]{px - 4, px + 4}) fill(x, 1, z, x, 7, z, b("G"));
-            fill(px - 6, 8, z, px + 6, 8, z, "minecraft:polished_blackstone");
-            fill(px - 4, 6, z, px + 4, 6, z, b("G"));
-            put(px, 7, z, b("G"));
+            for (int x : new int[]{px - 4, px + 4}) fill(x, g + 1, z, x, g + 7, z, b("G"));
+            fill(px - 6, g + 8, z, px + 6, g + 8, z, "minecraft:polished_blackstone");
+            fill(px - 4, g + 6, z, px + 4, g + 6, z, b("G"));
+            put(px, g + 7, z, b("G"));
         }
     }
 
@@ -762,6 +771,7 @@ public final class DojoKit {
     static boolean fontTried;
 
     static BufferedImage caption(BufferedImage img, String text) {
+        if (text == null) return img;
         if (!fontTried) {
             fontTried = true;
             try {
@@ -809,6 +819,208 @@ public final class DojoKit {
         return s;
     }
 
+    // ------------------------------------------------------------------ export (what LM ships)
+    static final String[] EXPORT_STYLES = {"none", "ki", "melee", "strike", "evasion"};
+    static final String[] ROOM_PARTS = {"training_hall", "meditation", "trophy_hall", "quarters"};
+    static final int PLAN_PX = 4;                       // plan textures: pixels per block
+
+    static State bare(String style, int tier) {
+        State s = new State();
+        s.style = style.equals("none") ? null : style;
+        s.arenas = 0;
+        s.forceTier = tier;
+        return s;
+    }
+
+    static DojoKit built(Structure[] halls, Layout L, State st) {
+        DojoKit k = new DojoKit(halls[st.hallTier() - 1], L, st);
+        k.build();
+        return k;
+    }
+
+    /** The cells where {@code b} differs from {@code a}, cut to their bounds (structure void elsewhere); {at} gets the
+     *  piece's position in the plot. Null when nothing differs. */
+    static Structure piece(Structure a, Structure b, int[] at) {
+        int x0 = Integer.MAX_VALUE, y0 = Integer.MAX_VALUE, z0 = Integer.MAX_VALUE, x1 = -1, y1 = -1, z1 = -1;
+        for (int y = 0; y < b.sy; y++) for (int z = 0; z < b.sz; z++) for (int x = 0; x < b.sx; x++)
+            if (!a.get(x, y, z).equals(b.get(x, y, z))) {
+                x0 = Math.min(x0, x); y0 = Math.min(y0, y); z0 = Math.min(z0, z);
+                x1 = Math.max(x1, x); y1 = Math.max(y1, y); z1 = Math.max(z1, z);
+            }
+        if (x1 < 0) return null;
+        Structure p = new Structure(x1 - x0 + 1, y1 - y0 + 1, z1 - z0 + 1);
+        for (int y = y0; y <= y1; y++) for (int z = z0; z <= z1; z++) for (int x = x0; x <= x1; x++) {
+            String v = b.get(x, y, z);
+            if (!a.get(x, y, z).equals(v)) p.set(x - x0, y - y0, z - z0, v.equals(Structure.VOID) ? Structure.AIR : v);
+        }
+        at[0] = x0; at[1] = y0; at[2] = z0;
+        return p;
+    }
+
+    /** The floor plan as a texture: exactly {@link #PLAN_PX} pixels per block over the foundation and the porch, so
+     *  LM can cut any part's rectangle out of it (top-left = plot x fx-1, z fz-1). */
+    BufferedImage planTexture() {
+        Structure c = s.copy();
+        c.fill(0, floorY + 2, 0, c.sx - 1, c.sy - 1, c.sz - 1, Structure.AIR);
+        int by = floorY + L.balconyUp - 1;
+        for (int z = L.balconyZ[0]; z <= L.balconyZ[1]; z++)
+            for (int x = L.hall[0] + 1; x < L.hall[2]; x++) if (s.isBlock(fx + x, by, fz + z)) c.set(fx + x, floorY + 1, fz + z, s.get(fx + x, by, fz + z));
+        int cw = L.footW + 2, cd = L.porch[1] + 4;
+        Structure crop = new Structure(cw, floorY + 3, cd);
+        for (int y = 0; y < crop.sy; y++) for (int z = 0; z < cd; z++) for (int x = 0; x < cw; x++)
+            crop.set(x, y, z, c.get(fx - 1 + x, y, fz - 1 + z));
+        BlockRender.Options o = new BlockRender.Options();
+        o.width = cw * PLAN_PX; o.height = cd * PLAN_PX;
+        BlockRender r = new BlockRender(crop, LIB, o);
+        BlockRender.Camera cam = BlockRender.Camera.ortho(180, 90, cw / 2.0, floorY + 1, cd / 2.0, PLAN_PX);
+        return noSky(r, cam);
+    }
+
+    static void exportAll(Structure[] halls, Layout L, File structDir, File texDir, File indexFile) throws Exception {
+        structDir.mkdirs(); texDir.mkdirs();
+        StringBuilder pieces = new StringBuilder();
+        DojoKit any = null;
+        for (int t = 1; t <= 3; t++)
+            for (String style : EXPORT_STYLES) {
+                String key = "t" + t + "_" + style;
+                File dir = new File(structDir, key);
+                dir.mkdirs();
+                DojoKit base = built(halls, L, bare(style, t));
+                any = base;
+                base.s.save(new File(dir, "base.nbt"), true);
+                int n = 0;
+                State prev = bare(style, t);
+                DojoKit prevK = base;
+                for (int k = 1; k <= L.rings.size(); k++) {
+                    State st = bare(style, t);
+                    st.arenas = k;
+                    DojoKit now = built(halls, L, st);
+                    n += savePiece(prevK.s, now.s, dir, "arena_" + k, key, pieces);
+                    prevK = now;
+                }
+                for (String part : State.PARTS)
+                    for (int lv = 1; lv <= 3; lv++) {
+                        State st = bare(style, t);
+                        st.lv.put(part, lv);
+                        n += savePiece(base.s, built(halls, L, st).s, dir, part + "_" + lv, key, pieces);
+                    }
+                // the plans the menus cut parts out of: the empty hall, and every part built at this tier
+                ImageIO.write(base.planTexture(), "png", new File(texDir, "plan_" + key + "_empty.png"));
+                State full = bare(style, t);
+                full.arenas = L.rings.size();
+                for (String part : State.PARTS) full.lv.put(part, t);
+                ImageIO.write(built(halls, L, full).planTexture(), "png", new File(texDir, "plan_" + key + "_full.png"));
+                System.out.println("export " + key + ": base + " + n + " pieces, plans");
+            }
+        // close-ups: each part at each level (the hall at that tier), and each part's empty space per tier
+        int pics = 0;
+        for (String style : EXPORT_STYLES)
+            for (int lv = 1; lv <= 3; lv++) {
+                State st = bare(style, lv);
+                st.arenas = Math.min(L.rings.size(), 2);
+                for (String part : State.PARTS) st.lv.put(part, lv);
+                DojoKit k = built(halls, L, st);
+                State before = bare(style, lv);
+                before.arenas = 1;
+                ImageIO.write(k.closeUpTex(k.partBox("arena", before)), "png", new File(texDir, "cu_arena_" + lv + "_" + style + ".png"));
+                for (String part : State.PARTS)
+                    ImageIO.write(k.closeUpTex(k.partBox(part, before)), "png", new File(texDir, "cu_" + part + "_" + lv + "_" + style + ".png"));
+                pics += 1 + State.PARTS.size();
+            }
+        for (int t = 1; t <= 3; t++) {
+            State st = bare("none", t);
+            st.arenas = 1;
+            DojoKit k = built(halls, L, st);
+            ImageIO.write(k.closeUpTex(k.partBox("arena", st)), "png", new File(texDir, "cu_arena_0_t" + t + ".png"));
+            for (String part : State.PARTS)
+                ImageIO.write(k.closeUpTex(k.partBox(part, st)), "png", new File(texDir, "cu_" + part + "_0_t" + t + ".png"));
+            pics += 1 + State.PARTS.size();
+        }
+        Files.writeString(indexFile.toPath(), any.indexJson(pieces.toString()));
+        System.out.println("export: " + pics + " close-ups, index " + indexFile);
+    }
+
+    static int savePiece(Structure before, Structure after, File dir, String name, String key, StringBuilder index) throws Exception {
+        int[] at = new int[3];
+        Structure p = piece(before, after, at);
+        if (p == null) return 0;
+        p.save(new File(dir, name + ".nbt"), true);
+        if (index.length() > 0) index.append(",\n");
+        index.append(String.format(Locale.ROOT, "    \"%s/%s\": [%d, %d, %d]", key, name, at[0], at[1], at[2]));
+        return 1;
+    }
+
+    BufferedImage closeUpTex(int[] box) {
+        BufferedImage img = closeUp(box, null, null);
+        int[] bb = alphaBounds(img);
+        return img.getSubimage(bb[0], bb[1], bb[2] - bb[0] + 1, bb[3] - bb[1] + 1);
+    }
+
+    static int[] alphaBounds(BufferedImage img) {
+        int x0 = img.getWidth(), y0 = img.getHeight(), x1 = -1, y1 = -1;
+        for (int y = 0; y < img.getHeight(); y++) for (int x = 0; x < img.getWidth(); x++)
+            if ((img.getRGB(x, y) >>> 24) != 0) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+        return x1 < 0 ? new int[]{0, 0, img.getWidth() - 1, img.getHeight() - 1} : new int[]{x0, y0, x1, y1};
+    }
+
+    /** Everything LM places and positions from, in plot coordinates (x, y, z inside the plot structure). */
+    String indexJson(String pieces) {
+        int[] h = L.hall;
+        StringBuilder rings = new StringBuilder(), boxes = new StringBuilder();
+        State none = State.start();
+        for (int k = 0; k < L.rings.size(); k++) {
+            if (k > 0) rings.append(", ");
+            rings.append("[").append(fx + L.rings.get(k)[0]).append(", ").append(fz + L.rings.get(k)[1]).append("]");
+            State b = State.start();
+            b.arenas = k;
+            int[] bx = partBox("arena", b);
+            boxes.append(String.format(Locale.ROOT, "    \"arena_%d\": [[%d, %d, %d, %d, %d, %d]],%n", k + 1, fx + bx[0], 0, fz + bx[1],
+                    fx + bx[2], ceilY, fz + bx[3]));
+        }
+        for (String part : State.PARTS) {
+            if (part.equals("garden")) continue;
+            int[] bx = partBox(part, none);
+            int top = part.equals("spectator") ? ceilY - 1 : floorY + L.balconyUp;
+            boxes.append(String.format(Locale.ROOT, "    \"%s\": [[%d, %d, %d, %d, %d, %d]],%n", part, fx + bx[0], floorY - 1, fz + bx[1],
+                    fx + bx[2], top, fz + bx[3]));
+        }
+        // the garden: the plot round the foundation and the porch, as four strips
+        int fx1 = fx + L.footW - 1, fz1 = fz + L.porch[1] + 2;
+        boxes.append(String.format(Locale.ROOT, "    \"garden\": [[0, 0, 0, %d, %d, %d], [0, 0, %d, %d, %d, %d], [0, 0, %d, %d, %d, %d], [%d, 0, %d, %d, %d, %d]]%n",
+                s.sx - 1, s.sy - 1, fz - 1,                     // north of the foundation
+                fz1 + 1, s.sx - 1, s.sy - 1, s.sz - 1,          // south of the porch
+                fz, fx - 1, s.sy - 1, fz1,                      // west
+                fx1 + 1, fz, s.sx - 1, s.sy - 1, fz1));         // east
+        int balY = floorY + L.balconyUp;
+        return String.format(Locale.ROOT, """
+                {
+                  "_comment": "LM 4.7.68 dojo plot, written by DojoKit export (tools/dmz-adaptive-difficulty/tools/fx). Plot coordinates: x, y, z inside the plot structure; LM puts the plot's floor (floorY) at its dojo floor height.",
+                  "size": [%d, %d, %d],
+                  "floorY": %d,
+                  "ceilY": %d,
+                  "foundation": [%d, %d, %d, %d],
+                  "ringSize": %d,
+                  "rings": [%s],
+                  "spawn": [%d.5, %d, %d.5, 180],
+                  "spectate": [%d.5, %d, %d.5, 0],
+                  "balcony": [%d, %d, %d, %d, %d, %d],
+                  "hall": [%d, %d, %d, %d],
+                  "planPx": %d,
+                  "planOrigin": [%d, %d],
+                  "planSize": [%d, %d],
+                  "boxes": {
+                %s  },
+                  "pieces": {
+                %s
+                  }
+                }
+                """, s.sx, s.sy, s.sz, floorY, ceilY, fx, fz, fx + L.footW - 1, fz + L.footD - 1, L.ringSize, rings,
+                fx + L.spawn[0], floorY, fz + L.spawn[1], fx + L.spectate[0], balY, fz + L.spectate[1],
+                fx + L.hall[0] + 1, balY, fz + L.balconyZ[0], fx + L.hall[2] - 1, balY + 4, fz + L.balconyZ[1],
+                fx + h[0], fz + h[1], fx + h[2], fz + h[3], PLAN_PX, fx - 1, fz - 1, (L.footW + 2) * PLAN_PX, (L.porch[1] + 4) * PLAN_PX,
+                boxes, pieces);
+    }
+
     // ------------------------------------------------------------------ main
     /** The upgrade previews the menus use: from a new dojo, and from one that has grown. */
     static final String[][] PREVIEWS = {
@@ -817,9 +1029,10 @@ public final class DojoKit {
     };
 
     public static void main(String[] a) throws Exception {
-        if (a.length < 5 || !(a[0].equals("make") || a[0].equals("upgrade"))) {
+        if (a.length < 5 || !(a[0].equals("make") || a[0].equals("upgrade") || a[0].equals("export"))) {
             System.out.println("usage: DojoKit make <hall_t1.nbt,hall_t2.nbt,hall_t3.nbt> <recipe.json> <outNbtDir> <outPictureDir> [-only name] [-noviews]\n"
-                    + "       DojoKit upgrade <halls> <recipe.json> <state> <upgrade id> <out prefix>");
+                    + "       DojoKit upgrade <halls> <recipe.json> <state> <upgrade id> <out prefix>\n"
+                    + "       DojoKit export <halls> <recipe.json> <structures dir> <textures dir> <index.json>");
             System.exit(2);
         }
         String[] hallFiles = a[1].split(",");
@@ -831,6 +1044,11 @@ public final class DojoKit {
         for (int t = 1; t <= 3; t++) {
             halls[t - 1] = Structure.load(new File(hallFiles[t - 1]));
             DetailKit.weather(halls[t - 1], 0.25, 68 + t);
+        }
+        if (a[0].equals("export")) {
+            if (a.length < 6) { System.out.println("export needs <structures dir> <textures dir> <index.json>"); System.exit(2); }
+            exportAll(halls, L, new File(a[3]), new File(a[4]), new File(a[5]));
+            return;
         }
         if (a[0].equals("upgrade")) {
             if (a.length < 6) { System.out.println("upgrade needs <state> <upgrade id> <out prefix>"); System.exit(2); }

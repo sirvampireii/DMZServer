@@ -79,7 +79,10 @@ public final class UltraHubScreens {
     /** 4.7.64 hub tabs: Home (dashboard and systems), Goals (weekly goals, placeholder until 4.7.65), More. */
     public static final String PAGE_GOALS = "goals";
     public static final String PAGE_MORE = "more";
-    /** Hub link into Sparring's Wars tab (the Dojo wars tile). */
+    /** 4.7.68: hub links into Sparring's Spar Board and Dojo tabs (the Spar Board and My dojo tiles). */
+    static final String PAGE_BOARD = "board";
+    static final String PAGE_MY_DOJO = "mydojo";
+    /** Hub link into Sparring's Wars page (kept for old links; wars live in the Dojo tab). */
     static final String PAGE_WARS = "wars";
 
     public static void open(ServerPlayer player, String page) {
@@ -110,6 +113,14 @@ public final class UltraHubScreens {
         }
         if (PAGE_WARS.equals(p)) {
             UltraGui.open(player, "spar", "wars");
+            return;
+        }
+        if (PAGE_BOARD.equals(p)) {
+            UltraGui.open(player, "spar", "sparboard");
+            return;
+        }
+        if (PAGE_MY_DOJO.equals(p)) {
+            UltraGui.open(player, "spar", "dojo");
             return;
         }
         if (PAGE_PRESTIGE_SHOP_EDIT.equals(p)) {
@@ -176,9 +187,10 @@ public final class UltraHubScreens {
         // Hub tiles: normal (dark) + per-system accent. Nothing is "selected" on the hub.
         List<HubTile> tiles = new ArrayList<>();
         tiles.add(new HubTile("difficulty", "Difficulty", UltraStyle.STYLE_NORMAL, true));
-        tiles.add(new HubTile("spar", "Sparring & Dojo", UltraStyle.STYLE_NORMAL, false));
+        // 4.7.68: one tap to the Spar Board and one to My dojo (wars live in the Dojo tab).
+        tiles.add(new HubTile("spar_board", "Spar Board", UltraStyle.STYLE_NORMAL, false));
         tiles.add(new HubTile("rival", "Rival", UltraStyle.STYLE_NORMAL, false));
-        tiles.add(new HubTile("spar_wars", "Dojo wars", UltraStyle.STYLE_NORMAL, false));
+        tiles.add(new HubTile("spar_dojo", "My dojo", UltraStyle.STYLE_NORMAL, false));
         tiles.add(new HubTile("character", "Character Services", UltraStyle.STYLE_NORMAL, true));
         boolean skillCheck = SkillCheckService.canUse(player);
         if (skillCheck) {
@@ -586,8 +598,8 @@ public final class UltraHubScreens {
     private static void placeTile(
             UltraScreenSpec spec, Map<String, String> ph, HubTile tile, Boolean left) {
         String system = tile.system();
-        // Dojo wars lives in Sparring: same availability and accent.
-        String owner = "spar_wars".equals(system) ? "spar" : system;
+        // Spar Board, My dojo and Dojo wars live in Sparring: same availability and accent.
+        String owner = system.startsWith("spar_") ? "spar" : system;
         boolean on = tile.alwaysOn()
                 || "difficulty".equals(system)
                 || (ph != null && "true".equalsIgnoreCase(ph.get(owner)));
@@ -626,6 +638,8 @@ public final class UltraHubScreens {
             case "character" -> "open:character";
             case "menu_skins" -> "page:" + PAGE_SKINS;
             case "spar_wars" -> "page:" + PAGE_WARS;
+            case "spar_board" -> "page:" + PAGE_BOARD;
+            case "spar_dojo" -> "page:" + PAGE_MY_DOJO;
             default -> "open:" + system;
         };
     }

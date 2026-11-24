@@ -1,4 +1,4 @@
-# Dojo visuals (LM 4.7.68, Phase 1: pictures for approval)
+# Dojo visuals (LM 4.7.68)
 
 These pictures are for approval before any placement code is written. Every one is rendered from the same structure
 files the game will place, so a built dojo looks like its picture.
@@ -38,6 +38,16 @@ The structures are committed to `tools/dmz-adaptive-difficulty/src/main/resource
 The bare hall shells are build inputs only (`build/dojo/hall_t*.nbt`).
 
 In game they load as `legacymechanics:dojo/...` through `StructureTemplate`.
+
+## In the game (Phase 2, after approval)
+
+- `DojoKit export` writes what LM ships: per hall tier and style the empty hall and a piece per ring, room level,
+  balcony level and garden level, the plot index, and the menu pictures. `DojoPlacer` places them in the dojo world the
+  way DragonMineZ places its tournament grounds (chunk tickets, a time budget per tick, checks when done). A purchase
+  rebuilds only its part; a new hall tier or style rebuilds the plot.
+- The menus are the ones on this page: the main menu's Spar Board and My dojo tiles, the Dojo tab and the upgrade
+  list with the hall's floor plan, and each upgrade with Now, After and Where. KaiPath players get a text map of the
+  hall in the same place.
 
 ## The dojo is one Japanese hall, and it starts empty
 

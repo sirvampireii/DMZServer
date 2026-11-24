@@ -43,7 +43,7 @@ public final class DojoCatalog {
             case MEDITATION -> "Meditation room";
             case TROPHY -> "Trophy hall";
             case QUARTERS -> "Master quarters";
-            case SPECTATOR -> "Spectator room";
+            case SPECTATOR -> "Spectator balcony";
             case GARDEN -> "Garden grounds";
             case CAPACITY -> "Disciple capacity";
             default -> "Upgrade";
@@ -52,13 +52,13 @@ public final class DojoCatalog {
 
     public static String upgradeWhat(String id) {
         return switch (id == null ? "" : id) {
-            case TRAINING -> "A hall with training dummies and drill posts.";
-            case ARENA -> "Another ring, so more board spars can run at once.";
-            case MEDITATION -> "A quiet room with mats and candles.";
+            case TRAINING -> "A room in your hall with training dummies and drill posts.";
+            case ARENA -> "Another ring on the hall floor, so more board spars can run at once.";
+            case MEDITATION -> "A quiet room with tatami, cushions and a stone garden.";
             case TROPHY -> "Pedestals that show off your war wins.";
-            case QUARTERS -> "The master's own rooms beside the grounds.";
-            case SPECTATOR -> "A glass gallery over the arenas. Lets players watch your spars.";
-            case GARDEN -> "Trees, flowers and paths around the courtyard.";
+            case QUARTERS -> "The master's own room in the hall.";
+            case SPECTATOR -> "A balcony over the rings. Lets players watch your spars.";
+            case GARDEN -> "Lanterns, trees and a torii on the grounds round your hall.";
             case CAPACITY -> "Room for 5 more disciples.";
             default -> "";
         };

@@ -579,7 +579,6 @@ public final class DojoWar {
             win.warWins++;
             DojoService.earn(win, DojoCatalog.Earn.WAR_WIN);
             DojoService.clout(win, "warwin", DojoCatalog.CLOUT_WAR_WIN, 0);
-            win.builtSignature = "";
         }
         if (lose != null) {
             lose.warLosses++;

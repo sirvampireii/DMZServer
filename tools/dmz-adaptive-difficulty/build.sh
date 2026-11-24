@@ -611,6 +611,11 @@ merge_onto_base_jar() {
     mkdir -p "$merge/data"
     cp -a "$RES/data/." "$merge/data/"
   fi
+  # 4.7.68: client assets (the dojo menu pictures, lang) ride in the same jar.
+  if [[ -d "$RES/assets" ]]; then
+    mkdir -p "$merge/assets"
+    cp -a "$RES/assets/." "$merge/assets/"
+  fi
   if [[ -f "$RES/character-services.default.json" ]]; then
     cp "$RES/character-services.default.json" "$merge/character-services.default.json"
   fi
@@ -655,6 +660,7 @@ else
       -C "$RES" legacymechanics.client.mixins.json \
       -C "$RES" legacymechanics.refmap.json \
       -C "$RES" data \
+      -C "$RES" assets \
       -C "$RES" character-services.default.json \
       -C "$RES" dmzultra-form-parts-0.4.0.json \
       -C "$RES" dmzultra-form-parts-0.5.3.json       -C "$RES" dmzultra-form-parts-0.5.7.json \

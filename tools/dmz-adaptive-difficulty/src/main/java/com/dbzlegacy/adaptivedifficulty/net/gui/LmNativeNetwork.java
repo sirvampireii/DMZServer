@@ -282,6 +282,12 @@ public final class LmNativeNetwork {
         return f != null && f.contains(LmNativeProtocol.FEATURE_CUSTOM_SKIN);
     }
 
+    /** 4.7.68: this player's LM client draws pictures in a page's body (the dojo upgrade previews). */
+    public static boolean takesPictures(ServerPlayer player) {
+        Set<String> f = player == null ? null : FEATURES.get(player.m_20148_());
+        return f != null && f.contains(LmNativeProtocol.FEATURE_PICTURES);
+    }
+
     /** 4.7.66: this player's LM client draws the color wheel. */
     public static boolean takesColorWheel(ServerPlayer player) {
         Set<String> f = player == null ? null : FEATURES.get(player.m_20148_());

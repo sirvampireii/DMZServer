@@ -65,14 +65,20 @@ when touching chat or action messages.
 ## Build notes: dojo structures (4.7.68)
 
 The dojo plots are structure files made with the owner's mod-toolkit (`Desktop/Repository/mod-toolkit`, plugged in by
-`tools/toolkit.json`), not by LM code. They ship in `src/main/resources/data/legacymechanics/structures/dojo/`:
-`dojo_start.nbt` (a new dojo: the empty hall and the free sparring mat) and `dojo_<style>_t<tier>.nbt` for the
-styles ki, melee, strike and evasion and the tiers 1 to 3 (13 files, about 3 MB).
-In game they load as `legacymechanics:dojo/dojo_<style>_t<tier>` through `StructureTemplate`.
+`tools/toolkit.json`), not by LM code. DojoKit's export ships in the jar:
+
+- `data/legacymechanics/structures/dojo/t<tier>_<style>/`: `base.nbt` (the empty hall of that tier and style) and a
+  piece per ring (`arena_1`..`arena_6`), room level, balcony level and garden level. Styles: none, ki, melee, strike,
+  evasion. 15 bases and 360 pieces.
+- `data/legacymechanics/dojo/index.json`: the plot index (size, floor, ring centres, landing points, balcony, the box
+  each part occupies, where each piece goes). `DojoLayout` reads it; `DojoPlacer` places from it.
+- `assets/legacymechanics/textures/gui/dojo/`: the menu pictures (floor plans and close-ups, 256 colours).
 
 - Sources: the BuildKit hall recipes `tools/dojo/hall_t1.json`..`hall_t3.json` (japanese style; the `"dojo"` section
-  holds the ring anchors, rooms, balcony, doors and landing points) and `tools/fx/DojoKit.java` (interior and grounds).
-- Rebuild: `bash tools/dojo/make.sh` (BuildKit, DojoKit, BuildLint; pictures go to `docs/dojo-visuals`).
+  holds the ring anchors, rooms, balcony, doors and landing points) and `tools/fx/DojoKit.java` (interior, grounds,
+  export).
+- Rebuild: `bash tools/dojo/make.sh` (BuildKit, DojoKit pictures and export, BuildLint; pictures go to
+  `docs/dojo-visuals`).
 - A structure file must never ship from a recipe or DojoKit change that is not committed.
 
 ## Commands

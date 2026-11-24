@@ -2048,18 +2048,58 @@ def main() -> int:
           "MIN_FIGHT_MS = 60_000L;" in p68_cat and "PAIR_COOLDOWN_MS = 15L * 60L * 1000L;" in p68_cat
           and "boolean credit = b.ranked && counted && rankedFresh;" in p68_board
           and 'PAIR.put("ranked|" + pair, now);' in p68_board)
-    check("bouts end by KO (lethal blow caught at 1 HP), ring-out at 60 blocks, forfeit, disconnect or the timeout",
-          "BoardSpar.queueKnockout(victim, attacker);" in p68_sys and "RING_OUT_BLOCKS = 60.0;" in p68_cat
+    check("bouts end by KO (lethal blow caught at 1 HP), ring-out past the ring's edge, forfeit, disconnect or the timeout",
+          "BoardSpar.queueKnockout(victim, attacker);" in p68_sys and "RING_OUT_HALF = 12;" in p68_world
+          and "Math.abs(p.m_20185_() - b.cx) > DojoWorld.RING_OUT_HALF" in p68_board
           and 'end(b, id.equals(b.a) ? b.b : b.a, "RING_OUT");' in p68_board
           and 'case "logout", "partner-offline" -> "DISCONNECT";' in p68_board)
     check("one void dojo dimension from the LM datapack; plots 4000 blocks apart, never reused",
           '"type": "minecraft:flat"' in p68_dim and '"biome": "minecraft:the_void"' in p68_dim
           and '"natural": false' in p68_dimtype and "PLOT_SPACING = 4000;" in p68_world
           and "d.plot = DojoStore.get().nextPlot++;" in p68_world)
-    check("one arena to start, up to 6; upgrades with basic / refined / masterwork looks",
+    p68_place = read(SRC / "dojo/DojoPlacer.java")
+    p68_state = read(SRC / "dojo/DojoState.java")
+    p68_pics = read(SRC / "dojo/DojoPictures.java")
+    p68_native = read(SRC / "client/NativeMenuScreen.java")
+    p68_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p68_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p68_index = read(res / "dojo/index.json")
+    structs = res / "structures/dojo"
+    check("one ring to start, up to 6; the hall's look follows the rings; upgrades with basic / refined / masterwork looks",
           "MAX_ARENAS = 6;" in p68_cat and "d.upgrades.put(DojoCatalog.ARENA, 1);" in p68_svc
-          and '"polished_blackstone_bricks"' in p68_build and "static String[] palette(int look)" in p68_build)
-    check("spectating needs the spectator room; spectators can't be hit or hit, and stay in the gallery",
+          and "s.tier = DojoCatalog.lookTier(DojoCatalog.ARENA, s.arenas);" in p68_state
+          and "static String[] palette(int look)" not in p68_build)
+    check("one Japanese hall from the mod-toolkit: a base and 24 pieces per hall tier and style, and the plot index",
+          all((structs / ("t%d_%s" % (t, st)) / "base.nbt").is_file() for t in (1, 2, 3)
+              for st in ("none", "ki", "melee", "strike", "evasion"))
+          and (structs / "t3_evasion/garden_3.nbt").is_file() and (structs / "t1_none/arena_6.nbt").is_file()
+          and '"rings": [' in p68_index and '"spawn": [' in p68_index and '"balcony": [' in p68_index)
+    check("a new dojo is the empty hall with one sparring mat; an upgrade rebuilds only its part (whole plot on a new tier or style)",
+          'return "v2|t=" + tier + "|s=" + style + "|a=" + arenas' in p68_state
+          and "if (was == null || !was.key().equals(key)) {" in p68_place
+          and "steps.add(new Step(key + \"/base\", zero, boxes));" in p68_place
+          and "Your hall starts empty with one sparring mat; upgrades build into it." in p68_svc)
+    check("placed like DMZ's grounds: chunk tickets, a per-tick time budget, checks when the plot is done",
+          "TICK_BUDGET_NANOS = 6_000_000L;" in p68_place and "cache.m_8387_(TICKET, c, 0, c);" in p68_place
+          and "cache.m_8438_(TICKET, c, 0, c);" in p68_place and "static void afterBuild(ServerLevel level, int plot, String master)" in p68_world
+          and 'safePulse("dojo-builder", com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer::tick);' in p68_ev)
+    check("a spar waits for the host's hall to be built; fighters land on the hall's ring centres",
+          'return host.name + "\'s hall is being built. Try again in a few seconds.";' in p68_board
+          and "double[] c = DojoWorld.ringCenter(host, arena);" in p68_board)
+    check("the dojo world is protected: only staff break or place blocks; blasts break nothing",
+          "public void onDojoBreak(BlockEvent.BreakEvent event)" in p68_ev
+          and "public void onDojoPlace(BlockEvent.EntityPlaceEvent event)" in p68_ev
+          and "event.getAffectedBlocks().clear();" in p68_ev)
+    check("main menu: Spar Board and My dojo tiles, one tap each",
+          'new HubTile("spar_board", "Spar Board"' in p68_hub and 'new HubTile("spar_dojo", "My dojo"' in p68_hub
+          and 'UltraGui.open(player, "spar", "sparboard");' in p68_hub and 'UltraGui.open(player, "spar", "dojo");' in p68_hub)
+    check("upgrade pages show Now, After and Where (green) on LM clients; the text map stays for KaiPath",
+          'JsonObject now = whole(closeUp(part, lvNow, before.style, before.tier), "Now");' in p68_pics
+          and "JsonObject where = where(after, part, \"Where\");" in p68_pics
+          and "public UltraScreenSpec pictures(List<String> textLines, int minRows, int sidePermille, JsonArray items)" in p68_spec
+          and "private void drawPictures(GuiGraphics g)" in p68_native
+          and "LmNativeNetwork.takesPictures(player)" in p68_ui and "DojoWorld.mapLines(d, up, !maxed)" in p68_ui)
+    check("spectating needs the spectator balcony; spectators can't be hit or hit, and stay on the balcony",
           '" has no spectator room, so its spars can\'t be watched."' in p68_world
           and "DojoWorld.spectating(victim.m_20148_())" in p68_ev and "static double[] galleryBox(Dojo d)" in p68_world)
     check("upgrade preview: top-down map with the room highlighted as it would be, a card, Visit dojo",
@@ -2261,7 +2301,7 @@ def main() -> int:
           'UltraStyle.header("Your next prestige")' in p64_hub and "HubDashboard.fastestNow(player)" in p64_hub
           and 'UltraStyle.header("Train")' in p64_hub and 'UltraStyle.header("Compete")' in p64_hub
           and 'new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), null);' in p64_hub
-          and 'new HubTile("spar_wars", "Dojo wars"' in p64_hub)
+          and ('new HubTile("spar_wars", "Dojo wars"' in p64_hub or 'new HubTile("spar_dojo", "My dojo"' in p64_hub))
     check("Menu skins and Staff Admin moved to More; Goals is a placeholder with no payout",
           'new HubTile("menu_skins", "Menu skins"' in p64_hub.split("private static void openMore(", 1)[-1]
           and 'new HubTile("admin", "Staff Admin"' in p64_hub.split("private static void openMore(", 1)[-1]

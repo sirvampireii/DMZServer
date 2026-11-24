@@ -3,7 +3,6 @@ package com.dbzlegacy.adaptivedifficulty.dojo;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -13,10 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.registries.ForgeRegistries;
 
 /**
  * LM 4.7.68 dojo dimension ({@code legacymechanics:dojo}, a void world from the datapack in the LM jar): one plot per
@@ -24,9 +20,11 @@ import net.minecraftforge.registries.ForgeRegistries;
  * their own row, the plot layout every menu map and every build share, visits, the spectator gallery, and putting
  * players back exactly where they stood.
  *
- * <p>Plot layout (offsets from the plot origin, floor at {@value #FLOOR_Y}): six arena slots in two rows of three to
- * the north, the spectator gallery above them, the courtyard and garden in the middle, the training hall, meditation
- * room and trophy hall to the south, master quarters and the disciple bunks behind those.
+ * <p>A plot is one Japanese hall, made with the mod-toolkit (DojoKit) and placed from structure files in the LM jar
+ * ({@link DojoPlacer}): six ring spaces on the hall floor, the spectator balcony on its north wall, the rooms in its
+ * south wing, the grounds round it. A new dojo is the empty hall with one sparring mat; each upgrade builds its part
+ * in. Every position comes from {@link DojoLayout}. The plot's floor is at {@value #FLOOR_Y} (players stand on
+ * {@value #FLOOR_Y} + 1), centred on the plot origin.
  */
 public final class DojoWorld {
     private DojoWorld() {}
@@ -38,31 +36,29 @@ public final class DojoWorld {
     /** War rings sit on their own row far from every plot. */
     public static final int RING_ROW_Z = -400_000;
     public static final int RING_SPACING = 1000;
-    public static final int ARENA_RADIUS = 12;
-    public static final int ROOM_RADIUS = 9;
-    public static final int ISLAND_X = 80;
-    public static final int ISLAND_Z_MIN = -110;
-    public static final int ISLAND_Z_MAX = 100;
-    public static final int GALLERY_Y = FLOOR_Y + 16;
     /** Below this a player in the dojo world is caught (no void deaths). */
     public static final int CATCH_Y = FLOOR_Y - 20;
+    /** A board bout is a ring-out once a fighter is this far from the ring's centre on either axis (ring + apron). */
+    public static final int RING_OUT_HALF = 12;
 
-    /** Where a room sits on the plot (x, z offsets). Arenas use {@link #arenaCenter}. */
-    public static int[] roomOffset(String room) {
-        return switch (room) {
-            case DojoCatalog.TRAINING -> new int[] {-48, 40};
-            case DojoCatalog.MEDITATION -> new int[] {0, 40};
-            case DojoCatalog.TROPHY -> new int[] {48, 40};
-            case DojoCatalog.QUARTERS -> new int[] {-30, 78};
-            case DojoCatalog.CAPACITY -> new int[] {30, 78};
-            case DojoCatalog.GARDEN -> new int[] {0, 0};
-            default -> new int[] {0, 0};
-        };
+    /** Where the plot structure's (0, 0, 0) goes for plot {@code plot}. */
+    public static BlockPos plotCorner(int plot) {
+        DojoLayout l = DojoLayout.get();
+        BlockPos o = plotOrigin(plot);
+        return new BlockPos(o.m_123341_() - l.sx / 2, FLOOR_Y + 1 - l.floorY, o.m_123343_() - l.sz / 2);
     }
 
-    /** Arena slot {@code k} (0..5) center offset. */
-    public static int[] arenaCenter(int k) {
-        return new int[] {-48 + (k % 3) * 48, -50 - (k / 3) * 40};
+    /** World x, y, z of a plot position. */
+    public static double[] world(int plot, double x, double y, double z) {
+        BlockPos c = plotCorner(plot);
+        return new double[] {c.m_123341_() + x, c.m_123342_() + y, c.m_123343_() + z};
+    }
+
+    /** Ring {@code k} (0..5): its centre in the world (x, z), on the hall floor. */
+    public static double[] ringCenter(Dojo d, int k) {
+        int[] r = DojoLayout.get().rings.get(Math.max(0, Math.min(DojoCatalog.MAX_ARENAS - 1, k)));
+        double[] w = world(d.plot, r[0] + 0.5, 0, r[1] + 0.5);
+        return new double[] {w[0], w[2]};
     }
 
     public static BlockPos plotOrigin(int plot) {
@@ -179,9 +175,11 @@ public final class DojoWorld {
             return "Finish your fight first.";
         }
         ensureBuilt(p.m_20194_(), d);
+        if (DojoPlacer.busy(d.masterUuid)) {
+            return d.name + " is being built. Try again in a few seconds.";
+        }
         rememberSpot(p, "visit");
-        BlockPos o = plotOrigin(d.plot);
-        teleport(p, level, o.m_123341_() + 0.5, FLOOR_Y + 1, o.m_123343_() + 20.5, 180.0f);
+        toSpawn(p, level, d);
         return "Welcome to " + d.name + ". Tap Leave dojo in the menu to go back.";
     }
 
@@ -218,18 +216,33 @@ public final class DojoWorld {
             return "You can't watch while you're fighting.";
         }
         ensureBuilt(p.m_20194_(), d);
+        if (DojoPlacer.busy(d.masterUuid)) {
+            return d.name + " is being built. Try again in a few seconds.";
+        }
         rememberSpot(p, "spectate");
-        BlockPos o = plotOrigin(d.plot);
-        teleport(p, level, o.m_123341_() + 0.5, GALLERY_Y + 1, o.m_123343_() - 30.5, 180.0f);
+        toBalcony(p, level, d, 0.0f);
         SPECTATING.put(p.m_20148_(), d.masterUuid);
-        return "Watching " + d.name + "'s arenas. You can't be hit or step into a ring. Leave from the menu.";
+        return "Watching " + d.name + "'s rings from the balcony. You can't be hit or step into a ring. Leave from the menu.";
     }
 
-    /** Gallery bounds for {@code d}: {minX, minY, minZ, maxX, maxY, maxZ}. */
+    static void toSpawn(ServerPlayer p, ServerLevel level, Dojo d) {
+        double[] s = DojoLayout.get().spawn;
+        double[] w = world(d.plot, s[0], s[1], s[2]);
+        teleport(p, level, w[0], w[1], w[2], (float) s[3]);
+    }
+
+    static void toBalcony(ServerPlayer p, ServerLevel level, Dojo d, float yaw) {
+        double[] s = DojoLayout.get().spectate;
+        double[] w = world(d.plot, s[0], s[1], s[2]);
+        teleport(p, level, w[0], w[1], w[2], yaw);
+    }
+
+    /** The spectator balcony for {@code d}: {minX, minY, minZ, maxX, maxY, maxZ} in the world. */
     static double[] galleryBox(Dojo d) {
-        BlockPos o = plotOrigin(d.plot);
-        return new double[] {o.m_123341_() - 65, GALLERY_Y, o.m_123343_() - 109, o.m_123341_() + 66, GALLERY_Y + 6,
-                o.m_123343_() - 28};
+        int[] b = DojoLayout.get().balcony;
+        double[] lo = world(d.plot, b[0], b[1], b[2]);
+        double[] hi = world(d.plot, b[3] + 1, b[4] + 1, b[5] + 1);
+        return new double[] {lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]};
     }
 
     /** Once a second: keep spectators in the gallery, catch anyone falling out of the dojo world. */
@@ -249,129 +262,160 @@ public final class DojoWorld {
                 }
                 double[] b = galleryBox(d);
                 if (p.m_20185_() < b[0] || p.m_20185_() > b[3] || p.m_20189_() < b[2] || p.m_20189_() > b[5]
-                        || p.m_20186_() < b[1] || p.m_20186_() > b[4]) {
-                    BlockPos o = plotOrigin(d.plot);
-                    teleport(p, level, o.m_123341_() + 0.5, GALLERY_Y + 1, o.m_123343_() - 30.5, p.m_146908_());
+                        || p.m_20186_() < b[1] - 0.5 || p.m_20186_() > b[4]) {
+                    toBalcony(p, level, d, p.m_146908_());
                 }
                 continue;
             }
             if (p.m_20186_() < CATCH_Y && !BoardSpar.inBout(id) && !DojoWar.fighting(id)) {
-                // A visitor who slipped off the island: back onto the nearest plot's courtyard.
+                // A visitor who slipped off the plot: back to the nearest plot's path.
                 int px = Math.max(0, Math.round((float) p.m_20185_() / PLOT_SPACING));
                 int pz = Math.max(0, Math.round((float) p.m_20189_() / PLOT_SPACING));
-                teleport(p, level, px * PLOT_SPACING + 0.5, FLOOR_Y + 1, pz * PLOT_SPACING + 20.5, 180.0f);
+                double[] s = DojoLayout.get().spawn;
+                BlockPos c = plotCorner(pz * PLOTS_PER_ROW + px);
+                teleport(p, level, c.m_123341_() + s[0], c.m_123342_() + s[1], c.m_123343_() + s[2], (float) s[3]);
             }
         }
     }
 
     // ------------------------------------------------------------------ building
-
-    private static final Map<String, BlockState> STATES = new HashMap<>();
-
-    static BlockState block(String id) {
-        return STATES.computeIfAbsent(id, k -> {
-            Block b = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("minecraft", k));
-            return (b == null ? ForgeRegistries.BLOCKS.getValue(new ResourceLocation("minecraft", "stone")) : b)
-                    .m_49966_();
-        });
-    }
-
-    static void set(ServerLevel level, int x, int y, int z, String id) {
-        level.m_7731_(new BlockPos(x, y, z), block(id), 2);
-    }
-
-    static void fill(ServerLevel level, int x1, int y1, int z1, int x2, int y2, int z2, String id) {
-        BlockState s = block(id);
-        for (int x = Math.min(x1, x2); x <= Math.max(x1, x2); x++) {
-            for (int y = Math.min(y1, y2); y <= Math.max(y1, y2); y++) {
-                for (int z = Math.min(z1, z2); z <= Math.max(z1, z2); z++) {
-                    level.m_7731_(new BlockPos(x, y, z), s, 2);
-                }
-            }
-        }
-    }
-
-    /** What a plot is built at: every upgrade tier, so a purchase or a reopen rebuilds it. */
+    /** What {@code d}'s plot should be built as (DojoState's signature). */
     public static String signature(Dojo d) {
-        StringBuilder sb = new StringBuilder("v1");
-        for (String up : DojoCatalog.UPGRADES) {
-            sb.append('|').append(up).append('=').append(DojoService.tier(d, up));
-        }
-        sb.append("|trophies=").append(Math.min(6, d.warWins));
-        return sb.toString();
+        return DojoState.of(d).signature();
     }
 
-    /** Build (or rebuild) {@code d}'s plot when its upgrades changed since the last build. */
+    /** Signatures being built (queued or running), by dojo. */
+    static final Map<String, String> PENDING = new ConcurrentHashMap<>();
+    /** The last post-build check per dojo ("OK" or what failed), for the test rig and admins. */
+    public static final Map<String, String> LAST_CHECK = new ConcurrentHashMap<>();
+
+    /**
+     * Build or update {@code d}'s plot when its state changed since the last build: the whole plot for a new hall
+     * tier, a new style or a first build; otherwise only the parts that changed. Placed over a few seconds by
+     * {@link DojoPlacer}; anyone standing where a wall went up is put back on the path or the balcony.
+     */
     public static void ensureBuilt(MinecraftServer server, Dojo d) {
         if (d == null) {
             return;
         }
         ensurePlot(d);
         ServerLevel level = level(server);
-        if (level == null) {
+        if (level == null || DojoLayout.get() == null) {
             return;
         }
-        String sig = signature(d);
-        if (sig.equals(d.builtSignature)) {
+        DojoState now = DojoState.of(d);
+        String sig = now.signature();
+        String pending = PENDING.get(d.masterUuid);
+        if (sig.equals(pending) || (pending == null && sig.equals(d.builtSignature))) {
             return;
         }
-        long t0 = System.nanoTime();
-        try {
-            DojoBuilder.build(level, plotOrigin(d.plot), d, d.builtSignature.isBlank());
-            d.builtSignature = sig;
-            DojoStore.get().markDirty();
-        } catch (Throwable t) {
-            AdaptiveDifficultyMod.LOGGER.error("[{}] dojo build failed for {}: {}", AdaptiveDifficultyMod.MOD_ID,
-                    d.name, t.toString());
-        }
-        AdaptiveDifficultyMod.LOGGER.info("[{}] built dojo {} at plot {} in {} ms", AdaptiveDifficultyMod.MOD_ID,
-                d.name, d.plot, (System.nanoTime() - t0) / 1_000_000L);
+        DojoState was = DojoState.parse(pending != null ? pending : d.builtSignature);
+        List<DojoPlacer.Step> steps = DojoPlacer.plan(was, now);
+        PENDING.put(d.masterUuid, sig);
+        String master = d.masterUuid;
+        int plot = d.plot;
+        DojoPlacer.submit(new DojoPlacer.Job(master, d.name + " " + sig, level, plotCorner(plot), steps, () -> {
+            Dojo cur = DojoService.byMaster(master);
+            if (sig.equals(PENDING.get(master))) {
+                PENDING.remove(master);
+                if (cur != null) {
+                    cur.builtSignature = sig;
+                    DojoStore.get().markDirty();
+                }
+            }
+            afterBuild(level, plot, master);
+        }));
     }
 
-    // ------------------------------------------------------------------ layout map (the upgrade preview)
+    /** True when {@code d}'s plot is built as its state says (nothing queued or running). */
+    public static boolean ready(Dojo d) {
+        return d != null && !DojoPlacer.busy(d.masterUuid) && signature(d).equals(d.builtSignature);
+    }
 
-    /** One cell of the top-down map: the label and the upgrade (with arena index) it shows. */
+    /** After a build: the checks DMZ's grounds make (the floor is there, the landing points are clear); anyone inside
+     *  a wall goes back to the path or the balcony. */
+    static void afterBuild(ServerLevel level, int plot, String master) {
+        DojoLayout l = DojoLayout.get();
+        List<String> bad = new ArrayList<>();
+        BlockPos c = plotCorner(plot);
+        Dojo d = DojoService.byMaster(master);
+        int built = d == null ? 1 : DojoService.arenas(d);
+        for (int k = 0; k < l.rings.size(); k++) {
+            int[] r = l.rings.get(k);
+            if (level.m_8055_(c.m_7918_(r[0], l.floorY - 1, r[1])).m_60795_()) {
+                bad.add("no floor at ring " + (k + 1));
+            }
+            if (k < built && !level.m_8055_(c.m_7918_(r[0], l.floorY, r[1])).m_60795_()) {
+                bad.add("ring " + (k + 1) + " is not clear");
+            }
+        }
+        boolean balcony = d != null && DojoService.tier(d, DojoCatalog.SPECTATOR) > 0;
+        for (double[] pt : balcony ? new double[][] {l.spawn, l.spectate} : new double[][] {l.spawn}) {
+            BlockPos feet = c.m_7918_((int) Math.floor(pt[0]), (int) pt[1], (int) Math.floor(pt[2]));
+            if (!level.m_8055_(feet).m_60795_() || !level.m_8055_(feet.m_7494_()).m_60795_()
+                    || level.m_8055_(feet.m_7495_()).m_60795_()) {
+                bad.add("landing point not safe at " + feet.m_123344_());
+            }
+        }
+        String result = bad.isEmpty() ? "OK" : String.join("; ", bad);
+        LAST_CHECK.put(master, result);
+        AdaptiveDifficultyMod.LOGGER.info("[{}] dojo plot {} checks: {}", AdaptiveDifficultyMod.MOD_ID, plot, result);
+        if (d == null) {
+            return;
+        }
+        for (ServerPlayer p : new ArrayList<>(level.m_6907_())) {
+            BlockPos at = p.m_20183_();
+            if (at.m_123341_() < c.m_123341_() || at.m_123341_() >= c.m_123341_() + l.sx
+                    || at.m_123343_() < c.m_123343_() || at.m_123343_() >= c.m_123343_() + l.sz) {
+                continue;
+            }
+            if (!level.m_8055_(at).m_60795_() || !level.m_8055_(at.m_7494_()).m_60795_()) {
+                if (spectating(p.m_20148_())) {
+                    toBalcony(p, level, d, p.m_146908_());
+                } else {
+                    toSpawn(p, level, d);
+                }
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ the hall as text (no pictures)
+
+    /** One cell of the text map: the label and the upgrade (with ring number) it shows. */
     record Cell(String label, String upgrade, int arena) {}
 
+    /** The hall from north to south: the balcony, two rows of rings, the south wing, the grounds. */
     static final List<List<Cell>> MAP = List.of(
-            List.of(new Cell("Arena 4", DojoCatalog.ARENA, 4), new Cell("Arena 5", DojoCatalog.ARENA, 5),
-                    new Cell("Arena 6", DojoCatalog.ARENA, 6)),
-            List.of(new Cell("Arena 1", DojoCatalog.ARENA, 1), new Cell("Arena 2", DojoCatalog.ARENA, 2),
-                    new Cell("Arena 3", DojoCatalog.ARENA, 3)),
-            List.of(new Cell("Gallery", DojoCatalog.SPECTATOR, 0), new Cell("Garden", DojoCatalog.GARDEN, 0),
-                    new Cell("Gate", "", 0)),
-            List.of(new Cell("Training", DojoCatalog.TRAINING, 0), new Cell("Meditate", DojoCatalog.MEDITATION, 0),
-                    new Cell("Trophies", DojoCatalog.TROPHY, 0)),
-            List.of(new Cell("Quarters", DojoCatalog.QUARTERS, 0), new Cell("Bunks", DojoCatalog.CAPACITY, 0),
-                    new Cell("", "", 0)));
+            List.of(new Cell("Balcony", DojoCatalog.SPECTATOR, 0)),
+            List.of(new Cell("Ring 1", DojoCatalog.ARENA, 1), new Cell("Ring 2", DojoCatalog.ARENA, 2),
+                    new Cell("Ring 3", DojoCatalog.ARENA, 3)),
+            List.of(new Cell("Ring 4", DojoCatalog.ARENA, 4), new Cell("Ring 5", DojoCatalog.ARENA, 5),
+                    new Cell("Ring 6", DojoCatalog.ARENA, 6)),
+            List.of(new Cell("Training", DojoCatalog.TRAINING, 0), new Cell("Meditation", DojoCatalog.MEDITATION, 0),
+                    new Cell("Trophies", DojoCatalog.TROPHY, 0), new Cell("Quarters", DojoCatalog.QUARTERS, 0)),
+            List.of(new Cell("Garden", DojoCatalog.GARDEN, 0)));
 
     /**
-     * The top-down layout map as body lines: built rooms in the value ink, empty slots dim, and the room
-     * {@code highlight} (after its next level when {@code preview}) marked with stars in the confirm ink.
+     * The hall as body lines, north at the top: built parts in the value ink, empty spaces dim, and the part
+     * {@code highlight} (after its next level when {@code preview}) marked with stars in the confirm ink. LM clients
+     * that draw pictures show the floor plan instead.
      */
     public static List<String> mapLines(Dojo d, String highlight, boolean preview) {
         List<String> out = new ArrayList<>();
-        int arenas = DojoService.arenas(d) + (preview && DojoCatalog.ARENA.equals(highlight) ? 1 : 0);
+        int arenas = DojoService.arenas(d);
         for (List<Cell> row : MAP) {
             StringBuilder sb = new StringBuilder();
             for (Cell c : row) {
-                if (c.label().isBlank()) {
-                    continue;
-                }
                 boolean built;
                 boolean hl;
                 if (DojoCatalog.ARENA.equals(c.upgrade())) {
                     built = c.arena() <= arenas;
-                    hl = DojoCatalog.ARENA.equals(highlight) && c.arena() == arenas && preview;
-                } else if (c.upgrade().isBlank()) {
-                    built = true;
-                    hl = false;
+                    hl = preview && DojoCatalog.ARENA.equals(highlight) && c.arena() == arenas + 1;
                 } else {
-                    int t = DojoService.tier(d, c.upgrade()) + (preview && c.upgrade().equals(highlight) ? 1 : 0);
-                    built = t > 0;
+                    built = DojoService.tier(d, c.upgrade()) > 0;
                     hl = c.upgrade().equals(highlight);
                 }
-                String cell = hl ? "*" + c.label() + "*" : "[" + c.label() + "]";
+                String cell = hl ? "*" + c.label() + "*" : built ? "[" + c.label() + "]" : "[" + c.label() + " - empty]";
                 String ink = hl ? com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.CONFIRM
                         : built ? com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.VALUE
                         : com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.DIM;

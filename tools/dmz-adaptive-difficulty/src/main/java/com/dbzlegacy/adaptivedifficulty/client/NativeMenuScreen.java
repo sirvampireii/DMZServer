@@ -250,6 +250,9 @@ public final class NativeMenuScreen extends Screen {
             if (layout.has("playerModel") && layout.get("playerModel").isJsonObject()) {
                 model = layout.getAsJsonObject("playerModel");
             }
+            if (layout.has("pictures") && layout.get("pictures").isJsonObject()) {
+                pictures = layout.getAsJsonObject("pictures");
+            }
         }
         if (fillScreen) {
             if (designW > 0) {
@@ -546,6 +549,7 @@ public final class NativeMenuScreen extends Screen {
         drawPanel(g, alpha);
         drawTitle(g);
         drawBody(g, now);
+        drawPictures(g);
         if (live) {
             drawModel(g);
         }
@@ -663,7 +667,7 @@ public final class NativeMenuScreen extends Screen {
         boolean cards = !clip && lineGroups(lines) != null;
         for (int i = 0; i < lines.size(); i++) {
             String raw = lines.get(i);
-            if (raw == null || NativeText.plain(raw).isBlank()) {
+            if (raw == null || NativeText.plain(raw).isBlank() || pictureRow(i)) {
                 continue;
             }
             int y = Math.round(bodyTop + bodyPad + i * step + (lineH - 9) / 2f + 1 - offset);
@@ -681,6 +685,101 @@ public final class NativeMenuScreen extends Screen {
         if (clip) {
             g.m_280618_();
         }
+    }
+
+    // ------------------------------------------------------------------ 4.7.68 pictures
+
+    /** layoutJson {@code pictures} (UltraScreenSpec#pictures), or null. */
+    private JsonObject pictures;
+
+    /** A body row the pictures cover in full-width mode: its text is the fallback for clients without pictures. */
+    private boolean pictureRow(int i) {
+        if (pictures == null || num(pictures, "side", 0) > 0) {
+            return false;
+        }
+        int from = num(pictures, "line", -1);
+        return i >= from && i < from + num(pictures, "rows", 0);
+    }
+
+    /**
+     * The pictures in their rows: side by side, each as large as fits at its aspect, its layers drawn in order (a
+     * texture, or a cut-out of one), then its marks (a soft fill and a 1px outline in the mark's colour), then its
+     * caption in the corner.
+     */
+    private void drawPictures(GuiGraphics g) {
+        if (pictures == null || !pictures.has("items") || !pictures.get("items").isJsonArray()) {
+            return;
+        }
+        int from = num(pictures, "line", 0), rows = num(pictures, "rows", 0), side = num(pictures, "side", 0);
+        int step = lineH + lineGap;
+        int top = bodyTop + bodyPad + from * step - 1;
+        int bottom = bodyTop + bodyPad + (from + rows) * step - lineGap;
+        int left = EDGE, right = bodyRight();
+        if (side > 0) {
+            left = right - (right - EDGE) * side / 1000;
+        }
+        JsonArray items = pictures.getAsJsonArray("items");
+        int n = Math.max(1, items.size()), gap = 6;
+        int cell = (right - left - gap * (n - 1)) / n;
+        for (int i = 0; i < items.size(); i++) {
+            if (!items.get(i).isJsonObject()) {
+                continue;
+            }
+            JsonObject it = items.get(i).getAsJsonObject();
+            double aspect = Math.max(0.2, num(it, "a", 1000) / 1000.0);
+            int boxX = left + i * (cell + gap), boxH = bottom - top;
+            int w = cell, h = (int) Math.round(cell / aspect);
+            if (h > boxH) {
+                h = boxH;
+                w = (int) Math.round(boxH * aspect);
+            }
+            int x = boxX + (cell - w) / 2, y = top + (boxH - h) / 2;
+            if (it.has("l") && it.get("l").isJsonArray()) {
+                for (JsonElement el : it.getAsJsonArray("l")) {
+                    drawPictureLayer(g, el, x, y, w, h);
+                }
+            }
+            if (it.has("m") && it.get("m").isJsonArray()) {
+                for (JsonElement el : it.getAsJsonArray("m")) {
+                    if (!el.isJsonArray() || el.getAsJsonArray().size() < 5) {
+                        continue;
+                    }
+                    JsonArray m = el.getAsJsonArray();
+                    int mx = x + w * m.get(0).getAsInt() / 1000, my = y + h * m.get(1).getAsInt() / 1000;
+                    int mw = Math.max(2, w * m.get(2).getAsInt() / 1000), mh = Math.max(2, h * m.get(3).getAsInt() / 1000);
+                    int rgb = m.get(4).getAsInt() & MenuSkins.RGB_MASK;
+                    fillRounded(g, mx, my, mw, mh, 0, (0x66 << 24) | rgb);
+                    outlineRounded(g, mx, my, mw, mh, 0, MenuSkins.OPAQUE | rgb);
+                }
+            }
+            String cap = str(it, "c", "");
+            if (!cap.isBlank()) {
+                FormattedCharSequence seq = NativeText.fit(this.f_96547_,
+                        NativeText.parse(cap, skin.text(), false, false, NativeText.Ink.on(skin, skin.infoFill())), w - 4);
+                int tw = this.f_96547_.m_92724_(seq);
+                fillRounded(g, x, y, tw + 6, 11, 0, MenuSkins.PICTURE_CAPTION_FILL);
+                g.m_280649_(this.f_96547_, seq, x + 3, y + 2, MenuSkins.INK_FROM_TEXT, true);
+            }
+        }
+    }
+
+    /** One layer: [texture, texW, texH, u, v, uW, vH, x, y, w, h] with x..h in thousandths of the picture. */
+    private static void drawPictureLayer(GuiGraphics g, JsonElement el, int x, int y, int w, int h) {
+        if (!el.isJsonArray() || el.getAsJsonArray().size() < 11) {
+            return;
+        }
+        JsonArray a = el.getAsJsonArray();
+        String tex = a.get(0).getAsString();
+        if (!tex.matches("[a-z0-9_/]+")) {
+            return;
+        }
+        ResourceLocation rl = new ResourceLocation(com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod.MOD_ID,
+                "textures/gui/" + tex + ".png");
+        int tw = a.get(1).getAsInt(), th = a.get(2).getAsInt();
+        int dx = x + w * a.get(7).getAsInt() / 1000, dy = y + h * a.get(8).getAsInt() / 1000;
+        int dw = Math.max(1, w * a.get(9).getAsInt() / 1000), dh = Math.max(1, h * a.get(10).getAsInt() / 1000);
+        g.m_280411_(rl, dx, dy, dw, dh, a.get(3).getAsFloat(), a.get(4).getAsFloat(), a.get(5).getAsInt(),
+                a.get(6).getAsInt(), tw, th);
     }
 
     /**

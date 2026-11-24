@@ -770,6 +770,8 @@ public final class DifficultyEvents {
         safePulse("mob-scaling", () -> BehaviorScheduler.pulse(server, tick));
         safePulse("rival", () -> RivalSystem.pulse(server, tick));
         safePulse("sparring", () -> SparringSystem.pulse(server, tick));
+        // 4.7.68: dojo halls go up a little every tick (a time budget per tick, DMZ's grounds pattern).
+        safePulse("dojo-builder", com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer::tick);
         if (tick % 20 == 0) {
             // 4.7.68: board bouts (ring-outs, timeouts), war phases, the dojo world's galleries and void catch.
             safePulse("board-bouts", () -> com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.pulse(server));
@@ -1116,6 +1118,32 @@ public final class DifficultyEvents {
     @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = true)
     public void onDragonBallBreak(BlockEvent.BreakEvent event) {
         DragonBallRadarPickup.onBreak(event);
+    }
+
+    /** 4.7.68: dojo halls are protected: only staff break or place blocks in the dojo world. */
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public void onDojoBreak(BlockEvent.BreakEvent event) {
+        if (event.getPlayer() instanceof net.minecraft.server.level.ServerPlayer p
+                && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.inDojoWorld(p) && !com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(p)) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGH)
+    public void onDojoPlace(BlockEvent.EntityPlaceEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer p
+                && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.inDojoWorld(p) && !com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(p)) {
+            event.setCanceled(true);
+        }
+    }
+
+    /** 4.7.68: blasts (ki attacks, anything that explodes) in the dojo world hurt fighters but break no blocks. */
+    @SubscribeEvent
+    public void onDojoExplosion(net.minecraftforge.event.level.ExplosionEvent.Detonate event) {
+        if (event.getLevel() instanceof net.minecraft.server.level.ServerLevel l
+                && l.m_46472_().m_135782_().equals(com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.DIMENSION)) {
+            event.getAffectedBlocks().clear();
+        }
     }
 
     /** Pistons cannot push, pull or break a dragon ball (4.7.36). */

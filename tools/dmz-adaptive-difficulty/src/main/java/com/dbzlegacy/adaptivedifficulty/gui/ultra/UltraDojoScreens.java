@@ -348,7 +348,7 @@ public final class UltraDojoScreens {
                 .line(UltraStyle.labelValue("Clout this season", String.valueOf(d.clout)))
                 .line(UltraStyle.labelValue("Members", members + " of "
                         + (1 + DojoCatalog.disciplesAllowed(DojoService.tier(d, DojoCatalog.CAPACITY)))))
-                .line(UltraStyle.labelValue("Arenas", DojoService.arenas(d) + " of " + DojoCatalog.MAX_ARENAS))
+                .line(UltraStyle.labelValue("Hall", hallLine(d)))
                 .line(UltraStyle.labelValue("Wars", d.warWins + " won, " + d.warLosses + " lost"));
         if (!d.elites.isEmpty()) {
             List<String> n = new ArrayList<>();
@@ -357,6 +357,7 @@ public final class UltraDojoScreens {
             }
             spec.line(UltraStyle.labelValue("Elites", String.join(", ", n)));
         }
+        hallPlan(spec, player, d, List.of(UltraStyle.LABEL + "Upgrades build into your hall."));
         spec.buttonsAfterLines();
         spec.buttonLeft("page:dojo_upgrades", "Upgrades", UltraStyle.STYLE_NORMAL);
         spec.buttonRight("page:dojo_style", "Style and bonus", UltraStyle.STYLE_NORMAL).rowGap();
@@ -403,11 +404,18 @@ public final class UltraDojoScreens {
             spec.send(player);
             return;
         }
-        spec.line(UltraStyle.labelValue("Dojo Points", String.valueOf(d.points)))
-                .line(UltraStyle.LABEL + "Earn points by hosting spars, winning war bouts and training disciples.")
-                .line(UltraStyle.LABEL + "Tap an upgrade to see it on the map and what it costs.");
-        for (String l : DojoWorld.mapLines(d, "", false)) {
-            spec.line(l);
+        spec.line(UltraStyle.labelValue("Dojo Points", String.valueOf(d.points)));
+        if (com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesPictures(player)) {
+            hallPlan(spec, player, d, List.of(UltraStyle.LABEL + "Earn points by hosting", UltraStyle.LABEL
+                    + "spars, winning war bouts", UltraStyle.LABEL + "and training disciples.", UltraStyle.LABEL
+                    + "Each upgrade builds into", UltraStyle.LABEL + "your hall. Tap one to see", UltraStyle.LABEL
+                    + "it before you buy."));
+        } else {
+            spec.line(UltraStyle.LABEL + "Earn points by hosting spars, winning war bouts and training disciples.")
+                    .line(UltraStyle.LABEL + "Each upgrade builds into your hall. Tap one to see it before you buy.");
+            for (String l : DojoWorld.mapLines(d, "", false)) {
+                spec.line(l);
+            }
         }
         spec.buttonsAfterLines();
         int placed = 0;
@@ -430,7 +438,38 @@ public final class UltraDojoScreens {
         spec.send(player);
     }
 
-    /** One upgrade: the layout map with the room highlighted as it would be, the card, buy, and visit. */
+    /** Body rows the upgrade pictures take (Now, After, Where side by side). */
+    static final int PICTURE_ROWS = 10;
+
+    static String rings(int n) {
+        return n == 1 ? "1 ring" : n + " rings";
+    }
+
+    /** The hall as it is now, in words: its look and its rings. */
+    static String hallLine(Dojo d) {
+        int rings = DojoService.arenas(d);
+        return DojoCatalog.lookName(DojoCatalog.lookTier(DojoCatalog.ARENA, rings)) + ", " + (rings == 1
+                ? "1 sparring mat" : rings + " of " + DojoCatalog.MAX_ARENAS + " rings");
+    }
+
+    /**
+     * The dojo's floor plan on the right of {@code text} for LM clients that draw pictures (nothing else changes on
+     * the page); KaiPath and older clients get the text lines alone.
+     */
+    static void hallPlan(UltraScreenSpec spec, ServerPlayer player, Dojo d, List<String> text) {
+        com.google.gson.JsonArray plan = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesPictures(player)
+                ? com.dbzlegacy.adaptivedifficulty.dojo.DojoPictures.plan(com.dbzlegacy.adaptivedifficulty.dojo.DojoState.of(d))
+                : new com.google.gson.JsonArray();
+        if (plan.size() > 0) {
+            spec.pictures(text, 7, 400, plan);
+        } else {
+            for (String l : text) {
+                spec.line(l);
+            }
+        }
+    }
+
+    /** One upgrade: what it builds (Now, After, Where on LM clients; the text map otherwise), the cost, buy, visit. */
     static void openUpgrade(ServerPlayer player, String up, String notice) {
         Dojo d = DojoService.dojoOf(player);
         UltraScreenSpec spec = sub("dojo_up:" + up, notice);
@@ -446,11 +485,15 @@ public final class UltraDojoScreens {
         spec.line(UltraStyle.header(DojoCatalog.upgradeName(up)))
                 .line(UltraStyle.VALUE + DojoCatalog.upgradeWhat(up));
         if (DojoCatalog.ARENA.equals(up)) {
-            spec.line(UltraStyle.labelValue("Now", t + " arenas, " + DojoCatalog.lookName(DojoCatalog.lookTier(up, t))
-                    + " look"));
+            spec.line(UltraStyle.labelValue("Now", rings(t) + ", " + DojoCatalog.lookName(DojoCatalog.lookTier(up, t))
+                    + " hall"));
             if (!maxed) {
-                spec.line(UltraStyle.labelValue("After", (t + 1) + " arenas, "
-                        + DojoCatalog.lookName(DojoCatalog.lookTier(up, t + 1)) + " look"));
+                spec.line(UltraStyle.labelValue("After", rings(t + 1) + ", "
+                        + DojoCatalog.lookName(DojoCatalog.lookTier(up, t + 1)) + " hall"));
+                if (DojoCatalog.lookTier(up, t + 1) > DojoCatalog.lookTier(up, t)) {
+                    spec.line(UltraStyle.LABEL + "This ring refits the whole hall in the "
+                            + DojoCatalog.lookName(DojoCatalog.lookTier(up, t + 1)) + " look.");
+                }
             }
         } else if (DojoCatalog.CAPACITY.equals(up)) {
             spec.line(UltraStyle.labelValue("Now", DojoCatalog.disciplesAllowed(t) + " disciples"));
@@ -464,11 +507,25 @@ public final class UltraDojoScreens {
                         + " look"));
             }
         }
+        com.google.gson.JsonArray pics = maxed || !com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesPictures(player)
+                ? new com.google.gson.JsonArray()
+                : com.dbzlegacy.adaptivedifficulty.dojo.DojoPictures.upgrade(com.dbzlegacy.adaptivedifficulty.dojo.DojoState.of(d), up);
+        if (pics.size() > 0) {
+            // LM clients: what this builds before and after, and where it goes in the hall (green)
+            List<String> text = new ArrayList<>();
+            text.add(UltraStyle.LABEL + "Map: the starred part is the one this builds.");
+            text.addAll(DojoWorld.mapLines(d, up, true));
+            spec.pictures(text, PICTURE_ROWS, 0, pics);
+        } else if (!DojoCatalog.CAPACITY.equals(up)) {
+            spec.line(UltraStyle.LABEL + "Map: the starred part is the one this builds.");
+            for (String l : DojoWorld.mapLines(d, up, !maxed)) {
+                spec.line(l);
+            }
+        }
         spec.line(UltraStyle.labelValue("Cost", maxed ? "already at its best" : cost + " Dojo Points (you have "
                 + d.points + ")"));
-        spec.line(UltraStyle.LABEL + "Map: the starred room is the one this changes.");
-        for (String l : DojoWorld.mapLines(d, up, !maxed)) {
-            spec.line(l);
+        if (!maxed) {
+            spec.line(UltraStyle.LABEL + "Points are spent at once. An upgrade can't be undone.");
         }
         boolean canBuy = !maxed && DojoService.canManage(player.m_20148_(), d) && d.points >= cost;
         if (!maxed && !DojoService.canManage(player.m_20148_(), d)) {

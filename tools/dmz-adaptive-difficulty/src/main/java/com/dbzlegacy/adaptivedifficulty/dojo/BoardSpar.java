@@ -28,7 +28,8 @@ import net.minecraft.server.level.ServerPlayer;
  * LM 4.7.68 Spar Board: the only way a formal spar starts. A player posts (friendly or ranked, an optional wager,
  * a level range), or challenges one player directly; another accepts; both are teleported into the poster's dojo
  * arena, fight, and go back to exactly where they stood. A bout ends by KO (a lethal blow is caught at 1 HP),
- * ring-out ({@value DojoCatalog#RING_OUT_BLOCKS} blocks from the ring), forfeit, disconnect or the
+ * ring-out (past the ring's edge and its apron, {@value DojoWorld#RING_OUT_HALF} blocks from the centre), forfeit,
+ * disconnect or the
  * {@value DojoCatalog#BOUT_TIMEOUT_MS} ms timeout (more damage wins). Friendly bouts pay nothing and count toward
  * the ranked gate; ranked bouts pay spar TP and feed the leaderboard and streak. Plain world PvP is not a spar.
  */
@@ -385,13 +386,17 @@ public final class BoardSpar {
             return DojoWorld.NOT_LOADED;
         }
         Dojo host = DojoService.dojoOf(poster);
+        // The fight is in the host's hall: it must be built (a new or upgraded hall goes up over a few seconds).
+        DojoWorld.ensureBuilt(acceptor.m_20194_(), host);
+        if (!DojoWorld.ready(host)) {
+            return host.name + "'s hall is being built. Try again in a few seconds.";
+        }
         int arena = freeArena(host);
         if (!escrow(post, poster, acceptor)) {
             return "The wager couldn't be held. Nobody paid anything.";
         }
         POSTS.remove(posterId);
         POSTS.remove(acceptor.m_20148_());
-        DojoWorld.ensureBuilt(acceptor.m_20194_(), host);
         Bout b = new Bout();
         b.id = "bout-" + (++seq) + "-" + System.currentTimeMillis();
         b.a = poster.m_20148_();
@@ -407,10 +412,9 @@ public final class BoardSpar {
         // Potential Unlock opt-ins as each fighter has them at accept time (ranked spars never train it).
         b.potentialA = !b.ranked && post.want() == Want.POTENTIAL;
         b.potentialB = !b.ranked && draft(acceptor.m_20148_()).want() == Want.POTENTIAL;
-        BlockPos o = DojoWorld.plotOrigin(host.plot);
-        int[] c = DojoWorld.arenaCenter(arena);
-        b.cx = o.m_123341_() + c[0] + 0.5;
-        b.cz = o.m_123343_() + c[1] + 0.5;
+        double[] c = DojoWorld.ringCenter(host, arena);
+        b.cx = c[0];
+        b.cz = c[1];
         BOUTS.put(b.id, b);
         BOUT_OF.put(b.a, b.id);
         BOUT_OF.put(b.b, b.id);
@@ -421,7 +425,7 @@ public final class BoardSpar {
         DojoWorld.teleport(poster, level, b.cx - 6, DojoWorld.FLOOR_Y + 1, b.cz, -90.0f);
         DojoWorld.teleport(acceptor, level, b.cx + 6, DojoWorld.FLOOR_Y + 1, b.cz, 90.0f);
         SparringSystem.startBoardSession(poster, acceptor, b.id, b.ranked, b.potentialA, b.potentialB);
-        String what = (b.ranked ? "Ranked" : "Friendly") + " spar in " + host.name + ", arena " + (arena + 1)
+        String what = (b.ranked ? "Ranked" : "Friendly") + " spar in " + host.name + ", ring " + (arena + 1)
                 + (b.wager > 0 ? ", " + wagerText(b.wagerKind, b.wager) + " each at stake" : "") + ".";
         DmzRewards.msg(poster, LmChat.ok("Spar", acceptor.m_7755_().getString() + " accepted. " + what));
         return "Accepted. " + what + " KO, ring-out or the 5-minute clock decides it.";
@@ -516,8 +520,10 @@ public final class BoardSpar {
                 if (p == null) {
                     continue;
                 }
+                // Out of the ring: past the ring's edge and apron on either axis (the next ring is beyond that).
                 boolean out = !DojoWorld.inDojoWorld(p) || p.m_20186_() < DojoWorld.FLOOR_Y - 10
-                        || Math.hypot(p.m_20185_() - b.cx, p.m_20189_() - b.cz) > DojoCatalog.RING_OUT_BLOCKS;
+                        || Math.abs(p.m_20185_() - b.cx) > DojoWorld.RING_OUT_HALF
+                        || Math.abs(p.m_20189_() - b.cz) > DojoWorld.RING_OUT_HALF;
                 if (out) {
                     end(b, id.equals(b.a) ? b.b : b.a, "RING_OUT");
                     break;
