@@ -552,14 +552,25 @@ public final class SparringSystem {
                 && b.m_20148_().equals(ra.partner) && a.m_20148_().equals(rb.partner);
     }
 
-    /** 4.7.68: the only way a spar starts - a Spar Board accept, with both fighters already in the arena. */
-    public static void startBoardSession(ServerPlayer a, ServerPlayer b, String boutId, boolean ranked) {
+    /** 4.7.68: true when {@code p}'s spar session trains Potential Unlock (a friendly spar they opted into). */
+    public static boolean trainsPotentialInSession(ServerPlayer p) {
+        SparPlayerRuntime rt = p == null ? null : RUNTIME.get(p.m_20148_());
+        return rt != null && rt.active && !rt.boardRanked && rt.boardPotential;
+    }
+
+    /**
+     * 4.7.68: the only way a spar starts - a Spar Board accept, with both fighters already in the arena. Each
+     * fighter's Potential Unlock opt-in comes from their "Looking for" at accept time; ranked spars never train it.
+     */
+    public static void startBoardSession(ServerPlayer a, ServerPlayer b, String boutId, boolean ranked,
+            boolean potentialA, boolean potentialB) {
         startSession(a, b);
         for (ServerPlayer p : new ServerPlayer[] {a, b}) {
             SparPlayerRuntime rt = runtime(p.m_20148_());
             rt.boardBout = boutId == null ? "" : boutId;
             rt.boardRanked = ranked;
             rt.boardCredit = false;
+            rt.boardPotential = !ranked && (p == a ? potentialA : potentialB);
         }
     }
 

@@ -2019,8 +2019,8 @@ def main() -> int:
     check("a formal spar starts only from the board: trading hits starts nothing, startBoardSession is the one start",
           "// 4.7.68: trading hits no longer starts a spar." in p68_sys
           and p68_sys.count("startSession(attacker, target)") == 0
-          and "public static void startBoardSession(ServerPlayer a, ServerPlayer b, String boutId, boolean ranked)" in p68_sys
-          and "SparringSystem.startBoardSession(poster, acceptor, b.id, b.ranked);" in p68_board)
+          and "public static void startBoardSession(ServerPlayer a, ServerPlayer b, String boutId, boolean ranked," in p68_sys
+          and "SparringSystem.startBoardSession(poster, acceptor, b.id, b.ranked, b.potentialA, b.potentialB);" in p68_board)
     check("no dojo, no spar: a human message with a button to the dojo list",
           '"Join a dojo first. No dojo, no spar."' in p68_board and 'spec.buttonLeft("page:dojo_list", "Find a dojo"' in p68_ui)
     check("fights in the poster's arena; both go back to exactly where they stood (offline ones on login)",
@@ -2046,7 +2046,8 @@ def main() -> int:
           and "public static void refundStaleEscrow()" in p68_board)
     check("anti-farm: counts after 1 minute with both landing damage; 15-minute pair cooldown for ranked credit",
           "MIN_FIGHT_MS = 60_000L;" in p68_cat and "PAIR_COOLDOWN_MS = 15L * 60L * 1000L;" in p68_cat
-          and "boolean credit = b.ranked && counted && pairFresh;" in p68_board)
+          and "boolean credit = b.ranked && counted && rankedFresh;" in p68_board
+          and 'PAIR.put("ranked|" + pair, now);' in p68_board)
     check("bouts end by KO (lethal blow caught at 1 HP), ring-out at 60 blocks, forfeit, disconnect or the timeout",
           "BoardSpar.queueKnockout(victim, attacker);" in p68_sys and "RING_OUT_BLOCKS = 60.0;" in p68_cat
           and 'end(b, id.equals(b.a) ? b.b : b.a, "RING_OUT");' in p68_board
@@ -2096,13 +2097,18 @@ def main() -> int:
           '"fall".equals(id) || "outOfWorld".equals(id)' in p68_ev
           and "bout != null && attacker != null && !" in p68_ev)
     p68_pu = read(SRC / "progression/skills/PotentialProgression.java")
-    check("Potential Unlock is off inside a spar session only, normal in the world, never touched by a dojo bonus",
-          "if (com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.inSessionTogether(victim, attacker)) {" in p68_pu
-          and "public static boolean inSessionTogether(ServerPlayer a, ServerPlayer b)" in p68_sys
-          and "dojo" not in p68_pu.replace("dojo arena", "")
-          and "potential" not in (p68_svc + p68_cat + p68_board).lower()
-          and "Potential Unlock" not in p68_board + p68_ui
-          and '"Potential Unlock trains from fights in the world, not in spars."' in p68_spar)
+    check("Potential Unlock: normal in the world; in a spar session only for a fighter who opted in on a friendly spar",
+          "boolean session = com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.inSessionTogether(victim, attacker);" in p68_pu
+          and "if (attackerTrains) {\n                apply(attacker, victim, atkMethod, atkPoints);" in p68_pu
+          and "if (victimTrains) {\n                apply(victim, attacker, defMethod, defPoints);" in p68_pu
+          and "return rt != null && rt.active && !rt.boardRanked && rt.boardPotential;" in p68_sys
+          and "rt.boardPotential = !ranked && (p == a ? potentialA : potentialB);" in p68_sys
+          and "b.potentialB = !b.ranked && draft(acceptor.m_20148_()).want() == Want.POTENTIAL;" in p68_board
+          and 'TP("TP"), POTENTIAL("Potential Unlock"), ANY("Anything");' in p68_board
+          and '", looking for " + p.want().label' in p68_ui)
+    check("no dojo bonus, training session or arena touches Potential Unlock",
+          "dojo" not in p68_pu.replace("dojo arena", "")
+          and "potential" not in (p68_svc + p68_cat + p68_war).lower())
     check("dim, never hidden: ranked before the gate, upgrades out of reach, spars without a dojo",
           'spec.lockedButton("Post a spar")' in p68_ui and 'spec.lockedButton(maxed ? "Fully upgraded" : "Buy for "' in p68_ui)
 

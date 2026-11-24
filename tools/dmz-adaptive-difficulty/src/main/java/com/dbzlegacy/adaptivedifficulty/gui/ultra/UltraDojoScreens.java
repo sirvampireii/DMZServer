@@ -131,12 +131,13 @@ public final class UltraDojoScreens {
         if (mineUp != null) {
             spec.line(UltraStyle.VALUE + (mineUp.ranked() ? "Ranked" : "Friendly") + ", "
                     + BoardSpar.wagerText(mineUp.wagerKind(), mineUp.wager()) + ", "
-                    + BoardSpar.rangeText(mineUp.range()) + (mineUp.target() != null
+                    + BoardSpar.rangeText(mineUp.range()) + ", looking for " + mineUp.want().label + (mineUp.target() != null
                     ? ", for " + mineUp.targetName() : "") + ". "
                     + BoardSpar.clock(BoardSpar.POST_MS - (System.currentTimeMillis() - mineUp.at())) + " left.");
         } else {
             spec.line(UltraStyle.LABEL + "Nothing posted. Fights happen in " + mine.name + "'s arena.");
         }
+        spec.line(UltraStyle.LABEL + "Looking for Potential Unlock trains it in friendly spars. Ranked spars never do.");
         spec.line(UltraStyle.labelValue("Ranked", unlocked ? "unlocked" : unranked + " of " + DojoCatalog.RANKED_GATE
                 + " friendly spars done, " + (DojoCatalog.RANKED_GATE - unranked) + " to go"));
         List<BoardSpar.Post> posts = BoardSpar.board(player);
@@ -152,7 +153,7 @@ public final class UltraDojoScreens {
             spec.line(UltraStyle.VALUE + p.name() + UltraStyle.LABEL + " Lv " + lvl + ", "
                     + (p.ranked() ? "ranked" : "friendly") + ", Friendly Fist "
                     + (BoardSpar.friendlyFist(p.poster(), player.m_20194_()) ? "on" : "off") + ", "
-                    + BoardSpar.wagerText(p.wagerKind(), p.wager()) + ", waiting "
+                    + BoardSpar.wagerText(p.wagerKind(), p.wager()) + ", looking for " + p.want().label + ", waiting "
                     + BoardSpar.clock(System.currentTimeMillis() - p.at())
                     + (me.equals(p.target()) ? UltraStyle.GREEN + " - challenges you" : ""));
         }
@@ -171,6 +172,8 @@ public final class UltraDojoScreens {
             spec.buttonRight("do:" + BoardSpar.ACT_POST, UltraStyle.confirm("Post for 15 min"), UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
+        spec.buttonLeft("do:" + BoardSpar.ACT_WANT, "Looking for - " + d.want().label, UltraStyle.STYLE_NORMAL)
+                .rowGap();
         int placed = 0;
         for (int i = 0; i < shown; i++) {
             BoardSpar.Post p = posts.get(i);

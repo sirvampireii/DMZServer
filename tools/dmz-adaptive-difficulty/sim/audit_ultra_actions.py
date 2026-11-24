@@ -117,6 +117,7 @@ KNOWN_DO: dict[str, set[str]] = {
         "board_challenge",
         "board_forfeit",
         "board_rematch",
+        "board_want",
         "dojo_found",
         "dojo_close",
         "dojo_reopen",

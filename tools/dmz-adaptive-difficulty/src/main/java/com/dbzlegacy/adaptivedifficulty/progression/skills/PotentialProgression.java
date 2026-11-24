@@ -57,10 +57,16 @@ public final class PotentialProgression {
         if (victim.m_20148_().equals(attacker.m_20148_())) {
             return;
         }
-        // 4.7.68: Potential Unlock training is off inside a formal spar session (a Spar Board spar in a dojo
-        // arena): neither fighter gains points from the session's hits. Session-scoped only; hits in the world
-        // train as always.
-        if (com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.inSessionTogether(victim, attacker)) {
+        // 4.7.68: inside a formal spar session (a Spar Board spar in a dojo arena) Potential Unlock trains only for
+        // a fighter who opted in ("Looking for: Potential Unlock" on a friendly spar); ranked spars never train it.
+        // The session decides only WHETHER a fighter's points accrue, never how many: the same apply() gates and
+        // curve as the world. Outside a session nothing changes.
+        boolean session = com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.inSessionTogether(victim, attacker);
+        boolean attackerTrains = !session
+                || com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.trainsPotentialInSession(attacker);
+        boolean victimTrains = !session
+                || com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.trainsPotentialInSession(victim);
+        if (!attackerTrains && !victimTrains) {
             return;
         }
         try {
@@ -73,7 +79,9 @@ public final class PotentialProgression {
                 atkMethod = "ki_attack";
                 atkPoints = 3;
             }
-            apply(attacker, victim, atkMethod, atkPoints);
+            if (attackerTrains) {
+                apply(attacker, victim, atkMethod, atkPoints);
+            }
 
             // Victim gains from getting hit / blocking (script damaged)
             String defMethod = "getting_hit";
@@ -87,7 +95,9 @@ public final class PotentialProgression {
                 }
             } catch (Throwable ignored) {
             }
-            apply(victim, attacker, defMethod, defPoints);
+            if (victimTrains) {
+                apply(victim, attacker, defMethod, defPoints);
+            }
         } catch (Throwable ignored) {
         }
     }

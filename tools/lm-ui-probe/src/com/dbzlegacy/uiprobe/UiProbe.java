@@ -849,17 +849,56 @@ public final class UiProbe {
                 com.dbzlegacy.adaptivedifficulty.progression.ProgressionData.storedPut(w, "potential_movement_valid_until",
                         System.currentTimeMillis() + 120_000L);
             }
-            String pu0 = String.valueOf(com.dbzlegacy.adaptivedifficulty.gui.ultra.HubDashboard.potentialLine(player));
-            draft(player, false, 0);
-            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(player, "board_post", "");
-            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_accept", me);
-            boolean inSession = com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.inSessionTogether(player, dMate);
-            com.dbzlegacy.adaptivedifficulty.progression.skills.PotentialProgression.onPlayerHurt(dMate, player,
-                    player.m_269291_().m_269075_(player));
-            String pu1 = String.valueOf(com.dbzlegacy.adaptivedifficulty.gui.ultra.HubDashboard.potentialLine(player));
-            note("PU OFF in a spar session: a session hit gains no Potential Unlock points: " + pf(inSession
-                    && pu1.equals(pu0)) + " (" + pu0 + " -> " + pu1 + ")");
-            endBout(player, player.m_20148_(), "FORFEIT");
+            // Scenario per session: who looks for Potential Unlock, ranked or friendly, and what the probe player
+            // (the only fighter with DMZ stats) should gain from one hit it lands. 600 ms apart: the PU duplicate
+            // window is 500 ms, so each hit is judged on its own.
+            Object[][] scenarios = {
+                    {"friendly, nobody opted in", false, "TP", "TP", false},
+                    {"friendly, the probe player opted in", false, "POTENTIAL", "TP", true},
+                    {"friendly, only the opponent opted in", false, "TP", "POTENTIAL", false},
+                    {"ranked, both opted in", true, "POTENTIAL", "POTENTIAL", false}};
+            String pu1 = "";
+            for (Object[] sc : scenarios) {
+                store.player(me, "").unrankedSpars = 30;
+                store.player(dMate.m_20148_().toString(), "Sparmate").unrankedSpars = 30;
+                com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.setDraft(player.m_20148_(), (Boolean) sc[1], 0);
+                while (com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.draft(player.m_20148_()).want().name()
+                        .equals(sc[2]) == false) {
+                    com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(player, "board_want", "");
+                }
+                while (com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.draft(dMate.m_20148_()).want().name()
+                        .equals(sc[3]) == false) {
+                    com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_want", "");
+                }
+                com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(player, "board_post", "");
+                com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_accept", me);
+                for (ServerPlayer w : new ServerPlayer[] {player, dMate}) {
+                    com.dbzlegacy.adaptivedifficulty.progression.ProgressionData.storedPut(w,
+                            "potential_movement_valid_until", System.currentTimeMillis() + 120_000L);
+                }
+                try {
+                    Thread.sleep(600L);
+                } catch (InterruptedException ignored) {
+                }
+                String before = String.valueOf(com.dbzlegacy.adaptivedifficulty.gui.ultra.HubDashboard.potentialLine(player));
+                boolean inSession = com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.inSessionTogether(player, dMate);
+                com.dbzlegacy.adaptivedifficulty.progression.skills.PotentialProgression.onPlayerHurt(dMate, player,
+                        player.m_269291_().m_269075_(player));
+                String after = String.valueOf(com.dbzlegacy.adaptivedifficulty.gui.ultra.HubDashboard.potentialLine(player));
+                boolean gained = !after.equals(before);
+                note("PU SESSION " + sc[0] + ": the probe player " + ((Boolean) sc[4] ? "gains" : "gains nothing")
+                        + ": " + pf(inSession && gained == (Boolean) sc[4]) + " (" + before + " -> " + after + ")");
+                endBout(player, player.m_20148_(), "FORFEIT");
+                pu1 = after;
+            }
+            for (GuiOpenPacket p : keep("dojo board want", () -> UltraGui.open(player, "spar", "sparboard"))) {
+                note("PU WANT the board offers Looking for (TP, Potential Unlock, Anything): " + pf(has(p, "Looking for - ")
+                        && has(p, "Looking for Potential Unlock trains it in friendly spars")));
+            }
+            try {
+                Thread.sleep(600L);
+            } catch (InterruptedException ignored) {
+            }
             for (ServerPlayer w : new ServerPlayer[] {player, dMate}) {
                 com.dbzlegacy.adaptivedifficulty.progression.ProgressionData.storedPut(w, "potential_movement_valid_until",
                         System.currentTimeMillis() + 120_000L);
@@ -867,7 +906,7 @@ public final class UiProbe {
             com.dbzlegacy.adaptivedifficulty.progression.skills.PotentialProgression.onPlayerHurt(dMate, player,
                     player.m_269291_().m_269075_(player));
             String pu2 = String.valueOf(com.dbzlegacy.adaptivedifficulty.gui.ultra.HubDashboard.potentialLine(player));
-            note("PU ON in the world after the session (with the Melee bonus active): the same hit gains points: "
+            note("PU WORLD outside a session (with the Melee bonus active): the same hit gains the normal points: "
                     + (pu2.equals(pu1) ? "SKIP (no points from a stand-in without DMZ stats)" : pf(!pu2.equals(pu1)))
                     + " (" + pu1 + " -> " + pu2 + ")");
 

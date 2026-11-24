@@ -45,13 +45,33 @@ public final class BoardSpar {
     public static final String ACT_CHALLENGE = "board_challenge";
     public static final String ACT_FORFEIT = "board_forfeit";
     public static final String ACT_REMATCH = "board_rematch";
+    public static final String ACT_WANT = "board_want";
+
+    /**
+     * What a player is looking for from a spar. Potential Unlock is the opt-in: on a friendly spar it turns Potential
+     * Unlock training on for that player in that session (ranked spars never train it). Cycles TP, Potential Unlock,
+     * Anything.
+     */
+    public enum Want {
+        TP("TP"), POTENTIAL("Potential Unlock"), ANY("Anything");
+
+        public final String label;
+
+        Want(String label) {
+            this.label = label;
+        }
+
+        public Want next() {
+            return values()[(ordinal() + 1) % values().length];
+        }
+    }
 
     /** What the player will post next: friendly or ranked, wager step (0 none), level range step. */
-    public record Draft(boolean ranked, int wager, int range) {}
+    public record Draft(boolean ranked, int wager, int range, Want want) {}
 
     /** A board post; {@code target} set for a direct challenge. */
     public record Post(UUID poster, String name, boolean ranked, String wagerKind, long wager, int range, UUID target,
-            String targetName, long at) {}
+            String targetName, long at, Want want) {}
 
     /** A running bout in a dojo arena. */
     public static final class Bout {
@@ -66,6 +86,9 @@ public final class BoardSpar {
         public String wagerKind = "";
         public long wager;
         public long startAt;
+        /** Each fighter's Potential Unlock opt-in (friendly spars only). */
+        public boolean potentialA;
+        public boolean potentialB;
         public double cx;
         public double cz;
         volatile boolean settled;
@@ -88,12 +111,12 @@ public final class BoardSpar {
     public static void setDraft(UUID id, boolean ranked, int wagerStep) {
         if (id != null) {
             Draft d = draft(id);
-            DRAFTS.put(id, new Draft(ranked, Math.floorMod(wagerStep, wagerSteps()), d.range()));
+            DRAFTS.put(id, new Draft(ranked, Math.floorMod(wagerStep, wagerSteps()), d.range(), d.want()));
         }
     }
 
     public static Draft draft(UUID id) {
-        return id == null ? new Draft(false, 0, 0) : DRAFTS.getOrDefault(id, new Draft(false, 0, 0));
+        return id == null ? new Draft(false, 0, 0, Want.TP) : DRAFTS.getOrDefault(id, new Draft(false, 0, 0, Want.TP));
     }
 
     // ------------------------------------------------------------------ wagers
@@ -330,7 +353,7 @@ public final class BoardSpar {
             return "You can't challenge yourself.";
         }
         POSTS.put(id, new Post(id, p.m_7755_().getString(), d.ranked(), kind, amount, levelRange(d.range()), target,
-                t == null ? "" : t.m_7755_().getString(), System.currentTimeMillis()));
+                t == null ? "" : t.m_7755_().getString(), System.currentTimeMillis(), d.want()));
         String what = (d.ranked() ? "ranked" : "friendly") + " spar, " + wagerText(kind, amount);
         if (t != null) {
             Component line = Component.m_237113_(LmChat.info("Spar", UltraStyle.VALUE + p.m_7755_().getString()
@@ -381,6 +404,9 @@ public final class BoardSpar {
         b.wagerKind = post.wagerKind() == null ? "" : post.wagerKind();
         b.wager = post.wager();
         b.startAt = System.currentTimeMillis();
+        // Potential Unlock opt-ins as each fighter has them at accept time (ranked spars never train it).
+        b.potentialA = !b.ranked && post.want() == Want.POTENTIAL;
+        b.potentialB = !b.ranked && draft(acceptor.m_20148_()).want() == Want.POTENTIAL;
         BlockPos o = DojoWorld.plotOrigin(host.plot);
         int[] c = DojoWorld.arenaCenter(arena);
         b.cx = o.m_123341_() + c[0] + 0.5;
@@ -394,7 +420,7 @@ public final class BoardSpar {
         DojoWorld.SPECTATING.remove(acceptor.m_20148_());
         DojoWorld.teleport(poster, level, b.cx - 6, DojoWorld.FLOOR_Y + 1, b.cz, -90.0f);
         DojoWorld.teleport(acceptor, level, b.cx + 6, DojoWorld.FLOOR_Y + 1, b.cz, 90.0f);
-        SparringSystem.startBoardSession(poster, acceptor, b.id, b.ranked);
+        SparringSystem.startBoardSession(poster, acceptor, b.id, b.ranked, b.potentialA, b.potentialB);
         String what = (b.ranked ? "Ranked" : "Friendly") + " spar in " + host.name + ", arena " + (arena + 1)
                 + (b.wager > 0 ? ", " + wagerText(b.wagerKind, b.wager) + " each at stake" : "") + ".";
         DmzRewards.msg(poster, LmChat.ok("Spar", acceptor.m_7755_().getString() + " accepted. " + what));
@@ -661,6 +687,8 @@ public final class BoardSpar {
             lines.add(UltraStyle.labelValue("TP earned", b.ranked && rt != null ? String.valueOf((long) rt.sessionTp)
                     : "none (friendly spars pay nothing)"));
             lines.add(UltraStyle.labelValue("Wager", wagerLine));
+            lines.add(UltraStyle.labelValue("Potential Unlock", (isA ? b.potentialA : b.potentialB)
+                    ? "trained this spar" : b.ranked ? "off (ranked spars never train it)" : "off (not looked for)"));
             if (!counted) {
                 lines.add(UltraStyle.LABEL + "Didn't count: a spar counts after 1 minute with both fighters landing hits.");
             } else if (b.ranked && !rankedFresh) {
@@ -813,18 +841,26 @@ public final class BoardSpar {
                     return "Ranked unlocks after " + DojoCatalog.RANKED_GATE + " friendly spars. You have "
                             + unranked(id) + ".";
                 }
-                DRAFTS.put(id, new Draft(!d.ranked(), d.wager(), d.range()));
+                DRAFTS.put(id, new Draft(!d.ranked(), d.wager(), d.range(), d.want()));
                 return "Next post: " + (!d.ranked() ? "ranked" : "friendly") + ".";
             }
             case ACT_WAGER -> {
                 int next = (d.wager() + 1) % wagerSteps();
-                DRAFTS.put(id, new Draft(d.ranked(), next, d.range()));
+                DRAFTS.put(id, new Draft(d.ranked(), next, d.range(), d.want()));
                 return "Wager: " + wagerText(wagerKind(next), wagerAmount(next)) + ".";
             }
             case ACT_RANGE -> {
                 int next = (d.range() + 1) % DojoCatalog.LEVEL_RANGES.length;
-                DRAFTS.put(id, new Draft(d.ranked(), d.wager(), next));
+                DRAFTS.put(id, new Draft(d.ranked(), d.wager(), next, d.want()));
                 return "Opponents: " + rangeText(levelRange(next)) + ".";
+            }
+            case ACT_WANT -> {
+                Want next = d.want().next();
+                DRAFTS.put(id, new Draft(d.ranked(), d.wager(), d.range(), next));
+                POSTS.computeIfPresent(id, (k, x) -> new Post(x.poster(), x.name(), x.ranked(), x.wagerKind(), x.wager(),
+                        x.range(), x.target(), x.targetName(), x.at(), next));
+                return "Looking for: " + next.label + "." + (next == Want.POTENTIAL
+                        ? " Friendly spars will train your Potential Unlock. Ranked spars never do." : "");
             }
             case ACT_POST -> {
                 return post(p, null);
@@ -853,7 +889,7 @@ public final class BoardSpar {
                         wagerStep = i;
                     }
                 }
-                DRAFTS.put(id, new Draft(r.ranked() && rankedUnlocked(id), wagerStep, d.range()));
+                DRAFTS.put(id, new Draft(r.ranked() && rankedUnlocked(id), wagerStep, d.range(), d.want()));
                 return post(p, r.opponent());
             }
             default -> {
@@ -886,6 +922,9 @@ public final class BoardSpar {
         }
         if (levelRange(0) != 0 || levelRange(1) != 25 || levelRange(4) != 0) {
             bad.add("level ranges cycle any, 25, 50, 100");
+        }
+        if (Want.TP.next() != Want.POTENTIAL || Want.POTENTIAL.next() != Want.ANY || Want.ANY.next() != Want.TP) {
+            bad.add("looking for cycles TP, Potential Unlock, Anything");
         }
         if (!"5:00".equals(clock(DojoCatalog.BOUT_TIMEOUT_MS)) || parse("x") != null) {
             bad.add("bout clock and id parsing");

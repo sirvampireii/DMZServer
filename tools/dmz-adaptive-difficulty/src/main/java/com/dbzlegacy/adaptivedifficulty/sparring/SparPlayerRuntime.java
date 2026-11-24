@@ -104,11 +104,14 @@ public final class SparPlayerRuntime {
     public String boardBout = "";
     public boolean boardRanked;
     public boolean boardCredit;
+    /** 4.7.68: this fighter opted into Potential Unlock training for this (friendly) spar. */
+    public boolean boardPotential;
 
     public void resetSession() {
         boardBout = "";
         boardRanked = false;
         boardCredit = false;
+        boardPotential = false;
         partner = null;
         active = false;
         startAt = 0L;
