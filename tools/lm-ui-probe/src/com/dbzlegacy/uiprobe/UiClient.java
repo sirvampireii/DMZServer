@@ -347,12 +347,13 @@ final class UiClient {
             UiProbe.write("uiprobe-client.txt", "POPUP closed " + mc.f_91080_.getClass().getName() + "\n", true);
             mc.m_91152_(null);
             if (cueScreen != null) {
-                cueScreen = null;                           // the menu it covered is gone: wait for it again
+                // The menu it covered is gone. Wait for the cue's screen again; if it does not come back, the usual
+                // no-screen timeout moves on. Never send an extra "uinext" here: the server's HUD mock steps also
+                // wait for it and would skip ahead.
+                cueScreen = null;
                 wait = 0;
                 cfg = -1;
                 timeout = 0;
-                next(mc);
-                cue = null;
             }
             return;
         }
