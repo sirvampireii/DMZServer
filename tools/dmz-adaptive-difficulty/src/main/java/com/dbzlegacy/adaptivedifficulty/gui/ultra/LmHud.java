@@ -57,6 +57,8 @@ public final class LmHud {
     /** Accents the client resolves in the player's menu skin. */
     public static final String ACCENT_RIVAL = "rival";
     public static final String ACCENT_DIFFICULTY = "difficulty";
+    /** 4.7.78: currency gold, resolved per skin on the client ({@link MenuSkins#currencyGold}). */
+    public static final String ACCENT_CURRENCY = "currency";
 
     /** A system's accent as {@code #rrggbb} (the same per-system colour menus use), for the HUD edge. */
     public static String accentOf(String system) {

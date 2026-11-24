@@ -871,6 +871,19 @@ client-side and outside LM's reach:
   turns the HUD portrait to that form while the screen is open. LM never sends that combination.
 - With `rotate:false`, a `local` model follows the player's facing in the world; a stand-in holds still.
 
+### Sparring and Dojo split, Difficulty rework (LM 4.7.78)
+
+- New `screenId` `dojo` (title "Dojo", tabs `home|Home`, `dojo_upgrades|Upgrades`, `dojo_wars|Wars`). Every dojo page
+  (My dojo, upgrades, style and bonus, elites, wars, the leaderboard, roster, training bonds and the founding pages
+  `found`, `found_style`, `found_banner`, `found_confirm`, `dojo_banner`, `dojo_rename`) is sent with `screenId`
+  `dojo`. An old `open:spar` link to a dojo page still works: the page arrives as `dojo`.
+- Sparring tabs are now `home|Home`, `leaderboard|Leaderboard`, `sparboard|Spar Board` (no Dojo tab).
+- Main menu tiles: `open:spar` ("Sparring") and `open:dojo` ("Dojo") replace the Spar Board and My dojo tiles.
+- The main menu's search row moved from Home to the top of the More tab; results still land on the Search tab.
+- Difficulty: Home has no Change tier, Clear active tier or Rival teams buttons; the Rival teams page and its
+  `do:mode` / `do:team` actions are gone.
+- The founding name and rename pages use a text field bound to their button (`args.value`), like the hub search.
+
 ### Native HUD (LM 4.7.72): no bridge change
 
 The native HUD is LM-client only (native message 4, hello feature `hud`; `docs/LM_CLIENT.md`). A KaiPath player keeps

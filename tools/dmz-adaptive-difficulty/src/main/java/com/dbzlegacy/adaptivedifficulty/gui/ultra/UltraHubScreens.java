@@ -184,11 +184,7 @@ public final class UltraHubScreens {
             spec.line(UltraStyle.VALUE + potential);
         }
         spec.buttonsAfterLines();
-        // 4.7.71: the search row above the tiles (LM client with the navigation layer and typing).
-        if (com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player)
-                && com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player)) {
-            placeSearchRow(spec, "");
-        }
+        // 4.7.78: the search row lives at the top of the More tab now; Home is the dashboard and the systems.
 
         // Prestige: the payoff, full width.
         placeTile(spec, ph, new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), null);
@@ -196,10 +192,10 @@ public final class UltraHubScreens {
         // Hub tiles: normal (dark) + per-system accent. Nothing is "selected" on the hub.
         List<HubTile> tiles = new ArrayList<>();
         tiles.add(new HubTile("difficulty", "Difficulty", UltraStyle.STYLE_NORMAL, true));
-        // 4.7.68: one tap to the Spar Board and one to My dojo (wars live in the Dojo tab).
-        tiles.add(new HubTile("spar_board", "Spar Board", UltraStyle.STYLE_NORMAL, false));
+        // 4.7.78: Sparring and Dojo are two systems, one tile each.
+        tiles.add(new HubTile("spar", "Sparring", UltraStyle.STYLE_NORMAL, false));
         tiles.add(new HubTile("rival", "Rival", UltraStyle.STYLE_NORMAL, false));
-        tiles.add(new HubTile("spar_dojo", "My dojo", UltraStyle.STYLE_NORMAL, false));
+        tiles.add(new HubTile("dojo", "Dojo", UltraStyle.STYLE_NORMAL, false));
         tiles.add(new HubTile("character", "Character Services", UltraStyle.STYLE_NORMAL, true));
         boolean skillCheck = SkillCheckService.canUse(player);
         if (skillCheck) {
@@ -387,6 +383,12 @@ public final class UltraHubScreens {
         spec.labelValue("HUD:", hudOn ? "rival, TP and penalty info on screen" : "boss bars and chat lines");
         spec.line(UltraStyle.LABEL + "The HUD needs the Legacy Mechanics client.");
         spec.buttonsAfterLines();
+        // 4.7.78: the search row (moved from Home), first on the tab. Same field, placeholder, Search button and
+        // recents; a search lands on the Search tab with its results.
+        if (com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player)
+                && com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player)) {
+            placeSearchRow(spec, "");
+        }
         List<HubTile> tiles = new ArrayList<>();
         tiles.add(new HubTile("menu_skins", "Menu skins", UltraStyle.STYLE_NORMAL, true));
         if (staff) {
@@ -760,7 +762,8 @@ public final class UltraHubScreens {
             UltraScreenSpec spec, Map<String, String> ph, HubTile tile, Boolean left) {
         String system = tile.system();
         // Spar Board, My dojo and Dojo wars live in Sparring: same availability and accent.
-        String owner = system.startsWith("spar_") ? "spar" : system;
+        // 4.7.78: the Dojo tile is available whenever Sparring is (it is the same feature switch).
+        String owner = system.startsWith("spar_") || "dojo".equals(system) ? "spar" : system;
         boolean on = tile.alwaysOn()
                 || "difficulty".equals(system)
                 || (ph != null && "true".equalsIgnoreCase(ph.get(owner)));
@@ -792,6 +795,7 @@ public final class UltraHubScreens {
         }
         return switch (system) {
             case "spar" -> "open:spar";
+            case "dojo" -> "open:dojo";
             case "skillcheck" -> "open:skillcheck";
             case "skills" -> "open:skills";
             case "skillcheck_denied" -> "do:skillcheck_denied";

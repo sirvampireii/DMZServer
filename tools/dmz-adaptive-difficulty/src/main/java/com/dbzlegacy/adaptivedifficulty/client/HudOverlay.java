@@ -322,6 +322,8 @@ final class HudOverlay {
         int rgb;
         if (LmHud.ACCENT_DIFFICULTY.equals(accent)) {
             rgb = skin.primary();
+        } else if (LmHud.ACCENT_CURRENCY.equals(accent)) {
+            rgb = MenuSkins.currencyGold(skin);         // 4.7.78: the player's own skin gold
         } else if (LmHud.ACCENT_RIVAL.equals(accent)) {
             rgb = MenuSkins.systemAccentHex('f');
         } else if (accent != null && accent.startsWith("#") && accent.length() == 7) {

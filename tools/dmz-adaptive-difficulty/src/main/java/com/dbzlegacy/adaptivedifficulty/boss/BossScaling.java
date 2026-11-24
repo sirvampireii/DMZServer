@@ -114,7 +114,7 @@ public final class BossScaling {
     /**
      * Rare team-scaling promotion when a mob is not already a natural boss candidate.
      *
-     * @param bonusPercentPoints flat roll % from {@link com.dbzlegacy.adaptivedifficulty.team.TeamScaling}
+     * @param bonusPercentPoints flat roll % (0 since 4.7.78: rival teams are gone)
      */
     public static void maybePromote(LivingEntity entity, long rollSeed, double bonusPercentPoints) {
         DifficultyConfig cfg = DifficultyConfig.get();

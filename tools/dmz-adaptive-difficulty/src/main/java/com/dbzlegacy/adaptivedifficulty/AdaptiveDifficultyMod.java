@@ -12,7 +12,6 @@ import com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy;
 import com.dbzlegacy.adaptivedifficulty.event.DifficultyEvents;
 import com.dbzlegacy.adaptivedifficulty.event.FallDamageDiag;
 import com.dbzlegacy.adaptivedifficulty.scaling.AttributeLimits;
-import com.dbzlegacy.adaptivedifficulty.team.TeamScaling;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.IExtensionPoint;
 import net.minecraftforge.fml.ModLoadingContext;
@@ -33,7 +32,7 @@ public final class AdaptiveDifficultyMod {
     /** Forge modId — lowercase; not used for NBT / GUI class lookup. */
     public static final String MOD_ID = "legacymechanics";
     /** Product line version (was DMZ Adaptive Difficulty 3.3.x). */
-    public static final String VERSION = "4.7.77";
+    public static final String VERSION = "4.7.78";
 
     private static boolean dedicatedServer() {
         try {
@@ -106,11 +105,10 @@ public final class AdaptiveDifficultyMod {
         ProgressionCommands.register();
         TerminalCommands.register();
         LOGGER.info(
-                "[{}] v{} for DragonMineZ 2.2, server-only: Lightman's={}, FTB Teams={}, guiBackend={}, CNPC={}, Progression={}",
+                "[{}] v{} for DragonMineZ 2.2, server-only: Lightman's={}, guiBackend={}, CNPC={}, Progression={}",
                 MOD_ID,
                 VERSION,
                 AncientCoinEconomy.realCoinsAvailable(),
-                TeamScaling.ftbAvailable(),
                 DifficultyConfig.get().guiBackend,
                 noppes.npcs.api.NpcAPI.IsAvailable(),
                 DifficultyConfig.get().enableProgression

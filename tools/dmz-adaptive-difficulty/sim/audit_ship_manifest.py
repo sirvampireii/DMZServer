@@ -2029,6 +2029,59 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.78 ---")
+    p78_coin = read(SRC / "currency/AncientCoinEconomy.java")
+    p78_skins = read(SRC / "gui/ultra/MenuSkins.java")
+    p78_over = read(SRC / "client/HudOverlay.java")
+    p78_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p78_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
+    p78_calc = read(SRC / "calc/DifficultyCalculator.java")
+    p78_data = read(SRC / "data/PlayerDifficultyData.java")
+    p78_mob = read(SRC / "scaling/MobScaling.java")
+    p78_spar = read(SRC / "gui/ultra/UltraSparScreens.java")
+    p78_dojo = read(SRC / "gui/ultra/UltraDojoScreens.java")
+    p78_found = read(SRC / "gui/ultra/DojoFounding.java")
+    p78_svc = read(SRC / "dojo/DojoService.java")
+    p78_store = read(SRC / "dojo/DojoStore.java")
+    p78_cat = read(SRC / "dojo/DojoCatalog.java")
+    p78_reg = read(SRC / "gui/ultra/PageRegistry.java")
+    check("manifest row for lm 4.7.78", "lm-4778-difficulty-dojo" in manifest)
+    check("A: coin toast accent is the skin's gold (no hex literal)",
+          "LmHud.ACCENT_CURRENCY" in p78_coin and '"#f0b429"' not in p78_coin
+          and "public static int currencyGold(Skin skin)" in p78_skins and "MenuSkins.currencyGold(skin)" in p78_over)
+    check("B: search row on More, not Home",
+          "placeSearchRow(spec" in _after(p78_hub, "private static void openMore(").split("\n    }\n", 1)[0]
+          and "placeSearchRow(spec" not in _after(p78_hub, "private static void openMain(").split("\n    }\n", 1)[0])
+    check("C: Home has no Change tier / Clear tier; Tiers locked when off, clears the tier; Step 3 only Got it; replay label",
+          'UltraStyle.confirm("Change tier")' not in p78_diff and "No tier yet. Pick one in Tiers." in p78_diff
+          and "Turn it on from Difficulty Home, then pick a tier here." in p78_diff
+          and ordered(p78_diff, "if (!guide && active > 0) {", '"page:clear_tier_ask"')
+          and ordered(p78_diff, '"Got it - take me to Difficulty"', "spec.footerGuide(", "return;", "placeDifficultyToggle(spec, personal);")
+          and 'UltraStyle.plain("Replay the difficulty guide")' in p78_diff)
+    check("C: rival teams removed; every player scales personally; stored team mode dropped",
+          not (SRC / "team/TeamScaling.java").exists() and not (SRC / "data/TeamMode.java").exists()
+          and not (SRC / "gui/DifficultyTeamGuiApi.java").exists() and "openTeam" not in p78_diff
+          and "TeamScaling" not in p78_calc and 'tag.m_128473_("teamMode");' in p78_data
+          and "double bossHpThreshold = cfg.bossHealthThreshold;" in p78_mob)
+    check("D: hub Sparring and Dojo tiles; Sparring Home/Leaderboard/Spar Board; Dojo its own system",
+          'new HubTile("spar", "Sparring"' in p78_hub and 'new HubTile("dojo", "Dojo"' in p78_hub
+          and '.tabs("home|Home", "leaderboard|Leaderboard", "sparboard|Spar Board")' in p78_spar
+          and "private static void openLeaderboard(" in p78_spar and '"Open the Spar Board"' not in p78_spar
+          and 'TAB_DOJO_HOME + "|Home", TAB_UPGRADES + "|Upgrades", TAB_WARS + "|Wars"' in p78_dojo
+          and "public static void openSystem(ServerPlayer player, String page)" in p78_dojo
+          and 'p("dojo", "home", "Dojo", "hub|main", "my dojo");' in p78_reg and 'p("spar", "dojo"' not in p78_reg)
+    check("D: founding asks name, style and banner; banner copied, never consumed; shown on Dojo Home",
+          has(p78_found, "PAGE_NAME = \"found\"", "ACT_STYLE", "ACT_BANNER", "ACT_CONFIRM", "Make one at a loom")
+          and "shrink" not in p78_found and "m_41774_" not in p78_found
+          and "public static String found(ServerPlayer p, String name, String styleId, String bannerBase, List<String> patterns)" in p78_svc
+          and "public String bannerBase" in p78_store and "DojoFounding.bannerLines(spec, d);" in p78_dojo)
+    check("D amendment: style 40, name 20, banner 20 Dojo Points; one 12-hour cooldown; founding and first banner free",
+          has(p78_cat, "STYLE_CHANGE_COST = 40;", "NAME_CHANGE_COST = 20;", "BANNER_CHANGE_COST = 20;",
+              "IDENTITY_COOLDOWN_MS = 12L * 60L * 60L * 1000L;")
+          and "public long identityChangedAt;" in p78_store
+          and has(p78_svc, "d.points = Math.max(0, d.points - cost);", "identityChangeProblem(d, DojoCatalog.NAME_CHANGE_COST)",
+                  "identityChangeProblem(d, DojoCatalog.STYLE_CHANGE_COST)", "boolean first = d.bannerBase == null"))
+
     print("\n--- § lm 4.7.77 ---")
     p77_over = read(SRC / "client/HudOverlay.java")
     p77_spec = read(SRC / "rival/RivalSpectator.java")
@@ -2256,9 +2309,9 @@ def main() -> int:
     p68_dim = read(res / "dimension/dojo.json")
     p68_dimtype = read(res / "dimension_type/dojo.json")
     check("manifest row for lm 4.7.68", "lm-4768-dojos" in manifest)
-    check("Sparring tabs: Home, Dojo, Spar Board (wars moved into the Dojo tab)",
-          '.tabs("home|Home", "dojo|Dojo", "sparboard|Spar Board")' in p68_spar
-          and '.tabs("home|Home", "dojo|Dojo", TAB_BOARD + "|Spar Board")' in p68_ui
+    check("Sparring tabs: Home, Leaderboard, Spar Board (4.7.78: Dojo is its own system; wars live there)",
+          '.tabs("home|Home", "leaderboard|Leaderboard", "sparboard|Spar Board")' in p68_spar
+          and '.tabs("home|Home", "leaderboard|Leaderboard", TAB_BOARD + "|Spar Board")' in p68_ui
           and 'lower.equals("dojo_wars") || lower.equals("wars") || lower.equals("dojo_war")' in p68_ui)
     check("a formal spar starts only from the board: trading hits starts nothing, startBoardSession is the one start",
           "// 4.7.68: trading hits no longer starts a spar." in p68_sys
@@ -2334,8 +2387,8 @@ def main() -> int:
           "public void onDojoBreak(BlockEvent.BreakEvent event)" in p68_ev
           and "public void onDojoPlace(BlockEvent.EntityPlaceEvent event)" in p68_ev
           and "event.getAffectedBlocks().clear();" in p68_ev)
-    check("main menu: Spar Board and My dojo tiles, one tap each",
-          'new HubTile("spar_board", "Spar Board"' in p68_hub and 'new HubTile("spar_dojo", "My dojo"' in p68_hub
+    check("main menu: Sparring and Dojo tiles, one tap each (4.7.78)",
+          'new HubTile("spar", "Sparring"' in p68_hub and 'new HubTile("dojo", "Dojo"' in p68_hub
           and 'UltraGui.open(player, "spar", "sparboard");' in p68_hub and 'UltraGui.open(player, "spar", "dojo");' in p68_hub)
     check("upgrade pages show Now, After and Where (green) on LM clients; the text map stays for KaiPath",
           'JsonObject now = whole(closeUp(part, lvNow, before.style, before.tier), "Now");' in p68_pics
@@ -2546,7 +2599,7 @@ def main() -> int:
           'UltraStyle.header("Your next prestige")' in p64_hub and "HubDashboard.fastestNow(player)" in p64_hub
           and 'UltraStyle.header("Train")' in p64_hub and 'UltraStyle.header("Compete")' in p64_hub
           and 'new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), null);' in p64_hub
-          and ('new HubTile("spar_wars", "Dojo wars"' in p64_hub or 'new HubTile("spar_dojo", "My dojo"' in p64_hub))
+          and 'new HubTile("dojo", "Dojo"' in p64_hub)
     check("Menu skins and Staff Admin moved to More; no Goals placeholder (4.7.71)",
           'new HubTile("menu_skins", "Menu skins"' in _after(p64_hub, "private static void openMore(")
           and 'new HubTile("admin", "Staff Admin"' in _after(p64_hub, "private static void openMore(")
@@ -2610,7 +2663,7 @@ def main() -> int:
           and "DifficultyTutorial.ACT_DONE.equals(parts.action)" in p63_act)
     check("Step 1 says once that the guide shows once; Home replays it without clearing the mark",
           'GUIDE_ONCE = "This guide shows once. Replay it from Home.";' in p63_diff
-          and 'UltraStyle.plain("How difficulty works")' in p63_diff
+          and 'UltraStyle.plain("Replay the difficulty guide")' in p63_diff   # reworded in 4.7.78
           and "markDone" not in p63_diff and '"done", false' not in p63_tut)
 
     print("\n--- § lm 4.7.62 ---")
@@ -2744,7 +2797,7 @@ def main() -> int:
           and "BRIDGE_ACCENT = 'c';" in p60_skin
           and "BRIDGE_HEADER = '6';" in p60_skin
           and 'case "difficulty" -> String.valueOf(BRIDGE_ACCENT);' in p60_skin
-          and 'case "rival" -> "f";' in p60_skin and 'case "spar" -> "3";' in p60_skin
+          and 'case "rival" -> "f";' in p60_skin and 'case "spar", "dojo" -> "3";' in p60_skin
           and 'case "prestige" -> "b";' in p60_skin and 'case "character" -> "a";' in p60_skin
           and "BRIDGE_LABEL = '7';" in p60_skin and "BRIDGE_VALUE = 'f';" in p60_skin)
     # Menu builders read the skin: one table for chrome letters and system accents, bytes pinned literally.
@@ -3727,7 +3780,7 @@ def main() -> int:
     check("P2 polish: Equipped, Reload Legacy Mechanics config, dash toggles, Staff only., full skill names",
           '"Equipped: " + bone' in gh_char and "Reload LM config" not in gh_diff
           and "Reload LM config" not in gh("gui/ultra/UltraHubScreens.java")
-          and "Turn event log" not in gh_diff and '"Personal - ON"' in gh_diff and '"Full team - ON"' in gh_diff
+          and "Turn event log" not in gh_diff and "Rival teams" not in gh_diff   # 4.7.78: team mode toggles removed
           and all("That menu is for staff only." not in gh(f) for f in
                   ("gui/CnpcStaffTestGui.java", "gui/ProgressionMenu.java", "gui/SkillsMenu.java"))
           and '"Def Pen"' not in gh_pres and '"Ki Manip"' not in gh_pres and '"Ki Prot"' not in gh_pres
@@ -4961,7 +5014,8 @@ def main() -> int:
           and "main Difficulty page" in cnpc_diff, retired=True)
     check("CNPC team scaling locked like tiers", "Teams locked" in cnpc_diff
           and "before using team scaling" in cnpc_diff, retired=True)
-    check("Difficulty team action gated when personal OFF", "ACT_TEAM.equals(act)" in read(SRC / "service/DifficultyActions.java"))
+    check("Difficulty team action gated when personal OFF", "ACT_TEAM.equals(act)" in read(SRC / "service/DifficultyActions.java"),
+          retired=True)  # 4.7.78: rival teams removed
     check("CNPC difficulty uses handleArgNoReopen", "handleArgNoReopen" in cnpc_diff, retired=True)
 
     print("\n--- § cnpc ---")

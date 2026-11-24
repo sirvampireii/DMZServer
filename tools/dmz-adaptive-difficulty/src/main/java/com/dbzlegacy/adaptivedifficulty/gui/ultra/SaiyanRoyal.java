@@ -45,7 +45,7 @@ public final class SaiyanRoyal {
     public static final char BRIDGE_VALUE = 'f';
 
     /** Per-system accent letters (UltraStyle.systemAccentCode), unchanged by the skin. */
-    public static final Set<String> SYSTEMS = Set.of("difficulty", "rival", "spar", "prestige", "character",
+    public static final Set<String> SYSTEMS = Set.of("difficulty", "rival", "spar", "dojo", "prestige", "character",
             "skillcheck", "admin");
 
     /**
@@ -136,7 +136,7 @@ public final class SaiyanRoyal {
             // White, not dark purple: purple on the gold header and yellow button face does not read.
             case "rival" -> "f";
             // Dark aqua: gold is the shared action color and dark red is staff.
-            case "spar" -> "3";
+            case "spar", "dojo" -> "3";
             case "prestige" -> "b";
             case "character" -> "a";
             case "skillcheck", "skills", "skillcheck_denied" -> "e";

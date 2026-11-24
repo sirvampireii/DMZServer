@@ -1,7 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.calc;
 
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
-import com.dbzlegacy.adaptivedifficulty.data.TeamMode;
 import com.dbzlegacy.adaptivedifficulty.tier.UnlockTier;
 
 /** Cached V3 view of a player's difficulty / combat-rating numbers. */
@@ -21,7 +20,6 @@ public final class DifficultySnapshot {
     public final long teamContribution;
     public final long combatRating;
     public final long ancientCopper;
-    public final TeamMode teamMode;
     public final String activeTierName;
     /** Player personal difficulty toggle — when false, scaling/rewards are paused. */
     public final boolean personalEnabled;
@@ -44,7 +42,6 @@ public final class DifficultySnapshot {
             long teamContribution,
             long combatRating,
             long ancientCopper,
-            TeamMode teamMode,
             boolean personalEnabled
     ) {
         this.dmzLevel = dmzLevel;
@@ -61,7 +58,6 @@ public final class DifficultySnapshot {
         this.teamContribution = teamContribution;
         this.combatRating = combatRating;
         this.ancientCopper = ancientCopper;
-        this.teamMode = teamMode;
         this.personalEnabled = personalEnabled;
         UnlockTier tier = UnlockTier.byId(activeTier);
         this.activeTierName = tier == null ? "None" : ("T" + tier.id + " " + tier.display);

@@ -227,7 +227,7 @@ REQUIRED_FIELDS = {
         "prestige",
         "activeTier",
         "highestUnlockedTier",
-        "teamMode",
+        # "teamMode" removed in 4.7.78 (rival teams gone; the Bukkit bridge reads it null-tolerant)
         "activeTierName",
     ],
     "com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig": [

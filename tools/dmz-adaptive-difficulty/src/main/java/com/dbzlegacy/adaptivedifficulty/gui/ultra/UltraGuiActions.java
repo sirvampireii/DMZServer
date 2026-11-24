@@ -3,7 +3,6 @@ package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.gui.AdminInspectSessions;
 import com.dbzlegacy.adaptivedifficulty.gui.CharacterServicesGuiApi;
-import com.dbzlegacy.adaptivedifficulty.gui.DifficultyTeamGuiApi;
 import com.dbzlegacy.adaptivedifficulty.gui.MechanicsGuiApi;
 import com.dbzlegacy.adaptivedifficulty.gui.ProgressionGuiApi;
 import com.dbzlegacy.adaptivedifficulty.gui.RivalGuiApi;
@@ -377,6 +376,10 @@ public final class UltraGuiActions {
         // 4.7.68: Spar Board (post, challenge, accept, forfeit, rematch), dojo (found, upgrades, style, elites,
         // visit, watch) and war buttons. Menu first: the result shows on the reopened page.
         String sparArg = parts.arg == null || parts.arg.isBlank() ? stringArg(args, "arg") : parts.arg;
+        // 4.7.78: dojo founding (name, style, banner) and identity changes (rename, banner).
+        if (DojoFounding.handle(viewer, parts.action, sparArg, args)) {
+            return;
+        }
         if (UltraDojoScreens.handle(viewer, parts.action, sparArg)) {
             return;
         }
@@ -590,10 +593,6 @@ public final class UltraGuiActions {
         try {
             result = switch (safeScreen) {
                 case "difficulty" -> {
-                    if ("mode".equals(act) || "set_mode".equals(act) || "team".equals(act)) {
-                        yield nullToEmpty(
-                                DifficultyTeamGuiApi.handleDo(data, "mode", arg, page));
-                    }
                     // Staff tools on the difficulty admin sub-page.
                     if ("reload".equals(act)
                             || "reloadconfig".equals(act)
@@ -608,7 +607,7 @@ public final class UltraGuiActions {
                     yield r.message() == null ? "" : r.message();
                 }
                 case "rival" -> nullToEmpty(RivalGuiApi.handleDo(data, act, arg, page));
-                case "spar", "sparring" -> {
+                case "spar", "sparring", "dojo" -> {
                     if ("weight_quote".equals(act)
                             || "quote".equals(act)
                             || "weight_buy".equals(act)
@@ -638,7 +637,6 @@ public final class UltraGuiActions {
                         nullToEmpty(UltraConfigScreens.handleAction(viewer, act, arg, page, args));
                 case "hub", "admin" -> nullToEmpty(MechanicsGuiApi.handleDo(actor, act, arg, page));
                 case "skillcheck", "skills" -> "";
-                case "team" -> nullToEmpty(DifficultyTeamGuiApi.handleDo(data, act, arg, page));
                 default -> null;
             };
         } catch (Throwable t) {
@@ -908,7 +906,8 @@ public final class UltraGuiActions {
                 return refreshed;
             }
         }
-        if (!page.isBlank() && !"config".equals(screen) && !"spar".equals(screen) && !"sparring".equals(screen)) {
+        if (!page.isBlank() && !"config".equals(screen) && !"spar".equals(screen) && !"sparring".equals(screen)
+                && !"dojo".equals(screen)) {
             return page;
         }
         // Keep player on the tab they acted from when possible.
@@ -954,7 +953,7 @@ public final class UltraGuiActions {
                 case "toggle_staff_free_coins", "staff_free_coins" -> "coins";
                 default -> homePage(screen);
             };
-            case "spar", "sparring" -> switch (parts.action == null ? "" : parts.action) {
+            case "spar", "sparring", "dojo" -> switch (parts.action == null ? "" : parts.action) {
                 case "dojo_accept", "dojo_war_accept", "dojo_decline", "dojo_war_decline",
                         "dojo_war_cancel", "dojo_war_revoke", "dojo_cancel" -> "dojo_war_pending";
                 case "dojo_challenge" -> "dojo_war";
@@ -1073,7 +1072,7 @@ public final class UltraGuiActions {
 
     private static String homePage(String screen) {
         return switch (screen == null ? "" : screen) {
-            case "rival" -> "home";
+            case "rival", "dojo" -> "home";
             case "config" -> "edit:difficulty:0:";
             case "admin" -> "admin";
             case "skillcheck", "skills" -> "main";
@@ -1115,9 +1114,14 @@ public final class UltraGuiActions {
                 default -> "home";
             };
             case "spar", "sparring" -> switch (t) {
-                case "dojo" -> "dojo";
-                case "wars", "dojo_war" -> "dojo_war";
+                case "leaderboard" -> "leaderboard";
+                case "sparboard", "board" -> "sparboard";
                 default -> "main";
+            };
+            case "dojo" -> switch (t) {
+                case "dojo_upgrades", "upgrades" -> "dojo_upgrades";
+                case "dojo_wars", "wars" -> "dojo_wars";
+                default -> "home";
             };
             case "prestige" -> switch (t) {
                 case "prestige", "turnin", "points" -> "turnin";

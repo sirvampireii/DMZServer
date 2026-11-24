@@ -504,10 +504,11 @@ public final class UiProbe {
             note("HUB HOME tabs Home/Search/More, Home first: " + (b.indexOf("tab:home") >= 0
                     && b.indexOf("tab:home") < b.indexOf("tab:search") && b.indexOf("tab:search") < b.indexOf("tab:more")
                     && !b.contains("tab:goals") ? "PASS" : "FAIL"));
-            note("HUB HOME search row (LM client): " + (p.inputsJson() != null && p.inputsJson().contains("hub_search")
-                    && b.contains("do:hub_search") ? "PASS" : "FAIL"));
-            note("HUB HOME tiles grouped (Prestige, Difficulty, Spar Board, Rival, My dojo, Character): "
-                    + (has(p, "Prestige") && has(p, "Spar Board") && has(p, "My dojo") && !has(p, "Dojo wars")
+            note("HUB HOME has no search row (4.7.78: it moved to More): " + pf(p.inputsJson() == null
+                    || !p.inputsJson().contains("hub_search")));
+            note("HUB HOME tiles grouped (Prestige, Difficulty, Sparring, Rival, Dojo, Character): "
+                    + (has(p, "Prestige") && labels(p).contains("[Sparring]") && labels(p).contains("[Dojo]")
+                    && !has(p, "Spar Board") && !has(p, "My dojo") && !has(p, "Dojo wars")
                     && has(p, "Character Services") && !has(p, "Menu skins") && !has(p, "Staff Admin")
                     ? "PASS" : "FAIL"));
             note("HUB HOME no made-up numbers, no other mods: " + (!has(p, "35%") && !has(p, "/home")
@@ -527,7 +528,7 @@ public final class UiProbe {
         // Every hub link opens the right LM screen.
         String[][] links = {
             {"open:prestige", "prestige|main"}, {"open:difficulty", "difficulty|main"}, {"open:spar", "spar|main"},
-            {"open:rival", "rival|home"}, {"page:wars", "spar|dojo_wars"}, {"open:character", "character|main"},
+            {"open:rival", "rival|home"}, {"page:wars", "dojo|dojo_wars"}, {"open:character", "character|main"},
             {"page:skins", "hub|skins"}, {"tab:home", "hub|main"},
         };
         for (String[] l : links) {
@@ -564,13 +565,14 @@ public final class UiProbe {
         guideNavScript();
         hudScript();
         hud75Script();
+        v78Script();
     }
 
     // ---- 4.7.71 navigation audit and scripted checks (test only) ----
     /** Registry pages a fresh probe account cannot reach (the page needs state the crawl does not make). */
     static final Map<String, String> NAV_STATEFUL = Map.ofEntries(
             Map.entry("spar|result", "needs a finished spar"),
-            Map.entry("spar|pending", "needs a bond invite"),
+            Map.entry("dojo|pending", "needs a bond invite"),
             Map.entry("rival|requests", "needs a rival request"),
             Map.entry("prestige|confirm", "needs enough prestige to turn in"),
             Map.entry("rival|pick_replace_mutual", "needs a full rival list"),
@@ -787,7 +789,7 @@ public final class UiProbe {
                     && p.buttonsJson().contains("go:spar|dojo_upgrades") ? "PASS" : "FAIL"));
         }
         // Breadcrumbs on three deep pages, one a dojo upgrade; each crumb but the last is a link.
-        String[][] deep = {{"spar", "dojo_up:arena", "Main menu > Sparring > Dojo > Upgrades > Sparring arenas"},
+        String[][] deep = {{"dojo", "dojo_up:arena", "Main menu > Dojo > Upgrades > Sparring arenas"},
                 {"prestige", "mastery_lines", "Main menu > Prestige > Shop > Mastery wallet > Apply points to a form"},
                 {"rival", "records:stats", "Main menu > Rivals > Records > Record stats"}};
         for (String[] d : deep) {
@@ -869,7 +871,7 @@ public final class UiProbe {
             note("LEADERBOARD Wars tab links the dojo leaderboard: " + pf(labels(p).contains("Dojo leaderboard")
                     || has(p, "Join or found a dojo")));
         }
-        String[] upAsk = PageRegistry.parent("spar", "dojo_bonus_ask:" + bonus.id());
+        String[] upAsk = PageRegistry.parent("dojo", "dojo_bonus_ask:" + bonus.id());
         note("ASK pages go back to Style and bonus: " + pf(upAsk != null && "dojo_style".equals(upAsk[1])));
     }
 
@@ -960,9 +962,9 @@ public final class UiProbe {
                                 && has(p, "Found a dojo") && p.buttonsJson().contains("nav:none")) + " | " + labels(p));
             }
             for (GuiOpenPacket p : keep("dojo tabs", () -> UltraGui.open(player, "spar", "main"))) {
-                note("DOJO TABS Home, Dojo, Spar Board; Home points to the board: " + pf(has(p, "Spar Board")
+                note("SPAR TABS Home, Leaderboard, Spar Board; Home does not advertise the board: " + pf(has(p, "Spar Board")
                         && p.buttonsJson().contains("tab:sparboard") && !p.buttonsJson().contains("tab:wars")
-                        && has(p, "Open the Spar Board")));
+                        && has(p, "Leaderboard") && !has(p, "Open the Spar Board")));
             }
             hubClick("dojo found", "spar", "do:dojo_found", "dojo");
             note("DOJO FOUND alone (free), one ring: " + pf(dojoOf(player) != null
@@ -1448,7 +1450,7 @@ public final class UiProbe {
     }
 
     private static boolean home(GuiOpenPacket p) {
-        return "main".equals(p.pageId()) && has(p, "How difficulty works") && has(p, "Your tier")
+        return "main".equals(p.pageId()) && has(p, "Replay the difficulty guide") && has(p, "Your tier")
                 && !has(p, "Step 1 of 3") && !has(p, "Skip guide");
     }
 
@@ -1770,16 +1772,16 @@ public final class UiProbe {
         // 4.7.64: the hub on the real client: Home, a tab click, the Dojo wars tile, and the spar board list button.
         {"open", "hub", "main"}, {"wait", "60"}, {"say", "uirecord hub1-home"}, {"wait", "20"},
         {"say", "uiclick label:Goals"}, {"wait", "60"}, {"say", "uirecord hub2-goals"}, {"wait", "20"},
-        {"open", "hub", "main"}, {"wait", "60"}, {"say", "uiclick label:My dojo"}, {"wait", "60"},
+        {"open", "hub", "main"}, {"wait", "60"}, {"say", "uiclick label:Dojo"}, {"wait", "60"},
         {"say", "uirecord hub3-dojo-wars"}, {"wait", "20"},
         // 4.7.68: the Spar Board tab, the Dojo tab and an upgrade preview on the real client.
         {"open", "spar", "sparboard"}, {"wait", "60"}, {"say", "uirecord board1-spar-board"}, {"wait", "20"},
-        {"open", "spar", "dojo"}, {"wait", "60"}, {"say", "uirecord dojo1-dojo-tab"}, {"wait", "20"},
-        {"open", "spar", "dojo_up:arena"}, {"wait", "60"}, {"say", "uirecord dojo2-upgrade-preview"}, {"wait", "20"},
+        {"open", "dojo", "home"}, {"wait", "60"}, {"say", "uirecord dojo1-dojo-home"}, {"wait", "20"},
+        {"open", "dojo", "dojo_up:arena"}, {"wait", "60"}, {"say", "uirecord dojo2-upgrade-preview"}, {"wait", "20"},
         {"guidereset"}, {"open", "difficulty", "main"}, {"wait", "60"}, {"say", "uirecord guide1-first-open"},
         {"wait", "20"}, {"say", "uiclick label:Skip guide"}, {"wait", "60"}, {"say", "uirecord guide2-after-skip"},
         {"wait", "20"}, {"guidecheck"}, {"open", "difficulty", "main"}, {"wait", "60"},
-        {"say", "uirecord guide3-reopen"}, {"wait", "20"}, {"say", "uiclick label:How difficulty works"},
+        {"say", "uirecord guide3-reopen"}, {"wait", "20"}, {"say", "uiclick label:Replay the difficulty guide"},
         {"wait", "60"}, {"say", "uirecord guide4-replay"}, {"wait", "20"}, {"guidecheck"},
         // 4.7.65: Friendly Fist never lets a spar kill. Lethal partner hits on the real probe player, checked a
         // few ticks later (the heal is queued after the hit), with a screenshot of the client still in game.
@@ -2735,6 +2737,193 @@ public final class UiProbe {
         LmHud.hideAll(player);
     }
 
+    // ---- 4.7.78 Difficulty rework, Sparring/Dojo split, founding (test only) ----
+    private int bannersOf(ServerPlayer p, net.minecraft.world.item.Item item) {
+        int n = 0;
+        for (net.minecraft.world.item.ItemStack st : p.m_150109_().f_35974_) {
+            if (!st.m_41619_() && st.m_41720_() == item) {
+                n += st.m_41613_();
+            }
+        }
+        return n;
+    }
+
+    private void v78Script() {
+        java.util.UUID u = player.m_20148_();
+        // A: the coin toast's accent is the skin's gold, resolved on the client per skin.
+        var skins = com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.class;
+        note("V78 coin toast gold per skin (Saiyan, Namek, Zeno, Obsidian): " + pf(
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.currencyGold(com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.SAIYAN_ROYAL) == com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.SAIYAN_ROYAL.trim()
+                && com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.currencyGold(com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.NAMEK_SERENITY) == com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.NAMEK_SERENITY.trim()
+                && com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.currencyGold(com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.ZENO_OMNI) == com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.ZENO_OMNI.trim()
+                && com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.currencyGold(com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.OBSIDIAN_GOLD) == com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.OBSIDIAN_GOLD.trim()));
+        if (LmHud.active(player)) {
+            try {
+                List<LmHud.Sent> c = LmHud.capture(() -> {
+                    try {
+                        call(com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.class, "coinToast",
+                                new Class<?>[] {ServerPlayer.class, long.class}, player, 10L);
+                    } catch (Exception ex) {
+                        throw new RuntimeException(ex);
+                    }
+                });
+                var cp = of(c, LmHud.COINS);
+                note("V78 coin toast sends the currency accent (no fixed colour): " + pf(!cp.isEmpty()
+                        && LmHud.ACCENT_CURRENCY.equals(cp.get(0).accent())));
+            } catch (Throwable t) {
+                note("V78 coin toast ERROR " + t + " FAIL");
+            }
+        }
+        // B: search typed in More lands on the results.
+        for (GuiOpenPacket p : keep("v78 more", () -> UltraGui.open(player, "hub", "more"))) {
+            note("V78 More has the search row: " + pf(!com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player)
+                    || (p.inputsJson() != null && p.inputsJson().contains("hub_search"))));
+        }
+        JsonObject sa = new JsonObject();
+        sa.addProperty("screen", "hub");
+        sa.addProperty("page", "more");
+        sa.addProperty("value", "dojo");
+        for (GuiOpenPacket p : keep("v78 search from more", () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", sa.toString()))) {
+            note("V78 search typed in More lands on Search results: " + pf("search".equals(p.pageId()) && has(p, "Results for")));
+        }
+        UltraHubScreens.searchFor(player, "");
+        // C: Difficulty off -> Tiers locked, no rows, no toggle; on -> rows; Home keeps the toggle.
+        var data = com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache.data(player);
+        boolean wasOn = data.isPersonalEnabled();
+        data.setPersonalEnabled(false);
+        for (GuiOpenPacket p : keep("v78 tiers off", () -> UltraGui.open(player, "difficulty", "tiers"))) {
+            note("V78 Difficulty off: Tiers shows no rows and no toggle, a way back to Home: " + pf(has(p, "Difficulty is off")
+                    && !labels(p).contains("[T1") && !labels(p).contains("Difficulty - OFF") && labels(p).contains("Go to Difficulty Home")));
+        }
+        for (GuiOpenPacket p : keep("v78 home off", () -> UltraGui.open(player, "difficulty", "main"))) {
+            note("V78 Difficulty Home turns it on (toggle), no Change tier, no Rival teams: " + pf(labels(p).contains("Difficulty - OFF")
+                    && !labels(p).contains("Change tier") && !labels(p).contains("Rival teams")
+                    && labels(p).contains("Replay the difficulty guide")));
+        }
+        data.setPersonalEnabled(true);
+        for (GuiOpenPacket p : keep("v78 tiers on", () -> UltraGui.open(player, "difficulty", "tiers"))) {
+            note("V78 Difficulty on: Tiers lists the tiers: " + pf(labels(p).contains("[T1")));
+            boolean active = data.getActiveTier() > 0;
+            note("V78 Clear active tier sits in the Tiers list when a tier is active: " + pf(!active
+                    || labels(p).contains("Clear active tier")) + (active ? "" : " (no active tier on the probe account)"));
+        }
+        for (GuiOpenPacket p : keep("v78 home on", () -> UltraGui.open(player, "difficulty", "main"))) {
+            note("V78 Clear active tier is gone from Home: " + pf(!labels(p).contains("Clear active tier")));
+        }
+        data.setPersonalEnabled(wasOn);
+        for (GuiOpenPacket p : keep("v78 guide step 3", () -> UltraGui.open(player, "difficulty", "guide_your_tier"))) {
+            String l = labels(p);
+            note("V78 guide Step 3 shows only Got it (plus the guide footer): " + pf(l.contains("Got it")
+                    && !l.contains("Titles") && !l.contains("Difficulty - ") && !l.contains("Clear active tier")
+                    && !l.contains("Server tools") && !l.contains("Coin messages") && !l.contains("Rival teams")) + " | " + l);
+        }
+        // C: rival teams gone; a grouped player scales personally only.
+        for (GuiOpenPacket p : keep("v78 old team link", () -> UltraGui.open(player, "difficulty", "team"))) {
+            note("V78 no Rival teams page or route (old link opens Difficulty): " + pf(!has(p, "Rival teams")
+                    && PageRegistry.find("difficulty", "team") == null));
+        }
+        var snap = com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache.refresh(player);
+        note("V78 scaling is personal only (no team threshold or contribution): " + pf(snap != null
+                && snap.teamThresholdBonus == 0L && snap.teamContribution == 0L));
+        // D: Sparring Home / Leaderboard; Dojo its own system; old links land on Dojo pages.
+        for (GuiOpenPacket p : keep("v78 spar home", () -> UltraGui.open(player, "spar", "main"))) {
+            String l = labels(p);
+            note("V78 Sparring Home: no board button, Weights and TP Chat, tabs Home/Leaderboard/Spar Board: "
+                    + pf(!l.contains("Open the Spar Board") && l.contains("Weights") && l.contains("TP Chat")
+                    && !l.contains("Hall of Infamy") && p.buttonsJson().contains("tab:leaderboard")
+                    && !p.buttonsJson().contains("tab:dojo")) + " | " + l);
+        }
+        for (GuiOpenPacket p : keep("v78 spar leaderboard", () -> UltraGui.open(player, "spar", "leaderboard"))) {
+            note("V78 Sparring Leaderboard tab holds Hall of Infamy and Your stats: " + pf(labels(p).contains("Hall of Infamy")
+                    && labels(p).contains("Your stats")));
+        }
+        for (GuiOpenPacket p : keep("v78 dojo home", () -> UltraGui.open(player, "dojo", "home"))) {
+            note("V78 Dojo opens as its own system, tabs Home/Upgrades/Wars: " + pf("dojo".equals(p.screenId())
+                    && p.buttonsJson().contains("tab:home") && p.buttonsJson().contains("tab:dojo_upgrades")
+                    && p.buttonsJson().contains("tab:dojo_wars")));
+        }
+        String[][] old = {{"dojo_upgrades", "dojo_upgrades"}, {"dojo_style", "dojo_style"}, {"dojo_wars", "dojo_wars"},
+                {"mentor", "mentor"}, {"dojo_roster", "dojo_roster"}, {"dojo_list", "dojo_list"}, {"dojo", "home"}};
+        for (String[] o : old) {
+            for (GuiOpenPacket p : keep("v78 old link " + o[0], () -> UltraGui.open(player, "spar", o[0]))) {
+                note("V78 old Sparring link spar|" + o[0] + " lands on dojo|" + o[1] + ": " + pf("dojo".equals(p.screenId())
+                        && o[1].equals(p.pageId())) + " | got " + p.screenId() + "|" + p.pageId());
+            }
+        }
+        // D: founding on a stand-in with no dojo: name, style, banner; no banner refuses; the banner item stays.
+        ServerPlayer f = dojoStandIn("Founder78");
+        com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().dojos.remove(f.m_20148_().toString());
+        var gui = com.dbzlegacy.adaptivedifficulty.gui.ultra.DojoFounding.class;
+        JsonObject named = new JsonObject();
+        named.addProperty("value", "Probe Hall");
+        List<GuiOpenPacket> st1 = UltraScreenSpec.captureSends(() ->
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.DojoFounding.handle(f, "dojo_found_name", "", named));
+        note("V78 founding step 1 takes the typed name, then asks for a style: " + pf(!st1.isEmpty()
+                && "found_style".equals(st1.get(0).pageId()) && has(st1.get(0), "Probe Hall")));
+        List<GuiOpenPacket> st2 = UltraScreenSpec.captureSends(() ->
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.DojoFounding.handle(f, "dojo_found_style", "KI", new JsonObject()));
+        boolean noBanner = !st2.isEmpty() && "found_banner".equals(st2.get(0).pageId()) && has(st2.get(0), "You have no banner")
+                && !labels(st2.get(0)).contains("Use:");
+        note("V78 founding without a banner says to make one and offers nothing to found: " + pf(noBanner));
+        var bannerItem = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(
+                new net.minecraft.resources.ResourceLocation("minecraft", "red_banner"));
+        var stack = new net.minecraft.world.item.ItemStack(bannerItem);
+        var be = stack.m_41698_("BlockEntityTag");
+        var pats = new net.minecraft.nbt.ListTag();
+        var pt = new net.minecraft.nbt.CompoundTag();
+        pt.m_128359_("Pattern", "cr");
+        pt.m_128405_("Color", 4);
+        pats.add(pt);
+        be.m_128365_("Patterns", pats);
+        f.m_150109_().m_36054_(stack);
+        int before = bannersOf(f, bannerItem);
+        List<GuiOpenPacket> st3 = UltraScreenSpec.captureSends(() ->
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.DojoFounding.handle(f, "dojo_found_style", "KI", new JsonObject()));
+        String src = "";
+        if (!st3.isEmpty()) {
+            for (JsonElement el : JsonParser.parseString(st3.get(0).buttonsJson()).getAsJsonArray()) {
+                String id = el.getAsJsonObject().has("id") ? el.getAsJsonObject().get("id").getAsString() : "";
+                int k = id.indexOf("do:dojo_found_banner:");
+                if (k >= 0) {
+                    src = id.substring(k + "do:dojo_found_banner:".length());
+                }
+            }
+        }
+        final String source = src;
+        List<GuiOpenPacket> st4 = UltraScreenSpec.captureSends(() ->
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.DojoFounding.handle(f, "dojo_found_banner", source, new JsonObject()));
+        note("V78 founding lists the carried banner and confirms name, style and banner: " + pf(!source.isEmpty() && !st4.isEmpty()
+                && "found_confirm".equals(st4.get(0).pageId()) && has(st4.get(0), "Probe Hall") && has(st4.get(0), "Red, 1 pattern")));
+        UltraScreenSpec.captureSends(() ->
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.DojoFounding.handle(f, "dojo_found_confirm", "", new JsonObject()));
+        var made = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.dojoOf(f);
+        note("V78 founding makes the dojo with the typed name, the style and the banner; the banner item is kept: "
+                + pf(made != null && "Probe Hall".equals(made.name) && "KI".equals(made.style) && "red".equals(made.bannerBase)
+                && made.bannerPatterns.size() == 1 && bannersOf(f, bannerItem) == before && made.identityChangedAt == 0L)
+                + " | " + (made == null ? "no dojo" : made.name + "/" + made.style + "/" + made.bannerBase));
+        if (made != null) {
+            List<GuiOpenPacket> home = UltraScreenSpec.captureSends(() -> UltraGui.open(f, "dojo", "home"));
+            note("V78 Dojo Home shows name, style and banner: " + pf(!home.isEmpty() && has(home.get(0), "Probe Hall")
+                    && has(home.get(0), "Ki") && has(home.get(0), "Red, 1 pattern")));
+            // Amendment: changes cost Dojo Points and share one 12-hour cooldown.
+            made.points = 5;
+            String poor = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.rename(f, "Probe Keep");
+            note("V78 rename refuses without 20 Dojo Points: " + pf(poor.contains("costs 20") && "Probe Hall".equals(made.name)));
+            made.points = 100;
+            String ok = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.rename(f, "Probe Keep");
+            note("V78 rename costs 20 and starts the cooldown: " + pf("Probe Keep".equals(made.name) && made.points == 80
+                    && made.identityChangedAt > 0L) + " | " + ok);
+            String again = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.setStyle(f, "MELEE");
+            note("V78 style change refused during the 12-hour cooldown: " + pf(again.contains("can change again")
+                    && "KI".equals(made.style) && made.points == 80));
+            List<GuiOpenPacket> cdHome = UltraScreenSpec.captureSends(() -> UltraGui.open(f, "dojo", "home"));
+            note("V78 Dojo Home shows the changes dim with the time left: " + pf(!cdHome.isEmpty()
+                    && labels(cdHome.get(0)).contains("Rename in")));
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().dojos.remove(f.m_20148_().toString());
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().markDirty();
+        }
+    }
+
     /** Put every HUD element up (the HUD on the LM client; boss bars and chat on a bridge stage). */
     private void hudShowAll(int tpMs) {
         var srv = player.m_20194_();
@@ -2778,7 +2967,7 @@ public final class UiProbe {
                     LmHud.accentOf("character"), "", tpMs, false);
             LmHud.show(player, LmHud.COINS, List.of(UltraStyle.color("6", "+ "
                     + com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.formatExactCost(340L)) + " "
-                    + UltraStyle.LABEL + "Coins"), -1f, "#f0b429", "", tpMs, false);
+                    + UltraStyle.LABEL + "Coins"), -1f, LmHud.ACCENT_CURRENCY, "", tpMs, false);
             LmHud.show(player, LmHud.ELITE, List.of(eliteChip), -1f, LmHud.ACCENT_DIFFICULTY, "", 0, false);
             LmHud.show(player, LmHud.BOOST, List.of(UltraStyle.color("a", "TP x1.5") + " " + UltraStyle.LABEL + "- 42m left"),
                     -1f, LmHud.accentOf("prestige"), "open:prestige", 0, false);
@@ -2927,7 +3116,7 @@ public final class UiProbe {
 
     private static UltraScreenSpec mockSpar(String page, String tab) {
         UltraScreenSpec s = UltraScreenSpec.of("spar").fitMenu().title("Sparring").page(page);
-        return tab == null ? s : s.activeTab(tab).tabs("home|Home", "dojo|Dojo", "sparboard|Spar Board");
+        return tab == null ? s : s.activeTab(tab).tabs("home|Home", "leaderboard|Leaderboard", "sparboard|Spar Board");
     }
 
     private void mockCrawl() {
@@ -3043,7 +3232,15 @@ public final class UiProbe {
         java.util.UUID u = player.m_20148_();
         NavHistory.clear(u);
         UltraHubScreens.searchFor(player, "");
-        mock("main menu search row", () -> UltraGui.open(player, "hub", "main"));
+        mock("more tab search row", () -> UltraGui.open(player, "hub", "more"));
+        mock("main menu", () -> UltraGui.open(player, "hub", "main"));
+        mock("sparring home", () -> UltraGui.open(player, "spar", "main"));
+        mock("sparring leaderboard", () -> UltraGui.open(player, "spar", "leaderboard"));
+        mock("dojo home", () -> UltraGui.open(player, "dojo", "home"));
+        mock("dojo upgrades", () -> UltraGui.open(player, "dojo", "dojo_upgrades"));
+        mock("dojo wars", () -> UltraGui.open(player, "dojo", "dojo_wars"));
+        mock("difficulty home", () -> UltraGui.open(player, "difficulty", "main"));
+        mock("difficulty tiers", () -> UltraGui.open(player, "difficulty", "tiers"));
         JsonObject args = new JsonObject();
         args.addProperty("screen", "hub");
         args.addProperty("page", "main");

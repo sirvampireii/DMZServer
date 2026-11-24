@@ -48,7 +48,6 @@ public final class PlayerDifficultyData {
     // ── Temporary (death / character-reset clears) ─────────────────────────
     private int activeTier;
     private long activeDifficultyLevel;
-    private TeamMode teamMode = TeamMode.PERSONAL_ONLY;
 
     // Legacy migration fields (not used by V3 logic after load)
     private long legacyPurchased;
@@ -168,7 +167,6 @@ public final class PlayerDifficultyData {
     public void resetTemporary() {
         this.activeTier = 0;
         this.activeDifficultyLevel = 0L;
-        this.teamMode = TeamMode.PERSONAL_ONLY;
     }
 
     public long getAncientCopper() {
@@ -196,15 +194,6 @@ public final class PlayerDifficultyData {
             long next = base + amount;
             ancientCopper = next < base ? Long.MAX_VALUE / 4L : next;
         }
-    }
-
-    /** Persisted team scaling mode (rival mutual teammates). */
-    public TeamMode getTeamMode() {
-        return teamMode == null ? TeamMode.PERSONAL_ONLY : teamMode;
-    }
-
-    public void setTeamMode(TeamMode teamMode) {
-        this.teamMode = teamMode == null ? TeamMode.PERSONAL_ONLY : teamMode;
     }
 
     public List<String> getTitles() {
@@ -289,7 +278,6 @@ public final class PlayerDifficultyData {
         tag.m_128405_("activeTier", activeTier); // putInt
         tag.m_128356_("activeLevel", activeDifficultyLevel);
         tag.m_128356_("ancientCopper", ancientCopper);
-        tag.m_128359_("teamMode", getTeamMode().name());
         ListTag tiers = new ListTag();
         for (Integer id : unlockedTiers) {
             CompoundTag t = new CompoundTag();
@@ -334,7 +322,8 @@ public final class PlayerDifficultyData {
         activeTier = Math.max(0, tag.m_128451_("activeTier")); // getInt
         activeDifficultyLevel = Math.max(0L, tag.m_128454_("activeLevel"));
         ancientCopper = Math.max(0L, tag.m_128454_("ancientCopper"));
-        teamMode = TeamMode.fromString(tag.m_128461_("teamMode"));
+        // 4.7.78: rival teams are gone; a stored team mode is dropped (everyone is personal-only).
+        tag.m_128473_("teamMode");
         // Missing keys → defaults (OFF for personal, OFF for coin chat).
         personalEnabled = tag.m_128441_("personalEnabled") && tag.m_128471_("personalEnabled");
         coinDropChat = tag.m_128441_("coinDropChat") && tag.m_128471_("coinDropChat");

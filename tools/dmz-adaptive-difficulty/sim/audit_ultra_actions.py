@@ -1203,26 +1203,9 @@ def main() -> int:
     )
     spar_home_body = spar_home_m.group(0) if spar_home_m else ""
     diff_screens = (ULTRA / "UltraDifficultyScreens.java").read_text(encoding="utf-8")
-    team_m = re.search(
-        r"private static void openTeam\b.*?^\s*private static void ",
-        diff_screens,
-        re.S | re.M,
-    )
-    team_body = team_m.group(0) if team_m else ""
-    notice_m = re.search(
-        r"private static void openTeamNotice\b.*?^\s*private static void ",
-        diff_screens,
-        re.S | re.M,
-    )
-    notice_body = notice_m.group(0) if notice_m else ""
-    if ".back()" not in team_body:
-        errors.append("UltraDifficultyScreens.openTeam must pin Back (to Difficulty Home) + Main menu")
-    if "openFeatureLocked" in team_body:
-        errors.append(
-            "UltraDifficultyScreens.openTeam must not use the tabbed locked page (no left Back)"
-        )
-    if ".back()" not in notice_body:
-        errors.append("UltraDifficultyScreens.openTeamNotice must pin Back (to Difficulty Home) + Main menu")
+    # 4.7.78: rival teams are gone; no team page, route or mode may come back.
+    if "openTeam" in diff_screens or "team|Rival teams" in diff_screens or '"team", "teams"' in diff_screens:
+        errors.append("Difficulty must not have a Rival teams page, button or route (removed in 4.7.78)")
     diff_home_m = re.search(
         r"private static void openHome\b.*?^\s*private static void ",
         diff_screens,
@@ -1239,10 +1222,6 @@ def main() -> int:
     staff_body = staff_m.group(0) if staff_m else ""
     if "page:eventlog" not in staff_body:
         errors.append("Server tools must keep the Event log submenu")
-    if "do:toggle_personal" in team_body:
-        errors.append("Rival teams mode page must not offer the difficulty toggle")
-    if "do:mode:personal" not in team_body or "do:mode:threshold" not in team_body or "do:mode:full" not in team_body:
-        errors.append("Rival teams page must keep Personal, Threshold, and Full team")
     if "Personal ON" in diff_screens or "Personal OFF" in diff_screens:
         errors.append("Difficulty toggle must say Difficulty - ON/OFF, not Personal")
     if '"Difficulty: ' in diff_screens:
@@ -1273,10 +1252,15 @@ def main() -> int:
         errors.append("UltraSparScreens.openHome must not show Session/Partner (staff Admin only)")
     if "mentor|Mentor bonds" in spar_home_body or "top|Rankings" in spar_home_body:
         errors.append("UltraSparScreens.openHome must not offer Mentor bonds or a Rankings label")
-    if "infamy|Hall of Infamy" not in spar_home_body:
-        errors.append("UltraSparScreens.openHome must label the board Hall of Infamy")
-    if "stats|Your stats" not in spar_home_body:
-        errors.append("UltraSparScreens.openHome must offer Your stats")
+    # 4.7.78: Hall of Infamy and Your stats live on the Leaderboard tab, not Home.
+    spar_lb_m = re.search(r"private static void openLeaderboard\b.*?^\s*private static void ", spar_home, re.S | re.M)
+    spar_lb_body = spar_lb_m.group(0) if spar_lb_m else ""
+    if "infamy|Hall of Infamy" not in spar_lb_body:
+        errors.append("UltraSparScreens Leaderboard tab must label the board Hall of Infamy")
+    if "stats|Your stats" not in spar_lb_body:
+        errors.append("UltraSparScreens Leaderboard tab must offer Your stats")
+    if "infamy|Hall of Infamy" in spar_home_body or "stats|Your stats" in spar_home_body:
+        errors.append("UltraSparScreens.openHome must not offer Hall of Infamy or Your stats (Leaderboard tab)")
     if 'danger("Staff Admin")' not in spar_home_body or 'UltraStyle.STYLE_DANGER' not in spar_home_body:
         errors.append("UltraSparScreens.openHome Staff Admin must be danger/red")
     if "admin|Staff Admin" in spar_home_body:

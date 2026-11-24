@@ -651,3 +651,6 @@ already matched the 4.7.59 baseline. No signature changed. The other 23 are unch
 ## Re-baseline (2026-11-21, 4.7.62 menu skins)
 
 - `AdaptiveDifficultyMod.class`: VERSION 4.7.62 only. The other 24 are unchanged.
+
+`AdaptiveDifficultyMod` and `config/editor/ConfigFieldHelp` re-baselined for `LegacyMechanics-4.7.78.jar`: rival teams
+were removed (the startup log no longer reports FTB Teams; the team settings' help lines are gone with the settings).

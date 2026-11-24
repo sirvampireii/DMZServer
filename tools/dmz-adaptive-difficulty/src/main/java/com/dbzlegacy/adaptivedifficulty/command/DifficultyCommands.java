@@ -905,18 +905,6 @@ public final class DifficultyCommands {
                         cfg.balanceTelemetryMaxPerSecond = Math.max(1, Math.min(40, Integer.parseInt(value)));
                 case "prestigemultiplier" -> cfg.prestigeMultiplier = Double.parseDouble(value);
                 case "levelmultiplier" -> cfg.levelMultiplier = Double.parseDouble(value);
-                case "teambonus", "teambonuspercent" -> cfg.teamBonusPercent = Double.parseDouble(value);
-                case "contribution", "contributionpercent" -> cfg.contributionPercent = Double.parseDouble(value);
-                case "teamelitechance", "teamelitechancebonus", "teamelitechancebonuspercent" ->
-                        cfg.teamEliteChanceBonusPercent = Math.max(0.0, Math.min(10.0, Double.parseDouble(value)));
-                case "teammutationchance", "teammutationchancebonus", "teammutationchancebonuspercent" ->
-                        cfg.teamMutationChanceBonusPercent = Math.max(0.0, Math.min(10.0, Double.parseDouble(value)));
-                case "teambossthreshold", "teambossthresholdbonus", "teambossthresholdbonuspercent" ->
-                        cfg.teamBossThresholdBonusPercent = Math.max(0.0, Math.min(50.0, Double.parseDouble(value)));
-                case "teambosspromotion", "teambosspromotionchance", "teambosspromotionchancepercent" ->
-                        cfg.teamBossPromotionChancePercent = Math.max(0.0, Math.min(5.0, Double.parseDouble(value)));
-                case "teamthresholdrarity", "teamthresholdraritymult" ->
-                        cfg.teamThresholdRarityMult = Math.max(0.0, Math.min(1.0, Double.parseDouble(value)));
                 case "rewardscaling" -> cfg.rewardScaling = Math.max(1.0, Double.parseDouble(value));
                 case "combatcurveexponent", "combatcurve", "offensecurve" ->
                         cfg.combatCurveExponent = Math.max(0.05, Math.min(1.0, Double.parseDouble(value)));
