@@ -153,8 +153,8 @@ public final class PageRegistry {
         p("spar", "dojo_up:garden", "Garden grounds", "spar|dojo_upgrades");
         p("spar", "dojo_up:capacity", "Disciple capacity", "spar|dojo_upgrades");
         p("spar", "dojo_style", "Style and bonus", "spar|dojo");
-        item("spar", "dojo_style_ask:*", "Change style", "spar|dojo_style");
-        item("spar", "dojo_bonus_ask:*", "Buy a bonus", "spar|dojo_style");
+        item("spar", "dojo_style_ask:**", "Change style", "spar|dojo_style");
+        item("spar", "dojo_bonus_ask:**", "Buy a bonus", "spar|dojo_style");
         p("spar", "dojo_elites", "Members and elites", "spar|dojo");
         p("spar", "dojo_wars", "Wars", "spar|dojo", "war bracket gauntlet");
         item("spar", "wars", "Wars", "spar|dojo");
@@ -163,14 +163,14 @@ public final class PageRegistry {
         item("spar", "dojo_war_pick:**", "Declare a war", "spar|dojo_wars");
         item("spar", "dojo_war_fmt:**", "War format", "spar|dojo_wars");
         item("spar", "dojo_war_view:**", "War", "spar|dojo_wars");
-        p("spar", "dojo_war_pending", "War invites", "spar|dojo_wars", "war requests");
+        item("spar", "dojo_war_pending", "War invites", "spar|dojo_wars");
         item("spar", "dojo_war_pending:**", "War invites", "spar|dojo_wars");
         // 4.7.73: the war pages' own buttons (Challenge dojo, Top dojos, Hall of Chosen) and the members aliases.
         item("spar", "pick_dojo_challenge", "Challenge a dojo", "spar|dojo_wars");
         item("spar", "pick_dojo_challenge:*", "Challenge a dojo", "spar|dojo_wars");
-        p("spar", "dojo_top_rp", "Top dojos", "spar|dojo_wars", "dojo leaderboard reputation ranking");
+        item("spar", "dojo_top_rp", "Top dojos", "spar|dojo_wars");
         item("spar", "dojo_top_wars", "Top dojos", "spar|dojo_wars");
-        p("spar", "dojo_hof", "Hall of Chosen", "spar|dojo_wars", "past seasons champions");
+        item("spar", "dojo_hof", "Hall of Chosen", "spar|dojo_wars");
         item("spar", "dojo_members", "Dojo members", "spar|dojo_roster");
         item("spar", "dojo_previous_members", "Previous members", "spar|dojo_roster");
         item("spar", "dojo_war_pending_decide:**", "War invite", "spar|dojo_war_pending");
