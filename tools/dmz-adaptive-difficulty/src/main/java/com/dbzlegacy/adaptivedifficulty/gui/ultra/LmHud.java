@@ -193,6 +193,8 @@ public final class LmHud {
     public static void forget(ServerPlayer player) {
         if (player != null) {
             LAST.remove(player.m_20148_());
+            com.dbzlegacy.adaptivedifficulty.progression.skills.PotentialProgression.forgetHud(player.m_20148_());
+            com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.forgetToast(player.m_20148_());
         }
     }
 

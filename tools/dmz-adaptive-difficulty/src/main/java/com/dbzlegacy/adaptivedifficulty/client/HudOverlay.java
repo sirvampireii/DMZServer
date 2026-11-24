@@ -132,6 +132,8 @@ final class HudOverlay {
     private static final Slot[] TOP_EXTRA = {ELITE, BOOST};
     /** 4.7.76: the top stack stays in the upper part of the screen so the right-edge cards keep their place. */
     static final float TOP_SHARE = 0.42f;
+    /** 4.7.77: the top stack's narrowest width, even with many status-effect icons. */
+    static final int TOP_MIN_W = 160;
     /** 4.7.75: the bottom-right row, stacking upward from the Momentum meter's place. */
     private static final Slot[] BOTTOM = {MOMENTUM, SPAR, POTENTIAL};
     /** Every single-slot element (cards are separate). */
@@ -376,7 +378,8 @@ final class HudOverlay {
         // the upper TOP_SHARE of the screen. 4.7.76: when not everything fits, the core pills (Underdog, fight,
         // penalty, TP notice) keep their place and the elite and boost chips wait (they are steady, not urgent).
         int y = Math.max(EDGE, bossBottom + 2);
-        int topCap = sw - 2 * Math.max(EDGE, effectCols * EFFECT_COL + EDGE);
+        // 4.7.77: never narrower than TOP_MIN_W (a pill over an effect icon beats unreadable "..." text).
+        int topCap = Math.max(Math.min(TOP_MIN_W, sw - 2 * EDGE), sw - 2 * Math.max(EDGE, effectCols * EFFECT_COL + EDGE));
         int topBudget = Math.max(0, (int) (sh * TOP_SHARE) - y);
         int used = 0;
         for (Slot s : TOP) {
@@ -496,7 +499,7 @@ final class HudOverlay {
         MenuSkins.Skin skin = MenuLook.skin();
         boolean lite = MenuLook.lite();
         HudChrome.Baked b = s.baked;
-        if (b == null || s.bakedW != w || s.bakedH != s.h || s.bakedScale != scale || s.bakedLite != lite
+        if (b == null || b.gone()[0] || s.bakedW != w || s.bakedH != s.h || s.bakedScale != scale || s.bakedLite != lite
                 || s.bakedAccent != s.accentRgb || s.bakedSkin != skin) {
             b = HudChrome.get(w, s.h, scale, skin, lite, s.accentRgb);
             s.baked = b;
@@ -701,7 +704,8 @@ final class HudOverlay {
     static final class HudChrome {
         private HudChrome() {}
 
-        record Baked(ResourceLocation id, int tw, int th, int pad) {}
+        /** {@code gone[0]} turns true when the cache releases the texture, so a slot holding it re-bakes (4.7.77). */
+        record Baked(ResourceLocation id, int tw, int th, int pad, boolean[] gone) {}
 
         private static final int CACHE = 24;
         private static final Map<String, Baked> BAKED = new LinkedHashMap<>(32, 0.75f, true);
@@ -760,12 +764,13 @@ final class HudOverlay {
                 tex.m_117960_(true, false);
                 ResourceLocation id = new ResourceLocation(AdaptiveDifficultyMod.MOD_ID, "hud_bake/" + (counter++));
                 Minecraft.m_91087_().m_91097_().m_118495_(id, tex);
-                Baked b = new Baked(id, tw, th, pad);
+                Baked b = new Baked(id, tw, th, pad, new boolean[1]);
                 BAKED.put(key, b);
                 while (BAKED.size() > CACHE) {
                     Iterator<Map.Entry<String, Baked>> it = BAKED.entrySet().iterator();
                     Baked old = it.next().getValue();
                     it.remove();
+                    old.gone()[0] = true;
                     Minecraft.m_91087_().m_91097_().m_118513_(old.id());
                 }
                 return b;
@@ -797,6 +802,7 @@ final class HudOverlay {
 
         static void clear() {
             for (Baked b : BAKED.values()) {
+                b.gone()[0] = true;
                 Minecraft.m_91087_().m_91097_().m_118513_(b.id());
             }
             BAKED.clear();

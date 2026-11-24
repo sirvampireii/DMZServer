@@ -863,6 +863,8 @@ public final class DifficultyEvents {
             com.dbzlegacy.adaptivedifficulty.rival.ProvingGroundsBar.tick(player);
         }
         if (SystemGate.isDisabled() || !SystemGate.allows(player)) {
+            // 4.7.77: difficulty off for this player: the elite sense chip must not stay on screen.
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ELITE);
             return;
         }
         // Level / prestige / transform-power / form-mult poll.

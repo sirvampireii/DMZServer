@@ -332,6 +332,14 @@ public final class DojoService {
     }
 
     /** Dojos by clout, highest first (open dojos only). */
+    /** 4.7.77: open dojos by war wins (then clout), for the leaderboard's war view. */
+    public static List<Dojo> byWarWins() {
+        List<Dojo> out = byClout();
+        out.sort(Comparator.comparingInt((Dojo d) -> -d.warWins).thenComparingInt(d -> -d.clout)
+                .thenComparing(d -> d.name));
+        return out;
+    }
+
     public static List<Dojo> byClout() {
         List<Dojo> out = new ArrayList<>();
         for (Dojo d : store().dojos.values()) {

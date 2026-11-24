@@ -196,6 +196,7 @@ public final class PotentialProgression {
             ProgressionData.storedRemove(player, "potential_last_move_z");
             ProgressionData.storedRemove(player, "potential_movement_valid_until");
             ProgressionData.storedPut(player, "potentialunlock_last_known_level", current);
+            HUD_LAST.remove(player.m_20148_());          // 4.7.77: the old numbers no longer apply
             potentialSubtitle(
                     player,
                     "Progress requirements were reset because your Potential level was lowered.",
@@ -377,6 +378,21 @@ public final class PotentialProgression {
     }
 
     /** Potential notices are subtitles only (no chat). */
+    private static final class HintRun {
+        long at;
+        final java.util.List<String> lines = new java.util.ArrayList<>();
+    }
+
+    private static final java.util.Map<java.util.UUID, HintRun> HUD_HINTS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 4.7.77: drop a player's HUD state on logout. */
+    public static void forgetHud(java.util.UUID id) {
+        if (id != null) {
+            HUD_LAST.remove(id);
+            HUD_HINTS.remove(id);
+        }
+    }
+
     /** 4.7.75: last Potential progress shown per player (the hints reuse it). */
     private static final java.util.Map<java.util.UUID, int[]> HUD_LAST = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -402,7 +418,19 @@ public final class PotentialProgression {
             lines.add(com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL + "Potential");
         }
         if (hint != null) {
-            lines.add(hint);
+            // 4.7.77: notices sent together (a failed level-up sends three) stack instead of replacing each other.
+            long now = System.currentTimeMillis();
+            HintRun run = HUD_HINTS.get(player.m_20148_());
+            if (run == null || now - run.at > 250L) {
+                run = new HintRun();
+                HUD_HINTS.put(player.m_20148_(), run);
+            }
+            run.at = now;
+            if (run.lines.size() >= 3) {
+                run.lines.remove(0);
+            }
+            run.lines.add(hint);
+            lines.addAll(run.lines);
         }
         com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.POTENTIAL, lines, bar, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("character"), "", com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.POTENTIAL_MS, false);
     }

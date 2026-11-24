@@ -668,20 +668,21 @@ public final class UltraRivalScreens {
         boolean tpOn = "true".equalsIgnoreCase(ph.getOrDefault("tpMsg", ph.getOrDefault("tp_msg", "false")));
         boolean instinctOn = "true".equalsIgnoreCase(ph.getOrDefault("instinct", "false"));
         UltraScreenSpec spec = sub("settings")
-                .line(UltraStyle.LABEL + "Rival chat and instinct toggles.")
-                .labelValue("TP Chat", tpOn ? "ON" : "OFF")
-                .labelValue("Instinct", instinctOn ? "ON" : "OFF")
+                // 4.7.77: each state shows once, on its toggle; the lines say what the toggles do. An OFF toggle is drawn
+                // normal (dim is the disabled look, and the button still works).
+                .line(UltraStyle.LABEL + "TP Chat: a chat line for each rival TP award.")
+                .line(UltraStyle.LABEL + "Instinct: alerts when a mutual rival or nemesis is near.")
                 .buttonsAfterLines();
         spec.buttonLeft(
                         "do:tpmsg:toggle",
-                        tpOn ? UltraStyle.confirm("TP Chat - ON") : UltraStyle.dim("TP Chat - OFF"),
-                        tpOn ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM)
+                        tpOn ? UltraStyle.confirm("TP Chat - ON") : "TP Chat - OFF",
+                        tpOn ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL)
                 .buttonRight(
                         "do:instinct",
                         instinctOn
                                 ? UltraStyle.confirm("Instinct - ON")
-                                : UltraStyle.dim("Instinct - OFF"),
-                        instinctOn ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM)
+                                : "Instinct - OFF",
+                        instinctOn ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL)
                 .rowGap();
         spec.back();
         spec.send(player);

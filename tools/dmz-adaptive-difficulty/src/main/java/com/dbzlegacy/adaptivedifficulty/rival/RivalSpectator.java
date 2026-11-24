@@ -51,6 +51,7 @@ public final class RivalSpectator {
             return "§cInvalid.";
         }
         SpecState removed = ACTIVE.remove(spectator.m_20148_());
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(spectator, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT);
         if (removed == null) {
             return "§7Not spectating.";
         }

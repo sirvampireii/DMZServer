@@ -28,7 +28,11 @@ public final class TitleSense {
     private TitleSense() {}
 
     public static void pulse(ServerPlayer player) {
-        if (player == null || !SystemGate.participates(player)) {
+        if (player == null) {
+            return;
+        }
+        if (!SystemGate.participates(player)) {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ELITE);
             return;
         }
         PlayerDifficultyData data = DifficultyCache.data(player);
