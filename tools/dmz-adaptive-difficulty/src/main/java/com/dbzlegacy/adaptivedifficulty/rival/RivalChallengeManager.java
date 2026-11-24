@@ -480,6 +480,8 @@ public final class RivalChallengeManager {
                 continue;
             }
             if (ch.status == RivalChallenge.Phase.COUNTDOWN) {
+                fightHud(a, ch, now, false);
+                fightHud(b, ch, now, false);
                 if (now >= ch.countdownUntil) {
                     if (a == null || b == null) {
                         endChallenge(server, ch, a != null ? ch.a : ch.b, a == null ? ch.a : ch.b, false, "disconnect");
@@ -497,12 +499,16 @@ public final class RivalChallengeManager {
                 continue;
             }
             if (ch.status == RivalChallenge.Phase.ACTIVE) {
-                if (distance(a, b) > RivalConstants.CH_MAX_DISTANCE * 2.0) {
+                boolean far = distance(a, b) > RivalConstants.CH_MAX_DISTANCE * 2.0;
+                // 4.7.75: HUD players see the score, clock and range warning on the fight pill instead of chat.
+                fightHud(a, ch, now, far);
+                fightHud(b, ch, now, far);
+                if (far) {
                     // Script: warn only — fight continues (do not force-end as draw).
                     if (now - ch.lastBroadcastAt >= 3_000L) {
                         ch.lastBroadcastAt = now;
-                        DmzRewards.msg(a, LmChat.fail("Challenge", "Too far apart. Return within range."));
-                        DmzRewards.msg(b, LmChat.fail("Challenge", "Too far apart. Return within range."));
+                        chatUnlessHud(a, LmChat.fail("Challenge", TOO_FAR));
+                        chatUnlessHud(b, LmChat.fail("Challenge", TOO_FAR));
                     }
                 }
                 if (now >= ch.endsAt) {
@@ -514,8 +520,8 @@ public final class RivalChallengeManager {
                         : RivalConstants.CH_BROADCAST_SCORE_MS;
                 if (now - ch.lastBroadcastAt >= scoreInterval) {
                     ch.lastBroadcastAt = now;
-                    DmzRewards.msg(a, scoreLine(ch));
-                    DmzRewards.msg(b, scoreLine(ch));
+                    chatUnlessHud(a, scoreLine(ch));
+                    chatUnlessHud(b, scoreLine(ch));
                 }
             }
         }
@@ -565,6 +571,10 @@ public final class RivalChallengeManager {
         }
         ch.status = RivalChallenge.Phase.ENDED;
         ch.knockout = knockout;
+        for (UUID u : new UUID[] {ch.a, ch.b}) {
+            ServerPlayer p = server == null || u == null ? null : server.m_6846_().m_11259_(u);
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(p, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT);
+        }
         ch.endReason = reason == null ? "" : reason;
         ch.winner = winner;
         ch.loser = loser;
@@ -1144,8 +1154,52 @@ public final class RivalChallengeManager {
     }
 
     private static String scoreLine(RivalChallenge ch) {
-        return LmChat.tagged("Challenge", "§f" + ch.nameA + " §e" + (int) ch.damageA
-                + " §7- §e" + (int) ch.damageB + " §f" + ch.nameB);
+        return LmChat.tagged("Challenge", scoreBody(ch));
+    }
+
+    /** The score as the chat line shows it (names and damage), without the tag; the HUD pill's first line. */
+    public static String scoreBody(RivalChallenge ch) {
+        return "§f" + ch.nameA + " §e" + (int) ch.damageA + " §7- §e" + (int) ch.damageB + " §f" + ch.nameB;
+    }
+
+    static final String TOO_FAR = "Too far apart. Return within range.";
+
+    /** Chat for players without the HUD; a HUD player has it on the fight pill. */
+    private static void chatUnlessHud(ServerPlayer p, String line) {
+        if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(p)) {
+            DmzRewards.msg(p, line);
+        }
+    }
+
+    /**
+     * 4.7.75 fight pill lines: the score (or "A vs B" before the start), the clock, and the range warning while the
+     * fighters are too far apart. Same words as the chat lines.
+     */
+    public static java.util.List<String> fightLines(RivalChallenge ch, long now, boolean far) {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        if (ch.status == RivalChallenge.Phase.COUNTDOWN) {
+            lines.add(com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("f", ch.nameA) + " " + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("7", "vs") + " "
+                    + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("f", ch.nameB));
+            lines.add(com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL + "Starting in "
+                    + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("f", Math.max(1L, (ch.countdownUntil - now + 999L) / 1000L) + "s"));
+            return lines;
+        }
+        lines.add(scoreBody(ch));
+        lines.add(com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL + com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.clock(ch.endsAt - now) + " left");
+        if (far) {
+            lines.add(com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("c", TOO_FAR));
+        }
+        return lines;
+    }
+
+    private static void fightHud(ServerPlayer p, RivalChallenge ch, long now, boolean far) {
+        if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(p)) {
+            return;
+        }
+        float progress = ch.status == RivalChallenge.Phase.ACTIVE && ch.durationMs > 0
+                ? (float) Math.max(0.0, Math.min(1.0, (ch.endsAt - now) / (double) ch.durationMs)) : -1f;
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(p, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT, fightLines(ch, now, far), progress, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ACCENT_RIVAL,
+                "open:rival", 0, false);
     }
 
     private static String nameOf(RivalChallenge ch, UUID id) {

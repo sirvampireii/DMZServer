@@ -157,6 +157,35 @@ public final class Momentum {
         return "Momentum " + clock(left);
     }
 
+    /**
+     * 4.7.75: the server boost chip (global TP and mastery boosts with time left) for HUD players, once a second
+     * (sent only when its text changes). The purchase and end broadcasts stay in chat.
+     */
+    public static void boostHudPulse(net.minecraft.server.MinecraftServer server, int tick) {
+        if (server == null || tick % 20 != 10) {
+            return;
+        }
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        String tp = com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.hudLine();
+        String mastery = com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.hudLine();
+        if (tp != null) {
+            lines.add(tp);
+        }
+        if (mastery != null) {
+            lines.add(mastery);
+        }
+        for (ServerPlayer player : server.m_6846_().m_11314_()) {
+            if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+                continue;
+            }
+            if (lines.isEmpty()) {
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.BOOST);
+            } else {
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.BOOST, lines, -1f, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("prestige"), "open:prestige", 0, false);
+            }
+        }
+    }
+
     /** Mark that {@code player} is fighting a difficulty mob now (tests use it too). */
     public static void markFight(ServerPlayer player) {
         if (player != null) {

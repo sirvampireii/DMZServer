@@ -32,11 +32,43 @@ public final class LmHud {
     public static final String TP = "tp";
     public static final String PENALTY = "penalty";
     public static final String MOMENTUM = "momentum";
-    public static final List<String> ELEMENTS = List.of(UNDERDOG, INSTINCT, TP, PENALTY, MOMENTUM);
+    // 4.7.75 (docs/LM_HUD_EXPANSION_PROPOSAL.md): repeated chat moved to the HUD.
+    /** Rival challenge, spectated challenge, spar session or dojo war bout: names, score, clock, range warning. */
+    public static final String FIGHT = "fight";
+    /** Spar chip: Perfect Training, combo, recover countdown. */
+    public static final String SPAR = "spar";
+    /** Potential progress and the "switch methods" / "move" hints. */
+    public static final String POTENTIAL = "potential";
+    /** Ancient Coins dropped, summed over {@link #COIN_WINDOW_MS}. */
+    public static final String COINS = "coins";
+    /** Elite Hunter / Boss Slayer / Godslayer sense. */
+    public static final String ELITE = "elite";
+    /** Global TP and mastery boosts with time left. */
+    public static final String BOOST = "boost";
+    public static final List<String> ELEMENTS = List.of(UNDERDOG, INSTINCT, TP, PENALTY, MOMENTUM, FIGHT, SPAR,
+            POTENTIAL, COINS, ELITE, BOOST);
+    /** Elements that are events: each send shows (or refreshes) the element, so identical sends still go. */
+    static final java.util.Set<String> EVENTS = java.util.Set.of(INSTINCT, TP, COINS, POTENTIAL);
+    /** The coin toast sums drops within this window. */
+    public static final long COIN_WINDOW_MS = 5_000L;
+    /** Potential meter fades this long after the last training hit. */
+    public static final int POTENTIAL_MS = 8_000;
 
     /** Accents the client resolves in the player's menu skin. */
     public static final String ACCENT_RIVAL = "rival";
     public static final String ACCENT_DIFFICULTY = "difficulty";
+
+    /** A system's accent as {@code #rrggbb} (the same per-system colour menus use), for the HUD edge. */
+    public static String accentOf(String system) {
+        int rgb = SaiyanRoyal.accentHex(UltraStyle.systemAccentCode(system));
+        return rgb < 0 ? "" : String.format("#%06x", rgb & 0xFFFFFF);
+    }
+
+    /** {@code m:ss} for HUD clocks. */
+    public static String clock(long ms) {
+        long s = Math.max(0L, (ms + 999L) / 1000L);
+        return (s / 60L) + ":" + (s % 60L < 10L ? "0" : "") + (s % 60L);
+    }
 
     /** More tab toggle action ({@code do:hud_toggle}). */
     public static final String ACTION_TOGGLE = "hud_toggle";
@@ -122,7 +154,7 @@ public final class LmHud {
             return;
         }
         NativeHudPacket p = new NativeHudPacket(element, true, lines, progress, accent, action, durationMs, drain);
-        boolean event = INSTINCT.equals(element) || TP.equals(element);
+        boolean event = EVENTS.contains(element);
         Map<String, String> last = LAST.computeIfAbsent(player.m_20148_(), k -> new ConcurrentHashMap<>());
         String sig = p.signature();
         if (!event && sig.equals(last.get(element))) {

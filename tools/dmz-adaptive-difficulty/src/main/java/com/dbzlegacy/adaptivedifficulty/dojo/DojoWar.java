@@ -445,6 +445,7 @@ public final class DojoWar {
                         return;
                     }
                 }
+                boutHud(server, r, now);
                 if (now >= r.phaseUntil) {
                     double dx = r.dealt.getOrDefault(r.x, 0.0);
                     double dy = r.dealt.getOrDefault(r.y, 0.0);
@@ -511,6 +512,9 @@ public final class DojoWar {
             return;
         }
         r.boutDone = true;
+        for (UUID u : new UUID[] {r.x, r.y}) {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(u == null ? null : server.m_6846_().m_11259_(u), com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT);
+        }
         UUID loser = winner.equals(r.x) ? r.y : r.x;
         WarFight f = new WarFight();
         f.round = "GAUNTLET".equals(r.rec.format) ? r.nextIdx - 1 : r.roundNo;
@@ -600,6 +604,28 @@ public final class DojoWar {
     static void toStands(ServerPlayer p, Run r, ServerLevel level) {
         double x = r.cx - 15 + RNG.nextInt(30);
         DojoWorld.teleport(p, level, x, DojoWorld.FLOOR_Y + 5, r.cz + 26, 180.0f);
+    }
+
+    /**
+     * 4.7.75: the fight pill for the two fighters of a war bout (names, damage dealt, clock). The bout announcements
+     * stay in chat (they are a record of the war).
+     */
+    static void boutHud(MinecraftServer server, Run r, long now) {
+        for (UUID u : new UUID[] {r.x, r.y}) {
+            ServerPlayer p = u == null ? null : server.m_6846_().m_11259_(u);
+            if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(p)) {
+                continue;
+            }
+            int dx = (int) Math.round(r.dealt.getOrDefault(r.x, 0.0));
+            int dy = (int) Math.round(r.dealt.getOrDefault(r.y, 0.0));
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(p, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT, java.util.List.of(
+                    com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("f", name(r, r.x)) + " " + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("e", String.valueOf(dx)) + " "
+                            + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("7", "-") + " " + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("e", String.valueOf(dy)) + " "
+                            + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("f", name(r, r.y)),
+                    com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL + "War bout - " + com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.clock(r.phaseUntil - now) + " left"),
+                    (float) Math.max(0.0, Math.min(1.0, (r.phaseUntil - now) / (double) BOUT_MS)),
+                    com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("spar"), "open:spar", 0, false);
+        }
     }
 
     static String name(Run r, UUID u) {

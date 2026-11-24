@@ -173,6 +173,7 @@ public final class SparringSystem {
             tickReleaseControl(player, partner, rt, now);
             tickPerfectBanner(player, partner, rt, now);
             tickActivity(player, partner, rt, now);
+            sparHud(player, partner, rt, now);
             SparCombat.tickTpMessages(player, rt, now);
         }
         SparStore.get().saveIfNeeded(now);
@@ -617,6 +618,10 @@ public final class SparringSystem {
     public static void endSession(ServerPlayer player, ServerPlayer partner, String reason) {
         if (player == null) {
             return;
+        }
+        for (ServerPlayer p : new ServerPlayer[] {player, partner}) {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(p, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT);
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(p, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.SPAR);
         }
         SparPlayerRuntime aRt = runtime(player.m_20148_());
         if (!aRt.active) {
@@ -1114,6 +1119,51 @@ public final class SparringSystem {
         SparCombat.awardCombatTp(player, partner, rt, SparCombat.RELEASE_CONTROL_TP_PER_SEC, "release");
     }
 
+    static final String PERFECT_TEXT = "Perfect Training active";
+    /** The spar chip shows a combo break this long. */
+    static final long COMBO_BROKEN_SHOW_MS = 2_500L;
+
+    /**
+     * 4.7.75: the fight pill (both names, damage dealt and taken, time in the spar) and the spar chip (Perfect
+     * Training, combo, combo break, recover countdown) for HUD players. Sends only when the text changes.
+     */
+    private static void sparHud(ServerPlayer player, ServerPlayer partner, SparPlayerRuntime rt, long now) {
+        if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player) || !rt.active) {
+            return;
+        }
+        String me = player.m_7755_().getString();
+        String them = partner == null ? "?" : partner.m_7755_().getString();
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT, java.util.List.of(
+                UltraStyle.color("f", me) + " " + UltraStyle.color("e", String.valueOf((int) rt.sessionDmg)) + " "
+                        + UltraStyle.color("7", "-") + " " + UltraStyle.color("e", String.valueOf((int) rt.sessionTaken))
+                        + " " + UltraStyle.color("f", them),
+                UltraStyle.LABEL + "Spar - " + com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.clock(now - rt.startAt)), -1f, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("spar"), "open:spar", 0, false);
+        java.util.List<String> chip = sparChipLines(rt, now);
+        if (chip.isEmpty()) {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.SPAR);
+        } else {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.SPAR, chip, -1f, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("spar"), "open:spar", 0, false);
+        }
+    }
+
+    /** Spar chip lines (same words as the chat lines they replace); empty when there is nothing to show. */
+    public static java.util.List<String> sparChipLines(SparPlayerRuntime rt, long now) {
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        if (rt.perfectSeenAt > 0L && now - rt.perfectSeenAt < SparCombat.PERFECT_ACTIONBAR_MS) {
+            lines.add(UltraStyle.HEADER + PERFECT_TEXT);
+        }
+        if (rt.comboBrokenAt > 0L && now - rt.comboBrokenAt < COMBO_BROKEN_SHOW_MS) {
+            lines.add(UltraStyle.color("c", "Combo broken (" + rt.comboBrokenReason + ")."));
+        } else if (rt.combo >= 2) {
+            lines.add(UltraStyle.LABEL + "Combo " + UltraStyle.color("f", "x" + rt.combo));
+        }
+        if (rt.graceUntil > now) {
+            long left = Math.max(1L, (rt.graceUntil - now + 999L) / 1000L);
+            lines.add(UltraStyle.YELLOW + "Recover within " + left + "s " + UltraStyle.DIM + "— " + rt.graceReason);
+        }
+        return lines;
+    }
+
     private static void tickPerfectBanner(
             ServerPlayer player,
             ServerPlayer partner,
@@ -1129,11 +1179,12 @@ public final class SparringSystem {
             return;
         }
         rt.sessionPerfect = true;
-        if (now < rt.messageNext) {
-            return;
+        rt.perfectSeenAt = now;
+        if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player) || now < rt.messageNext) {
+            return;                                     // 4.7.75: HUD players see it on the spar chip
         }
         rt.messageNext = now + SparCombat.PERFECT_ACTIONBAR_MS;
-        DmzRewards.msg(player, LmChat.tagged("Spar", UltraStyle.HEADER + "Perfect Training active"));
+        DmzRewards.msg(player, LmChat.tagged("Spar", UltraStyle.HEADER + PERFECT_TEXT));
     }
 
     /**
@@ -1214,8 +1265,11 @@ public final class SparringSystem {
             }
             long left = Math.max(1L, (rt.graceUntil - now + 999L) / 1000L);
             String msg = LmChat.note("Spar", UltraStyle.YELLOW + "Recover within " + left + "s " + UltraStyle.DIM + "— " + reason);
-            DmzRewards.msg(player, msg);
-            if (partner != null) {
+            // 4.7.75: a HUD player gets a live countdown on the spar chip instead of this one-off line.
+            if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+                DmzRewards.msg(player, msg);
+            }
+            if (partner != null && !com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(partner)) {
                 DmzRewards.msg(partner, msg);
             }
         }
@@ -1266,7 +1320,9 @@ public final class SparringSystem {
         }
         if (rt.combo > 0 || rt.momentumTier > 0) {
             long now = System.currentTimeMillis();
-            if (now >= rt.messageNext) {
+            rt.comboBrokenAt = now;
+            rt.comboBrokenReason = reason == null ? "" : reason;
+            if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player) && now >= rt.messageNext) {
                 rt.messageNext = now + 1500L;
                 DmzRewards.msg(player, LmChat.fail("Spar", "Combo broken (" + reason + ")."));
             }

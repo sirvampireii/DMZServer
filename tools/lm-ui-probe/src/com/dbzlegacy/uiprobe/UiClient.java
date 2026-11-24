@@ -211,8 +211,8 @@ final class UiClient {
             if (x < 0 || y < 0 || x + w > gw || y + h > gh) {
                 return "off screen: " + f[1] + " at " + x + "," + y + " " + w + "x" + h + " in " + gw + "x" + gh;
             }
-            if ("momentum".equals(f[1]) && y + h > gh - 68) {
-                return "momentum over the action bar: bottom " + (y + h) + " > " + (gh - 68);
+            if (("momentum".equals(f[1]) || "spar".equals(f[1]) || "potential".equals(f[1])) && y + h > gh - 68) {
+                return f[1] + " over the action bar: bottom " + (y + h) + " > " + (gh - 68);
             }
             for (int i = 0; i < rects.size(); i++) {
                 int[] r = rects.get(i);

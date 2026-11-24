@@ -114,8 +114,22 @@ final class HudOverlay {
     private static final Slot TP = new Slot(LmHud.TP);
     private static final Slot PENALTY = new Slot(LmHud.PENALTY);
     private static final Slot MOMENTUM = new Slot(LmHud.MOMENTUM);
-    /** Top centre stack: the steady pills first, the 3-second TP notice last, so nothing jumps when it comes and goes. */
-    private static final Slot[] TOP = {UNDERDOG, PENALTY, TP};
+    // 4.7.75 elements (docs/LM_HUD_EXPANSION_PROPOSAL.md)
+    private static final Slot FIGHT = new Slot(LmHud.FIGHT);
+    private static final Slot SPAR = new Slot(LmHud.SPAR);
+    private static final Slot POTENTIAL = new Slot(LmHud.POTENTIAL);
+    private static final Slot COINS = new Slot(LmHud.COINS);
+    private static final Slot ELITE = new Slot(LmHud.ELITE);
+    private static final Slot BOOST = new Slot(LmHud.BOOST);
+    /**
+     * Top centre stack: the steady pills first, the 3-second TP notice last, so nothing jumps when it comes and goes.
+     * 4.7.75: the fight pill under the Underdog pill, then the penalty, the elite sense and the server boosts.
+     */
+    private static final Slot[] TOP = {UNDERDOG, FIGHT, PENALTY, ELITE, BOOST, TP};
+    /** 4.7.75: the bottom-right row, stacking upward from the Momentum meter's place. */
+    private static final Slot[] BOTTOM = {MOMENTUM, SPAR, POTENTIAL};
+    /** Every single-slot element (cards are separate). */
+    private static final Slot[] SINGLES = {UNDERDOG, FIGHT, PENALTY, ELITE, BOOST, TP, MOMENTUM, SPAR, POTENTIAL, COINS};
     private static final ArrayDeque<Slot> CARDS = new ArrayDeque<>();
 
     private static KeyMapping openKey;
@@ -209,6 +223,12 @@ final class HudOverlay {
             case LmHud.TP -> TP;
             case LmHud.PENALTY -> PENALTY;
             case LmHud.MOMENTUM -> MOMENTUM;
+            case LmHud.FIGHT -> FIGHT;
+            case LmHud.SPAR -> SPAR;
+            case LmHud.POTENTIAL -> POTENTIAL;
+            case LmHud.COINS -> COINS;
+            case LmHud.ELITE -> ELITE;
+            case LmHud.BOOST -> BOOST;
             default -> null;
         };
     }
@@ -360,13 +380,44 @@ final class HudOverlay {
             drawSlot(g, font, s, (sw - s.w) / 2, y, s.w, scale, now, 1f);
             y += s.h + GAP;
         }
-        // Momentum row: above the right-hand status rows and the action bar.
-        int momentumY = sh - Math.max(rightHeight, ACTION_BAR_UP) - 17 - GAP;
-        // Instinct cards on the right edge, newest first, from 45% down (and below the top stack); a card that
-        // would reach the Momentum row is not drawn (it is the oldest; it fades out on its own).
+        // Bottom-right row: Momentum, then the spar chip and the Potential meter above it, all above the right-hand
+        // status rows and the action bar.
+        int rowBottom = sh - Math.max(rightHeight, ACTION_BAR_UP) - GAP;
+        int rowCap = sw / 2 - 10 - EDGE;
+        int by = rowBottom;
+        for (Slot s : BOTTOM) {
+            s.drawn = false;
+            if (!live(s, now)) {
+                continue;
+            }
+            if (!skinId.equals(s.skinId) || rowCap != s.layoutCap) {
+                layout(s, rowCap);
+            }
+            by -= s.h;
+            if (by < y + GAP) {
+                break;                                      // no room left above (tiny window): skip the rest
+            }
+            drawSlot(g, font, s, sw / 2 + 10, by, s.w, scale, now, 1f);
+            by -= GAP;
+        }
+        int momentumY = by;
+        // Right edge: the coin toast, then the Instinct cards newest first, from 45% down (and below the top stack); a
+        // card that would reach the bottom row is not drawn (it is the oldest; it fades out on its own).
         int cy = Math.max((int) (sh * 0.45f), y + GAP);
         int cardFloor = momentumY - CARD_FLOOR_GAP;
         int cardCap = Math.max(80, sw / 2 - 2 * EDGE);
+        COINS.drawn = false;
+        if (live(COINS, now)) {
+            if (!skinId.equals(COINS.skinId) || cardCap != COINS.layoutCap) {
+                layout(COINS, cardCap);
+            }
+            if (cy + COINS.h <= cardFloor) {
+                long left = COINS.durationMs - (now - COINS.start);
+                float alpha = left >= CARD_FADE_MS ? 1f : Math.max(0f, left / (float) CARD_FADE_MS);
+                drawSlot(g, font, COINS, sw - COINS.w - EDGE, cy, COINS.w, scale, now, alpha);
+                cy += COINS.h + GAP;
+            }
+        }
         Iterator<Slot> it = CARDS.iterator();
         while (it.hasNext()) {
             Slot c = it.next();
@@ -385,15 +436,6 @@ final class HudOverlay {
             float alpha = left >= CARD_FADE_MS ? 1f : Math.max(0f, left / (float) CARD_FADE_MS);
             drawSlot(g, font, c, sw - c.w - EDGE, cy, c.w, scale, now, alpha);
             cy += c.h + GAP;
-        }
-        // Momentum above the hotbar, right of centre.
-        MOMENTUM.drawn = false;
-        if (live(MOMENTUM, now)) {
-            int momCap = sw / 2 - 10 - EDGE;
-            if (!skinId.equals(MOMENTUM.skinId) || momCap != MOMENTUM.layoutCap) {
-                layout(MOMENTUM, momCap);
-            }
-            drawSlot(g, font, MOMENTUM, sw / 2 + 10, Math.max(EDGE, momentumY), MOMENTUM.w, scale, now, 1f);
         }
     }
 
@@ -468,7 +510,7 @@ final class HudOverlay {
 
     /** The clickable element under (mx, my) as last drawn, or null. */
     static Slot hit(double mx, double my) {
-        for (Slot s : TOP) {
+        for (Slot s : SINGLES) {
             if (over(s, mx, my)) {
                 return s;
             }
@@ -478,7 +520,7 @@ final class HudOverlay {
                 return c;
             }
         }
-        return over(MOMENTUM, mx, my) ? MOMENTUM : null;
+        return null;
     }
 
     private static boolean over(Slot s, double mx, double my) {
@@ -555,7 +597,7 @@ final class HudOverlay {
     static Slot newest() {
         long now = System.currentTimeMillis();
         Slot best = null;
-        for (Slot s : TOP) {
+        for (Slot s : SINGLES) {
             if (live(s, now) && !s.action.isEmpty() && (best == null || s.start > best.start)) {
                 best = s;
             }
@@ -564,9 +606,6 @@ final class HudOverlay {
             if (live(c, now) && !c.action.isEmpty() && (best == null || c.start > best.start)) {
                 best = c;
             }
-        }
-        if (live(MOMENTUM, now) && !MOMENTUM.action.isEmpty() && (best == null || MOMENTUM.start > best.start)) {
-            best = MOMENTUM;
         }
         return best;
     }
@@ -579,12 +618,10 @@ final class HudOverlay {
 
     /** Logout: nothing carries over to the next server. */
     static void clear() {
-        for (Slot s : TOP) {
+        for (Slot s : SINGLES) {
             s.visible = false;
             s.baked = null;
         }
-        MOMENTUM.visible = false;
-        MOMENTUM.baked = null;
         CARDS.clear();
         if (handShown) {
             setHand(false);
@@ -595,13 +632,12 @@ final class HudOverlay {
     /** UI probe: every element on screen as {@code H element x y w h action "line | line"} (GUI px). */
     static List<String> debugLayout() {
         List<String> out = new ArrayList<>();
-        for (Slot s : TOP) {
+        for (Slot s : SINGLES) {
             add(out, s);
         }
         for (Slot c : CARDS) {
             add(out, c);
         }
-        add(out, MOMENTUM);
         return out;
     }
 

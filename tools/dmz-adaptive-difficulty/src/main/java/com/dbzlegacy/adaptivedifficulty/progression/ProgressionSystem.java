@@ -134,6 +134,7 @@ public final class ProgressionSystem {
             DeathTpPenalty.pulse(server, tick);
             com.dbzlegacy.adaptivedifficulty.util.TpBossNotify.pulse(server, tick);
             com.dbzlegacy.adaptivedifficulty.progression.Momentum.hudPulse(server, tick);
+            com.dbzlegacy.adaptivedifficulty.progression.Momentum.boostHudPulse(server, tick);
         } catch (Throwable ignored) {
         }
         if (ProgressionConfig.masterEnabled()) {

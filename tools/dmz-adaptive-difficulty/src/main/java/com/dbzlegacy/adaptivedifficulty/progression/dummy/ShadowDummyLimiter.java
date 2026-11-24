@@ -216,7 +216,7 @@ public final class ShadowDummyLimiter {
         }
         long left = Math.max(0L, COOLDOWN_UNTIL.getOrDefault(player.m_20148_(), 0L) - System.currentTimeMillis());
         DmzRewards.msg(player, "§c[Shadow Dummy] §7On cooldown — §f"
-                + Math.max(1L, left / 1000L) + "s §7remaining. (" + reason + ")");
+                + Math.max(1L, left / 1000L) + "s §7remaining.");
         SystemTelemetry.log("shadow_dummy", "deny", player, null, Map.of("reason", reason));
     }
 

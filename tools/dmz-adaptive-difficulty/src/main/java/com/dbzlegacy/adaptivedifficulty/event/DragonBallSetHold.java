@@ -78,9 +78,10 @@ public final class DragonBallSetHold {
         }
         LAST_MESSAGE.put(player.m_20148_(), now);
         String name = setName(setId);
+        // 4.7.75: the action bar like its sibling below, not chat every few seconds while touching the ball.
         player.m_5661_(Component.m_237113_("You already carry a full set of " + name
-                        + " Dragon Balls (backpacks and ender chest count). Make a wish or leave some in a chest first.")
-                .m_130940_(ChatFormatting.YELLOW), false);
+                        + " Dragon Balls (bags and ender chest count). Make a wish or store some first.")
+                .m_130940_(ChatFormatting.YELLOW), true);
     }
 
     /** Short action-bar line when a ball is hit without its radar. */

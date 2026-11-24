@@ -251,6 +251,20 @@ public final class GlobalTpBoost {
                 + "x §7(" + formatDuration(rem) + " left, by §f" + PURCHASER.get() + "§7)";
     }
 
+    /**
+     * 4.7.75 HUD boost chip line ("TP x1.5 - 42m left"; seconds only in the last minute, so it changes about
+     * once a minute), or null when no boost runs.
+     */
+    public static String hudLine() {
+        if (!isActive()) {
+            return null;
+        }
+        long rem = Math.max(0L, END_TIME.get() - System.currentTimeMillis());
+        long min = (rem + 59_999L) / 60_000L;
+        String left = rem >= 60_000L ? min + "m left" : Math.max(1L, rem / 1000L) + "s left";
+        return com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("a", "TP x" + formatMult(MULTIPLIER.get())) + " " + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL + "- " + left;
+    }
+
     public static boolean isActive() {
         return ACTIVE.get() && END_TIME.get() > System.currentTimeMillis();
     }

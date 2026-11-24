@@ -226,6 +226,10 @@ public final class UltraCharacterScreens {
                     "See your race in each of its forms on the model. Nothing changes on you.",
                     formsBlock));
         }
+        String healing = com.dbzlegacy.adaptivedifficulty.kube.hotpath.HealCap.summary(player);
+        if (healing != null) {
+            spec.labelValue("Healing:", healing);
+        }
         spec.buttonsAfterLines();
         ModelPreview.rotateButton(spec, player, "main");
 
