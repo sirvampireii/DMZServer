@@ -1138,10 +1138,10 @@ public final class UltraGuiActions {
                 case "help", "about" -> "help";
                 default -> "main";
             };
-            // 4.7.64 hub tabs: Home (dashboard), Goals, More.
+            // 4.7.80 hub tabs: Home (dashboard), Goals (weekly goals), More (search lives there).
             case "hub" -> switch (t) {
-                case "search", "goals" -> UltraHubScreens.PAGE_SEARCH;
-                case "more" -> UltraHubScreens.PAGE_MORE;
+                case "goals" -> UltraHubScreens.PAGE_GOALS;
+                case "search", "more" -> UltraHubScreens.PAGE_MORE;
                 default -> "main";
             };
             default -> homePage(screen);

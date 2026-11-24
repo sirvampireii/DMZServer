@@ -300,21 +300,21 @@ public final class GlobalTpBoost {
         applyToAll(keptAmp, newEnd - now);
         broadcast("§6§lGLOBAL TP BOOST ACTIVATED!");
         if (extending) {
-            broadcast("§e" + purchaser + " §7added §f" + formatDuration(durationMs)
+            broadcastStatus("§e" + purchaser + " §7added §f" + formatDuration(durationMs)
                     + " §7to the global TP boost.");
             if (keptMult > prevMult + 0.0001) {
-                broadcast("§7Boost raised to §a" + formatMult(keptMult) + "x§7.");
+                broadcastStatus("§7Boost raised to §a" + formatMult(keptMult) + "x§7.");
             } else {
-                broadcast("§7Boost stays §a" + formatMult(keptMult)
+                broadcastStatus("§7Boost stays §a" + formatMult(keptMult)
                         + "x §8(highest wins; lower packs only add time).");
             }
-            broadcast("§7Total remaining: §f" + formatDuration(newEnd - now) + "§7.");
+            broadcastStatus("§7Total remaining: §f" + formatDuration(newEnd - now) + "§7.");
             return "§aStacked +" + formatDuration(durationMs) + " · active §f"
                     + formatMult(keptMult) + "x §7(" + formatDuration(newEnd - now) + " left).";
         }
-        broadcast("§e" + purchaser + " §7activated a §a" + formatMult(keptMult)
+        broadcastStatus("§e" + purchaser + " §7activated a §a" + formatMult(keptMult)
                 + "x TP Boost§7!");
-        broadcast("§7All online players receive boosted TP for §f"
+        broadcastStatus("§7All online players receive boosted TP for §f"
                 + formatDuration(newEnd - now) + "§7.");
         return "§a" + formatMult(keptMult) + "x TP activated for "
                 + formatDuration(durationMs) + ".";
@@ -441,6 +441,22 @@ public final class GlobalTpBoost {
             return -1;
         }
         return amplifier;
+    }
+
+    /**
+     * 4.7.80: who added the boost, the multiplier and the time left. A HUD player reads the multiplier and time on
+     * the boost chip, so they get only the headline; everyone else gets these lines as before.
+     */
+    private static void broadcastStatus(String msg) {
+        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            return;
+        }
+        for (ServerPlayer player : server.m_6846_().m_11314_()) {
+            if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+                DmzRewards.msg(player, msg);
+            }
+        }
     }
 
     private static void broadcast(String msg) {

@@ -40,7 +40,10 @@ public final class BoardSpar {
     public static final String ACT_POST = "board_post";
     public static final String ACT_UNPOST = "board_unpost";
     public static final String ACT_MODE = "board_mode";
+    /** 4.7.80: opens the wager sub-menu (kind, then amount); the old cycling button is gone. */
     public static final String ACT_WAGER = "board_wager";
+    /** 4.7.80: sets the next post's wager to one step (0 none, then coin steps, then point steps). */
+    public static final String ACT_WAGER_SET = "board_wager_set";
     public static final String ACT_RANGE = "board_range";
     public static final String ACT_ACCEPT = "board_accept";
     public static final String ACT_CHALLENGE = "board_challenge";
@@ -639,6 +642,10 @@ public final class BoardSpar {
         Dojo host = DojoService.byMaster(b.host);
         Dojo dojoA = DojoService.dojoOf(b.a);
         Dojo dojoB = DojoService.dojoOf(b.b);
+        if (counted && winner != null) {
+            // 4.7.80 weekly goal: a counted board spar win.
+            com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.note(winner, com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.SPAR_WINS, 1);
+        }
         if (counted && !b.ranked) {
             pa.unrankedSpars++;
             pb.unrankedSpars++;
@@ -850,10 +857,24 @@ public final class BoardSpar {
                 DRAFTS.put(id, new Draft(!d.ranked(), d.wager(), d.range(), d.want()));
                 return "Next post: " + (!d.ranked() ? "ranked" : "friendly") + ".";
             }
-            case ACT_WAGER -> {
-                int next = (d.wager() + 1) % wagerSteps();
-                DRAFTS.put(id, new Draft(d.ranked(), next, d.range(), d.want()));
-                return "Wager: " + wagerText(wagerKind(next), wagerAmount(next)) + ".";
+            case ACT_WAGER_SET -> {
+                int step;
+                try {
+                    step = Integer.parseInt(arg == null ? "" : arg.trim());
+                } catch (NumberFormatException e) {
+                    step = -1;
+                }
+                if (step < 0 || step >= wagerSteps()) {
+                    return "That wager isn't on the list. Pick one from the Wager menu.";
+                }
+                if ("POINTS".equals(wagerKind(step))) {
+                    Dojo mine = DojoService.dojoOf(p);
+                    if (mine == null || !DojoService.canManage(id, mine)) {
+                        return "Only a master or an elite can wager Dojo Points.";
+                    }
+                }
+                DRAFTS.put(id, new Draft(d.ranked(), step, d.range(), d.want()));
+                return "Wager for your next post: " + wagerText(wagerKind(step), wagerAmount(step)) + ".";
             }
             case ACT_RANGE -> {
                 int next = (d.range() + 1) % DojoCatalog.LEVEL_RANGES.length;

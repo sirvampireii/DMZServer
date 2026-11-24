@@ -327,6 +327,10 @@ public final class TitleSystem {
             return;
         }
         PlayerDifficultyData data = DifficultyCache.data(killer);
+        if (personalOn) {
+            // 4.7.80 weekly goal: kills with difficulty on.
+            com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.note(killer.m_20148_(), com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.TIER_KILLS, 1);
+        }
         data.titleProgress().noteKill(
                 snap.activeTier,
                 elite,

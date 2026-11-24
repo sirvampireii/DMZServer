@@ -329,6 +329,8 @@ public final class LmGuiNetwork {
         java.util.List<String> guideBroken = new java.util.ArrayList<>();
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.progression.Momentum.selfTest());
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.selfTest());
+        // 4.7.80: weekly goals: three a week from three systems, reset text.
+        guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.selfTest());
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.DifficultyGuide.selfTest());
         // 4.7.63: the guide shows once per account, then Difficulty opens on Home.
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.DifficultyTutorial.selfTest());

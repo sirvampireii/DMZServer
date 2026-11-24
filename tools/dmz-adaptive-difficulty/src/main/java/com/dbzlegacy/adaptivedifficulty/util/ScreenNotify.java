@@ -78,6 +78,7 @@ public final class ScreenNotify {
             if (player.f_8906_ == null) {
                 return;
             }
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.vanilla(player, "subtitle", subtitle);
             ChatFormatting ink = color == null ? ChatFormatting.YELLOW : color;
             player.f_8906_.m_9829_(new ClientboundClearTitlesPacket(false));
             // Slightly shorter hold than full title+subtitle pairs — TP bursts fire often.
@@ -108,6 +109,7 @@ public final class ScreenNotify {
                 ProgressionData.tempPut(player, cooldownKey, now);
             }
             String head = plain(title);
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.vanilla(player, "actionbar", head);
             String rest = plain(detail);
             MutableComponent line;
             if (!head.isEmpty() && !rest.isEmpty()) {

@@ -212,6 +212,10 @@ public final class LivingWorldNearbyMeditation {
         if (delta > MAX_DELTA_MS) {
             delta = MAX_DELTA_MS;
         }
+        if (withPlayer) {
+            // 4.7.80 weekly goal: meditating near another player.
+            com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.note(player.m_20148_(), com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.MEDITATE, delta);
+        }
         addTime(player, creditedMs(player, delta, withPlayer));
     }
 

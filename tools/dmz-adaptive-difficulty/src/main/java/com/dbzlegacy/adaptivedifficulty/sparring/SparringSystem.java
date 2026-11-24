@@ -632,6 +632,11 @@ public final class SparringSystem {
         SparPlayerRuntime bRt = partner == null ? null : runtime(partner.m_20148_());
         long now = System.currentTimeMillis();
         long duration = Math.max(0L, now - aRt.startAt);
+        if (partner != null) {
+            // 4.7.80 weekly goal: time spent sparring (both fighters).
+            com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.note(player.m_20148_(), com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.SPAR_MINUTES, duration);
+            com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.note(partner.m_20148_(), com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.SPAR_MINUTES, duration);
+        }
         SparCombat.flushTpMessage(player, aRt);
         if (partner != null && bRt != null) {
             SparCombat.flushTpMessage(partner, bRt);

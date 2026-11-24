@@ -168,6 +168,7 @@ public final class LmChat {
     }
 
     private static void sendRaw(ServerPlayer player, String line) {
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.vanilla(player, "chat", line);
         try {
             player.m_213846_(Component.m_237113_(line == null ? "" : line));
         } catch (Throwable ignored) {

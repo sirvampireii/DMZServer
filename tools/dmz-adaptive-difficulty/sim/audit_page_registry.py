@@ -21,7 +21,7 @@ REDIRECTS = {
     "hub|board": "opens spar|sparboard",
     "hub|mydojo": "opens spar|dojo",
     "hub|wars": "opens spar|wars",
-    "hub|goals": "old link: opens the hub Search tab",
+    "hub|search": "old link (4.7.71-4.7.79 Search tab): opens More, where search lives",
     "hub|admin": "opens the Staff Admin system",
     "hub|prestige_shop_edit": "opens config|edit:prestige-shop:0:",
     "spar|board": "alias read as sparboard",
