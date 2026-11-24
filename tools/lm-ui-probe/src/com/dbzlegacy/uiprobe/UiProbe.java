@@ -831,6 +831,12 @@ public final class UiProbe {
                         + (l.contains("\"colors\"") && l.contains("\"appearance\"") && l.contains("\"skinOwner\":\"" + me)
                         && l.contains("\"subject\":\"uuid:") && !l.contains("\"subject\":\"local\"")
                         ? "PASS" : "FAIL") + " headBones=" + l.contains("\"headBones\""));
+                note("FORM PREVIEW " + pg + " says it wears your own look: "
+                        + (has(p, "The model wears your own colors") ? "PASS" : "FAIL"));
+                if (pg.endsWith(":1")) {
+                    note("FORM PREVIEW paging does not stack Back (no Back to Preview forms): "
+                            + (!has(p, "Back to Preview forms") ? "PASS" : "FAIL") + " | " + labels(p));
+                }
             }
         }
         if (n == 0) {

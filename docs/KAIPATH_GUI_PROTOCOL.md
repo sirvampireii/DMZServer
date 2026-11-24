@@ -892,8 +892,10 @@ Every LM menu page has one entry (title, parent page, system) in `gui/ultra/Page
 goes to the registry parent: the hub (`nav:hub`), a system Home (`open:<system>` / `nav:home`) or the parent page
 (`page:<id>`); a system Home still shows one "Back to main menu". Some pages built from run-time state (paged lists,
 the rival profile's list page) now return to the first page of their list on the bridge; the LM client keeps the
-exact page through its own history. The main menu tabs are `home|Home`, `search|Search`, `more|More`; Search on the
-bridge says typing needs a newer client and points back to Home.
+exact page through its own history. The main menu tabs are `home|Home`, `search|Search`, `more|More`. The Search tab
+works on the bridge like any page: a text field (`hub_search`) bound to `do:hub_search`, results as ordinary buttons
+whose ids are `go:<screen>|<page>`; send them back as-is. A client without text fields gets one line pointing to Home.
+Only LM's own client gets the search row on Home.
 
 ### Spin stop is front-facing (LM 4.7.60)
 

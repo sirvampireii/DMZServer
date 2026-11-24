@@ -274,6 +274,12 @@ public final class UltraStyle {
         if (dest.regionMatches(true, 0, "Back to ", 0, 8)) {
             return LABEL + dest;
         }
+        // 4.7.71: a long page name drops its last words so the footer never cuts the label
+        // ("Back to Character Services" -> "Back to Character").
+        int room = labelMaxWidth(BTN_W);
+        while (textWidthPx("Back to " + dest) > room && dest.lastIndexOf(' ') > 0) {
+            dest = dest.substring(0, dest.lastIndexOf(' ')).trim();
+        }
         return LABEL + "Back to " + dest;
     }
 

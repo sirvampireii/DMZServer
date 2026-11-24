@@ -2,7 +2,9 @@
 
 Takes the crawl an LM UI probe run recorded (tools/lm-ui-probe, uiprobe-packets.jsonl) and keeps one packet per
 menu family (screen + page kind), crawled pages only. Refresh it with every LM release that changes menus:
-  python tools/ultra-gui-kit/test/gen_lm_corpus.py tools/lm-ui-probe/out/full tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl
+  python tools/ultra-gui-kit/test/gen_lm_corpus.py <run>/kai tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl
+Use the KaiPath stage (kai/): since LM 4.7.71 the LM client gets its own navigation (history Back, breadcrumb, search
+row), so the full stage is no longer what KaiPath receives.
 """
 import json
 import os

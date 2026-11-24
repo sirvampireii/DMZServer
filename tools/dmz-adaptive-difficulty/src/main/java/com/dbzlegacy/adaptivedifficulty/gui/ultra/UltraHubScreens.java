@@ -310,7 +310,13 @@ public final class UltraHubScreens {
             }
         } else {
             for (PageRegistry.Hit h : hits) {
+                // Where the page lives: its path without "Main menu" in front and without its own name at the end.
                 String where = h.path().startsWith("Main menu > ") ? h.path().substring("Main menu > ".length()) : h.path();
+                if (where.endsWith(" > " + h.page().title())) {
+                    where = where.substring(0, where.length() - (" > " + h.page().title()).length());
+                } else if (where.equals(h.page().title())) {
+                    where = "Main menu";
+                }
                 String label = UltraStyle.VALUE + h.page().title() + UltraStyle.LABEL + "  -  " + where;
                 int room = UltraStyle.labelMaxWidth(UltraStyle.BTN_W * 2 + UltraStyle.BTN_GAP);
                 spec.buttonWide("go:" + h.page().screen() + "|" + h.page().pattern(),

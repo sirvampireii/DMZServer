@@ -175,7 +175,9 @@ appearance, head bones and skin owner on a made-up subject.
 ## Kit corpus
 
 After a release that changes menus, refresh the Ultra GUI kit's real-menu corpus from a full run:
-`python tools/ultra-gui-kit/test/gen_lm_corpus.py <run>/full tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl`.
+`python tools/ultra-gui-kit/test/gen_lm_corpus.py <run>/kai tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl`
+(the KaiPath stage: since 4.7.71 LM clients get their own Back, breadcrumb and search row, so `full/` is not what
+KaiPath receives).
 The kit's `LmCorpusTest` then checks every real LM menu against what KaiPath relies on.
 
 ## Use (single stages)

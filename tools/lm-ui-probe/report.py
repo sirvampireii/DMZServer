@@ -161,6 +161,33 @@ def main(out, base=None):
         # clients that draw it; KaiPath gets the hex field alone. Such a page counts as "by design" when the native
         # packet has a color_wheel input and the KaiPath packet has none; any other difference still fails.
         has_wheel = lambda r: any(i.get("type") == "color_wheel" for i in (r.get("inputs") or []))
+        # 4.7.71: navigation differs on purpose. LM clients get Back from their page history (nav:back, named after
+        # the page they came from), a breadcrumb and the hub search row; KaiPath gets Back to the page's registry
+        # parent and no breadcrumb or search field. A page counts as "by design" when it matches once the footer
+        # Back / Main menu buttons and the breadcrumb are set aside, or (hub Home and Search) when only the LM packet
+        # has the search field. Any other difference still fails.
+        def plain(t):
+            return re.sub("§.", "", t or "")
+
+        def footer(b):
+            lab = plain(b.get("label", ""))
+            return lab.startswith("Back to") or lab == "Main menu"
+
+        def nav_norm(r):
+            lay = dict(r["layout"]) if isinstance(r["layout"], dict) else r["layout"]
+            if isinstance(lay, dict):
+                lay.pop("breadcrumb", None)
+            btns = [b for b in (r["buttons"] or []) if not footer(b)]
+            # Preview forms names what the figure wears, which differs by client (the LM client draws the player's
+            # own look, KaiPath race colors) - the line, wherever it wraps, is set aside too.
+            lines = [x for x in (r["lines"] or [])
+                     if not re.search(r"The model (uses|wears)|colors, not your own|hair and skin, in this form",
+                                      plain(x))]
+            return json.dumps([lay, btns, lines], sort_keys=True)
+
+        has_search = lambda r: any(i.get("id") == "hub_search" or "hub_search" in json.dumps(i)
+                                   for i in (r.get("inputs") or []))
+        nav = 0
         seen_keys = set()
         for r in crawled(a):
             k = (r["screen"], r["page"], r["title"], r["tab"])
@@ -175,10 +202,13 @@ def main(out, base=None):
                 same += 1
             elif has_wheel(o) and not has_wheel(r):
                 wheel += 1
+            elif nav_norm(r) == nav_norm(o) or (r["screen"] == "hub" and has_search(o) and not has_search(r)):
+                nav += 1
             elif not re.search(r"\[I@[0-9a-f]+", json.dumps(r["buttons"])):
                 differ += 1
         row("one spec for both render paths (KaiPath run == native run)", differ == 0,
-            f"{same} identical, {differ} differ" + (f", {wheel} differ only by the LM-client color wheel" if wheel else ""))
+            f"{same} identical, {differ} differ" + (f", {wheel} differ only by the LM-client color wheel" if wheel else "")
+            + (f", {nav} differ only by LM-client navigation (history Back, breadcrumb, search row, preview look line)" if nav else ""))
 
     rj = read(os.path.join(out, "srv-reject.log"))
     if rj is None:

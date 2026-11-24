@@ -39,6 +39,12 @@ public final class NavHistory {
             if (k.equals(d.peekFirst())) {
                 return;
             }
+            // Paging within one page family (Previous / Next, page 2 of a list) replaces the page: Back leaves the
+            // family instead of stepping back through its pages.
+            String top = d.peekFirst();
+            if (top != null && siblings(top, k)) {
+                d.pollFirst();
+            }
             if (d.contains(k)) {
                 while (!d.isEmpty() && !k.equals(d.peekFirst())) {
                     d.pollFirst();
@@ -52,6 +58,23 @@ public final class NavHistory {
         }
     }
 
+    /** Same screen, same first part of the page id, same registry parent: pages of one family. */
+    static boolean siblings(String a, String b) {
+        String[] x = split(a);
+        String[] y = split(b);
+        if (!x[0].equals(y[0]) || x[1].equals(y[1])) {
+            return false;
+        }
+        String hx = x[1].contains(":") ? x[1].substring(0, x[1].indexOf(':')) : x[1];
+        String hy = y[1].contains(":") ? y[1].substring(0, y[1].indexOf(':')) : y[1];
+        if (!hx.equals(hy) || !x[1].contains(":") || !y[1].contains(":")) {
+            return false;
+        }
+        String[] px = PageRegistry.parent(x[0], x[1]);
+        String[] py = PageRegistry.parent(y[0], y[1]);
+        return px != null && py != null && px[0].equals(py[0]) && px[1].equals(py[1]);
+    }
+
     /** The page under {@code screen|page} (where Back from it goes), as {screen, page}, or null when none. */
     public static String[] previous(UUID player, String screen, String page) {
         Deque<String> d = player == null ? null : STACKS.get(player);
@@ -62,9 +85,13 @@ public final class NavHistory {
         synchronized (d) {
             Iterator<String> it = d.iterator();
             boolean below = !k.equals(d.peekFirst());          // the page is not on top yet: the top is "previous"
+            boolean first = true;
             while (it.hasNext()) {
                 String e = it.next();
-                if (below && !e.equals(k)) {
+                // a page of the same family on top is replaced when this page is recorded (paging), so skip it
+                boolean pagedOver = first && below && siblings(e, k);
+                first = false;
+                if (below && !e.equals(k) && !pagedOver) {
                     return split(e);
                 }
                 if (e.equals(k)) {
@@ -124,6 +151,12 @@ public final class NavHistory {
         record(u, "spar", "dojo_upgrades");
         String[] back = previous(u, "spar", "dojo_upgrades");
         boolean ok = back != null && back[1].equals("dojo") && snapshot(u).size() == 4;
+        record(u, "character", "form_preview:0");
+        String[] before = previous(u, "character", "form_preview:1");   // Back label, worked out before the record
+        ok &= before != null && before[1].equals("dojo_upgrades");
+        record(u, "character", "form_preview:1");              // paging: replaces, Back leaves the family
+        String[] fam = previous(u, "character", "form_preview:1");
+        ok &= fam != null && fam[1].equals("dojo_upgrades");
         record(u, "spar", "main");                              // revisit: trims to it
         ok &= snapshot(u).size() == 2;
         String[] popped = pop(u, "spar", "main");

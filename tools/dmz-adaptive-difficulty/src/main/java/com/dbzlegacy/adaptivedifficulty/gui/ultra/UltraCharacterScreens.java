@@ -337,7 +337,10 @@ public final class UltraCharacterScreens {
                 .labelValue("Form", form.label() + " (" + (i + 1) + " of " + n + ")")
                 .line(UltraStyle.LABEL + "Previous and Next step through your race's forms. Nothing changes on you"
                         + " and nothing is unlocked.")
-                .line(UltraStyle.dim("The model uses the race's default colors, not your own."));
+                // 4.7.71: the LM client draws the figure in the player's own look; KaiPath still shows race colors.
+                .line(UltraStyle.dim(com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player)
+                        ? "The model wears your own colors, hair and skin, in this form."
+                        : "The model uses the race's default colors, not your own."));
         spec.buttonsAfterLines();
         ModelPreview.rotateButton(spec, player, page, box, false);
         if (n > 1) {
