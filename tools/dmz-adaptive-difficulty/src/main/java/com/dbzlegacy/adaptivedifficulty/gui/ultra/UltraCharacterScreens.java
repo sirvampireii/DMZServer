@@ -233,15 +233,18 @@ public final class UltraCharacterScreens {
         spec.buttonsAfterLines();
         ModelPreview.rotateButton(spec, player, "main");
 
-        indexButton(spec, true, "page:race:0", "Change race", raceBlock);
-        indexButton(spec, false, "page:class:0", "Change class", classBlock);
+        indexButton(spec, true, "page:race:0", "Change race", raceBlock,
+                CharacterServicesSystem.cooldownWait(player, "race"));
+        indexButton(spec, false, "page:class:0", "Change class", classBlock,
+                CharacterServicesSystem.cooldownWait(player, "class"));
         spec.rowGap();
-        indexButton(spec, true, "page:bones:0", "Customize model", bonesBlock);
-        indexButton(spec, false, "page:bodyparts:0", "Body parts", partsBlock);
+        indexButton(spec, true, "page:bones:0", "Customize model", bonesBlock, "");
+        indexButton(spec, false, "page:bodyparts:0", "Body parts", partsBlock, "");
         spec.rowGap();
-        indexButton(spec, true, "page:reskin", "Reskin", reskinBlock);
+        indexButton(spec, true, "page:reskin", "Reskin", reskinBlock,
+                CharacterServicesSystem.cooldownWait(player, "reskin"));
         if (formsShown) {
-            indexButton(spec, false, "page:" + PAGE_FORM_PREVIEW + ":0", "Preview forms", formsBlock);
+            indexButton(spec, false, "page:" + PAGE_FORM_PREVIEW + ":0", "Preview forms", formsBlock, "");
         }
         spec.rowGap();
 
@@ -271,15 +274,37 @@ public final class UltraCharacterScreens {
         return UltraStyle.LABEL + name + ": " + UltraStyle.VALUE + about;
     }
 
-    private static void indexButton(UltraScreenSpec spec, boolean left, String action, String label, String block) {
+    /**
+     * 4.7.81 (GuiKit): an open destination is a normal button (Home is a picker, not one primary action). A blocked
+     * one is a locked button (UltraStyle.STYLE_DIM, no action) that says why: the time left on a cooldown, else
+     * Off / Locked; the index line above it gives the full reason.
+     */
+    private static void indexButton(UltraScreenSpec spec, boolean left, String action, String label, String block,
+            String cooldownWait) {
         boolean open = block == null || block.isBlank();
-        String text = open ? UltraStyle.confirm(label) : UltraStyle.dim(label);
-        String style = open ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM;
-        if (left) {
-            spec.buttonLeft(action, text, style);
-        } else {
-            spec.buttonRight(action, text, style);
+        if (open) {
+            if (left) {
+                spec.buttonLeft(action, UltraStyle.plain(label), UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.buttonRight(action, UltraStyle.plain(label), UltraStyle.STYLE_NORMAL);
+            }
+            return;
         }
+        String locked = lockedIndexLabel(label, block, cooldownWait);
+        if (left) {
+            spec.lockedButton(locked);
+        } else {
+            spec.lockedButtonRight(locked);
+        }
+    }
+
+    /** {@code Change race - 3h 12m} on a cooldown, {@code Reskin - Off} / {@code - Locked} otherwise; the name alone if that does not fit. */
+    static String lockedIndexLabel(String label, String block, String cooldownWait) {
+        String why = cooldownWait != null && !cooldownWait.isBlank() && block.startsWith("Available again")
+                ? cooldownWait.trim()
+                : block.startsWith("Turned off") ? "Off" : "Locked";
+        String full = label + " - " + why;
+        return UltraStyle.fitsButton(full) ? full : label;
     }
 
     /** Form preview page ({@code form_preview:<index>}), 4.7.48. */
@@ -308,7 +333,7 @@ public final class UltraCharacterScreens {
             // 4.7.55: staff only. A player who reaches the page (an old button, a typed action)
             // gets a short note and the way back, not the figure.
             UltraScreenSpec spec = sub(player, PAGE_FORM_PREVIEW + ":0", false)
-                    .line(UltraStyle.LABEL + "Preview forms")
+                    .line(UltraStyle.header("Preview forms"))
                     .line(UltraStyle.LABEL + "Preview forms is a staff tool. Your character and your forms are not affected.")
                     .buttonsAfterLines();
             spec.back();
@@ -318,7 +343,7 @@ public final class UltraCharacterScreens {
         List<ModelPreview.Form> forms = ModelPreview.raceForms(player);
         if (forms.isEmpty()) {
             UltraScreenSpec spec = sub(player, PAGE_FORM_PREVIEW + ":0", false)
-                    .line(UltraStyle.LABEL + "Preview forms")
+                    .line(UltraStyle.header("Preview forms"))
                     .line(UltraStyle.LABEL + "Make your character first, then come back to see your race's forms.")
                     .buttonsAfterLines();
             spec.back();
@@ -337,7 +362,7 @@ public final class UltraCharacterScreens {
                 .playerModel(box.x(), box.y(), box.w(), box.h(),
                         ModelPreview.formScale(form, ModelPreview.menuBox(box), ModelPreview.BASE_SCALE), ModelPreview.rotate(player),
                         ModelPreview.formFigure(player, form))
-                .line(UltraStyle.LABEL + "Preview forms")
+                .line(UltraStyle.header("Preview forms"))
                 .labelValue("Form", form.label() + " (" + (i + 1) + " of " + n + ")")
                 .line(UltraStyle.LABEL + "Previous and Next step through your race's forms. Nothing changes on you"
                         + " and nothing is unlocked.")
@@ -458,8 +483,9 @@ public final class UltraCharacterScreens {
                 label = UltraStyle.dim(UltraStyle.fitsButton(you) ? you : UltraStyle.buttonText(name));
                 style = UltraStyle.STYLE_DIM;
             } else {
-                label = UltraStyle.confirm(UltraStyle.buttonText(name));
-                style = UltraStyle.STYLE_CONFIRM;
+                // 4.7.81: a race is an option (the next page asks before anything is paid) - normal, not green.
+                label = UltraStyle.plain(UltraStyle.buttonText(name));
+                style = UltraStyle.STYLE_NORMAL;
             }
             if (placed % 2 == 0) {
                 spec.buttonLeft(action, label, style);
@@ -541,7 +567,7 @@ public final class UltraCharacterScreens {
         String costText = due <= 0L ? "Free" : CharacterServicesSystem.formatCost(due);
         String raceLabel = CharacterServicesSystem.raceDisplayName(raceId);
         UltraScreenSpec spec = sub(player, "race_confirm:" + confirmArg, false)
-                .line(UltraStyle.LABEL + "Confirm race change")
+                .line(UltraStyle.header("Confirm race change"))
                 .labelValue("Race", raceLabel)
                 .labelValue("Keep", selected + "%");
         // Every confirm line is sent. Long lines wrap; overflow scrolls. Cost is pinned
@@ -550,7 +576,8 @@ public final class UltraCharacterScreens {
                 spec, CharacterServicesGuiApi.linesForPage(player, "race_confirm:" + confirmArg), true);
         spec.line(UltraStyle.labelValue("Cost", costText));
         spec.buttonsAfterLines();
-        int[] keepSteps = CharacterServicesConfig.preservationSteps();
+        // 4.7.81: five choices (0/25/50/75/100) instead of eleven; the server still accepts the configured steps.
+        int[] keepSteps = CharacterServicesConfig.MENU_KEEP_STEPS;
         int placed = 0;
         for (int keep : keepSteps) {
             String action = "page:race_confirm:" + raceId + ":" + keep;
@@ -738,8 +765,8 @@ public final class UltraCharacterScreens {
     }
 
     private static void openReskin(ServerPlayer player) {
-        UltraScreenSpec spec = sub(player, "reskin", false)
-                .line(UltraStyle.LABEL + "Change hair, colors, and other cosmetics.");
+        // 4.7.81: the page lines open with "Change hair, colors, and other cosmetics." - not said twice.
+        UltraScreenSpec spec = sub(player, "reskin", false);
         appendCompactLines(spec, CharacterServicesGuiApi.linesForPage(player, "reskin"));
         spec.buttonsAfterLines();
         spec.button("page:reskin_confirm", UltraStyle.confirm("Review cost"), UltraStyle.STYLE_CONFIRM)
@@ -951,7 +978,7 @@ public final class UltraCharacterScreens {
                 ModelPreview.rotate(player), preview);
         // Single-tail rule: a tail you already wear (form or shop) keeps the slot, so say so.
         boolean shown = !part || (preview != null && preview.toString().contains("\"" + id + "\""));
-        spec.line(UltraStyle.LABEL + (part ? "Confirm body part unlock" : "Confirm look unlock"))
+        spec.line(UltraStyle.header(part ? "Confirm body part unlock" : "Confirm look unlock"))
                 .labelValue(part ? "Part" : "Look", name)
                 .labelValue("Cost", cost <= 0L ? (free ? "Free for staff" : "Free") : CharacterServicesSystem.formatCost(cost))
                 .labelValue("Ancient Coins", com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.inventoryBreakdown(player))
@@ -1180,7 +1207,7 @@ public final class UltraCharacterScreens {
      */
     private static void openBodyPartFind(ServerPlayer player, int page) {
         UltraScreenSpec spec = sub(player, page > 0 ? PAGE_FIND + ":" + page : PAGE_FIND, false)
-                .line(UltraStyle.LABEL + "Find a body part");
+                .line(UltraStyle.header("Find a body part"));
         boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player);
         String query = CosmeticBodyPartService.lastQuery(player);
         if (!typing) {
@@ -1411,8 +1438,9 @@ public final class UltraCharacterScreens {
             String label;
             String style;
             if (offer.resettable()) {
-                label = UltraStyle.confirm(UltraStyle.buttonText("Reset " + offer.name()));
-                style = UltraStyle.STYLE_CONFIRM;
+                // 4.7.81: a saga is an option (its confirm page warns and asks) - normal, not green.
+                label = UltraStyle.plain(UltraStyle.buttonText("Reset " + offer.name()));
+                style = UltraStyle.STYLE_NORMAL;
             } else {
                 String state = switch (offer.status()) {
                     case COMPLETED -> "Done";
@@ -1420,9 +1448,7 @@ public final class UltraCharacterScreens {
                     case LOCKED -> "Locked";
                     case NOT_STARTED -> "Not started";
                 };
-                String caption = offer.name() + " - " + state;
-                label = UltraStyle.dim(
-                        UltraStyle.fitsButton(caption) ? caption : UltraStyle.buttonText(offer.name()));
+                label = UltraStyle.dim(sagaStateCaption(offer.name(), state));
                 style = UltraStyle.STYLE_DIM;
             }
             if (placed % 2 == 0) {
@@ -1456,6 +1482,20 @@ public final class UltraCharacterScreens {
         }
         spec.back();
         spec.send(player);
+    }
+
+    /**
+     * {@code Android Saga - In progress}; when that does not fit a button, the name without "Saga"
+     * ({@code Android - In progress}) so the dim button still says why (4.7.81). The name alone is the last resort.
+     */
+    static String sagaStateCaption(String name, String state) {
+        String full = name + " - " + state;
+        if (UltraStyle.fitsButton(full)) {
+            return full;
+        }
+        String shortName = name.replaceAll("(?i)\\s+saga$", "").trim();
+        String brief = shortName + " - " + state;
+        return UltraStyle.fitsButton(brief) ? brief : UltraStyle.buttonText(name);
     }
 
     private static void openSagaConfirm(ServerPlayer player, String sagaId) {
@@ -1555,7 +1595,7 @@ public final class UltraCharacterScreens {
             return;
         }
         UltraScreenSpec spec = sub(player, "android_convert_confirm", false)
-                .line(UltraStyle.LABEL + "Convert to Android")
+                .line(UltraStyle.header("Convert to Android"))
                 .line(CharacterServicesGuiApi.androidCostLine(player))
                 .notice("Converting replaces your Super and Legendary forms with Android forms."
                         + " Removing Android later is free and restores them.")

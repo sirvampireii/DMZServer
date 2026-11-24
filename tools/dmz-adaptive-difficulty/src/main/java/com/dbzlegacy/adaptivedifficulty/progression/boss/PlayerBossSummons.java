@@ -226,7 +226,7 @@ public final class PlayerBossSummons {
         }
         if (!ready) {
             if (!SystemGate.participates(player)) {
-                lines.add(UltraStyle.LABEL + "Turn on personal difficulty on the Tiers tab first.");
+                lines.add(UltraStyle.LABEL + "Turn on difficulty from Difficulty Home first.");
             } else {
                 lines.add(UltraStyle.LABEL + "Activate a tier in that range on the Tiers tab first.");
             }

@@ -1,0 +1,2754 @@
+{
+ "system": "Prestige + Character Services",
+ "pages": [
+  {
+   "id": "prestige_home",
+   "screen": "prestige",
+   "page": "main",
+   "title": "Prestige",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "prestige",
+     "Prestige"
+    ],
+    [
+     "shop",
+     "Shop"
+    ]
+   ],
+   "activeTab": "home",
+   "lines": [
+    "&7Lifetime prestiges &f37",
+    "&7Current prestige amount &f19/20",
+    "&7Prestige favor &f12845",
+    "&7Level cap &f150,000",
+    "&8Reach your level cap to earn your next prestige.",
+    "&8Reach level 150,000 first.",
+    "&fFastest now: T6 Legendary, +45% TP per kill."
+   ],
+   "rows": [],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java openHome (line 153)",
+   "notes": "Home has no buttons; the body only. Ready variant replaces the 6th line with '&aReady to prestige.'; system off shows '&cPrestige system is disabled. Ask staff to turn it on.' instead of lines 4-7. Lines 5 and 6 say the same thing twice ('Reach your level cap...' then 'Reach level 150,000 first.'). Footer: first tab = Home, one right-side 'Back to main menu'."
+  },
+  {
+   "id": "prestige_turnin",
+   "screen": "prestige",
+   "page": "turnin",
+   "title": "Prestige",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "prestige",
+     "Prestige"
+    ],
+    [
+     "shop",
+     "Shop"
+    ]
+   ],
+   "activeTab": "prestige",
+   "lines": [
+    "&7Lifetime prestiges &f37",
+    "&7Current prestige amount &f19/20",
+    "&7Prestige favor &f12845",
+    "&7Prestige favor - exchange current prestige on the Shop tab (loses the stat bonus)."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:confirm",
+      "label": "Reach level 150,000...",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Prestige",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java openTurnIn (line 180)",
+   "notes": "Not-ready state shown (worst case). Raw label 'Reach level 150,000 first' is 25 chars and clips to 'Reach level 150,000...' (limit 22). The dim button still sends page:confirm (not nav:none). Ready state: same cell, label 'Prestige now', style danger. Exchange line only when the exchange is enabled.",
+   "mock": {
+    "relabel": {
+     "Reach level 150,000...": "Reach level 150,000 first"
+    },
+    "why": "openTurnIn: the dim label \"Reach level 150,000 first\" is clipped by the 6 px/character estimate although it fits the 198 px button"
+   }
+  },
+  {
+   "id": "prestige_confirm",
+   "screen": "prestige",
+   "page": "confirm",
+   "title": "Prestige",
+   "lines": [
+    "&7Confirm prestige",
+    "&7Current prestige amount &f19/20",
+    "&7Level cap &f150,000",
+    "&6&lNotice &eThis resets your stats, skills, techniques and quest progress, and adds one to your current prestige amount. Kept skill levels and permanent shop purchases survive.",
+    "&cYou are a God of Destruction - prestiging will remove you from your universe role.",
+    "&cYou are a Supreme Kai - prestiging will remove you from your universe role."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:confirm_now",
+      "label": "Confirm prestige",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Prestige",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java openConfirm (line 209)",
+   "notes": "Worst case: both universe-role warnings (in practice a player holds one). Not ready: adds '&cReach your level cap before you can prestige.' and no Confirm button. Page title line is a plain &7 label, not a header."
+  },
+  {
+   "id": "prestige_shop",
+   "screen": "prestige",
+   "page": "shop",
+   "title": "Prestige",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "prestige",
+     "Prestige"
+    ],
+    [
+     "shop",
+     "Shop"
+    ]
+   ],
+   "activeTab": "shop",
+   "lines": [
+    "&7Prestige favor &f12845",
+    "&7Spend Prestige favor. Purchases survive prestige."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:exchange",
+      "label": "Exchange shop",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:skills",
+      "label": "Skill shop",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:tiers",
+      "label": "Difficulty tiers",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:effects",
+      "label": "Effects",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mastery_wallet",
+      "label": "Mastery wallet",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:custom",
+      "label": "Special perks",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Prestige",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java openShopHub (line 242)",
+   "notes": "Six single left-column buttons, one per row (right column empty). Each section button is hidden when switched off in config; 'Special perks' is cfg.customShop.menuLabel and is hidden while no perk is enabled or owned (both default entries ship disabled, so by default it is absent).",
+   "mock": {
+    "rows": [
+     [
+      {
+       "action": "page:exchange",
+       "label": "Exchange shop",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:skills",
+       "label": "Skill shop",
+       "style": "confirm",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:tiers",
+       "label": "Difficulty tiers",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:effects",
+       "label": "Effects",
+       "style": "confirm",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:mastery_wallet",
+       "label": "Mastery wallet",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:custom",
+       "label": "Special perks",
+       "style": "confirm",
+       "x": 174,
+       "w": 150
+      }
+     ]
+    ],
+    "why": "openShop: six shop buttons each alone in the left column (half the page empty). Pair them in two columns."
+   }
+  },
+  {
+   "id": "prestige_exchange",
+   "screen": "prestige",
+   "page": "exchange",
+   "title": "Prestige",
+   "lines": [
+    "&7Prestige favor &f12845",
+    "&7Current prestige amount &f7/20",
+    "&cExchanging prestige for Prestige favor removes the stat bonus.",
+    "&7Bulk: 3 for 4 favor, 6 for 8 favor, 9 for 13 favor, 12 for 18 favor, 15 for 23 favor, or 18 for 28 favor."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:ask:turnin:1",
+      "label": "Exchange 1: +1 favor",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:ask:turnin:2",
+      "label": "Exchange 2: +2 favor",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:turnin:3",
+      "label": "Exchange 3: +4 favor",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:ask:turnin:6",
+      "label": "Exchange 6: +8 favor",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:turnin:9",
+      "label": "Exchange 9",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:ask:turnin:12",
+      "label": "Exchange 12",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:turnin:15",
+      "label": "Exchange 15",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:ask:turnin:18",
+      "label": "Exchange 18",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Shop",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java openExchange (line 560) / exchangeButton (line 654)",
+   "notes": "Default packs 1,2,3,6,9,12,15,18, player holds 7. Dim packs: the intended label 'Exchange 9 - hold 9 first' is 25+ chars for every pack, so it always falls back to 'Exchange N' and the reason never shows. Dim cells still send page:ask:turnin:N (ask page explains). Exchange closed: '&8The exchange is closed right now.' and no buttons."
+  },
+  {
+   "id": "prestige_skills",
+   "screen": "prestige",
+   "page": "skills",
+   "title": "Prestige",
+   "lines": [
+    "&7Prestige favor &f12845",
+    "&7Skill levels - 1 favor each (Potential Unlock +2)"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:ask:skill:meditation",
+      "label": "Meditation 10/10 max",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:ask:skill:fly",
+      "label": "Fly 3/10",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:skill:sprint",
+      "label": "Sprint 0/10",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:ask:skill:jump",
+      "label": "Jump 7/10",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:skill:potentialunlock",
+      "label": "Potential Unlock 12/30",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Shop",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java openSkillsShop (line 672)",
+   "notes": "Default skill ids meditation, fly, sprint, jump, potentialunlock (maxes 10/10/10/10/30). A per-skill price tag ' (N)' is added only when it differs from the header price. 'Potential Unlock 12/30' is exactly 22 chars. Maxed skills are dim but still open the ask page. Header line is built from config (levelsPerPurchaseOverrides)."
+  },
+  {
+   "id": "prestige_tiers",
+   "screen": "prestige",
+   "page": "tiers",
+   "title": "Prestige",
+   "lines": [
+    "&7Prestige favor &f12845",
+    "&7Difficulty tiers - buy in order, activate with coins.",
+    "&8Pick a tier to see its price before you buy.",
+    "&7Highest owned &fT3"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:ask:tier:1",
+      "label": "T1 Awakened - Owned",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:tier:2",
+      "label": "T2 Enhanced - Owned",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:tier:3",
+      "label": "T3 Elite - Owned",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:tier:4",
+      "label": "T4 Advanced - 2 favor",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:tier:5",
+      "label": "T5 Master - Locked",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:tier:6",
+      "label": "T6 Legendary - Locked",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:tier:7",
+      "label": "T7 God - Locked",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Shop",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java openTiers (line 742)",
+   "notes": "Seven single left-column rows. Default costs (n+1)/2 favor: 1,1,2,2,3,3,4. Other tails: 'Not for sale' ('T6 Legendary - Not for sale' is 27 chars, falls back to 'T6 - Not for sale'). Dim rows still open the ask page.",
+   "mock": {
+    "rows": [
+     [
+      {
+       "action": "page:ask:tier:1",
+       "label": "T1 Awakened - Owned",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:ask:tier:2",
+       "label": "T2 Enhanced - Owned",
+       "style": "dim",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:ask:tier:3",
+       "label": "T3 Elite - Owned",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:ask:tier:4",
+       "label": "T4 Advanced - 2 favor",
+       "style": "confirm",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:ask:tier:5",
+       "label": "T5 Master - Locked",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:ask:tier:6",
+       "label": "T6 Legendary - Locked",
+       "style": "dim",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:ask:tier:7",
+       "label": "T7 God - Locked",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      }
+     ]
+    ],
+    "why": "openTiers: seven tier buttons each alone in the left column; pair them like Difficulty > Tiers does."
+   }
+  },
+  {
+   "id": "prestige_effects",
+   "screen": "prestige",
+   "page": "effects",
+   "title": "Prestige",
+   "lines": [
+    "&7Prestige favor &f12845",
+    "&7Majin / Mutant - 5 favor. One at a time.",
+    "&7Ultimate - 3 favor. Permanent, stacks with Majin and Mutant."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:ask:unmajin",
+      "label": "Remove Majin",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:mutant",
+      "label": "Remove Majin first",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:ultimate",
+      "label": "Buy Ultimate",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Shop",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java openEffects (line 774)",
+   "notes": "State shown: owns Majin (exclusive with Mutant), Ultimate on sale. Other cells: 'Buy Majin'/'Buy Mutant' confirm, 'Remove Mutant' danger, 'Ultimate owned' / 'Already unlocked' dim. Those two dim Ultimate cells send page:effects (a reload), not nav:none like lockedButton. The Ultimate line is added after the Majin/Mutant buttons were placed, so it renders in the body above all buttons, away from its own button."
+  },
+  {
+   "id": "prestige_mastery_wallet",
+   "screen": "prestige",
+   "page": "mastery_wallet",
+   "title": "Prestige",
+   "lines": [
+    "&7Mastery points &f1240",
+    "&7Prestige favor &f12845",
+    "&71 favor buys 10 points. 1 point adds 50 mastery to a form you have unlocked.",
+    "&7God Ki Mastery: 10 points a level, open to everyone.",
+    "&8Favor spent on points is not refunded, and neither is applied mastery."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:ask:mastery_buy:1",
+      "label": "10 points - 1 favor",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:ask:mastery_buy:2",
+      "label": "20 points - 2 favor",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:mastery_buy:5",
+      "label": "50 points - 5 favor",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:ask:mastery_buy:10",
+      "label": "100 points - 10 favor",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mastery_lines",
+      "label": "Apply points to a form",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Shop",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java walletSpec (line 344)",
+   "notes": "Packs from MasteryWallet.FAVOR_PACKS {1,2,5,10}; unaffordable packs are dim (same action). Not selling: packs replaced by line '&8Points are not on sale right now. Points you have can still be applied.' (added after buttonsAfterLines). 'Apply points to a form' is exactly 22 chars."
+  },
+  {
+   "id": "prestige_mastery_lines",
+   "screen": "prestige",
+   "page": "mastery_lines:0",
+   "title": "Prestige",
+   "lines": [
+    "&7Mastery points &f1240",
+    "&7Pick a line. God Ki Mastery is open to everyone; the other lines list forms you have unlocked.",
+    "&7Page 1 of 2"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:mw_form:k:godki:godki",
+      "label": "God Ki Level 3/10",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mw_form:k:divineki:divineki",
+      "label": "Divine Ki Level 0/10",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mw_line:n:ssgrades",
+      "label": "Super Saiyan (4 forms)",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mw_line:n:legendary",
+      "label": "Legendary Super Saiyan",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mw_line:n:ssgod",
+      "label": "Super Saiyan God",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mw_line:n:ultrainstinct",
+      "label": "Ultra Instinct",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mw_line:n:majinforms",
+      "label": "Majin (3 forms)",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mw_line:s:kaioken",
+      "label": "Kaioken (5 forms)",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mastery_lines:1",
+      "label": "Next",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Mastery wallet",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java linesSpec (line 384)",
+   "notes": "8 lines a page (MASTERY_PICKS_PER_PAGE), single left column, then Prev/Next (Next alone sits in the LEFT slot on page 1). Group tokens are samples. 'Legendary Super Saiyan (3 forms)' does not fit, so the count is dropped; 'Ultra Instinct (2 forms)' is 24 chars and would also fall back to 'Ultra Instinct'. Divine Ki appears only after God Ki is mastered. Empty state: two &7 lines and no buttons.",
+   "mock": {
+    "rows": [
+     [
+      {
+       "action": "page:mw_form:k:godki:godki",
+       "label": "God Ki Level 3/10",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:mw_form:k:divineki:divineki",
+       "label": "Divine Ki Level 0/10",
+       "style": "confirm",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:mw_line:n:ssgrades",
+       "label": "Super Saiyan (4 forms)",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:mw_line:n:legendary",
+       "label": "Legendary Super Saiyan",
+       "style": "confirm",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:mw_line:n:ssgod",
+       "label": "Super Saiyan God",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:mw_line:n:ultrainstinct",
+       "label": "Ultra Instinct",
+       "style": "confirm",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:mw_line:n:majinforms",
+       "label": "Majin (3 forms)",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:mw_line:s:kaioken",
+       "label": "Kaioken (5 forms)",
+       "style": "confirm",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "nav:none",
+       "label": "Page 1 of 2",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:mastery_lines:1",
+       "label": "Next page",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ]
+    ],
+    "why": "openMasteryLines: eight form lines each alone in the left column, then a lone Next; pair them and give the pager its own row (\"Page 1 of 2 | Next page\")."
+   }
+  },
+  {
+   "id": "prestige_mastery_line",
+   "screen": "prestige",
+   "page": "mw_line:n:ssgrades",
+   "title": "Prestige",
+   "lines": [
+    "&7Mastery points &f1240",
+    "&7Form line &fSuper Saiyan",
+    "&7Pick a form. Each point adds 50 mastery, up to the form's cap."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:mw_form:n:ssgrades:ssj1",
+      "label": "Super Saiyan",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mw_form:n:ssgrades:ssj2",
+      "label": "Super Saiyan 2",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mw_form:n:ssgrades:ssj3",
+      "label": "Super Saiyan 3",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:mw_form:n:ssgrades:ssj4",
+      "label": "Super Saiyan 4",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Apply points to a",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java lineSpec (line 429)",
+   "notes": "Form buttons 'label current/cap' fall back to the bare label when over 22 chars, so most forms lose their numbers ('Super Saiyan 1,200/2,500' is 24 -> 'Super Saiyan'); the capped suffix ' - at cap' is also dropped ('Super Saiyan 2' dim). Footer: parent page title 'Apply points to a form' is too wide for 'Back to ...' and backTo() drops the last word, giving 'Back to Apply points to a'. Up to 8 forms + Prev/Next."
+  },
+  {
+   "id": "prestige_mastery_form",
+   "screen": "prestige",
+   "page": "mw_form:n:ssgrades:ssj3",
+   "title": "Prestige",
+   "lines": [
+    "&7Form &fSuper Saiyan 3 (Super Saiyan)",
+    "&7Current mastery &f300 / 5,000",
+    "&7Room to cap &f4,700",
+    "&7Mastery points &f1240",
+    "&7Up to 94 points fit. Each button shows the mastery you end with."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:ask:mastery_apply:n:ssgrades:ssj3:1",
+      "label": "Apply 1 (to 350)",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:ask:mastery_apply:n:ssgrades:ssj3:5",
+      "label": "Apply 5 (to 550)",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:mastery_apply:n:ssgrades:ssj3:10",
+      "label": "Apply 10 (to 800)",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:ask:mastery_apply:n:ssgrades:ssj3:25",
+      "label": "Apply 25 (to 1,550)",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:mastery_apply:n:ssgrades:ssj3:50",
+      "label": "Apply 50 (to 2,800)",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:ask:mastery_apply:n:ssgrades:ssj3:94",
+      "label": "Apply 94 (to 5,000)",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Mastery line",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java formSpec (line 467)",
+   "notes": "Amounts from APPLY_AMOUNTS {1,5,10,25,50,100} that fit, plus the exact 'all that fit' amount. Max is 7 buttons (4 rows) when 100 fits and the remainder is extra. God Ki/Divine Ki form uses godKiFormSpec: lines '&7God Ki Mastery &fLevel 3/10', '&7God Ki mastery &f3,000 / 10,000', points, cost explanation, and ONE button 'Level up (10 points)' (dim 'Top level reached' at max)."
+  },
+  {
+   "id": "prestige_custom",
+   "screen": "prestige",
+   "page": "custom",
+   "title": "Prestige",
+   "lines": [
+    "&7Prestige favor &f12845",
+    "&7Special perks - permanent, survive prestige."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:perk:example_vitality",
+      "label": "Vitality Training",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:perk:example_pride",
+      "label": "Saiyan Pride",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Shop",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java openCustom (line 902)",
+   "notes": "Default config entries (shown as if staff enabled them). Caption 'Vitality Training - 3 favor' (27) and 'Saiyan Pride 1 - 3 favor' (24) are over 22 chars, so the price drops and only the name shows: the list never shows a price for any perk name longer than ~12 chars. One single left-column row per perk, no paging (a long perk list grows unbounded). Empty: '&8Nothing for sale right now. Ask staff to stock the shop.'"
+  },
+  {
+   "id": "prestige_perk",
+   "screen": "prestige",
+   "page": "perk:example_pride",
+   "title": "Prestige",
+   "lines": [
+    "&7Prestige favor &f12845",
+    "&7Saiyan Pride",
+    "&8Example: +10% Strength per level, up to 3 levels. Turn Enabled on to sell it.",
+    "&7Owned &f1/3",
+    "&7Price &f3 favor",
+    "&8Stat: Strength x1.10",
+    "&8Each level adds the rewards again."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:ask:custom_buy:example_pride",
+      "label": "Buy level 2 (3)",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:ask:custom_remove:example_pride",
+      "label": "Remove one level",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Custom shop",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java openPerk (line 940)",
+   "notes": "Buy label puts the price in bare parentheses '(3)' with no unit (favor). The default description tells players to 'Turn Enabled on' (a config field) if staff enable the sample without editing. Staff also see '&cStaff: <problem>' and '&8Staff: not for sale.' lines. Single-purchase perk: Owned yes/no, 'Buy (3)', 'Remove'."
+  },
+  {
+   "id": "prestige_ask_turnin",
+   "screen": "prestige",
+   "page": "ask:turnin:6",
+   "title": "Prestige",
+   "lines": [
+    "&7Confirm prestige exchange",
+    "&7You give &f6 prestiges",
+    "&7You get &f8 favor",
+    "&7Current prestige amount &f7 -> 1",
+    "&7Prestige favor &f12845 -> 12853",
+    "&cExchanged prestiges lose their stat bonus. This can't be undone."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:turnin:6",
+      "label": "Exchange 6: +8 favor",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Exchange shop",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraPrestigeScreens.java turnInAskSpec (line 1137) / askFinish (line 1115)",
+   "notes": "Representative of every ask: page (title line, label/value before->after, one warning line, a single Confirm, Back). Irreversible exchange uses the green confirm style although the line says it can't be undone. Blocked: '&c<reason>' and no Confirm. askFinish takes backPage/backLabel parameters that it no longer uses (the footer comes from the registry). Other asks skipped as layout repeats: skill, tier, majin/mutant/unmajin/unmutant, ultimate, custom_buy/custom_remove, mastery_buy, mastery_apply.",
+   "mock": {
+    "styles": {
+     "do:turnin:6": "danger"
+    },
+    "why": "turnInAskSpec: the page says \"This can't be undone.\" but its button is the green confirm style; an irreversible spend is danger."
+   }
+  },
+  {
+   "id": "character_home",
+   "screen": "character",
+   "page": "main",
+   "title": "Character Services",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "saga",
+     "Saga"
+    ],
+    [
+     "android",
+     "Android"
+    ]
+   ],
+   "activeTab": "home",
+   "lines": [
+    "&7Change race: Available again in 3h 12m.",
+    "&7Change class: &fYour class is Spiritualist. Race and stats stay.",
+    "&7Customize model: &fEquipped: Antennas2, Horns5. Swap the parts on your head.",
+    "&7Body parts: &f3 pieces equipped. Unlock and wear tails, wings, horns and more.",
+    "&7Reskin: &fChange your hair, eyes and colors. Race, class and stats stay.",
+    "&7Preview forms: &fSee your race in each of its forms on the model. Nothing changes on you.",
+    "&7Healing: &fLife Steal 12% | Overheal 25% | Received +30%"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:race:0",
+      "label": "Change race",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:class:0",
+      "label": "Change class",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:bones:0",
+      "label": "Customize model",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:bodyparts:0",
+      "label": "Body parts",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:reskin",
+      "label": "Reskin",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:form_preview:0",
+      "label": "Preview forms",
+      "style": "confirm",
+      "x": 174,
+      "w": 150,
+      "staffOnly": true
+     }
+    ],
+    [
+     {
+      "action": "do:model_rotate:main",
+      "label": "Spin model",
+      "style": "normal",
+      "x": 248,
+      "w": 86,
+      "fixed": true,
+      "y": 184,
+      "note": "label is 'Stop spin' while the model spins"
+     }
+    ]
+   ],
+   "model": {
+    "x": 248,
+    "y": 60,
+    "w": 86,
+    "h": 120
+   },
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openHome (line 173)",
+   "notes": "Model box 248,60,86,120 with the spin toggle fixed under it (x248 y184 w86); the flow rows start below the toggle (row 208). Race shown blocked by cooldown: its index line uses &7 with no value color and its button is dim but still sends page:race:0. Preview forms line + button are staff-only; a player gets 5 lines and Reskin alone on the last row. labelValue('Healing:', ...) puts a colon in the label, unlike every other labelValue. Healing line only when HealCap.summary is non-null.",
+   "variants": [
+    {
+     "skin": "zeno_omni",
+     "look": "lite",
+     "suffix": "zeno_lite"
+    }
+   ]
+  },
+  {
+   "id": "character_saga",
+   "screen": "character",
+   "page": "reset:0",
+   "title": "Character Services",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "saga",
+     "Saga"
+    ],
+    [
+     "android",
+     "Android"
+    ]
+   ],
+   "activeTab": "saga",
+   "lines": [
+    "&7Pay Ancient Coins to replay one saga.",
+    "&7Sagas &f14 page 1/2",
+    "&6&lNotice &eClears that saga's progress. This cannot be undone."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:saga_confirm:saiyan",
+      "label": "Reset Saiyan Saga",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:saga_confirm:namek",
+      "label": "Reset Namek Saga",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:saga_confirm:frieza",
+      "label": "Reset Frieza Saga",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:saga_confirm:garlic",
+      "label": "Garlic Jr Saga - Done",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:saga_confirm:android",
+      "label": "Android Saga",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:saga_confirm:cell",
+      "label": "Cell Saga - Locked",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:saga_confirm:majinbuu",
+      "label": "Majin Buu Saga",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:saga_confirm:kidbuu",
+      "label": "Kid Buu Saga - Locked",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:reset:1",
+      "label": "Next",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Character",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openSagaReset (line 1380)",
+   "notes": "8 sagas a page (DISCOVERY_PER_PAGE), 2-up, then Prev/Next (Next alone in the left slot on page 1). Saga ids/names are samples. A status caption that does not fit drops the status entirely ('Android Saga - In progress' is 26 -> 'Android Saga'), so that dim button no longer says why it is dim. Dim cells still send page:saga_confirm (not nav:none). Tab id 'saga' maps to page reset:0. Saga reset off: '&c<RESET_OFF>' and no buttons.",
+   "mock": {
+    "styles": {
+     "page:saga_confirm:saiyan": "normal",
+     "page:saga_confirm:namek": "normal",
+     "page:saga_confirm:frieza": "normal"
+    },
+    "relabel": {
+     "Android Saga": "Android Saga - In progress"
+    },
+    "why": "openSagaReset: the saga buttons open a confirm page, so they are normal, not green confirm; \"Android Saga - In progress\" is cut to \"Android Saga\" (dim with no reason) by the 6 px/character estimate although it fits 198 px."
+   }
+  },
+  {
+   "id": "character_saga_confirm",
+   "screen": "character",
+   "page": "saga_confirm:frieza",
+   "title": "Character Services",
+   "lines": [
+    "&7Reset Frieza Saga progress? This costs 850 Ancient Coins and cannot be undone."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:saga_reset:frieza",
+      "label": "Confirm reset",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Saga",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openSagaConfirm (line 1461)",
+   "notes": "Only confirm page in Character Services without a title line ('Confirm ...'); body is the SagaResetService confirm sentence, all forced to &7 by appendCompactLines. In a quest party adds '&7Leave your quest party before resetting.' (still shows the Confirm button). Not ready: '&c<reason>' and no button."
+  },
+  {
+   "id": "character_android",
+   "screen": "character",
+   "page": "android_remove",
+   "title": "Character Services",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "saga",
+     "Saga"
+    ],
+    [
+     "android",
+     "Android"
+    ]
+   ],
+   "activeTab": "android",
+   "lines": [
+    "&7Convert to Android: Android forms replace your Super and Legendary forms.",
+    "&7Cost &f16x Gold Ancient &7Ancient Coins",
+    "&8Priced by level: 1 Gold coin, plus 1 per 100 levels. Removing Android later is free."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:android_convert_confirm",
+      "label": "Convert to Android",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:android_staff",
+      "label": "Another player",
+      "style": "normal",
+      "x": 16,
+      "w": 150,
+      "staffOnly": true
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Character",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openAndroidRemove (line 1497)",
+   "notes": "ELIGIBLE state. The cost line reads 'Cost 16x Gold Ancient Ancient Coins' (formatExactCost already ends in 'Ancient', costLine appends 'Ancient Coins'). UPGRADED state: lines 'Remove Android forms and restore your previous look.', 'Cost &afree', notice 'Click again within 10 seconds. Converting to Android deletes Super and Legendary forms. Removing Android restores their skills.' and a danger 'Remove Android' that runs do:android_remove directly (click-twice flow, no confirm page, unlike Convert). Other states: one or two text lines and no button. 'Another player' is staff only."
+  },
+  {
+   "id": "character_android_convert_confirm",
+   "screen": "character",
+   "page": "android_convert_confirm",
+   "title": "Character Services",
+   "lines": [
+    "&7Convert to Android",
+    "&7Cost &f16x Gold Ancient &7Ancient Coins",
+    "&6&lNotice &eConverting replaces your Super and Legendary forms with Android forms. Removing Android later is free and restores them."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:android_self",
+      "label": "Confirm and pay",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Android",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openAndroidConvertConfirm (line 1552)",
+   "notes": "Same double-'Ancient' cost line. Staff pages android_staff / android_target / android_confirm skipped as layout repeats (picker 20 a page 2-up; target page one button; confirm one button). openAndroidConfirm builds an unused 'backToPlayer' action, and the registry sends android_confirm Back to the Android tab, not to the player's target page."
+  },
+  {
+   "id": "character_race",
+   "screen": "character",
+   "page": "race:0",
+   "title": "Character Services",
+   "lines": [
+    "&7Choose your new race.",
+    "&7Races &f12",
+    "&7Keep 0% &fFree",
+    "&7Listed cost is for keeping 100%. 0% keep is free - pick keep % on the next screen.",
+    "&7You keep ki skills, techniques, and shared form progress.",
+    "&7Forms that only belong to your old race reset if the new race cannot use them.",
+    "&7Ready to use",
+    "&8Keeping everything costs 10x Netherite Ancient - exact cost shown on the next page."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:race_confirm:human:0",
+      "label": "Human",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:race_confirm:saiyan:0",
+      "label": "Saiyan",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:race_confirm:namekian:0",
+      "label": "Namekian",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:race_confirm:frost_demon:0",
+      "label": "Frost Demon (you)",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:race_confirm:bioandroid:0",
+      "label": "Bioandroid",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:race_confirm:majin:0",
+      "label": "Majin",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:race_confirm:android:0",
+      "label": "Android",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:race_confirm:demon:0",
+      "label": "Demon",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:race_confirm:cerealian:0",
+      "label": "Cerealian",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:race_confirm:viltrumite:0",
+      "label": "Viltrumite",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:race_confirm:monkey:0",
+      "label": "Monkey",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:race_confirm:half_saiyan:0",
+      "label": "Half Saiyan",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Character",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openRace (line 421)",
+   "notes": "Up to 20 races a page (2-up, 10 rows) then Prev/Next; race ids are titleCased ids from DMZ discovery (samples; the server has ~12). The current race is dim and still opens its confirm page. Body repeats the keep-0%-is-free / keep-100% cost fact three times (Keep 0% Free, 'Listed cost...', the pinned dim line). appendCompactLines forces every service line to &7, so the green 'Ready to use' cooldown line loses its color. Cost text 'Netherite Ancient' (no 'Coins')."
+  },
+  {
+   "id": "character_race_confirm",
+   "screen": "character",
+   "page": "race_confirm:saiyan:50",
+   "title": "Character Services",
+   "lines": [
+    "&7Confirm race change",
+    "&7Race &fSaiyan",
+    "&7Keep &f50%",
+    "&7You are becoming Saiyan.",
+    "&7Keeping 50% of eligible stats.",
+    "&7Price scales with your level",
+    "&7Purchased looks carry over. Your class stays if the new race has it.",
+    "&7If not, the editor opens so you can pick a class at no extra cost.",
+    "&7After change (at 50%):",
+    "&7Strength 12,000 -> 6,000",
+    "&7Strike 9,500 -> 4,750",
+    "&7Defense 8,000 -> 4,000",
+    "&7Vitality 15,000 -> 7,500",
+    "&7Ki Power 11,000 -> 5,500",
+    "&7Energy 10,000 -> 5,000",
+    "&7If the change fails, your coins are returned when possible.",
+    "&7Staff cannot undo this for you.",
+    "&7Cost &f5x Netherite Ancient"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:race_confirm:saiyan:0",
+      "label": "0% free",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:race_confirm:saiyan:10",
+      "label": "10% 1 Netherite",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:race_confirm:saiyan:20",
+      "label": "20% 2 Netherite",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:race_confirm:saiyan:25",
+      "label": "25% 25 Diamond",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:race_confirm:saiyan:30",
+      "label": "30% 3 Netherite",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:race_confirm:saiyan:40",
+      "label": "40% 4 Netherite",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:race_confirm:saiyan:50",
+      "label": "50% 5 Netherite",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:race_confirm:saiyan:60",
+      "label": "60% 6 Netherite",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:race_confirm:saiyan:70",
+      "label": "70% 7 Netherite",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:race_confirm:saiyan:75",
+      "label": "75% 75 Diamond",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:race_confirm:saiyan:80",
+      "label": "80% 8 Netherite",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:race_confirm:saiyan:90",
+      "label": "90% 9 Netherite",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:race_confirm:saiyan:100",
+      "label": "100% 10 Netherite",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:race_confirm:saiyan:50",
+      "label": "Pay 5 Netherite",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Change race",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openRaceConfirm (line 528)",
+   "notes": "13 keep steps (default 0-100 by 10 plus 25 and 75) = 7 rows; the selected step is green confirm, others normal; then one Pay row (label 'Pay <compact cost>' or 'Confirm' when free). Prices are samples (100% = 1,000,000 copper). The irreversible warning 'Staff cannot undo this for you.' is DANGER in CharacterServicesGuiApi but appendCompactLines re-colors it &7, so it reads like any other line; the Pay button is green. Race and Keep are each shown twice (labelValue + 'You are becoming'/'Keeping' lines). The race_confirm line uses FightingClassLabels.display (a class helper) to name the race.",
+   "mock": {
+    "rows": [
+     [
+      {
+       "action": "page:race_confirm:saiyan:0",
+       "label": "0% free",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:race_confirm:saiyan:25",
+       "label": "25% 25 Diamond",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:race_confirm:saiyan:50",
+       "label": "50% 5 Netherite",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "page:race_confirm:saiyan:75",
+       "label": "75% 75 Diamond",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "page:race_confirm:saiyan:100",
+       "label": "100% 10 Netherite",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:race_confirm:saiyan:50",
+       "label": "Pay 5 Netherite",
+       "style": "confirm",
+       "x": 16,
+       "w": 150
+      }
+     ]
+    ],
+    "why": "openRaceConfirm: eleven keep-% buttons (0, 10, 20 ... 100) make the page 559 px tall; offer 0 / 25 / 50 / 75 / 100 (the Diamond-priced 25% and 75% already exist)."
+   }
+  },
+  {
+   "id": "character_class",
+   "screen": "character",
+   "page": "class:0",
+   "title": "Character Services",
+   "lines": [
+    "&7Pick a class for your current race.",
+    "&7Classes &f2",
+    "&7Only classes that fit your current race are listed.",
+    "&7Your base combat stats stay - class skills and progression reset.",
+    "&7Ready to use",
+    "&7Cost &f2x Emerald Ancient"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:class_confirm:warrior",
+      "label": "Warrior (you)",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:class_confirm:spiritualist",
+      "label": "Spiritualist",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Character",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openClass (line 595)",
+   "notes": "Up to 20 classes a page, 2-up, Prev/Next. The current class is dim yet still opens its confirm page. Class confirm (class_confirm:<id>) skipped as a layout repeat: title line, 'New class: X', 2 dim lines, pinned Cost, one 'Pay 2 Emerald' confirm button."
+  },
+  {
+   "id": "character_bones",
+   "screen": "character",
+   "page": "bones:0",
+   "title": "Character Services",
+   "lines": [
+    "&7Head &fOn: Hair",
+    "&7One piece from each group. Demon horns can be worn together.",
+    "&7A locked part charges Ancient Coins when you turn it on."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:bone_toggle:hair",
+      "label": "Hair - Equipped",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:bone_toggle:ears1",
+      "label": "Ears1",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:bone_toggle:ears2",
+      "label": "Ears2",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:bone_ask:0:ears3",
+      "label": "Ears3 - Locked",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:bone_ask:0:antennas1",
+      "label": "Antennas1 - Locked",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:bone_ask:0:antennas2",
+      "label": "Antennas2 - Locked",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:clear_ask:default:bones:0",
+      "label": "Race default",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:clear_ask:bones:bones:0",
+      "label": "Clear parts",
+      "style": "danger",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:bones:1",
+      "label": "Next",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:model_rotate:bones:0",
+      "label": "Spin model",
+      "style": "normal",
+      "x": 248,
+      "w": 86,
+      "fixed": true,
+      "y": 184,
+      "note": "label is 'Stop spin' while the model spins"
+     }
+    ]
+   ],
+   "model": {
+    "x": 248,
+    "y": 60,
+    "w": 86,
+    "h": 120
+   },
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Character",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openBones (line 772)",
+   "notes": "Model box 248,60,86,120 + fixed spin; flow starts below the toggle. Page 0 'Head' has 6 parts, page 1 'Horns' has 8 (horns1-5, majin1-3) so 4 card rows there. Part names come from prettyId of the ids, so players see 'Ears1', 'Antennas2', 'Majin3' (id-style names with digits) unless staff set displayNames. Body says a locked part 'charges Ancient Coins when you turn it on' but clicking it opens a confirm page first. Page is named 'Customize model' on Home/registry and 'Model customization' in its own text and the Monkey message."
+  },
+  {
+   "id": "character_bodyparts",
+   "screen": "character",
+   "page": "bodyparts:0",
+   "title": "Character Services",
+   "lines": [
+    "&7Body parts 1/9 &fOn: Saiyan Tail, Wings Feather, Demongod Breastplate Extra Long",
+    "&7Extra pieces for your KaiPath model preview - wings, horns, tails.",
+    "&7A locked piece charges Ancient Coins when you turn it on.",
+    "&7Shown on model previews; unlocked pieces stay in your collection.",
+    "&7Locked pieces show their price. Tap one to see it on you before you pay."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:bodyparts:0",
+      "label": "All",
+      "style": "confirm",
+      "x": 16,
+      "w": 98
+     },
+     {
+      "action": "page:bodyparts:0:body",
+      "label": "Body",
+      "style": "normal",
+      "x": 122,
+      "w": 98
+     },
+     {
+      "action": "page:bodyparts:0:tail",
+      "label": "Tail",
+      "style": "normal",
+      "x": 228,
+      "w": 98
+     }
+    ],
+    [
+     {
+      "action": "page:bodyparts:0:ears",
+      "label": "Ears",
+      "style": "normal",
+      "x": 16,
+      "w": 98
+     },
+     {
+      "action": "page:bodyparts:0:wings",
+      "label": "Wings",
+      "style": "normal",
+      "x": 122,
+      "w": 98
+     },
+     {
+      "action": "page:bodyparts:0:horns",
+      "label": "Horns",
+      "style": "normal",
+      "x": 228,
+      "w": 98
+     }
+    ],
+    [
+     {
+      "action": "page:bodypart_find",
+      "label": "Find a part",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:bodypart_toggle:saiyan_tail",
+      "label": "Saiyan Tail - Equipped",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:bodypart_toggle:wings_feather",
+      "label": "Wings Feather",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:part_ask:0:demongod_breastplate_extra_long",
+      "label": "Demongod.. 12 Emerald",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:part_ask:0:spirit_orbs_buffed",
+      "label": "Spirit or.. 12 Emerald",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:part_ask:0:cereal_tail_long",
+      "label": "Cereal Tail L.. 5 Gold",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:part_ask:0:extra_arms",
+      "label": "Extra Arms 8 Iron",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:part_ask:0:arm_blade",
+      "label": "Arm Blade 3 Emerald",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:bodypart_toggle:horns_vasto",
+      "label": "Horns Vasto",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:bodyparts:1",
+      "label": "Next",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:clear_ask:body:bodyparts:0",
+      "label": "Clear parts",
+      "style": "danger",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:bodycolors",
+      "label": "Part colors",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:model_rotate:bodyparts:0",
+      "label": "Spin model",
+      "style": "normal",
+      "x": 248,
+      "w": 86,
+      "fixed": true,
+      "y": 184,
+      "note": "label is 'Stop spin' while the model spins"
+     }
+    ]
+   ],
+   "model": {
+    "x": 248,
+    "y": 60,
+    "w": 86,
+    "h": 120
+   },
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Character",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openBodyParts (line 1037) / placeFilterRow (line 1099) / placePartCards (line 1120)",
+   "notes": "Filters are explicit 98px buttons at x 16/122/228 (8px apart), current filter green. 8 cards a page (2-up) then Prev/Next, then Clear parts | Part colors. Part ids/names/prices are samples (names from the self-test). Locked cards cut the name with '..' so the price fits ('Demongod.. 12 Emerald'; 'Spirit orbs buffed' -> 'Spirit or.. 12 Emerald'). An equipped card whose ' - Equipped' does not fit drops the state. Body text names the client mod ('KaiPath model preview') to players, and lines 3 and 5 overlap. 'Find a part' button vs page title 'Find a body part'."
+  },
+  {
+   "id": "character_bodypart_find",
+   "screen": "character",
+   "page": "bodypart_find",
+   "title": "Character Services",
+   "lines": [
+    "&7Find a body part",
+    "&7Results for 'wings' &f12 parts, page 1/2"
+   ],
+   "rows": [
+    [
+     {
+      "input": "input:bodypart_query",
+      "x": 16,
+      "w": 318
+     }
+    ],
+    [
+     {
+      "action": "do:bodypart_find",
+      "label": "Search",
+      "style": "confirm",
+      "x": 16,
+      "w": 150,
+      "bindInput": "input:bodypart_query"
+     }
+    ],
+    [
+     {
+      "action": "do:bodypart_find_recent:0",
+      "label": "Recent: wings",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:bodypart_find_recent:1",
+      "label": "Recent: tail",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:bodypart_find_recent:2",
+      "label": "Recent: horns",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:bodypart_find_recent:3",
+      "label": "demongod breastplat...",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:bodypart_find_recent:4",
+      "label": "Recent: ears",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:bodypart_toggle:wings_feather",
+      "label": "Wings Feather",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:part_ask:find:wings_bat",
+      "label": "Wings Bat 12 Emerald",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:part_ask:find:wings_angel",
+      "label": "Wings Angel 12 Emerald",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:bodypart_toggle:wings_dragon",
+      "label": "Wings Dragon",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:part_ask:find:wings_demon",
+      "label": "Wings Demon 9 Emerald",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:part_ask:find:wings_insect",
+      "label": "Wings Insect 4 Gold",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:part_ask:find:wings_mecha",
+      "label": "Wings Mecha 2 Diamond",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:part_ask:find:wings_fairy",
+      "label": "Wings Fairy 6 Gold",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:bodypart_find:1",
+      "label": "Next",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "inputs": [
+    {
+     "id": "input:bodypart_query",
+     "type": "text",
+     "placeholder": "e.g. horns",
+     "value": "wings",
+     "row": 0,
+     "maxLength": 32
+    }
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Body parts",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openBodyPartFind (line 1181)",
+   "notes": "Text field input:bodypart_query x16 w318 (PANEL_W-32; wider than the 306 two-column span, so its right edge does not line up with the buttons), max 32 chars, placeholder 'e.g. horns'. Search is bound to the field. Up to 5 recent searches 2-up; a recent query too long for 'Recent: ' drops the prefix and shows the clipped query alone. Up to 8 matches a page (cap 40). 'Wings Feather - Equipped' is 24 chars so the equipped card shows only 'Wings Feather' (green). Client without text input: one line 'Typing a search needs a newer KaiPath client. Pick a group instead:' and the 6 filter buttons. No model on this page."
+  },
+  {
+   "id": "character_bodycolors",
+   "screen": "character",
+   "page": "bodycolors",
+   "title": "Character Services",
+   "lines": [
+    "&7Pick a color for each part channel - own, trim, horn, glow.",
+    "&7Your choice follows you in every form.",
+    "&7Reset returns a channel to your form's default colors."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:bodycolors:own:0",
+      "label": "Part color",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:bodycolors:own:0",
+      "label": "Default",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:bodycolors:trim:0",
+      "label": "Trim color",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:bodycolors:trim:0",
+      "label": "#E23B3B",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:bodycolors:horn:0",
+      "label": "Horn color",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:bodycolors:horn:0",
+      "label": "Default",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:bodycolors:light:0",
+      "label": "Glow color",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:bodycolors:light:0",
+      "label": "#FFD700",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:model_rotate:bodycolors",
+      "label": "Spin model",
+      "style": "normal",
+      "x": 248,
+      "w": 86,
+      "fixed": true,
+      "y": 184,
+      "note": "label is 'Stop spin' while the model spins"
+     }
+    ]
+   ],
+   "model": {
+    "x": 248,
+    "y": 60,
+    "w": 86,
+    "h": 120
+   },
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Body parts",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openBodyColors (line 1255)",
+   "notes": "Each row is two buttons with the SAME action (name + current value); the value cell is dim when 'Default', which reads as disabled though it is clickable. Body text lists the internal channel keys ('own, trim, horn, glow') while the buttons say Part/Trim/Horn/Glow color. 'Part colors' page has no title line."
+  },
+  {
+   "id": "character_bodycolor_swatches",
+   "screen": "character",
+   "page": "bodycolors:trim:0",
+   "title": "Character Services",
+   "lines": [
+    "&7Trim color &f#E23B3B",
+    "&7Pick a swatch. It saves immediately.",
+    "&7Or pick any color: tap the wheel or type a hex like #e23b3b, then Apply."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:bodypart_color:trim:ffffff",
+      "label": "White",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:bodypart_color:trim:c0c0c0",
+      "label": "Silver",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:bodypart_color:trim:7d7d7d",
+      "label": "Gray",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:bodypart_color:trim:36383d",
+      "label": "Charcoal",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:bodypart_color:trim:111111",
+      "label": "Black",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:bodypart_color:trim:<crimson>",
+      "label": "Crimson",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:bodypart_color:trim:<orange>",
+      "label": "Orange",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:bodypart_color:trim:<gold>",
+      "label": "Gold",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:bodypart_color_reset:trim",
+      "label": "Reset to natural look",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:bodycolors:trim:1",
+      "label": "Next",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "input": "input:bodycolor_hex",
+      "x": 16,
+      "w": 150,
+      "colorPreview": true
+     },
+     {
+      "action": "do:bodypart_color:trim:",
+      "label": "Apply this color",
+      "style": "confirm",
+      "x": 174,
+      "w": 150,
+      "bindInput": "input:bodycolor_hex"
+     }
+    ],
+    [
+     {
+      "input": "input:bodycolor_wheel",
+      "x": 16,
+      "size": 56,
+      "targetInput": "input:bodycolor_hex"
+     }
+    ],
+    [
+     {
+      "action": "do:model_rotate:bodycolors:trim:0",
+      "label": "Spin model",
+      "style": "normal",
+      "x": 248,
+      "w": 86,
+      "fixed": true,
+      "y": 184,
+      "note": "label is 'Stop spin' while the model spins"
+     }
+    ]
+   ],
+   "inputs": [
+    {
+     "id": "input:bodycolor_hex",
+     "type": "text",
+     "placeholder": "#rrggbb",
+     "value": "#E23B3B",
+     "row": 6,
+     "maxLength": 9
+    },
+    {
+     "id": "input:bodycolor_wheel",
+     "type": "color_wheel",
+     "row": 7,
+     "x": 16,
+     "size": 56,
+     "target": "input:bodycolor_hex"
+    }
+   ],
+   "model": {
+    "x": 248,
+    "y": 60,
+    "w": 86,
+    "h": 120
+   },
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Part color",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openBodyColorSwatches (line 1296)",
+   "notes": "16 presets, 8 a page (2 pages). Crimson/Orange/Gold hex values not looked up (placeholders in angle brackets). Hex field x16 w150 (max 9 chars, placeholder '#rrggbb', a color square previews it) with 'Apply this color' bound to it on the same row; the color wheel (LM client only) is its own row, x16, size 56. KaiPath without the wheel: line 3 reads 'Or pick any color: type a hex like #e23b3b, then Apply.'; no text input: 'Typed fields need KaiPath 1.3.9 or newer. Until then pick a swatch.' and no field row. Registry title for bodycolors:** is 'Part color' (singular) while the parent is 'Part colors'."
+  },
+  {
+   "id": "character_part_ask",
+   "screen": "character",
+   "page": "part_ask:0:wings_feather",
+   "title": "Character Services",
+   "lines": [
+    "&7Confirm body part unlock",
+    "&7Part &fWings Feather",
+    "&7Cost &f12x Emerald Ancient",
+    "&7Ancient Coins &fCopper 12 - Iron 3 - Gold 64 - Emerald 17 - Diamond 2 - Netherite 1",
+    "&7Unlocks Wings Feather for good and turns it on. You can turn it off any time.",
+    "&8Unlocks survive race changes. Coins spent are not refunded.",
+    "&8The model shows Wings Feather on you."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:bodypart_unlock:wings_feather",
+      "label": "Pay 12 Emerald",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:model_rotate:part_ask:0:wings_feather",
+      "label": "Spin model",
+      "style": "normal",
+      "x": 248,
+      "w": 86,
+      "fixed": true,
+      "y": 184,
+      "note": "label is 'Stop spin' while the model spins"
+     }
+    ]
+   ],
+   "model": {
+    "x": 248,
+    "y": 60,
+    "w": 86,
+    "h": 120
+   },
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Body parts",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openUnlockAsk (line 928)",
+   "notes": "Model shows the candidate part (preview snapshot). Cost reads '12x Emerald Ancient' while the button says 'Pay 12 Emerald'. Cannot afford: a long red AncientCoinEconomy.missingText line and no Pay button. bone_ask is the same layout ('Confirm look unlock', 'Look'). openUnlockAsk computes a backLabel ('Find parts' / 'Body parts' / 'Model customization') it never uses; registry parent is bodyparts:0 even when opened from the find screen."
+  },
+  {
+   "id": "character_reskin",
+   "screen": "character",
+   "page": "reskin",
+   "title": "Character Services",
+   "lines": [
+    "&7Change hair, colors, and other cosmetics.",
+    "&7Change hair, colors, and other cosmetics.",
+    "&7Use Model customization for cross-race ears, horns, and more.",
+    "&7Reskin only changes how you look. To change your fighting class, use Change class instead.",
+    "&7Level, stats, and race are unchanged.",
+    "&7Cost 3x Gold Ancient Ancient Coins",
+    "&7Price scales with level (1500) - base 1x Gold Ancient -> you pay 3x Gold Ancient",
+    "&7You'll be charged Ancient Coins when you confirm on the next screen.",
+    "&7Ready to use"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:reskin_confirm",
+      "label": "Review cost",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Character",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "source": "UltraCharacterScreens.java openReskin (line 740)",
+   "notes": "First line is printed twice: openReskin adds it, then appendCompactLines adds the same sentence from CharacterServicesGuiApi.linesForPage('reskin') (not in the skip list). Cost line has the double 'Ancient Ancient Coins'. 'Review cost' button although the cost is already on this page. Reskin confirm (reskin_confirm) skipped as layout repeat: 'Confirm reskin' + service lines + one 'Pay 3 Gold' button; when blocked, the precheck reason is printed twice (once from linesForPage, once as the red line in openReskinConfirm)."
+  },
+  {
+   "id": "character_form_preview",
+   "screen": "character",
+   "page": "form_preview:3",
+   "title": "Character Services",
+   "lines": [
+    "&7Preview forms",
+    "&7Form &fSuper Saiyan Blue Evolved (4 of 14)",
+    "&7Previous and Next step through your race's forms. Nothing changes on you and nothing is unlocked.",
+    "&8The model wears your own colors, hair and skin, in this form."
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:form_preview:2",
+      "label": "Previous",
+      "style": "normal",
+      "x": 16,
+      "w": 80
+     },
+     {
+      "action": "page:form_preview:4",
+      "label": "Next",
+      "style": "normal",
+      "x": 100,
+      "w": 80
+     }
+    ],
+    [
+     {
+      "action": "do:model_rotate:form_preview:3",
+      "label": "Spin model",
+      "style": "normal",
+      "x": 219,
+      "w": 86,
+      "fixed": true,
+      "y": 236,
+      "note": "label is 'Stop spin' while the model spins"
+     }
+    ]
+   ],
+   "model": {
+    "x": 190,
+    "y": 46,
+    "w": 144,
+    "h": 186
+   },
+   "back": true,
+   "footer": "back",
+   "footerLabels": [
+    "Back to Character",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": true,
+   "source": "UltraCharacterScreens.java openFormPreview (line 306)",
+   "notes": "Staff only. Big model box 190,46,144,186 (scaled to fit giant forms); spin toggle fixed at x219 y236 w86 without clearing the flow. Previous/Next are 80px at x16 and x100 (4px apart, tighter than the 6px gap elsewhere). Labels 'Previous' here vs 'Prev' on every other pager. KaiPath client: last line '&8The model uses the race's default colors, not your own.' Non-staff / no character: two &7 lines and no buttons."
+  }
+ ]
+}

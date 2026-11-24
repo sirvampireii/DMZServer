@@ -113,6 +113,12 @@ public final class CharacterServicesConfig {
         return m;
     }
 
+    /**
+     * 4.7.81: the keep percents the race-change menu offers (the owner's pick: 0/25/50/75/100). Every one of them is
+     * always in {@link #preservationSteps()}, so the server accepts and prices them as before.
+     */
+    public static final int[] MENU_KEEP_STEPS = {0, 25, 50, 75, 100};
+
     /** Seed list used only when the live map is empty. */
     public static int[] defaultPreservationSteps() {
         return new int[] {0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100};

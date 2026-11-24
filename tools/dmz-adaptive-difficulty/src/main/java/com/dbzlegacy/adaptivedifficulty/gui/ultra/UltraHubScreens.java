@@ -73,6 +73,10 @@ public final class UltraHubScreens {
         return "input:skin_" + MenuPrefs.TONE_KEYS[i];
     }
 
+    /** 4.7.82: the one wheel on My colors and its size (GUI px). */
+    static final String SHARED_WHEEL = "input:skin_wheel";
+    static final int WHEEL_SIZE = 80;
+
     static String toneWheel(int i) {
         return "input:skin_wheel_" + MenuPrefs.TONE_KEYS[i];
     }
@@ -581,7 +585,8 @@ public final class UltraHubScreens {
             spec.send(player);
             return;
         }
-        spec.line(UltraStyle.VALUE + (wheels ? "Type a color like #e23b3b, or tap a wheel." : "Type a color like #e23b3b."))
+        spec.line(UltraStyle.VALUE + (wheels ? "Type a color like #e23b3b, or tap a color's box and pick it on the wheel."
+                        : "Type a color like #e23b3b."))
                 .line(UltraStyle.VALUE + "Apply saves them and every menu uses them.")
                 .line(UltraStyle.LABEL + "From copies a skin's colors into the fields. Reset fills in the defaults.")
                 .line(UltraStyle.LABEL + "Nothing changes until you tap Apply. It is free.");
@@ -599,15 +604,20 @@ public final class UltraHubScreens {
         }
         String apply = "do:" + ACTION_CUSTOM + ":apply:" + MenuSkins.customToken(draftCustom(d, prefs.custom()));
         spec.bindInputsToButtons(fields).enterClicks(apply);
+        // 4.7.82 (GuiKit): five short rows (name | hex field) and ONE wheel under them for the field tapped last,
+        // instead of a 44px wheel on every row (the page was ~587px tall and shrank to tiny buttons).
         for (int i = 0; i < fields.length; i++) {
             int row = spec.row();
             spec.button(UltraGuiActions.NO_ACTION, UltraStyle.dim(TONE_NAMES[i] + " color"), UltraStyle.STYLE_DIM,
-                    UltraStyle.COL_L, row, 96);
-            spec.textField(fields[i], d.raw()[i], "#rrggbb", UltraStyle.COL_L + 102, row, 96, UltraStyle.BTN_H, 9);
+                    UltraStyle.COL_L, row, UltraStyle.BTN_W);
+            spec.textField(fields[i], d.raw()[i], "#rrggbb", UltraStyle.COL_R, row, UltraStyle.BTN_W, UltraStyle.BTN_H, 9);
             spec.colorPreview(fields[i]);
-            if (wheels) {
-                spec.colorWheel(toneWheel(i), fields[i], UltraStyle.COL_L + 204, row, 44);
-            }
+            spec.rowGap();
+        }
+        if (wheels) {
+            int row = spec.row();
+            int span = UltraStyle.COL_R + UltraStyle.BTN_W - UltraStyle.COL_L;
+            spec.sharedColorWheel(SHARED_WHEEL, fields, UltraStyle.COL_L + (span - WHEEL_SIZE) / 2, row, WHEEL_SIZE);
             spec.rowGap();
         }
         spec.buttonLeft("do:" + ACTION_CUSTOM + ":dark", "Style - " + (d.dark() ? "Dark" : "Light"),

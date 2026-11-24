@@ -287,7 +287,7 @@ public final class SparGuiApi {
 
     public static List<String> mentorLines(ServerPlayer player) {
         List<String> lines = new ArrayList<>();
-        lines.add(UltraStyle.AQUA + "Training bonds");
+        lines.add(UltraStyle.header("Training bonds"));
         if (player == null || !DifficultyConfig.get().enableSparringSystem) {
             lines.add(UltraStyle.DANGER + "Sparring system is disabled.");
             return lines;
@@ -318,7 +318,7 @@ public final class SparGuiApi {
             }
             lines.add(UltraStyle.LABEL + "Streak " + UltraStyle.VALUE + bond.streakCurrent + " " + UltraStyle.DIM + "best " + UltraStyle.VALUE + bond.streakBest);
         } else {
-            lines.add(UltraStyle.LABEL + "Invite apprentices or ask a mentor from Actions.");
+            lines.add(UltraStyle.LABEL + "Recruit apprentices or ask a master from Training bonds.");
             lines.add(UltraStyle.DIM + "Dojo: up to " + UltraStyle.VALUE + SparringSystem.MAX_APPRENTICES + " " + UltraStyle.DIM + "apprentices - one master");
             lines.add(UltraStyle.DIM + "Invite lasts " + UltraStyle.VALUE + "1 hour " + UltraStyle.DIM + "- peers spar +"
                     + Math.round(SparCombat.DOJO_PEER_SPAR_BONUS_PCT * 100) + "% TP");
@@ -328,7 +328,7 @@ public final class SparGuiApi {
         if (pending > 0) {
             lines.add(UltraStyle.YELLOW + "Pending invites " + UltraStyle.VALUE + pending + " " + UltraStyle.DIM + "- open Bond invites (" + UltraStyle.VALUE + "1h" + UltraStyle.DIM + ")");
         } else {
-            lines.add(UltraStyle.DIM + "Open Actions to recruit, request a master, or release.");
+            lines.add(UltraStyle.DIM + "Training bonds has Recruit, Request master and Release.");
         }
         return lines;
     }

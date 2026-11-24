@@ -212,12 +212,16 @@ def main(out, base=None):
             # own look, KaiPath race colors) - the line, wherever it wraps, is set aside too.
             lines = [x for x in (r["lines"] or [])
                      if not re.search(r"The model (uses|wears)|colors, not your own|hair and skin, in this form",
-                                      plain(x))]
+                                      plain(x))
+                     # 4.7.80 Goals: the reset clock and the week's progress move between the two runs.
+                     and not (r["screen"] == "hub" and r["page"] == "goals"
+                              and re.search(r"Resets in|\[[#-]+\]|^Done", plain(x)))]
             return json.dumps([lay, btns, lines], sort_keys=True)
 
         has_search = lambda r: any(i.get("id") == "hub_search" or "hub_search" in json.dumps(i)
                                    for i in (r.get("inputs") or []))
         nav = 0
+        differ_pages = []
         seen_keys = set()
         for r in crawled(a):
             k = (r["screen"], r["page"], r["title"], r["tab"])
@@ -236,8 +240,9 @@ def main(out, base=None):
                 nav += 1
             elif not re.search(r"\[I@[0-9a-f]+", json.dumps(r["buttons"])):
                 differ += 1
+                differ_pages.append(f"{r['screen']}|{r['page']}")
         row("one spec for both render paths (KaiPath run == native run)", differ == 0,
-            f"{same} identical, {differ} differ" + (f", {wheel} differ only by the LM-client color wheel" if wheel else "")
+            f"{same} identical, {differ} differ" + (f" ({', '.join(differ_pages[:5])})" if differ_pages else "") + (f", {wheel} differ only by the LM-client color wheel" if wheel else "")
             + (f", {nav} differ only by LM-client navigation (history Back, breadcrumb, search row, preview look line)" if nav else ""))
 
     rj = read(os.path.join(out, "srv-reject.log"))

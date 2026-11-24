@@ -654,3 +654,10 @@ already matched the 4.7.59 baseline. No signature changed. The other 23 are unch
 
 `AdaptiveDifficultyMod` and `config/editor/ConfigFieldHelp` re-baselined for `LegacyMechanics-4.7.78.jar`: rival teams
 were removed (the startup log no longer reports FTB Teams; the team settings' help lines are gone with the settings).
+
+## Re-baseline (2026-11-24, 4.7.81 GuiKit layout pass)
+
+`UltraPrestigeScreens` re-baselined for `LegacyMechanics-4.7.81.jar`: menu layout only (shop, tiers and mastery
+buttons in two columns and normal style, mastery pager row, headings on confirm pages, the irreversible exchange in
+danger style, "Reach level ... first" on a wide row). No price, wallet or purchase logic changed. The other 24 are
+unchanged.

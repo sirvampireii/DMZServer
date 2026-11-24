@@ -1,0 +1,27 @@
+{
+ "_comment": "LM GuiKit corpus. Real window sizes, GUI scale 2, 3 and Auto; Saiyan Royal by default. Run: mod-toolkit\\scripts\\guikit.ps1 -Project <this folder>. Screens live in specs/ (generated).",
+ "sizes": [
+  "1920x1080",
+  "1366x768",
+  "854x480"
+ ],
+ "scales": [
+  2,
+  3,
+  "auto"
+ ],
+ "skin": "saiyan_royal",
+ "look": "full",
+ "format": "jpg",
+ "sheets": false,
+ "keep": [
+  "1920x1080@2"
+ ],
+ "include": [
+  "specs/difficulty_rival.json",
+  "specs/hub_admin.json",
+  "specs/prestige_character.json",
+  "specs/spar_dojo.json"
+ ],
+ "screens": []
+}

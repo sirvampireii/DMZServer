@@ -87,12 +87,9 @@ public final class UltraWeightShopScreens {
                         .labelValue("Max value", String.format(Locale.ROOT, "%,d", MAX_WEIGHT_VALUE))
                         .line(UltraStyle.LABEL + "Pick a type, type the weight value, then confirm.")
                         .buttonsAfterLines();
+        // Item choices: normal style, plain label (each opens the amount page; nothing is bought yet).
         for (WeightOffer offer : WeightOffer.values()) {
-            spec.button(
-                            "page:weights_input:" + offer.id,
-                            UltraStyle.confirm(offer.label),
-                            UltraStyle.STYLE_CONFIRM)
-                    .rowGap();
+            spec.button("page:weights_input:" + offer.id, offer.label, UltraStyle.STYLE_NORMAL).rowGap();
         }
         spec.back();
         spec.send(player);
@@ -107,7 +104,7 @@ public final class UltraWeightShopScreens {
         AncientCoinEconomy.migrateWalletToItems(player);
         UltraScreenSpec spec =
                 sub("weights_input:" + offer.id)
-                        .line(UltraStyle.LABEL + offer.label)
+                        .line(UltraStyle.header(offer.label))
                         .labelValue(
                                 "Copper",
                                 String.valueOf(
@@ -163,7 +160,7 @@ public final class UltraWeightShopScreens {
         String costText = free ? "Free for staff" : AncientCoinEconomy.formatExactCost(cost);
         UltraScreenSpec spec =
                 sub("weights_confirm:" + offer.id + ":" + value)
-                        .line(UltraStyle.LABEL + "Confirm weight purchase")
+                        .line(UltraStyle.header("Confirm weight purchase"))
                         .labelValue("Type", offer.label)
                         .labelValue("Weight value", String.format(java.util.Locale.ROOT, "%,d", value))
                         .labelValue("Cost", costText)

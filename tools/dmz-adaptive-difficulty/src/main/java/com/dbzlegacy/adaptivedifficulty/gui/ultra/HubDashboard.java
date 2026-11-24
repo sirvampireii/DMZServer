@@ -188,14 +188,17 @@ public final class HubDashboard {
         return "Dojo: " + DojoRankings.dojoDisplayName(key) + ", no season wins yet";
     }
 
-    /** What a spar win is worth (Sparring Home). */
+    /**
+     * What a spar is worth to the player's dojo (Sparring Home). 4.7.68+: a counted ranked board spar adds clout to
+     * each fighter's dojo (capped a day); clout ranks the dojo leaderboard and resets with the season.
+     */
     public static String sparWinLine(ServerPlayer player) {
-        long rp = Math.round(DojoRankings.BASE_RP_PER_WIN);
-        if (DojoRankings.homeDojoKey(player) == null) {
-            return "Join a dojo: each win vs another dojo adds " + rp + " RP.";
+        int clout = com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.CLOUT_MEMBER_SPAR;
+        int cap = com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.CLOUT_MEMBER_DAILY;
+        if (com.dbzlegacy.adaptivedifficulty.dojo.DojoService.dojoOf(player) == null) {
+            return "Join a dojo: each counted ranked spar adds " + clout + " clout to it (up to " + cap + " a day).";
         }
-        return "Win vs another dojo: +" + rp + " season RP (" + SparBoard.mult((float) DojoRankings.CHALLENGE_RP_MULT)
-                + " in a war).";
+        return "Each counted ranked spar: +" + clout + " clout for your dojo (up to " + cap + " a day).";
     }
 
     /** {@code Potential Unlock 4 of 30: 340 / 500 points}. */

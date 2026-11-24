@@ -193,10 +193,12 @@ public final class UltraPrestigeScreens {
             spec.button("page:confirm", UltraStyle.danger("Prestige now"), UltraStyle.STYLE_DANGER)
                     .rowGap();
         } else {
-            spec.button(
+            // 4.7.81 (GuiKit): both columns wide, so "Reach level 150,000 first" is never cut.
+            spec.buttonWide(
                             "page:confirm",
                             UltraStyle.dim("Reach level " + ph.getOrDefault("required_fmt", "0") + " first"),
-                            UltraStyle.STYLE_DIM)
+                            UltraStyle.STYLE_DIM,
+                            null)
                     .rowGap();
         }
         spec.back();
@@ -211,7 +213,7 @@ public final class UltraPrestigeScreens {
         UltraScreenSpec spec = sub("confirm")
                 .lineGap(2)
                 .bodyPad(4)
-                .line(UltraStyle.LABEL + "Confirm prestige")
+                .line(UltraStyle.header("Confirm prestige"))
                 .labelValue("Current prestige amount",
                         ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", String.valueOf(com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE)))
                 .labelValue("Level cap", ph.getOrDefault("required_fmt", "0"))
@@ -248,35 +250,30 @@ public final class UltraPrestigeScreens {
         paintFavorBalance(spec, ph);
         spec.line(UltraStyle.LABEL + "Spend Prestige favor. Purchases survive prestige.")
                 .buttonsAfterLines();
+        // 4.7.81 (GuiKit): the sections are a picker - normal style, two columns.
+        List<String[]> sections = new ArrayList<>();
         if (cfg.exchange.enabled) {
-            spec.button("page:exchange", UltraStyle.confirm("Exchange shop"), UltraStyle.STYLE_CONFIRM)
-                    .rowGap();
+            sections.add(new String[] {"page:exchange", "Exchange shop"});
         }
         if (cfg.skillShop.enabled) {
-            spec.button("page:skills", UltraStyle.confirm("Skill shop"), UltraStyle.STYLE_CONFIRM)
-                    .rowGap();
+            sections.add(new String[] {"page:skills", "Skill shop"});
         }
         if (cfg.tierShop.enabled) {
-            spec.button(
-                            "page:tiers",
-                            UltraStyle.confirm("Difficulty tiers"),
-                            UltraStyle.STYLE_CONFIRM)
-                    .rowGap();
+            sections.add(new String[] {"page:tiers", "Difficulty tiers"});
         }
-        spec.button("page:effects", UltraStyle.confirm("Effects"), UltraStyle.STYLE_CONFIRM)
-                .rowGap();
+        sections.add(new String[] {"page:effects", "Effects"});
         // Shown while selling, or while the player still has points to apply.
         if (cfg.masteryWallet.enabled || MasteryWallet.balance(player) > 0) {
-            spec.button("page:mastery_wallet", UltraStyle.confirm("Mastery wallet"), UltraStyle.STYLE_CONFIRM)
-                    .rowGap();
+            sections.add(new String[] {"page:mastery_wallet", "Mastery wallet"});
         }
         if (cfg.customShop.enabled && !customRows(player).isEmpty()) {
-            spec.button(
-                            "page:custom",
-                            UltraStyle.confirm(UltraStyle.buttonText(cfg.customShop.menuLabel)),
-                            UltraStyle.STYLE_CONFIRM)
-                    .rowGap();
+            sections.add(new String[] {"page:custom", UltraStyle.buttonText(cfg.customShop.menuLabel)});
         }
+        for (int i = 0; i < sections.size(); i++) {
+            String[] s = sections.get(i);
+            pairButton(spec, i, s[0], UltraStyle.plain(s[1]), UltraStyle.STYLE_NORMAL);
+        }
+        endPairs(spec, sections.size());
         // Edit prestige shop lives on Staff Admin (4.7.31); page:staff_edit still works for old links.
         spec.back();
         spec.send(player);
@@ -340,6 +337,48 @@ public final class UltraPrestigeScreens {
         formSpec(line, form, MasteryWallet.balance(player), linePage).send(player);
     }
 
+    /** {@code index} even: left column; odd: right column, then the row ends (4.7.81 two-column pickers). */
+    private static void pairButton(UltraScreenSpec spec, int index, String action, String label, String style) {
+        if (index % 2 == 0) {
+            spec.buttonLeft(action, label, style);
+        } else {
+            spec.buttonRight(action, label, style);
+            spec.rowGap();
+        }
+    }
+
+    /** Ends a half-filled last row of {@link #pairButton}. */
+    private static void endPairs(UltraScreenSpec spec, int placed) {
+        if (placed % 2 == 1) {
+            spec.rowGap();
+        }
+    }
+
+    /**
+     * Pager row (4.7.81): [Prev | Next], with "Page X of Y" in the slot that has nowhere to go (the startup
+     * self-test reads the Prev / Next labels).
+     * Nothing for a single page.
+     */
+    private static void pagerRow(UltraScreenSpec spec, String pageBase, int page, int pages) {
+        if (pages <= 1) {
+            return;
+        }
+        String where = "Page " + (page + 1) + " of " + pages;
+        if (page > 0) {
+            spec.buttonLeft("page:" + UltraPickHelper.pageArg(pageBase, page - 1), UltraStyle.LABEL + "Prev",
+                    UltraStyle.STYLE_NORMAL);
+        } else {
+            spec.lockedButton(where);
+        }
+        if (page + 1 < pages) {
+            spec.buttonRight("page:" + UltraPickHelper.pageArg(pageBase, page + 1), UltraStyle.LABEL + "Next",
+                    UltraStyle.STYLE_NORMAL);
+        } else {
+            spec.lockedButtonRight(where);
+        }
+        spec.rowGap();
+    }
+
     /** Wallet page: balance, favor, the four point packs, and the way into the picker. */
     static UltraScreenSpec walletSpec(int balance, int favor, boolean selling) {
         UltraScreenSpec spec = sub("mastery_wallet")
@@ -361,8 +400,9 @@ public final class UltraPrestigeScreens {
                 int cost = packs[i];
                 String raw = MasteryWallet.pointsForFavor(cost) + " points - " + cost + " favor";
                 boolean afford = favor >= cost;
-                String label = afford ? UltraStyle.confirm(raw) : UltraStyle.dim(raw);
-                String style = afford ? "confirm" : "dim";
+                // 4.7.81: a pack is an option (its confirm page asks before paying) - normal, not green.
+                String label = afford ? UltraStyle.plain(raw) : UltraStyle.dim(raw);
+                String style = afford ? UltraStyle.STYLE_NORMAL : UltraStyle.STYLE_DIM;
                 if (i % 2 == 0) {
                     spec.buttonLeft("page:ask:mastery_buy:" + cost, label, style);
                 } else {
@@ -397,6 +437,8 @@ public final class UltraPrestigeScreens {
                     + " list forms you have unlocked.");
             UltraPickHelper.pageLabel(spec, pg, pages);
             spec.buttonsAfterLines();
+            // 4.7.81 (GuiKit): the lines are a picker - normal style, two columns, pager on its own row.
+            int placed = 0;
             for (MasteryWallet.Line line : UltraPickHelper.pageSlice(lines, MASTERY_PICKS_PER_PAGE, pg)) {
                 if (line.godKi && !line.forms.isEmpty()) {
                     MasteryWallet.Form gk = line.forms.get(0);
@@ -406,9 +448,8 @@ public final class UltraPrestigeScreens {
                         gkRaw = line.label;
                     }
                     // One form only: straight to its page; Back there returns to this list.
-                    spec.button("page:mw_form:" + line.token() + ":" + gk.name, UltraStyle.confirm(gkRaw),
-                                    UltraStyle.STYLE_CONFIRM)
-                            .rowGap();
+                    pairButton(spec, placed++, "page:mw_form:" + line.token() + ":" + gk.name, UltraStyle.plain(gkRaw),
+                            UltraStyle.STYLE_NORMAL);
                     continue;
                 }
                 int n = line.forms.size();
@@ -416,10 +457,10 @@ public final class UltraPrestigeScreens {
                 if (!UltraStyle.fitsButton(raw)) {
                     raw = line.label;
                 }
-                spec.button("page:mw_line:" + line.token(), UltraStyle.confirm(raw), UltraStyle.STYLE_CONFIRM)
-                        .rowGap();
+                pairButton(spec, placed++, "page:mw_line:" + line.token(), UltraStyle.plain(raw), UltraStyle.STYLE_NORMAL);
             }
-            UltraPickHelper.placePrevNext(spec, "mastery_lines", pg, pages);
+            endPairs(spec, placed);
+            pagerRow(spec, "mastery_lines", pg, pages);
         }
         spec.back();
         return spec;
@@ -451,8 +492,8 @@ public final class UltraPrestigeScreens {
             // The form page carries this page index so its Back returns here.
             spec.button(
                             "page:" + UltraPickHelper.pageArg("mw_form:" + line.token() + ":" + form.name, pg),
-                            full ? UltraStyle.dim(raw) : UltraStyle.confirm(raw),
-                            full ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_CONFIRM)
+                            full ? UltraStyle.dim(raw) : UltraStyle.plain(raw),
+                            full ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_NORMAL)
                     .rowGap();
         }
         UltraPickHelper.placePrevNext(spec, base, pg, pages);
@@ -504,12 +545,8 @@ public final class UltraPrestigeScreens {
                 raw = "Apply " + a;
             }
             String action = "page:ask:mastery_apply:" + token + ":" + a;
-            if (i % 2 == 0) {
-                spec.buttonLeft(action, UltraStyle.confirm(raw), UltraStyle.STYLE_CONFIRM);
-            } else {
-                spec.buttonRight(action, UltraStyle.confirm(raw), UltraStyle.STYLE_CONFIRM);
-                spec.rowGap();
-            }
+            // 4.7.81: an amount is an option (its confirm page asks before applying) - normal, not green.
+            pairButton(spec, i, action, UltraStyle.plain(raw), UltraStyle.STYLE_NORMAL);
         }
         if (amounts.size() % 2 == 1) {
             spec.rowGap();
@@ -659,8 +696,9 @@ public final class UltraPrestigeScreens {
         if (!UltraStyle.fitsButton(raw)) {
             raw = "Exchange " + amount;
         }
-        String label = held >= amount ? UltraStyle.confirm(raw) : UltraStyle.dim(raw);
-        String style = held >= amount ? "confirm" : "dim";
+        // 4.7.81: a pack is an option (its confirm page asks before the exchange) - normal, not green.
+        String label = held >= amount ? UltraStyle.plain(raw) : UltraStyle.dim(raw);
+        String style = held >= amount ? UltraStyle.STYLE_NORMAL : UltraStyle.STYLE_DIM;
         if (left) {
             spec.buttonLeft("page:ask:turnin:" + amount, label, style);
         } else {
@@ -715,18 +753,10 @@ public final class UltraPrestigeScreens {
             String caption = skillCaption(label, bought, max, maxed,
                     cost != shop.costPerPurchase ? cost : -1);
             String action = "page:ask:skill:" + id;
-            if (placed % 2 == 0) {
-                spec.buttonLeft(
-                        action,
-                        maxed ? UltraStyle.dim(caption) : UltraStyle.confirm(caption),
-                        maxed ? "dim" : "confirm");
-            } else {
-                spec.buttonRight(
-                        action,
-                        maxed ? UltraStyle.dim(caption) : UltraStyle.confirm(caption),
-                        maxed ? "dim" : "confirm");
-                spec.rowGap();
-            }
+            // 4.7.81: a skill is an option (its confirm page asks before buying) - normal, not green.
+            pairButton(spec, placed, action,
+                    maxed ? UltraStyle.dim(caption) : UltraStyle.plain(caption),
+                    maxed ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_NORMAL);
             placed++;
         }
         if (placed % 2 == 1) {
@@ -761,12 +791,14 @@ public final class UltraPrestigeScreens {
             String tail = owned ? "Owned" : (!shop.forSale(t) ? "Not for sale" : (canBuy ? cost + " favor" : "Locked"));
             String withName = "T" + t + " " + label + " - " + tail;
             String caption = UltraStyle.fitsButton(withName) ? withName : ("T" + t + " - " + tail);
+            // 4.7.81 (GuiKit): two columns, like Difficulty > Tiers.
             if (owned || !canBuy) {
-                spec.button(action, UltraStyle.dim(caption), UltraStyle.STYLE_DIM).rowGap();
+                pairButton(spec, t - 1, action, UltraStyle.dim(caption), UltraStyle.STYLE_DIM);
             } else {
-                spec.button(action, UltraStyle.confirm(caption), UltraStyle.STYLE_CONFIRM).rowGap();
+                pairButton(spec, t - 1, action, UltraStyle.confirm(caption), UltraStyle.STYLE_CONFIRM);
             }
         }
+        endPairs(spec, 7);
         spec.back();
         spec.send(player);
     }
@@ -1105,7 +1137,7 @@ public final class UltraPrestigeScreens {
         return sub("ask:" + askPage)
                 .lineGap(2)
                 .bodyPad(4)
-                .line(UltraStyle.LABEL + title);
+                .line(UltraStyle.header(title));
     }
 
     /**
@@ -1147,7 +1179,8 @@ public final class UltraPrestigeScreens {
         } else if (held < amount) {
             block = "You hold " + held + " - this pack needs " + amount + ".";
         }
-        return askFinish(spec, block, "do:turnin:" + amount, exchangeLabel(amount, gain), false,
+        // 4.7.81: the exchange cannot be undone, so its button is the danger style.
+        return askFinish(spec, block, "do:turnin:" + amount, exchangeLabel(amount, gain), true,
                 "exchange", "Exchange shop");
     }
 

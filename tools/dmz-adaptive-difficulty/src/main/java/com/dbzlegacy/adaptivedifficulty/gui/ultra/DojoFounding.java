@@ -103,12 +103,17 @@ public final class DojoFounding {
         return true;
     }
 
+    /** Longest dojo name {@code DojoService.nameProblem} accepts. */
+    private static final int DOJO_NAME_MAX = 24;
+
     private static void inputRow(UltraScreenSpec spec, String inputId, String value, String placeholder, String action,
             String label) {
         int btn = UltraStyle.BTN_MIN_W;
         int fieldW = UltraStyle.BTN_W * 2 + UltraStyle.BTN_GAP - btn - UltraStyle.BTN_GAP;
         int y = spec.row();
-        spec.textFieldRow(inputId, value == null ? "" : value, placeholder, UltraStyle.COL_L, fieldW);
+        // GuiKit 4.7.81: the field stops at the dojo name limit (DojoService.nameProblem: 3 to 24 characters).
+        spec.textField(inputId, value == null ? "" : value, placeholder, UltraStyle.COL_L, y, fieldW, UltraStyle.BTN_H,
+                DOJO_NAME_MAX);
         spec.buttonBound("do:" + action, UltraStyle.confirm(label), UltraStyle.STYLE_CONFIRM,
                 UltraStyle.COL_L + fieldW + UltraStyle.BTN_GAP, y, btn, inputId);
         spec.rowGap();
@@ -277,9 +282,10 @@ public final class DojoFounding {
         }
         spec.line(UltraStyle.VALUE + "Pick a banner you made. The dojo copies its design; the banner stays yours.")
                 .buttonsAfterLines();
+        // Full-width rows: "Use for 20: Light gray, 6 patterns (off hand)" is cut on a half-width button.
         for (Banner b : found) {
-            spec.button(actionPrefix + b.source(), verb + ": " + describe(b.base(), b.patterns()) + where(b.source()),
-                    UltraStyle.STYLE_NORMAL).rowGap();
+            spec.buttonWide(actionPrefix + b.source(), verb + ": " + describe(b.base(), b.patterns()) + where(b.source()),
+                    UltraStyle.STYLE_NORMAL, null).rowGap();
         }
     }
 

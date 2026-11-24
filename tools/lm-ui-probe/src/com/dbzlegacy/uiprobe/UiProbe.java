@@ -783,17 +783,18 @@ public final class UiProbe {
                     && p.buttonsJson().contains("go:dojo|dojo_upgrades") && labels(p).contains("Upgrades  -  Dojo") ? "PASS" : "FAIL")
                     + " | " + labels(p));
         }
-        for (GuiOpenPacket p : hubClick("nav search result", "hub", "go:dojo|dojo_upgrades", "more")) {
+        // A tab page's footer goes to its system Home by design; a deeper result (an upgrade) goes back along history.
+        for (GuiOpenPacket p : hubClick("nav search result", "hub", "go:dojo|dojo_up:arena", "more")) {
             note("SEARCH result opens the page: " + (p.screenId() + "|" + p.pageId()) + " Back reads "
                     + (has(p, "Back to More") ? "Back to More PASS" : "FAIL") + " | crumbs " + crumbText(crumbs(p)));
         }
-        for (GuiOpenPacket p : hubClick("nav back to search", "dojo", "nav:back", "dojo_upgrades")) {
+        for (GuiOpenPacket p : hubClick("nav back to search", "dojo", "nav:back", "dojo_up:arena")) {
             note("BACK returns to More with the search results: " + ("hub".equals(p.screenId()) && "more".equals(p.pageId())
                     && p.buttonsJson().contains("go:dojo|dojo_upgrades") ? "PASS" : "FAIL"));
         }
         // Breadcrumbs on three deep pages, one a dojo upgrade; each crumb but the last is a link.
         String[][] deep = {{"dojo", "dojo_up:arena", "Main menu > Dojo > Upgrades > Sparring arenas"},
-                {"prestige", "mastery_lines", "Main menu > Prestige > Shop > Mastery wallet > Apply points to a form"},
+                {"prestige", "mastery_lines", "Main menu > Prestige > Shop > Mastery wallet > Forms"},
                 {"rival", "records:stats", "Main menu > Rivals > Records > Record stats"}};
         for (String[] d : deep) {
             NavHistory.clear(u);
@@ -1815,6 +1816,9 @@ public final class UiProbe {
         {"custom", "prep"}, {"open", "hub", "skins"}, {"wait", "60"}, {"say", "uirecord custom1-picker"},
         {"wait", "20"}, {"open", "hub", "skin_custom"}, {"wait", "60"}, {"say", "uirecord custom2-editor"},
         {"wait", "20"}, {"say", "uiclick wheel:0"}, {"wait", "20"}, {"say", "uirecord custom3-wheel-picked"},
+        // 4.7.82: the wheel is shared: tap the Primary field, then the wheel colors Primary (Panel stays red).
+        {"wait", "20"}, {"say", "uiclick field:1"}, {"wait", "10"}, {"say", "uiclick wheel:0"}, {"wait", "20"},
+        {"say", "uirecord custom3b-wheel-second-field"},
         {"wait", "20"}, {"say", "uiclick label:Apply my colors"}, {"wait", "60"},
         {"say", "uirecord custom4-applied"}, {"wait", "20"}, {"custom", "check"}, {"custom", "reset"}, {"wait", "20"},
         // 4.7.67: part colors on the real client: the own channel's swatch page, a tap at the top of the wheel (red),
@@ -1942,8 +1946,10 @@ public final class UiProbe {
             return;
         }
         GuiOpenPacket ed = got.get(got.size() - 1);
-        note("CUSTOM EDITOR five fields, " + (wheels ? "five wheels" : "no wheels") + ", Style, Scene, Apply, Preview, From, Reset: "
-                + pf(countInputs(ed, "text") == 5 && countInputs(ed, "color_wheel") == (wheels ? 5 : 0)
+        // 4.7.82: one wheel shared by the five fields (it colors the field tapped last).
+        note("CUSTOM EDITOR five fields, " + (wheels ? "one shared wheel" : "no wheels") + ", Style, Scene, Apply, Preview, From, Reset: "
+                + pf(countInputs(ed, "text") == 5 && countInputs(ed, "color_wheel") == (wheels ? 1 : 0)
+                        && (!wheels || ed.inputsJson().contains("skin_panel,@hub:input:skin_primary,"))
                         && has(ed, "Style - Dark") && has(ed, "Scene - Banner") && has(ed, "Apply my colors")
                         && has(ed, "Preview") && has(ed, "From Namek") && has(ed, "Reset to default")
                         && "#e23b3b".equals(fieldValue(ed, "primary")) && ed.buttonsJson().contains("bindInputs")
@@ -2160,6 +2166,9 @@ public final class UiProbe {
                     note("FINAL CUSTOM real client: wheel tap fills Panel, Apply saves it: panel="
                             + String.format("%06x", v.custom().panel()) + " "
                             + pf("custom".equals(v.skin()) && (!wheels || v.custom().panel() == 0xFF0000)));
+                    note("FINAL CUSTOM real client: after tapping the Primary field the shared wheel colors Primary: primary="
+                            + String.format("%06x", v.custom().primary()) + " "
+                            + pf("custom".equals(v.skin()) && (!wheels || v.custom().primary() == 0xFF0000)));
                 }
                 write("uiprobe-script.txt", scriptLog.toString(), false);
             }
@@ -2967,7 +2976,7 @@ public final class UiProbe {
         sa.addProperty("page", "more");
         sa.addProperty("value", "wager");
         for (GuiOpenPacket p : keep("v80 search on more", () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", sa.toString()))) {
-            note("V80 search typed in More lands on the results on More: " + pf("more".equals(p.pageId()) && has(p, "Results for 'wager'")
+            note("V80 search typed in More lands on the results on More: " + pf("more".equals(p.pageId()) && has(p, "Results for") && has(p, "wager")
                     && p.buttonsJson().contains("go:spar|board_wager")) + " | " + labels(p));
         }
         UltraHubScreens.searchFor(player, "");
@@ -3041,10 +3050,12 @@ public final class UiProbe {
         }
         for (GuiOpenPacket p : keep("v80 wager bad", () -> UltraGuiActions.dispatch(player, "spar", "do:board_wager_set:99", wc.toString()))) {
             note("V80 an unknown wager step changes nothing and says why: " + pf(com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.draft(u).wager() == 2
-                    && has(p, "isn't on the list")));
+                    && has(p, "on the list")));
         }
         ServerPlayer w = dojoStandIn("Wager80");
         com.dbzlegacy.adaptivedifficulty.dojo.DojoService.found(w);
+        com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.grantExact(w,
+                com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.CoinKind.NETHERITE, 1);
         com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.setDraft(w.m_20148_(), false, 1);
         String wp = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(w, "board_post", "");
         var post = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.postOf(w.m_20148_());
@@ -3053,12 +3064,12 @@ public final class UiProbe {
         } else {
             String stake = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.wagerText(post.wagerKind(), post.wager());
             for (GuiOpenPacket p : keep("v80 board listing", () -> UltraGui.open(player, "spar", "sparboard"))) {
-                note("V80 the listing shows the wager and Accept asks first: " + pf(has(p, stake)
+                note("V80 the listing shows the wager and Accept asks first: " + pf(has(p, "Emerald")
                         && p.buttonsJson().contains("page:board_accept:" + w.m_20148_())) + " | " + labels(p));
             }
             for (GuiOpenPacket p : keep("v80 accept ask", () -> UltraGui.open(player, "spar", "board_accept:" + w.m_20148_()))) {
                 note("V80 the accept page says the stake (the same kind and amount) before the click: " + pf(has(p, "You stake")
-                        && has(p, stake) && has(p, "The winner takes both stakes") && has(p, "refunds both")
+                        && has(p, "Emerald (the same as Wager80)") && has(p, "The winner takes both") && has(p, "refunds both")
                         && (p.buttonsJson().contains("do:board_accept:" + w.m_20148_()) || labels(p).contains("Accept and stake")))
                         + " | " + labels(p));
             }

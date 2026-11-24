@@ -1,0 +1,3035 @@
+{
+ "system": "hub_admin",
+ "pages": [
+  {
+   "id": "hub_home",
+   "screen": "hub",
+   "page": "main",
+   "title": "Legacy Mechanics",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "goals",
+     "Goals"
+    ],
+    [
+     "more",
+     "More"
+    ]
+   ],
+   "activeTab": "home",
+   "lines": [
+    "&6&lYour next prestige",
+    "&fLevel 42,310 of 50,000 [##########--]",
+    "&f7,690 levels to your next prestige",
+    "&fFastest now: T4 Veteran, +38% TP per kill.",
+    "&6&lTrain",
+    "&fDifficulty: T3 Hardened, Momentum 1:40 banked",
+    "&fYour spar streak: 14 days",
+    "&6&lCompete",
+    "&fRival: Adversary, 1,250,000 RP, #37",
+    "&fDojo: 12th of 48 this season",
+    "&6&lProgress",
+    "&fPotential Unlock 29 of 30: 2950 / 3000 points"
+   ],
+   "rows": [
+    [
+     {
+      "action": "open:prestige",
+      "label": "Prestige",
+      "style": "normal",
+      "x": 16,
+      "w": 306,
+      "accent": "b",
+      "palette": "prestige"
+     }
+    ],
+    [
+     {
+      "action": "open:difficulty",
+      "label": "Difficulty",
+      "style": "normal",
+      "x": 16,
+      "w": 150,
+      "accent": "c",
+      "palette": "difficulty"
+     },
+     {
+      "action": "open:spar",
+      "label": "Sparring",
+      "style": "normal",
+      "x": 174,
+      "w": 150,
+      "accent": "3",
+      "palette": "spar"
+     }
+    ],
+    [
+     {
+      "action": "open:rival",
+      "label": "Rival",
+      "style": "normal",
+      "x": 16,
+      "w": 150,
+      "accent": "f",
+      "palette": "rival"
+     },
+     {
+      "action": "open:dojo",
+      "label": "Dojo",
+      "style": "normal",
+      "x": 174,
+      "w": 150,
+      "accent": "3",
+      "palette": "dojo"
+     }
+    ],
+    [
+     {
+      "action": "open:character",
+      "label": "Character Services",
+      "style": "normal",
+      "x": 16,
+      "w": 150,
+      "accent": "a",
+      "palette": "character"
+     },
+     {
+      "action": "open:skillcheck",
+      "label": "Skill Check",
+      "style": "normal",
+      "x": 174,
+      "w": 150,
+      "accent": "e",
+      "palette": "skillcheck"
+     }
+    ]
+   ],
+   "back": false,
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraHubScreens.java openMain (line 159); lines from HubDashboard.java",
+   "notes": "Player who can use Skill Check (donator). A staff member who cannot use Skill Check gets 'Skills' (open:skills, accent e) in that slot instead; a plain player gets no 6th tile (Character Services then sits alone on the left of the last row). Each line header (Your next prestige/Train/Compete/Progress) is drawn in its own box by the LM client. The streak line and the Progress group are left out when null. A system that is off shows its tile style dim with &8 label (still clickable, not nav:none). Title is 'Legacy Mechanics' while the page registry calls this page 'Main menu'. Potential line prints raw numbers with no thousands separator (2950 / 3000) while every other line uses 1,250,000-style formatting. No Back footer (top-level page).",
+   "variants": [
+    {
+     "look": "lite",
+     "suffix": "lite"
+    },
+    {
+     "skin": "zeno_omni"
+    },
+    {
+     "skin": "namek_serenity"
+    },
+    {
+     "skin": "beerus_destruction"
+    },
+    {
+     "skin": "obsidian_gold"
+    }
+   ]
+  },
+  {
+   "id": "hub_goals",
+   "screen": "hub",
+   "page": "goals",
+   "title": "Legacy Mechanics",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "goals",
+     "Goals"
+    ],
+    [
+     "more",
+     "More"
+    ]
+   ],
+   "activeTab": "goals",
+   "lines": [
+    "&6&lWeekly goals · resets in 3d 4h",
+    "&7Everyone gets the same three goals. Progress counts from the start of the week.",
+    "&6&lWin 3 spars on the Spar Board",
+    "&f1 of 3 [####--------]",
+    "&6&lFight in a dojo war",
+    "&aDone [############]",
+    "&6&lDefeat 150 mobs with difficulty on",
+    "&f87 of 150 [#######-----]"
+   ],
+   "rows": [
+    [
+     {
+      "action": "go:spar|sparboard",
+      "label": "Go to Spar Board",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "go:dojo|dojo_wars",
+      "label": "Go to Dojo Wars",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "go:difficulty|main",
+      "label": "Go to Difficulty",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": false,
+   "fit": true,
+   "staff": false,
+   "target": true,
+   "codeToday": "Code already builds this page (openGoals) but the top is two lines: header '&6&lWeekly goals' then labelValue '&7Resets in &f3d 4h'. Everything else (explanation line, a header + progress-bar line per goal, 'Go to X' buttons two-up, no rewards) matches the mock.",
+   "source": "UltraHubScreens.java openGoals (line 416); goals/WeeklyGoals.java",
+   "notes": "Target header uses a middle dot; UltraStyle.wireText rewrites U+00B7 to '-', so on the wire it reads 'Weekly goals - resets in 3d 4h' (and header() makes the whole line bold gold, including the timer). Goals are picked per week from a pool of 7 (one per system); other possible buttons: 'Go to Sparring' (go:spar|home), 'Go to Rival' (go:rival|home), 'Go to Tiers' (go:difficulty|tiers), 'Go to More' (go:hub|more, for the meditation goal: a vague label, the meditation info is on More but the label does not say so). Longest goal title 'Meditate 20 minutes near another player'. A finished goal's progress line is &a green. Go-to buttons carry no system palette, unlike hub tiles. No Back footer (hub tab)."
+  },
+  {
+   "id": "hub_more",
+   "screen": "hub",
+   "page": "more",
+   "title": "Legacy Mechanics",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "goals",
+     "Goals"
+    ],
+    [
+     "more",
+     "More"
+    ]
+   ],
+   "activeTab": "more",
+   "lines": [
+    "&6&lSearch",
+    "&7Type part of a name - a menu, a page or a setting - then tap Search.",
+    "&6&lMeditation",
+    "&5Meditation &f7/10 &8- &f3h 12m/5h",
+    "&7Meditate near another player.",
+    "&6&lYour menus",
+    "&7Pick a skin, backgrounds, and Full or Lite.",
+    "&7HUD: &frival, TP and penalty info on screen",
+    "&7The HUD needs the Legacy Mechanics client."
+   ],
+   "rows": [
+    [
+     {
+      "input": "search",
+      "x": 16,
+      "w": 220
+     },
+     {
+      "action": "do:hub_search",
+      "label": "Search",
+      "style": "confirm",
+      "x": 242,
+      "w": 80,
+      "bind": "search"
+     }
+    ],
+    [
+     {
+      "action": "do:hub_search_recent:0",
+      "label": "&7Recent: dojo upgrades",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:hub_search_recent:1",
+      "label": "&7Recent: momentum",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:hub_search_recent:2",
+      "label": "&7Recent: prestige shop",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:hub_search_recent:3",
+      "label": "&7Recent: skin",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:hub_search_recent:4",
+      "label": "&7Recent: rival",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:skins",
+      "label": "Menu skins",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "open:admin",
+      "label": "Staff Admin",
+      "style": "normal",
+      "x": 174,
+      "w": 150,
+      "accent": "4",
+      "palette": "admin"
+     }
+    ],
+    [
+     {
+      "action": "do:hud_toggle",
+      "label": "HUD - ON",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "inputs": [
+    {
+     "id": "search",
+     "wireId": "input:hub_search",
+     "type": "text",
+     "placeholder": "Search menus, pages and settings",
+     "value": "",
+     "row": 0
+    }
+   ],
+   "back": false,
+   "fit": true,
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraHubScreens.java openMore (line 383), searchLines (274), placeSearchButtons (297), placeSearchRow (225)",
+   "notes": "Staff variant, empty query, 5 recent searches (session only, newest first). Non-staff: no Staff Admin tile, Menu skins alone on its row. A recent whose 'Recent: X' text is over 22 chars drops the 'Recent:' prefix and is clipped with '...'. Client without text input: the Search lines become one line '&7Typing a search needs a newer client. Open a system from Home instead.' and there is no field row and no recents. Meditation off: '&7Meditation progress is off on this server.' HUD off: label 'HUD - OFF' and value 'boss bars and chat lines'. Search button is 80px (min). The meditation line uses &5 dark purple, which the skin rules call unreadable on light faces (fine here, it is body text). The 'Your menus' text sits far above the Menu skins button it describes (search rows come between). No Back footer (hub tab)."
+  },
+  {
+   "id": "hub_more_results",
+   "screen": "hub",
+   "page": "more",
+   "title": "Legacy Mechanics",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "goals",
+     "Goals"
+    ],
+    [
+     "more",
+     "More"
+    ]
+   ],
+   "activeTab": "more",
+   "lines": [
+    "&6&lSearch",
+    "&7Results for 'dojo' &f8 pages, 12 settings",
+    "&6&lMeditation",
+    "&5Meditation &f7/10 &8- &f3h 12m/5h",
+    "&7Meditate near another player.",
+    "&6&lYour menus",
+    "&7Pick a skin, backgrounds, and Full or Lite.",
+    "&7HUD: &frival, TP and penalty info on screen",
+    "&7The HUD needs the Legacy Mechanics client."
+   ],
+   "rows": [
+    [
+     {
+      "input": "search",
+      "x": 16,
+      "w": 220
+     },
+     {
+      "action": "do:hub_search",
+      "label": "Search",
+      "style": "confirm",
+      "x": 242,
+      "w": 80,
+      "bind": "search"
+     }
+    ],
+    [
+     {
+      "action": "go:dojo|home",
+      "label": "&fDojo&7  -  Main menu",
+      "style": "normal",
+      "x": 16,
+      "w": 306
+     }
+    ],
+    [
+     {
+      "action": "go:dojo|dojo_upgrades",
+      "label": "&fUpgrades&7  -  Dojo",
+      "style": "normal",
+      "x": 16,
+      "w": 306
+     }
+    ],
+    [
+     {
+      "action": "go:dojo|dojo_wars",
+      "label": "&fWars&7  -  Dojo",
+      "style": "normal",
+      "x": 16,
+      "w": 306
+     }
+    ],
+    [
+     {
+      "action": "go:dojo|dojo_elites",
+      "label": "&fMembers and elites&7  -  Dojo",
+      "style": "normal",
+      "x": 16,
+      "w": 306
+     }
+    ],
+    [
+     {
+      "action": "go:dojo|dojo_style",
+      "label": "&fStyle and bonus&7  -  Dojo > Upgrades",
+      "style": "normal",
+      "x": 16,
+      "w": 306
+     }
+    ],
+    [
+     {
+      "action": "go:dojo|dojo_war_pick",
+      "label": "&fDeclare a war&7  -  Dojo > Wars",
+      "style": "normal",
+      "x": 16,
+      "w": 306
+     }
+    ],
+    [
+     {
+      "action": "go:dojo|dojo_list",
+      "label": "&fDojo leaderboard&7  -  Dojo > Wars",
+      "style": "normal",
+      "x": 16,
+      "w": 306
+     }
+    ],
+    [
+     {
+      "action": "go:dojo|dojo_list_wars",
+      "label": "&fDojo leaderboard - war wins&7  -  Dojo > Wars",
+      "style": "normal",
+      "x": 16,
+      "w": 306
+     }
+    ],
+    [
+     {
+      "action": "do:hub_search_settings",
+      "label": "&7Settings matching 'dojo' (12)",
+      "style": "normal",
+      "x": 16,
+      "w": 306
+     }
+    ],
+    [
+     {
+      "action": "do:hub_search_clear",
+      "label": "&7Clear search",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:skins",
+      "label": "Menu skins",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "open:admin",
+      "label": "Staff Admin",
+      "style": "normal",
+      "x": 174,
+      "w": 150,
+      "accent": "4",
+      "palette": "admin"
+     }
+    ],
+    [
+     {
+      "action": "do:hud_toggle",
+      "label": "HUD - ON",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "inputs": [
+    {
+     "id": "search",
+     "wireId": "input:hub_search",
+     "type": "text",
+     "placeholder": "Search menus, pages and settings",
+     "value": "dojo",
+     "row": 0
+    }
+   ],
+   "back": false,
+   "fit": true,
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraHubScreens.java openMore / placeSearchButtons (line 319)",
+   "notes": "Results layout: max 8 page hits (RESULTS_MAX), each a full-width button 'Title  -  where it lives'; a label wider than the 290px room falls back to just '&fTitle'. 'Settings matching' row is staff-only (opens the config editor's search). No match: line '&7Nothing matches 'xyz'. Try a shorter word, like dojo or skin.' and only Clear search. Problem: 'Dojo leaderboard - war wins  -  Dojo > Wars' uses the same hyphen as the path separator, so title and location run together. With 8 hits this page has 14 button rows and the Menu skins/HUD/Staff Admin controls end up far below the fold. Clear search is a 150px left button alone on its row."
+  },
+  {
+   "id": "hub_skins",
+   "screen": "hub",
+   "page": "skins",
+   "title": "Menu skins",
+   "lines": [
+    "&fPick how your menus look. Tap a name to use it.",
+    "&fSwitching is free and you can switch back.",
+    "&7Backgrounds: &fa themed scene behind menus",
+    "&7Lite: &fplainer, faster menus for slow PCs",
+    "&7Full skins need the Legacy Mechanics client.",
+    "&7Custom: pick your own colors."
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:menu_skin:saiyan_royal",
+      "label": "Saiyan Royal",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "nav:none",
+      "label": "Tap the name to use it",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:menu_skin:namek_serenity",
+      "label": "Namek Serenity",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "nav:none",
+      "label": "Tap the name to use it",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:menu_skin:obsidian_gold",
+      "label": "Obsidian & Gold",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "nav:none",
+      "label": "Tap the name to use it",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:menu_skin:beerus_destruction",
+      "label": "Beerus Destruction",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "nav:none",
+      "label": "Tap the name to use it",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:menu_skin:zeno_omni",
+      "label": "Zeno Omni",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "nav:none",
+      "label": "Tap the name to use it",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:menu_skin:custom:<palette token>",
+      "label": "Custom",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "nav:none",
+      "label": "You are using this",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:skin_custom",
+      "label": "Edit my colors",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:menu_backgrounds",
+      "label": "Backgrounds - ON",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:menu_look",
+      "label": "Look - Full",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footerLabels": [
+    "Back to More",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraHubScreens.java openSkins (line 503)",
+   "notes": "Worst case (most rows): wearing Custom, so Custom is confirm-styled with 'You are using this' and an extra 'Edit my colors' row. Wearing a preset instead: that preset's name is confirm + 'You are using this', and the Custom row reads 'Custom' / locked 'Tap to make your own' with no Edit row. The locked right-hand labels are drawn by the LM client as a live swatch of that skin; on KaiPath they show as five dead dim buttons repeating 'Tap the name to use it'. Skin name 'Obsidian & Gold' contains a bare '&' (not a color code; generator must not parse '& ' as one). activeTab('home') is set but the page has no tab row. Footer: bridge gets 'Back to More' + 'Main menu' (registry parent hub|more); LM nav client gets 'Back to <previous page>'."
+  },
+  {
+   "id": "hub_skin_custom",
+   "screen": "hub",
+   "page": "skin_custom",
+   "title": "My colors",
+   "lines": [
+    "&fType a color like #e23b3b, or tap a wheel.",
+    "&fApply saves them and every menu uses them.",
+    "&7From copies a skin's colors into the fields. Reset fills in the defaults.",
+    "&7Nothing changes until you tap Apply. It is free.",
+    "&cText: That doesn't look like a color - use 6 hex digits, like #e23b3b",
+    "&7Text color adjusted so it stays readable (now #f4ecd8)."
+   ],
+   "rows": [
+    [
+     {
+      "action": "nav:none",
+      "label": "Panel color",
+      "style": "dim",
+      "x": 16,
+      "w": 96
+     },
+     {
+      "input": "skin_panel",
+      "x": 118,
+      "w": 96
+     },
+     {
+      "wheel": "skin_wheel_panel",
+      "target": "skin_panel",
+      "x": 220,
+      "w": 44,
+      "h": 44
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Primary color",
+      "style": "dim",
+      "x": 16,
+      "w": 96
+     },
+     {
+      "input": "skin_primary",
+      "x": 118,
+      "w": 96
+     },
+     {
+      "wheel": "skin_wheel_primary",
+      "target": "skin_primary",
+      "x": 220,
+      "w": 44,
+      "h": 44
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Trim color",
+      "style": "dim",
+      "x": 16,
+      "w": 96
+     },
+     {
+      "input": "skin_trim",
+      "x": 118,
+      "w": 96
+     },
+     {
+      "wheel": "skin_wheel_trim",
+      "target": "skin_trim",
+      "x": 220,
+      "w": 44,
+      "h": 44
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Text color",
+      "style": "dim",
+      "x": 16,
+      "w": 96
+     },
+     {
+      "input": "skin_text",
+      "x": 118,
+      "w": 96
+     },
+     {
+      "wheel": "skin_wheel_text",
+      "target": "skin_text",
+      "x": 220,
+      "w": 44,
+      "h": 44
+     }
+    ],
+    [
+     {
+      "action": "nav:none",
+      "label": "Confirm color",
+      "style": "dim",
+      "x": 16,
+      "w": 96
+     },
+     {
+      "input": "skin_confirm",
+      "x": 118,
+      "w": 96
+     },
+     {
+      "wheel": "skin_wheel_confirm",
+      "target": "skin_confirm",
+      "x": 220,
+      "w": 44,
+      "h": 44
+     }
+    ],
+    [
+     {
+      "action": "do:menu_custom:dark",
+      "label": "Style - Dark",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:menu_custom:motif",
+      "label": "Scene - Cosmic wisps",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:menu_custom:apply:<palette token>",
+      "label": "Apply my colors",
+      "style": "confirm",
+      "x": 16,
+      "w": 150,
+      "bind": "skin_panel"
+     },
+     {
+      "action": "nav:none",
+      "label": "Preview",
+      "style": "dim",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:menu_custom:from:saiyan_royal",
+      "label": "From Saiyan Royal",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:menu_custom:from:namek_serenity",
+      "label": "From Namek",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:menu_custom:from:obsidian_gold",
+      "label": "From Obsidian",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:menu_custom:from:beerus_destruction",
+      "label": "From Beerus",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:menu_custom:from:zeno_omni",
+      "label": "From Zeno Omni",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:menu_custom:reset",
+      "label": "Reset to default",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "inputs": [
+    {
+     "id": "skin_panel",
+     "wireId": "input:skin_panel",
+     "type": "text",
+     "placeholder": "#rrggbb",
+     "value": "#1a1410",
+     "maxLength": 9,
+     "row": 0,
+     "colorPreview": true
+    },
+    {
+     "id": "skin_primary",
+     "wireId": "input:skin_primary",
+     "type": "text",
+     "placeholder": "#rrggbb",
+     "value": "#e23b3b",
+     "maxLength": 9,
+     "row": 1,
+     "colorPreview": true
+    },
+    {
+     "id": "skin_trim",
+     "wireId": "input:skin_trim",
+     "type": "text",
+     "placeholder": "#rrggbb",
+     "value": "#d4a838",
+     "maxLength": 9,
+     "row": 2,
+     "colorPreview": true
+    },
+    {
+     "id": "skin_text",
+     "wireId": "input:skin_text",
+     "type": "text",
+     "placeholder": "#rrggbb",
+     "value": "zz12",
+     "maxLength": 9,
+     "row": 3,
+     "colorPreview": true
+    },
+    {
+     "id": "skin_confirm",
+     "wireId": "input:skin_confirm",
+     "type": "text",
+     "placeholder": "#rrggbb",
+     "value": "#3bd46a",
+     "maxLength": 9,
+     "row": 4,
+     "colorPreview": true
+    }
+   ],
+   "back": true,
+   "footerLabels": [
+    "Back to Menu skins",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraHubScreens.java openCustom (line 559)",
+   "notes": "LM client 4.7.66+ with color wheels; worst case shows the error line (a field that is not 6 hex digits, here Text = 'zz12') and the readability note. Each tone row: an inert dim label button 96px, a 96px hex field (max 9 chars, color preview swatch), a 44px color wheel. The 44px wheels are taller than the 24px row step, so in the legacy grid they overlap the next rows unless the client draws them as a pop-out. Without wheels: same rows minus the wheel cell, and line 1 reads 'Type a color like #e23b3b.' A client that cannot edit gets only two lines ('Editing your colors needs the Legacy Mechanics client, 4.7.66 or newer.' / 'You can still wear Custom with the colors you saved, and any other skin.') and the Back footer. Every click sends all five fields (bindInputsToButtons), Enter clicks Apply. Message after From/Reset: '&fFilled in Namek Serenity's colors. Tap Apply to use them.' After a save: '&fSaved. Every menu now uses your colors.' 'Preview' is a locked dim button (dead on KaiPath). Labels 'From Obsidian' and 'From Beerus' are shortened names of 'Obsidian & Gold' and 'Beerus Destruction'.",
+   "mock": {
+    "rows": [
+     [
+      {
+       "action": "nav:none",
+       "label": "Panel color",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "input": "skin_panel",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "nav:none",
+       "label": "Primary color",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "input": "skin_primary",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "nav:none",
+       "label": "Trim color",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "input": "skin_trim",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "nav:none",
+       "label": "Text color",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "input": "skin_text",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "nav:none",
+       "label": "Confirm color",
+       "style": "dim",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "input": "skin_confirm",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "wheel": "skin_wheel_panel",
+       "target": "focused field",
+       "x": 16,
+       "w": 64,
+       "h": 64
+      }
+     ],
+     [
+      {
+       "action": "do:menu_custom:dark",
+       "label": "Style - Dark",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:menu_custom:motif",
+       "label": "Scene - Cosmic wisps",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:menu_custom:apply:<palette token>",
+       "label": "Apply my colors",
+       "style": "confirm",
+       "x": 16,
+       "w": 150,
+       "bind": "skin_panel"
+      },
+      {
+       "action": "nav:none",
+       "label": "Preview",
+       "style": "dim",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:menu_custom:from:saiyan_royal",
+       "label": "From Saiyan Royal",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:menu_custom:from:namek_serenity",
+       "label": "From Namek",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:menu_custom:from:obsidian_gold",
+       "label": "From Obsidian",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:menu_custom:from:beerus_destruction",
+       "label": "From Beerus",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ],
+     [
+      {
+       "action": "do:menu_custom:from:zeno_omni",
+       "label": "From Zeno Omni",
+       "style": "normal",
+       "x": 16,
+       "w": 150
+      },
+      {
+       "action": "do:menu_custom:reset",
+       "label": "Reset to default",
+       "style": "normal",
+       "x": 174,
+       "w": 150
+      }
+     ]
+    ],
+    "why": "openCustom: a 44 px colour wheel on each of the five colour rows makes every row 44 px tall (587 px page, mostly gaps). Target: the five rows are label | field (two columns), and ONE wheel under them fills the field you tapped last."
+   }
+  },
+  {
+   "id": "hub_admin",
+   "screen": "admin",
+   "page": "admin",
+   "title": "Staff Admin",
+   "lines": [],
+   "book": {
+    "id": "admin_help",
+    "wireId": "input:admin_help",
+    "type": "paged_book",
+    "x": 16,
+    "y": 50,
+    "w": 306,
+    "h": 88,
+    "startPage": 0,
+    "pages": [
+     {
+      "title": "Staff Admin",
+      "lines": [
+       "Reload Legacy Mechanics config from disk.",
+       "Open Progression panel or Config editor."
+      ]
+     },
+     {
+      "title": "Commands",
+      "lines": [
+       "Full list: /lm admin help",
+       "Guitest: /lm admin guitest"
+      ]
+     }
+    ]
+   },
+   "rows": [
+    [
+     {
+      "action": "do:reload",
+      "label": "Reload Legacy Mechanics config",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "open:progression",
+      "label": "Progression panel",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "open:config",
+      "label": "Config editor",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "page:prestige_shop_edit",
+      "label": "&7Edit prestige shop",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "rowsStartY": 144,
+   "back": true,
+   "footerLabels": [
+    "Back to main menu"
+   ],
+   "fit": true,
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraHubScreens.java openAdmin (line 446)",
+   "notes": "No body lines: a paged_book widget (2 pages, x16 y50 w306 h88) sits at the top and setRow puts the first button row at y144. 'Reload Legacy Mechanics config' is 30 chars in a 150px button (about 22 fit), so it gets clipped; it should be buttonWide. Reload has no warning about what it does to live players and runs on one click. activeTab('home') with no tabs. Footer: Staff Admin's registry parent is hub|main, so it is treated as a system Home: one 'Back to main menu' on the right (bridge), even though the Staff Admin tile lives on More; an LM nav client shows 'Back to More' from history. Pure repeat skipped: admin 'main' page id opens the same layout."
+  },
+  {
+   "id": "skillcheck_main",
+   "screen": "skillcheck",
+   "page": "main",
+   "title": "Skill Check",
+   "lines": [
+    "&7Your skills",
+    "&dPotential &f12/30 &8- &f340/1300",
+    "&5Meditation &f7/10 &8- &f3h 12m/5h",
+    "&3Ki Control &f1/1 &8- &6Max",
+    "&9Ki Manipulation &f6/10 &8- &aOn",
+    "&5Ki Sense &f0/10 &8- &cLocked",
+    "&cDefense Penetration &f10/10 &8- &6Max",
+    "&4Heal Red &f3/10 &8- &aOn",
+    "&dIT &f0/10 &8- &cLocked",
+    "&bKi Infusion &f4/10 &8- &aOn",
+    "&3Ki Boost &f2/4 &8- &aOn",
+    "&9Ki Protection &f7/10 &8- &aOn",
+    "&cKaioken &f5/5 &8- &6Max",
+    "&dFusion &f0/5 &8- &cLocked"
+   ],
+   "rows": [],
+   "back": true,
+   "footerLabels": [
+    "Back to main menu"
+   ],
+   "fit": true,
+   "staff": false,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSkillCheckScreens.java show (line 49); lines from SkillUnlockService.skillCheckGuiLines",
+   "lineGap": 2,
+   "bodyPad": 4,
+   "notes": "Body-only page, no buttons besides the Back footer (one 'Back to main menu' on the right: system Home). 14 lines, the band caps at BODY_MIN_H and the rest scroll. Skill names 'Heal Red' and 'IT' are abbreviations a player will not recognise (Healing Reduction, Instant Transmission). Potential shows raw '340/1300' with no label for what the numbers are (points to next level). Failure state: one '&8No skills listed. Ask staff to turn skill unlock on.' line. PageRegistry registers skillcheck|main with staff(), so donators who can use Skill Check never find it in hub search."
+  },
+  {
+   "id": "skills_main",
+   "screen": "skills",
+   "page": "main",
+   "title": "Skills",
+   "lines": [
+    "&7Your skills",
+    "&dPotential &f12/30 &8- &f340/1300",
+    "&5Meditation &f7/10 &8- &f3h 12m/5h",
+    "&3Ki Control &f1/1 &8- &6Max",
+    "&9Ki Manipulation &f6/10 &8- &aOn",
+    "&5Ki Sense &f0/10 &8- &cLocked",
+    "&cDefense Penetration &f10/10 &8- &6Max",
+    "&4Heal Red &f3/10 &8- &aOn",
+    "&dIT &f0/10 &8- &cLocked",
+    "&bKi Infusion &f4/10 &8- &aOn",
+    "&3Ki Boost &f2/4 &8- &aOn",
+    "&9Ki Protection &f7/10 &8- &aOn",
+    "&cKaioken &f5/5 &8- &6Max",
+    "&dFusion &f0/5 &8- &cLocked",
+    "&7Staff: /skills - Donators: /skillcheck"
+   ],
+   "rows": [],
+   "back": true,
+   "footerLabels": [
+    "Back to main menu"
+   ],
+   "fit": true,
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraSkillCheckScreens.java show(staffAdmin=true) (line 49)",
+   "lineGap": 2,
+   "bodyPad": 4,
+   "notes": "Staff copy of Skill Check: same list, title 'Skills', plus a slash-command line at the end. Same abbreviation problems ('Heal Red', 'IT')."
+  },
+  {
+   "id": "config_index",
+   "screen": "config",
+   "page": "edit:difficulty:0:",
+   "title": "Difficulty",
+   "lines": [],
+   "rows": [
+    [
+     {
+      "action": "do:select_module:difficulty",
+      "label": "Difficulty",
+      "style": "confirm",
+      "x": 8,
+      "y": 50,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "input": "search",
+      "x": 164,
+      "y": 50,
+      "w": 78,
+      "h": 13
+     },
+     {
+      "action": "do:search",
+      "label": "Search",
+      "style": "confirm",
+      "x": 250,
+      "y": 50,
+      "w": 80,
+      "h": 13,
+      "bind": "search"
+     },
+     {
+      "action": "do:search_clear",
+      "label": "&7Clear",
+      "style": "normal",
+      "x": 338,
+      "y": 50,
+      "w": 80,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:progression",
+      "label": "Progress",
+      "style": "dim",
+      "x": 8,
+      "y": 65,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "page:edit:difficulty:0:~Master switch",
+      "label": "&7> Master switch (1 setting)",
+      "style": "normal",
+      "x": 164,
+      "y": 65,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:prestige-shop",
+      "label": "Prestige shop",
+      "style": "dim",
+      "x": 8,
+      "y": 80,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "page:edit:difficulty:0:~Access",
+      "label": "&7> Access (4 settings)",
+      "style": "normal",
+      "x": 164,
+      "y": 80,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:character-services",
+      "label": "Character",
+      "style": "dim",
+      "x": 8,
+      "y": 95,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "page:edit:difficulty:0:~Player Scaling",
+      "label": "&7> Player Scaling (23 settings)",
+      "style": "normal",
+      "x": 164,
+      "y": 95,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:saga",
+      "label": "Saga",
+      "style": "dim",
+      "x": 8,
+      "y": 110,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "page:edit:difficulty:0:~Momentum",
+      "label": "&7> Momentum (9 settings)",
+      "style": "normal",
+      "x": 164,
+      "y": 110,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:rival",
+      "label": "Rival",
+      "style": "dim",
+      "x": 8,
+      "y": 125,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "page:edit:difficulty:0:~Mob Spawning",
+      "label": "&7> Mob Spawning (14 settings)",
+      "style": "normal",
+      "x": 164,
+      "y": 125,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:sparring",
+      "label": "Sparring",
+      "style": "dim",
+      "x": 8,
+      "y": 140,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "page:edit:difficulty:0:~Boss Behavior",
+      "label": "&7> Boss Behavior (11 settings)",
+      "style": "normal",
+      "x": 164,
+      "y": 140,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:currency",
+      "label": "Currency",
+      "style": "dim",
+      "x": 8,
+      "y": 155,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "page:edit:difficulty:0:~Elites and Mutations",
+      "label": "&7> Elites and Mutations (17 settings)",
+      "style": "normal",
+      "x": 164,
+      "y": 155,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "page:review",
+      "label": "Review changes (0)",
+      "style": "confirm",
+      "x": 164,
+      "y": 184,
+      "w": 166,
+      "h": 13
+     },
+     {
+      "action": "page:edit:difficulty:1:",
+      "label": "&7Next",
+      "style": "normal",
+      "x": 338,
+      "y": 184,
+      "w": 80,
+      "h": 13
+     }
+    ]
+   ],
+   "inputs": [
+    {
+     "id": "search",
+     "wireId": "input:search",
+     "type": "text",
+     "placeholder": "Search by name",
+     "value": "",
+     "row": 0,
+     "x": 164,
+     "y": 50,
+     "w": 78,
+     "h": 13
+    }
+   ],
+   "back": true,
+   "footerLabels": [
+    "Back to Staff Admin",
+    "Main menu"
+   ],
+   "footerY": 199,
+   "fit": false,
+   "panel": {
+    "w": 426,
+    "h": 240,
+    "note": "requests 1920x1080 panel, lockPanel, center(false), margin 0, fillScreen(426x240 design box), buttonHeight 13, lineGap 2, bodyPad 4"
+   },
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraConfigScreens.java openEditor (line 146) showIndex branch; placeCategoryRail (274); placeSearchRow (290); placeReviewRow (323)",
+   "notes": "All coordinates are in the 426x240 design grid, h=13, row step 15. Left rail = 8 chromeButtons x8 w148 (active category confirm, the other seven style dim although they are clickable: they look locked). Main column x164 w254. Section list paginates at 7 rows per page (budget 184-65). Search field is only 78px wide (under the 80px minimum the rules set for controls). 'Review changes (0)' is a confirm (green/yellow) button even with nothing to review. Page 2 of the index is a pure repeat (Prev + 'Review (0)' 80px + Next when in the middle) - skipped. Client without text input: two extra rows at y50/65 ('Typed fields need KaiPath 1.3.9 or newer.' danger, 'Until then use Toggle, Next, or +/-.' dim) push everything down 30px. Footer (bridge): 'Back to Staff Admin' + 'Main menu'.",
+   "mock": {
+    "inputs": [
+     {
+      "id": "search",
+      "wireId": "input:search",
+      "type": "text",
+      "placeholder": "Search",
+      "value": "",
+      "row": 0,
+      "x": 164,
+      "y": 50,
+      "w": 78,
+      "h": 13
+     }
+    ],
+    "why": "the hint \"Search by name\" (80 px) is cut in the 78 px field"
+   }
+  },
+  {
+   "id": "config_field_number",
+   "screen": "config",
+   "page": "edit:difficulty:0:~Player Scaling",
+   "title": "Difficulty > Player Scaling",
+   "lines": [],
+   "rows": [
+    [
+     {
+      "action": "do:select_module:difficulty",
+      "label": "Difficulty",
+      "style": "confirm",
+      "x": 8,
+      "y": 50,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "input": "search",
+      "x": 164,
+      "y": 50,
+      "w": 78,
+      "h": 13
+     },
+     {
+      "action": "do:search",
+      "label": "Search",
+      "style": "confirm",
+      "x": 250,
+      "y": 50,
+      "w": 80,
+      "h": 13,
+      "bind": "search"
+     },
+     {
+      "action": "do:search_clear",
+      "label": "&7Clear",
+      "style": "normal",
+      "x": 338,
+      "y": 50,
+      "w": 80,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:progression",
+      "label": "Progress",
+      "style": "dim",
+      "x": 8,
+      "y": 65,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "page:edit:difficulty:0:",
+      "label": "Up: Difficulty > Player Scaling",
+      "style": "dim",
+      "x": 164,
+      "y": 65,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:prestige-shop",
+      "label": "Prestige shop",
+      "style": "dim",
+      "x": 8,
+      "y": 80,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "* Team Bonus Per Me...",
+      "style": "dim",
+      "x": 164,
+      "y": 80,
+      "w": 130,
+      "h": 13
+     },
+     {
+      "action": "do:refresh",
+      "label": "Now 0.15",
+      "style": "confirm",
+      "x": 302,
+      "y": 80,
+      "w": 116,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:character-services",
+      "label": "Character",
+      "style": "dim",
+      "x": 8,
+      "y": 95,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Extra damage scaling for each",
+      "style": "dim",
+      "x": 164,
+      "y": 95,
+      "w": 166,
+      "h": 13
+     },
+     {
+      "action": "do:undo:difficulty|teamBonusPerMember",
+      "label": "&7Undo",
+      "style": "normal",
+      "x": 338,
+      "y": 95,
+      "w": 80,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:saga",
+      "label": "Saga",
+      "style": "dim",
+      "x": 8,
+      "y": 110,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Accepts: any number",
+      "style": "dim",
+      "x": 164,
+      "y": 110,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:rival",
+      "label": "Rival",
+      "style": "dim",
+      "x": 8,
+      "y": 125,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "input": "field",
+      "x": 164,
+      "y": 125,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:sparring",
+      "label": "Sparring",
+      "style": "dim",
+      "x": 8,
+      "y": 140,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:set:difficulty|teamBonusPerMember",
+      "label": "Apply",
+      "style": "confirm",
+      "x": 164,
+      "y": 140,
+      "w": 80,
+      "h": 13,
+      "bind": "field"
+     },
+     {
+      "action": "do:step:difficulty|teamBonusPerMember|-1",
+      "label": "&7-",
+      "style": "normal",
+      "x": 251,
+      "y": 140,
+      "w": 80,
+      "h": 13
+     },
+     {
+      "action": "do:step:difficulty|teamBonusPerMember|1",
+      "label": "&7+",
+      "style": "normal",
+      "x": 338,
+      "y": 140,
+      "w": 80,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:currency",
+      "label": "Currency",
+      "style": "dim",
+      "x": 8,
+      "y": 155,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     }
+    ],
+    [
+     {
+      "action": "page:review",
+      "label": "Review changes (1)",
+      "style": "confirm",
+      "x": 164,
+      "y": 184,
+      "w": 166,
+      "h": 13
+     },
+     {
+      "action": "page:edit:difficulty:1:~Player Scaling",
+      "label": "&7Next",
+      "style": "normal",
+      "x": 338,
+      "y": 184,
+      "w": 80,
+      "h": 13
+     }
+    ]
+   ],
+   "inputs": [
+    {
+     "id": "search",
+     "wireId": "input:search",
+     "type": "text",
+     "placeholder": "Search by name",
+     "value": "",
+     "row": 0,
+     "x": 164,
+     "y": 50,
+     "w": 78,
+     "h": 13
+    },
+    {
+     "id": "field",
+     "wireId": "input:difficulty|teamBonusPerMember",
+     "type": "text",
+     "placeholder": "Type a number...",
+     "value": "0.15",
+     "x": 164,
+     "y": 125,
+     "w": 254,
+     "h": 13,
+     "row": 5
+    }
+   ],
+   "back": true,
+   "footerLabels": [
+    "Back to Difficulty settings",
+    "Main menu"
+   ],
+   "footerY": 199,
+   "fit": false,
+   "panel": {
+    "w": 426,
+    "h": 240,
+    "note": "requests 1920x1080 panel, lockPanel, center(false), margin 0, fillScreen(426x240 design box), buttonHeight 13, lineGap 2, bodyPad 4"
+   },
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraConfigScreens.java openEditor section branch; paintField (469); paintControl NUMBER (640)",
+   "notes": "One number field per page (a number block is 75px of the 104px budget, so it never shares). Field block: name (dim, 130px) + value indicator (116px, confirm when changed); description (166px, Undo beside it when changed); 'Accepts:' line; text field; Apply / - / + (7px gaps). Name slot fits ~19 chars so '* Team Bonus Per Member' clips. 'Now 0.15 - default 0.1' does not fit 108px so the default is dropped, leaving 'Now 0.15'. Description is cut on a word by oneLine() and then fits, so it shows NO ellipsis: 'Extra damage scaling for each' reads as a complete sentence. All the text rows are do:refresh buttons (a click reloads the page), not inert nav:none labels. Rejected entry: the Accepts row becomes a danger row with the hint. Sample field name/description are representative (teamBonusPerMember is a Player Scaling leaf); the real text comes from ConfigFieldHelp. Footer: registry parent config|edit:difficulty:0: -> 'Back to Difficulty settings' + 'Main menu'. Enum fields use the same block with Apply / Next (confirm) / Options instead of Apply / - / +; list/map fields get a field, Apply 100px + 'Open <value>' 100px; text fields a full-width Apply.",
+   "mock": {
+    "inputs": [
+     {
+      "id": "search",
+      "wireId": "input:search",
+      "type": "text",
+      "placeholder": "Search",
+      "value": "",
+      "row": 0,
+      "x": 164,
+      "y": 50,
+      "w": 78,
+      "h": 13
+     },
+     {
+      "id": "field",
+      "wireId": "input:difficulty|teamBonusPerMember",
+      "type": "text",
+      "placeholder": "Type a number...",
+      "value": "0.15",
+      "x": 164,
+      "y": 125,
+      "w": 254,
+      "h": 13,
+      "row": 5
+     }
+    ],
+    "why": "the hint \"Search by name\" (80 px) is cut in the 78 px field; \"Extra damage scaling for each\" (156 px) does not fit its 166 px row inside the 8 px padding: oneLine trims by the 6 px estimate, not real widths",
+    "relabel": {
+     "Extra damage scaling for each": "Extra damage per member"
+    }
+   }
+  },
+  {
+   "id": "config_field_toggles",
+   "screen": "config",
+   "page": "edit:difficulty:2:~Player Scaling",
+   "title": "Difficulty > Player Scaling",
+   "lines": [],
+   "rows": [
+    [
+     {
+      "action": "do:select_module:difficulty",
+      "label": "Difficulty",
+      "style": "confirm",
+      "x": 8,
+      "y": 50,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "input": "search",
+      "x": 164,
+      "y": 50,
+      "w": 78,
+      "h": 13
+     },
+     {
+      "action": "do:search",
+      "label": "Search",
+      "style": "confirm",
+      "x": 250,
+      "y": 50,
+      "w": 80,
+      "h": 13,
+      "bind": "search"
+     },
+     {
+      "action": "do:search_clear",
+      "label": "&7Clear",
+      "style": "normal",
+      "x": 338,
+      "y": 50,
+      "w": 80,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:progression",
+      "label": "Progress",
+      "style": "dim",
+      "x": 8,
+      "y": 65,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "page:edit:difficulty:0:",
+      "label": "Up: Difficulty > Player Scaling",
+      "style": "dim",
+      "x": 164,
+      "y": 65,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:prestige-shop",
+      "label": "Prestige shop",
+      "style": "dim",
+      "x": 8,
+      "y": 80,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "* Scale Hostile Only",
+      "style": "dim",
+      "x": 164,
+      "y": 80,
+      "w": 130,
+      "h": 13
+     },
+     {
+      "action": "do:refresh",
+      "label": "Now OFF",
+      "style": "confirm",
+      "x": 302,
+      "y": 80,
+      "w": 116,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:character-services",
+      "label": "Character",
+      "style": "dim",
+      "x": 8,
+      "y": 95,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Only",
+      "style": "dim",
+      "x": 164,
+      "y": 95,
+      "w": 80,
+      "h": 13
+     },
+     {
+      "action": "do:undo:difficulty|scaleHostileOnly",
+      "label": "&7Undo",
+      "style": "normal",
+      "x": 252,
+      "y": 95,
+      "w": 80,
+      "h": 13
+     },
+     {
+      "action": "do:toggle:difficulty|scaleHostileOnly",
+      "label": "OFF",
+      "style": "dim",
+      "x": 340,
+      "y": 95,
+      "w": 80,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:saga",
+      "label": "Saga",
+      "style": "dim",
+      "x": 8,
+      "y": 110,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Accepts: true / false",
+      "style": "dim",
+      "x": 164,
+      "y": 110,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:rival",
+      "label": "Rival",
+      "style": "dim",
+      "x": 8,
+      "y": 125,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Death Reset Enabled",
+      "style": "dim",
+      "x": 164,
+      "y": 125,
+      "w": 130,
+      "h": 13
+     },
+     {
+      "action": "do:refresh",
+      "label": "Now ON - default",
+      "style": "dim",
+      "x": 302,
+      "y": 125,
+      "w": 116,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:sparring",
+      "label": "Sparring",
+      "style": "dim",
+      "x": 8,
+      "y": 140,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Players who die lose",
+      "style": "dim",
+      "x": 164,
+      "y": 140,
+      "w": 166,
+      "h": 13
+     },
+     {
+      "action": "do:toggle:difficulty|deathResetEnabled",
+      "label": "ON",
+      "style": "confirm",
+      "x": 338,
+      "y": 140,
+      "w": 80,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:currency",
+      "label": "Currency",
+      "style": "dim",
+      "x": 8,
+      "y": 155,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Accepts: true / false",
+      "style": "dim",
+      "x": 164,
+      "y": 155,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "page:edit:difficulty:1:~Player Scaling",
+      "label": "&7Prev",
+      "style": "normal",
+      "x": 164,
+      "y": 184,
+      "w": 80,
+      "h": 13
+     },
+     {
+      "action": "page:review",
+      "label": "Review (1)",
+      "style": "confirm",
+      "x": 251,
+      "y": 184,
+      "w": 80,
+      "h": 13
+     },
+     {
+      "action": "page:edit:difficulty:3:~Player Scaling",
+      "label": "&7Next",
+      "style": "normal",
+      "x": 338,
+      "y": 184,
+      "w": 80,
+      "h": 13
+     }
+    ]
+   ],
+   "inputs": [
+    {
+     "id": "search",
+     "wireId": "input:search",
+     "type": "text",
+     "placeholder": "Search by name",
+     "value": "",
+     "row": 0,
+     "x": 164,
+     "y": 50,
+     "w": 78,
+     "h": 13
+    }
+   ],
+   "back": true,
+   "footerLabels": [
+    "Back to Difficulty settings",
+    "Main menu"
+   ],
+   "footerY": 199,
+   "fit": false,
+   "panel": {
+    "w": 426,
+    "h": 240,
+    "note": "requests 1920x1080 panel, lockPanel, center(false), margin 0, fillScreen(426x240 design box), buttonHeight 13, lineGap 2, bodyPad 4"
+   },
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraConfigScreens.java paintField (469) BOOLEAN path; placeReviewRow middle page",
+   "notes": "Two ON/OFF settings per page (45px each). BUG: a changed boolean puts description (80px) + Undo (80) + toggle (80) with two 8px gaps = 256px in a 254px column, so the toggle ends at x420, 2px past the column (the threeUpGap fix used for number/enum rows was not applied here). The description gets 80px = ~10 chars, so it shows a single word ('Only'). Unchanged boolean: description 166px + toggle at x338 w80. 'Accepts: true / false' contradicts the ON/OFF wording used on the toggle and indicator. OFF toggle is style dim (looks locked, but clickable). Middle page: Prev / 'Review (1)' / Next, three 80px buttons with 7px gaps; Review shortens to 'Review (n)' under 160px.",
+   "mock": {
+    "rows": [
+     [
+      {
+       "action": "do:select_module:difficulty",
+       "label": "Difficulty",
+       "style": "confirm",
+       "x": 8,
+       "y": 50,
+       "w": 148,
+       "h": 13,
+       "chrome": true
+      },
+      {
+       "input": "search",
+       "x": 164,
+       "y": 50,
+       "w": 78,
+       "h": 13
+      },
+      {
+       "action": "do:search",
+       "label": "Search",
+       "style": "confirm",
+       "x": 250,
+       "y": 50,
+       "w": 80,
+       "h": 13,
+       "bind": "search"
+      },
+      {
+       "action": "do:search_clear",
+       "label": "&7Clear",
+       "style": "normal",
+       "x": 338,
+       "y": 50,
+       "w": 80,
+       "h": 13
+      }
+     ],
+     [
+      {
+       "action": "do:select_module:progression",
+       "label": "Progress",
+       "style": "dim",
+       "x": 8,
+       "y": 65,
+       "w": 148,
+       "h": 13,
+       "chrome": true
+      },
+      {
+       "action": "page:edit:difficulty:0:",
+       "label": "Up: Difficulty > Player Scaling",
+       "style": "dim",
+       "x": 164,
+       "y": 65,
+       "w": 254,
+       "h": 13
+      }
+     ],
+     [
+      {
+       "action": "do:select_module:prestige-shop",
+       "label": "Prestige shop",
+       "style": "dim",
+       "x": 8,
+       "y": 80,
+       "w": 148,
+       "h": 13,
+       "chrome": true
+      },
+      {
+       "action": "do:refresh",
+       "label": "* Scale Hostile Only",
+       "style": "dim",
+       "x": 164,
+       "y": 80,
+       "w": 130,
+       "h": 13
+      },
+      {
+       "action": "do:refresh",
+       "label": "Now OFF",
+       "style": "confirm",
+       "x": 302,
+       "y": 80,
+       "w": 116,
+       "h": 13
+      }
+     ],
+     [
+      {
+       "action": "do:select_module:character-services",
+       "label": "Character",
+       "style": "dim",
+       "x": 8,
+       "y": 95,
+       "w": 148,
+       "h": 13,
+       "chrome": true
+      },
+      {
+       "action": "do:refresh",
+       "label": "Only",
+       "style": "dim",
+       "x": 164,
+       "y": 95,
+       "w": 80,
+       "h": 13
+      },
+      {
+       "action": "do:undo:difficulty|scaleHostileOnly",
+       "label": "&7Undo",
+       "style": "normal",
+       "x": 251,
+       "y": 95,
+       "w": 80,
+       "h": 13
+      },
+      {
+       "action": "do:toggle:difficulty|scaleHostileOnly",
+       "label": "OFF",
+       "style": "dim",
+       "x": 338,
+       "y": 95,
+       "w": 80,
+       "h": 13
+      }
+     ],
+     [
+      {
+       "action": "do:select_module:saga",
+       "label": "Saga",
+       "style": "dim",
+       "x": 8,
+       "y": 110,
+       "w": 148,
+       "h": 13,
+       "chrome": true
+      },
+      {
+       "action": "do:refresh",
+       "label": "Accepts: true / false",
+       "style": "dim",
+       "x": 164,
+       "y": 110,
+       "w": 254,
+       "h": 13
+      }
+     ],
+     [
+      {
+       "action": "do:select_module:rival",
+       "label": "Rival",
+       "style": "dim",
+       "x": 8,
+       "y": 125,
+       "w": 148,
+       "h": 13,
+       "chrome": true
+      },
+      {
+       "action": "do:refresh",
+       "label": "Death Reset Enabled",
+       "style": "dim",
+       "x": 164,
+       "y": 125,
+       "w": 130,
+       "h": 13
+      },
+      {
+       "action": "do:refresh",
+       "label": "Now ON - default",
+       "style": "dim",
+       "x": 302,
+       "y": 125,
+       "w": 116,
+       "h": 13
+      }
+     ],
+     [
+      {
+       "action": "do:select_module:sparring",
+       "label": "Sparring",
+       "style": "dim",
+       "x": 8,
+       "y": 140,
+       "w": 148,
+       "h": 13,
+       "chrome": true
+      },
+      {
+       "action": "do:refresh",
+       "label": "Players who die lose",
+       "style": "dim",
+       "x": 164,
+       "y": 140,
+       "w": 166,
+       "h": 13
+      },
+      {
+       "action": "do:toggle:difficulty|deathResetEnabled",
+       "label": "ON",
+       "style": "confirm",
+       "x": 338,
+       "y": 140,
+       "w": 80,
+       "h": 13
+      }
+     ],
+     [
+      {
+       "action": "do:select_module:currency",
+       "label": "Currency",
+       "style": "dim",
+       "x": 8,
+       "y": 155,
+       "w": 148,
+       "h": 13,
+       "chrome": true
+      },
+      {
+       "action": "do:refresh",
+       "label": "Accepts: true / false",
+       "style": "dim",
+       "x": 164,
+       "y": 155,
+       "w": 254,
+       "h": 13
+      }
+     ],
+     [
+      {
+       "action": "page:edit:difficulty:1:~Player Scaling",
+       "label": "&7Prev",
+       "style": "normal",
+       "x": 164,
+       "y": 184,
+       "w": 80,
+       "h": 13
+      },
+      {
+       "action": "page:review",
+       "label": "Review (1)",
+       "style": "confirm",
+       "x": 251,
+       "y": 184,
+       "w": 80,
+       "h": 13
+      },
+      {
+       "action": "page:edit:difficulty:3:~Player Scaling",
+       "label": "&7Next",
+       "style": "normal",
+       "x": 338,
+       "y": 184,
+       "w": 80,
+       "h": 13
+      }
+     ]
+    ],
+    "why": "paintField BOOLEAN, changed: description 80 + Undo 80 + toggle 80 with two 8 px gaps is 256 px in the 254 px column, so the toggle ends at 420 (2 px into the margin). Use threeUpGap (7 px) as the number and enum rows do: x 164 / 251 / 338. The description then shows one word (\"Only\"): give it its own row.; the hint \"Search by name\" (80 px) is cut in the 78 px field",
+    "inputs": [
+     {
+      "id": "search",
+      "wireId": "input:search",
+      "type": "text",
+      "placeholder": "Search",
+      "value": "",
+      "row": 0,
+      "x": 164,
+      "y": 50,
+      "w": 78,
+      "h": 13
+     }
+    ]
+   }
+  },
+  {
+   "id": "config_options",
+   "screen": "config",
+   "page": "options:difficulty:0:mobAiMode",
+   "title": "Difficulty > Mob AI Mode",
+   "lines": [],
+   "rows": [
+    [
+     {
+      "action": "do:select_module:difficulty",
+      "label": "Difficulty",
+      "style": "confirm",
+      "x": 8,
+      "y": 50,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Choose a value for Mob AI Mode. Nothing...",
+      "style": "dim",
+      "x": 164,
+      "y": 50,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:progression",
+      "label": "Progress",
+      "style": "dim",
+      "x": 8,
+      "y": 65,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:choose:difficulty|mobAiMode|VANILLA",
+      "label": "&7Vanilla",
+      "style": "normal",
+      "x": 164,
+      "y": 65,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:prestige-shop",
+      "label": "Prestige shop",
+      "style": "dim",
+      "x": 8,
+      "y": 80,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:choose:difficulty|mobAiMode|BALANCED",
+      "label": "&7Balanced",
+      "style": "normal",
+      "x": 164,
+      "y": 80,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:character-services",
+      "label": "Character",
+      "style": "dim",
+      "x": 8,
+      "y": 95,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:choose:difficulty|mobAiMode|AGGRESSIVE",
+      "label": "Aggressive (chosen)",
+      "style": "confirm",
+      "x": 164,
+      "y": 95,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:saga",
+      "label": "Saga",
+      "style": "dim",
+      "x": 8,
+      "y": 110,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:choose:difficulty|mobAiMode|NIGHTMARE",
+      "label": "&7Nightmare",
+      "style": "normal",
+      "x": 164,
+      "y": 110,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:rival",
+      "label": "Rival",
+      "style": "dim",
+      "x": 8,
+      "y": 125,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:choose:difficulty|mobAiMode|CUSTOM",
+      "label": "&7Custom",
+      "style": "normal",
+      "x": 164,
+      "y": 125,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:sparring",
+      "label": "Sparring",
+      "style": "dim",
+      "x": 8,
+      "y": 140,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:currency",
+      "label": "Currency",
+      "style": "dim",
+      "x": 8,
+      "y": 155,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     }
+    ]
+   ],
+   "back": true,
+   "footerLabels": [
+    "Back to Staff Admin",
+    "Main menu"
+   ],
+   "footerY": 199,
+   "fit": false,
+   "panel": {
+    "w": 426,
+    "h": 240,
+    "note": "requests 1920x1080 panel, lockPanel, center(false), margin 0, fillScreen(426x240 design box), buttonHeight 13, lineGap 2, bodyPad 4"
+   },
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraConfigScreens.java openOptions (line 876)",
+   "notes": "Enum dropdown page: one full-width button per allowed value (up to 7 per page, Prev/Next at y184 when more). Sample setting name/values are illustrative. The intro row 'Choose a value for X. Nothing is saved until Review.' is clipped to one line by oneLine(), so the important 'Nothing is saved until Review' part is cut off for any long setting name. No Review button on this page. Registry has no entry for options:** other than the 'Settings' catch-all (parent admin|admin), so bridge Back goes to Staff Admin, not to the settings page the dropdown came from."
+  },
+  {
+   "id": "config_review",
+   "screen": "config",
+   "page": "review:0",
+   "title": "Review changes",
+   "lines": [],
+   "rows": [
+    [
+     {
+      "action": "do:select_module:difficulty",
+      "label": "Difficulty",
+      "style": "confirm",
+      "x": 8,
+      "y": 50,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "3 unsaved changes.",
+      "style": "dim",
+      "x": 164,
+      "y": 50,
+      "w": 126,
+      "h": 13
+     },
+     {
+      "action": "do:reload_module:difficulty",
+      "label": "&7Reload disk",
+      "style": "normal",
+      "x": 298,
+      "y": 50,
+      "w": 120,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:progression",
+      "label": "Progress",
+      "style": "dim",
+      "x": 8,
+      "y": 65,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Team Bonus Per Member",
+      "style": "dim",
+      "x": 164,
+      "y": 65,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:prestige-shop",
+      "label": "Prestige shop",
+      "style": "dim",
+      "x": 8,
+      "y": 80,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Now 0.1 -> 0.15",
+      "style": "dim",
+      "x": 164,
+      "y": 80,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:character-services",
+      "label": "Character",
+      "style": "dim",
+      "x": 8,
+      "y": 95,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Last changed by xXDragonSlayerXx",
+      "style": "dim",
+      "x": 164,
+      "y": 95,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:saga",
+      "label": "Saga",
+      "style": "dim",
+      "x": 8,
+      "y": 110,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Scale Hostile Only",
+      "style": "dim",
+      "x": 164,
+      "y": 110,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:rival",
+      "label": "Rival",
+      "style": "dim",
+      "x": 8,
+      "y": 125,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Now ON -> OFF",
+      "style": "dim",
+      "x": 164,
+      "y": 125,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:sparring",
+      "label": "Sparring",
+      "style": "dim",
+      "x": 8,
+      "y": 140,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     },
+     {
+      "action": "do:refresh",
+      "label": "Not changed from the editor before.",
+      "style": "dim",
+      "x": 164,
+      "y": 140,
+      "w": 254,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:select_module:currency",
+      "label": "Currency",
+      "style": "dim",
+      "x": 8,
+      "y": 155,
+      "w": 148,
+      "h": 13,
+      "chrome": true
+     }
+    ],
+    [
+     {
+      "action": "do:save_all",
+      "label": "Confirm save",
+      "style": "confirm",
+      "x": 164,
+      "y": 169,
+      "w": 166,
+      "h": 13
+     },
+     {
+      "action": "page:review:1",
+      "label": "&7Next",
+      "style": "normal",
+      "x": 338,
+      "y": 169,
+      "w": 80,
+      "h": 13
+     }
+    ],
+    [
+     {
+      "action": "do:discard_all",
+      "label": "Discard all",
+      "style": "danger",
+      "x": 164,
+      "y": 184,
+      "w": 254,
+      "h": 13
+     }
+    ]
+   ],
+   "back": true,
+   "footerLabels": [
+    "Back to Staff Admin",
+    "Main menu"
+   ],
+   "footerY": 199,
+   "fit": false,
+   "panel": {
+    "w": 426,
+    "h": 240,
+    "note": "requests 1920x1080 panel, lockPanel, center(false), margin 0, fillScreen(426x240 design box), buttonHeight 13, lineGap 2, bodyPad 4"
+   },
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraConfigScreens.java openReview (line 937), placeConfirmRow (1095)",
+   "notes": "2 changes per page (3 rows each, budget 169-65). Row 3 of each change: 'Last changed by <name> on <when>.' - with a 16-char name oneLine() cuts at the word before the limit and the result fits, so the date is silently dropped with no ellipsis ('Last changed by xXDragonSlayerXx'). A change someone else saved meanwhile shows its title row as danger: '<name> changed this since: <setting>'. Conflict variant adds two rows under the summary: danger '<actor> saved <modules> at <when> after you started.' and confirm 'Reload and reapply my changes' (full width); 'Also editing: a, b' adds a dim row. No changes: 'No unsaved changes.' + 'Nothing is written until you confirm a change.' or the last save report. Discard all asks for a second click within 10s (warning arrives as a chat/toast line after the first click, not on the button). BUG: openReview computes 'back' (the editor page the staff member came from) and never uses it; spec.back() falls to the registry parent (review:** -> admin|admin), so on a bridge client Back skips the editor and lands on Staff Admin. 'Reload disk' is jargon and gives no warning about what it does to unsaved edits. 'Now 0.1 -> 0.15' uses raw config values (true/false become ON/OFF)."
+  },
+  {
+   "id": "progression_home",
+   "screen": "progression",
+   "page": "main",
+   "title": "Progression",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "boosts",
+     "Boosts"
+    ],
+    [
+     "coins",
+     "Coins"
+    ]
+   ],
+   "activeTab": "home",
+   "lines": [
+    "&7Training boosts, Ancient Coins, and staff tools",
+    "&eSkills&7: master=ON pot=ON med=ON\n&6TP&7: boost=ON mastery=ON bio=OFF\n&bRace&7: yard=ON spirit=ON android=ON\n&cCombat&7: ki=ON pierce=ON dot=OFF apothic=ON\n&5End&7: end=ON endmobs=ON endportal=ON\n&aShop&7: prestige=ON skills=ON\n&7Utility: shadow=ON statcheck=ON\n&7Global TP boost: &a1.5x &7(1h 12m left, by &fxXDragonSlayerXx&7)\n&7Global mastery boost: &cOFF",
+    "&7Open the Boosts or Coins tab for controls."
+   ],
+   "rows": [],
+   "back": true,
+   "footerLabels": [
+    "Back to main menu"
+   ],
+   "fit": true,
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraProgressionScreens.java openHome (line 59); ProgressionConfig.statusSummary",
+   "notes": "Line 2 is ONE line() call holding a 9-line status dump joined with \\n (ProgressionSystem.statusSummary). It is full of raw config ids and abbreviations (master=, pot=, med=, yard=, dot=, apothic=, endportal=, statcheck=) - breaks the no-raw-IDs player-text rule even for a staff page. Body-only page: no buttons, just the tabs and the footer. PageRegistry registers progression|main/boosts/coins/boosts_tp/boosts_mastery with p() (public), not staff(), so non-staff players see Progression, Boosts, Coins, TP Boost and Mastery Boost in hub search; clicking bounces them to the hub. Registry parent is hub|main although the panel is reached from Staff Admin, so Back says 'Back to main menu'.",
+   "mock": {
+    "lines": [
+     "&7Training boosts, Ancient Coins, and staff tools",
+     "&eSkills &fMaster, Potential and Meditation on",
+     "&eTP &fBoost and Mastery on, Bio off",
+     "&bRace &fTraining yard, Spirit and Android on",
+     "&cCombat &fKi, Pierce and Apothic on, Damage over time off",
+     "&5End &fEnd, End mobs and End portal on",
+     "&aShop &fPrestige and Skills shops on",
+     "&7Utility &fShadow and Stat check on",
+     "&7Global TP boost &a1.5x &7(1h 12m left, by &fxXDragonSlayerXx&7)",
+     "&7Global mastery boost &cOFF",
+     "&7Open the Boosts or Coins tab for controls."
+    ],
+    "why": "openHome passes ProgressionSystem.statusSummary() as body text: raw config keys (master=ON pot=ON med=ON ...). Name the features in words."
+   }
+  },
+  {
+   "id": "progression_boosts",
+   "screen": "progression",
+   "page": "boosts",
+   "title": "Progression",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "boosts",
+     "Boosts"
+    ],
+    [
+     "coins",
+     "Coins"
+    ]
+   ],
+   "activeTab": "boosts",
+   "lines": [
+    "&7Global TP boost: &a1.5x &7(1h 12m left, by &fxXDragonSlayerXx&7)",
+    "&7Global mastery boost: &cOFF",
+    "&7Pick a boost to open its presets and End button"
+   ],
+   "rows": [
+    [
+     {
+      "action": "page:boosts_tp",
+      "label": "TP Boost",
+      "style": "normal",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "page:boosts_mastery",
+      "label": "Mastery Boost",
+      "style": "normal",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footerLabels": [
+    "Back to Progression",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraProgressionScreens.java boostsSelectorSpec (line 77)",
+   "notes": "Fallback texts disagree in case: 'Global TP boost: OFF' vs 'Global mastery boost: Off' (UltraProgressionScreens.masteryBoostLine fallback); the live GlobalMasteryBoost line says 'OFF'."
+  },
+  {
+   "id": "progression_boost_controls",
+   "screen": "progression",
+   "page": "boosts_tp",
+   "title": "Progression",
+   "lines": [
+    "&7Global TP boost: &a1.5x &7(1h 12m left, by &fxXDragonSlayerXx&7)",
+    "&7Presets start a boost | End stops it"
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:boost:1.25:30",
+      "label": "1.25x | 30m",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:boost:1.5:30",
+      "label": "1.5x | 30m",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:boost:2:30",
+      "label": "2x | 30m",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:boost:2:60",
+      "label": "2x | 60m",
+      "style": "confirm",
+      "x": 174,
+      "w": 150
+     }
+    ],
+    [
+     {
+      "action": "do:boost:3:30",
+      "label": "3x | 30m",
+      "style": "confirm",
+      "x": 16,
+      "w": 150
+     },
+     {
+      "action": "do:boost:end",
+      "label": "End this boost",
+      "style": "danger",
+      "x": 174,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footerLabels": [
+    "Back to Boosts",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraProgressionScreens.boostControlSpec (line 92)",
+   "notes": "Mastery Boost page (boosts_mastery) is the same layout with do:masteryboost:* actions and the mastery status line - skipped as a repeat. No tabs on this sub page. Preset labels '1.25x | 30m' are terse (no 'Start' verb, no note that it is server-wide and replaces a running boost); five confirm-styled buttons in a row, and a server-wide boost starts on one click with no warning."
+  },
+  {
+   "id": "progression_coins",
+   "screen": "progression",
+   "page": "coins",
+   "title": "Progression",
+   "tabs": [
+    [
+     "home",
+     "Home"
+    ],
+    [
+     "boosts",
+     "Boosts"
+    ],
+    [
+     "coins",
+     "Coins"
+    ]
+   ],
+   "activeTab": "coins",
+   "lines": [
+    "&6&lAncient Coin economy",
+    "&7Server-wide staff pricing for any LM",
+    "&7feature that charges Ancient Coins.",
+    "&7Staff free costs &fOFF",
+    "&8These features charge Ancient Coins:",
+    "&8Difficulty tiers - Character Services - End dragon summon - Model customization",
+    "&8/lm &7-> Staff Admin -> Progression panel -> Ancient Coins"
+   ],
+   "rows": [
+    [
+     {
+      "action": "do:toggle_staff_free_coins:on",
+      "label": "Staff free costs - OFF",
+      "style": "dim",
+      "x": 16,
+      "w": 150
+     }
+    ]
+   ],
+   "back": true,
+   "footerLabels": [
+    "Back to Progression",
+    "Main menu"
+   ],
+   "fit": true,
+   "staff": true,
+   "target": false,
+   "codeToday": "",
+   "source": "UltraProgressionScreens.java openCoins (line 132); ProgressionGuiApi.linesForPage('economy')",
+   "notes": "When OFF the toggle is style dim with a &8 label - the locked-button look - although it is clickable; ON is confirm 'Staff free costs - ON'. The lore was written for an inventory GUI: hard line breaks mid-sentence ('...for any LM' / 'feature that...'), blank spacer lines (dropped by line()), and a '/lm -> Staff Admin -> Progression panel -> Ancient Coins' path to the page the reader is already on (and the tab is called 'Coins', not 'Ancient Coins')."
+  }
+ ]
+}

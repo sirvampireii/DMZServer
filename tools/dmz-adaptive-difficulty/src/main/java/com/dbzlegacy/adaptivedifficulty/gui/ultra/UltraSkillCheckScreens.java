@@ -58,7 +58,7 @@ public final class UltraSkillCheckScreens {
                 .activeTab("home")
                 .lineGap(2)
                 .bodyPad(4)
-                .line(UltraStyle.LABEL + "Your skills");
+                .line(UltraStyle.header("Your skills"));
         if (skillListMissing(lines)) {
             spec.line(
                     UltraStyle.dim(

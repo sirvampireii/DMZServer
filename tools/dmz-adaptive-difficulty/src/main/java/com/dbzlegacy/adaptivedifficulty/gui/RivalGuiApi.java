@@ -173,8 +173,8 @@ public final class RivalGuiApi {
         }
         int pending = pendingChallengeCards(player).size();
         if (pending > 0) {
-            lines.add(UltraStyle.YELLOW + pending + " pending challenge request"
-                    + (pending == 1 ? "" : "s") + " below.");
+            // GuiKit 4.7.81: a heading over the one-row-per-challenge buttons that follow it.
+            lines.add(UltraStyle.header("Pending challenges (" + pending + ")"));
         } else {
             lines.add(UltraStyle.LABEL + "No pending challenge requests.");
         }
@@ -842,12 +842,44 @@ public final class RivalGuiApi {
         return RivalProgression.get().titleLines(player);
     }
 
+    /**
+     * Records - History: the rivalries this player ended (past rivals, best RP first), each with its tier, RP and
+     * record. Built from {@link #pastRivalCards}; the page draws its own "Records - History" heading.
+     */
+    public static List<String> recordsHistoryLines(ServerPlayer player) {
+        List<String> lines = new ArrayList<>();
+        if (player == null || !DifficultyConfig.get().enableRivalSystem) {
+            lines.add(UltraStyle.DANGER + "Rival system is disabled.");
+            return lines;
+        }
+        List<String> cards = pastRivalCards(player);
+        if (cards.isEmpty()) {
+            lines.add(UltraStyle.LABEL + "No previous rivals yet. Rivalries you end show up here.");
+            return lines;
+        }
+        lines.add(UltraStyle.LABEL + "Rivalries you ended, best RP first.");
+        for (String card : cards) {
+            String[] p = card == null ? new String[0] : card.split("\t", -1);
+            if (p.length < 8) {
+                continue;
+            }
+            String name = p[1] == null || p[1].isBlank() ? "-" : p[1].trim();
+            lines.add(UltraStyle.VALUE + name + UltraStyle.LABEL + " - " + p[3] + " tier, RP " + UltraStyle.VALUE + p[4]
+                    + UltraStyle.LABEL + ", " + p[5] + " won, " + p[6] + " lost, " + p[7] + " drawn");
+        }
+        return lines;
+    }
+
     /** Lore lines for a GUI page (main status is placeholders — use page-specific lists). */
     public static List<String> linesForPage(ServerPlayer player, String page) {
         String p = page == null || page.isBlank() ? "main" : page.toLowerCase(Locale.ROOT);
+        // Records sub-pages arrive as "records:<tab>" (the history tab fell through to the status lore).
+        if (p.startsWith("records:")) {
+            p = p.substring("records:".length()).trim();
+        }
         return switch (p) {
             case "list" -> listLines(player);
-            case "history", "past", "previous" -> RivalSystem.historyLines(player);
+            case "history", "past", "previous" -> recordsHistoryLines(player);
             case "pending", "invites", "pendinginvites" -> RivalSystem.pendingInviteLines(player);
             case "actions" -> List.of(
                     UltraStyle.HEADER + "Rival actions",

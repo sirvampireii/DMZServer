@@ -2994,7 +2994,7 @@ def main() -> int:
     ]
     check("config field descriptions stay whole sentences and free of raw ids",
           help_block is not None
-          and "lastIndexOf(' ', maxChars - 4)" in ultra_config
+          and "while (head.lastIndexOf(' ') > 0 && UltraStyle.textWidthPx(head) + dots > labelPx)" in ultra_config
           and not leaky_help,
           detail=", ".join(leaky_help[:3]))
 

@@ -741,7 +741,10 @@ public final class UltraScreenSpec {
         // Footer Y is resolved in toPacket; placeholder 0. Both faces stay normal.
         // Dim chrome reads as a disabled control.
         if (leftActionId != null && !leftActionId.isBlank()) {
-            addFooterButton(leftActionId, leftLabel, UltraStyle.COL_L, UltraStyle.STYLE_NORMAL);
+            // 4.7.81 (GuiKit): a fullscreen design box (the config editor) starts Back on its rail edge, like every
+            // menu's Back sits on its panel edge.
+            addFooterButton(leftActionId, leftLabel, fillScreen && designWidth > 0 ? 8 : UltraStyle.COL_L,
+                    UltraStyle.STYLE_NORMAL);
         }
         if (rightActionId != null && !rightActionId.isBlank()) {
             addFooterButton(rightActionId, rightLabel, footerRightX(), UltraStyle.STYLE_NORMAL);
@@ -842,6 +845,28 @@ public final class UltraScreenSpec {
      * ({@link com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeProtocol#analyze}). Callers still add it only for a
      * client whose hello lists {@link ColorWheel#FEATURE}, so a bridge page carries the hex field alone.
      */
+    /**
+     * 4.7.82: one wheel shared by several hex fields. The LM client colors the field tapped last (the first until
+     * one is tapped) and outlines it. Sent as a comma list in {@code target}.
+     */
+    public UltraScreenSpec sharedColorWheel(String inputId, String[] targetInputIds, int x, int y, int size) {
+        UltraScreenIds.requireValidActionId(screenId, inputId, "color_wheel");
+        StringBuilder targets = new StringBuilder();
+        for (String t : targetInputIds) {
+            UltraScreenIds.requireValidActionId(screenId, t, "color_wheel target");
+            if (targets.length() > 0) {
+                targets.append(',');
+            }
+            targets.append(qualifyAction(t));
+        }
+        if (firstButtonY < 0 || y < firstButtonY) {
+            firstButtonY = y;
+        }
+        int s = Math.max(ColorWheel.MIN_SIZE, size);
+        inputs.add(new Input(qualifyAction(inputId), ColorWheel.TYPE, "", "", x, y, s, s, 0, null, 0, targets.toString()));
+        return this;
+    }
+
     public UltraScreenSpec colorWheel(String inputId, String targetInputId, int x, int y, int size) {
         UltraScreenIds.requireValidActionId(screenId, inputId, "color_wheel");
         UltraScreenIds.requireValidActionId(screenId, targetInputId, "color_wheel target");
@@ -1441,8 +1466,12 @@ public final class UltraScreenSpec {
             }
             // Back on the left; Main menu flush with the right content edge. Not pinned: the
             // footer row scrolls with the page, so a capped panel never hides it.
-            int x = b.x == UltraStyle.COL_L ? edge : boxW - edge - UltraStyle.BTN_W;
-            appendButtonJson(btnArr, menuFooterButton(b, x, footerY, UltraStyle.BTN_W, bh), 0, 0);
+            // 4.7.81 (GuiKit): as wide as a widened two-column row, so Back and Main menu line up with the columns.
+            int fw = Math.max(UltraStyle.BTN_MIN_W, Math.min((boxW - edge * 2 - gap) / 2,
+                    (int) Math.round(UltraStyle.BTN_W * (boxW - edge - left)
+                            / (double) Math.max(1, UltraStyle.COL_R + UltraStyle.BTN_W - legacyLeft))));
+            int x = b.x <= UltraStyle.COL_L ? edge : boxW - edge - fw;
+            appendButtonJson(btnArr, menuFooterButton(b, x, footerY, fw, bh), 0, 0);
             footerRow = true;
         }
         if (footerRow) {
