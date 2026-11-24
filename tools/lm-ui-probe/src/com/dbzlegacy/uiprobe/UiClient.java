@@ -344,8 +344,7 @@ final class UiClient {
         // Another mod's one-time popup on a fresh client (the bloodline picker) must never cover a menu shot: close it
         // whenever it shows. It is not an LM screen, and the test account has nothing to pick.
         if (mc.f_91080_ != null && POPUPS.contains(mc.f_91080_.getClass().getSimpleName())) {
-            UiProbe.write("uiprobe-client.txt", "POPUP closed " + mc.f_91080_.getClass().getName() + "
-", true);
+            UiProbe.write("uiprobe-client.txt", "POPUP closed " + mc.f_91080_.getClass().getName() + "\n", true);
             mc.m_91152_(null);
             if (cueScreen != null) {
                 cueScreen = null;                           // the menu it covered is gone: wait for it again
