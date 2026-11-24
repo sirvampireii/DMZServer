@@ -151,43 +151,6 @@ public final class UltraSparScreens {
     }
 
 
-    private static String tabFor(String page) {
-        if (page == null) {
-            return "home";
-        }
-        String p = page.toLowerCase(Locale.ROOT);
-        if (p.startsWith("dojo_war") || "pick_dojo_challenge".equals(p) || p.contains("dojo_challenge")) {
-            return "dojo";
-        }
-        if ("sparboard".equals(p) || "result".equals(p) || p.startsWith("pick_challenge") || "watch".equals(p)) {
-            return "sparboard";
-        }
-        if (p.startsWith("dojo_top")
-                || "dojo_rank".equals(p)
-                || "dojo_rankings".equals(p)
-                || p.startsWith("top")
-                || "infamy".equals(p)
-                || "hof".equals(p)
-                || "stats".equals(p)
-                || p.startsWith("fight_report")
-                || "settings".equals(p)
-                || "admin".equals(p)
-                || "mentor".equals(p)
-                || "actions".equals(p)
-                || "pending".equals(p)
-                || "invites".equals(p)
-                || p.startsWith("pick_apprentice")
-                || p.startsWith("pick_mentor")
-                || p.startsWith("pick_release")
-                || p.startsWith("weights")) {
-            return "home";
-        }
-        if (p.startsWith("dojo") || "roster".equals(p) || "chosen".equals(p) || p.startsWith("pick_confirm")) {
-            return "dojo";
-        }
-        return "home";
-    }
-
     /**
      * Home hub: Hall of Infamy, stats (last three fights), Weights, chat, staff.
      * Mentor bonds live under Dojo → Actions. Session/partner text is staff-only.
@@ -229,7 +192,7 @@ public final class UltraSparScreens {
                 "weights|Weights",
                 "settings|TP Chat");
         if (StaffAccess.isStaff(player)) {
-            spec.buttonLeft("page:admin", UltraStyle.danger("Staff Admin"), "danger").rowGap();
+            spec.buttonLeft("page:admin", UltraStyle.danger("Staff Admin"), UltraStyle.STYLE_DANGER).rowGap();
         }
         spec.back();
         spec.send(player);
@@ -268,7 +231,7 @@ public final class UltraSparScreens {
                 spec.button(
                                 "page:fight_report:" + idx,
                                 UltraStyle.confirm(label),
-                                "confirm")
+                                UltraStyle.STYLE_CONFIRM)
                         .rowGap();
             }
         }
@@ -461,7 +424,7 @@ public final class UltraSparScreens {
         spec.buttonLeft(
                         "page:pick_confirm:mentor|mentor|leave",
                         UltraStyle.danger("Leave mentor"),
-                        "danger")
+                        UltraStyle.STYLE_DANGER)
                 .rowGap();
         spec.back();
         spec.send(player);
@@ -551,9 +514,9 @@ public final class UltraSparScreens {
                 shown = "-";
             }
             if (placed % 2 == 0) {
-                spec.buttonLeft(action, UltraStyle.confirm(shown), "confirm");
+                spec.buttonLeft(action, UltraStyle.confirm(shown), UltraStyle.STYLE_CONFIRM);
             } else {
-                spec.buttonRight(action, UltraStyle.confirm(shown), "confirm");
+                spec.buttonRight(action, UltraStyle.confirm(shown), UltraStyle.STYLE_CONFIRM);
                 spec.rowGap();
             }
             placed++;
@@ -594,13 +557,13 @@ public final class UltraSparScreens {
         }
         spec.buttonsAfterLines();
         if (outgoing) {
-            spec.button("do:mentor:cancel:" + picker, UltraStyle.danger("Withdraw invite"), "danger")
+            spec.button("do:mentor:cancel:" + picker, UltraStyle.danger("Withdraw invite"), UltraStyle.STYLE_DANGER)
                     .rowGap();
         } else {
             // Stack Accept above Decline - side-by-side is a misclick invite-kill risk.
-            spec.button("do:mentor_accept:" + picker, UltraStyle.confirm("Accept"), "confirm")
+            spec.button("do:mentor_accept:" + picker, UltraStyle.confirm("Accept"), UltraStyle.STYLE_CONFIRM)
                     .rowGap();
-            spec.button("do:mentor_decline:" + picker, UltraStyle.danger("Decline"), "danger")
+            spec.button("do:mentor_decline:" + picker, UltraStyle.danger("Decline"), UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
         spec.back();
@@ -737,7 +700,7 @@ public final class UltraSparScreens {
                 "dojo_top_rp|Top dojos",
                 "dojo_hof|Hall of Chosen");
         String pendingLabel = warPending > 0 ? "Requests (" + warPending + ")" : "Requests";
-        spec.buttonLeft("page:dojo_war_pending", UltraStyle.confirm(pendingLabel), "confirm").rowGap();
+        spec.buttonLeft("page:dojo_war_pending", UltraStyle.confirm(pendingLabel), UltraStyle.STYLE_CONFIRM).rowGap();
         spec.back();
         spec.send(player);
     }
@@ -806,9 +769,9 @@ public final class UltraSparScreens {
             String packed = ("OUT".equalsIgnoreCase(dir) ? "OUT|" : "IN|") + arg;
             String action = "page:dojo_war_pending_decide:" + withReturnPage(packed, pg);
             if (placed % 2 == 0) {
-                spec.buttonLeft(action, UltraStyle.confirm(label), "confirm");
+                spec.buttonLeft(action, UltraStyle.confirm(label), UltraStyle.STYLE_CONFIRM);
             } else {
-                spec.buttonRight(action, UltraStyle.confirm(label), "confirm");
+                spec.buttonRight(action, UltraStyle.confirm(label), UltraStyle.STYLE_CONFIRM);
                 spec.rowGap();
             }
             placed++;
@@ -848,12 +811,12 @@ public final class UltraSparScreens {
         }
         spec.buttonsAfterLines();
         if (outgoing) {
-            spec.button("do:dojo_war_cancel:" + picker, UltraStyle.danger("Cancel challenge"), "danger")
+            spec.button("do:dojo_war_cancel:" + picker, UltraStyle.danger("Cancel challenge"), UltraStyle.STYLE_DANGER)
                     .rowGap();
         } else {
             // Stack Accept above Deny - side-by-side is a misclick risk.
-            spec.button("do:dojo_accept:" + picker, UltraStyle.confirm("Accept"), "confirm").rowGap();
-            spec.button("do:dojo_decline:" + picker, UltraStyle.danger("Deny"), "danger").rowGap();
+            spec.button("do:dojo_accept:" + picker, UltraStyle.confirm("Accept"), UltraStyle.STYLE_CONFIRM).rowGap();
+            spec.button("do:dojo_decline:" + picker, UltraStyle.danger("Deny"), UltraStyle.STYLE_DANGER).rowGap();
         }
         spec.back();
         spec.send(player);
@@ -882,9 +845,9 @@ public final class UltraSparScreens {
         for (String name : UltraPickHelper.pageSlice(names, NAMES_PER_PAGE, pg)) {
             String nav = "page:pick_confirm:" + action + "|" + here + "|" + name;
             if (placed % 2 == 0) {
-                spec.buttonLeft(nav, UltraStyle.confirm(name), "confirm");
+                spec.buttonLeft(nav, UltraStyle.confirm(name), UltraStyle.STYLE_CONFIRM);
             } else {
-                spec.buttonRight(nav, UltraStyle.confirm(name), "confirm");
+                spec.buttonRight(nav, UltraStyle.confirm(name), UltraStyle.STYLE_CONFIRM);
                 spec.rowGap();
             }
             placed++;
@@ -917,9 +880,9 @@ public final class UltraSparScreens {
             String label = parts.length > 1 && !parts[1].isBlank() ? parts[1].trim() : arg;
             String nav = "page:pick_confirm:mentor_release|" + back + "|" + arg;
             if (placed % 2 == 0) {
-                spec.buttonLeft(nav, UltraStyle.confirm(label), "confirm");
+                spec.buttonLeft(nav, UltraStyle.confirm(label), UltraStyle.STYLE_CONFIRM);
             } else {
-                spec.buttonRight(nav, UltraStyle.confirm(label), "confirm");
+                spec.buttonRight(nav, UltraStyle.confirm(label), UltraStyle.STYLE_CONFIRM);
                 spec.rowGap();
             }
             placed++;
@@ -954,9 +917,9 @@ public final class UltraSparScreens {
             String target = arg.contains(":") ? arg : "uuid:" + arg;
             String nav = "page:pick_confirm:dojo_challenge|" + back + "|" + target;
             if (placed % 2 == 0) {
-                spec.buttonLeft(nav, UltraStyle.confirm(label), "confirm");
+                spec.buttonLeft(nav, UltraStyle.confirm(label), UltraStyle.STYLE_CONFIRM);
             } else {
-                spec.buttonRight(nav, UltraStyle.confirm(label), "confirm");
+                spec.buttonRight(nav, UltraStyle.confirm(label), UltraStyle.STYLE_CONFIRM);
                 spec.rowGap();
             }
             placed++;
@@ -985,7 +948,7 @@ public final class UltraSparScreens {
                 .labelValue("Session", active ? "in progress" : "not running")
                 .labelValue("Partner", partner == null || partner.isBlank() ? "none" : partner)
                 .buttonsAfterLines();
-        spec.buttonLeft("do:admin:save", UltraStyle.confirm("Save data"), "confirm")
+        spec.buttonLeft("do:admin:save", UltraStyle.confirm("Save data"), UltraStyle.STYLE_CONFIRM)
                 .buttonRight("do:admin:status", UltraStyle.LABEL + "Show status", UltraStyle.STYLE_NORMAL)
                 .rowGap();
         spec.back();

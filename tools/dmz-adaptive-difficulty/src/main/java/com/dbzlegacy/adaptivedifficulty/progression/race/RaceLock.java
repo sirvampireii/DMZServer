@@ -143,7 +143,7 @@ public final class RaceLock {
                 quest.setDifficultyChosen(false);
             } catch (Throwable setErr) {
                 if (notify) {
-                    DmzRewards.msg(player, LmChat.fail("Race", "Could not clear difficultyChosen."));
+                    DmzRewards.msg(player, LmChat.fail("Race", "Could not unlock your race. Ask staff to check your character."));
                 }
                 return false;
             }
@@ -164,7 +164,7 @@ public final class RaceLock {
                 DmzRewards.msg(player, LmChat.info("Race",
                         "Close and reopen the Saga / Quest Tree, then choose Easy, Normal, or Hard."));
             } else {
-                DmzRewards.msg(player, LmChat.fail("Race", "Unlock ran but difficultyChosen is still true."));
+                DmzRewards.msg(player, LmChat.fail("Race", "Your race is still locked after the unlock. Ask staff to check your character."));
             }
             if (wasInParty && !wasLeader) {
                 DmzRewards.msg(player, LmChat.note("Race",

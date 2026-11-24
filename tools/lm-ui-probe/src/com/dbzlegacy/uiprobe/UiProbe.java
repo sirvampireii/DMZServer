@@ -561,7 +561,9 @@ public final class UiProbe {
         dojoScript();
         navScript();
         formFigureScript();
+        guideNavScript();
         hudScript();
+        hud75Script();
     }
 
     // ---- 4.7.71 navigation audit and scripted checks (test only) ----
@@ -822,6 +824,38 @@ public final class UiProbe {
         }
         UltraHubScreens.searchFor(player, "");
         NavHistory.clear(u);
+    }
+
+    /** 4.7.73: Difficulty search results, breadcrumbs and Back never send a player into a guide step by mistake. */
+    private void guideNavScript() {
+        JsonObject args = new JsonObject();
+        args.addProperty("screen", "hub");
+        args.addProperty("page", "main");
+        args.addProperty("value", "tiers");
+        for (GuiOpenPacket p : keep("search tiers", () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", args.toString()))) {
+            String b = p.buttonsJson();
+            note("GUIDE search 'tiers' links the Tiers list, not a guide step: " + pf(b.contains("go:difficulty|tiers\"")
+                    && !b.contains("go:difficulty|guide_tiers")) + " | " + labels(p));
+        }
+        String[] up = PageRegistry.parent("difficulty", "titles_p0");
+        String[] up2 = PageRegistry.parent("difficulty", "tier_ask:3");
+        note("GUIDE Titles and a tier ask go back to Difficulty / Tiers, never a guide step: " + pf(up != null
+                && "main".equals(up[1]) && up2 != null && "tiers".equals(up2[1])));
+        UltraHubScreens.searchFor(player, "");
+        // 4.7.73: dojo style and bonus changes ask first, naming what is lost and what it costs.
+        var style = com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.Style.values()[0];
+        var bonus = com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.bonuses(style).get(0);
+        for (GuiOpenPacket p : keep("dojo bonus ask", () -> UltraGui.open(player, "spar", "dojo_bonus_ask:" + bonus.id()))) {
+            note("ASK dojo bonus names the cost and the 7-day lock before the click: " + pf(has(p, "Dojo Points")
+                    && has(p, "change for 7 days") && (labels(p).contains("Buy for 40 points")
+                    || labels(p).contains("Needs 40 points") || has(p, "Only your dojo's master"))) + " | " + labels(p));
+        }
+        for (GuiOpenPacket p : keep("dojo style ask", () -> UltraGui.open(player, "spar", "dojo_style_ask:" + style.name()))) {
+            note("ASK dojo style change warns before ending a bonus: " + pf(labels(p).contains("Change style, end the bonus")
+                    || has(p, "Only your dojo's master")) + " | " + labels(p));
+        }
+        String[] upAsk = PageRegistry.parent("spar", "dojo_bonus_ask:" + bonus.id());
+        note("ASK pages go back to Style and bonus: " + pf(upAsk != null && "dojo_style".equals(upAsk[1])));
     }
 
     /** Part 1: a form preview wears the viewer's own look for that form (made-up subject, never local). */
@@ -2569,6 +2603,120 @@ public final class UiProbe {
         }
     }
 
+    // ---- 4.7.75 HUD part 2 (test only) ----
+    private static com.dbzlegacy.adaptivedifficulty.rival.RivalChallenge probeChallenge(long now) {
+        var ch = new com.dbzlegacy.adaptivedifficulty.rival.RivalChallenge();
+        ch.nameA = "Kaito";
+        ch.nameB = "Mira";
+        ch.damageA = 120;
+        ch.damageB = 98;
+        ch.status = com.dbzlegacy.adaptivedifficulty.rival.RivalChallenge.Phase.ACTIVE;
+        ch.durationMs = 120_000L;
+        ch.endsAt = now + 83_000L;
+        return ch;
+    }
+
+    private static com.dbzlegacy.adaptivedifficulty.sparring.SparPlayerRuntime probeSparRuntime(long now) {
+        var rt = new com.dbzlegacy.adaptivedifficulty.sparring.SparPlayerRuntime();
+        rt.active = true;
+        rt.perfectSeenAt = now;
+        rt.combo = 5;
+        rt.graceUntil = now + 6_000L;
+        rt.graceReason = "too far apart";
+        return rt;
+    }
+
+    /**
+     * 4.7.75: the repeated chat moved to the HUD. Same words as the chat lines; a HUD player gets the element, a bridge
+     * player keeps the chat (coin toast, Potential hint); the fight pill and spar chip lines are built from the same
+     * strings as the chat lines; the boost chip follows a running boost; the healing caps sit on Character Services.
+     */
+    private void hud75Script() {
+        var srv = player.m_20194_();
+        boolean hud = LmHud.active(player);
+        long now = System.currentTimeMillis();
+        var ch = probeChallenge(now);
+        List<String> fl = com.dbzlegacy.adaptivedifficulty.rival.RivalChallengeManager.fightLines(ch, now, true);
+        note("HUD2 fight pill: the chat score line, the clock and the range warning: " + pf(fl.size() == 3
+                && fl.get(0).equals(com.dbzlegacy.adaptivedifficulty.rival.RivalChallengeManager.scoreBody(ch))
+                && UltraStyle.plain(fl.get(1)).equals("1:23 left")
+                && UltraStyle.plain(fl.get(2)).equals("Too far apart. Return within range.")) + " | " + fl);
+        var rt = probeSparRuntime(now);
+        List<String> chip = com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.sparChipLines(rt, now);
+        String chipText = UltraStyle.plain(String.join(" | ", chip));
+        note("HUD2 spar chip: Perfect Training, combo, recover countdown: " + pf(chipText.contains("Perfect Training active")
+                && chipText.contains("Combo x5") && chipText.contains("Recover within 6s")) + " | " + chipText);
+        // Coin toast: two drops inside the window are one summed toast (HUD), or nothing on the HUD (bridge).
+        try {
+            Class<?> coins = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.class;
+            List<LmHud.Sent> c = LmHud.capture(() -> {
+                try {
+                    call(coins, "coinToast", new Class<?>[] {ServerPlayer.class, long.class}, player, 25L);
+                    call(coins, "coinToast", new Class<?>[] {ServerPlayer.class, long.class}, player, 25L);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            });
+            var cp = of(c, LmHud.COINS);
+            String sum = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.formatExactCost(50L);
+            if (hud) {
+                note("HUD2 coin toast sums drops in its 5 s window: " + pf(cp.size() == 2
+                        && UltraStyle.plain(cp.get(1).lines().get(0)).contains(UltraStyle.plain(sum))
+                        && cp.get(1).durationMs() == 5000) + " | " + (cp.isEmpty() ? "none" : cp.get(1).lines()));
+            } else {
+                note("HUD2 bridge: coin drops stay chat lines: " + pf(cp.isEmpty()));
+            }
+        } catch (Throwable t) {
+            note("HUD2 coin toast ERROR " + t + " FAIL");
+        }
+        // Potential hint rides the meter instead of a subtitle.
+        try {
+            Class<?> pot = com.dbzlegacy.adaptivedifficulty.progression.skills.PotentialProgression.class;
+            List<LmHud.Sent> ps = LmHud.capture(() -> {
+                try {
+                    call(pot, "potentialSubtitle", new Class<?>[] {ServerPlayer.class, String.class,
+                            net.minecraft.ChatFormatting.class, long.class}, player,
+                            "Switch training methods to continue progressing.", net.minecraft.ChatFormatting.YELLOW, 0L);
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            });
+            var pp = of(ps, LmHud.POTENTIAL);
+            if (hud) {
+                note("HUD2 Potential hint on the meter, not a subtitle: " + pf(pp.size() == 1
+                        && UltraStyle.plain(String.join(" ", pp.get(0).lines())).contains("Switch training methods")));
+            } else {
+                note("HUD2 bridge: Potential hint stays a subtitle: " + pf(pp.isEmpty()));
+            }
+        } catch (Throwable t) {
+            note("HUD2 Potential ERROR " + t + " FAIL");
+        }
+        // Boost chip follows a running boost and goes when it ends.
+        String started = com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.startBoostMinutes(null, 1.5, 30, "Probe");
+        if (com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.isActive()) {
+            List<LmHud.Sent> b = LmHud.capture(() -> com.dbzlegacy.adaptivedifficulty.progression.Momentum.boostHudPulse(srv, 10));
+            var bp = of(b, LmHud.BOOST);
+            com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.endBoost(false);
+            List<LmHud.Sent> b2 = LmHud.capture(() -> com.dbzlegacy.adaptivedifficulty.progression.Momentum.boostHudPulse(srv, 10));
+            if (hud) {
+                note("HUD2 boost chip while a TP boost runs, gone after: " + pf(bp.size() == 1
+                        && UltraStyle.plain(bp.get(0).lines().get(0)).startsWith("TP x1.5 - 30m left")
+                        && of(b2, LmHud.BOOST).stream().anyMatch(x -> !x.show()))
+                        + " | " + (bp.isEmpty() ? "none" : bp.get(0).lines()));
+            } else {
+                note("HUD2 bridge: no boost chip: " + pf(bp.isEmpty()));
+            }
+        } else {
+            note("HUD2 boost chip NAV SKIP (TP boost off in the test config): " + UltraStyle.plain(started));
+        }
+        for (GuiOpenPacket p : keep("character home healing", () -> UltraGui.open(player, "character", "main"))) {
+            String sum = com.dbzlegacy.adaptivedifficulty.kube.hotpath.HealCap.summary(player);
+            note("HUD2 healing caps on Character Services Home, not at login: " + pf(sum == null || has(p, "Healing:"))
+                    + " | " + sum);
+        }
+        LmHud.hideAll(player);
+    }
+
     /** Put every HUD element up (the HUD on the LM client; boss bars and chat on a bridge stage). */
     private void hudShowAll(int tpMs) {
         var srv = player.m_20194_();
@@ -2597,6 +2745,35 @@ public final class UiProbe {
         com.dbzlegacy.adaptivedifficulty.progression.Momentum.bank(player);
         com.dbzlegacy.adaptivedifficulty.progression.Momentum.markFight(player);
         com.dbzlegacy.adaptivedifficulty.progression.Momentum.hudPulse(srv, 20);
+        // 4.7.75 elements: the same strings the game sends, shown the way the game shows them.
+        long now = System.currentTimeMillis();
+        var ch = probeChallenge(now);
+        var rt = probeSparRuntime(now);
+        String eliteChip = UltraStyle.color("e", "\u2726 Elite nearby");
+        if (hud) {
+            LmHud.show(player, LmHud.FIGHT, com.dbzlegacy.adaptivedifficulty.rival.RivalChallengeManager.fightLines(ch, now, false),
+                    0.69f, LmHud.ACCENT_RIVAL, "open:rival", 0, false);
+            LmHud.show(player, LmHud.SPAR, com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.sparChipLines(rt, now),
+                    -1f, LmHud.accentOf("spar"), "open:spar", 0, false);
+            LmHud.show(player, LmHud.POTENTIAL, List.of(UltraStyle.LABEL + "Potential " + UltraStyle.color("f", "134/200"),
+                    UltraStyle.color("e", "Switch training methods to continue progressing.")), 0.67f,
+                    LmHud.accentOf("character"), "", tpMs, false);
+            LmHud.show(player, LmHud.COINS, List.of(UltraStyle.color("6", "+ "
+                    + com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.formatExactCost(340L)) + " "
+                    + UltraStyle.LABEL + "Ancient Coins"), -1f, "#f0b429", "", tpMs, false);
+            LmHud.show(player, LmHud.ELITE, List.of(eliteChip), -1f, LmHud.ACCENT_DIFFICULTY, "", 0, false);
+            LmHud.show(player, LmHud.BOOST, List.of(UltraStyle.color("a", "TP x1.5") + " " + UltraStyle.LABEL + "- 42m left"),
+                    -1f, LmHud.accentOf("prestige"), "open:prestige", 0, false);
+        } else {
+            for (String line : new String[] {
+                    com.dbzlegacy.adaptivedifficulty.util.LmChat.tagged("Challenge",
+                            com.dbzlegacy.adaptivedifficulty.rival.RivalChallengeManager.scoreBody(ch)),
+                    com.dbzlegacy.adaptivedifficulty.util.LmChat.tagged("Spar", UltraStyle.HEADER + "Perfect Training active"),
+                    UltraStyle.color("6", "Dropped 3\u00d7 Silver") + UltraStyle.LABEL + " Ancient Coins",
+                    UltraStyle.color("e", "\u2726 Your Elite Hunter title senses a powerful enemy nearby.")}) {
+                com.dbzlegacy.adaptivedifficulty.util.DmzRewards.msg(player, line);
+            }
+        }
     }
 
     private final List<net.minecraft.server.level.ServerBossEvent> hudBars = new ArrayList<>();
@@ -2634,7 +2811,8 @@ public final class UiProbe {
                     player.m_6885_();
                     LmHud.set(player, true);
                     hudShowAll(20_000);
-                    hudExpect = LmHud.active(player) ? "underdog,tp,penalty,instinct,momentum" : "";
+                    hudExpect = LmHud.active(player)
+                            ? "underdog,tp,penalty,instinct,momentum,fight,spar,potential,coins,elite,boost" : "";
                     note("FINAL hud show expect=" + (hudExpect.isEmpty() ? "nothing (bridge)" : hudExpect));
                 }
                 case "hide" -> {
@@ -2653,11 +2831,28 @@ public final class UiProbe {
     private void hudReport(String raw) {
         String[] f = raw.split(" ", 3);
         String tag = f.length > 1 ? f[1] : "?";
-        String got = f.length > 2 ? f[2].trim() : "";
+        String rest = f.length > 2 ? f[2].trim() : "";
+        // 4.7.73: "<elements> <layout verdict>" (the client checks bounds, overlaps and the action bar row)
+        String got = rest.contains(" ") ? rest.substring(0, rest.indexOf(' ')) : rest;
+        String layout = rest.contains(" ") ? rest.substring(rest.indexOf(' ') + 1) : "";
+        if (got.equals("-")) {
+            got = "";
+        }
+        if (!layout.isEmpty()) {
+            note("HUD LAYOUT " + tag + " on screen, no overlaps, Momentum above the action bar: "
+                    + pf(layout.startsWith("ok")) + " | " + layout);
+        }
         java.util.Set<String> drawn = new java.util.HashSet<>(List.of(got.isEmpty() ? new String[0] : got.split(",")));
         java.util.Set<String> want = new java.util.HashSet<>(List.of(hudExpect.isEmpty() ? new String[0] : hudExpect.split(",")));
-        note("HUD CLIENT " + tag + " drew " + (got.isEmpty() ? "nothing" : got) + ": "
-                + pf(drawn.equals(want)) + (want.isEmpty() ? " (bridge: no HUD, bars and chat as before)" : ""));
+        // 4.7.75: with every element up at once a small window has no room for all of them; the five 4.7.72
+        // elements must draw, the rest may be skipped (never overlapped), and nothing unexpected may draw.
+        java.util.Set<String> core = new java.util.HashSet<>(List.of("underdog", "tp", "penalty", "instinct", "momentum"));
+        java.util.Set<String> skipped = new java.util.TreeSet<>(want);
+        skipped.removeAll(drawn);
+        boolean ok = want.isEmpty() ? drawn.isEmpty() : drawn.containsAll(core) && want.containsAll(drawn);
+        note("HUD CLIENT " + tag + " drew " + (got.isEmpty() ? "nothing" : got) + ": " + pf(ok)
+                + (want.isEmpty() ? " (bridge: no HUD, bars and chat as before)" : "")
+                + (skipped.isEmpty() ? "" : " | no room at this size: " + skipped));
         write("uiprobe-script.txt", scriptLog.toString(), false);
     }
 

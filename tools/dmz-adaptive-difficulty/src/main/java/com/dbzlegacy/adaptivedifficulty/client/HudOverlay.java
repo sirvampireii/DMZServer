@@ -60,8 +60,16 @@ final class HudOverlay {
     static final int CARD_FADE_MS = 500;
     static final int SYMBOL_W = 12;
     static final int MOMENTUM_W = 90;
-    /** Momentum meter: this far above the bottom (clear of the hotbar, XP, health, food and armor rows). */
-    static final int MOMENTUM_UP = 72;
+    /** Vanilla's action bar line sits 68 px above the bottom; the Momentum meter stays above it. */
+    static final int ACTION_BAR_UP = 72;
+    /** Instinct cards stop this far above the Momentum meter's row. */
+    static final int CARD_FLOOR_GAP = 6;
+    /** One status-effect icon column at the top right (vanilla: 25 px per icon). */
+    static final int EFFECT_COL = 25;
+
+    // Measured each frame from the overlays drawn before ours (ints only, no allocation).
+    private static int bossBottom;
+    private static int effectCols;
 
     /** One element on screen: its laid-out text, bar, chrome size and where it was last drawn. */
     static final class Slot {
@@ -80,6 +88,16 @@ final class HudOverlay {
         int w;
         int h;
         String skinId = "";
+        /** Width cap the text was laid out for (screen-dependent; re-laid only when it changes). */
+        int layoutCap = Integer.MAX_VALUE;
+        /** Baked chrome and what it was baked for (compared as ints, so a frame does no lookup). */
+        HudChrome.Baked baked;
+        int bakedW;
+        int bakedH;
+        int bakedScale;
+        int bakedAccent;
+        boolean bakedLite;
+        MenuSkins.Skin bakedSkin;
         // last drawn rectangle (GUI px), for clicks
         int dx;
         int dy;
@@ -96,7 +114,22 @@ final class HudOverlay {
     private static final Slot TP = new Slot(LmHud.TP);
     private static final Slot PENALTY = new Slot(LmHud.PENALTY);
     private static final Slot MOMENTUM = new Slot(LmHud.MOMENTUM);
-    private static final Slot[] TOP = {UNDERDOG, TP, PENALTY};
+    // 4.7.75 elements (docs/LM_HUD_EXPANSION_PROPOSAL.md)
+    private static final Slot FIGHT = new Slot(LmHud.FIGHT);
+    private static final Slot SPAR = new Slot(LmHud.SPAR);
+    private static final Slot POTENTIAL = new Slot(LmHud.POTENTIAL);
+    private static final Slot COINS = new Slot(LmHud.COINS);
+    private static final Slot ELITE = new Slot(LmHud.ELITE);
+    private static final Slot BOOST = new Slot(LmHud.BOOST);
+    /**
+     * Top centre stack: the steady pills first, the 3-second TP notice last, so nothing jumps when it comes and goes.
+     * 4.7.75: the fight pill under the Underdog pill, then the penalty, the elite sense and the server boosts.
+     */
+    private static final Slot[] TOP = {UNDERDOG, FIGHT, PENALTY, ELITE, BOOST, TP};
+    /** 4.7.75: the bottom-right row, stacking upward from the Momentum meter's place. */
+    private static final Slot[] BOTTOM = {MOMENTUM, SPAR, POTENTIAL};
+    /** Every single-slot element (cards are separate). */
+    private static final Slot[] SINGLES = {UNDERDOG, FIGHT, PENALTY, ELITE, BOOST, TP, MOMENTUM, SPAR, POTENTIAL, COINS};
     private static final ArrayDeque<Slot> CARDS = new ArrayDeque<>();
 
     private static KeyMapping openKey;
@@ -107,16 +140,36 @@ final class HudOverlay {
 
     static void init() {
         LmNativeNetwork.onHud(HudOverlay::apply);
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(HudOverlay::onRender);
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(HudOverlay::onBossBar);
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(HudOverlay::onRenderPre);
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(HudOverlay::onScreenRender);
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(HudOverlay::onMouse);
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(HudOverlay::onClientTick);
         try {
-            net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext.get().getModEventBus()
-                    .addListener(HudOverlay::onRegisterKeys);
+            var modBus = net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext.get().getModEventBus();
+            modBus.addListener(HudOverlay::onRegisterKeys);
+            modBus.addListener(HudOverlay::onRegisterOverlays);
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.warn("[{}] HUD key not registered: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
         }
+    }
+
+    /**
+     * 4.7.73: drawn as a GUI overlay just under chat, after the hotbar rows, boss bars and effect icons, so chat stays
+     * on top and the positions of those elements are known when the HUD is placed.
+     */
+    private static void onRegisterOverlays(net.minecraftforge.client.event.RegisterGuiOverlaysEvent event) {
+        event.registerBelow(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.CHAT_PANEL.id(), "native_hud",
+                (gui, g, partialTick, w, h) -> render(gui, g));
+    }
+
+    private static void onRenderPre(RenderGuiEvent.Pre event) {
+        bossBottom = 0;
+    }
+
+    /** Each boss bar drawn this frame (vanilla, other mods): the top stack starts below the last one. */
+    private static void onBossBar(net.minecraftforge.client.event.CustomizeGuiOverlayEvent.BossEventProgress event) {
+        bossBottom = Math.max(bossBottom, event.getY() + event.getIncrement());
     }
 
     private static void onRegisterKeys(RegisterKeyMappingsEvent event) {
@@ -141,6 +194,9 @@ final class HudOverlay {
             }
             Slot card = new Slot(e);
             fill(card, p);
+            if (card.durationMs <= 0) {
+                card.durationMs = LmHud.INSTINCT_MS;          // a card always goes away on its own
+            }
             CARDS.addFirst(card);
             while (CARDS.size() > CARD_MAX) {
                 CARDS.pollLast();
@@ -167,6 +223,12 @@ final class HudOverlay {
             case LmHud.TP -> TP;
             case LmHud.PENALTY -> PENALTY;
             case LmHud.MOMENTUM -> MOMENTUM;
+            case LmHud.FIGHT -> FIGHT;
+            case LmHud.SPAR -> SPAR;
+            case LmHud.POTENTIAL -> POTENTIAL;
+            case LmHud.COINS -> COINS;
+            case LmHud.ELITE -> ELITE;
+            case LmHud.BOOST -> BOOST;
             default -> null;
         };
     }
@@ -190,6 +252,12 @@ final class HudOverlay {
 
     /** Lay out the text and size the panel (on arrival and on a skin change, never per frame). */
     private static void layout(Slot s) {
+        layout(s, s.layoutCap);
+    }
+
+    /** As {@link #layout(Slot)}, fitted to at most {@code cap} px wide (a narrow screen re-fits the text). */
+    private static void layout(Slot s, int cap) {
+        s.layoutCap = cap;
         Minecraft mc = Minecraft.m_91087_();
         Font font = mc.f_91062_;
         MenuSkins.Skin skin = MenuLook.skin();
@@ -217,6 +285,8 @@ final class HudOverlay {
                 minW = 80;
             }
         }
+        maxW = Math.max(40, Math.min(maxW, cap));
+        minW = Math.min(minW, maxW);
         int textRoom = maxW - 2 * PAD_X - (s.symbol.isEmpty() ? 0 : SYMBOL_W);
         int widest = 0;
         for (String raw : s.raw) {
@@ -273,7 +343,7 @@ final class HudOverlay {
 
     // ------------------------------------------------------------------ drawing
 
-    private static void onRender(RenderGuiEvent.Post event) {
+    private static void render(net.minecraftforge.client.gui.overlay.ForgeGui gui, GuiGraphics g) {
         Minecraft mc = Minecraft.m_91087_();
         if (mc.f_91074_ == null || mc.f_91066_.f_92062_) {
             return;
@@ -281,8 +351,12 @@ final class HudOverlay {
         if (handShown && !(mc.f_91080_ instanceof ChatScreen)) {
             setHand(false);
         }
-        draw(event.getGuiGraphics(), mc);
+        rightHeight = gui == null ? 49 : Math.max(39, gui.rightHeight);
+        draw(g, mc);
     }
+
+    /** Height of the right-hand status rows above the bottom (food, air, mount), from Forge's GUI. */
+    private static int rightHeight = 49;
 
     static void draw(GuiGraphics g, Minecraft mc) {
         var win = mc.m_91268_();
@@ -292,22 +366,58 @@ final class HudOverlay {
         long now = System.currentTimeMillis();
         Font font = mc.f_91062_;
         String skinId = MenuLook.skin().id();
-        // Top centre stack.
-        int y = EDGE;
+        // Top centre stack, below any boss bar drawn this frame, narrow enough to clear the effect icons.
+        int y = Math.max(EDGE, bossBottom + 2);
+        int topCap = sw - 2 * Math.max(EDGE, effectCols * EFFECT_COL + EDGE);
         for (Slot s : TOP) {
             s.drawn = false;
             if (!live(s, now)) {
                 continue;
             }
-            if (!skinId.equals(s.skinId)) {
-                layout(s);
+            if (!skinId.equals(s.skinId) || topCap != s.layoutCap) {
+                layout(s, topCap);
             }
-            int w = Math.min(s.w, sw - 2 * EDGE);
-            drawSlot(g, font, s, (sw - w) / 2, y, w, scale, now, 1f);
+            drawSlot(g, font, s, (sw - s.w) / 2, y, s.w, scale, now, 1f);
             y += s.h + GAP;
         }
-        // Instinct cards on the right edge, newest first, stacking downward from 45% down.
-        int cy = (int) (sh * 0.45f);
+        // Bottom-right row: Momentum, then the spar chip and the Potential meter above it, all above the right-hand
+        // status rows and the action bar.
+        int rowBottom = sh - Math.max(rightHeight, ACTION_BAR_UP) - GAP;
+        int rowCap = sw / 2 - 10 - EDGE;
+        int by = rowBottom;
+        for (Slot s : BOTTOM) {
+            s.drawn = false;
+            if (!live(s, now)) {
+                continue;
+            }
+            if (!skinId.equals(s.skinId) || rowCap != s.layoutCap) {
+                layout(s, rowCap);
+            }
+            by -= s.h;
+            if (by < y + GAP) {
+                break;                                      // no room left above (tiny window): skip the rest
+            }
+            drawSlot(g, font, s, sw / 2 + 10, by, s.w, scale, now, 1f);
+            by -= GAP;
+        }
+        int momentumY = by;
+        // Right edge: the coin toast, then the Instinct cards newest first, from 45% down (and below the top stack); a
+        // card that would reach the bottom row is not drawn (it is the oldest; it fades out on its own).
+        int cy = Math.max((int) (sh * 0.45f), y + GAP);
+        int cardFloor = momentumY - CARD_FLOOR_GAP;
+        int cardCap = Math.max(80, sw / 2 - 2 * EDGE);
+        COINS.drawn = false;
+        if (live(COINS, now)) {
+            if (!skinId.equals(COINS.skinId) || cardCap != COINS.layoutCap) {
+                layout(COINS, cardCap);
+            }
+            if (cy + COINS.h <= cardFloor) {
+                long left = COINS.durationMs - (now - COINS.start);
+                float alpha = left >= CARD_FADE_MS ? 1f : Math.max(0f, left / (float) CARD_FADE_MS);
+                drawSlot(g, font, COINS, sw - COINS.w - EDGE, cy, COINS.w, scale, now, alpha);
+                cy += COINS.h + GAP;
+            }
+        }
         Iterator<Slot> it = CARDS.iterator();
         while (it.hasNext()) {
             Slot c = it.next();
@@ -316,23 +426,16 @@ final class HudOverlay {
                 it.remove();
                 continue;
             }
-            if (!skinId.equals(c.skinId)) {
-                layout(c);
+            if (!skinId.equals(c.skinId) || cardCap != c.layoutCap) {
+                layout(c, cardCap);
+            }
+            if (cy + c.h > cardFloor) {
+                continue;
             }
             long left = c.durationMs - (now - c.start);
             float alpha = left >= CARD_FADE_MS ? 1f : Math.max(0f, left / (float) CARD_FADE_MS);
-            int w = Math.min(c.w, sw - 2 * EDGE);
-            drawSlot(g, font, c, sw - w - EDGE, cy, w, scale, now, alpha);
+            drawSlot(g, font, c, sw - c.w - EDGE, cy, c.w, scale, now, alpha);
             cy += c.h + GAP;
-        }
-        // Momentum above the hotbar, right of centre.
-        MOMENTUM.drawn = false;
-        if (live(MOMENTUM, now)) {
-            if (!skinId.equals(MOMENTUM.skinId)) {
-                layout(MOMENTUM);
-            }
-            int w = Math.min(MOMENTUM.w, sw / 2 - 2 * EDGE);
-            drawSlot(g, font, MOMENTUM, sw / 2 + 10, sh - MOMENTUM_UP, w, scale, now, 1f);
         }
     }
 
@@ -355,7 +458,18 @@ final class HudOverlay {
         }
         MenuSkins.Skin skin = MenuLook.skin();
         boolean lite = MenuLook.lite();
-        HudChrome.Baked b = HudChrome.get(w, s.h, scale, skin, lite, s.accentRgb);
+        HudChrome.Baked b = s.baked;
+        if (b == null || s.bakedW != w || s.bakedH != s.h || s.bakedScale != scale || s.bakedLite != lite
+                || s.bakedAccent != s.accentRgb || s.bakedSkin != skin) {
+            b = HudChrome.get(w, s.h, scale, skin, lite, s.accentRgb);
+            s.baked = b;
+            s.bakedW = w;
+            s.bakedH = s.h;
+            s.bakedScale = scale;
+            s.bakedLite = lite;
+            s.bakedAccent = s.accentRgb;
+            s.bakedSkin = skin;
+        }
         if (b != null) {
             RenderSystem.enableBlend();
             RenderSystem.setShaderColor(1f, 1f, 1f, alpha);
@@ -396,7 +510,7 @@ final class HudOverlay {
 
     /** The clickable element under (mx, my) as last drawn, or null. */
     static Slot hit(double mx, double my) {
-        for (Slot s : TOP) {
+        for (Slot s : SINGLES) {
             if (over(s, mx, my)) {
                 return s;
             }
@@ -406,7 +520,7 @@ final class HudOverlay {
                 return c;
             }
         }
-        return over(MOMENTUM, mx, my) ? MOMENTUM : null;
+        return null;
     }
 
     private static boolean over(Slot s, double mx, double my) {
@@ -444,7 +558,11 @@ final class HudOverlay {
     }
 
     private static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || openKey == null) {
+        if (event.phase != TickEvent.Phase.END) {
+            return;
+        }
+        effectCols = effectColumns(Minecraft.m_91087_());
+        if (openKey == null) {
             return;
         }
         while (openKey.m_90859_()) {
@@ -455,11 +573,31 @@ final class HudOverlay {
         }
     }
 
+    /** Columns of status-effect icons vanilla draws at the top right (the wider of its two rows). */
+    private static int effectColumns(Minecraft mc) {
+        if (mc.f_91074_ == null) {
+            return 0;
+        }
+        int good = 0;
+        int bad = 0;
+        for (net.minecraft.world.effect.MobEffectInstance e : mc.f_91074_.m_21220_()) {
+            if (!e.m_19572_()) {
+                continue;                                   // hidden icon
+            }
+            if (e.m_19544_().m_19486_()) {
+                good++;
+            } else {
+                bad++;
+            }
+        }
+        return Math.min(8, Math.max(good, bad));
+    }
+
     /** The newest visible element with a page. */
     static Slot newest() {
         long now = System.currentTimeMillis();
         Slot best = null;
-        for (Slot s : TOP) {
+        for (Slot s : SINGLES) {
             if (live(s, now) && !s.action.isEmpty() && (best == null || s.start > best.start)) {
                 best = s;
             }
@@ -468,9 +606,6 @@ final class HudOverlay {
             if (live(c, now) && !c.action.isEmpty() && (best == null || c.start > best.start)) {
                 best = c;
             }
-        }
-        if (live(MOMENTUM, now) && !MOMENTUM.action.isEmpty() && (best == null || MOMENTUM.start > best.start)) {
-            best = MOMENTUM;
         }
         return best;
     }
@@ -483,10 +618,10 @@ final class HudOverlay {
 
     /** Logout: nothing carries over to the next server. */
     static void clear() {
-        for (Slot s : TOP) {
+        for (Slot s : SINGLES) {
             s.visible = false;
+            s.baked = null;
         }
-        MOMENTUM.visible = false;
         CARDS.clear();
         if (handShown) {
             setHand(false);
@@ -497,13 +632,12 @@ final class HudOverlay {
     /** UI probe: every element on screen as {@code H element x y w h action "line | line"} (GUI px). */
     static List<String> debugLayout() {
         List<String> out = new ArrayList<>();
-        for (Slot s : TOP) {
+        for (Slot s : SINGLES) {
             add(out, s);
         }
         for (Slot c : CARDS) {
             add(out, c);
         }
-        add(out, MOMENTUM);
         return out;
     }
 
@@ -534,6 +668,7 @@ final class HudOverlay {
 
         private static final int CACHE = 24;
         private static final Map<String, Baked> BAKED = new LinkedHashMap<>(32, 0.75f, true);
+        private static final java.util.Set<String> FAILED = new java.util.HashSet<>();
         private static int counter;
 
         static Baked get(int w, int h, int scale, MenuSkins.Skin skin, boolean lite, int accent) {
@@ -542,11 +677,15 @@ final class HudOverlay {
             if (hit != null) {
                 return hit;
             }
+            if (FAILED.contains(key)) {
+                return null;
+            }
+            NativeImage img = null;
             try {
                 int pad = lite ? 0 : SHADOW;
                 int tw = (w + 2 * pad) * scale;
                 int th = (h + 2 * pad) * scale;
-                NativeImage img = new NativeImage(tw, th, false);
+                img = new NativeImage(tw, th, false);
                 double r = Math.min(5.0, h / 2.0);
                 int panel = skin.panel() & MenuSkins.RGB_MASK;
                 int fillA = 0xE6;
@@ -580,6 +719,7 @@ final class HudOverlay {
                     }
                 }
                 DynamicTexture tex = new DynamicTexture(img);
+                img = null;                                 // the texture owns it now
                 tex.m_117960_(true, false);
                 ResourceLocation id = new ResourceLocation(AdaptiveDifficultyMod.MOD_ID, "hud_bake/" + (counter++));
                 Minecraft.m_91087_().m_91097_().m_118495_(id, tex);
@@ -593,6 +733,14 @@ final class HudOverlay {
                 }
                 return b;
             } catch (Throwable t) {
+                if (img != null) {
+                    img.close();
+                }
+                if (FAILED.size() < 64) {
+                    FAILED.add(key);                        // never retried every frame
+                }
+                AdaptiveDifficultyMod.LOGGER.warn("[{}] HUD chrome bake failed for {}: {}", AdaptiveDifficultyMod.MOD_ID,
+                        key, t.toString());
                 return null;
             }
         }
@@ -615,6 +763,7 @@ final class HudOverlay {
                 Minecraft.m_91087_().m_91097_().m_118513_(b.id());
             }
             BAKED.clear();
+            FAILED.clear();
         }
 
         static int bakedCount() {

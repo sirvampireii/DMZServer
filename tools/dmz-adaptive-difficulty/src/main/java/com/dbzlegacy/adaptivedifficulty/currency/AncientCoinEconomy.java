@@ -571,8 +571,31 @@ public final class AncientCoinEconomy {
                 + (drop.count() == 1 ? "" : "s")));
     }
 
+    /** 4.7.75: per player, the coin total shown on the HUD toast and when its 5-second window started. */
+    private static final java.util.Map<java.util.UUID, long[]> COIN_TOAST = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * 4.7.75: a HUD player's coin drops sum into one toast ("+ 3 Silver 20 Copper Ancient Coins") that stays while
+     * drops keep coming within 5 seconds, instead of one chat line per kill. False for everyone else (chat as before).
+     */
+    static boolean coinToast(ServerPlayer player, long copper) {
+        if (copper <= 0L || !com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+            return false;
+        }
+        long now = System.currentTimeMillis();
+        long[] t = COIN_TOAST.compute(player.m_20148_(), (k, v) ->
+                v == null || now - v[1] > com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.COIN_WINDOW_MS ? new long[] {copper, now} : new long[] {v[0] + copper, now});
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.COINS, java.util.List.of(com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("6", "+ " + formatExactCost(t[0]))
+                + " " + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL + "Ancient Coins"), -1f, "#f0b429", "", (int) com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.COIN_WINDOW_MS, false);
+        return true;
+    }
+
     public static void notifyGrant(ServerPlayer player, KillLoot loot) {
         if (player == null || loot == null || (!loot.hasPrimary() && !loot.hasBonus())) {
+            return;
+        }
+        if (coinToast(player, (loot.hasPrimary() ? loot.primary().copperValue() : 0L)
+                + (loot.hasBonus() ? loot.bonus().copperValue() : 0L))) {
             return;
         }
         boolean plural = loot.hasBonus() || (loot.hasPrimary() && loot.primary().count() != 1);

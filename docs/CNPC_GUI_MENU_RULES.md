@@ -34,8 +34,9 @@ Automated checks: `python3 tools/dmz-adaptive-difficulty/sim/audit_cnpc_gui_styl
 
 ## Navigation
 
-- System mains: `navSystemRoot` → **Hub**.
-- Subpages: `navSubmenu` with `§7« Back`.
+Retired CNPC menus used `navSystemRoot` and `navSubmenu`; nothing calls them now. Ultra menus follow the rule below:
+`UltraScreenSpec.back()` reads the page registry ("Back to X" on the left, "Main menu" on the right; a system Home
+shows one "Back to main menu"). Never "Hub".
 
 ## Bukkit chest / CMI
 

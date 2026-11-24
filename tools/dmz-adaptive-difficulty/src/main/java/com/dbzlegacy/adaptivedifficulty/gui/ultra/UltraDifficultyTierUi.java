@@ -54,30 +54,6 @@ public final class UltraDifficultyTierUi {
                 .replace(" or Prestige ", " or prestige ");
     }
 
-    public static String tierActionLabel(
-            ServerPlayer player, int t, int activeTier, boolean unlocked, boolean eligible) {
-        if (t <= 0) {
-            return UltraStyle.dim("-");
-        }
-        if (activeTier == t) {
-            return UltraStyle.confirm("T" + t + " - Active");
-        }
-        // Downgrade to Tier is free. Button reads "T# - Free".
-        if (activeTier > 0 && t < activeTier) {
-            if (unlocked || eligible) {
-                return UltraStyle.confirm("T" + t + " - Free");
-            }
-            return UltraStyle.dim("T" + t + " - Locked");
-        }
-        if (!unlocked) {
-            if (eligible) {
-                return UltraStyle.confirm("T" + t + " - " + UltraStyle.plain(buttonPrice(player, t, activeTier)));
-            }
-            return UltraStyle.dim("T" + t + " - Locked");
-        }
-        return UltraStyle.LABEL + "T" + t + " - " + UltraStyle.plain(buttonPrice(player, t, activeTier));
-    }
-
     /** Coin price that fits beside {@code T#} on a standard button. */
     private static String buttonPrice(ServerPlayer player, int t, int activeTier) {
         if (PaidFeatureAccess.bypassAncientCoinCost(player)) {
@@ -88,55 +64,6 @@ public final class UltraDifficultyTierUi {
         }
         return AncientCoinEconomy.compactCost(
                 AncientCoinEconomy.activationCost(UnlockTier.byId(t), player, activeTier));
-    }
-
-    public static boolean tierButtonEnabled(int t, int activeTier, boolean unlocked, boolean eligible) {
-        if (t <= 0 || t > 7) {
-            return false;
-        }
-        if (activeTier == t) {
-            return false;
-        }
-        // Downgrade to a weaker tier when already eligible/unlocked.
-        if (activeTier > 0 && t < activeTier) {
-            return unlocked || eligible;
-        }
-        if (!unlocked) {
-            return eligible;
-        }
-        return true;
-    }
-
-    /**
-     * Tier {@code t} as a {@link PurchaseState} (4.7.46): ACTIVE, OWNED (free switch down),
-     * BUYABLE, SHORT (cannot pay yet) or LOCKED, each with the reason the Tiers page shows. Only
-     * tappable states get a button. A LOCKED reason quotes dmzrevamp's effective level cap
-     * ({@link RevampEffectiveCaps}) when the tier's level gate is above it.
-     */
-    public static PurchaseState.View tierView(
-            ServerPlayer player, int t, int activeTier, boolean unlocked, boolean eligible) {
-        UnlockTier tier = UnlockTier.byId(t);
-        if (tier == null) {
-            return new PurchaseState.View(PurchaseState.State.UNSOLD, "this tier does not exist");
-        }
-        boolean usable = unlocked || eligible;
-        boolean owned = t == activeTier || (activeTier > 0 && t < activeTier && usable);
-        long price = PaidFeatureAccess.bypassAncientCoinCost(player)
-                ? 0L
-                : AncientCoinEconomy.activationCost(tier, player, activeTier);
-        long funds = AncientCoinEconomy.balance(player);
-        PurchaseState.State state = PurchaseState.state(
-                new PurchaseState.Inputs(owned, t == activeTier, true, false, false, !usable, price, funds));
-        String reason = switch (state) {
-            case ACTIVE -> "your current tier";
-            case OWNED -> "switch down for free";
-            case BUYABLE -> price <= 0L ? "activate for free" : "activate for " + AncientCoinEconomy.formatExactCost(price);
-            case SHORT -> "you need " + AncientCoinEconomy.formatExactCost(price - funds) + " more (costs "
-                    + AncientCoinEconomy.formatExactCost(price) + ")";
-            case LOCKED -> lockedReason(player, tier);
-            default -> "not available";
-        };
-        return new PurchaseState.View(state, reason);
     }
 
     /** {@code reach level 5,000 (you: 3,200) or prestige 4}; prestige only when the level is past the cap. */

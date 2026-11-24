@@ -84,6 +84,10 @@ public final class SparPlayerRuntime {
     public int sessionMaxCombo;
     public int sessionMaxMom;
     public boolean sessionPerfect;
+    /** 4.7.75 HUD: last moment the pair was in Perfect Training, and the last combo break (shown for a moment). */
+    public long perfectSeenAt;
+    public long comboBrokenAt;
+    public String comboBrokenReason = "";
 
     public double styleMelee;
     public double styleKi;

@@ -4,7 +4,10 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SRG="$ROOT/libraries/net/minecraft/server/1.20.1-20230612.114412/server-1.20.1-20230612.114412-srg.jar"
 FORGE_U="$ROOT/libraries/net/minecraftforge/forge/1.20.1-47.4.10/forge-1.20.1-47.4.10-universal.jar"
 FORGE_S="$ROOT/libraries/net/minecraftforge/forge/1.20.1-47.4.10/forge-1.20.1-47.4.10-server.jar"
-DMZ="${DMZ_JAR:-$ROOT/mods/dragonminez-2.2.jar}"
+# Releases compile against the godki-patched DragonMineZ 2.2.1.2; the old 2.2 jar is only a fallback.
+DMZ_DEFAULT="$ROOT/tools/dmz-godki-patch/out/dragonminez-2.2.1.2.jar"
+[[ -f "$DMZ_DEFAULT" ]] || DMZ_DEFAULT="$ROOT/mods/dragonminez-2.2.jar"
+DMZ="${DMZ_JAR:-$DMZ_DEFAULT}"
 GSON="$ROOT/libraries/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar"
 LIGHTMANS="$ROOT/libraries/lightmanscurrency-1.20.1-2.3.0.5.jar"
 if [[ ! -f "$LIGHTMANS" ]]; then
@@ -21,9 +24,18 @@ if [[ ! -f "$FTB" ]]; then
   curl -fsSL -o "$FTB" \
     "https://maven.ftb.dev/releases/dev/ftb/mods/ftb-teams-forge/2001.3.1/ftb-teams-forge-2001.3.1.jar"
 fi
-for dep in "$FTB_CHUNKS" "$FTB_LIBRARY" "$ARCHITECTURY" "$REVAMP" "$CNPC"; do
+for dep in "$FTB_CHUNKS" "$FTB_LIBRARY" "$ARCHITECTURY" "$REVAMP" "$CNPC" "$DMZ"; do
   if [[ ! -f "$dep" ]]; then
     echo "Missing $dep — copy from live mods/ or libraries/" >&2
+    exit 1
+  fi
+done
+# Preflight (4.7.72 tooling): the LM client step needs the Forge client install; say so before compiling anything.
+PRE_LIBS="${CLIENT_LIBS:-$HOME/curseforge/minecraft/Install/libraries}"
+for f in "$PRE_LIBS/net/minecraft/client/1.20.1-20230612.114412/client-1.20.1-20230612.114412-srg.jar" \
+    "$PRE_LIBS/org/lwjgl/lwjgl/3.3.1/lwjgl-3.3.1.jar" "$PRE_LIBS/org/lwjgl/lwjgl-glfw/3.3.1/lwjgl-glfw-3.3.1.jar"; do
+  if [[ ! -f "$f" ]]; then
+    echo "Missing $f - install the Forge 1.20.1-47.4.10 client (CurseForge) or set CLIENT_LIBS" >&2
     exit 1
   fi
 done

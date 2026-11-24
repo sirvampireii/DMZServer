@@ -34,10 +34,12 @@ public final class TitleSense {
         PlayerDifficultyData data = DifficultyCache.data(player);
         TitleProgress progress = data.titleProgress();
         if (!progress.titleSenseChat()) {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ELITE);
             return;
         }
         DifficultyTitle equipped = DifficultyTitle.byId(data.getActiveTitle());
         if (equipped == null) {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ELITE);
             return;
         }
         long now = System.currentTimeMillis();
@@ -58,6 +60,23 @@ public final class TitleSense {
             if (eliteNear && bossNear) {
                 break;
             }
+        }
+        if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+            // 4.7.75: a chip that stays while the sense holds, instead of a chat line every 45 seconds.
+            String chip = null;
+            if (equipped == DifficultyTitle.ELITE_HUNTER && eliteNear) {
+                chip = com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("e", "✦ Elite nearby");
+            } else if (equipped == DifficultyTitle.BOSS_SLAYER && bossNear) {
+                chip = com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("c", "☠ Boss nearby");
+            } else if (equipped == DifficultyTitle.T7_GOD && bossNear) {
+                chip = com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("6", "Godslayer senses a boss");
+            }
+            if (chip == null) {
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ELITE);
+            } else {
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ELITE, java.util.List.of(chip), -1f, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ACCENT_DIFFICULTY, "", 0, false);
+            }
+            return;
         }
         if (equipped == DifficultyTitle.ELITE_HUNTER && eliteNear
                 && now - LAST_ELITE_MSG.getOrDefault(id, 0L) >= COOLDOWN_MS) {

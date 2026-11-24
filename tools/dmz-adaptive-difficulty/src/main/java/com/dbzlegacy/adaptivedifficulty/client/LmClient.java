@@ -70,6 +70,7 @@ public final class LmClient {
         MenuBackground.clear();
         ColorWheelTex.clear();
         HudOverlay.clear();
+        NativeMenuScreen.clearCaches();
     }
 
     private static void onNameTag(RenderNameTagEvent event) {

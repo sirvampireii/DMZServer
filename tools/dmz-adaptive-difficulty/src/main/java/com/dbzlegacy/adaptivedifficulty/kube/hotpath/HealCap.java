@@ -26,6 +26,23 @@ public final class HealCap {
 
     private HealCap() {}
 
+    /**
+     * 4.7.75: the healing caps as one line ("Life Steal off | Overheal 5% | Received +5%"), for Character Services
+     * Home; null when the healing caps are off. The login chat line it replaces is gone (nothing to act on at login).
+     */
+    public static String summary(ServerPlayer player) {
+        if (player == null || !HotPathConfig.get().healing.enabled) {
+            return null;
+        }
+        double overheal = read(player, "attributeslib:overheal", 0.0);
+        double received = read(player, "attributeslib:healing_received", 1.0);
+        HotPathConfig.Healing healing = HotPathConfig.get().healing;
+        String lifeStealLabel = healing.lifeStealMax <= 0.0
+                ? "Life Steal off"
+                : "Life Steal " + pct(read(player, "attributeslib:life_steal", 0.0)) + "%";
+        return lifeStealLabel + " | Overheal " + pct(overheal) + "% | Received +" + receivedPct(received) + "%";
+    }
+
     public static void announce(ServerPlayer player) {
         if (player == null || !HotPathConfig.get().healing.enabled) {
             return;

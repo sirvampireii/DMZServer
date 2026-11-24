@@ -94,7 +94,7 @@ public final class LmHotPath {
         WeaponBonusScale.clearPlayer(player.m_20148_());
         WeaponBonusScale.update(player);
         HealCap.clamp(player);
-        HealCap.announce(player);
+        // 4.7.75: the healing caps show on Character Services Home instead of a chat line at every login.
         PothalaClean.clean(player);
         RaceLockClear.clear(player);
         SpawnerVanillaize.scan(player);

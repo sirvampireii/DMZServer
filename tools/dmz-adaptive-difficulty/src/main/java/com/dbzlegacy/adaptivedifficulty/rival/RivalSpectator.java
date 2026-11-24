@@ -79,6 +79,7 @@ public final class RivalSpectator {
             }
             if (now > st.until) {
                 ACTIVE.remove(e.getKey());
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(spectator, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT);
                 DmzRewards.msg(spectator, "§7Spectate ended.");
                 continue;
             }
@@ -89,6 +90,7 @@ public final class RivalSpectator {
             RivalChallenge ch = RivalChallengeManager.get().byId(st.sessionId);
             if (ch == null || ch.status == RivalChallenge.Phase.ENDED) {
                 ACTIVE.remove(e.getKey());
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(spectator, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT);
                 DmzRewards.msg(spectator, "§eBattle ended.");
                 continue;
             }
@@ -96,9 +98,18 @@ public final class RivalSpectator {
             if (ch.status == RivalChallenge.Phase.ACTIVE && ch.endsAt > 0L) {
                 left = Math.max(0L, (ch.endsAt - now) / 1000L);
             }
+            // 4.7.75: a plain state word instead of the raw phase name ("[countdown]").
             String state = ch.status == RivalChallenge.Phase.ACTIVE
                     ? (" (" + left + "s)")
-                    : (" [" + ch.status.name().toLowerCase() + "]");
+                    : " (starting soon)";
+            if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(spectator)) {
+                java.util.List<String> lines = new java.util.ArrayList<>(RivalChallengeManager.fightLines(ch, now, false));
+                lines.add(com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL + "Watching");
+                float progress = ch.status == RivalChallenge.Phase.ACTIVE && ch.durationMs > 0
+                        ? (float) Math.max(0.0, Math.min(1.0, (ch.endsAt - now) / (double) ch.durationMs)) : -1f;
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(spectator, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT, lines, progress, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ACCENT_RIVAL, "", 0, false);
+                continue;
+            }
             DmzRewards.msg(spectator, "§8[Spec] §f" + ch.nameA + " §7" + (int) ch.damageA
                     + " §8vs §f" + ch.nameB + " §7" + (int) ch.damageB + "§7" + state);
         }

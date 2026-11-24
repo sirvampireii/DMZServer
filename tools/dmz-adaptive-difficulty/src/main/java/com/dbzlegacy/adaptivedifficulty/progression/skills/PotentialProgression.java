@@ -152,6 +152,7 @@ public final class PotentialProgression {
             progress = required;
         }
         giveMentorTrainingTp(player, playerData, other, otherData);
+        potentialHud(player, progress, required, null);
         if (progress < required) {
             ProgressionData.storedPut(player, progressKey, progress);
             return;
@@ -376,10 +377,45 @@ public final class PotentialProgression {
     }
 
     /** Potential notices are subtitles only (no chat). */
+    /** 4.7.75: last Potential progress shown per player (the hints reuse it). */
+    private static final java.util.Map<java.util.UUID, int[]> HUD_LAST = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * 4.7.75 Potential meter for HUD players: "Potential 34/200" with its bar, plus the hint line that would have
+     * been a subtitle ("Switch training methods...", "Move at least..."). Fades a few seconds after training stops.
+     */
+    private static void potentialHud(ServerPlayer player, int progress, int required, String hint) {
+        if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+            return;
+        }
+        int[] last = HUD_LAST.get(player.m_20148_());
+        if (required > 0) {
+            last = new int[] {progress, required};
+            HUD_LAST.put(player.m_20148_(), last);
+        }
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        float bar = -1f;
+        if (last != null && last[1] > 0) {
+            lines.add(com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL + "Potential " + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color("f", last[0] + "/" + last[1]));
+            bar = (float) Math.min(1.0, last[0] / (double) last[1]);
+        } else {
+            lines.add(com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL + "Potential");
+        }
+        if (hint != null) {
+            lines.add(hint);
+        }
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.POTENTIAL, lines, bar, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("character"), "", com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.POTENTIAL_MS, false);
+    }
+
     private static void potentialSubtitle(
             ServerPlayer player, String body, ChatFormatting color, long cooldownMs
     ) {
         if (player == null || body == null || body.isBlank()) {
+            return;
+        }
+        if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player)) {
+            // 4.7.75: the hint rides the Potential meter instead of a subtitle on every hit.
+            potentialHud(player, 0, 0, com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.color(color == ChatFormatting.RED ? "c" : color == ChatFormatting.GRAY ? "7" : "e", body));
             return;
         }
         ScreenNotify.subtitleOnly(

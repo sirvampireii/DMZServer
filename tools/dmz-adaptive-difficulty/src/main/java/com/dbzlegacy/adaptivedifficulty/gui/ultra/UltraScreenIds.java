@@ -103,10 +103,6 @@ public final class UltraScreenIds {
 
     private UltraScreenIds() {}
 
-    public static boolean isProtocolId(String screenId) {
-        return screenId != null && PROTOCOL_IDS.contains(screenId.trim().toLowerCase(Locale.ROOT));
-    }
-
     /** True when KaiPath can open this wire {@code screenId} without MissingScreen. */
     public static boolean kaipathCanOpen(String screenId) {
         if (KAIPATH_DYNAMIC_ANY_SCREEN_ID) {

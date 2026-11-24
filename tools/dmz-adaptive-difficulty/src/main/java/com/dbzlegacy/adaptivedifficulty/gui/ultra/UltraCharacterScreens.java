@@ -226,6 +226,10 @@ public final class UltraCharacterScreens {
                     "See your race in each of its forms on the model. Nothing changes on you.",
                     formsBlock));
         }
+        String healing = com.dbzlegacy.adaptivedifficulty.kube.hotpath.HealCap.summary(player);
+        if (healing != null) {
+            spec.labelValue("Healing:", healing);
+        }
         spec.buttonsAfterLines();
         ModelPreview.rotateButton(spec, player, "main");
 
@@ -473,7 +477,7 @@ public final class UltraCharacterScreens {
         }
         if (pg > 0) {
             spec.buttonLeft(
-                    "page:race:" + (pg - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
+                    "page:race:" + (pg - 1), UltraStyle.LABEL + "Prev", UltraStyle.STYLE_NORMAL);
         }
         if (pg + 1 < pages) {
             if (pg > 0) {
@@ -645,7 +649,7 @@ public final class UltraCharacterScreens {
             spec.line(UltraStyle.dim("No classes are available for your race. Ask staff - your race may not have classes yet."));
         }
         if (pg > 0) {
-            spec.buttonLeft("page:class:" + (pg - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
+            spec.buttonLeft("page:class:" + (pg - 1), UltraStyle.LABEL + "Prev", UltraStyle.STYLE_NORMAL);
         }
         if (pg + 1 < pages) {
             if (pg > 0) {
@@ -843,7 +847,7 @@ public final class UltraCharacterScreens {
         // Body parts is its own entry on Character Home (4.7.11); no second link here.
         if (pg > 0) {
             spec.buttonLeft(
-                    "page:bones:" + (pg - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
+                    "page:bones:" + (pg - 1), UltraStyle.LABEL + "Prev", UltraStyle.STYLE_NORMAL);
         }
         if (pg + 1 < pages) {
             if (pg > 0) {
@@ -1062,7 +1066,7 @@ public final class UltraCharacterScreens {
         String base = "page:bodyparts:";
         String tail = "all".equals(filter) ? "" : ":" + filter;
         if (pg > 0) {
-            spec.buttonLeft(base + (pg - 1) + tail, UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
+            spec.buttonLeft(base + (pg - 1) + tail, UltraStyle.LABEL + "Prev", UltraStyle.STYLE_NORMAL);
         }
         if (pg + 1 < pages) {
             if (pg > 0) {
@@ -1226,7 +1230,7 @@ public final class UltraCharacterScreens {
         int to = Math.min(shown.size(), from + CosmeticBodyPartService.CARDS_PER_PAGE);
         placePartCards(spec, CosmeticBodyPartService.cards(player, shown.subList(Math.min(from, to), to)), "find");
         if (pg > 0) {
-            spec.buttonLeft("page:" + PAGE_FIND + ":" + (pg - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
+            spec.buttonLeft("page:" + PAGE_FIND + ":" + (pg - 1), UltraStyle.LABEL + "Prev", UltraStyle.STYLE_NORMAL);
         }
         if (pg + 1 < pages) {
             String next = "page:" + PAGE_FIND + ":" + (pg + 1);
@@ -1333,8 +1337,8 @@ public final class UltraCharacterScreens {
         if (pg > 0) {
             spec.buttonLeft(
                     "page:bodycolors:" + channel + ":" + (pg - 1),
-                    UltraStyle.dim("Prev"),
-                    UltraStyle.STYLE_DIM);
+                    UltraStyle.LABEL + "Prev",
+                    UltraStyle.STYLE_NORMAL);
         }
         if (pg + 1 < pages) {
             if (pg > 0) {
@@ -1436,7 +1440,7 @@ public final class UltraCharacterScreens {
             spec.line(UltraStyle.dim("Nothing to reset until you play a saga."));
         }
         if (pg > 0) {
-            spec.buttonLeft("page:reset:" + (pg - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
+            spec.buttonLeft("page:reset:" + (pg - 1), UltraStyle.LABEL + "Prev", UltraStyle.STYLE_NORMAL);
         }
         if (pg + 1 < pages) {
             if (pg > 0) {
@@ -1615,7 +1619,7 @@ public final class UltraCharacterScreens {
         }
         if (pg > 0) {
             spec.buttonLeft(
-                    "page:android_staff:" + (pg - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
+                    "page:android_staff:" + (pg - 1), UltraStyle.LABEL + "Prev", UltraStyle.STYLE_NORMAL);
         }
         if (pg + 1 < pages) {
             if (pg > 0) {

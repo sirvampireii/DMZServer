@@ -52,12 +52,40 @@ def check(label: str, cond: bool, detail: str = "", retired: bool = False) -> No
         print(f" FAIL {label}" + (f" — {detail}" if detail else ""))
 
 
+
+def _after(src: str, anchor: str) -> str:
+    """Text after ``anchor`` in ``src``. A missing anchor fails the audit (instead of quietly checking the whole
+    file, which let renamed methods pass every "in" check on their body)."""
+    if anchor not in src:
+        check(f"anchor still in the source: {anchor.strip()[:70]!r}", False,
+              "the code this check reads was renamed or moved; update the check")
+        return ""
+    return src.split(anchor, 1)[-1]
+
+
+def has(code: str, *snippets: str) -> bool:
+    """Every snippet is in ``code``, ignoring whitespace and line breaks. Prefer it for new checks: reformatting or
+    re-wrapping code no longer breaks a check, only a real change does."""
+    flat = " ".join(code.split())
+    return all(" ".join(x.split()) in flat for x in snippets)
+
+
+def ordered(code: str, *tokens: str) -> bool:
+    """The tokens appear in this order in ``code`` ("A happens before B" without quoting the exact code)."""
+    at = 0
+    for t in tokens:
+        at = code.find(t, at)
+        if at < 0:
+            return False
+        at += len(t)
+    return True
+
 def boot_self_test(name: str) -> bool:
     """True when the startup self-test {name} runs at boot: LmGuiNetwork calls it directly, or
     calls UltraScreenSelfTest.runAll() and runAll() calls it (4.7.49)."""
     net = read(SRC / "net/gui/LmGuiNetwork.java")
     st = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
-    run_all = st.split("public static void runAll() {", 1)[-1].split("\n    }\n", 1)[0]
+    run_all = _after(st, "public static void runAll() {").split("\n    }\n", 1)[0]
     return (name + "();") in net or ("UltraScreenSelfTest.runAll();" in net and (name + "();") in run_all)
 
 
@@ -123,7 +151,7 @@ def main() -> int:
     boss_src = read(SRC / "progression/boss/PlayerBossSummons.java")
     boss_cfg = read(SRC / "config/DifficultyConfig.java")
     boss_ui = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
-    summon_body = boss_src.split("public static SummonOutcome summonOutcome(", 1)[-1].split("\n    }\n", 1)[0]
+    summon_body = _after(boss_src, "public static SummonOutcome summonOutcome(").split("\n    }\n", 1)[0]
     check("manifest boss-summons-wither-warden row", "boss-summons-wither-warden" in manifest)
     check("Wither T3-T7 in the Nether; Warden T4-T7 in the Overworld (dimension keys, no id strings)",
           'WITHER("Wither", 3, 7, Level.f_46429_' in boss_src
@@ -162,9 +190,9 @@ def main() -> int:
     print("\n--- § rival requests ---")
     rival_ui = read(SRC / "gui/ultra/UltraRivalScreens.java")
     rival_api = read(SRC / "gui/RivalGuiApi.java")
-    rival_home = rival_ui.split("private static void openHome(", 1)[-1].split("\n    }\n", 1)[0]
-    rival_tab = rival_ui.split("private static void openActions(", 1)[-1].split("\n    }\n", 1)[0]
-    out_body = rival_api.split("public static int outgoingDeclareCount(", 1)[-1].split("\n    }\n", 1)[0]
+    rival_home = _after(rival_ui, "private static void openHome(").split("\n    }\n", 1)[0]
+    rival_tab = _after(rival_ui, "private static void openActions(").split("\n    }\n", 1)[0]
+    out_body = _after(rival_api, "public static int outgoingDeclareCount(").split("\n    }\n", 1)[0]
     check("manifest rival-requests-counts row", "rival-requests-counts" in manifest)
     check("Requests moved from Rival Home to the Rival tab next to Pick player",
           '"requests|Requests"' not in rival_home
@@ -174,7 +202,7 @@ def main() -> int:
           '"Pending invites"' not in rival_ui
           and '.labelValue("Incoming requests", String.valueOf(declares.size()))' in rival_tab
           and "if (awaiting > 0) {" in rival_tab and '"Awaiting reply"' in rival_tab
-          and "invite" not in rival_tab.split("int awaiting", 1)[-1].split("UltraPickHelper.pageLabel", 1)[0].lower())
+          and "invite" not in _after(rival_tab, "int awaiting").split("UltraPickHelper.pageLabel", 1)[0].lower())
     check("outgoing count: invite sent, unexpired, not mutual, not a mutual confirm",
           "link.mutual || !link.inviteSent || link.needsMutualConfirm()" in out_body
           and "link.pendingExpireAt > 0L && now > link.pendingExpireAt" in out_body)
@@ -210,8 +238,8 @@ def main() -> int:
     print("\n--- § rival profile ---")
     rival_sys = read(SRC / "rival/RivalSystem.java")
     rival_mgr = read(SRC / "rival/RivalChallengeManager.java")
-    detail = rival_ui.split("private static void openListDetail(", 1)[-1].split("\n    }\n", 1)[0]
-    status_body = rival_ui.split("private static void profileStatus(", 1)[-1].split("\n    }\n", 1)[0]
+    detail = _after(rival_ui, "private static void openListDetail(").split("\n    }\n", 1)[0]
+    status_body = _after(rival_ui, "private static void profileStatus(").split("\n    }\n", 1)[0]
     check("manifest rival-profile-status and rival-nemesis-every-ko rows",
           "rival-profile-status" in manifest and "rival-nemesis-every-ko" in manifest)
     check("profile shows status, tier, RP, record from the link (current rivals only)",
@@ -284,7 +312,7 @@ def main() -> int:
 
     print("\n--- § kill credit ---")
     mob_scaling = read(SRC / "scaling/MobScaling.java")
-    term = mob_scaling.split("public static boolean terminateIfZeroHealth(", 1)[-1].split("\n    }\n", 1)[0]
+    term = _after(mob_scaling, "public static boolean terminateIfZeroHealth(").split("\n    }\n", 1)[0]
     check("manifest cleanup-kill-player-credit row", "cleanup-kill-player-credit" in manifest)
     check("cleanup kill credits the last player attacker (existing getLastHurtByMob tracking)",
           "if (entity.m_21188_() instanceof Player killer) {" in term
@@ -329,11 +357,11 @@ def main() -> int:
     don_help = read(SRC / "config/editor/ConfigFieldHelp.java")
     don_revive = read(SRC / "command/LmRevive.java")
     don_lm_help = read(SRC / "command/LmCommandHelp.java")
-    has_sc = don_staff.split("public static boolean hasSkillCheck(", 1)[-1].split("\n    }\n", 1)[0]
-    has_don = don_staff.split("public static boolean hasDonatorPermission(", 1)[-1].split("\n    }\n", 1)[0]
-    revive_self = don_revive.split("private static int reviveSelf(", 1)[-1].split("\n    }\n", 1)[0]
-    revive_other = don_revive.split("private static int reviveOther(", 1)[-1].split("\n    }\n", 1)[0]
-    deny_other = don_staff.split("public static int denyUnlessReviveOthers(", 1)[-1].split("\n    }\n", 1)[0]
+    has_sc = _after(don_staff, "public static boolean hasSkillCheck(").split("\n    }\n", 1)[0]
+    has_don = _after(don_staff, "public static boolean hasDonatorPermission(").split("\n    }\n", 1)[0]
+    revive_self = _after(don_revive, "private static int reviveSelf(").split("\n    }\n", 1)[0]
+    revive_other = _after(don_revive, "private static int reviveOther(").split("\n    }\n", 1)[0]
+    deny_other = _after(don_staff, "public static int denyUnlessReviveOthers(").split("\n    }\n", 1)[0]
     check("manifest donator-permission-umbrella row", "donator-permission-umbrella" in manifest)
     check("config: donatorPermission + reviveOthersPermission replace skillCheckPermission",
           'public String donatorPermission = "legacymechanics.donator";' in don_cfg
@@ -357,7 +385,7 @@ def main() -> int:
           and "hasSkillCheck" not in don_revive)
     check("revive others: staff source or revive node; human denial without a node string",
           "StaffAccess.denyUnlessReviveOthers(source) == 0" in revive_other
-          and "isStaffSource(src)" in don_staff.split("hasReviveOthersSource(", 1)[-1].split("\n    }\n", 1)[0]
+          and "isStaffSource(src)" in _after(don_staff, "hasReviveOthersSource(").split("\n    }\n", 1)[0]
           and "legacymechanics" not in deny_other and "staff or players with revive access" in deny_other
           and '"revive an online player (staff or revive access)"' in don_lm_help)
 
@@ -447,7 +475,7 @@ def main() -> int:
     pg_bar = read(SRC / "rival/ProvingGroundsBar.java")
     pg_events = read(SRC / "event/DifficultyEvents.java")
     pg_mgr = read(SRC / "rival/RivalChallengeManager.java")
-    pg_mult = pg_src.split("public static float winnerTpMultiplier(", 1)[-1].split("\n    }\n", 1)[0]
+    pg_mult = _after(pg_src, "public static float winnerTpMultiplier(").split("\n    }\n", 1)[0]
     check("manifest proving-grounds-bar row", "proving-grounds-bar" in manifest)
     check("grounds constants unchanged (1.35 / 1.25 / 12 RP / 12000 TP / 45 RP / 0.40 / 5-15 wins / radius 48)",
           "ON_GROUNDS_TP_MULT = 1.35;" in pg_src and "UNDERDOG_TP_MULT = 1.25;" in pg_src
@@ -497,10 +525,10 @@ def main() -> int:
     check("sim: reclaim still pays 12000 TP and 45 RP", _reclaim("challenger", "champ") == (12000, 45))
 
     print("\n--- § grounds bonus ---")
-    end_win = pg_mgr.split("float baseWin = (related ? RivalConstants.CH_WIN_TP", 1)[-1].split(
+    end_win = _after(pg_mgr, "float baseWin = (related ? RivalConstants.CH_WIN_TP").split(
         "RivalProgression.get().onChallengeEnd(winP, loseP, ch, false, knockout);", 1)[0]
-    end_draw = pg_mgr.split('if ("draw".equals(reason) || "distance".equals(reason) || winner == null) {', 1)[-1].split("deliverReport(", 1)[0]
-    pb_body = pg_src.split("public static BattleResult processBattle(", 1)[-1].split("\n    public static void touchDraw(", 1)[0]
+    end_draw = _after(pg_mgr, 'if ("draw".equals(reason) || "distance".equals(reason) || winner == null) {').split("deliverReport(", 1)[0]
+    pb_body = _after(pg_src, "public static BattleResult processBattle(").split("\n    public static void touchDraw(", 1)[0]
     check("manifest proving-grounds-bonus-parity row", "proving-grounds-bonus-parity" in manifest)
     check("win TP: on grounds when EITHER fighter is inside (script fightingOnGrounds), read before the claim changes",
           "boolean onPg = ProvingGrounds.fightingOnGrounds(winP, loseP, pairPg);" in end_win
@@ -579,10 +607,10 @@ def main() -> int:
 
     print("\n--- § grounds underdog + draw RP ---")
     ud_events = read(SRC / "event/DifficultyEvents.java")
-    draw_rp = pg_mgr.split("private void awardDrawRp(", 1)[-1].split("\n    }\n", 1)[0]
-    ud_scale = pg_mgr.split("public float underdogDamageScale(", 1)[-1].split("\n    }\n", 1)[0]
-    ud_notice = pg_src.split("public static void underdogNotice(", 1)[-1].split("\n    }\n", 1)[0]
-    ud_is = pg_src.split("public static boolean isUnderdogOnGrounds(", 1)[-1].split("\n    }\n", 1)[0]
+    draw_rp = _after(pg_mgr, "private void awardDrawRp(").split("\n    }\n", 1)[0]
+    ud_scale = _after(pg_mgr, "public float underdogDamageScale(").split("\n    }\n", 1)[0]
+    ud_notice = _after(pg_src, "public static void underdogNotice(").split("\n    }\n", 1)[0]
+    ud_is = _after(pg_src, "public static boolean isUnderdogOnGrounds(").split("\n    }\n", 1)[0]
     check("manifest proving-grounds-underdog-boost row", "proving-grounds-underdog-boost" in manifest)
     check("draw +12 RP only when either fighter is on the grounds; draw RP still mutual-only",
           "awardDrawRp(recA, recB, ch, drawOnPg);" in pg_mgr
@@ -628,12 +656,12 @@ def main() -> int:
     dp = read(SRC / "progression/tp/DeathTpPenalty.java")
     dp_events = read(SRC / "event/DifficultyEvents.java")
     dp_notify = read(SRC / "util/TpBossNotify.java")
-    dp_pulse = dp.split("public static void pulse(", 1)[-1].split("\n    }\n", 1)[0]
-    dp_show = dp.split("private static void showBar(", 1)[-1].split("\n    }\n", 1)[0]
-    dp_hide = dp.split("private static void hideBar(", 1)[-1].split("\n    }\n", 1)[0]
-    dp_clear = dp.split("private static void clearExpired(", 1)[-1].split("\n    }\n", 1)[0]
-    dp_respawn = dp_events.split("public void onRespawn(", 1)[-1].split("\n    }\n", 1)[0]
-    dp_clone = dp_events.split("DifficultyCache.putData(neu, data);", 1)[-1].split("\n    }\n", 1)[0]
+    dp_pulse = _after(dp, "public static void pulse(").split("\n    }\n", 1)[0]
+    dp_show = _after(dp, "private static void showBar(").split("\n    }\n", 1)[0]
+    dp_hide = _after(dp, "private static void hideBar(").split("\n    }\n", 1)[0]
+    dp_clear = _after(dp, "private static void clearExpired(").split("\n    }\n", 1)[0]
+    dp_respawn = _after(dp_events, "public void onRespawn(").split("\n    }\n", 1)[0]
+    dp_clone = _after(dp_events, "DifficultyCache.putData(neu, data);").split("\n    }\n", 1)[0]
     check("manifest death-penalty-one-bar row", "death-penalty-one-bar" in manifest)
     check("one penalty bar: announcement and countdown on the same bar, no second notice bar",
           "TpBossNotify" not in dp and "ANNOUNCE.put(" in dp and dp.count("new ServerBossEvent(") == 1
@@ -759,8 +787,8 @@ def main() -> int:
     g_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
     g_prog = read(SRC / "gui/ProgressionGuiApi.java")
     g_spar = read(SRC / "gui/SparGuiApi.java")
-    g_footer = g_spec.split("private void addFooterButton(", 1)[-1].split("\n    }\n", 1)[0]
-    g_info = g_rival.split("private static void openInfo(", 1)[-1].split("\n    }\n", 1)[0]
+    g_footer = _after(g_spec, "private void addFooterButton(").split("\n    }\n", 1)[0]
+    g_info = _after(g_rival, "private static void openInfo(").split("\n    }\n", 1)[0]
     check("manifest gui-audit-248 row", "gui-audit-248" in manifest)
     check("footer ink matches the system's body buttons (no forced dark gray)",
           'accentCode = "8";' not in g_footer
@@ -781,8 +809,8 @@ def main() -> int:
     sl_end = read(SRC / "progression/end/EndDimensionStrength.java")
     sl_events = read(SRC / "event/DifficultyEvents.java")
     sl_cfg = read(SRC / "config/DifficultyConfig.java")
-    sl_drops = sl_events.split("public void onLivingDrops(", 1)[-1].split("\n    }\n", 1)[0]
-    sl_roll = sl_end.split("private static int rollEnderDragonLootTable(", 1)[-1].split("\n    }\n", 1)[0]
+    sl_drops = _after(sl_events, "public void onLivingDrops(").split("\n    }\n", 1)[0]
+    sl_roll = _after(sl_end, "private static int rollEnderDragonLootTable(").split("\n    }\n", 1)[0]
     check("manifest summon-loot-bonus row", "summon-loot-bonus" in manifest)
     check("config summonLootBonusPerTierPercent default 25, clamped 0-100, registry + help",
           "public int summonLootBonusPerTierPercent = 25;" in sl_cfg
@@ -818,9 +846,9 @@ def main() -> int:
     check("sim: Warden T4 0%, T5 25%, T6 50%, T7 75%",
           [_pct(t, 4) for t in range(4, 8)] == [0, 25, 50, 75])
     check("sim: Dragon T4 0% up to T7 75%", [_pct(t, 4) for t in range(4, 8)] == [0, 25, 50, 75])
-    sl_once = sl.split("static boolean rollOnce(", 1)[-1].split("\n    }\n", 1)[0]
-    sl_copies = sl.split("public static List<ItemStack> rollCopies(", 1)[-1].split("\n    }\n", 1)[0]
-    sl_apply = sl.split("public static int applyToDrops(", 1)[-1].split("\n    }\n", 1)[0]
+    sl_once = _after(sl, "static boolean rollOnce(").split("\n    }\n", 1)[0]
+    sl_copies = _after(sl, "public static List<ItemStack> rollCopies(").split("\n    }\n", 1)[0]
+    sl_apply = _after(sl, "public static int applyToDrops(").split("\n    }\n", 1)[0]
     check("manifest summon-loot-single-roll row", "summon-loot-single-roll" in manifest)
     check("one shared roll per kill: rollOnce is the only nextInt, no roll at pct <= 0",
           "if (pct <= 0 || rng == null) {" in sl_once
@@ -858,8 +886,8 @@ def main() -> int:
     pd_cache = read(SRC / "cache/DifficultyCache.java")
     pd_prog = read(SRC / "progression/ProgressionData.java")
     pd_events = read(SRC / "event/DifficultyEvents.java")
-    pd_start = pd_events.split("public void onServerStarting(", 1)[-1].split("\n    }\n", 1)[0]
-    pd_clone = pd_events.split("public void onClone(", 1)[-1].split("\n    }\n", 1)[0]
+    pd_start = _after(pd_events, "public void onServerStarting(").split("\n    }\n", 1)[0]
+    pd_clone = _after(pd_events, "public void onClone(").split("\n    }\n", 1)[0]
     pd_owned = {
         "cache/DifficultyCache.java": pd_cache,
         "progression/ProgressionData.java": pd_prog,
@@ -876,7 +904,7 @@ def main() -> int:
                '"prestige_total_staff_override"', '"prestige_need_floor"', '"lm_prestige_held"',
                '"lm_prestige_points"', '"pp_level_breakthroughs"', '"lm_personal_level_cap"',
                '"lm_personal_breakthroughs"', '"lmNemesisSpawnMode"']
-    pd_keys = pd_store.split("DURABLE_KEYS = Set.of(", 1)[-1].split(");", 1)[0]
+    pd_keys = _after(pd_store, "DURABLE_KEYS = Set.of(").split(");", 1)[0]
     check("store: every durable record key is listed for the bulk pass",
           all(k in pd_keys for k in durable))
     check("durable record owners never read or write Forge persistent data",
@@ -919,8 +947,8 @@ def main() -> int:
     ut_data = read(SRC / "data/PlayerDifficultyData.java")
     ut_tp = read(SRC / "title/TitleProgress.java")
     ut_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
-    ut_load = ut_data.split("public void load(CompoundTag tag) {", 1)[-1].split("\n    }\n", 1)[0]
-    ut_tp_load = ut_tp.split("public void load(CompoundTag tag) {", 1)[-1].split("\n    }\n", 1)[0]
+    ut_load = _after(ut_data, "public void load(CompoundTag tag) {").split("\n    }\n", 1)[0]
+    ut_tp_load = _after(ut_tp, "public void load(CompoundTag tag) {").split("\n    }\n", 1)[0]
     check("manifest unlocked-tiers-load row", "unlocked-tiers-load" in manifest)
     check("unlockedTiers: contains() checks TAG_LIST (9), getList keeps compound elements (10)",
           'tag.m_128425_("unlockedTiers", 9)' in ut_load and 'tag.m_128437_("unlockedTiers", 10)' in ut_load
@@ -942,8 +970,8 @@ def main() -> int:
     gm_cfg = read(SRC / "progression/ProgressionConfig.java")
     gm_cmd = read(SRC / "command/ProgressionCommands.java")
     gm_events = read(SRC / "event/DifficultyEvents.java")
-    gm_start = gm_events.split("public void onServerStarting(", 1)[-1].split("\n    }\n", 1)[0]
-    gm_stop = gm_events.split("public void onServerStopping(", 1)[-1].split("\n    }\n", 1)[0]
+    gm_start = _after(gm_events, "public void onServerStarting(").split("\n    }\n", 1)[0]
+    gm_stop = _after(gm_events, "public void onServerStopping(").split("\n    }\n", 1)[0]
     check("manifest global-mastery-boost row", "global-mastery-boost" in manifest)
     check("mastery boost applies DMZ MASTERY_GAIN, persisted to its own file; no new mixin",
           "MainEffects.MASTERY_GAIN.get()" in gm and "TP_GAIN" not in gm
@@ -1010,11 +1038,11 @@ def main() -> int:
     bs_act = read(SRC / "gui/ultra/UltraGuiActions.java")
     bs_api = read(SRC / "gui/ProgressionGuiApi.java")
     bs_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
-    bs_sel = bs_scr.split("static UltraScreenSpec boostsSelectorSpec(", 1)[-1].split("\n    }\n", 1)[0]
-    bs_view = bs_scr.split("static UltraScreenSpec boostControlSpec(", 1)[-1].split("\n    }\n", 1)[0]
-    bs_mb = bs_api.split("public static String masteryBoost(ServerPlayer actor, String argsJoined) {", 1)[-1]
+    bs_sel = _after(bs_scr, "static UltraScreenSpec boostsSelectorSpec(").split("\n    }\n", 1)[0]
+    bs_view = _after(bs_scr, "static UltraScreenSpec boostControlSpec(").split("\n    }\n", 1)[0]
+    bs_mb = _after(bs_api, "public static String masteryBoost(ServerPlayer actor, String argsJoined) {")
     bs_mb = bs_mb.split("\n    }\n", 1)[0]
-    bs_tp = bs_api.split("public static String boost(ServerPlayer actor, String argsJoined) {", 1)[-1]
+    bs_tp = _after(bs_api, "public static String boost(ServerPlayer actor, String argsJoined) {")
     bs_tp = bs_tp.split("\n    }\n", 1)[0]
     check("manifest boosts-selector row", "boosts-selector" in manifest)
     check("selector: both status lines, TP Boost + Mastery Boost buttons, Back to main menu; tabs unchanged",
@@ -1025,8 +1053,8 @@ def main() -> int:
           and '.tabs("home|Home", "boosts|Boosts", "coins|Coins")' in bs_scr)
     _presets = ['act + "1.25:30"', 'act + "1.5:30"', 'act + "2:30"', 'act + "2:60"', 'act + "3:30"']
     check("control view: own status line, five confirm presets, danger End, Back to Boosts",
-          all(p in bs_view for p in _presets) and bs_view.count('"confirm")') == 5
-          and 'act + "end", UltraStyle.danger("End this boost"), "danger"' in bs_view
+          all(p in bs_view for p in _presets) and bs_view.count('UltraStyle.STYLE_CONFIRM)') == 5
+          and 'act + "end", UltraStyle.danger("End this boost"), UltraStyle.STYLE_DANGER' in bs_view
           and 'String act = mastery ? "do:masteryboost:" : "do:boost:";' in bs_view
           and "mastery ? masteryBoostLine(ph) : tpBoostLine(ph)" in bs_view
           and ".back()" in bs_view
@@ -1073,9 +1101,9 @@ def main() -> int:
     mw_hooks = read(SRC / "progression/shop/PrestigeShopHooks.java")
     mw_scr = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
     mw_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
-    mw_lines = mw.split("public static List<Line> lines(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    mw_buy = mw.split("public static String buy(ServerPlayer player, String arg) {", 1)[-1].split("\n    }\n", 1)[0]
-    mw_apply = mw.split("public static String apply(ServerPlayer player, String arg) {", 1)[-1].split("\n    }\n", 1)[0]
+    mw_lines = _after(mw, "public static List<Line> lines(ServerPlayer player) {").split("\n    }\n", 1)[0]
+    mw_buy = _after(mw, "public static String buy(ServerPlayer player, String arg) {").split("\n    }\n", 1)[0]
+    mw_apply = _after(mw, "public static String apply(ServerPlayer player, String arg) {").split("\n    }\n", 1)[0]
     check("manifest mastery-points-wallet row", "mastery-points-wallet" in manifest)
     check("fixed economy: 1 favor = 10 points, 1 point = 50 mastery, packs 1/2/5/10",
           "POINTS_PER_FAVOR = 10;" in mw and "MASTERY_PER_POINT = 50;" in mw
@@ -1083,8 +1111,8 @@ def main() -> int:
     check("balance lives only in the LM player file (lm_mastery_points via LmPlayerStore)",
           'KEY = "lm_mastery_points";' in mw and "LmPlayerStore.putLong(player, KEY," in mw
           and "LmPlayerStore.getLong(player, KEY," in mw and "LmPlayerStore.flush(" in mw
-          and "getPersistentData" not in mw and "m_128469_" not in mw and "BonusStats" not in mw.split("*/", 1)[-1]
-          and "StatsData" not in mw.split("public static int balance(", 1)[-1].split("public static boolean open()", 1)[0])
+          and "getPersistentData" not in mw and "m_128469_" not in mw and "BonusStats" not in _after(mw, "*/")
+          and "StatsData" not in _after(mw, "public static int balance(").split("public static boolean open()", 1)[0])
     check("config section masteryWallet.enabled gates selling; Shop button kept while points remain",
           "public MasteryWalletShop masteryWallet = new MasteryWalletShop();" in mw_cfg
           and "prestigeShopConfig.masteryWallet = new MasteryWalletShop();" in mw_cfg
@@ -1095,7 +1123,7 @@ def main() -> int:
           "PrestigePointsSystem.notEnoughFavor(favor, have)" in mw_buy  # 4.7.56 shared favor sentence
           and "GuiClickConfirm" not in mw
           and mw_buy.index("PrestigePointsSystem.setPoints(player, have - favor);") < mw_buy.index("setBalance(player, balance + gained);")
-          and "not refunded" in mw.split("public static String buyPrompt(", 1)[-1].split("}", 1)[0])
+          and "not refunded" in _after(mw, "public static String buyPrompt(").split("}", 1)[0])
     check("picker is live: radial group walk + getUnlockedForms / getUnlockedStackForms, no selectability filter",
           "TransformationsHelper.getUnlockedForms(data, race, group)" in mw_lines
           and "TransformationsHelper.getUnlockedStackForms(data, group)" in mw_lines
@@ -1116,7 +1144,7 @@ def main() -> int:
           and "masteries.addMastery(line.group, form.name, (double) points * MASTERY_PER_POINT, form.cap);" in mw_apply
           and "DmzSkillUtil.sync(player);" in mw_apply)
     check("apply confirm states points, form, resulting mastery, and no refund",
-          all(s in mw.split("public static String applyPrompt(", 1)[-1].split("\n    }\n", 1)[0]
+          all(s in _after(mw, "public static String applyPrompt(").split("\n    }\n", 1)[0]
               for s in ('" mastery point"', "formName(lineLabel, form)", "resulting(form.current, points, form.cap, form.rate)",
                         "Applied mastery is not refunded.")))
     check("routes and dispatch: mastery_wallet / mastery_lines / mw_line: / mw_form:, mastery_buy / mastery_apply",
@@ -1129,7 +1157,7 @@ def main() -> int:
           "You have no unlocked forms yet" in mw_scr and "Unlock your first form through its form skill" in mw_scr)
     check("wallet copy: no raw section signs, no Invalid",
           "§" not in mw and "Invalid" not in mw
-          and "§" not in mw_scr.split("// ── Mastery wallet", 1)[-1].split("/** Exchange current prestige", 1)[0])
+          and "§" not in _after(mw_scr, "// ── Mastery wallet").split("/** Exchange current prestige", 1)[0])
     check("self-test: balance, buy confirm page, cap math, whole-point limit, picker for a known unlock state",
           "checkMasteryWallet(broken);" in mw_test and "walletSpec(37, 4, true)" in mw_test
           and "masteryBuyAskSpec(2, 37, 4, true, true)" in mw_test and "maxPointsFor(c[0], c[1])" in mw_test
@@ -1146,9 +1174,9 @@ def main() -> int:
     print("\n--- § mastery wallet paging ---")
     pg_scr = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
     pg_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
-    pg_lines = pg_scr.split("static UltraScreenSpec linesSpec(", 1)[-1].split("\n    }\n", 1)[0]
-    pg_line = pg_scr.split("static UltraScreenSpec lineSpec(", 1)[-1].split("\n    }\n", 1)[0]
-    pg_form = pg_scr.split("static UltraScreenSpec formSpec(", 1)[-1].split("\n    }\n", 1)[0]
+    pg_lines = _after(pg_scr, "static UltraScreenSpec linesSpec(").split("\n    }\n", 1)[0]
+    pg_line = _after(pg_scr, "static UltraScreenSpec lineSpec(").split("\n    }\n", 1)[0]
+    pg_form = _after(pg_scr, "static UltraScreenSpec formSpec(").split("\n    }\n", 1)[0]
     check("manifest mastery-wallet-paging row", "mastery-wallet-paging" in manifest)
     check("page size 8 for both pickers",
           "static final int MASTERY_PICKS_PER_PAGE = 8;" in pg_scr
@@ -1197,14 +1225,14 @@ def main() -> int:
     ds = read(SRC / "data/LmPlayerDatStrip.java")
     ds_events = read(SRC / "event/DifficultyEvents.java")
     ds_doc = (ROOT / "docs" / "LM_PLAYER_DATA.md").read_text(encoding="utf-8")
-    ds_copy = ds_events.split("private static void copyLmPersistentData(", 1)[-1].split("\n    }\n", 1)[0]
-    ds_start = ds_events.split("public void onServerStarting(", 1)[-1].split("\n    }\n", 1)[0]
-    ds_file = ds.split("static void stripFile(", 1)[-1].split("\n    }\n", 1)[0]
+    ds_copy = _after(ds_events, "private static void copyLmPersistentData(").split("\n    }\n", 1)[0]
+    ds_start = _after(ds_events, "public void onServerStarting(").split("\n    }\n", 1)[0]
+    ds_file = _after(ds, "static void stripFile(").split("\n    }\n", 1)[0]
     _frozen = ["dmz_adaptive_difficulty", "lm_progression", "prestige_total_completed",
                "prestige_total_staff_override", "prestige_need_floor", "lm_prestige_held", "lm_prestige_points",
                "pp_level_breakthroughs", "lm_personal_level_cap", "lm_personal_breakthroughs", "lmNemesisSpawnMode",
                "lm_prestige_confirm_until", "lm_cnpc_player_migrated", "lm_shadow_dummy_cd_until"]
-    _keys_block = ds.split("FROZEN_KEYS = ", 1)[-1].split(")));", 1)[0]
+    _keys_block = _after(ds, "FROZEN_KEYS = ").split(")));", 1)[0]
     check("manifest dat-nbt-strip row", "dat-nbt-strip" in manifest)
     check("exactly the 14 frozen keys; death-penalty keys never in the list",
           all(('"' + k + '"') in _keys_block for k in _frozen[1:]) and "PlayerDifficultyData.NBT_ROOT" in _keys_block
@@ -1258,10 +1286,10 @@ def main() -> int:
     be_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
     check("manifest boost-encoded-reject row", "boost-encoded-reject" in manifest)
     for _name, _src, _cmd in (("TP", be_tp, "boost"), ("mastery", be_gm, "masteryboost")):
-        _start = _src.split("public static String startBoost(ServerPlayer actor, int encoded, String purchaser) {", 1)[-1]
+        _start = _after(_src, "public static String startBoost(ServerPlayer actor, int encoded, String purchaser) {")
         _start = _start.split("\n    }\n", 1)[0]
         # 4.6.261: the int form delegates to the String form, which builds the reply.
-        _reply = _src.split("public static String undecodedReply(String encoded) {", 1)[-1].split("\n    }\n", 1)[0]
+        _reply = _after(_src, "public static String undecodedReply(String encoded) {").split("\n    }\n", 1)[0]
         check(_name + " boost: undecodable value gets undecodedReply with the value and both forms",
               "if (decoded == null) {\n            return undecodedReply(encoded);" in _start
               and '" was not understood. Use one of these:' in _reply and "+ encoded +" in _reply
@@ -1298,7 +1326,7 @@ def main() -> int:
               and 'DoubleArgumentType.doubleArg(1.25, MAX_START_MULTIPLIER)' in _t
               and ("executes(ctx -> " + _only + "(") in _t
               and _t.count('m_82129_("purchaser"') == 2)
-    _mo = sd_cmd.split("private static int boostMultiplierOnly(", 1)[-1].split("\n    }\n", 1)[0]
+    _mo = _after(sd_cmd, "private static int boostMultiplierOnly(").split("\n    }\n", 1)[0]
     check("cap 100 is below every encoded value; whole numbers go to the encoded reply",
           "static final double MAX_START_MULTIPLIER = 100.0;" in sd_cmd and 100.0 < 1250000
           and "return boostEncoded(source, (int) value, null);" in _mo
@@ -1326,12 +1354,12 @@ def main() -> int:
     p22_build = read(MOD / "build.sh")
     p22_toml = read(MOD / "src/main/resources/META-INF/mods.toml")
     check("manifest dmz22-port row", "dmz22-port" in manifest)
-    _run = p22_mig.split("public static void runIfNeeded(", 1)[-1].split("\n    }\n", 1)[0]
+    _run = _after(p22_mig, "public static void runIfNeeded(").split("\n    }\n", 1)[0]
     check("migration marker only when nothing was skipped; non-player .dat counted apart",
           "if (result.skipped > 0) {" in _run
           and _run.index("if (result.skipped > 0) {") < _run.index("writeMarker(marker, dir, result);")
           and "result.notPlayer++;" in p22_mig and "m.notPlayer = result.notPlayer;" in p22_mig)
-    _srun = p22_strip.split("public static void runIfNeeded(", 1)[-1].split("\n    }\n", 1)[0]
+    _srun = _after(p22_strip, "public static void runIfNeeded(").split("\n    }\n", 1)[0]
     check(".dat strip marker waits for the migration marker",
           "if (!Files.exists(LmPlayerDataMigration.markerPath())) {" in _srun
           and _srun.index("LmPlayerDataMigration.markerPath()") < _srun.index("writeMarker(marker, dir, result);"))
@@ -1401,20 +1429,20 @@ def main() -> int:
     pf_ultra = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
     pf_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
     check("manifest prestige-follows-overhaul row", "prestige-follows-overhaul" in manifest)
-    _req = pf_ps.split("public static int requiredLevel(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    _req = _after(pf_ps, "public static int requiredLevel(ServerPlayer player) {").split("\n    }\n", 1)[0]
     check("requirement = need ladder of the held wallet (4.7.15); the bridge cap is the same ladder (4.7.16)",
           "LmOverhaulCapMath.prestigeRequirement(" in _req and "getHeldWallet(player)" in _req
           and "return LmOverhaulCapMath.prestigeRequirement(overhaulCount(data));" in pf_bridge
           and "PrestigeSystem.levelCap(" not in pf_bridge
           and "getCompleted" not in _req and "effectiveMaxLevel" not in pf_ps)
-    _over = pf_cap.split("public static int overhaulLevelCap(StatsData data) {", 1)[-1].split("\n    }\n", 1)[0]
+    _over = _after(pf_cap, "public static int overhaulLevelCap(StatsData data) {").split("\n    }\n", 1)[0]
     check("cap is Overhaul's flat configuredLevelMaximum (4.7.14): no ladder, no levelCap hook, 100k without revamp",
           _over.strip() == "return levelCap(data);"
           and '@Inject(method = "levelCap"' not in pf_mixin
           and "journeyPrestigeNeed" not in pf_cap
           and "OVERHAUL_INITIAL_LEVEL_CAP" not in pf_cap and "ladderCap" not in pf_cap and "LADDER_STEPS" not in pf_cap
           and '.getMethod("configuredLevelMaximum")' in pf_cap
-          and "return OVERHAUL_LEVEL_CAP;" in pf_cap.split("public static int overhaulLevelCap() {", 1)[-1].split("\n    }\n", 1)[0])
+          and "return OVERHAUL_LEVEL_CAP;" in _after(pf_cap, "public static int overhaulLevelCap() {").split("\n    }\n", 1)[0])
     check("breakthroughs gone from code paths; stored keys untouched",
           not any(k in pf_pp for k in ("getBreakthroughs", "setBreakthroughs", "breakthroughCost",
                                         "buyBreakthrough", "effectiveMaxLevel"))
@@ -1425,7 +1453,7 @@ def main() -> int:
           "MAX_HELD" not in pf_ps
           and "LmOverhaulCapMath.configuredMaxPrestigeCount()" in pf_ps
           and pf_mixin.count("LmOverhaulCapMath.configuredMaxPrestigeCount()") == 2
-          and "maxPrestigeCount" not in pf_cfg_bridge.split("public static void onServerStarting()", 1)[-1]
+          and "maxPrestigeCount" not in _after(pf_cfg_bridge, "public static void onServerStarting()")
           and "pinPrestigeCap" not in pf_cfg_bridge
           and "return LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE;" in pf_cap)
     check("menus state the rule; next requirement shows the level cap",
@@ -1477,7 +1505,7 @@ def main() -> int:
           and pc_ps.count("mirrorFactionHeld(player, ") == 2)
     check("migration: slot 0 keeps the account's prestige; other characters start at 0, nothing copied",
           "static void startEmpty(CompoundTag character) {" in pc
-          and "startEmpty(character);" in pc.split("public static CompoundTag root(ServerPlayer player) {", 1)[-1]
+          and "startEmpty(character);" in _after(pc, "public static CompoundTag root(ServerPlayer player) {")
           and "accountSeed" not in pc and "lm_prestige_account_seed" not in pc
           and "if (account.equals(id)) {\n            return LmPlayerStore.root(account);" in pc)
     check("purchases per character: every pp_* key in the stored bag goes to the character's shop bag",
@@ -1488,14 +1516,14 @@ def main() -> int:
           and "bag(player, key).m_128473_(key);" in pc_pd
           and pc_pp.count("CompoundTag tag = ProgressionData.shop(player);") == 2
           and "ProgressionData.stored(player)" not in pc_pp)
-    _switch = pc.split("static void switchedIn(", 1)[-1].split("\n    }\n", 1)[0]
+    _switch = _after(pc, "static void switchedIn(").split("\n    }\n", 1)[0]
     check("switch: Overhaul count, the new character's purchases, and tier eligibility re-applied on the next tick",
           "CharacterEvent.SwitchIn.class" in pc_ultra
           and ".scheduleSyncAfterStatsReset(p);" in _switch
           and "PrestigePointsSystem.reapplyAllShopPurchases(p);" in _switch
           and "UnlockSystem.syncUnlocks(p, data);" in _switch)
-    _born = pc.split("static void born(", 1)[-1].split("\n    }\n", 1)[0]
-    _reset = pc.split("private static void resetToFresh(", 1)[-1].split("\n    }\n", 1)[0]
+    _born = _after(pc, "static void born(").split("\n    }\n", 1)[0]
+    _reset = _after(pc, "private static void resetToFresh(").split("\n    }\n", 1)[0]
     check("birth: active character, blank record, known new creation time, once; fresh prestige, stats, no purchases",
           "CharacterEvent.Born.class" in pc_ultra
           and "!character.equals(id(player))" in _born
@@ -1518,14 +1546,14 @@ def main() -> int:
           "PrestigeCharacter.selfTest(broken);" in pc_test)
 
     print("\n--- § blank switch-in reset (4.7.4) ---")
-    _on_switch = pc_ultra.split("private static void onSwitchIn(", 1)[-1].split("\n    }\n", 1)[0]
+    _on_switch = _after(pc_ultra, "private static void onSwitchIn(").split("\n    }\n", 1)[0]
     check("manifest blank-switch-in-reset row", "blank-switch-in-reset" in manifest)
     check("switch-in reads the incoming slot's stored record (blank flag, no dmz part; unreadable = not blank)",
           "SlotKey to = event.to();" in _on_switch
           and "blankRecord(player.m_20194_(), to)" in _on_switch
           and "Slots.characterId(to)" in _on_switch
           and 'record.m_128469_("parts").m_128469_("dmz").m_128456_()' in pc_ultra
-          and "return false;\n        }\n    }" in pc_ultra.split("private static boolean blankRecord(", 1)[-1])
+          and "return false;\n        }\n    }" in _after(pc_ultra, "private static boolean blankRecord("))
     check("a blank incoming character gets the same fresh reset as a birth, every switch, before purchases re-apply",
           "if (resetOnSwitchIn(blank, toCharacter, active)) {" in _switch
           and "resetToFresh(p, account, active);" in _switch
@@ -1673,7 +1701,7 @@ def main() -> int:
     gb_test = read(gb_kit / "test/com/dmzlegacy/kaipath/ultra/consumers/legacymechanics/GuiModelSyncPacketTest.java")
     gb_proto = read(ROOT / "docs" / "KAIPATH_GUI_PROTOCOL.md")
     gb_gaps = read(ROOT / "docs" / "KAIPATH_BRIDGE_GAPS.md")
-    gb_login = gb_net.split("public static void logClientGuiCapability(", 1)[-1].split("\n    }\n", 1)[0]
+    gb_login = _after(gb_net, "public static void logClientGuiCapability(").split("\n    }\n", 1)[0]
     check("manifest gui-bridge-478 row", "gui-bridge-478" in manifest)
     check("login gap check waits for the advertisement (no warning at the login event)",
           "UltraClientFeatures.scheduleLoginCheck(player);" in gb_login
@@ -1707,7 +1735,7 @@ def main() -> int:
     st_cs = read(SRC / "character/CharacterServicesSystem.java")
     st_flow = read(SRC / "character/RaceChangeCreationFlow.java")
     st_store = read(SRC / "noea/MajinAbsorptionStore.java")
-    st_created = st_flow.split("public static void onCharacterCreated(", 1)[-1].split("\n    }\n", 1)[0]
+    st_created = _after(st_flow, "public static void onCharacterCreated(").split("\n    }\n", 1)[0]
     check("manifest saiyan-tail-restore row", "saiyan-tail-restore" in manifest)
     check("restore mirrors the clear: tail family only, flag off only, both flags set, viewers resynced",
           "public static void restoreIfTailRace(ServerPlayer player, String via)" in st_help
@@ -1729,8 +1757,8 @@ def main() -> int:
     print("\n--- § model sync 4.7.10 ---")
     ms_pkt = read(SRC / "net/gui/GuiModelSyncPacket.java")
     ms_net = read(SRC / "net/gui/LmGuiNetwork.java")
-    ms_adv = ms_net.split("public static void onClientAdvertisement(", 1)[-1].split("\n    }\n", 1)[0]
-    ms_send = ms_net.split("public static boolean sendModelSync(", 1)[-1].split("\n    }\n", 1)[0]
+    ms_adv = _after(ms_net, "public static void onClientAdvertisement(").split("\n    }\n", 1)[0]
+    ms_send = _after(ms_net, "public static boolean sendModelSync(").split("\n    }\n", 1)[0]
     check("manifest model-sync-478-hardening row", "model-sync-478-hardening" in manifest)
     check("degrade keeps equipped pieces: optional fields first, never an empty bodyParts for a player with pieces",
           '{"headBones", "form", "extras", "colors"}' in ms_pkt
@@ -1753,9 +1781,9 @@ def main() -> int:
 
     print("\n--- § character home index 4.7.11 ---")
     ch_scr = read(SRC / "gui/ultra/UltraCharacterScreens.java")
-    ch_home = ch_scr.split("private static void openHome(", 1)[-1].split("\n    }\n", 1)[0]
-    ch_bones = ch_scr.split("private static void openBones(", 1)[-1].split("\n    private static void ", 1)[0]
-    ch_parts = ch_scr.split("private static void openBodyParts(", 1)[-1].split("\n    private static void ", 1)[0]
+    ch_home = _after(ch_scr, "private static void openHome(").split("\n    }\n", 1)[0]
+    ch_bones = _after(ch_scr, "private static void openBones(").split("\n    private static void ", 1)[0]
+    ch_parts = _after(ch_scr, "private static void openBodyParts(").split("\n    private static void ", 1)[0]
     check("manifest character-home-index row", "character-home-index" in manifest)
     check("tabs stay Home, Saga, Android",
           '.tabs("home|Home", "saga|Saga", "android|Android")' in ch_scr)
@@ -1774,7 +1802,7 @@ def main() -> int:
           and 'return "Turned off on this server right now.";' in ch_scr
           and 'return "Not available for your rank. Ask staff which rank unlocks this.";' in ch_scr
           and 'return "Available again in " + cooldownWait + ".";' in ch_scr
-          and "UltraStyle.STYLE_DIM" in ch_scr.split("private static void indexButton(", 1)[-1][:600])
+          and "UltraStyle.STYLE_DIM" in _after(ch_scr, "private static void indexButton(")[:600])
     check("Body parts reached only from Home; its Back returns to Character Home; Home footer Back to main menu",
           "page:bodyparts:0" not in ch_bones
           and 'footerBack("page:bones:0", "Model")' not in ch_scr
@@ -1843,7 +1871,7 @@ def main() -> int:
     r24_cfg = read(SRC / "progression/bridge/DmzRevampConfigBridge.java")
     r24_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
     r24_build = read(MOD / "build.sh")
-    r24_probe = r24_test.split("public static void checkOverhaulFlatCapAndCount()", 1)[-1].split("\n    }\n", 1)[0]
+    r24_probe = _after(r24_test, "public static void checkOverhaulFlatCapAndCount()").split("\n    }\n", 1)[0]
     check("manifest dmzrevamp-224-prestige row", "dmzrevamp-224-prestige" in manifest)
     check("no hook or read of 2.2.3-only API (hexStatReference, levelCap, initialLevelCap, maxPrestigeCount)",
           "hexStatReference" not in r24_mix.split("@Mixin", 1)[1]
@@ -1852,7 +1880,7 @@ def main() -> int:
           and '"initialLevelCap"' not in r24_test and '"maxPrestigeCount"' not in r24_test)
     check("Overhaul max = configuredLevelMaximum; fallback 150k with dmzrevamp; no player = that max",
           '.getMethod("configuredLevelMaximum")' in r24_math
-          and "return OVERHAUL_ABSOLUTE_LEVEL_CAP;" in r24_math.split("public static int overhaulLevelCap() {", 1)[-1].split("\n    }\n", 1)[0]
+          and "return OVERHAUL_ABSOLUTE_LEVEL_CAP;" in _after(r24_math, "public static int overhaulLevelCap() {").split("\n    }\n", 1)[0]
           and "return LmOverhaulCapMath.overhaulLevelCap();" in r24_bridge)
     check("cap 20 on Overhaul: setCount clamp + canPrestige and canPrestigeAuthoritative veto, all require = 0",
           '@Inject(method = "canPrestigeAuthoritative"' in r24_mix
@@ -1873,7 +1901,7 @@ def main() -> int:
     nl_mix = read(SRC / "mixin/DmzRevampPrestigeCapMixin.java")
     nl_ps = read(SRC / "progression/shop/PrestigeSystem.java")
     nl_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
-    nl_req = nl_math.split("public static int prestigeRequirement(int held) {", 1)[-1].split("\n    }\n", 1)[0]
+    nl_req = _after(nl_math, "public static int prestigeRequirement(int held) {").split("\n    }\n", 1)[0]
     check("manifest prestige-need-ladder row", "prestige-need-ladder" in manifest)
     check("need ladder 50k..140k for 0-6 held, then 150k, never above the cap",
           "PRESTIGE_NEED = {50_000, 65_000, 80_000, 95_000, 110_000, 125_000, 140_000};" in nl_math
@@ -1881,7 +1909,7 @@ def main() -> int:
           and "return Math.min(need, overhaulLevelCap());" in nl_req)
     check("level cap untouched: flat configuredLevelMaximum",
           '.getMethod("configuredLevelMaximum")' in nl_math
-          and "prestigeRequirement" not in nl_math.split("public static int overhaulLevelCap() {", 1)[-1].split("\n    }\n", 1)[0])
+          and "prestigeRequirement" not in _after(nl_math, "public static int overhaulLevelCap() {").split("\n    }\n", 1)[0])
     check("both routes share the ladder: LM menu requiredLevel and Overhaul's gate",
           "LmOverhaulCapMath.prestigeRequirement(" in nl_ps
           and "LmOverhaulCapMath.blocksOverhaulPrestige(count, data.getLevel())" in nl_mix
@@ -1895,7 +1923,7 @@ def main() -> int:
     gf_choice = read(SRC / "progression/form/FirstSuperformChoice.java")
     gf_grant = read(SRC / "progression/form/FirstSuperformMastery.java")
     gf_mech = read(SRC / "command/MechanicsCommands.java")
-    gf_kind = gf_mech.split("private static FirstSuperformChoice.Kind kindFromToken(", 1)[-1].split("\n    }\n", 1)[0]
+    gf_kind = _after(gf_mech, "private static FirstSuperformChoice.Kind kindFromToken(").split("\n    }\n", 1)[0]
     gf_help = read(SRC / "command/LmCommandHelp.java")
     check("manifest first-godform-grant row", "first-godform-grant" in manifest)
     check("Kind.GOD picks the earliest godform like LEGENDARY, no level-0 rule",
@@ -1930,7 +1958,7 @@ def main() -> int:
     gw_gk = read(SRC / "progression/shop/GodKiEnhancementShop.java")
     gw_kt = read(SRC / "progression/shop/KiMasteryTrack.java")
     gw_hooks = read(SRC / "progression/shop/PrestigeShopHooks.java")
-    gw_mig = gw_cfg.split("public static boolean migrateMaxPoints10(GodKi godKi) {", 1)[-1].split("\n        }\n", 1)[0]
+    gw_mig = _after(gw_cfg, "public static boolean migrateMaxPoints10(GodKi godKi) {").split("\n        }\n", 1)[0]
     check("manifest godki-wallet-10k row", "godki-wallet-10k" in manifest)
     check("God Ki / Divine Ki tracks default to 10 levels x 1,000 mastery",
           "public int maxPoints = 10;" in gw_cfg and "public int masteryPerPoint = 1000;" in gw_cfg
@@ -2001,6 +2029,88 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.75 ---")
+    p75_hud = read(SRC / "gui/ultra/LmHud.java")
+    p75_rc = read(SRC / "rival/RivalChallengeManager.java")
+    p75_spec = read(SRC / "rival/RivalSpectator.java")
+    p75_spar = read(SRC / "sparring/SparringSystem.java")
+    p75_war = read(SRC / "dojo/DojoWar.java")
+    p75_pot = read(SRC / "progression/skills/PotentialProgression.java")
+    p75_coin = read(SRC / "currency/AncientCoinEconomy.java")
+    p75_sense = read(SRC / "title/TitleSense.java")
+    p75_mom = read(SRC / "progression/Momentum.java")
+    p75_heal = read(SRC / "kube/LmHotPath.java")
+    p75_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
+    p75_over = read(SRC / "client/HudOverlay.java")
+    check("manifest row for lm 4.7.75", "lm-4775-hud-chat" in manifest)
+    check("HUD part 2 elements registered on both sides",
+          all(f'"{e}"' in p75_hud for e in ("fight", "spar", "potential", "coins", "elite", "boost"))
+          and has(p75_over, "TOP = {UNDERDOG, FIGHT, PENALTY, ELITE, BOOST, TP}", "BOTTOM = {MOMENTUM, SPAR, POTENTIAL}"))
+    check("fight pill replaces the challenge score / range chat and the spectator line for HUD players only",
+          has(p75_rc, "chatUnlessHud(a, scoreLine(ch));", "chatUnlessHud(a, LmChat.fail(\"Challenge\", TOO_FAR));",
+              "public static java.util.List<String> fightLines(", "return LmChat.tagged(\"Challenge\", scoreBody(ch));")
+          and "RivalChallengeManager.fightLines(ch, now, false)" in p75_spec and '" (starting soon)"' in p75_spec)
+    check("spar sessions and war bouts get the fight pill; spar chip replaces Perfect / combo / recover chat",
+          has(p75_spar, "sparHud(player, partner, rt, now);", "public static java.util.List<String> sparChipLines(",
+              ".active(player) || now < rt.messageNext")
+          and "static void boutHud(" in p75_war and "boutHud(server, r, now);" in p75_war)
+    check("Potential meter instead of the per-hit subtitle; coin toast sums 5 s; elite chip; boost chip",
+          "potentialHud(player, progress, required, null);" in p75_pot and "static boolean coinToast(" in p75_coin
+          and "COIN_WINDOW_MS = 5_000L" in p75_hud and "Elite nearby" in p75_sense
+          and "public static void boostHudPulse(" in p75_mom)
+    check("healing caps on Character Services Home, not at every login",
+          "HealCap.announce(player);" not in p75_heal and "HealCap.summary(player)" in p75_char)
+
+    print("\n--- § lm 4.7.74 ---")
+    p74_tc = read(SRC / "client/TextCache.java")
+    p74_menu = read(SRC / "client/NativeMenuScreen.java")
+    p74_style = read(SRC / "gui/ultra/UltraStyle.java")
+    p74_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    ultra_src = "".join(read(f) for f in sorted((SRC / "gui/ultra").glob("Ultra*Screens.java")))
+    check("manifest row for lm 4.7.74", "lm-4774-speed-cleanup" in manifest)
+    check("menu text laid out once per screen (no parse/contrast/measure per frame)",
+          "final class TextCache" in p74_tc and "private final TextCache textCache = new TextCache();" in p74_menu
+          and p74_menu.count("textCache.fit(") >= 6 and "textCache.wrap(" in p74_menu
+          and "NativeText.parse(raw, base" not in p74_menu and "NativeText.parse(labelInk(b)" not in p74_menu
+          and has(p74_menu, "void lookChanged() {", "textCache.clear();"))
+    check("menu styles use the STYLE_* constants (no raw style strings in the screens)",
+          not re.search(r',\s*"(confirm|dim|normal|danger)"\)', ultra_src))
+    check("one toggle label format", "public static String toggle(String label, boolean on)" in p74_style
+          and 'UltraStyle.toggle("HUD", hudOn)' in ultra_src)
+    check("dead menu helpers removed", "public UltraScreenSpec clearPlayerModel()" not in p74_spec
+          and "public static String hubTilePaletteName(" not in p74_style)
+
+    print("\n--- § lm 4.7.73 ---")
+    p73_reg = read(SRC / "gui/ultra/PageRegistry.java")
+    p73_dojo = read(SRC / "gui/ultra/UltraDojoScreens.java")
+    p73_hud = read(SRC / "client/HudOverlay.java")
+    p73_pick = read(SRC / "gui/ultra/UltraPickHelper.java")
+    p73_bg = read(SRC / "client/MenuBackground.java")
+    p73_audit = read(ROOT / "tools/dmz-adaptive-difficulty/sim/audit_page_registry.py")
+    check("manifest row for lm 4.7.73", "lm-4773-fixes" in manifest)
+    check("Difficulty pages and parents are the state-routed ids; guide steps never a parent outside the guide",
+          has(p73_reg, 'p("difficulty", "main", "Difficulty", "hub|main"', 'p("difficulty", "tiers", "Tiers", "difficulty|main"',
+              'item("difficulty", "guide_tiers", "Tiers", "difficulty|guide");', 'parent replays the guide')
+          and '"difficulty|guide_your_tier");' in p73_reg and 'p("difficulty", "guide_tiers"' not in p73_reg)
+    check("registry audit sees sub()/base() pages, page-button pairs and the pager's later pages",
+          has(p73_audit, "placePageButtons", "placePrevNext", '":2"'))
+    check("dojo style change and bonus purchase ask first, naming the loss and the cost",
+          has(p73_dojo, '"page:dojo_style_ask:" + s.name()', '"page:dojo_bonus_ask:" + b.id()',
+              "static void openStyleAsk(", "static void openBonusAsk(", "Its \" + DojoCatalog.BONUS_COST",
+              "can't change for"))
+    check("demote is danger, toggles read Label - ON/OFF, an active Prev is a normal button",
+          has(p73_dojo, 'UltraStyle.danger("Step down " + name), UltraStyle.STYLE_DANGER', 'UltraStyle.toggle("War rights"')
+          and 'dim("Prev")' not in p73_pick)
+    check("HUD: overlay under chat, starts below boss bars, clears effect icons, Momentum above the action bar",
+          has(p73_hud, "registerBelow(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.CHAT_PANEL.id()",
+              "BossEventProgress", "effectCols * EFFECT_COL", "Math.max(rightHeight, ACTION_BAR_UP)",
+              "TOP = {UNDERDOG")
+          and ordered(p73_hud, "TOP = {UNDERDOG", "PENALTY", "TP};")
+          and "RenderGuiEvent.Post" not in p73_hud)
+    check("HUD bake handle kept per element; failed bakes close their image and are not retried every frame",
+          has(p73_hud, "s.bakedSkin != skin", "FAILED.contains(key)", "img.close();")
+          and has(p73_bg, "FAILED.contains(key)", "img.close();"))
+
     print("\n--- § lm 4.7.72 ---")
     p72_hud = read(SRC / "gui/ultra/LmHud.java")
     p72_pkt = read(SRC / "net/gui/NativeHudPacket.java")
@@ -2062,7 +2172,7 @@ def main() -> int:
     p71_ev = read(SRC / "event/DifficultyEvents.java")
     p71_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
     p71_build = read(ROOT / "tools/dmz-adaptive-difficulty/build.sh")
-    p71_fig = p71_prev.split("public static JsonObject formFigure(", 1)[-1].split("\n    }\n", 1)[0]
+    p71_fig = _after(p71_prev, "public static JsonObject formFigure(").split("\n    }\n", 1)[0]
     check("manifest row for lm 4.7.71", "lm-4771-nav-preview" in manifest)
     check("form figure: the viewer's colours for that form, head bones, appearance, skin owner; made-up subject",
           "PlayerModelParts.previewColors(owner, form.race(), form.group(), form.form())" in p71_fig
@@ -2359,7 +2469,7 @@ def main() -> int:
           "public static boolean friendlyFistGuards(ServerPlayer victim, ServerPlayer attacker)" in p65_sys
           and "!vRt.partner.equals(attacker.m_20148_())" in p65_sys
           and "return isFriendlyFistOn(victim) || isFriendlyFistOn(attacker);" in p65_sys
-          and p65_sys.split("public static boolean friendlyFistGuards(", 1)[-1].split("public static float", 1)[0]
+          and _after(p65_sys, "public static boolean friendlyFistGuards(").split("public static float", 1)[0]
           .count("RivalChallengeManager.get().isInChallenge(") == 2)
     check("a lethal partner hit is cut to leave 1 HP at the final damage step (no 1.5 HP pre-hit gate)",
           "if (amount < hp || !friendlyFistGuards(victim, attacker)) {" in p65_sys
@@ -2374,7 +2484,7 @@ def main() -> int:
           "ffKdHealed" not in p65_sys and "ffKdHealed" not in p65_rt
           and "server.m_6937_(new net.minecraft.server.TickTask(server.m_129921_(), heal));" in p65_sys
           and "friendlyFistHeal(victim, attacker, vRt);" in p65_sys
-          and "endSession(" not in p65_sys.split("public static boolean friendlyFistGuards(", 1)[-1]
+          and "endSession(" not in _after(p65_sys, "public static boolean friendlyFistGuards(")
           .split("private static boolean isFriendlyFistOn(", 1)[0])
     check("Friendly Fist off: a spar death still ends the session as death",
           'endSession(victim, partner, "death");' in p65_sys)
@@ -2403,8 +2513,8 @@ def main() -> int:
           and 'new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), null);' in p64_hub
           and ('new HubTile("spar_wars", "Dojo wars"' in p64_hub or 'new HubTile("spar_dojo", "My dojo"' in p64_hub))
     check("Menu skins and Staff Admin moved to More; no Goals placeholder (4.7.71)",
-          'new HubTile("menu_skins", "Menu skins"' in p64_hub.split("private static void openMore(", 1)[-1]
-          and 'new HubTile("admin", "Staff Admin"' in p64_hub.split("private static void openMore(", 1)[-1]
+          'new HubTile("menu_skins", "Menu skins"' in _after(p64_hub, "private static void openMore(")
+          and 'new HubTile("admin", "Staff Admin"' in _after(p64_hub, "private static void openMore(")
           and 'spec.lockedButton("No goals yet")' not in p64_hub)
     check("LM links only to itself: no command runs from a menu, no other mod's screen",
           all(x not in p64_hub + p64_dash + p64_board + p64_spar + p68_dojo
@@ -2414,7 +2524,7 @@ def main() -> int:
     check("Fastest now uses the tier table ratio (no made-up percentages) and ranks prestige first",
           "DifficultyGuide.change(before, after)" in p64_dash and "ut.enemyScalingMultiplier()" in p64_dash
           and '"Fastest now: T4 Veteran, +38% TP per kill."' in p64_dash
-          and "%" not in p64_dash.split("public static String fastest(", 1)[-1].split("public static String fastestNow", 1)[0].replace('" TP per kill."', ""))
+          and "%" not in _after(p64_dash, "public static String fastest(").split("public static String fastestNow", 1)[0].replace('" TP per kill."', ""))
     check("spar streak line only when the player has a streak",
           "bond.streakCurrent <= 0" in p64_dash and 'return "Your spar streak: "' in p64_dash)
     # 4.7.68 replaced the 4.7.64 list/ask board with the Spar Board tab (dojo.BoardSpar): this code no longer exists.
@@ -2512,7 +2622,7 @@ def main() -> int:
           'new HubTile("menu_skins", "Menu skins"' in p62_hub and 'case "menu_skins" -> "page:" + PAGE_SKINS;' in p62_hub
           and 'spec.lockedButtonRight("You are using this");' in p62_hub
           and "UltraHubScreens.applySkinAction(viewer, parts.action, stringArg(args, \"arg\"))" in p62_act
-          and '"Backgrounds - "' in p62_hub and '"Look - "' in p62_hub)
+          and 'UltraStyle.toggle("Backgrounds"' in p62_hub and '"Look - "' in p62_hub)
     check("themed backgrounds baked once per skin and size; panel shadow baked; Lite flattens and strips",
           "BG_MAX = 960;" in p62_bake and "MenuSkins.backgroundPixel(skin, (x + 0.5) / tw, v, lite)" in p62_bake
           and "int ambient = lite ? 0 : SaiyanRoyal.AMBIENT_RINGS;" in p62_bake
@@ -2775,10 +2885,10 @@ def main() -> int:
     p55_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
     p55_cfg = read(SRC / "gui/ultra/UltraConfigScreens.java")
     p55_doc = read(ROOT / "docs" / "KAIPATH_GUI_PROTOCOL.md")
-    p55_menu = p55_spec.split("private GuiOpenPacket toMenuPacket() {", 1)[-1].split("\n    }\n", 1)[0]
-    p55_fit = p55_spec.split("public UltraScreenSpec fitMenu() {", 1)[-1].split("\n    }\n", 1)[0]
-    p55_home = p55_char.split("private static void openHome(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    p55_forms = p55_char.split("private static void openFormPreview(ServerPlayer player, int index) {", 1)[-1]
+    p55_menu = _after(p55_spec, "private GuiOpenPacket toMenuPacket() {").split("\n    }\n", 1)[0]
+    p55_fit = _after(p55_spec, "public UltraScreenSpec fitMenu() {").split("\n    }\n", 1)[0]
+    p55_home = _after(p55_char, "private static void openHome(ServerPlayer player) {").split("\n    }\n", 1)[0]
+    p55_forms = _after(p55_char, "private static void openFormPreview(ServerPlayer player, int index) {")
     check("manifest row for lm 4.7.55", "lm-4755-centered-menus" in manifest)
     # 4.7.57 widened MENU_W from PANEL_W (350) to 426.
     check("menu sizes: 426 (also with a model), never over 460 (1080p at GUI 4); no design box",
@@ -2796,7 +2906,7 @@ def main() -> int:
           and "bottom + UltraStyle.MENU_END_PAD + UltraStyle.MENU_CLOSE_BAND" in p55_menu
           and "menuFooterButton(b, x, footerY, UltraStyle.BTN_W, bh)" in p55_menu
           and "int footerY = bottom + UltraStyle.MENU_FOOTER_GAP;" in p55_menu
-          and "false, b.sound, b.buttonSkin, b.icon, b.raw);" in p55_spec.split("private Button menuFooterButton(", 1)[-1][:400])
+          and "false, b.sound, b.buttonSkin, b.icon, b.raw);" in _after(p55_spec, "private Button menuFooterButton(")[:400])
     check("rows stay left of the pinned model; model column ends by MENU_MODEL_BOTTOM",
           "int right = model == null ? boxW - edge : model.x() - 8;" in p55_menu and "rowFx" not in p55_menu
           and "UltraStyle.MENU_MODEL_BOTTOM - 46 - UltraStyle.MENU_GAP - UltraStyle.MENU_BTN_H" in p55_prev)
@@ -2967,8 +3077,8 @@ def main() -> int:
     p49_sd = read(SRC / "mixin/StatsDataMixin.java")
     p49_res = read(SRC / "mixin/ResourcesEnergyDrainGuardMixin.java")
     p49_toml = read(MOD / "src/main/resources/META-INF/mods.toml")
-    p49_shop = p49_char.split("private static void openBodyParts(", 1)[-1].split("\n    /** Filter width", 1)[0]
-    p49_shop = p49_shop.split("String filter = CosmeticBodyPartService.filter(filterRaw);", 1)[-1]
+    p49_shop = _after(p49_char, "private static void openBodyParts(").split("\n    /** Filter width", 1)[0]
+    p49_shop = _after(p49_shop, "String filter = CosmeticBodyPartService.filter(filterRaw);")
     check("manifest row for lm 4.7.49", "lm-4749-layout-forms-audit" in manifest)
     check("main hub keeps system tiles only (no Find)", "PAGE_FIND" not in p49_hub)
     check("spin toggle is a fixed button under the model; page buttons start below it",
@@ -3007,7 +3117,7 @@ def main() -> int:
     p48_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
     p48_act = read(SRC / "gui/ultra/UltraGuiActions.java")
     p48_parts = read(SRC / "gui/ultra/PlayerModelParts.java")
-    p48_figure = p48_prev.split("public static JsonObject formFigure", 1)[-1].split("public static JsonObject rivalFigure", 1)[0]
+    p48_figure = _after(p48_prev, "public static JsonObject formFigure").split("public static JsonObject rivalFigure", 1)[0]
     # Labels avoid the word the CNPC-retired filter skips, so these run.
     check("manifest row for lm 4.7.48 model screens", "lm-4748-model-previews" in manifest)
     check("one spin action flips the viewer and resends the page",
@@ -3145,7 +3255,7 @@ def main() -> int:
     print("\n--- § lm 4.7.45 ---")
     p45 = read(SRC / "progression/ChamberKillMastery.java")
     p45_ev = read(SRC / "event/DifficultyEvents.java")
-    p45_grant = p45.split("public static double grant(ServerPlayer killer) {", 1)[-1]
+    p45_grant = _after(p45, "public static double grant(ServerPlayer killer) {")
     check("manifest lm-4745-chamber-kill-mastery row", "lm-4745-chamber-kill-mastery" in manifest)
     check("wave foe = Ultra's persistent-data uuid; lowest-priority death hook",
           'WAVE_FOE = "dmzultra_chamber_enemy"' in p45 and "PersistentDataAccess.get(dead).m_128403_(WAVE_FOE)" in p45
@@ -3174,8 +3284,8 @@ def main() -> int:
     p44_ui = read(SRC / "gui/ultra/UltraSparScreens.java")
     p44_api = read(SRC / "gui/SparGuiApi.java")
     p44_cmd = read(SRC / "command/SparCommands.java")
-    p44_ensure = p44_dr.split("public static void ensureSeason() {", 1)[-1].split("public static void advanceSeasonNow()", 1)[0]
-    p44_prev = p44_dr.split("private static List<String> previousMemberLinesForKey(", 1)[-1].split("private static Set<String> rosterUuids", 1)[0]
+    p44_ensure = _after(p44_dr, "public static void ensureSeason() {").split("public static void advanceSeasonNow()", 1)[0]
+    p44_prev = _after(p44_dr, "private static List<String> previousMemberLinesForKey(").split("private static Set<String> rosterUuids", 1)[0]
     check("manifest lm-4744-dojo-roster-previous-members row", "lm-4744-dojo-roster-previous-members" in manifest)
     check("members pages render the live roster (apprenticeCards / membershipDojoCards), not the whole board",
           "return ownedRosterLines(player, \"Your dojo\");" in p44_dr
@@ -3201,12 +3311,12 @@ def main() -> int:
           and 'CommandAccess.staffLiteral("season")' in p44_cmd
           and "dojoSeasonAdvance(ctx.getSource(), false)" in p44_cmd
           and "dojoSeasonAdvance(ctx.getSource(), true)" in p44_cmd
-          and "StaffAccess.denyUnlessStaff(source) == 0" in p44_cmd.split("private static int dojoSeasonAdvance", 1)[-1][:400])
+          and "StaffAccess.denyUnlessStaff(source) == 0" in _after(p44_cmd, "private static int dojoSeasonAdvance")[:400])
     check("one rollover path: ensureSeason expiry and the staff advance both call advanceSeasonNow",
           "advanceSeasonNow();" in p44_ensure and "archiveSeason(" not in p44_ensure
           and p44_dr.count("archiveSeason(store.dojoSeason);") == 1
-          and "advanceSeasonNow();" in p44_dr.split("public static List<String> advanceSeasonByStaff()", 1)[-1][:900]
-          and "broadcast(" not in p44_dr.split("public static void advanceSeasonNow()", 1)[-1].split("private static SparStore.DojoSeason freshSeason", 1)[0])
+          and "advanceSeasonNow();" in _after(p44_dr, "public static List<String> advanceSeasonByStaff()")[:900]
+          and "broadcast(" not in _after(p44_dr, "public static void advanceSeasonNow()").split("private static SparStore.DojoSeason freshSeason", 1)[0])
     p44_ev = read(SRC / "event/DifficultyEvents.java")
     p44_build = read(MOD / "build.sh")
     check("dojo roster probe is test-only: src/probe, found by name, never in the production jar",
@@ -3221,7 +3331,7 @@ def main() -> int:
     p43_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
     p43_ev = read(SRC / "event/DifficultyEvents.java")
     p43_build = read(MOD / "build.sh")
-    p43_capture = p43_cap.split("static void capture(ServerPlayer player, SlotIndex index, String when) {", 1)[-1].split("private static synchronized Method recordMethod", 1)[0]
+    p43_capture = _after(p43_cap, "static void capture(ServerPlayer player, SlotIndex index, String when) {").split("private static synchronized Method recordMethod", 1)[0]
     check("manifest lm-4743-slot-capture-on-logout row", "lm-4743-slot-capture-on-logout" in manifest)
     check("slot capture mixin registered and gated on Ultra's slots classes",
           '"dmzultra.DmzultraSlotCaptureMixin"' in p43_json
@@ -3250,7 +3360,7 @@ def main() -> int:
     print("\n--- § lm 4.7.42 ---")
     p42_core = read(SRC / "progression/HitTakenMastery.java")
     p42_probe = read(MOD / "src/probe/java/com/dbzlegacy/adaptivedifficulty/progression/HitTakenMasteryProbe.java")
-    p42_factor = p42_core.split("public static double factor(Entity attacker) {", 1)[-1].split("public static boolean isSparNpc", 1)[0]
+    p42_factor = _after(p42_core, "public static double factor(Entity attacker) {").split("public static boolean isSparNpc", 1)[0]
     check("manifest lm-4742-non-pvp-hit-taken-mastery row", "lm-4742-non-pvp-hit-taken-mastery" in manifest)
     check("NON_PVP_FACTOR 0.25 beside HIT_TAKEN_FACTOR 0.25 and NPC_SPAR_FACTOR 0.5",
           "public static final double NON_PVP_FACTOR = 0.25;" in p42_core
@@ -3273,7 +3383,7 @@ def main() -> int:
     p41_ultra = read(SRC / "progression/shop/PrestigeCharacterUltra.java")
     p41_ev = read(SRC / "event/DifficultyEvents.java")
     p41_build = read(MOD / "build.sh")
-    p41_fresh = p41_pc.split("static void freshStats(ServerPlayer player) {", 1)[-1].split("static List<String> keptStats", 1)[0]
+    p41_fresh = _after(p41_pc, "static void freshStats(ServerPlayer player) {").split("static List<String> keptStats", 1)[0]
     check("manifest lm-4741-born-fresh-stats row", "lm-4741-born-fresh-stats" in manifest)
     check("melee fix bridge: forceZeroSnapshot / adoptCurrent, loaded only when PrimaryStatRepair exists",
           "PrimaryStatRepair.forceZeroSnapshot(player);" in p41_melee
@@ -3364,8 +3474,8 @@ def main() -> int:
     p37_shop = read(SRC / "progression/shop/GodKiEnhancementShop.java")
     p37_ev = read(SRC / "event/DifficultyEvents.java")
     p37_build = read(MOD / "build.sh")
-    p37_gate = p37_shop.split("public static String blockReason(", 1)[-1].split("/** Transform-gate feedback", 1)[0]
-    p37_gods = p37_gate.split("if (GOD_FORMS_GROUP.equalsIgnoreCase(g))", 1)[-1].split("if (ENHANCEMENT_GROUP", 1)[0]
+    p37_gate = _after(p37_shop, "public static String blockReason(").split("/** Transform-gate feedback", 1)[0]
+    p37_gods = _after(p37_gate, "if (GOD_FORMS_GROUP.equalsIgnoreCase(g))").split("if (ENHANCEMENT_GROUP", 1)[0]
     check("manifest lm-4737-godforms-natural-mastery row", "lm-4737-godforms-natural-mastery" in manifest)
     check("godforms gate: enhancement OR 1000 natural godki:godki mastery (formMastery, no new field)",
           "public static final double GOD_FORMS_MASTERY = 1000.0;" in p37_shop
@@ -3417,7 +3527,7 @@ def main() -> int:
     p36_help = read(SRC / "command/LmCommandHelp.java")
     p36_admin = read(SRC / "progression/shop/PrestigeAdmin.java")
     p36_self = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
-    p36_gk = p36_self.split("private static void checkGodKiWallet(", 1)[-1].split("/** Exchange confirm:", 1)[0]
+    p36_gk = _after(p36_self, "private static void checkGodKiWallet(").split("/** Exchange confirm:", 1)[0]
     check("manifest lm-4736-audit-pistons row", "lm-4736-audit-pistons" in manifest)
     check("pistons: PistonEvent.Pre cancelled when the push or destroy list holds a dragon ball",
           "public void onDragonBallPiston(net.minecraftforge.event.level.PistonEvent.Pre event)" in p36_ev
@@ -3450,7 +3560,7 @@ def main() -> int:
     db_hold = read(SRC / "event/DragonBallSetHold.java")
     db_resp = read(SRC / "event/DragonBallRespawn.java")
     db_ev = read(SRC / "event/DifficultyEvents.java")
-    db_break = db_pick.split("public static void onBreak(", 1)[-1].split("\n    }\n", 1)[0]
+    db_break = _after(db_pick, "public static void onBreak(").split("\n    }\n", 1)[0]
     check("manifest dragon-balls-4735 row", "dragon-balls-4735" in manifest)
     check("respawn: 3 minutes, armed by both pickup paths, fires DMZ's scatter, not regenerateSet",
           "DELAY_TICKS = 3 * 60 * 20;" in db_resp
@@ -3484,7 +3594,7 @@ def main() -> int:
     print("\n--- § text fixes 4.7.33 ---")
     tf_w = read(SRC / "gui/ultra/UltraWeightShopScreens.java")
     tf_r = read(SRC / "gui/ultra/UltraRivalScreens.java")
-    tf_remove = tf_r.split("private static void openRemoveConfirm(", 1)[-1].split("\n    }\n", 1)[0]
+    tf_remove = _after(tf_r, "private static void openRemoveConfirm(").split("\n    }\n", 1)[0]
     tf_sys = read(SRC / "rival/RivalSystem.java")
     tf_api = read(SRC / "gui/RivalGuiApi.java")
     check("manifest text-fixes-4733 row", "text-fixes-4733" in manifest)
@@ -3508,7 +3618,7 @@ def main() -> int:
 
     print("\n--- § grant first mastery topup 4.7.32 ---")
     gt = read(SRC / "progression/form/FirstSuperformMastery.java")
-    gt_grant = gt.split("public static Outcome grant(", 1)[-1].split("\n    }\n", 1)[0]
+    gt_grant = _after(gt, "public static Outcome grant(").split("\n    }\n", 1)[0]
     gt_probe = read(SRC / "progression/form/FormSkillGrantProbe.java")
     check("manifest grant-first-mastery-topup row", "grant-first-mastery-topup" in manifest)
     check("grant compares mastery exactly: no epsilon swallows a sub-epsilon gap",
@@ -3531,8 +3641,8 @@ def main() -> int:
     print("\n--- § gui humanize 4.7.31 ---")
     gh = lambda p: read(SRC / p)
     gh_rival = gh("gui/ultra/UltraRivalScreens.java")
-    gh_remove = gh_rival.split("private static void openRemoveConfirm(", 1)[-1].split("\n    }\n", 1)[0]
-    gh_detail = gh_rival.split("private static void openListDetail(", 1)[-1].split("\n    }\n", 1)[0]
+    gh_remove = _after(gh_rival, "private static void openRemoveConfirm(").split("\n    }\n", 1)[0]
+    gh_detail = _after(gh_rival, "private static void openListDetail(").split("\n    }\n", 1)[0]
     check("manifest gui-humanize-4731 row", "gui-humanize-4731" in manifest)
     check("P0 Remove rival: profile asks first, truthful notice, End rivalry confirm runs do:remove",
           "cannot be undone from this menu" not in gh_rival
@@ -3569,7 +3679,7 @@ def main() -> int:
           and "You will need Ancient Coins to activate a tier again." in gh_diff
           and '"clear_tier_ask".equals(p)' in gh_diff and '"title_unequip_ask".equals(p)' in gh_diff)
     gh_ch = gh("rival/RivalChallengeManager.java")
-    gh_cancel = gh_ch.split("public String cancelChallenge(ServerPlayer player, String counterpartyPicker) {", 1)[-1].split("\n    }\n", 1)[0]
+    gh_cancel = _after(gh_ch, "public String cancelChallenge(ServerPlayer player, String counterpartyPicker) {").split("\n    }\n", 1)[0]
     check("P1 challenges: bare cancel never forfeits a live duel; bare accept/decline list",
           gh_cancel.index("if (!named) {") < gh_cancel.index("endChallenge(")
           and "matchesCounterparty(other, counterpartyPicker, them)" in gh_cancel
@@ -3602,8 +3712,8 @@ def main() -> int:
 
     print("\n--- § grant first skill usable 4.7.30 ---")
     gs = read(SRC / "progression/form/FirstSuperformMastery.java")
-    gs_ens = gs.split("static SkillFix ensureSkill(Skills skills, String skill, int unlockLevel) {", 1)[-1].split("\n    }\n", 1)[0]
-    gs_grant = gs.split("public static Outcome grant(", 1)[-1].split("\n    }\n", 1)[0]
+    gs_ens = _after(gs, "static SkillFix ensureSkill(Skills skills, String skill, int unlockLevel) {").split("\n    }\n", 1)[0]
+    gs_grant = _after(gs, "public static Outcome grant(").split("\n    }\n", 1)[0]
     check("manifest grant-first-skill-usable row", "grant-first-skill-usable" in manifest)
     check("ensureSkill: no raw setSkillLevel; register usable max only when absent / too low; level >= 1; read back",
           "skills.setSkillLevel(" not in gs and "int need = Math.max(1, unlockLevel);" in gs_ens
@@ -3649,7 +3759,7 @@ def main() -> int:
     print("\n--- § chamber endless waves off 4.7.29 ---")
     ew_mx = read(SRC / "mixin/dmzultra/DmzultraChamberWaveCooldownMixin.java")
     ew = read(SRC / "progression/ChamberWaveCooldown.java")
-    ew_body = ew.split("public static boolean refuseEndless(", 1)[-1].split("\n    }\n", 1)[0]
+    ew_body = _after(ew, "public static boolean refuseEndless(").split("\n    }\n", 1)[0]
     check("manifest chamber-endless-waves-off row", "chamber-endless-waves-off" in manifest)
     check("same start HEAD hook refuses waves <= 0 before the cooldown; drills / demands exempt",
           "ChamberWaveCooldown.refuseEndless(player, config.waves(), config.drill())" in ew_mx
@@ -3671,18 +3781,18 @@ def main() -> int:
     kt_gk = read(SRC / "progression/shop/GodKiEnhancementShop.java")
     kt_pp = read(SRC / "progression/shop/PrestigePointsSystem.java")
     kt_scr = read(SRC / "gui/ultra/UltraPrestigeScreens.java")
-    kt_reapply = kt.split("public void reapply(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    kt_open = kt.split("public static boolean divineKiOpen(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    kt_has = kt_gk.split("public static boolean hasEnhancement(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    kt_lines = kt_mw.split("public static List<Line> kiLines(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    kt_apply = kt_mw.split("private static String applyGodKi(", 1)[-1]
+    kt_reapply = _after(kt, "public void reapply(ServerPlayer player) {").split("\n    }\n", 1)[0]
+    kt_open = _after(kt, "public static boolean divineKiOpen(ServerPlayer player) {").split("\n    }\n", 1)[0]
+    kt_has = _after(kt_gk, "public static boolean hasEnhancement(ServerPlayer player) {").split("\n    }\n", 1)[0]
+    kt_lines = _after(kt_mw, "public static List<Line> kiLines(ServerPlayer player) {").split("\n    }\n", 1)[0]
+    kt_apply = _after(kt_mw, "private static String applyGodKi(")
     check("manifest wallet-godki-divineki row", "wallet-godki-divineki" in manifest)
     check("God Ki line feeds godki:godki on its own key; Divine Ki feeds godki:divineki on a new key",
           'GOD_KI("pp_godki_form", "godki", "God Ki")' in kt and 'DIVINE_KI("pp_divineki", "divineki", "Divine Ki")' in kt
           and 'public static final String GROUP = "godki";' in kt
           and "new Line(KiMasteryTrack.GROUP, track.label(), true" in kt_mw)
     check("old pp_godki_enh levels not read, converted or deleted by the wallet",
-          "pp_godki_enh" not in kt.split("*/", 1)[-1] and "GodKiEnhancementShop.invested(" not in kt_mw
+          "pp_godki_enh" not in _after(kt, "*/") and "GodKiEnhancementShop.invested(" not in kt_mw
           and "levelUpFromWallet" not in kt_mw and "storedRemove" not in kt)
     check("same scale and cost: godKi shop cap / mastery per level, 10 points a level",
           "return Math.max(0, GodKiEnhancementShop.maxInvestments());" in kt
@@ -3708,7 +3818,7 @@ def main() -> int:
           'line.kiName() + " Level "' in kt_scr and '"Confirm " + line.label + " level"' in kt_scr
           and 'boolean god = line.track == KiMasteryTrack.GOD_KI;' in kt_scr)
     check("trial, grantGodKi and fighting gain untouched by the tracks",
-          all(s not in kt.split("*/", 1)[-1] for s in ("grantGodKi", "GodChamber", "masteryPerHit", "AngelPath")))
+          all(s not in _after(kt, "*/") for s in ("grantGodKi", "GodChamber", "masteryPerHit", "AngelPath")))
 
     def _kt(level, current, per=1000):  # mirror of KiMasteryTrack.reapply
         want = level * per
@@ -3727,8 +3837,8 @@ def main() -> int:
     wc_cfg = read(SRC / "config/DifficultyConfig.java")
     wc_plugin = read(SRC / "mixin/LegacyMechanicsMixinPlugin.java")
     wc_json = read(SRC.parents[3] / "resources/legacymechanics.mixins.json")
-    wc_refuse = wc.split("public static boolean refuseStart(", 1)[-1].split("\n    }\n", 1)[0]
-    wc_stop = wc_mx.split("lm$recordChamberWaveEnd(", 1)[-1].split("\n    }\n", 1)[0]
+    wc_refuse = _after(wc, "public static boolean refuseStart(").split("\n    }\n", 1)[0]
+    wc_stop = _after(wc_mx, "lm$recordChamberWaveEnd(").split("\n    }\n", 1)[0]
     check("manifest chamber-wave-cooldown row", "chamber-wave-cooldown" in manifest)
     check("config chamberWaveCooldownSeconds default 120, clamped >= 0, registered, explained",
           "public int chamberWaveCooldownSeconds = 120;" in wc_cfg
@@ -3757,7 +3867,7 @@ def main() -> int:
           '"dmzultra.DmzultraChamberWaveCooldownMixin"' in wc_json
           and 'endsWith("DmzultraChamberWaveCooldownMixin")' in wc_plugin)
     check("no TP / god-ki / foe / wave changes in the cooldown mixin",
-          all(s not in wc_mx.split("*/", 1)[-1] for s in ("perFoe", "payOut", "grantGodKi", "spawnWave", "spec(", "@Redirect")))
+          all(s not in _after(wc_mx, "*/") for s in ("perFoe", "payOut", "grantGodKi", "spawnWave", "spec(", "@Redirect")))
 
     def _fmt(ms):  # mirror of ChamberWaveCooldown.formatLeft
         t = max(1, (ms + 999) // 1000)
@@ -3773,8 +3883,8 @@ def main() -> int:
           and _fmt(8_001) == "0:09")
 
     print("\n--- § grant first group discovery 4.7.27 ---")
-    gd_select = gf_choice.split("public static Candidate select(", 1)[-1].split("\n    }\n", 1)[0]
-    gd_name = gf_choice.split("private static Candidate earliestByName(", 1)[-1].split("\n    }\n", 1)[0]
+    gd_select = _after(gf_choice, "public static Candidate select(").split("\n    }\n", 1)[0]
+    gd_name = _after(gf_choice, "private static Candidate earliestByName(").split("\n    }\n", 1)[0]
     check("manifest grant-first-group-discovery row", "grant-first-group-discovery" in manifest)
     check("tier match on group name or formType for all three kinds",
           "contains(candidate.group, token) || contains(candidate.formType, token)" in gf_choice
@@ -3827,8 +3937,8 @@ def main() -> int:
     cw_cfg = read(SRC / "config/DifficultyConfig.java")
     cw_json = read(SRC.parents[3] / "resources/legacymechanics.mixins.json")
     cw_plugin = read(SRC / "mixin/LegacyMechanicsMixinPlugin.java")
-    cw_scale = cw.split("public static long scaleWaveTp(", 1)[-1].split("\n    }\n", 1)[0]
-    cw_s = cw.split("static long scale(long perFoe) {", 1)[-1].split("\n    }\n", 1)[0]
+    cw_scale = _after(cw, "public static long scaleWaveTp(").split("\n    }\n", 1)[0]
+    cw_s = _after(cw, "static long scale(long perFoe) {").split("\n    }\n", 1)[0]
     check("manifest chamber-wave-tp row", "chamber-wave-tp" in manifest)
     check("manifest chamber-wave-tp-default row", "chamber-wave-tp-default" in manifest)
     check("config chamberWaveTpMultiplier default 0.025 (4.7.28), clamped 0-1, registered, explained",
@@ -3841,7 +3951,7 @@ def main() -> int:
           and "chamberWaveTpMultiplier=" in read(SRC / "config/editor/ConfigFieldHelp.java"))
     check("mixin scales the perFoe call in step only",
           'method = "step"' in cw_mx and "GodChamberWaves;perFoe(JIZ)J" in cw_mx
-          and "payOut" not in cw_mx.split("*/", 1)[-1] and "spawnWave" not in cw_mx and "spec(" not in cw_mx)
+          and "payOut" not in _after(cw_mx, "*/") and "spawnWave" not in cw_mx and "spec(" not in cw_mx)
     check("floor of 1 TP per foe", "Math.max(1L, Math.round(perFoe * mult))" in cw_s)
     check("both mixins listed and gated on the Ultra chamber classes",
           '"dmzultra.DmzultraChamberWaveTpMixin"' in cw_json and '"dmzultra.DmzultraTimeChamberTpPreviewMixin"' in cw_json
@@ -3867,7 +3977,7 @@ def main() -> int:
           and 'method = "start"' not in cw_mx and "@Inject" not in cw_mx
           and "ChamberWaveTp.scaleWaveTp(base)" in cw_mx)
     check("god-ki award, foe sizing and wave spawns untouched by the wave mixin",
-          "GodKi" not in cw_mx.split("*/", 1)[-1] and "godKi" not in cw_mx.split("*/", 1)[-1]
+          "GodKi" not in _after(cw_mx, "*/") and "godKi" not in _after(cw_mx, "*/")
           and "spawnWave" not in cw_mx and "spec(" not in cw_mx and "buildTotalMultiplier" not in cw)
     cw_gpv = read(SRC / "mixin/dmzultra/DmzultraGodChamberTpPreviewMixin.java")
     check("Popo's and Whis's menu TP per foe both scaled like the payout",
@@ -3887,13 +3997,13 @@ def main() -> int:
     rv = read(SRC / "command/LmRevive.java")
     rv_staff = read(SRC / "util/StaffAccess.java")
     rv_cfg = read(SRC / "config/DifficultyConfig.java")
-    rv_lit = rv.split("static LiteralArgumentBuilder<CommandSourceStack> literal() {", 1)[-1].split("\n    }\n", 1)[0]
-    rv_all = rv.split("private static int reviveAll(", 1)[-1].split("\n    }\n", 1)[0]
-    rv_dead = rv.split("private static List<ServerPlayer> deadOnlinePlayers(", 1)[-1].split("\n    }\n", 1)[0]
-    rv_cd = rv.split("private static boolean onCooldown(", 1)[-1].split("\n    }\n", 1)[0]
-    rv_start = rv.split("private static void startCooldown(", 1)[-1].split("\n    }\n", 1)[0]
-    rv_call = rv.split("private static int revive(CommandSourceStack source, Collection<ServerPlayer> targets) {", 1)[-1].split("\n    }\n", 1)[0]
-    rv_op = rv_staff.split("public static boolean isOp(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    rv_lit = _after(rv, "static LiteralArgumentBuilder<CommandSourceStack> literal() {").split("\n    }\n", 1)[0]
+    rv_all = _after(rv, "private static int reviveAll(").split("\n    }\n", 1)[0]
+    rv_dead = _after(rv, "private static List<ServerPlayer> deadOnlinePlayers(").split("\n    }\n", 1)[0]
+    rv_cd = _after(rv, "private static boolean onCooldown(").split("\n    }\n", 1)[0]
+    rv_start = _after(rv, "private static void startCooldown(").split("\n    }\n", 1)[0]
+    rv_call = _after(rv, "private static int revive(CommandSourceStack source, Collection<ServerPlayer> targets) {").split("\n    }\n", 1)[0]
+    rv_op = _after(rv_staff, "public static boolean isOp(ServerPlayer player) {").split("\n    }\n", 1)[0]
     check("manifest revive-cooldown-all row", "revive-cooldown-all" in manifest)
     check("config reviveCooldownSeconds default 300, clamped, registered, explained",
           "public int reviveCooldownSeconds = 300;" in rv_cfg and "cfg.reviveCooldownSeconds = Math.max(0," in rv_cfg
@@ -3939,10 +4049,10 @@ def main() -> int:
 
     print("\n--- § god ki refund order 4.7.22 ---")
     ro_gk = read(SRC / "progression/shop/GodKiEnhancementShop.java")
-    ro_up = ro_gk.split("public static int levelUpFromWallet(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    ro_admin = ro_gk.split("static void adminSetInvested(ServerPlayer player, int count) {", 1)[-1].split("\n    }\n", 1)[0]
-    ro_refund = ro_gk.split("static void refundEffectsInvestment(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    ro_login = ro_gk.split("public static void refundOnLogin(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    ro_up = _after(ro_gk, "public static int levelUpFromWallet(ServerPlayer player) {").split("\n    }\n", 1)[0]
+    ro_admin = _after(ro_gk, "static void adminSetInvested(ServerPlayer player, int count) {").split("\n    }\n", 1)[0]
+    ro_refund = _after(ro_gk, "static void refundEffectsInvestment(ServerPlayer player) {").split("\n    }\n", 1)[0]
+    ro_login = _after(ro_gk, "public static void refundOnLogin(ServerPlayer player) {").split("\n    }\n", 1)[0]
     ro_apply = read(SRC / "progression/shop/MasteryWallet.java").split("private static String applyGodKi(", 1)[-1]
     ro_events = read(SRC / "event/DifficultyEvents.java").split("public void onLogin(", 1)[-1].split("@SubscribeEvent", 1)[0]
     check("manifest godki-refund-order row", "godki-refund-order" in manifest)
@@ -3967,12 +4077,12 @@ def main() -> int:
     sc_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
     sc_diff_src, sc_diff_ask = sc_diff.split("// ── Confirm pages (4.7.21)", 1)
     sc_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
-    sc_char_ask = sc_char.split("private static void openUnlockAsk(", 1)[-1].split("private static int parseBonePage(", 1)[0]
+    sc_char_ask = _after(sc_char, "private static void openUnlockAsk(").split("private static int parseBonePage(", 1)[0]
     sc_char_src = sc_char.replace(sc_char_ask, "")
     sc_actions = read(SRC / "gui/ultra/UltraGuiActions.java")
-    sc_reopen = sc_actions.split("private static String reopenPage(", 1)[-1]
+    sc_reopen = _after(sc_actions, "private static String reopenPage(")
     sc_dact = read(SRC / "service/DifficultyActions.java")
-    sc_settier = sc_dact.split("private static Result setTier(", 1)[-1].split("private static Result lowerTier(", 1)[0]
+    sc_settier = _after(sc_dact, "private static Result setTier(").split("private static Result lowerTier(", 1)[0]
     spend_do = re.compile(r'"do:(turnin|skill|tier|majin|mutant|unmajin|unmutant|ultimate|custom_buy|custom_remove'
                           r'|mastery_buy|mastery_apply|godki)\b')
     check("manifest spend-confirm-pages row", "spend-confirm-pages" in manifest)
@@ -4019,10 +4129,10 @@ def main() -> int:
     print("\n--- § god ki mastery wallet 4.7.21 ---")
     gw_mw = read(SRC / "progression/shop/MasteryWallet.java")
     gw_gk = read(SRC / "progression/shop/GodKiEnhancementShop.java")
-    gw_refund = gw_gk.split("static void refundEffectsInvestment(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    gw_reapply = gw_gk.split("public static void reapply(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    gw_store = gw_gk.split("private static void storeLevel(ServerPlayer player, int level) {", 1)[-1].split("\n    }\n", 1)[0]
-    gw_apply = gw_mw.split("private static String applyGodKi(", 1)[-1]
+    gw_refund = _after(gw_gk, "static void refundEffectsInvestment(ServerPlayer player) {").split("\n    }\n", 1)[0]
+    gw_reapply = _after(gw_gk, "public static void reapply(ServerPlayer player) {").split("\n    }\n", 1)[0]
+    gw_store = _after(gw_gk, "private static void storeLevel(ServerPlayer player, int level) {").split("\n    }\n", 1)[0]
+    gw_apply = _after(gw_mw, "private static String applyGodKi(")
     check("manifest godki-mastery-wallet row", "godki-mastery-wallet" in manifest)
     check("God Ki line: always listed first, real godkienhancement line dropped, own rate (masteryPerPoint / 10)",
           "public static final int GODKI_POINTS_PER_LEVEL = 10;" in gw_mw
@@ -4051,7 +4161,7 @@ def main() -> int:
     check("Effects page has no God Ki row; old do:godki only points to the wallet",
           '"do:godki"' not in sc_pre and "godki_invested" not in sc_pre
           and "God Ki Mastery moved to the Mastery wallet" in gw_gk
-          and "ProgressionData.storedPut(player, KEY_INVESTED" not in gw_gk.split("public static String buy(", 1)[-1].split("static int levelUpFromWallet", 1)[0])
+          and "ProgressionData.storedPut(player, KEY_INVESTED" not in _after(gw_gk, "public static String buy(").split("static int levelUpFromWallet", 1)[0])
 
     print("\n--- § ultimate not refundable 4.7.21 ---")
     un_pp = read(SRC / "progression/shop/PrestigePointsSystem.java")
@@ -4064,9 +4174,9 @@ def main() -> int:
 
     print("\n--- § ultra chamber exempt 4.7.20 ---")
     ch_ms = read(SRC / "scaling/MobScaling.java")
-    ch_exempt = ch_ms.split("public static boolean isExemptFromConversion(", 1)[-1].split("\n    }\n", 1)[0]
-    ch_ensure = ch_ms.split("public static void ensureExempt(", 1)[-1].split("\n    }\n", 1)[0]
-    ch_owned = ch_ensure.split("boolean owned =", 1)[-1].split("if (owned)", 1)[0]
+    ch_exempt = _after(ch_ms, "public static boolean isExemptFromConversion(").split("\n    }\n", 1)[0]
+    ch_ensure = _after(ch_ms, "public static void ensureExempt(").split("\n    }\n", 1)[0]
+    ch_owned = _after(ch_ensure, "boolean owned =").split("if (owned)", 1)[0]
     check("manifest ultra-chamber-exempt row", "ultra-chamber-exempt" in manifest)
     check("TAG_CHAMBER_ENEMY is Ultra's dmzultra_chamber_enemy tag",
           'TAG_CHAMBER_ENEMY = "dmzultra_chamber_enemy"' in ch_ms)
@@ -4079,7 +4189,7 @@ def main() -> int:
     qt_mix = read(SRC / "mixin/StatsDataQuestTechniqueMixin.java")
     qt_json = read(MOD / "src/main/resources/legacymechanics.mixins.json")
     qt_build = read(MOD / "build.sh")
-    qt_ret = qt_mix.split("private void lm$unlockGrantedTechnique(", 1)[-1]
+    qt_ret = _after(qt_mix, "private void lm$unlockGrantedTechnique(")
     check("manifest quest-technique-unlock row", "quest-technique-unlock" in manifest)
     check("mixin registered and shipped: grantSkillLevel HEAD + RETURN, require = 0",
           '"StatsDataQuestTechniqueMixin"' in qt_json and "StatsDataQuestTechniqueMixin \\" in qt_build
@@ -4100,15 +4210,15 @@ def main() -> int:
     hs_prog = read(SRC / "progression/ProgressionSystem.java")
     hs_mx = read(SRC / "mixin/DmzRevampPrestigeCapMixin.java")
     hs_int = read(SRC / "mixin/PrestigeServiceIntegrationMixin.java")
-    hs_set = hs_ps.split("public static void setHeldPublic(ServerPlayer player, int value) {", 1)[-1].split("\n    }\n", 1)[0]
-    hs_turn = hs_pps.split("public static String turnIn(ServerPlayer player, int amount) {", 1)[-1].split("\n    }\n", 1)[0]
-    hs_rec = hs_br.split("public static void reconcile(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    hs_blk = hs_mx.split("private static boolean lm$blocked(StatsData data) {", 1)[-1].split("\n    }\n", 1)[0]
+    hs_set = _after(hs_ps, "public static void setHeldPublic(ServerPlayer player, int value) {").split("\n    }\n", 1)[0]
+    hs_turn = _after(hs_pps, "public static String turnIn(ServerPlayer player, int amount) {").split("\n    }\n", 1)[0]
+    hs_rec = _after(hs_br, "public static void reconcile(ServerPlayer player) {").split("\n    }\n", 1)[0]
+    hs_blk = _after(hs_mx, "private static boolean lm$blocked(StatsData data) {").split("\n    }\n", 1)[0]
     check("manifest prestige-cap-held-sync row", "prestige-cap-held-sync" in manifest)
     check("every held change pushes Overhaul's count and the cap now; turn-in calls it too",
           "pushHeldToCap(player);" in hs_set and "PrestigeSystem.pushHeldToCap(player);" in hs_turn
           and "DmzRevampPrestigeBridge.syncFromLegacy(player);" in hs_ps
-          and "PersonalLevelCapMirror.publish(player);" in hs_ps.split("public static void pushHeldToCap(", 1)[-1].split("\n    }\n", 1)[0])
+          and "PersonalLevelCapMirror.publish(player);" in _after(hs_ps, "public static void pushHeldToCap(").split("\n    }\n", 1)[0])
     check("10 s reconcile: re-sync only when Overhaul's count differs from the held wallet",
           "if (PrestigeSystem.count(data) != want) {" in hs_rec and "syncFromLegacy(player);" in hs_rec
           and "DmzRevampPrestigeBridge.reconcile(player);" in hs_prog)
@@ -4123,9 +4233,9 @@ def main() -> int:
     sp_dr = read(SRC / "util/DmzRewards.java")
     sp_cfg = read(SRC / "config/DifficultyConfig.java")
     sp_help = read(SRC / "config/editor/ConfigFieldHelp.java")
-    sp_act = sp_sys.split("private static void tickActivity(", 1)[-1].split("\n    }\n", 1)[0]
-    sp_frz = sp_sys.split("private static void updateFreezes(", 1)[-1].split("private static boolean isAnyClashing(", 1)[0]
-    sp_res = sp_sys.split("private static void tickStrikeClashResult(", 1)[-1].split("\n    }\n", 1)[0]
+    sp_act = _after(sp_sys, "private static void tickActivity(").split("\n    }\n", 1)[0]
+    sp_frz = _after(sp_sys, "private static void updateFreezes(").split("private static boolean isAnyClashing(", 1)[0]
+    sp_res = _after(sp_sys, "private static void tickStrikeClashResult(").split("\n    }\n", 1)[0]
     check("manifest sparring-stun-clash row", "sparring-stun-clash" in manifest)
     check("timers: melee 8000, grace 6000, distance grace 4000, post-clash hold 6000; 30s / 5-min gates unchanged",
           "MELEE_HIT_ACTIVITY_WINDOW_MS = 8000L;" in sp_sys and "SESSION_GRACE_PERIOD_MS = 6000L;" in sp_sys
@@ -4158,8 +4268,8 @@ def main() -> int:
     lc_math = read(SRC / "progression/LmOverhaulCapMath.java")
     lc_events = read(SRC / "event/DifficultyEvents.java")
     lc_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
-    lc_cap = lc_bridge.split("public static int levelCap(StatsData data) {", 1)[-1].split("\n    }\n", 1)[0]
-    lc_sync = lc_bridge.split("public static void syncFromLegacy(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
+    lc_cap = _after(lc_bridge, "public static int levelCap(StatsData data) {").split("\n    }\n", 1)[0]
+    lc_sync = _after(lc_bridge, "public static void syncFromLegacy(ServerPlayer player) {").split("\n    }\n", 1)[0]
     check("manifest prestige-level-cap-ladder row", "prestige-level-cap-ladder" in manifest)
     check("level cap = the need ladder of the Overhaul count (= held); flat only without a player or dmzrevamp",
           "return LmOverhaulCapMath.prestigeRequirement(overhaulCount(data));" in lc_cap
@@ -4186,9 +4296,9 @@ def main() -> int:
     gf_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
     gf_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
     gf_prog = read(SRC / "gui/ProgressionGuiApi.java")
-    gf_main = gf_spec.split("private void placeBack(ServerPlayer player)", 1)[-1].split("\n    }\n", 1)[0]
-    gf_admin = gf_hub.split("private static void openAdmin(", 1)[-1].split("\n    }\n", 1)[0]
-    gf_chal = gf_rival.split("private static void openChallenge(", 1)[-1].split("\n    }\n", 1)[0]
+    gf_main = _after(gf_spec, "private void placeBack(ServerPlayer player)").split("\n    }\n", 1)[0]
+    gf_admin = _after(gf_hub, "private static void openAdmin(").split("\n    }\n", 1)[0]
+    gf_chal = _after(gf_rival, "private static void openChallenge(").split("\n    }\n", 1)[0]
     check("manifest gui-followups-249 row", "gui-followups-249" in manifest)
     check("Home-tab footer reads Back to main menu (no lone Main menu)",
           "UltraStyle.BACK_TO_MAIN" in gf_main and "placeFooter(null, null, action, label)" in gf_main)
@@ -4215,9 +4325,9 @@ def main() -> int:
     gf_end = read(SRC / "progression/end/EndDimensionStrength.java")
     gf_act = read(SRC / "service/DifficultyActions.java")
     gf_spec2 = read(SRC / "rival/RivalSpectator.java")
-    gf_bsum = gf_boss.split("public static SummonOutcome summonOutcome(", 1)[-1].split("\n    }\n", 1)[0]
-    gf_dsum = gf_end.split("playerSummonOutcome(ServerPlayer player) {", 1)[-1].split("\n    }\n", 1)[0]
-    gf_start = gf_spec2.split("public static String start(", 1)[-1].split("\n    }\n", 1)[0]
+    gf_bsum = _after(gf_boss, "public static SummonOutcome summonOutcome(").split("\n    }\n", 1)[0]
+    gf_dsum = _after(gf_end, "playerSummonOutcome(ServerPlayer player) {").split("\n    }\n", 1)[0]
+    gf_start = _after(gf_spec2, "public static String start(").split("\n    }\n", 1)[0]
     check("menu-first: boss summon confirmations paint on the page, not in chat",
           "DmzRewards.msg" not in gf_bsum and "return SummonOutcome.ok(done);" in gf_bsum
           and "msg(player" not in gf_dsum and "SummonOutcome.ok(done)" in gf_dsum
@@ -4231,8 +4341,8 @@ def main() -> int:
     kd_dc = read(SRC / "ai/DodgeCounter.java")
     kd_ev = read(SRC / "event/DifficultyEvents.java")
     kd_cfg = read(SRC / "config/DifficultyConfig.java")
-    kd_pack = kd_ai.split("static int packSize(DifficultyTier tier) {", 1)[-1].split("\n    }\n", 1)[0]
-    kd_hook = kd_ev.split("public void onAttackDodgeCounter(", 1)[-1].split("\n    }\n", 1)[0]
+    kd_pack = _after(kd_ai, "static int packSize(DifficultyTier tier) {").split("\n    }\n", 1)[0]
+    kd_hook = _after(kd_ev, "public void onAttackDodgeCounter(").split("\n    }\n", 1)[0]
     check("manifest kit-duels-dodge-counter row", "kit-duels-dodge-counter" in manifest)
     check("config defaults: pack cap 4, pack off Mythic, kit-fighter Mythic, counter on at Master",
           "public int adaptiveAiPackCallMaxAllies = 4;" in kd_cfg
@@ -4315,7 +4425,7 @@ def main() -> int:
     vc_json = read(ROOT / "tools/dmz-adaptive-difficulty/src/main/resources/legacymechanics.mixins.json")
     vc_ev = read(SRC / "event/DifficultyEvents.java")
     vc_build = read(ROOT / "tools/dmz-adaptive-difficulty/build.sh")
-    vc_join = vc_ev.split("public void onLivingJoin(", 1)[-1].split("\n    }\n", 1)[0]
+    vc_join = _after(vc_ev, "public void onLivingJoin(").split("\n    }\n", 1)[0]
     check("manifest vipers-call-balance row", "vipers-call-balance" in manifest)
     check("Unending Venom off: string-targeted mixin redirects the held re-add to a no-op",
           '@Mixin(targets = "net.rosemarythyme.simplymore.item.uniques.VipersCallItem", remap = false)' in vc_mix
@@ -4403,7 +4513,7 @@ def main() -> int:
           and '"Page " + (page + 1) + " of " + pages' in pick_helper
           and "placePrevNext(spec, pageBase, pg, pages)" in pick_helper)
     spar_ui = read(ultra_dir / "UltraSparScreens.java")
-    war = spar_ui.split("private static void openDojoWarPending(", 1)[-1].split("\n    }\n", 1)[0]
+    war = _after(spar_ui, "private static void openDojoWarPending(").split("\n    }\n", 1)[0]
     check("war requests: lines and Accept/Deny buttons share one page slice",
           war.count("for (String card : shown)") == 2 and "pageSlice(cards, CARDS_PER_PAGE, pg)" in war)
     check("Spar picker confirm Back returns to the picker page",
@@ -4411,7 +4521,7 @@ def main() -> int:
           and 'case "pick_apprentice", "pick_mentor" -> "Players"' in spar_ui)
     check("picker paging self-test runs at startup",
           boot_self_test("verifyPickerPaging"))
-    pend = spar_ui.split("private static void openPending(", 1)[-1].split("\n    }\n", 1)[0]
+    pend = _after(spar_ui, "private static void openPending(").split("\n    }\n", 1)[0]
     check("bond invites: lines and buttons share one page slice (4.6.233)",
           pend.count("for (String card : pageCards)") == 2
           and "SparGuiApi.pendingMentorLine(card)" in pend)
@@ -4459,7 +4569,7 @@ def main() -> int:
     check("same-millisecond backups get a unique name instead of overwriting",
           'stamp + "~" + String.format(Locale.ROOT, "%02d", next + 1) + ".bak"' in cfg_editor
           and "never into a gap" in cfg_editor
-          and "REPLACE_EXISTING" not in cfg_editor.split("static boolean backupEverySave(", 1)[-1]
+          and "REPLACE_EXISTING" not in _after(cfg_editor, "static boolean backupEverySave(")
               .split("private static void writeAudit(", 1)[0])
     check("Review shows who last changed each staged setting (existing audit-log lookup)",
           "ConfigEditor.lastChange(change.moduleId(), change.path())" in cfg_ui
@@ -4472,7 +4582,7 @@ def main() -> int:
     turn_in = points.split("public static int pointsForTurnIn(", 1)[1].split("\n    }\n", 1)[0] \
         if "public static int pointsForTurnIn(" in points else ""
     shop_cfg_src = read(SRC / "progression/shop/PrestigeShopConfig.java")
-    payout = shop_cfg_src.split("public int payout(int n) {", 1)[-1].split("\n        }\n\n", 1)[0]
+    payout = _after(shop_cfg_src, "public int payout(int n) {").split("\n        }\n\n", 1)[0]
     check("turn-in payout: payoutOverrides, then the pack table, then the group bonus (4.6.229-2, 4.7.13)",
           "return PrestigeShopConfig.get().exchange.payout(amount);" in turn_in
           and "this.payoutOverrides" in payout and "PACK_BONUS.get(amount)" in payout

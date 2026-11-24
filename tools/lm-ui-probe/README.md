@@ -70,6 +70,21 @@ In-game test rig for LegacyMechanics menus. Never shipped, never put on the live
 - On `uirecord <label>` it also saves `ui-rec-<label>.png`. The spin check saves rot1 to rot4; rot4 is the
   preview stopped right after the back faced the viewer, and it must show the front.
 
+## Release check (one command for a release's proof)
+
+`bash tools/lm-ui-probe/release-check.sh [--mock nav|dojo|hud] [--scripted-only] [--no-build] [--no-matrix]` builds
+the LM jar, snapshots it, runs the optional mock set and the full matrix, and writes `SUMMARY.md` under
+`$RIG_OUT/release-<version>/`: jar sha256, scripted PASS/FAIL totals with every failing line, the matrix rows, the
+navigation audit, the HUD checks on both stages. It exits non-zero on any failure. Rig paths come from
+`tools/lm-ui-probe/rig.env` (gitignored; copy `rig.env.example`). Keep the rig folders somewhere durable, not a temp
+folder.
+
+Version steps that go with it: `bash tools/dmz-adaptive-difficulty/bump-version.sh <new>` (all four version spots,
+refuses reused or retired numbers). The prestige-shop reference check accepts `AdaptiveDifficultyMod.class` when it
+differs only by the version string (`OK-VER`), so a bump no longer needs a second build;
+`rebaseline-version-class.sh` re-extracts it when you want the reference current (refuses if any other class drifted).
+`report.py` adds per-section scripted totals, a native HUD row and a KaiPath "no HUD over the bridge" row.
+
 ## One command
 
 ```bash

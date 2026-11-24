@@ -28,6 +28,7 @@ final class ColorWheelTex {
 
     private record Baked(ResourceLocation id, int w, int h) {}
 
+    private static final java.util.Set<String> FAILED = new java.util.HashSet<>();
     private static final Map<String, Baked> BAKED = new LinkedHashMap<>(16, 0.75f, true);
     private static int counter;
 
@@ -58,8 +59,12 @@ final class ColorWheelTex {
         if (hit != null) {
             return hit;
         }
+        if (FAILED.contains(key)) {
+            return null;                            // a failed bake is not retried every frame
+        }
+        NativeImage img = null;
         try {
-            NativeImage img = new NativeImage(RING_RES, RING_RES, false);
+            img = new NativeImage(RING_RES, RING_RES, false);
             double c = RING_RES / 2.0;
             double outer = c;
             double inner = c * ColorWheel.RING_INNER;
@@ -76,6 +81,12 @@ final class ColorWheelTex {
             }
             return register(key, img);
         } catch (Throwable t) {
+            if (img != null && !BAKED.containsKey(key)) {
+                img.close();                        // 4.7.73: no off-heap leak on a failed bake
+            }
+            if (FAILED.size() < 64) {
+                FAILED.add(key);
+            }
             AdaptiveDifficultyMod.LOGGER.warn("[{}] color wheel bake failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
             return null;
         }
@@ -88,9 +99,13 @@ final class ColorWheelTex {
         if (hit != null) {
             return hit;
         }
+        if (FAILED.contains(key)) {
+            return null;                            // a failed bake is not retried every frame
+        }
+        NativeImage img = null;
         try {
             double h = step / (double) HUE_STEPS;
-            NativeImage img = new NativeImage(SQUARE_RES, SQUARE_RES, false);
+            img = new NativeImage(SQUARE_RES, SQUARE_RES, false);
             for (int y = 0; y < SQUARE_RES; y++) {
                 double v = 1 - y / (double) (SQUARE_RES - 1);
                 for (int x = 0; x < SQUARE_RES; x++) {
@@ -100,6 +115,12 @@ final class ColorWheelTex {
             }
             return register(key, img);
         } catch (Throwable t) {
+            if (img != null && !BAKED.containsKey(key)) {
+                img.close();                        // 4.7.73: no off-heap leak on a failed bake
+            }
+            if (FAILED.size() < 64) {
+                FAILED.add(key);
+            }
             return null;
         }
     }
@@ -140,5 +161,6 @@ final class ColorWheelTex {
             Minecraft.m_91087_().m_91097_().m_118513_(b.id());
         }
         BAKED.clear();
+        FAILED.clear();
     }
 }

@@ -93,6 +93,15 @@ def main() -> int:
             found.add(m.group(1))
         for m in re.finditer(r'"page:([^"]+)"', src):
             found.add(m.group(1))
+        # 4.7.73: pages named through the screen's sub()/base() factories, page-button pairs ("id|Label") and the
+        # pager's later pages (placePrevNext adds ":N" to its base).
+        for m in re.finditer(r'(?:sub|base)\(\s*(?:player\s*,\s*)?"([^"|]+)"', src):
+            found.add(m.group(1))
+        for m in re.finditer(r'placePageButtons\(\s*spec\s*,([^;]*)\);', src, re.S):
+            for pm in re.finditer(r'"([a-z_][a-z0-9_:]*)\|[^"]*"', m.group(1)):
+                found.add(pm.group(1))
+        for m in re.finditer(r'placePrevNext\(\s*spec\s*,\s*"([^"]+)"', src):
+            found.add(m.group(1) + ":2")
         for page in sorted(found):
             checked += 1
             ok = False

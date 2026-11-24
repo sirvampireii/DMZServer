@@ -2570,8 +2570,20 @@ public final class EndDimensionStrength {
         } else {
             adjustTp(player, delta);
             DmzRewards.msg(player, "§7[End] Kill TP capped (" + DmzRewards.formatWhole(target)
-                    + " TP max for " + pending.kind + ").");
+                    + " TP max for " + kindName(pending.kind) + ").");
         }
+    }
+
+    /** 4.7.75: the mob's name as players know it, never the internal kind id. */
+    static String kindName(String kind) {
+        return switch (kind == null ? "" : kind) {
+            case "dragon" -> "the Ender Dragon";
+            case "shulker" -> "a Shulker";
+            case "enderman" -> "an Enderman";
+            case "endermite" -> "an Endermite";
+            case "phantom" -> "a Phantom";
+            default -> "this mob";
+        };
     }
 
     private static double estimateDmzKillTp(ServerPlayer player, double maxHp) {

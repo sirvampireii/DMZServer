@@ -97,7 +97,7 @@ public final class UltraPickHelper {
         }
         if (page > 0) {
             spec.buttonLeft(
-                    "page:" + pageArg(pageBase, page - 1), UltraStyle.dim("Prev"), UltraStyle.STYLE_DIM);
+                    "page:" + pageArg(pageBase, page - 1), UltraStyle.LABEL + "Prev", UltraStyle.STYLE_NORMAL);
         }
         if (page + 1 < pages) {
             String next = "page:" + pageArg(pageBase, page + 1);
@@ -164,9 +164,9 @@ public final class UltraPickHelper {
             String action = "do:" + doAction + ":" + arg;
             String styled = UltraStyle.confirm(label);
             if (placed % 2 == 0) {
-                spec.buttonLeft(action, styled, "confirm");
+                spec.buttonLeft(action, styled, UltraStyle.STYLE_CONFIRM);
             } else {
-                spec.buttonRight(action, styled, "confirm");
+                spec.buttonRight(action, styled, UltraStyle.STYLE_CONFIRM);
                 spec.rowGap();
             }
             placed++;
@@ -198,9 +198,9 @@ public final class UltraPickHelper {
             }
             String action = "page:" + page;
             if (placed % 2 == 0) {
-                spec.buttonLeft(action, label, "normal");
+                spec.buttonLeft(action, label, UltraStyle.STYLE_NORMAL);
             } else {
-                spec.buttonRight(action, label, "normal");
+                spec.buttonRight(action, label, UltraStyle.STYLE_NORMAL);
                 spec.rowGap();
             }
             placed++;
