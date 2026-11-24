@@ -1171,7 +1171,7 @@ def main() -> int:
           and 'sub(UltraPickHelper.pageArg("mw_form:" + token, Math.max(0, linePage)))' in pg_form
           # 4.7.71: back() to the line; the registry maps mw_form:<s|n>:<group>:<form> to mw_line:<s|n>:<group>.
           and ".back()" in pg_form
-          and 'item("prestige", "mw_form:*:*:**", "Form mastery", "prestige|mw_line:$1:$2");' in read(SRC / "gui/ultra/PageRegistry.java"))
+          and 'item("prestige", "mw_form:*:*:*:*", "Form mastery", "prestige|mw_line:$1:$2:$4");' in read(SRC / "gui/ultra/PageRegistry.java"))
     check("empty state unchanged; hidden empty lines unchanged",
           "You have no unlocked forms yet, so there is nothing to apply points to." in pg_lines
           and "!l.forms.isEmpty()" in read(SRC / "progression/shop/MasteryWallet.java"))
@@ -1999,6 +1999,52 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.71 ---")
+    p71_reg = read(SRC / "gui/ultra/PageRegistry.java")
+    p71_nav = read(SRC / "gui/ultra/NavHistory.java")
+    p71_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p71_act = read(SRC / "gui/ultra/UltraGuiActions.java")
+    p71_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p71_prev = read(SRC / "gui/ultra/ModelPreview.java")
+    p71_parts = read(SRC / "gui/ultra/PlayerModelParts.java")
+    p71_look = read(SRC / "client/NativeFormLook.java")
+    p71_model = read(SRC / "client/NativeModelPreview.java")
+    p71_menu = read(SRC / "client/NativeMenuScreen.java")
+    p71_proto = read(SRC / "net/gui/LmNativeProtocol.java")
+    p71_ev = read(SRC / "event/DifficultyEvents.java")
+    p71_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    p71_build = read(ROOT / "tools/dmz-adaptive-difficulty/build.sh")
+    p71_fig = p71_prev.split("public static JsonObject formFigure(", 1)[-1].split("\n    }\n", 1)[0]
+    check("manifest row for lm 4.7.71", "lm-4771-nav-preview" in manifest)
+    check("form figure: the viewer's colours for that form, head bones, appearance, skin owner; made-up subject",
+          "PlayerModelParts.previewColors(owner, form.race(), form.group(), form.form())" in p71_fig
+          and "PlayerModelParts.headBonesOf(owner)" in p71_fig and 'parts.addProperty("appearance", look);' in p71_fig
+          and 'parts.addProperty("skinOwner", owner.m_20148_().toString());' in p71_fig
+          and '"subject", "uuid:" + UUID.nameUUIDFromBytes' in p71_fig and '"local"' not in p71_fig
+          and "public static JsonObject previewColors(ServerPlayer owner, String race, String group, String form)" in p71_parts)
+    check("LM client loads the appearance and wears the skin owner's Minecraft skin",
+          "ch.loadAppearance(" in p71_look and "skinOwner(parts)" in p71_model)
+    check("page registry: one source for Back, breadcrumb and search; the build fails on a page without an entry",
+          "public static String[] parent(String screen, String page)" in p71_reg
+          and "public static List<Ref> crumbs(String screen, String page)" in p71_reg
+          and "public static List<Hit> search(String query, boolean staff, int max)" in p71_reg
+          and 'python3 "$HERE_SIM/audit_page_registry.py"' in p71_build
+          and "PageRegistry.problems()" in p71_test and "NavHistory.selfTest()" in p71_test)
+    check("one back(): history on the LM client, registry parent on the bridge; old footers gone",
+          "public UltraScreenSpec back()" in p71_spec and "NavHistory.previous(" in p71_spec
+          and "PageRegistry.parent(screenId, pageId)" in p71_spec
+          and "public UltraScreenSpec footerBackHome(" not in p71_spec
+          and '"nav:back".equals(action)' in p71_act and "NavHistory.pop(" in p71_act)
+    check("page history per player, capped, cleared on logout",
+          "MAX = 32" in p71_nav and "NavHistory.clear(" in p71_ev)
+    check("breadcrumb and search only for clients whose hello lists nav",
+          'FEATURE_NAV = "nav"' in p71_proto and "drawBreadcrumb(" in p71_menu and "clickCrumb(" in p71_menu
+          and '"breadcrumb"' in p71_spec and 'action.startsWith("go:")' in p71_act)
+    check("hub: Home, Search, More; search row on Home; 5 recents; no Goals placeholder",
+          '.tabs("home|Home", PAGE_SEARCH + "|Search", PAGE_MORE + "|More");' in p71_hub
+          and "placeSearchRow(spec" in p71_hub and "RECENT_MAX = 5" in p71_hub
+          and "No goals yet" not in p71_hub)
+
     print("\n--- § lm 4.7.68 ---")
     p68_board = read(SRC / "dojo/BoardSpar.java")
     p68_svc = read(SRC / "dojo/DojoService.java")

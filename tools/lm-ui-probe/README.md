@@ -135,6 +135,27 @@ and the client quits. `mock_compose.py` names the shots `menu_<page>_gs<N>.png` 
 room for a new element the client can't draw yet (4.7.68: the dojo floor plan). The layout and look analyzers run on
 a mock run like any other.
 
+Mock sets (4.7.71): the default set (`-Duiprobe.mockset=nav`) draws the live navigation pages: the main menu with
+its search row, a search with results, a dojo upgrade opened from the search (Back to Search, breadcrumb) and a deep
+Prestige page with its breadcrumb. `-Duiprobe.mockset=dojo` draws the 4.7.68 dojo mockups.
+
+## Navigation audit (4.7.71)
+
+Every full run checks the page registry (`gui/ultra/PageRegistry.java`) against the real menus before the scripted
+checks, and writes `uiprobe-nav.txt`:
+
+- From the main menu only, it follows every navigation button (`page:`, `open:`, `tab:`, `nav:`, `go:`; never `do:`).
+  Every searchable registry page must be reached; pages that need state the probe account lacks are listed in
+  `UiProbe.NAV_STATEFUL` and reported as `NAV SKIP` with the reason.
+- Every page reached must have a registry entry (`NAV FAIL orphan page`).
+- Back from each page, with an empty history, must open its registry parent.
+- A search for each page title must find that page.
+- The summary line `NAV AUDIT ... PASS` or `FAIL <n>` lands in `uiprobe-script.txt` with the other checks.
+
+The scripted run also checks search -> result -> Back to Search, breadcrumbs on three deep pages (one a dojo
+upgrade) and clicking a crumb, the five recent searches, and that form previews carry the viewer's colours,
+appearance, head bones and skin owner on a made-up subject.
+
 ## Analyzers
 
 - `analyze_layout.py`: buttons inside the panel, at least 80px wide, 16px rows, 6px gaps, 426 wide, no overlaps, and

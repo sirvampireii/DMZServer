@@ -1,7 +1,10 @@
 package com.dbzlegacy.uiprobe;
 
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.NavHistory;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.PageRegistry;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGui;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGuiActions;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraHubScreens;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraScreenSpec;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.net.gui.GuiOpenPacket;
@@ -89,7 +92,8 @@ public final class UiProbe {
     }
 
     private static boolean navigation(String sem) {
-        return sem.startsWith("page:") || sem.startsWith("open:") || sem.startsWith("nav:") || sem.startsWith("tab:");
+        return sem.startsWith("page:") || sem.startsWith("open:") || sem.startsWith("nav:") || sem.startsWith("tab:")
+                || sem.startsWith("go:");
     }
 
     /** Page id with digits collapsed: limits paging explosions (bodyparts:0, bodyparts:1, ...). */
@@ -194,6 +198,12 @@ public final class UiProbe {
             }
         }
         runScript();
+        // After the scripted run: the probe account then has a dojo (dojoScript), so the dojo pages are reachable.
+        if (com.dbzlegacy.adaptivedifficulty.dojo.DojoService.dojoOf(player) == null) {
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoService.found(player);
+            note("NAV founded a dojo for the audit");
+        }
+        navAudit();
         skinPass();
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < packets.size(); i++) {
@@ -224,7 +234,7 @@ public final class UiProbe {
             "zeno_omni"};
     /** One page per system, then the picker itself. */
     static final String[][] SKIN_PAGES = {{"hub", "main"}, {"hub", "skins"}, {"difficulty", "main"},
-            {"difficulty", "your_tier"}, {"hub", "goals"}, {"hub", "more"}, {"rival", "home"}, {"spar", "main"}, {"prestige", "main"},
+            {"difficulty", "your_tier"}, {"hub", "search"}, {"hub", "more"}, {"rival", "home"}, {"spar", "main"}, {"prestige", "main"},
             {"character", "main"}, {"skills", "main"}, {"admin", "admin"}, {"config", "edit:difficulty:0:"}};
     /** Lite is checked on the picker, the Momentum page and the model page; backgrounds off on the main menu. */
     static final String[][] LITE_PAGES = {{"hub", "skins"}, {"difficulty", "your_tier"}, {"character", "main"}};
@@ -487,9 +497,11 @@ public final class UiProbe {
                     ? "PASS" : "FAIL") + " | " + labels(p));
             // Tabs travel as buttons (tab:<id>), in order.
             String b = p.buttonsJson();
-            note("HUB HOME tabs Home/Goals/More, Home first: " + (b.indexOf("tab:home") >= 0
-                    && b.indexOf("tab:home") < b.indexOf("tab:goals") && b.indexOf("tab:goals") < b.indexOf("tab:more")
-                    ? "PASS" : "FAIL"));
+            note("HUB HOME tabs Home/Search/More, Home first: " + (b.indexOf("tab:home") >= 0
+                    && b.indexOf("tab:home") < b.indexOf("tab:search") && b.indexOf("tab:search") < b.indexOf("tab:more")
+                    && !b.contains("tab:goals") ? "PASS" : "FAIL"));
+            note("HUB HOME search row (LM client): " + (p.inputsJson() != null && p.inputsJson().contains("hub_search")
+                    && b.contains("do:hub_search") ? "PASS" : "FAIL"));
             note("HUB HOME tiles grouped (Prestige, Difficulty, Spar Board, Rival, My dojo, Character): "
                     + (has(p, "Prestige") && has(p, "Spar Board") && has(p, "My dojo") && !has(p, "Dojo wars")
                     && has(p, "Character Services") && !has(p, "Menu skins") && !has(p, "Staff Admin")
@@ -498,10 +510,10 @@ public final class UiProbe {
                     && !has(p, "/spawn") && !has(p, "/tpa") && !has(p, "/empire") && !has(p, "/meditate")
                     ? "PASS" : "FAIL"));
         }
-        for (GuiOpenPacket p : hubClick("hub goals", "hub", "tab:goals", "main")) {
-            note("GOALS placeholder, no payout: " + ("goals".equals(p.pageId())
-                    && has(p, "Weekly goals arrive in the next update.") && has(p, "No goals yet")
-                    && p.buttonsJson().contains("nav:none") ? "PASS" : "FAIL"));
+        // 4.7.71: Goals waits for real goals; the old goals link opens Search.
+        for (GuiOpenPacket p : hubClick("hub search tab", "hub", "tab:search", "main")) {
+            note("SEARCH tab replaces Goals, no placeholder: " + ("search".equals(p.pageId())
+                    && !has(p, "No goals yet") && has(p, "Search") ? "PASS" : "FAIL"));
         }
         for (GuiOpenPacket p : hubClick("hub more", "hub", "tab:more", "main")) {
             note("MORE: meditation, Menu skins" + (staff ? ", Staff Admin" : "") + ": " + ("more".equals(p.pageId())
@@ -543,6 +555,287 @@ public final class UiProbe {
 
         // 4.7.68: the Spar Board, dojos and wars end to end (dojoScript), replacing the 4.7.64 list/ask board.
         dojoScript();
+        navScript();
+        formFigureScript();
+    }
+
+    // ---- 4.7.71 navigation audit and scripted checks (test only) ----
+    /** Registry pages a fresh probe account cannot reach (the page needs state the crawl does not make). */
+    static final Map<String, String> NAV_STATEFUL = Map.ofEntries(
+            Map.entry("spar|result", "needs a finished spar"),
+            Map.entry("spar|pending", "needs a bond invite"),
+            Map.entry("rival|requests", "needs a rival request"),
+            Map.entry("prestige|confirm", "needs enough prestige to turn in"),
+            Map.entry("rival|pick_replace_mutual", "needs a full rival list"),
+            Map.entry("hub|skin_custom", "needs the Custom menu skin picked"),
+            Map.entry("prestige|custom", "needs the custom shop turned on with perks"),
+            Map.entry("skillcheck|main", "needs the Skill Check permission (staff without it get Skills)"));
+
+    private List<GuiOpenPacket> step(String[] st) {
+        if ("open".equals(st[0])) {
+            return UltraScreenSpec.captureSends(() -> UltraGui.open(player, st[1], st[2]));
+        }
+        JsonObject args = new JsonObject();
+        args.addProperty("screen", st[1]);
+        args.addProperty("page", st[3]);
+        return UltraScreenSpec.captureSends(() -> UltraGuiActions.dispatch(player, st[1], st[2], args.toString()));
+    }
+
+    private static String entryKey(PageRegistry.Page e) {
+        return e.screen() + "|" + e.pattern();
+    }
+
+    /**
+     * Part 3E: the page registry against the real menus. From the main menu only, follow every navigation button
+     * (page:, open:, tab:, nav:, go:; never do:) - each registry entry expanded on up to two concrete pages - then:
+     * every searchable registry page is reached, every page reached has an entry (no orphans), Back from each page
+     * opens its registry parent, and a search for each title finds it. NAV lines; any violation is a FAIL.
+     */
+    private void navAudit() {
+        java.util.UUID u = player.m_20148_();
+        boolean staff = com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(player);
+        Map<String, String> reached = new LinkedHashMap<>();
+        Map<String, Integer> perEntry = new HashMap<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        java.util.Set<String> tried = new java.util.HashSet<>();
+        Map<String, String> orphans = new LinkedHashMap<>();
+        Deque<String[]> queue = new ArrayDeque<>();
+        queue.add(new String[] {"open", "hub", "main", "main"});
+        int steps = 0;
+        while (!queue.isEmpty() && steps < 6000) {
+            String[] st = queue.poll();
+            steps++;
+            List<GuiOpenPacket> got;
+            try {
+                got = step(st);
+            } catch (Throwable t) {
+                note("NAV step failed " + String.join(" ", st) + " " + t);
+                continue;
+            }
+            for (GuiOpenPacket p : got) {
+                String concrete = p.screenId() + "|" + p.pageId();
+                PageRegistry.Page e = PageRegistry.find(p.screenId(), p.pageId());
+                if (e == null) {
+                    orphans.putIfAbsent(concrete, st[1] + "|" + st[3] + " " + st[2]);
+                    continue;
+                }
+                reached.putIfAbsent(entryKey(e), concrete);
+                if (!seen.add(concrete) || perEntry.merge(entryKey(e), 1, Integer::sum) > 2) {
+                    continue;
+                }
+                try {
+                    for (JsonElement el : JsonParser.parseString(p.buttonsJson()).getAsJsonArray()) {
+                        String id = el.getAsJsonObject().get("id").getAsString();
+                        String sem = semantic(id);
+                        if (navigation(sem) && !"nav:none".equals(sem) && tried.add(concrete + " " + id)) {
+                            queue.add(new String[] {"act", p.screenId(), id, p.pageId()});
+                        }
+                    }
+                } catch (Throwable t) {
+                    note("NAV bad buttons on " + concrete);
+                }
+            }
+        }
+        int fails = 0;
+        int want = 0;
+        StringBuilder out = new StringBuilder();
+        for (PageRegistry.Page e : PageRegistry.all()) {
+            if (!e.search() || (e.staff() && !staff) || e.pattern().contains("*")) {
+                continue;
+            }
+            want++;
+            if (!reached.containsKey(entryKey(e))) {
+                String why = NAV_STATEFUL.get(entryKey(e));
+                if (why != null) {
+                    out.append("NAV SKIP not reached ").append(entryKey(e)).append(" (").append(why).append(")\n");
+                } else {
+                    fails++;
+                    out.append("NAV FAIL not reachable from the main menu: ").append(entryKey(e)).append('\n');
+                }
+            }
+        }
+        for (Map.Entry<String, String> o : orphans.entrySet()) {
+            fails++;
+            out.append("NAV FAIL orphan page (no registry entry): ").append(o.getKey()).append(" via ").append(o.getValue())
+                    .append('\n');
+        }
+        // Back: open each page fresh (no history), press Back, land on the registry parent.
+        int backs = 0;
+        int noBack = 0;
+        for (String concrete : reached.values()) {
+            int bar = concrete.indexOf('|');
+            String sc = concrete.substring(0, bar);
+            String pg = concrete.substring(bar + 1);
+            if (PageRegistry.HUB.equals(sc) && PageRegistry.HUB_MAIN.equals(pg)) {
+                continue;
+            }
+            NavHistory.clear(u);
+            List<GuiOpenPacket> page;
+            try {
+                page = step(new String[] {"act", sc, "go:" + concrete, pg});
+            } catch (Throwable t) {
+                page = List.of();
+            }
+            GuiOpenPacket shown = page.isEmpty() ? null : page.get(page.size() - 1);
+            if (shown == null || !shown.buttonsJson().contains("nav:back\"")) {
+                noBack++;
+                out.append("NAV INFO no Back button: ").append(concrete).append('\n');
+                continue;
+            }
+            String showPage = shown.pageId();
+            String[] parent = PageRegistry.parent(shown.screenId(), showPage);
+            String landed;
+            try {
+                landed = where(step(new String[] {"act", shown.screenId(), "nav:back", showPage}));
+            } catch (Throwable t) {
+                landed = "error " + t;
+            }
+            backs++;
+            boolean ok = false;
+            if (parent != null && !landed.startsWith("(") && !landed.startsWith("error")) {
+                int lb = landed.indexOf('|');
+                PageRegistry.Page want1 = PageRegistry.find(parent[0], parent[1]);
+                PageRegistry.Page got1 = PageRegistry.find(landed.substring(0, lb), landed.substring(lb + 1));
+                ok = landed.equals(parent[0] + "|" + parent[1])
+                        || (want1 != null && got1 != null && entryKey(want1).equals(entryKey(got1)));
+            }
+            if (!ok) {
+                fails++;
+                out.append("NAV FAIL Back from ").append(shown.screenId()).append('|').append(showPage).append(" -> ")
+                        .append(landed).append(" (registry parent ")
+                        .append(parent == null ? "none" : parent[0] + "|" + parent[1]).append(")\n");
+            }
+        }
+        NavHistory.clear(u);
+        // Search: each searchable title finds its page.
+        int misses = 0;
+        for (PageRegistry.Page e : PageRegistry.all()) {
+            if (!e.search() || (e.staff() && !staff)) {
+                continue;
+            }
+            boolean found = false;
+            for (PageRegistry.Hit h : PageRegistry.search(e.title(), staff, 500)) {
+                found |= h.page() == e;
+            }
+            if (!found) {
+                misses++;
+                fails++;
+                out.append("NAV FAIL search '").append(e.title()).append("' misses ").append(entryKey(e)).append('\n');
+            }
+        }
+        String summary = "NAV AUDIT reached " + reached.size() + " registry entries (" + want + " searchable pages), "
+                + orphans.size() + " orphans, " + backs + " Backs checked (" + noBack + " pages without Back), "
+                + misses + " search misses, " + steps + " steps: " + (fails == 0 ? "PASS" : "FAIL " + fails);
+        out.append(summary).append('\n');
+        write("uiprobe-nav.txt", out.toString(), false);
+        for (String line : out.toString().split("\n")) {
+            if (line.startsWith("NAV FAIL") || line.startsWith("NAV SKIP") || line.startsWith("NAV AUDIT")) {
+                note(line);
+            }
+        }
+    }
+
+    private static JsonArray crumbs(GuiOpenPacket p) {
+        try {
+            JsonObject l = JsonParser.parseString(p.layoutJson()).getAsJsonObject();
+            return l.has("breadcrumb") ? l.getAsJsonArray("breadcrumb") : null;
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private static String crumbText(JsonArray c) {
+        if (c == null) {
+            return "(none)";
+        }
+        StringBuilder b = new StringBuilder();
+        for (JsonElement el : c) {
+            b.append(b.length() == 0 ? "" : " > ").append(el.getAsJsonArray().get(0).getAsString());
+        }
+        return b.toString();
+    }
+
+    /** Part 3 real-client checks: search a deep page, Back to search, breadcrumbs on deep pages, recents. */
+    private void navScript() {
+        java.util.UUID u = player.m_20148_();
+        NavHistory.clear(u);
+        UltraHubScreens.searchFor(player, "");
+        keep("nav hub main", () -> UltraGui.open(player, "hub", "main"));
+        JsonObject args = new JsonObject();
+        args.addProperty("screen", "hub");
+        args.addProperty("page", "main");
+        args.addProperty("value", "upgrades");
+        for (GuiOpenPacket p : keep("nav search upgrades",
+                () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", args.toString()))) {
+            note("SEARCH 'upgrades' lists Dojo upgrades with its path: " + ("search".equals(p.pageId())
+                    && p.buttonsJson().contains("go:spar|dojo_upgrades") && labels(p).contains("Sparring > Dojo") ? "PASS" : "FAIL")
+                    + " | " + labels(p));
+        }
+        for (GuiOpenPacket p : hubClick("nav search result", "hub", "go:spar|dojo_upgrades", "search")) {
+            note("SEARCH result opens the page: " + (p.screenId() + "|" + p.pageId()) + " Back reads "
+                    + (has(p, "Back to Search") ? "Back to Search PASS" : "FAIL") + " | crumbs " + crumbText(crumbs(p)));
+        }
+        for (GuiOpenPacket p : hubClick("nav back to search", "spar", "nav:back", "dojo_upgrades")) {
+            note("BACK returns to the search with its results: " + ("hub".equals(p.screenId()) && "search".equals(p.pageId())
+                    && p.buttonsJson().contains("go:spar|dojo_upgrades") ? "PASS" : "FAIL"));
+        }
+        // Breadcrumbs on three deep pages, one a dojo upgrade; each crumb but the last is a link.
+        String[][] deep = {{"spar", "dojo_up:arena", "Main menu > Sparring > Dojo > Upgrades > Sparring arenas"},
+                {"prestige", "mastery_lines", "Main menu > Prestige > Shop > Mastery wallet > Apply points to a form"},
+                {"rival", "records:stats", "Main menu > Rivals > Records > Record stats"}};
+        for (String[] d : deep) {
+            NavHistory.clear(u);
+            for (GuiOpenPacket p : keep("nav crumbs " + d[1], () -> UltraGui.open(player, d[0], d[1]))) {
+                JsonArray c = crumbs(p);
+                boolean links = c != null && c.size() >= 3;
+                for (int i = 0; links && i < c.size(); i++) {
+                    String a = semantic(c.get(i).getAsJsonArray().get(1).getAsString());
+                    links = i == c.size() - 1 ? a.isEmpty() : (a.startsWith("go:") || a.equals("nav:hub"));
+                }
+                note("CRUMBS " + d[0] + "|" + d[1] + ": " + crumbText(c) + (crumbText(c).equals(d[2]) && links
+                        ? " PASS" : " FAIL (want " + d[2] + ")"));
+                if (c != null && c.size() >= 2) {
+                    String a = c.get(c.size() - 2).getAsJsonArray().get(1).getAsString();
+                    note("CRUMB click " + a + " -> " + where(hubClick("nav crumb click " + d[1], d[0], a, d[1])));
+                }
+            }
+        }
+        // Recents: newest first, at most five, a tap searches again.
+        for (String q : new String[] {"skin", "rival", "dojo", "weights", "titles", "prestige"}) {
+            UltraHubScreens.searchFor(player, q);
+        }
+        java.util.List<String> recent = UltraHubScreens.recentSearches(player);
+        note("RECENTS keep five, newest first: " + recent + (recent.size() == 5 && "prestige".equals(recent.get(0))
+                && !recent.contains("skin") ? " PASS" : " FAIL"));
+        UltraHubScreens.searchFor(player, "");
+        for (GuiOpenPacket p : hubClick("nav search recents", "hub", "tab:search", "main")) {
+            note("RECENTS shown under an empty search: " + (p.buttonsJson().contains("do:hub_search_recent:0")
+                    && has(p, "Recent: prestige") ? "PASS" : "FAIL"));
+        }
+        for (GuiOpenPacket p : hubClick("nav search recent tap", "hub", "do:hub_search_recent:2", "search")) {
+            note("RECENT tap searches again: " + (labels(p).contains("Results for 'weights'") ? "PASS" : "FAIL") + " | " + labels(p));
+        }
+        UltraHubScreens.searchFor(player, "");
+        NavHistory.clear(u);
+    }
+
+    /** Part 1: a form preview wears the viewer's own look for that form (made-up subject, never local). */
+    private void formFigureScript() {
+        String me = player.m_20148_().toString();
+        int n = 0;
+        for (String pg : new String[] {"form_preview:0", "form_preview:1"}) {
+            for (GuiOpenPacket p : keep("form figure " + pg, () -> UltraGui.open(player, "character", pg))) {
+                String l = p.layoutJson();
+                n++;
+                note("FORM FIGURE " + pg + " carries colors/appearance/headBones/skinOwner, made-up subject: "
+                        + (l.contains("\"colors\"") && l.contains("\"appearance\"") && l.contains("\"skinOwner\":\"" + me)
+                        && l.contains("\"subject\":\"uuid:") && !l.contains("\"subject\":\"local\"")
+                        ? "PASS" : "FAIL") + " headBones=" + l.contains("\"headBones\""));
+            }
+        }
+        if (n == 0) {
+            note("FORM FIGURE no form preview page FAIL");
+        }
     }
 
     // ---- 4.7.68 dojos, Spar Board, wars (test only) ----
@@ -1116,11 +1409,12 @@ public final class UiProbe {
         }
         for (GuiOpenPacket p : keep("tiers after guide", () -> UltraGui.open(player, "difficulty", "tiers"))) {
             note("TIERS after guide is the plain list: " + ("tiers".equals(p.pageId()) && !has(p, "Step 2 of 3")
-                    && !has(p, "Next: Your tier") && has(p, "Back to Home") && has(p, "Pick your level")
+                    && !has(p, "Next: Your tier") && has(p, "Back to Difficulty") && has(p, "Pick your level")
                     && has(p, "T1 Awakened") ? "PASS" : "FAIL") + " | " + labels(p));
         }
         for (GuiOpenPacket p : keep("summons after guide", () -> UltraGui.open(player, "difficulty", "summons"))) {
-            note("SUMMONS after guide: Back to Home: " + (has(p, "Back to Home") ? "PASS" : "FAIL"));
+            // 4.7.71: a tab page goes back to the system Home, named by the page registry.
+            note("SUMMONS after guide: Back to Difficulty + Main menu: " + (has(p, "Back to Difficulty") && has(p, "Main menu") ? "PASS" : "FAIL"));
         }
         // Replay: How difficulty works opens every step; finishing again keeps it done.
         for (GuiOpenPacket p : click("guide replay", "page:guide", "main")) {
@@ -1263,7 +1557,7 @@ public final class UiProbe {
             note("SWITCH DOWN -> " + m + " | active=" + d.getActiveTier() + (d.getActiveTier() == 1 ? " PASS" : " FAIL"));
             keep("step3 your tier", () -> UltraGui.open(player, "difficulty", "your_tier"));
             for (GuiOpenPacket p : keep("summons", () -> UltraGui.open(player, "difficulty", "summons"))) {
-                note("SUMMONS chrome: " + (has(p, "Boss summons") && has(p, "Back to Step 1") ? "PASS" : "FAIL"));
+                note("SUMMONS chrome: " + (has(p, "Boss summons") && has(p, "Back to Difficulty") && has(p, "Main menu") ? "PASS" : "FAIL"));
             }
             for (GuiOpenPacket p : keep("summon dragon", () -> UltraGui.open(player, "difficulty", "end_dragon"))) {
                 note("SUMMON locked still dim+inert: " + (p.buttonsJson().contains("nav:none") && has(p, "Summon locked") ? "PASS" : "FAIL"));
@@ -2046,6 +2340,10 @@ public final class UiProbe {
 
     private void mockCrawl() {
         firstScript = 0;
+        if (!"dojo".equals(System.getProperty("uiprobe.mockset", "nav"))) {
+            mockNav();
+            return;
+        }
         // 1. The main menu: the real hub page, with its two dojo tiles renamed.
         List<GuiOpenPacket> hub;
         try {
@@ -2138,6 +2436,30 @@ public final class UiProbe {
         mockUpgrade("mock_dojo_up_ring2", "Sparring arenas: ring 2", "Another ring, so more board spars can run at once.",
                 40, 75);
         mockUpgrade("mock_dojo_up_training1", "Training hall: basic", "A room in your hall with training dummies.", 30, 75);
+    }
+
+    /**
+     * 4.7.71 navigation mockups, drawn from the real pages: the main menu with its search row, a search with
+     * results, and a deep page with its breadcrumb (a dojo upgrade, reached through the search).
+     */
+    private void mockNav() {
+        java.util.UUID u = player.m_20148_();
+        NavHistory.clear(u);
+        UltraHubScreens.searchFor(player, "");
+        mock("main menu search row", () -> UltraGui.open(player, "hub", "main"));
+        JsonObject args = new JsonObject();
+        args.addProperty("screen", "hub");
+        args.addProperty("page", "main");
+        args.addProperty("value", "dojo");
+        mock("search results", () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", args.toString()));
+        JsonObject a2 = new JsonObject();
+        a2.addProperty("screen", "hub");
+        a2.addProperty("page", "search");
+        mock("breadcrumb dojo upgrade", () -> UltraGuiActions.dispatch(player, "hub", "go:spar|dojo_up:arena", a2.toString()));
+        NavHistory.clear(u);
+        mock("breadcrumb deep page", () -> UltraGui.open(player, "prestige", "mastery_lines"));
+        UltraHubScreens.searchFor(player, "");
+        NavHistory.clear(u);
     }
 
     /** The spec drops lines with no visible text, so a page fills its picture band with marker lines (the server lays

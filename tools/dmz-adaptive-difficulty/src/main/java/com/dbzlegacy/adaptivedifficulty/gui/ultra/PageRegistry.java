@@ -162,6 +162,10 @@ public final class PageRegistry {
         item("spar", "dojo_close", "Close dojo", "spar|dojo");
         p("spar", "mentor", "Training bonds", "spar|dojo", "master apprentice");
         p("spar", "dojo_roster", "Roster and bonds", "spar|dojo");
+        p("spar", "dojo_members_own", "Dojo members", "spar|dojo_roster", "roster");
+        item("spar", "dojo_members_*", "Dojo members", "spar|dojo_roster");
+        p("spar", "dojo_previous_members_own", "Previous members", "spar|dojo_roster", "left");
+        item("spar", "dojo_previous_members_*", "Previous members", "spar|dojo_roster");
         p("spar", "pick_apprentice", "Recruit", "spar|mentor");
         item("spar", "pick_apprentice:**", "Recruit", "spar|mentor");
         p("spar", "pick_mentor", "Request a master", "spar|mentor");
@@ -195,8 +199,10 @@ public final class PageRegistry {
         p("prestige", "effects", "Effects", "prestige|shop", "majin mutant ultimate");
         p("prestige", "mastery_wallet", "Mastery wallet", "prestige|shop");
         p("prestige", "mastery_lines", "Apply points to a form", "prestige|mastery_wallet");
-        item("prestige", "mw_form:*:*:**", "Form mastery", "prestige|mw_line:$1:$2");
-        item("prestige", "mw_line:**", "Form mastery", "prestige|mastery_lines");
+        // mw_form:<s|n>:<group>:<form>[:<line page>] goes back to that line's page.
+        item("prestige", "mw_form:*:*:*", "Form mastery", "prestige|mw_line:$1:$2");
+        item("prestige", "mw_form:*:*:*:*", "Form mastery", "prestige|mw_line:$1:$2:$4");
+        item("prestige", "mw_line:**", "Mastery line", "prestige|mastery_lines");
         p("prestige", "custom", "Custom shop", "prestige|shop", "perk");
         item("prestige", "perk:*", "Perk", "prestige|custom");
         item("prestige", "ask:custom_buy:*", "Buy perk", "prestige|perk:$1");
@@ -210,6 +216,7 @@ public final class PageRegistry {
         item("prestige", "ask:mutant", "Mutant", "prestige|effects");
         item("prestige", "ask:ultimate", "Ultimate", "prestige|effects");
         item("prestige", "ask:mastery_buy:*", "Buy mastery points", "prestige|mastery_wallet");
+        item("prestige", "ask:mastery_apply:*:*:*:*", "Level up", "prestige|mw_form:$1:$2:$3");
         item("prestige", "ask:mastery_apply:**", "Level up", "prestige|mastery_lines");
 
         // ---- Character Services (Home / Saga / Android)

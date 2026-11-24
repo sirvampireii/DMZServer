@@ -663,9 +663,14 @@ public final class UltraScreenSpec {
             return;
         }
         backPlaced = true;
-        // A page with a tab row (a system's Home and its tabs) keeps its one footer button on the right.
-        boolean home = !tabs.isEmpty() || PageRegistry.systemHome(screenId, pageId);
-        boolean nativeNav = player != null && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player);
+        // A system's Home (its first tab) keeps one footer button on the right: Back to main menu. Its other tabs are
+        // siblings, not a trail: they go back to the system Home (the registry parent, never the tab history), with
+        // Main menu beside it.
+        boolean firstTab = !tabs.isEmpty() && tabs.get(0).id().equals(activeTab);
+        boolean otherTab = !tabs.isEmpty() && !firstTab;
+        boolean home = firstTab || (!otherTab && PageRegistry.systemHome(screenId, pageId));
+        boolean nativeNav = player != null && !otherTab
+                && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player);
         String action;
         String label;
         if (nativeNav) {
@@ -677,7 +682,7 @@ public final class UltraScreenSpec {
             label = prev == null || (PageRegistry.HUB.equals(prev[0]) && PageRegistry.HUB_MAIN.equals(prev[1]))
                     ? UltraStyle.BACK_TO_MAIN : UltraStyle.backTo(PageRegistry.title(prev[0], prev[1]));
         } else {
-            String[] up = home ? null : PageRegistry.parent(screenId, pageId);   // tab pages go back to the main menu
+            String[] up = home ? null : PageRegistry.parent(screenId, pageId);   // a system Home goes to the main menu
             if (up == null || PageRegistry.HUB.equals(up[0]) && PageRegistry.HUB_MAIN.equals(up[1])) {
                 action = "nav:hub";
                 label = UltraStyle.BACK_TO_MAIN;
@@ -689,7 +694,8 @@ public final class UltraScreenSpec {
                 label = UltraStyle.backTo(PageRegistry.title(up[0], up[1]));
             }
         }
-        if (home) {
+        // Back that already goes to the main menu is the one exit: no second "Main menu" beside it.
+        if (home || UltraStyle.BACK_TO_MAIN.equals(label)) {
             placeFooter(null, null, action, label);
         } else {
             placeFooter(action, label, "nav:hub", UltraStyle.MAIN_MENU);
@@ -1611,7 +1617,9 @@ public final class UltraScreenSpec {
         placeBreadcrumb(dest);
         GuiOpenPacket packet = toPacket();
         if (dest != null) {
-            NavHistory.record(dest.m_20148_(), screenId, pageId);
+            // The id as it goes on the wire (long ids are cut to the packet limit): Back compares against what the
+            // client sends back.
+            NavHistory.record(dest.m_20148_(), screenId, packet.pageId());
             if (PageRegistry.find(screenId, pageId) == null) {
                 com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod.LOGGER.warn(
                         "[{}] page {}|{} has no PageRegistry entry (no breadcrumb, Back to Home)",

@@ -374,7 +374,9 @@ public final class UltraSparScreens {
             return;
         }
         Map<String, String> ph = SparGuiApi.placeholders(player);
-        UltraScreenSpec spec = base("dojo", "dojo");
+        // 4.7.71: the roster is its own page under the Dojo tab (it shared the tab's page id, so Back, the
+        // breadcrumb and search could not tell them apart).
+        UltraScreenSpec spec = sub("dojo_roster");
         if (!"true".equalsIgnoreCase(ph.get("system_enabled"))) {
             spec.line(UltraStyle.danger("Sparring is turned off. Ask staff to enable it."))
                     .buttonsAfterLines();

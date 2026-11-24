@@ -660,11 +660,24 @@ public final class UltraScreenSelfTest {
             "hub", "difficulty", "rival", "spar", "prestige", "character",
             "skillcheck", "skills", "admin", "config", "progression"
         };
+        // 4.7.71: the one back() footer, on a page one level under the system's Home (from the page registry):
+        // Back on the left, Main menu on the right, both style normal; with no such page, a lone Back to main menu.
         for (String id : footerScreens) {
+            String sub = null;
+            for (PageRegistry.Page pg : PageRegistry.all()) {
+                if (pg.screen().equals(id) && !pg.pattern().contains("*") && !PageRegistry.systemHome(id, pg.pattern())) {
+                    String[] up = PageRegistry.parent(id, pg.pattern());
+                    if (up != null && up[0].equals(id) && PageRegistry.systemHome(id, up[1])) {
+                        sub = pg.pattern();
+                        break;
+                    }
+                }
+            }
+            String probePage = sub == null ? "footer_probe" : sub;
             List<GuiOpenPacket> footerInk =
                     UltraScreenSpec.captureSends(() -> UltraScreenSpec.of(id)
                             .title("Footer")
-                            .page("home")
+                            .page(probePage)
                             .back()
                             .send(null));
             if (footerInk.isEmpty() || footerInk.get(0).buttonsJson() == null) {
@@ -673,12 +686,23 @@ public final class UltraScreenSelfTest {
             }
             String footerButtons = footerInk.get(0).buttonsJson();
             if (!"normal".equals(footerButtonStyle(footerButtons, "Main menu"))
-                    || !"normal".equals(footerButtonStyle(footerButtons, "Back to Home"))) {
-                broken.add(id + " footer buttons must use style normal");
+                    || (sub != null && !"normal".equals(footerButtonStyle(footerButtons, "Back to ")))) {
+                broken.add(id + " footer buttons must use style normal (" + probePage + ")");
             }
-            int mainX = footerButtonX(footerButtons, "Main menu");
+            if (sub != null && footerButtonX(footerButtons, "Back to ") != UltraStyle.COL_L) {
+                broken.add(id + " footer Back must sit in the left column (" + probePage + ")");
+            }
+            // The main menu exit is the button whose (qualified) action ends in nav:hub.
+            int mainX = -1;
+            for (JsonElement el : JsonParser.parseString(footerButtons).getAsJsonArray()) {
+                JsonObject o = el.getAsJsonObject();
+                String bid = o.has("id") ? o.get("id").getAsString() : "";
+                if (bid.endsWith("nav:hub") && o.has("x")) {
+                    mainX = Math.max(mainX, o.get("x").getAsInt());
+                }
+            }
             if (mainX != UltraStyle.COL_R) {
-                broken.add(id + " hub footer must keep the standard right column, x=" + mainX);
+                broken.add(id + " footer must keep Main menu in the standard right column, x=" + mainX + " (" + probePage + ")");
             }
             // Dark gray is the disabled look; footers use the same ink as the system's body buttons.
             String bodyInk = UltraStyle.readableButtonInk(
@@ -1254,8 +1278,9 @@ public final class UltraScreenSelfTest {
                     broken.add("boosts selector: missing button " + want);
                 }
             }
-            if (!"Back to main menu".equals(ids.get("nav:hub"))) {
-                broken.add("boosts selector: footer should read Back to main menu, got " + ids.get("nav:hub"));
+            // 4.7.71: Boosts is a tab, so Back goes to the Progression Home with Main menu beside it.
+            if (!"Main menu".equals(ids.get("nav:hub")) || !"Back to Progression".equals(ids.get("nav:home"))) {
+                broken.add("boosts selector: footer should read Back to Progression + Main menu, got " + ids);
             }
         }
         for (boolean mastery : new boolean[] {false, true}) {
@@ -1412,7 +1437,7 @@ public final class UltraScreenSelfTest {
         }
         Map<String, String> applyIds = buttonIds(UltraPrestigeScreens.masteryApplyAskSpec(ss, ss.forms.get(0), 1, 5, true).toPacket());
         if (!applyIds.containsKey("do:mastery_apply:n:ssgrades:supersaiyan:1")
-                || !"Back to SSJ".equals(applyIds.get("page:mw_form:n:ssgrades:supersaiyan"))) {
+                || !"Back to Form mastery".equals(applyIds.get("page:mw_form:n:ssgrades:supersaiyan"))) {
             broken.add("mastery wallet: apply confirm page should Confirm and go Back to the form, got " + applyIds);
         }
         checkGodKiWallet(broken, lines);
@@ -1594,7 +1619,7 @@ public final class UltraScreenSelfTest {
             broken.add("mastery wallet paging: a form page past the end should clamp to the last page");
         }
         Map<String, String> fv = buttonIds(UltraPrestigeScreens.formSpec(big, bigForms.get(9), 5, 1).toPacket());
-        if (!"Back to Big".equals(fv.get("page:mw_line:n:big:1"))) {
+        if (!"Back to Mastery line".equals(fv.get("page:mw_line:n:big:1"))) {
             broken.add("mastery wallet paging: form view Back should return to page:mw_line:n:big:1, got " + fv);
         }
     }
