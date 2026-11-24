@@ -47,6 +47,11 @@ public final class LmNativeProtocol {
      * Like {@link #FEATURE_MENU_SKINS} it is hello-only, never in {@link #CLIENT_FEATURES}.
      */
     public static final String FEATURE_CUSTOM_SKIN = "customSkin";
+    /**
+     * LM 4.7.68: the client draws layoutJson {@code pictures} (UltraScreenSpec#pictures: textures, cut-outs and marks
+     * in body rows). Hello-only like the skins; a page sends pictures only to a client that said it.
+     */
+    public static final String FEATURE_PICTURES = "pictures";
 
     /** Feature ids (bridge spelling) the protocol-1 LM client draws natively. */
     public static final List<String> CLIENT_FEATURES = List.of(
@@ -224,6 +229,7 @@ public final class LmNativeProtocol {
         a.add(FEATURE_MENU_SKINS);
         a.add(FEATURE_CUSTOM_SKIN);
         a.add(com.dbzlegacy.adaptivedifficulty.gui.ultra.ColorWheel.FEATURE);
+        a.add(FEATURE_PICTURES);
         return a.toString();
     }
 

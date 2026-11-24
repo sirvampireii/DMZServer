@@ -1,0 +1,10 @@
+{
+  "_comment": "mod-toolkit plug-in for LegacyMechanics (LM 4.7.68 dojo halls). The toolkit (the 'Merry Christmas' mod-toolkit) sits next to the repository: Desktop/Repository/mod-toolkit. It is a PC-side authoring tool; nothing from it ships except the .nbt files and pictures it makes.",
+  "name": "LegacyMechanics",
+  "modid": "legacymechanics",
+  "toolkit": "../../../mod-toolkit",
+  "javaDirs": ["tools/fx"],
+  "out": "tools/fx/out",
+  "assets": "src/main/resources/assets",
+  "preview": "build/preview"
+}

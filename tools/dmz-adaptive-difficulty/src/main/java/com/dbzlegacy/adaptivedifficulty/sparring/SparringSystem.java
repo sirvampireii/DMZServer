@@ -48,6 +48,14 @@ public final class SparringSystem {
     public static final long MENTOR_INVITE_MS = 60L * 60L * 1000L;
     /** Max apprentices per mentor (dojo roster). Each player still has at most one master. */
     public static final int MAX_APPRENTICES = 8;
+
+    /**
+     * 4.7.68: how many disciples a master's dojo takes now: 5 to start, up to 29 (30 members) with the capacity
+     * upgrade. A roster above the cap from before 4.7.68 keeps everyone; it just takes no new disciples.
+     */
+    public static int apprenticeCap(String masterUuid) {
+        return com.dbzlegacy.adaptivedifficulty.dojo.DojoService.disciplesAllowed(masterUuid);
+    }
     public static final long TICK_MS = 250L;
     public static final long MIN_COUNTED_SESSION_MS = 30_000L;
     public static final long STREAK_MIN_SESSION_MS = 300_000L;
@@ -253,7 +261,7 @@ public final class SparringSystem {
         if (SparCombat.isBlocking(player)) {
             rt.sessionBlocks++;
             rt.styleBlock += 1.0; // script: +1 per block, not HP lost
-            SparCombat.awardCombatTp(player, attacker, rt, SparCombat.BLOCK_TP_BASE, "melee");
+            SparCombat.awardCombatTp(player, attacker, rt, SparCombat.BLOCK_TP_BASE, "block");
         }
     }
 
@@ -359,6 +367,14 @@ public final class SparringSystem {
             return amount;
         }
         float hp = victim.m_21223_();
+        // 4.7.68: a board bout is non-lethal for both fighters: a lethal blow is a KO that ends the bout.
+        if (com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.isBoutPair(victim, attacker)) {
+            if (amount < hp) {
+                return amount;
+            }
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.queueKnockout(victim, attacker);
+            return Math.max(0.0f, hp - 1.0f);
+        }
         if (amount < hp || !friendlyFistGuards(victim, attacker)) {
             return amount;
         }
@@ -373,6 +389,11 @@ public final class SparringSystem {
      * the spar never records "death" and no death message, drops or penalty follow.
      */
     public static boolean catchLethalSparDeath(ServerPlayer victim, ServerPlayer attacker) {
+        if (com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.isBoutPair(victim, attacker)) {
+            victim.m_21153_(1.0f);
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.queueKnockout(victim, attacker);
+            return true;
+        }
         if (!friendlyFistGuards(victim, attacker)) {
             return false;
         }
@@ -418,6 +439,11 @@ public final class SparringSystem {
             float hp = victim.m_21223_();
             boolean lethal = hp <= 1.5f;
             if (!kd && !lethal) {
+                return;
+            }
+            // 4.7.68: in a board bout a knockdown is the KO that ends it (no heal-and-continue).
+            if (com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.isBoutPair(victim, attacker)) {
+                com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.queueKnockout(victim, attacker);
                 return;
             }
             friendlyFistHeal(victim, attacker, vRt);
@@ -511,10 +537,41 @@ public final class SparringSystem {
         if (attacker.m_20270_(target) > MAX_SPAR_DISTANCE) {
             return;
         }
-        if (now < aRt.restartCooldownUntil || now < tRt.restartCooldownUntil) {
-            return;
+        // 4.7.68: trading hits no longer starts a spar. Plain PvP stays combat; a formal spar (TP, leaderboard,
+        // streak, Friendly Fist) starts only from the Spar Board (startBoardSession).
+    }
+
+    /** 4.7.68: true when {@code a} and {@code b} are each other's partner in an active spar session. */
+    public static boolean inSessionTogether(ServerPlayer a, ServerPlayer b) {
+        if (a == null || b == null) {
+            return false;
         }
-        startSession(attacker, target);
+        SparPlayerRuntime ra = RUNTIME.get(a.m_20148_());
+        SparPlayerRuntime rb = RUNTIME.get(b.m_20148_());
+        return ra != null && rb != null && ra.active && rb.active
+                && b.m_20148_().equals(ra.partner) && a.m_20148_().equals(rb.partner);
+    }
+
+    /** 4.7.68: true when {@code p}'s spar session trains Potential Unlock (a friendly spar they opted into). */
+    public static boolean trainsPotentialInSession(ServerPlayer p) {
+        SparPlayerRuntime rt = p == null ? null : RUNTIME.get(p.m_20148_());
+        return rt != null && rt.active && !rt.boardRanked && rt.boardPotential;
+    }
+
+    /**
+     * 4.7.68: the only way a spar starts - a Spar Board accept, with both fighters already in the arena. Each
+     * fighter's Potential Unlock opt-in comes from their "Looking for" at accept time; ranked spars never train it.
+     */
+    public static void startBoardSession(ServerPlayer a, ServerPlayer b, String boutId, boolean ranked,
+            boolean potentialA, boolean potentialB) {
+        startSession(a, b);
+        for (ServerPlayer p : new ServerPlayer[] {a, b}) {
+            SparPlayerRuntime rt = runtime(p.m_20148_());
+            rt.boardBout = boutId == null ? "" : boutId;
+            rt.boardRanked = ranked;
+            rt.boardCredit = false;
+            rt.boardPotential = !ranked && (p == a ? potentialA : potentialB);
+        }
     }
 
     private static void startSession(ServerPlayer a, ServerPlayer b) {
@@ -529,8 +586,6 @@ public final class SparringSystem {
         bRt.partner = a.m_20148_();
         aRt.startAt = now;
         bRt.startAt = now;
-        // 4.7.64: a spar began, so both come off the spar board.
-        SparBoard.onSessionStart(a, b);
         // Seed movement window only — hits/blocks must not refresh the AFK gate.
         refreshMovementActivity(a, aRt, now);
         refreshMovementActivity(b, bRt, now);
@@ -567,6 +622,8 @@ public final class SparringSystem {
         if (!aRt.active) {
             return;
         }
+        // 4.7.68: settle the board bout first (winner, wagers, ranked credit), so the leaderboard sees the credit.
+        com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.beforeSessionEnd(player, partner, reason);
         SparPlayerRuntime bRt = partner == null ? null : runtime(partner.m_20148_());
         long now = System.currentTimeMillis();
         long duration = Math.max(0L, now - aRt.startAt);
@@ -577,15 +634,20 @@ public final class SparringSystem {
         report(player, aRt, partner, duration, reason);
         if (partner != null && bRt != null && bRt.active) {
             report(partner, bRt, player, duration, reason);
-            updateLeaderboard(partner, bRt, duration);
-            updateStreak(partner, bRt, duration);
+            // 4.7.68: only a ranked board spar that counted feeds the leaderboard, streak and season RP.
+            if (bRt.boardCredit) {
+                updateLeaderboard(partner, bRt, duration);
+                updateStreak(partner, bRt, duration);
+                DojoRankings.onInterDojoSession(player, aRt, partner, bRt, duration);
+            }
             recordRecentSession(partner, bRt, player, duration, reason);
-            DojoRankings.onInterDojoSession(player, aRt, partner, bRt, duration);
             bRt.resetSession();
             bRt.restartCooldownUntil = now + PAIR_RESTART_COOLDOWN_MS;
         }
-        updateLeaderboard(player, aRt, duration);
-        updateStreak(player, aRt, duration);
+        if (aRt.boardCredit) {
+            updateLeaderboard(player, aRt, duration);
+            updateStreak(player, aRt, duration);
+        }
         recordRecentSession(player, aRt, partner, duration, reason);
         SystemTelemetry.log("sparring", "spar_end", player, partner,
                 SystemTelemetry.fields("reason", reason == null ? "" : reason,
@@ -1615,8 +1677,8 @@ public final class SparringSystem {
         if (mine.isMentoringUuid(target.m_20148_().toString())) {
             return UltraStyle.DANGER + "You already mentor " + UltraStyle.VALUE + target.m_7755_().getString() + UltraStyle.DANGER + ".";
         }
-        if (mine.apprenticeCount() >= MAX_APPRENTICES) {
-            return UltraStyle.DANGER + "Dojo full (" + UltraStyle.VALUE + MAX_APPRENTICES + " " + UltraStyle.DANGER + "apprentices max).";
+        if (mine.apprenticeCount() >= apprenticeCap(player.m_20148_().toString())) {
+            return UltraStyle.DANGER + "Dojo full (" + UltraStyle.VALUE + apprenticeCap(player.m_20148_().toString()) + " " + UltraStyle.DANGER + "disciples). Buy capacity in the Dojo tab for more.";
         }
         SparStore.MentorBond theirs = SparStore.get().bond(target.m_20148_());
         if (theirs.mentorUuid != null && !theirs.mentorUuid.isBlank()) {
@@ -1652,8 +1714,8 @@ public final class SparringSystem {
             return UltraStyle.DANGER + "You already have a mentor.";
         }
         SparStore.MentorBond theirs = SparStore.get().bond(target.m_20148_());
-        if (theirs.apprenticeCount() >= MAX_APPRENTICES) {
-            return UltraStyle.DANGER + "Their dojo is full (" + UltraStyle.VALUE + MAX_APPRENTICES + " " + UltraStyle.DANGER + "apprentices).";
+        if (theirs.apprenticeCount() >= apprenticeCap(target.m_20148_().toString())) {
+            return UltraStyle.DANGER + "Their dojo is full (" + UltraStyle.VALUE + apprenticeCap(target.m_20148_().toString()) + " " + UltraStyle.DANGER + "disciples).";
         }
         SparStore.BondInvite invite = new SparStore.BondInvite();
         invite.fromUuid = player.m_20148_().toString();
@@ -1807,10 +1869,10 @@ public final class SparringSystem {
             return UltraStyle.DANGER + "They already have a mentor.";
         }
         if (!mentorBond.isMentoringUuid(apprentice.m_20148_().toString())
-                && mentorBond.apprenticeCount() >= MAX_APPRENTICES) {
+                && mentorBond.apprenticeCount() >= apprenticeCap(mentor.m_20148_().toString())) {
             SparStore.get().invites.remove(player.m_20148_().toString());
             SparStore.get().markDirty();
-            return UltraStyle.DANGER + "Dojo full (" + UltraStyle.VALUE + MAX_APPRENTICES + " " + UltraStyle.DANGER + "apprentices max).";
+            return UltraStyle.DANGER + "Dojo full (" + UltraStyle.VALUE + apprenticeCap(mentor.m_20148_().toString()) + " " + UltraStyle.DANGER + "disciples). Buy capacity in the Dojo tab for more.";
         }
         bindMentor(mentor, apprentice);
         SparStore.get().invites.remove(player.m_20148_().toString());
@@ -2179,6 +2241,7 @@ public final class SparringSystem {
         a.mentorUuid = mentor.m_20148_().toString();
         a.mentorName = mentor.m_7755_().getString();
         SparStore.get().markDirty();
+        com.dbzlegacy.adaptivedifficulty.dojo.DojoService.onDiscipleJoined(mentor.m_20148_().toString(), apprentice.m_20148_().toString());
     }
 
     private static void clearBond(String apprenticeUuid, String mentorUuid, boolean cooldown) {
@@ -2192,6 +2255,7 @@ public final class SparringSystem {
                 a.mentorChangeReadyAt = ready;
             }
         }
+        com.dbzlegacy.adaptivedifficulty.dojo.DojoService.onDiscipleLeft(mentorUuid, apprenticeUuid);
         if (m != null) {
             m.normalizeApprentices();
             m.removeApprenticeUuid(apprenticeUuid);

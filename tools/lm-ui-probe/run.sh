@@ -89,7 +89,7 @@ for c in "time set midnight" "gamerule doDaylightCycle false" "gamerule doMobSpa
 rm -rf "$G/mods" "$G/config" "$G/defaultconfigs" "$G/screenshots" "$G/uiprobe-client.txt"; mkdir -p "$G/mods"
 # 4.7.62: vsync off and no frame cap, so the fps= on each SCREEN line measures real headroom (vsync pinned it at
 # the monitor rate, 60, and the FPS budget could not tell builds apart).
-printf "guiScale:2\nonboardAccessibility:false\nenableVsync:false\nmaxFps:260\n" > "$G/options.txt"
+printf "guiScale:2\nonboardAccessibility:false\nenableVsync:false\nmaxFps:260\ntutorialStep:none\n" > "$G/options.txt"
 cp "${COMMON[@]}" "$G/mods/"
 [ "$CKAI" = 1 ] && cp "$KAI" "$G/mods/"
 [ "$CLM" != "-" ] && cp "$CLM" "$G/mods/"

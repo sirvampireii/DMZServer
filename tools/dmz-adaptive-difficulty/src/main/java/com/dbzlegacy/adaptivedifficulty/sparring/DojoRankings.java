@@ -166,9 +166,12 @@ public final class DojoRankings {
      */
     public static void advanceSeasonNow() {
         SparStore store = SparStore.get();
+        int ended = store.dojoSeason == null ? 0 : store.dojoSeason.seasonId;
         archiveSeason(store.dojoSeason);
         store.dojoSeason = freshSeason(System.currentTimeMillis());
         store.markDirty();
+        // 4.7.68: clout is seasonal (to history, placement clout for the top three); rooms and upgrades stay.
+        com.dbzlegacy.adaptivedifficulty.dojo.DojoService.onSeasonAdvanced(ended, store.dojoSeason.seasonId);
     }
 
     /** {@code /spar dojo season advance}: what a confirmed advance would do. Changes nothing. */

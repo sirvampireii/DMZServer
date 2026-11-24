@@ -1,0 +1,176 @@
+{
+  "name": "dojo_hall_t2",
+  "about": "LM dojo hall, refined tier: a stone-brick foundation, white shoji walls on dark oak, a deepslate-tile roof with a ring eave. One hall: the rings, balcony and rooms go inside (DojoKit).",
+  "style": "dojo_refined",
+  "seed": 68,
+  "styles": {
+    "dojo_refined": {
+      "extends": "japanese",
+      "base": [
+        "stone_bricks",
+        "polished_andesite",
+        "andesite"
+      ],
+      "floor": [
+        "spruce_planks"
+      ]
+    }
+  },
+  "parts": [
+    {
+      "type": "terrace",
+      "at": [
+        0,
+        0
+      ],
+      "size": [
+        89,
+        73
+      ],
+      "th": 2,
+      "y": 1,
+      "parapet": "none"
+    },
+    {
+      "type": "block",
+      "at": [
+        0,
+        0
+      ],
+      "size": [
+        83,
+        67
+      ],
+      "y": 1,
+      "floors": 2,
+      "floorH": 6,
+      "roof": "hip",
+      "pitch": 0.6,
+      "eaves": 4,
+      "flare": true,
+      "windows": "shoji",
+      "door": "none",
+      "skirts": true,
+      "skirt": 3
+    },
+    {
+      "type": "terrace",
+      "at": [
+        0,
+        42
+      ],
+      "size": [
+        29,
+        11
+      ],
+      "th": 2,
+      "y": 1,
+      "parapet": "none"
+    },
+    {
+      "type": "block",
+      "at": [
+        0,
+        40
+      ],
+      "size": [
+        23,
+        11
+      ],
+      "y": 1,
+      "floors": 1,
+      "floorH": 10,
+      "roof": "gable",
+      "pitch": 1,
+      "eaves": 2,
+      "flare": true,
+      "windows": "shoji",
+      "door": "south"
+    }
+  ],
+  "dojo": {
+    "_comment": "Foundation coordinates: x / z from the north-west corner of parts[0] (the 89 x 73 foundation terrace). LM places rings, rooms and landing points from these; DojoKit (tools/fx) builds the interior from them. Room keys are LM's upgrade ids (DojoCatalog).",
+    "hall": [
+      3,
+      3,
+      85,
+      69
+    ],
+    "ringSize": 17,
+    "rings": [
+      [
+        18,
+        17
+      ],
+      [
+        44,
+        17
+      ],
+      [
+        70,
+        17
+      ],
+      [
+        18,
+        38
+      ],
+      [
+        44,
+        38
+      ],
+      [
+        70,
+        38
+      ]
+    ],
+    "wingZ": 50,
+    "corridor": [
+      40,
+      48
+    ],
+    "rooms": {
+      "training_hall": [
+        4,
+        22
+      ],
+      "meditation": [
+        24,
+        38
+      ],
+      "trophy_hall": [
+        50,
+        64
+      ],
+      "quarters": [
+        66,
+        84
+      ]
+    },
+    "balcony": {
+      "z": [
+        4,
+        7
+      ],
+      "up": 6
+    },
+    "doors": {
+      "main": [
+        42,
+        46
+      ],
+      "porch": [
+        71,
+        81
+      ]
+    },
+    "spawn": [
+      44,
+      90
+    ],
+    "spectate": [
+      44,
+      5
+    ],
+    "margin": 14
+  }
+}

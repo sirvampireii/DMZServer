@@ -246,6 +246,8 @@ public final class MenuSkins {
     public static final int INK_FROM_TEXT = 0xFFFFFF;
     /** Placeholder fill while a player model cannot be drawn yet. */
     public static final int MODEL_PLACEHOLDER = 0x33000000;
+    /** 4.7.68: the dark band behind a picture's caption (dojo upgrade previews). */
+    public static final int PICTURE_CAPTION_FILL = 0xB0000000;
     /** Glossy bar highlight line (ARGB). */
     public static final int GLOSS_LINE = 0x60FFFFFF;
     /** Shimmer band over an active Momentum fill (ARGB). */

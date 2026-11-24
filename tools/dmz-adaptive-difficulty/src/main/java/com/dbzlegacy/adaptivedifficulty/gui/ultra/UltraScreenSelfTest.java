@@ -900,6 +900,7 @@ public final class UltraScreenSelfTest {
         verifyConfigNumberRanges();
         verifyConfigFieldBudget();
         verifyDojoWarExpiry();
+        verifyDojoPlacement();
         verifyFirstSuperformChoice();
         verifyPickerPaging();
         verifyTitlesSurvivePrestige();
@@ -2407,6 +2408,25 @@ public final class UltraScreenSelfTest {
      * live pending challenge must both keep blocking duplicates. Exercises the real lookup over a
      * local map so no live {@link SparStore} state is touched.
      */
+    /** 4.7.68: the dojo plot index loads from the jar and the placer plans a whole build and a one-room change. */
+    public static void verifyDojoPlacement() {
+        String layout = com.dbzlegacy.adaptivedifficulty.dojo.DojoLayout.selfTest();
+        String plan = com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.selfTest();
+        String pics = com.dbzlegacy.adaptivedifficulty.dojo.DojoPictures.selfTest();
+        if (!pics.startsWith("OK")) {
+            plan = plan + "; pictures " + pics;
+        }
+        if (layout.startsWith("OK") && plan.startsWith("OK") && pics.startsWith("OK")) {
+            LmLog.event("[{}] Dojo placement self-test OK (layout {}, plans {})", AdaptiveDifficultyMod.MOD_ID, layout,
+                    plan);
+            return;
+        }
+        AdaptiveDifficultyMod.LOGGER.error("[{}] Dojo placement self-test FAILED: layout {}, plans {}",
+                AdaptiveDifficultyMod.MOD_ID, layout, plan);
+        throw new IllegalStateException("LegacyMechanics dojo placement self-test failed: layout " + layout + ", plans "
+                + plan);
+    }
+
     public static void verifyDojoWarExpiry() {
         List<String> broken = new ArrayList<>();
         long now = System.currentTimeMillis();

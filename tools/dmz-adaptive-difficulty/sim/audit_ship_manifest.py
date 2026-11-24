@@ -1994,6 +1994,164 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.68 ---")
+    p68_board = read(SRC / "dojo/BoardSpar.java")
+    p68_svc = read(SRC / "dojo/DojoService.java")
+    p68_cat = read(SRC / "dojo/DojoCatalog.java")
+    p68_world = read(SRC / "dojo/DojoWorld.java")
+    p68_build = read(SRC / "dojo/DojoBuilder.java")
+    p68_war = read(SRC / "dojo/DojoWar.java")
+    p68_store = read(SRC / "dojo/DojoStore.java")
+    p68_ui = read(SRC / "gui/ultra/UltraDojoScreens.java")
+    p68_spar = read(SRC / "gui/ultra/UltraSparScreens.java")
+    p68_sys = read(SRC / "sparring/SparringSystem.java")
+    p68_combat = read(SRC / "sparring/SparCombat.java")
+    p68_ev = read(SRC / "event/DifficultyEvents.java")
+    p68_rank = read(SRC / "sparring/DojoRankings.java")
+    res = ROOT / "tools/dmz-adaptive-difficulty/src/main/resources/data/legacymechanics"
+    p68_dim = read(res / "dimension/dojo.json")
+    p68_dimtype = read(res / "dimension_type/dojo.json")
+    check("manifest row for lm 4.7.68", "lm-4768-dojos" in manifest)
+    check("Sparring tabs: Home, Dojo, Spar Board (wars moved into the Dojo tab)",
+          '.tabs("home|Home", "dojo|Dojo", "sparboard|Spar Board")' in p68_spar
+          and '.tabs("home|Home", "dojo|Dojo", TAB_BOARD + "|Spar Board")' in p68_ui
+          and 'lower.equals("dojo_wars") || lower.equals("wars") || lower.equals("dojo_war")' in p68_ui)
+    check("a formal spar starts only from the board: trading hits starts nothing, startBoardSession is the one start",
+          "// 4.7.68: trading hits no longer starts a spar." in p68_sys
+          and p68_sys.count("startSession(attacker, target)") == 0
+          and "public static void startBoardSession(ServerPlayer a, ServerPlayer b, String boutId, boolean ranked," in p68_sys
+          and "SparringSystem.startBoardSession(poster, acceptor, b.id, b.ranked, b.potentialA, b.potentialB);" in p68_board)
+    check("no dojo, no spar: a human message with a button to the dojo list",
+          '"Join a dojo first. No dojo, no spar."' in p68_board and 'spec.buttonLeft("page:dojo_list", "Find a dojo"' in p68_ui)
+    check("fights in the poster's arena; both go back to exactly where they stood (offline ones on login)",
+          "Dojo host = DojoService.dojoOf(poster);" in p68_board and 'DojoWorld.rememberSpot(poster, "spar");' in p68_board
+          and "DojoWorld.returnPlayer(p);" in p68_board and "s.yaw = p.m_146908_();" in p68_world
+          and "p.m_8999_(target, s.x, s.y, s.z, s.yaw, s.pitch);" in p68_world)
+    check("listing shows name, level, Friendly Fist, friendly/ranked, wait time and wager; level range filter",
+          '" Lv " + lvl' in p68_ui and '", Friendly Fist "' in p68_ui and '", waiting "' in p68_ui
+          and "Math.abs(level(poster) - level(viewer)) > post.range()" in p68_board
+          and "LEVEL_RANGES = {0, 25, 50, 100};" in p68_cat)
+    check("ranked gate: 30 friendly spars, the count shown, ranked dim until then",
+          "RANKED_GATE = 30;" in p68_cat and '" friendly spars done, "' in p68_ui
+          and 'spec.lockedButton("Ranked: locked");' in p68_ui and "return unranked(id) >= DojoCatalog.RANKED_GATE;" in p68_board)
+    check("friendly pays nothing; ranked pays spar TP and alone feeds the leaderboard, streak and season RP",
+          "if (!rt.boardRanked) {\n            return 0;\n        }" in p68_combat
+          and "if (aRt.boardCredit) {\n            updateLeaderboard(player, aRt, duration);" in p68_sys
+          and "if (bRt.boardCredit) {" in p68_sys)
+    check("wagers: 5 netherite coins or 20 Dojo Points, both escrowed at accept, winner takes both, refunds otherwise",
+          "MAX_COIN_WAGER = 5L * NETHERITE_COPPER;" in p68_cat and "MAX_POINT_WAGER = 20;" in p68_cat
+          and "static boolean escrow(Post post, ServerPlayer poster, ServerPlayer acceptor)" in p68_board
+          and 'payCoins(server, payTo.toString(), e.amount * 2);' in p68_board
+          and 'return "refunded to both (" + text + " each)";' in p68_board
+          and "public static void refundStaleEscrow()" in p68_board)
+    check("anti-farm: counts after 1 minute with both landing damage; 15-minute pair cooldown for ranked credit",
+          "MIN_FIGHT_MS = 60_000L;" in p68_cat and "PAIR_COOLDOWN_MS = 15L * 60L * 1000L;" in p68_cat
+          and "boolean credit = b.ranked && counted && rankedFresh;" in p68_board
+          and 'PAIR.put("ranked|" + pair, now);' in p68_board)
+    check("bouts end by KO (lethal blow caught at 1 HP), ring-out past the ring's edge, forfeit, disconnect or the timeout",
+          "BoardSpar.queueKnockout(victim, attacker);" in p68_sys and "RING_OUT_HALF = 12;" in p68_world
+          and "Math.abs(p.m_20185_() - b.cx) > DojoWorld.RING_OUT_HALF" in p68_board
+          and 'end(b, id.equals(b.a) ? b.b : b.a, "RING_OUT");' in p68_board
+          and 'case "logout", "partner-offline" -> "DISCONNECT";' in p68_board)
+    check("one void dojo dimension from the LM datapack; plots 4000 blocks apart, never reused",
+          '"type": "minecraft:flat"' in p68_dim and '"biome": "minecraft:the_void"' in p68_dim
+          and '"natural": false' in p68_dimtype and "PLOT_SPACING = 4000;" in p68_world
+          and "d.plot = DojoStore.get().nextPlot++;" in p68_world)
+    p68_place = read(SRC / "dojo/DojoPlacer.java")
+    p68_state = read(SRC / "dojo/DojoState.java")
+    p68_pics = read(SRC / "dojo/DojoPictures.java")
+    p68_native = read(SRC / "client/NativeMenuScreen.java")
+    p68_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p68_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p68_index = read(res / "dojo/index.json")
+    structs = res / "structures/dojo"
+    check("one ring to start, up to 6; the hall's look follows the rings; upgrades with basic / refined / masterwork looks",
+          "MAX_ARENAS = 6;" in p68_cat and "d.upgrades.put(DojoCatalog.ARENA, 1);" in p68_svc
+          and "s.tier = DojoCatalog.lookTier(DojoCatalog.ARENA, s.arenas);" in p68_state
+          and "static String[] palette(int look)" not in p68_build)
+    check("one Japanese hall from the mod-toolkit: a base and 24 pieces per hall tier and style, and the plot index",
+          all((structs / ("t%d_%s" % (t, st)) / "base.nbt").is_file() for t in (1, 2, 3)
+              for st in ("none", "ki", "melee", "strike", "evasion"))
+          and (structs / "t3_evasion/garden_3.nbt").is_file() and (structs / "t1_none/arena_6.nbt").is_file()
+          and '"rings": [' in p68_index and '"spawn": [' in p68_index and '"balcony": [' in p68_index)
+    check("a new dojo is the empty hall with one sparring mat; an upgrade rebuilds only its part (whole plot on a new tier or style)",
+          'return "v2|t=" + tier + "|s=" + style + "|a=" + arenas' in p68_state
+          and "if (was == null || !was.key().equals(key)) {" in p68_place
+          and "steps.add(new Step(key + \"/base\", zero, boxes));" in p68_place
+          and "Your hall starts empty with one sparring mat; upgrades build into it." in p68_svc)
+    check("placed like DMZ's grounds: chunk tickets, a per-tick time budget, checks when the plot is done",
+          "TICK_BUDGET_NANOS = 6_000_000L;" in p68_place and "cache.m_8387_(TICKET, c, 0, c);" in p68_place
+          and "cache.m_8438_(TICKET, c, 0, c);" in p68_place and "static void afterBuild(ServerLevel level, int plot, String master)" in p68_world
+          and 'safePulse("dojo-builder", com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer::tick);' in p68_ev)
+    check("a spar waits for the host's hall to be built; fighters land on the hall's ring centres",
+          'return host.name + "\'s hall is being built. Try again in a few seconds.";' in p68_board
+          and "double[] c = DojoWorld.ringCenter(host, arena);" in p68_board)
+    check("the dojo world is protected: only staff break or place blocks; blasts break nothing",
+          "public void onDojoBreak(BlockEvent.BreakEvent event)" in p68_ev
+          and "public void onDojoPlace(BlockEvent.EntityPlaceEvent event)" in p68_ev
+          and "event.getAffectedBlocks().clear();" in p68_ev)
+    check("main menu: Spar Board and My dojo tiles, one tap each",
+          'new HubTile("spar_board", "Spar Board"' in p68_hub and 'new HubTile("spar_dojo", "My dojo"' in p68_hub
+          and 'UltraGui.open(player, "spar", "sparboard");' in p68_hub and 'UltraGui.open(player, "spar", "dojo");' in p68_hub)
+    check("upgrade pages show Now, After and Where (green) on LM clients; the text map stays for KaiPath",
+          'JsonObject now = whole(closeUp(part, lvNow, before.style, before.tier), "Now");' in p68_pics
+          and "JsonObject where = where(after, part, \"Where\");" in p68_pics
+          and "public UltraScreenSpec pictures(List<String> textLines, int minRows, int sidePermille, JsonArray items)" in p68_spec
+          and "private void drawPictures(GuiGraphics g)" in p68_native
+          and "LmNativeNetwork.takesPictures(player)" in p68_ui and "DojoWorld.mapLines(d, up, !maxed)" in p68_ui)
+    check("spectating needs the spectator balcony; spectators can't be hit or hit, and stay on the balcony",
+          '" has no spectator room, so its spars can\'t be watched."' in p68_world
+          and "DojoWorld.spectating(victim.m_20148_())" in p68_ev and "static double[] galleryBox(Dojo d)" in p68_world)
+    check("upgrade preview: top-down map with the room highlighted as it would be, a card, Visit dojo",
+          "public static List<String> mapLines(Dojo d, String highlight, boolean preview)" in p68_world
+          and 'spec.buttonRight("do:dojo_visit:" + d.masterUuid, "Visit dojo"' in p68_ui)
+    check("Dojo Points: earned only by dojo things with a daily cap per source, spent only on the dojo",
+          "HOST(2, 20," in p68_cat and "WAR_BOUT(5, 40," in p68_cat and "TRAINING(3, 15," in p68_cat
+          and "int grant = Math.max(0, Math.min(earn.points, earn.dailyCap - today));" in p68_svc
+          and "awardTp" not in p68_svc + p68_cat + p68_war and "Prestige" not in p68_svc + p68_cat + p68_board + p68_war)
+    check("styles and bonuses: four styles, one active bonus from the style's catalog, race scope, modest numbers",
+          "KI(\"Ki Masters\"" in p68_cat and "EVASION(\"Evasion\"" in p68_cat
+          and "FOCUS_PCT = 0.05;" in p68_cat and "RACE_PCT = 0.08;" in p68_cat
+          and "BONUS_COOLDOWN_MS = 7L * 24L * 60L * 60L * 1000L;" in p68_cat
+          and "DojoService.styleBonus(player, hitKind)" in p68_combat)
+    check("members 5 to 30, two elites, elite wars need the master's sign-off unless given war rights",
+          "BASE_DISCIPLES = 5;" in p68_cat and "MAX_MEMBERS = 30;" in p68_cat and "MAX_ELITES = 2;" in p68_cat
+          and 'w.status = needsSignoff ? "PENDING_SIGNOFF" : "CHALLENGED";' in p68_war
+          and "mine.apprenticeCount() >= apprenticeCap(" in p68_sys)
+    check("wars: bracket or gauntlet, power-of-2 seeds, RULES / INTERMISSION / PREVIEW / BOUT, KO or ring-out",
+          "public static int slots(int n)" in p68_war and 'case "RULES" ->' in p68_war
+          and 'case "INTERMISSION" ->' in p68_war and 'case "PREVIEW" ->' in p68_war and 'case "BOUT" ->' in p68_war
+          and '"GAUNTLET".equals(r.rec.format)' in p68_war and "DojoWar.onBoutDamage(victim, attacker, event.getAmount())" in p68_ev)
+    check("war record: winner, score, fights; expired challenges stop blocking so a pair can challenge again",
+          "public List<WarFight> fights" in p68_store and "public String winnerDojo" in p68_store
+          and 'w.status = "EXPIRED";' in p68_war and "static boolean open(WarRecord w)" in p68_war
+          and "SparStore.get().dojoChallenges.values().removeIf(c -> c == null || c.expiresAt < nowMs);" in p68_ev)
+    check("clout is seasonal: reset on the one season rollover path, upgrades and rooms untouched",
+          "DojoService.onSeasonAdvanced(ended, store.dojoSeason.seasonId);" in p68_rank
+          and "public static void onSeasonAdvanced(int endedSeason, int newSeason)" in p68_svc
+          and "upgrades" not in p68_svc.split("public static void onSeasonAdvanced(", 1)[1].split("public static List<Dojo> byClout", 1)[0])
+    check("reopening the same dojo drops every upgrade one tier",
+          "d.upgrades.put(up, DojoCatalog.afterReopen(up, t));" in p68_svc
+          and "return Math.max(minTier(id), tier - 1);" in p68_cat)
+    check("no void or fall deaths in the dojo world; outsiders can't hit a fighter mid-bout",
+          '"fall".equals(id) || "outOfWorld".equals(id)' in p68_ev
+          and "bout != null && attacker != null && !" in p68_ev)
+    p68_pu = read(SRC / "progression/skills/PotentialProgression.java")
+    check("Potential Unlock: normal in the world; in a spar session only for a fighter who opted in on a friendly spar",
+          "boolean session = com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.inSessionTogether(victim, attacker);" in p68_pu
+          and "if (attackerTrains) {\n                apply(attacker, victim, atkMethod, atkPoints);" in p68_pu
+          and "if (victimTrains) {\n                apply(victim, attacker, defMethod, defPoints);" in p68_pu
+          and "return rt != null && rt.active && !rt.boardRanked && rt.boardPotential;" in p68_sys
+          and "rt.boardPotential = !ranked && (p == a ? potentialA : potentialB);" in p68_sys
+          and "b.potentialB = !b.ranked && draft(acceptor.m_20148_()).want() == Want.POTENTIAL;" in p68_board
+          and 'TP("TP"), POTENTIAL("Potential Unlock"), ANY("Anything");' in p68_board
+          and '", looking for " + p.want().label' in p68_ui)
+    check("no dojo bonus, training session or arena touches Potential Unlock",
+          "dojo" not in p68_pu.replace("dojo arena", "")
+          and "potential" not in (p68_svc + p68_cat + p68_war).lower())
+    check("dim, never hidden: ranked before the gate, upgrades out of reach, spars without a dojo",
+          'spec.lockedButton("Post a spar")' in p68_ui and 'spec.lockedButton(maxed ? "Fully upgraded" : "Buy for "' in p68_ui)
+
     print("\n--- § lm 4.7.67 ---")
     p67_svc = read(SRC / "character/CosmeticBodyPartService.java")
     p67_scr = read(SRC / "gui/ultra/UltraCharacterScreens.java")
@@ -2124,6 +2282,7 @@ def main() -> int:
 
     print("\n--- § lm 4.7.64 ---")
     p64_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p68_dojo = read(SRC / "dojo/BoardSpar.java") + read(SRC / "dojo/DojoWorld.java") + read(SRC / "dojo/DojoWar.java")         + read(SRC / "dojo/DojoService.java") + read(SRC / "gui/ultra/UltraDojoScreens.java")
     p64_dash = read(SRC / "gui/ultra/HubDashboard.java")
     p64_board = read(SRC / "sparring/SparBoard.java")
     p64_spar = read(SRC / "gui/ultra/UltraSparScreens.java")
@@ -2142,32 +2301,27 @@ def main() -> int:
           'UltraStyle.header("Your next prestige")' in p64_hub and "HubDashboard.fastestNow(player)" in p64_hub
           and 'UltraStyle.header("Train")' in p64_hub and 'UltraStyle.header("Compete")' in p64_hub
           and 'new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), null);' in p64_hub
-          and 'new HubTile("spar_wars", "Dojo wars"' in p64_hub)
+          and ('new HubTile("spar_wars", "Dojo wars"' in p64_hub or 'new HubTile("spar_dojo", "My dojo"' in p64_hub))
     check("Menu skins and Staff Admin moved to More; Goals is a placeholder with no payout",
           'new HubTile("menu_skins", "Menu skins"' in p64_hub.split("private static void openMore(", 1)[-1]
           and 'new HubTile("admin", "Staff Admin"' in p64_hub.split("private static void openMore(", 1)[-1]
           and 'spec.lockedButton("No goals yet")' in p64_hub
           and "Weekly goals arrive in the next update." in p64_hub)
     check("LM links only to itself: no command runs from a menu, no other mod's screen",
-          all(x not in p64_hub + p64_dash + p64_board + p64_spar
+          all(x not in p64_hub + p64_dash + p64_board + p64_spar + p68_dojo
               for x in ("performPrefixedCommand", "dispatchCommand", "/home", "/spawn", "/tpa", "/empire",
                         "/meditate", "dmzultra"))
-          and '"/lm open spar"' in p64_board)
+          and '"/lm open spar sparboard"' in p68_dojo)
     check("Fastest now uses the tier table ratio (no made-up percentages) and ranks prestige first",
           "DifficultyGuide.change(before, after)" in p64_dash and "ut.enemyScalingMultiplier()" in p64_dash
           and '"Fastest now: T4 Veteran, +38% TP per kill."' in p64_dash
           and "%" not in p64_dash.split("public static String fastest(", 1)[-1].split("public static String fastestNow", 1)[0].replace('" TP per kill."', ""))
     check("spar streak line only when the player has a streak",
           "bond.streakCurrent <= 0" in p64_dash and 'return "Your spar streak: "' in p64_dash)
+    # 4.7.68 replaced the 4.7.64 list/ask board with the Spar Board tab (dojo.BoardSpar): this code no longer exists.
     check("spar board: 15 min listing, want cycle, ask with cooldown, say yes, cleared on spar start and logout",
-          "LIST_MS = 15L * 60L * 1000L;" in p64_board and "ASK_COOLDOWN_MS = 30_000L;" in p64_board
-          and "SparBoard.onSessionStart(a, b);" in p64_sys
-          and "SparBoard.onLogout(player.m_20148_());" in p64_ev
-          and "SparBoard.apply(viewer, parts.action, sparArg)" in p64_act
-          and "UltraSparScreens.openHome(viewer, board);" in p64_act)
-    check("spar board preview uses the real hit multiplier and pays nothing",
-          "SparCombat.buildTotalMultiplier(viewer, partner, null, a, b)" in p64_board
-          and "awardTp" not in p64_board and "grantExact" not in p64_board)
+          False, retired=True)
+    check("spar board preview uses the real hit multiplier and pays nothing", False, retired=True)
     check("each Home shows lines from the other systems",
           'UltraStyle.header("Beyond Difficulty")' in p64_diff and "HubDashboard.rivalLine(player)" in p64_diff
           and "HubDashboard.fastestNow(player)" in p64_pres

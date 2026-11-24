@@ -3,6 +3,7 @@ package com.dbzlegacy.uiprobe;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGui;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGuiActions;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraScreenSpec;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.net.gui.GuiOpenPacket;
 import com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork;
 import com.google.gson.JsonArray;
@@ -489,8 +490,8 @@ public final class UiProbe {
             note("HUB HOME tabs Home/Goals/More, Home first: " + (b.indexOf("tab:home") >= 0
                     && b.indexOf("tab:home") < b.indexOf("tab:goals") && b.indexOf("tab:goals") < b.indexOf("tab:more")
                     ? "PASS" : "FAIL"));
-            note("HUB HOME tiles grouped (Prestige, Difficulty, Sparring & Dojo, Rival, Dojo wars, Character): "
-                    + (has(p, "Prestige") && has(p, "Sparring ") && has(p, "Dojo wars")
+            note("HUB HOME tiles grouped (Prestige, Difficulty, Spar Board, Rival, My dojo, Character): "
+                    + (has(p, "Prestige") && has(p, "Spar Board") && has(p, "My dojo") && !has(p, "Dojo wars")
                     && has(p, "Character Services") && !has(p, "Menu skins") && !has(p, "Staff Admin")
                     ? "PASS" : "FAIL"));
             note("HUB HOME no made-up numbers, no other mods: " + (!has(p, "35%") && !has(p, "/home")
@@ -510,7 +511,7 @@ public final class UiProbe {
         // Every hub link opens the right LM screen.
         String[][] links = {
             {"open:prestige", "prestige|main"}, {"open:difficulty", "difficulty|main"}, {"open:spar", "spar|main"},
-            {"open:rival", "rival|home"}, {"page:wars", "spar|dojo_war"}, {"open:character", "character|main"},
+            {"open:rival", "rival|home"}, {"page:wars", "spar|dojo_wars"}, {"open:character", "character|main"},
             {"page:skins", "hub|skins"}, {"tab:home", "hub|main"},
         };
         for (String[] l : links) {
@@ -540,60 +541,538 @@ public final class UiProbe {
         bond.streakCurrent = oldCur;
         bond.streakLastDay = oldDay;
 
-        // Spar board end to end with a stand-in player.
+        // 4.7.68: the Spar Board, dojos and wars end to end (dojoScript), replacing the 4.7.64 list/ask board.
+        dojoScript();
+    }
+
+    // ---- 4.7.68 dojos, Spar Board, wars (test only) ----
+    private ServerPlayer dMate;
+    private ServerPlayer dMate2;
+    private ServerPlayer dMate3;
+
+    private ServerPlayer dojoStandIn(String name) {
         com.mojang.authlib.GameProfile gp = new com.mojang.authlib.GameProfile(
-                java.util.UUID.nameUUIDFromBytes("uiprobe:Sparmate".getBytes(StandardCharsets.UTF_8)), "Sparmate");
-        ServerPlayer mate = net.minecraftforge.common.util.FakePlayerFactory.get(player.m_284548_(), gp);
-        backing().add(mate);
-        byUuid().put(mate.m_20148_(), mate);
+                java.util.UUID.nameUUIDFromBytes(("uiprobe:" + name).getBytes(StandardCharsets.UTF_8)), name);
+        ServerPlayer p = net.minecraftforge.common.util.FakePlayerFactory.get(player.m_284548_(), gp);
+        p.m_6034_(player.m_20185_() + 3, player.m_20186_(), player.m_20189_());
+        backing().add(p);
+        byUuid().put(p.m_20148_(), p);
+        return p;
+    }
+
+    private static com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo dojoOf(ServerPlayer p) {
+        return com.dbzlegacy.adaptivedifficulty.dojo.DojoService.dojoOf(p);
+    }
+
+    private static Object call(Class<?> c, String m, Class<?>[] types, Object... args) throws Exception {
+        java.lang.reflect.Method mm = c.getDeclaredMethod(m, types);
+        mm.setAccessible(true);
+        return mm.invoke(null, args);
+    }
+
+    /** End a board bout the way the board does (KO, RING_OUT, FORFEIT, TIMEOUT). */
+    private void endBout(ServerPlayer someone, java.util.UUID winner, String how) throws Exception {
+        var b = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.boutOf(someone.m_20148_());
+        if (b == null) {
+            note("DOJO end bout: no bout for " + someone.m_7755_().getString() + " FAIL");
+            return;
+        }
+        call(com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.class, "end",
+                new Class<?>[] {com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.Bout.class, java.util.UUID.class,
+                        String.class}, b, winner, how);
+    }
+
+    private void draft(ServerPlayer p, boolean ranked, int wager) {
+        com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.setDraft(p.m_20148_(), ranked, wager);
+    }
+
+    private void dojoScript() {
+        var server = player.m_20194_();
+        var store = com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get();
+        String me = player.m_20148_().toString();
+        double hx = player.m_20185_();
+        double hy = player.m_20186_();
+        double hz = player.m_20189_();
+        String homeDim = player.m_9236_().m_46472_().m_135782_().toString();
+        player.m_150110_().f_35934_ = true;
         try {
-            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.list(mate);
-            for (GuiOpenPacket p : keep("spar board one looking", () -> UltraGui.open(player, "spar", "main"))) {
-                // JSON escapes the apostrophe in "Who's", so match the rest.
-                note("BOARD lists who is looking with TP per hit: " + (has(p, "s looking (1)")
-                        && has(p, "Sparmate: wants TP") && has(p, "TP a hit") && has(p, "Ask Sparmate")
-                        && has(p, "vs another dojo") ? "PASS" : "FAIL") + " | " + labels(p));
+            dMate = dojoStandIn("Sparmate");
+            dMate2 = dojoStandIn("Sparmate2");
+            dMate3 = dojoStandIn("Sparmate3");
+            // ---- no dojo, no spar
+            store.dojos.remove(me);
+            for (GuiOpenPacket p : keep("dojo board no dojo", () -> UltraGui.open(player, "spar", "sparboard"))) {
+                note("DOJO NO DOJO: board says join a dojo, with Find a dojo and a dim Post: " + pf(
+                        has(p, "Join a dojo first. No dojo, no spar.") && has(p, "Find a dojo")
+                                && has(p, "Found a dojo") && p.buttonsJson().contains("nav:none")) + " | " + labels(p));
             }
-            for (GuiOpenPacket p : hubClick("spar board list me", "spar", "do:spar_list", "main")) {
-                note("LIST ME: " + (has(p, "Listed for 15 minutes") && has(p, "Take me off the board")
-                        ? "PASS" : "FAIL"));
+            for (GuiOpenPacket p : keep("dojo tabs", () -> UltraGui.open(player, "spar", "main"))) {
+                note("DOJO TABS Home, Dojo, Spar Board; Home points to the board: " + pf(has(p, "Spar Board")
+                        && p.buttonsJson().contains("tab:sparboard") && !p.buttonsJson().contains("tab:wars")
+                        && has(p, "Open the Spar Board")));
             }
-            for (GuiOpenPacket p : hubClick("spar board want", "spar", "do:spar_want", "main")) {
-                note("WANT cycles to Potential Unlock: " + (has(p, "Looking for: Potential Unlock") ? "PASS" : "FAIL"));
+            hubClick("dojo found", "spar", "do:dojo_found", "dojo");
+            note("DOJO FOUND alone (free), one ring: " + pf(dojoOf(player) != null
+                    && com.dbzlegacy.adaptivedifficulty.dojo.DojoService.arenas(dojoOf(player)) == 1));
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoService.found(dMate);
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoService.found(dMate3);
+            boolean dim = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.level(server) != null;
+            note("DOJO WORLD the dojo dimension is loaded from the LM datapack: " + pf(dim));
+            if (dim) {
+                // 4.7.68 Phase 2: founding places the hall from the toolkit's structures (finished now for the checks).
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+                var fresh = dojoOf(player);
+                note("DOJO PLOT built from the structures, checks OK: " + pf(com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.ready(fresh)
+                        && "OK".equals(com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.LAST_CHECK.get(fresh.masterUuid))) + " " + com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.LAST_CHECK.get(fresh.masterUuid));
+                note("DOJO PLOT a new dojo is the empty hall with one sparring mat: " + pf(ringBuilt(fresh, 0)
+                        && !ringBuilt(fresh, 1) && !ringBuilt(fresh, 5)));
             }
-            String ask = "do:spar_ask:" + mate.m_20148_();
-            for (GuiOpenPacket p : hubClick("spar board ask", "spar", ask, "main")) {
-                note("ASK one tap: " + (has(p, "Asked Sparmate. 5 minutes to say yes.")
-                        && has(p, "Asked Sparmate") && p.buttonsJson().contains("nav:none") ? "PASS" : "FAIL"));
+            // mate2 joins the probe player's dojo as a disciple (a bond, as the mentor accept makes it).
+            var mb = com.dbzlegacy.adaptivedifficulty.sparring.SparStore.get().bond(player.m_20148_());
+            mb.addApprentice(dMate2.m_20148_().toString(), "Sparmate2");
+            var ab = com.dbzlegacy.adaptivedifficulty.sparring.SparStore.get().bond(dMate2.m_20148_());
+            ab.mentorUuid = me;
+            ab.mentorName = player.m_7755_().getString();
+            dojoOf(player).joinedAt.put(dMate2.m_20148_().toString(), 0L);
+            note("DOJO MEMBER a disciple belongs to the master's dojo: " + pf(dojoOf(dMate2) == dojoOf(player)));
+
+            // ---- ranked gate
+            store.player(me, "").unrankedSpars = 0;
+            store.player(dMate.m_20148_().toString(), "Sparmate").unrankedSpars = 0;
+            for (GuiOpenPacket p : keep("dojo board gate", () -> UltraGui.open(player, "spar", "sparboard"))) {
+                note("DOJO RANKED GATE: 0 of 30 shown and ranked dim: " + pf(has(p, "0 of 30 friendly spars done")
+                        && has(p, "Ranked: locked")));
             }
-            for (GuiOpenPacket p : hubClick("spar board ask again", "spar", ask, "main")) {
-                note("ASK cooldown: " + (has(p, "Just asked Sparmate") ? "PASS" : "FAIL"));
+            for (GuiOpenPacket p : hubClick("dojo ranked locked", "spar", "do:board_mode", "sparboard")) {
+                note("DOJO RANKED GATE: switching to ranked before 30 says how many are left: "
+                        + pf(has(p, "Ranked unlocks after 30 friendly spars")));
             }
-            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.ask(mate, player.m_20148_().toString());
-            for (GuiOpenPacket p : keep("spar board asked", () -> UltraGui.open(player, "spar", "main"))) {
-                note("ASKED shows Say yes: " + (has(p, "Sparmate asked you to spar.") && has(p, "Say yes to Sparmate")
-                        ? "PASS" : "FAIL"));
+
+            // ---- plain PvP is not a spar
+            var src = player.m_269291_().m_269075_(dMate);
+            com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.onPlayerHurt(player, dMate, src);
+            com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.onPlayerHurt(dMate,
+                    player, dMate.m_269291_().m_269075_(player));
+            note("DOJO PLAIN PVP: trading hits starts no spar: " + pf(
+                    !com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.isSparring(player.m_20148_())));
+
+            if (!dim) {
+                note("DOJO the dojo world is missing, so arena checks are skipped FAIL");
+                return;
             }
-            for (GuiOpenPacket p : hubClick("spar board yes", "spar", "do:spar_yes:" + mate.m_20148_(), "main")) {
-                note("SAY YES tells the asker: " + (has(p, "Told Sparmate.") && !has(p, "Say yes to Sparmate")
-                        ? "PASS" : "FAIL"));
+            // ---- a friendly board spar: post, accept, teleport, fight, exact return
+            draft(player, false, 0);
+            for (GuiOpenPacket p : hubClick("dojo post", "spar", "do:board_post", "sparboard")) {
+                note("DOJO POST friendly for 15 minutes: " + pf(has(p, "Posted a friendly spar")));
             }
-            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.onSessionStart(player, mate);
-            long now = System.currentTimeMillis();
-            note("SPAR START takes both off the board: " + (com.dbzlegacy.adaptivedifficulty.sparring.SparBoard
-                    .listedLeft(player.m_20148_(), now) == 0L && com.dbzlegacy.adaptivedifficulty.sparring.SparBoard
-                    .listedLeft(mate.m_20148_(), now) == 0L ? "PASS" : "FAIL"));
-            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.list(mate);
-            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.onLogout(mate.m_20148_());
-            for (GuiOpenPacket p : keep("spar board empty", () -> UltraGui.open(player, "spar", "main"))) {
-                note("LOGOUT leaves the board, empty board is dim: " + (has(p, "s looking (0)")
-                        && has(p, "No one to ask yet") ? "PASS" : "FAIL"));
+            for (GuiOpenPacket p : keep("dojo board mate view", () -> UltraGui.open(dMate, "spar", "sparboard"))) {
+                note("DOJO LISTING shows name, level, Friendly Fist, kind, wait and wager: " + pf(
+                        has(p, player.m_7755_().getString()) && has(p, " Lv ") && has(p, "Friendly Fist")
+                                && has(p, "friendly") && has(p, "waiting") && has(p, "no wager")
+                                && has(p, "Accept " + player.m_7755_().getString())) + " | " + labels(p));
             }
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+            String r = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_accept", me);
+            var bout = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.boutOf(player.m_20148_());
+            var host = dojoOf(player);
+            var o = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.plotOrigin(host.plot);
+            double[] c0 = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.ringCenter(host, 0);
+            double dist = Math.hypot(player.m_20185_() - c0[0], player.m_20189_() - c0[1]);
+            note("DOJO ACCEPT teleports both into the poster's arena and starts the spar: " + r + " "
+                    + pf(bout != null && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.inDojoWorld(player) && dist < 10
+                    && com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.isSparring(player.m_20148_())));
+            for (GuiOpenPacket p : keep("dojo board in bout", () -> UltraGui.open(player, "spar", "sparboard"))) {
+                note("DOJO IN BOUT: board shows the opponent and a forfeit that warns about refunds: "
+                        + pf(has(p, "Forfeit this spar") && has(p, "refunded")));
+            }
+            int unranked0 = store.player(me, "").unrankedSpars;
+            endBout(player, dMate.m_20148_(), "FORFEIT");
+            boolean back = !com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.inDojoWorld(player)
+                    && Math.abs(player.m_20185_() - hx) < 0.6 && Math.abs(player.m_20189_() - hz) < 0.6
+                    && Math.abs(player.m_20186_() - hy) < 0.6
+                    && player.m_9236_().m_46472_().m_135782_().toString().equals(homeDim);
+            note("DOJO RETURN both go back to exactly where they stood: " + pf(back) + " at " + (int) player.m_20185_()
+                    + "," + (int) player.m_20186_() + "," + (int) player.m_20189_());
+            note("DOJO ANTI-FARM a forfeit right away doesn't count: " + pf(store.player(me, "").unrankedSpars == unranked0));
+            for (GuiOpenPacket p : keep("dojo result", () -> UltraGui.open(player, "spar", "result"))) {
+                note("DOJO RESULT screen with a rematch: " + pf(has(p, "Rematch Sparmate") && has(p, "forfeit")));
+            }
+            // A counted friendly spar: a minute, both landing damage.
+            draft(player, false, 0);
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(player, "board_post", "");
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_accept", me);
+            bout = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.boutOf(player.m_20148_());
+            int pts0 = host.points;
+            if (bout != null) {
+                bout.startAt -= 61_000L;
+                // The leaderboard skips spars under 30 s: age the sessions too.
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(player.m_20148_()).startAt -= 61_000L;
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(dMate.m_20148_()).startAt -= 61_000L;
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(player.m_20148_()).sessionDmg = 40;
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(dMate.m_20148_()).sessionDmg = 30;
+                endBout(player, player.m_20148_(), "KO");
+            }
+            note("DOJO COUNTED friendly spar: both +1 toward ranked, the host dojo +2 points: " + pf(
+                    store.player(me, "").unrankedSpars == unranked0 + 1 && host.points == pts0 + 2));
+            note("DOJO FRIENDLY pays no spar TP: " + pf(com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.result(
+                    player.m_20148_()).lines().toString().contains("friendly spars pay nothing")));
+
+            // ---- wagers: coins (KO pays the winner both) and points (forfeit refunds both)
+            store.player(me, "").unrankedSpars = 30;
+            store.player(dMate.m_20148_().toString(), "Sparmate").unrankedSpars = 30;
+            for (ServerPlayer w : new ServerPlayer[] {player, dMate}) {
+                com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.grantExact(w,
+                        com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.CoinKind.NETHERITE, 5);
+            }
+            long coinsP = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(player);
+            long coinsM = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(dMate);
+            draft(player, true, com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.COIN_STEPS.length);
+            String posted = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(player, "board_post", "");
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+            String acc = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_accept", me);
+            long heldP = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(player);
+            long heldM = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(dMate);
+            note("DOJO WAGER 5 netherite coins: both stakes held at accept: " + posted + " / " + acc + " "
+                    + pf(coinsP - heldP == 500_000L && coinsM - heldM == 500_000L));
+            bout = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.boutOf(player.m_20148_());
+            if (bout != null) {
+                bout.startAt -= 61_000L;
+                // The leaderboard skips spars under 30 s: age the sessions too.
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(player.m_20148_()).startAt -= 61_000L;
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(dMate.m_20148_()).startAt -= 61_000L;
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(player.m_20148_()).sessionDmg = 40;
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(dMate.m_20148_()).sessionDmg = 30;
+            }
+            var lb = com.dbzlegacy.adaptivedifficulty.sparring.SparStore.get().leaderboard.get(me);
+            int sessions0 = lb == null ? 0 : lb.sessions;
+            int ranked0 = store.player(me, "").rankedSpars;
+            endBout(player, player.m_20148_(), "KO");
+            long afterP = com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(player);
+            note("DOJO WAGER KO: the winner takes both stakes: " + pf(afterP - heldP == 1_000_000L
+                    && com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.balance(dMate) == heldM));
+            lb = com.dbzlegacy.adaptivedifficulty.sparring.SparStore.get().leaderboard.get(me);
+            note("DOJO RANKED counted: ranked spars +1 and the leaderboard sees it: " + pf(
+                    store.player(me, "").rankedSpars == ranked0 + 1 && lb != null && lb.sessions == sessions0 + 1));
+            // Same pair again at once: no ranked credit (15-minute pair cooldown).
+            draft(player, true, 0);
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(player, "board_post", "");
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_accept", me);
+            bout = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.boutOf(player.m_20148_());
+            if (bout != null) {
+                bout.startAt -= 61_000L;
+                // The leaderboard skips spars under 30 s: age the sessions too.
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(player.m_20148_()).startAt -= 61_000L;
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(dMate.m_20148_()).startAt -= 61_000L;
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(player.m_20148_()).sessionDmg = 40;
+                com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.runtime(dMate.m_20148_()).sessionDmg = 30;
+                endBout(player, player.m_20148_(), "KO");
+            }
+            note("DOJO ANTI-FARM same pair right away: no ranked credit, and the result says why: " + pf(
+                    store.player(me, "").rankedSpars == ranked0 + 1 && com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar
+                            .result(player.m_20148_()).lines().toString().contains("last 15 minutes")));
+            // Points wager, refunded on a forfeit.
+            dojoOf(player).points = 20;
+            dojoOf(dMate).points = 20;
+            draft(player, false, com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.wagerSteps() - 1);
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(player, "board_post", "");
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_accept", me);
+            note("DOJO WAGER 20 Dojo Points: both dojos' stakes held: " + pf(dojoOf(player).points == 0
+                    && dojoOf(dMate).points == 0));
+            endBout(dMate, player.m_20148_(), "FORFEIT");
+            note("DOJO WAGER forfeit refunds both: " + pf(dojoOf(player).points == 20 && dojoOf(dMate).points == 20));
+
+            // ---- upgrades, two spars at once, the map preview
+            host = dojoOf(player);
+            host.points = 2000;
+            hubClick("dojo buy arena", "spar", "do:dojo_buy:arena", "dojo_up:arena");
+            note("DOJO UPGRADE a second ring: " + pf(com.dbzlegacy.adaptivedifficulty.dojo.DojoService.arenas(host) == 2));
+            boolean queued = com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.busy(host.masterUuid);
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+            var lvl = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.level(server);
+            double[] c1 = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.ringCenter(host, 1);
+            note("DOJO BUILD the purchase builds ring 2 into the hall (only that part rebuilt): " + pf(queued
+                    && ringBuilt(host, 1) && ringBuilt(host, 0) && !ringBuilt(host, 2)
+                    && "OK".equals(com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.LAST_CHECK.get(host.masterUuid))));
+            draft(player, false, 0);
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(player, "board_post", "");
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_accept", me);
+            draft(dMate2, false, 0);
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate2, "board_post", "");
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate3, "board_accept", dMate2.m_20148_().toString());
+            var b1 = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.boutOf(player.m_20148_());
+            var b2 = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.boutOf(dMate2.m_20148_());
+            note("DOJO TWO SPARS at once in one dojo (arenas 1 and 2): " + pf(b1 != null && b2 != null
+                    && b1.host.equals(b2.host) && b1.arena != b2.arena));
+            // Spectators: no room, no watching; with the room, watch from the gallery.
+            String noRoom = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.spectate(player, host);
+            note("DOJO SPECTATE without the room: refused: " + pf(noRoom.contains("has no spectator room")));
+            if (b1 != null) {
+                endBout(player, player.m_20148_(), "FORFEIT");
+            }
+            hubClick("dojo buy spectator", "spar", "do:dojo_buy:spectator", "dojo_up:spectator");
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+            String watch = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.spectate(player, host);
+            double gy = player.m_20186_();
+            note("DOJO SPECTATE with the balcony: on the balcony above the rings: " + watch + " "
+                    + pf(com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.spectating(player.m_20148_())
+                    && gy > com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.FLOOR_Y + 5));
+            player.m_150110_().f_35934_ = false;
+            float hp0 = player.m_21223_();
+            player.f_19802_ = 0;
+            player.m_6469_(player.m_269291_().m_269075_(dMate3), 6.0f);
+            note("DOJO SPECTATOR can't be hit: " + pf(player.m_21223_() >= hp0));
+            player.m_150110_().f_35934_ = true;
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.teleport(player, lvl, c1[0],
+                    com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.FLOOR_Y + 1, c1[1], 0f);
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.pulse(server);
+            note("DOJO SPECTATOR can't step into a ring (put back on the balcony): " + pf(player.m_20186_()
+                    > com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.FLOOR_Y + 5));
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.leave(player);
+            if (b2 != null) {
+                endBout(dMate2, dMate2.m_20148_(), "FORFEIT");
+            }
+            for (GuiOpenPacket p : keep("dojo upgrade preview", () -> UltraGui.open(player, "spar", "dojo_up:training_hall"))) {
+                // The probe player's client draws pictures: Now / After / Where in the body, the text map under them.
+                boolean pics = p.layoutJson().contains("\"pictures\"") && p.layoutJson().contains("cu_training_hall_0_t")
+                        && p.layoutJson().contains("cu_training_hall_1_") && p.layoutJson().contains("plan_t");
+                note("DOJO PREVIEW Now / After / Where pictures, the text map, cost warning, Visit dojo: " + pf(pics
+                        && has(p, "*Training*") && has(p, "Visit dojo") && has(p, "Cost")
+                        && has(p, "Points are spent at once")) + " | " + labels(p));
+            }
+            for (GuiOpenPacket p : keep("dojo upgrade list plan", () -> UltraGui.open(player, "spar", "dojo_upgrades"))) {
+                note("DOJO UPGRADES list: LM names and costs, the hall's plan: " + pf(has(p, "Spectator balcony")
+                        && has(p, "Sparring arenas") && p.layoutJson().contains("\"pictures\"")) + " | " + labels(p));
+            }
+            hubClick("dojo buy training", "spar", "do:dojo_buy:training_hall", "dojo_up:training_hall");
+            hubClick("dojo buy training 2", "spar", "do:dojo_buy:training_hall", "dojo_up:training_hall");
+            for (int i = 0; i < 5; i++) {
+                hubClick("dojo buy capacity", "spar", "do:dojo_buy:capacity", "dojo_up:capacity");
+            }
+            note("DOJO CAPACITY 5 disciples to start, 30 members at the top: " + pf(
+                    com.dbzlegacy.adaptivedifficulty.dojo.DojoService.disciplesAllowed(me) == 29
+                    && com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.disciplesAllowed(0) == 5));
+            // ---- styles and the bonus
+            hubClick("dojo style", "spar", "do:dojo_style:MELEE", "dojo_style");
+            hubClick("dojo bonus", "spar", "do:dojo_bonus:melee:focus", "dojo_style");
+            double mel = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.styleBonus(player, "melee");
+            double ki = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.styleBonus(player, "ki");
+            note("DOJO STYLE Melee with Melee focus: +5% on melee hits, nothing on ki: " + pf(mel == 0.05 && ki == 0.0));
+            host.bonusChangedAt = 0L;
+            hubClick("dojo bonus race", "spar", "do:dojo_bonus:melee:race:majin", "dojo_style");
+            String race = com.dbzlegacy.adaptivedifficulty.calc.DmzProgression.race(player);
+            double raceBonus = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.styleBonus(player, "melee");
+            note("DOJO RACE bonus applies only to that race (probe is " + race + "): " + pf("majin".equals(race)
+                    ? raceBonus == 0.08 : raceBonus == 0.0));
+            // ---- Potential Unlock: off inside a spar session, normal in the world, no dojo bonus on it
+            for (ServerPlayer w : new ServerPlayer[] {player, dMate}) {
+                com.dbzlegacy.adaptivedifficulty.progression.ProgressionData.storedPut(w, "potential_movement_valid_until",
+                        System.currentTimeMillis() + 120_000L);
+            }
+            // Scenario per session: who looks for Potential Unlock, ranked or friendly, and what the probe player
+            // (the only fighter with DMZ stats) should gain from one hit it lands. 600 ms apart: the PU duplicate
+            // window is 500 ms, so each hit is judged on its own.
+            Object[][] scenarios = {
+                    {"friendly, nobody opted in", false, "TP", "TP", false},
+                    {"friendly, the probe player opted in", false, "POTENTIAL", "TP", true},
+                    {"friendly, only the opponent opted in", false, "TP", "POTENTIAL", false},
+                    {"ranked, both opted in", true, "POTENTIAL", "POTENTIAL", false}};
+            String pu1 = "";
+            for (Object[] sc : scenarios) {
+                store.player(me, "").unrankedSpars = 30;
+                store.player(dMate.m_20148_().toString(), "Sparmate").unrankedSpars = 30;
+                com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.setDraft(player.m_20148_(), (Boolean) sc[1], 0);
+                while (com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.draft(player.m_20148_()).want().name()
+                        .equals(sc[2]) == false) {
+                    com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(player, "board_want", "");
+                }
+                while (com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.draft(dMate.m_20148_()).want().name()
+                        .equals(sc[3]) == false) {
+                    com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_want", "");
+                }
+                com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(player, "board_post", "");
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+                com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_accept", me);
+                for (ServerPlayer w : new ServerPlayer[] {player, dMate}) {
+                    com.dbzlegacy.adaptivedifficulty.progression.ProgressionData.storedPut(w,
+                            "potential_movement_valid_until", System.currentTimeMillis() + 120_000L);
+                }
+                try {
+                    Thread.sleep(600L);
+                } catch (InterruptedException ignored) {
+                }
+                String before = String.valueOf(com.dbzlegacy.adaptivedifficulty.gui.ultra.HubDashboard.potentialLine(player));
+                boolean inSession = com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.inSessionTogether(player, dMate);
+                com.dbzlegacy.adaptivedifficulty.progression.skills.PotentialProgression.onPlayerHurt(dMate, player,
+                        player.m_269291_().m_269075_(player));
+                String after = String.valueOf(com.dbzlegacy.adaptivedifficulty.gui.ultra.HubDashboard.potentialLine(player));
+                boolean gained = !after.equals(before);
+                note("PU SESSION " + sc[0] + ": the probe player " + ((Boolean) sc[4] ? "gains" : "gains nothing")
+                        + ": " + pf(inSession && gained == (Boolean) sc[4]) + " (" + before + " -> " + after + ")");
+                endBout(player, player.m_20148_(), "FORFEIT");
+                pu1 = after;
+            }
+            for (GuiOpenPacket p : keep("dojo board want", () -> UltraGui.open(player, "spar", "sparboard"))) {
+                // The explanation wraps after "friendly" on the LM client's line width: match the first line only.
+                note("PU WANT the board offers Looking for (TP, Potential Unlock, Anything): " + pf(has(p, "Looking for - ")
+                        && has(p, "Looking for Potential Unlock trains it in friendly")));
+            }
+            try {
+                Thread.sleep(600L);
+            } catch (InterruptedException ignored) {
+            }
+            for (ServerPlayer w : new ServerPlayer[] {player, dMate}) {
+                com.dbzlegacy.adaptivedifficulty.progression.ProgressionData.storedPut(w, "potential_movement_valid_until",
+                        System.currentTimeMillis() + 120_000L);
+            }
+            com.dbzlegacy.adaptivedifficulty.progression.skills.PotentialProgression.onPlayerHurt(dMate, player,
+                    player.m_269291_().m_269075_(player));
+            String pu2 = String.valueOf(com.dbzlegacy.adaptivedifficulty.gui.ultra.HubDashboard.potentialLine(player));
+            note("PU WORLD outside a session (with the Melee bonus active): the same hit gains the normal points: "
+                    + (pu2.equals(pu1) ? "SKIP (no points from a stand-in without DMZ stats)" : pf(!pu2.equals(pu1)))
+                    + " (" + pu1 + " -> " + pu2 + ")");
+
+            // ---- elites and war sign-off
+            hubClick("dojo promote", "spar", "do:dojo_promote:" + dMate2.m_20148_(), "dojo_elites");
+            note("DOJO ELITE the master names an elite: " + pf(host.elites.contains(dMate2.m_20148_().toString())));
+            String w1 = com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.declare(dMate2, dojoOf(dMate).masterUuid, "BRACKET");
+            var pend = com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.warsOf(host.masterUuid).get(0);
+            note("DOJO ELITE war needs the master's sign-off: " + w1 + " " + pf("PENDING_SIGNOFF".equals(pend.status)));
+            hubClick("dojo signoff", "spar", "do:war_signoff:" + pend.id, "dojo_wars");
+            note("DOJO SIGN-OFF sends the challenge: " + pf("CHALLENGED".equals(pend.status)));
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.decline(dMate, pend.id);
+            // ---- reopen penalty, season reset
+            int arenasBefore = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.arenas(host);
+            int trainBefore = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.tier(host, "training_hall");
+            hubClick("dojo close", "spar", "do:dojo_close", "dojo");
+            note("DOJO CLOSE: members have no dojo while it's closed: " + pf(dojoOf(player) == null && dojoOf(dMate2) == null));
+            hubClick("dojo reopen", "spar", "do:dojo_reopen", "dojo");
+            note("DOJO REOPEN is the same dojo, every upgrade one tier down: " + pf(dojoOf(player) == host
+                    && com.dbzlegacy.adaptivedifficulty.dojo.DojoService.arenas(host) == arenasBefore - 1
+                    && com.dbzlegacy.adaptivedifficulty.dojo.DojoService.tier(host, "training_hall") == trainBefore - 1));
+            host.clout = 77;
+            int arenasNow = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.arenas(host);
+            com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings.advanceSeasonNow();
+            note("DOJO SEASON reset: clout goes to history and restarts, rooms stay: " + pf(host.clout <= 30
+                    && host.cloutHistory.containsValue(77)
+                    && com.dbzlegacy.adaptivedifficulty.dojo.DojoService.arenas(host) == arenasNow));
+            // ---- visits: plots far apart, leave goes back
+            var mateDojo = dojoOf(dMate);
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.ensureBuilt(server, mateDojo);
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+            var o2 = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.plotOrigin(mateDojo.plot);
+            String v = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.visit(player, mateDojo);
+            boolean there = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.inDojoWorld(player)
+                    && Math.hypot(player.m_20185_() - o2.m_123341_(), player.m_20189_() - o2.m_123343_()) < 70;
+            note("DOJO VISIT another dojo's plot; plots are 4000+ blocks apart: " + v + " " + pf(there
+                    && Math.hypot(o2.m_123341_() - o.m_123341_(), o2.m_123343_() - o.m_123343_()) >= 4000));
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.leave(player);
+            note("DOJO LEAVE goes back to where the visit started: " + pf(!com.dbzlegacy.adaptivedifficulty.dojo
+                    .DojoWorld.inDojoWorld(player) && Math.abs(player.m_20185_() - hx) < 0.6));
+            for (GuiOpenPacket p : keep("dojo page", () -> UltraGui.open(player, "spar", "dojo"))) {
+                note("DOJO PAGE: points, clout, members, hall, style, elites, Upgrades, Wars, Visit: " + pf(
+                        has(p, "Dojo Points") && has(p, "Clout this season") && has(p, "Members")
+                                && has(p, "Hall") && has(p, "Elites") && has(p, "Upgrades") && has(p, "Wars")
+                                && has(p, "Visit dojo")) + " | " + labels(p));
+            }
+        } catch (Throwable t) {
+            note("DOJO script ERROR " + t + " FAIL");
+            LOG.error("dojo script", t);
         } finally {
-            backing().remove(mate);
-            byUuid().remove(mate.m_20148_());
-            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.onLogout(mate.m_20148_());
-            com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.unlist(player.m_20148_());
+            player.m_150110_().f_35934_ = true;
+            for (ServerPlayer p : new ServerPlayer[] {dMate, dMate2, dMate3}) {
+                if (p != null && com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.inBout(p.m_20148_())) {
+                    try {
+                        endBout(p, p.m_20148_(), "FORFEIT");
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
+            if (com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.inDojoWorld(player)) {
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.returnPlayer(player);
+            }
+        }
+    }
+
+    /** Final phase: wars on the real probe player (bracket and gauntlet), and a lethal blow as a KO. */
+    private String warId = "";
+
+    private void dojoFinal(String s) {
+        try {
+            var store = com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get();
+            switch (s) {
+                case "warstart", "warstart2" -> {
+                    player.m_150110_().f_35934_ = false;
+                    String fmt = "warstart".equals(s) ? "BRACKET" : "GAUNTLET";
+                    String d = com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.declare(player, dojoOf(dMate).masterUuid, fmt);
+                    var w = com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.warsOf(dojoOf(player).masterUuid).get(0);
+                    warId = w.id;
+                    String a = com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.accept(dMate, w.id);
+                    String j = com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.join(player, w.id);
+                    note("WAR " + fmt + " declared, accepted, signed up: " + d + " / " + a + " / " + j + " "
+                            + pf("RUNNING".equals(w.status) && com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.signupOpen(w.id)));
+                }
+                case "warringout" -> {
+                    // The stand-in (a fake player, which takes no damage) steps out of the ring: ring-out.
+                    // A fake player ignores a same-world teleport (its connection drops it): move it directly.
+                    dMate.m_6034_(dMate.m_20185_() + 90, com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.FLOOR_Y + 1,
+                            dMate.m_20189_());
+                    note("WAR phase at ring-out: in dojo world=" + com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld
+                            .inDojoWorld(player));
+                }
+                case "warcheck" -> {
+                    var w = com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.byId(warId);
+                    note("WAR record: winner, score and the fight list; everyone back home: " + pf(w != null
+                            && "DONE".equals(w.status) && !w.winnerName.isBlank() && w.fights.size() == 1
+                            && (w.fromScore + w.toScore) == 1 && !com.dbzlegacy.adaptivedifficulty.dojo.DojoWar
+                            .fighting(player.m_20148_())) + " " + (w == null ? "" : w.status + " " + w.winnerName
+                            + " " + w.fromScore + "-" + w.toScore + " " + (w.fights.isEmpty() ? "" : w.fights.get(0).how)));
+                    String again = com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.declare(player,
+                            dojoOf(dMate).masterUuid, "GAUNTLET");
+                    var w2 = com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.warsOf(dojoOf(player).masterUuid).get(0);
+                    note("WAR the same pair can challenge again after a war: " + again + " "
+                            + pf("CHALLENGED".equals(w2.status)));
+                    com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.decline(player, w2.id);
+                    for (GuiOpenPacket p : keep("war view", () -> UltraGui.open(player, "spar", "dojo_war_view:" + warId))) {
+                        note("WAR bracket page shows the rounds and the winner: " + pf(has(p, "Winner") && has(p, " by ")));
+                    }
+                    player.m_150110_().f_35934_ = true;
+                    write("uiprobe-script.txt", scriptLog.toString(), false);
+                }
+                case "kostart" -> {
+                    player.m_150110_().f_35934_ = false;
+                    draft(dMate, false, 0);
+                    com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(dMate, "board_post", "");
+                    com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+                    String a = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(player, "board_accept",
+                            dMate.m_20148_().toString());
+                    note("KO bout started: " + a);
+                }
+                case "kohit" -> {
+                    player.m_21153_(player.m_21233_());
+                    player.f_19802_ = 0;
+                    boolean hurt = player.m_6469_(player.m_269291_().m_269075_(dMate), 1.0e6f);
+                    note("KO lethal blow landed=" + hurt + " hp=" + player.m_21223_());
+                }
+                case "kocheck" -> {
+                    var r = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.result(player.m_20148_());
+                    note("KO a lethal blow in a board spar is a knockout, nobody dies, both go home: " + pf(
+                            player.m_6084_() && r != null && r.lines().toString().contains("knockout")
+                                    && !com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.inBout(player.m_20148_())
+                                    && !com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.inDojoWorld(player)));
+                    player.m_150110_().f_35934_ = true;
+                    player.m_21153_(player.m_21233_());
+                    write("uiprobe-script.txt", scriptLog.toString(), false);
+                }
+                default -> { }
+            }
+        } catch (Throwable t) {
+            note("DOJO final " + s + " ERROR " + t + " FAIL");
+            LOG.error("dojo final", t);
         }
     }
 
@@ -937,10 +1416,12 @@ public final class UiProbe {
         // 4.7.64: the hub on the real client: Home, a tab click, the Dojo wars tile, and the spar board list button.
         {"open", "hub", "main"}, {"wait", "60"}, {"say", "uirecord hub1-home"}, {"wait", "20"},
         {"say", "uiclick label:Goals"}, {"wait", "60"}, {"say", "uirecord hub2-goals"}, {"wait", "20"},
-        {"open", "hub", "main"}, {"wait", "60"}, {"say", "uiclick label:Dojo wars"}, {"wait", "60"},
+        {"open", "hub", "main"}, {"wait", "60"}, {"say", "uiclick label:My dojo"}, {"wait", "60"},
         {"say", "uirecord hub3-dojo-wars"}, {"wait", "20"},
-        {"open", "spar", "main"}, {"wait", "60"}, {"say", "uiclick label:List me for 15 min"}, {"wait", "60"},
-        {"say", "uirecord spar1-listed"}, {"wait", "20"},
+        // 4.7.68: the Spar Board tab, the Dojo tab and an upgrade preview on the real client.
+        {"open", "spar", "sparboard"}, {"wait", "60"}, {"say", "uirecord board1-spar-board"}, {"wait", "20"},
+        {"open", "spar", "dojo"}, {"wait", "60"}, {"say", "uirecord dojo1-dojo-tab"}, {"wait", "20"},
+        {"open", "spar", "dojo_up:arena"}, {"wait", "60"}, {"say", "uirecord dojo2-upgrade-preview"}, {"wait", "20"},
         {"guidereset"}, {"open", "difficulty", "main"}, {"wait", "60"}, {"say", "uirecord guide1-first-open"},
         {"wait", "20"}, {"say", "uiclick label:Skip guide"}, {"wait", "60"}, {"say", "uirecord guide2-after-skip"},
         {"wait", "20"}, {"guidecheck"}, {"open", "difficulty", "main"}, {"wait", "60"},
@@ -965,6 +1446,13 @@ public final class UiProbe {
         {"wait", "20"}, {"say", "uiclick wheel:0"}, {"wait", "20"}, {"say", "uirecord part2-wheel-picked"},
         {"wait", "20"}, {"say", "uiclick label:Apply this color"}, {"wait", "60"}, {"say", "uirecord part3-applied"},
         {"wait", "20"}, {"part", "check"}, {"part", "reset"}, {"wait", "20"},
+        // 4.7.68: a lethal blow in a board spar is a KO (the real probe player is the victim); then a bracket war and
+        // a gauntlet war on the real player against a stand-in (who leaves the ring, a ring-out).
+        {"dojo", "kostart"}, {"wait", "40"}, {"say", "uirecord dojo3-in-arena"}, {"dojo", "kohit"}, {"wait", "40"},
+        {"dojo", "kocheck"}, {"wait", "20"},
+        {"dojo", "warstart"}, {"wait", "1700"}, {"say", "uirecord war1-bout"}, {"dojo", "warringout"}, {"wait", "100"},
+        {"dojo", "warcheck"}, {"dojo", "warstart2"}, {"wait", "1700"}, {"dojo", "warringout"}, {"wait", "100"},
+        {"dojo", "warcheck"},
         {"trialcheck"},
         // Last, because the probe player dies in both (stand-ins are Forge fake players, which take no damage):
         // a zombie's lethal hit in a Friendly Fist spar still kills; with Friendly Fist off a partner's still kills.
@@ -1474,6 +1962,14 @@ public final class UiProbe {
     }
 
     private void finalTick() {
+        if (MOCK) {
+            if (!mockDone) {
+                mockDone = true;
+                write("uiprobe-script.txt", scriptLog.toString(), false);
+                say("uiquit");
+            }
+            return;
+        }
         if (finalWait > 0) {
             finalWait--;
             return;
@@ -1503,6 +1999,7 @@ public final class UiProbe {
             case "ff" -> ffStep(st[1]);
             case "custom" -> customFinal(st[1]);
             case "part" -> partFinal(st[1]);
+            case "dojo" -> dojoFinal(st[1]);
             case "guidereset" -> {
                 guideReset();
                 note("FINAL guide reset done=" + guideDone());
@@ -1528,6 +2025,181 @@ public final class UiProbe {
         }
     }
 
+    // ---- 4.7.68 menu mockups (-Duiprobe.mock=true, test only) ----
+    // The proposed dojo menus, built with LM's real spec API and drawn by the real LM client in the current look, so
+    // a mockup is exactly what the screen will look like. No crawl and no checks: each page is shot at GUI 2, 3 and 4,
+    // then the client quits. tools/lm-ui-probe/mock_compose.py adds the floor-plan picture where the page leaves room
+    // for it (the picture element itself is Phase 2 work).
+    static final boolean MOCK = Boolean.getBoolean("uiprobe.mock");
+    private boolean mockDone;
+
+    private void mock(String tag, Runnable r) {
+        for (GuiOpenPacket p : keep("mock " + tag, r)) {
+            note("MOCK " + tag + " -> " + p.pageId());
+        }
+    }
+
+    private static UltraScreenSpec mockSpar(String page, String tab) {
+        UltraScreenSpec s = UltraScreenSpec.of("spar").fitMenu().title("Sparring").page(page);
+        return tab == null ? s : s.activeTab(tab).tabs("home|Home", "dojo|Dojo", "sparboard|Spar Board");
+    }
+
+    private void mockCrawl() {
+        firstScript = 0;
+        // 1. The main menu: the real hub page, with its two dojo tiles renamed.
+        List<GuiOpenPacket> hub;
+        try {
+            hub = UltraScreenSpec.captureSends(() -> UltraGui.open(player, "hub", "main"));
+        } catch (Throwable t) {
+            note("ERROR mock hub " + t);
+            hub = List.of();
+        }
+        for (GuiOpenPacket p : hub) {
+            String b = p.buttonsJson().replace("Sparring \\u0026 Dojo", "Spar Board").replace("Sparring & Dojo", "Spar Board")
+                    .replace("Dojo wars", "My dojo");
+            packets.add(new GuiOpenPacket(p.screenId(), p.title(), "mock_main_menu", p.tabsJson(), p.activeTab(),
+                    p.linesJson(), b, p.panelWidth(), p.panelHeight(), p.layoutJson(), p.inputsJson()));
+            origin.add("script mock main menu");
+            note("MOCK main menu -> " + labels(packets.get(packets.size() - 1)));
+        }
+        // 2. The Spar Board with posts on it.
+        mock("spar board", () -> {
+            UltraScreenSpec s = mockSpar("mock_spar_board", "sparboard");
+            s.line(UltraStyle.header("Your post"))
+                    .line(UltraStyle.LABEL + "Nothing posted. Fights happen in Crane School's arena.")
+                    .line(UltraStyle.LABEL + "Looking for Potential Unlock trains it in friendly spars. Ranked spars never do.")
+                    .line(UltraStyle.labelValue("Ranked", "unlocked"))
+                    .line(UltraStyle.header("On the board (3)"))
+                    .line(UltraStyle.VALUE + "Kaito" + UltraStyle.LABEL + " Lv 412, ranked, 50 TP wager, looking for TP")
+                    .line(UltraStyle.VALUE + "Mira" + UltraStyle.LABEL + " Lv 388, friendly, looking for Potential Unlock")
+                    .line(UltraStyle.VALUE + "Ren" + UltraStyle.LABEL + " Lv 401, friendly, looking for Anything")
+                    .buttonsAfterLines();
+            s.buttonLeft("do:mock", "Kind - Friendly", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Wager - none", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Range - any level", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", UltraStyle.confirm("Post for 15 min"), UltraStyle.STYLE_CONFIRM).rowGap();
+            s.buttonLeft("do:mock", "Looking for - TP", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", UltraStyle.confirm("Accept Kaito"), UltraStyle.STYLE_CONFIRM);
+            s.buttonRight("do:mock", UltraStyle.confirm("Accept Mira"), UltraStyle.STYLE_CONFIRM).rowGap();
+            s.buttonLeft("do:mock", UltraStyle.confirm("Accept Ren"), UltraStyle.STYLE_CONFIRM).rowGap();
+            s.buttonLeft("do:mock", "Challenge a player", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Watch spars", UltraStyle.STYLE_NORMAL).rowGap();
+            s.footerBackToMain();
+            s.send(player);
+        });
+        // 3. My dojo for a new dojo: one sparring mat, no style yet; the dojo's floor plan goes on the right.
+        mock("my dojo", () -> {
+            UltraScreenSpec s = mockSpar("mock_my_dojo", "dojo");
+            s.line(UltraStyle.header("Kaito's Dojo"))
+                    .line(UltraStyle.labelValue("Master", "Kaito (you)"))
+                    .line(UltraStyle.labelValue("Style", "not picked yet"))
+                    .line(UltraStyle.labelValue("Hall", "basic, 1 sparring mat"))
+                    .line(UltraStyle.labelValue("Dojo Points", "75"))
+                    .line(UltraStyle.labelValue("Members", "1 of 6"))
+                    .line(UltraStyle.labelValue("Wars", "0 won, 0 lost"))
+                    .line(UltraStyle.LABEL + "Your hall starts empty.")
+                    .line(UltraStyle.LABEL + "Upgrades build into it.")
+                    .buttonsAfterLines();
+            s.button("do:mock", UltraStyle.confirm("Visit dojo"), UltraStyle.STYLE_CONFIRM).rowGap();
+            s.buttonLeft("do:mock", "Upgrades", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Style and bonus", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Wars", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Members and elites", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Dojo leaderboard", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Roster and bonds", UltraStyle.STYLE_NORMAL).rowGap();
+            s.footerBackToMain();
+            s.send(player);
+        });
+        // 4. Upgrades for that dojo: LM's real names and costs (DojoCatalog), the map on the right.
+        mock("upgrades", () -> {
+            UltraScreenSpec s = mockSpar("mock_dojo_upgrades", null);
+            s.line(UltraStyle.labelValue("Dojo Points", "75"))
+                    .line(UltraStyle.LABEL + "Earn points by hosting")
+                    .line(UltraStyle.LABEL + "spars, winning war bouts")
+                    .line(UltraStyle.LABEL + "and training disciples.")
+                    .line(UltraStyle.LABEL)
+                    .line(UltraStyle.LABEL + "Each upgrade builds into")
+                    .line(UltraStyle.LABEL + "your hall. Tap one to see")
+                    .line(UltraStyle.LABEL + "it before you buy.")
+                    .line(UltraStyle.LABEL)
+                    .buttonsAfterLines();
+            s.buttonLeft("do:mock", "Sparring arenas - 40", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Training hall - 30", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Meditation room - 30", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Spectator balcony - 30", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Trophy hall - 30", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Master quarters - 30", UltraStyle.STYLE_NORMAL).rowGap();
+            s.buttonLeft("do:mock", "Garden grounds - 30", UltraStyle.STYLE_NORMAL);
+            s.buttonRight("do:mock", "Disciple capacity - 25", UltraStyle.STYLE_NORMAL).rowGap();
+            s.footerBack("page:dojo", "Dojo");
+            s.send(player);
+        });
+        // 5. Two upgrades from that dojo: Now, After and Where (green) in the band of blank lines, cost before the click.
+        mockUpgrade("mock_dojo_up_ring2", "Sparring arenas: ring 2", "Another ring, so more board spars can run at once.",
+                40, 75);
+        mockUpgrade("mock_dojo_up_training1", "Training hall: basic", "A room in your hall with training dummies.", 30, 75);
+    }
+
+    /** The spec drops lines with no visible text, so a page fills its picture band with marker lines (the server lays
+     *  the buttons out below them) and the mock blanks them in the captured packet. Phase 2 draws a picture there. */
+    static final String BAND = "PICTURE BAND";
+    static final int BAND_ROWS = 10;
+
+    private void mockUpgrade(String page, String title, String what, int cost, int have) {
+        List<GuiOpenPacket> got;
+        try {
+            got = UltraScreenSpec.captureSends(() -> mockUpgradeSpec(page, title, what, cost, have));
+        } catch (Throwable t) {
+            note("ERROR mock " + page + " " + t);
+            return;
+        }
+        for (GuiOpenPacket p : got) {
+            JsonArray out = new JsonArray();
+            for (JsonElement el : JsonParser.parseString(p.linesJson()).getAsJsonArray()) {
+                if (el.isJsonPrimitive() && el.getAsString().contains(BAND)) {
+                    out.add("");
+                } else {
+                    out.add(el);
+                }
+            }
+            packets.add(new GuiOpenPacket(p.screenId(), p.title(), p.pageId(), p.tabsJson(), p.activeTab(), out.toString(),
+                    p.buttonsJson(), p.panelWidth(), p.panelHeight(), p.layoutJson(), p.inputsJson()));
+            origin.add("script mock " + page);
+            note("MOCK " + page + " -> " + p.pageId() + " band rows " + BAND_ROWS);
+        }
+    }
+
+    private void mockUpgradeSpec(String page, String title, String what, int cost, int have) {
+        {
+            UltraScreenSpec s = mockSpar(page, null);
+            s.line(UltraStyle.header(title)).line(UltraStyle.LABEL + what);
+            for (int i = 0; i < BAND_ROWS; i++) {
+                s.line(UltraStyle.LABEL + BAND);            // blanked below: the rows the pictures go in
+            }
+            s.line(UltraStyle.labelValue("Cost", cost + " Dojo Points (you have " + have + ")"))
+                    .line(UltraStyle.LABEL + "Points are spent at once. An upgrade can't be undone.")
+                    .buttonsAfterLines();
+            s.buttonLeft("do:mock", UltraStyle.confirm("Buy for " + cost + " points"), UltraStyle.STYLE_CONFIRM);
+            s.buttonRight("do:mock", "Visit dojo", UltraStyle.STYLE_NORMAL).rowGap();
+            s.footerBack("page:dojo_upgrades", "Upgrades");
+            s.send(player);
+        }
+    }
+
+    /** 4.7.68 Phase 2: ring {@code k} of {@code d} is built (a corner post stands on the hall floor). */
+    private static boolean ringBuilt(com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo d, int k) {
+        var lvl = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.level(
+                net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer());
+        var l = com.dbzlegacy.adaptivedifficulty.dojo.DojoLayout.get();
+        if (lvl == null || l == null) {
+            return false;
+        }
+        int[] r = l.rings.get(k);
+        int half = l.ringSize / 2;
+        var c = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.plotCorner(d.plot);
+        return !lvl.m_8055_(c.m_7918_(r[0] - half, l.floorY, r[1] - half)).m_60795_();
+    }
+
     private void say(String s) {
         player.m_213846_(Component.m_237113_(s));
     }
@@ -1542,7 +2214,11 @@ public final class UiProbe {
                 return;
             }
             crawled = true;
-            crawl();
+            if (MOCK) {
+                mockCrawl();
+            } else {
+                crawl();
+            }
             advance = true;
             return;
         }

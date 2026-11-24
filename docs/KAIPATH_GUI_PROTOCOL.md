@@ -222,6 +222,16 @@ LM 4.7.66 additive, ignorable elements (the bridge never needs them):
   `args.onEnter: true`: Enter in one of those fields clicks this button. Text field `colorPreview: true`: the LM
   client draws a small square of the typed color. KaiPath keeps reading `bindInput` (one field) and ignores these.
 
+LM 4.7.68 additive, ignorable element (the bridge never needs it):
+- layoutJson `pictures` (`line`, `rows`, `side`, `items`): pictures the LM client draws over body rows `line` to
+  `line + rows - 1`. `side` 0: they take the full width and the LM client hides those rows' text, which is the
+  fallback (the dojo upgrade pages put a text map of the hall there); `side` > 0: they take that many thousandths of
+  the width on the right and the rows' text stays. Each item: `c` caption, `a` width/height x 1000, `l` layers
+  `[texture, texW, texH, u, v, uW, vH, x, y, w, h]` (texture under `legacymechanics:textures/gui/`, x..h in
+  thousandths of the item), `m` marks `[x, y, w, h, rgb]`. LM sends it only to LM clients that list `pictures` in
+  their hello, so a bridge page carries the text lines alone; KaiPath ignores unknown layout keys. It is never a
+  reason to route a page.
+
 LM native client (channel `legacymechanics:native_ui`, LM 4.7.61): its hello lists the eighteen ids in
 `LmNativeProtocol.CLIENT_FEATURES`, plus `combined.forms.v1` when DragonMineZ is installed and `bodyParts`
 when DMZUltra's FormParts is installed. With both, Character Services > Preview forms (a made-up figure in a

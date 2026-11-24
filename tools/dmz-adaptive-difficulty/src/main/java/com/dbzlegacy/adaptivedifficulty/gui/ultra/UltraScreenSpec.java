@@ -78,6 +78,8 @@ public final class UltraScreenSpec {
      */
     private boolean menuFit;
     private PlayerModel playerModel;
+    /** 4.7.68 pictures in the body ({@link #pictures}); null when the page has none. */
+    private JsonObject pictures;
     /** Lowest button top Y seen so far; used to size the body scroll region. */
     private int firstButtonY = -1;
     /** Pinned footer buttons ({@code footer:true}) — placed at panel bottom in {@link #toPacket}. */
@@ -812,6 +814,32 @@ public final class UltraScreenSpec {
         return this;
     }
 
+    /**
+     * 4.7.68 pictures in the body text (layoutJson {@code pictures}): the rows {@code textLines} take are where an LM
+     * client whose hello lists {@code pictures} draws {@code items}, side by side; {@code minRows} keeps the rows tall
+     * enough for them. {@code sidePermille} 0: the pictures take the whole width and the LM client hides those rows'
+     * text (it is the fallback, e.g. a text map); above 0: they take that share of the width on the right and the
+     * rows' text stays on the left (keep those lines short). KaiPath and older LM clients ignore the key and show the
+     * text. Each item: {@code c} caption, {@code a} width/height x 1000, {@code l} layers
+     * [texture, texW, texH, u, v, uW, vH, x, y, w, h] (texture: a name under legacymechanics:textures/gui/,
+     * x..h in thousandths of the item), {@code m} marks [x, y, w, h, rgb] (thousandths).
+     */
+    public UltraScreenSpec pictures(List<String> textLines, int minRows, int sidePermille, JsonArray items) {
+        int start = lines.size();
+        for (String l : textLines) {
+            line(l);
+        }
+        while (lines.size() - start < minRows) {
+            lines.add("");                                 // an empty row: room for the pictures
+        }
+        pictures = new JsonObject();
+        pictures.addProperty("line", start);
+        pictures.addProperty("rows", lines.size() - start);
+        pictures.addProperty("side", Math.max(0, Math.min(800, sidePermille)));
+        pictures.add("items", items);
+        return this;
+    }
+
     /** 4.7.66: the text field {@code inputId} draws a small square of the color typed in it (LM client). */
     public UltraScreenSpec colorPreview(String inputId) {
         colorPreviewInputs.add(qualifyAction(inputId));
@@ -1136,6 +1164,9 @@ public final class UltraScreenSpec {
         layout.addProperty("buttonGap", UltraStyle.BTN_GAP);
         layout.addProperty("buttonMinWidth", UltraStyle.BTN_MIN_W);
         layout.addProperty("buttonHeight", buttonHeight);
+        if (pictures != null) {
+            layout.add("pictures", pictures);
+        }
         // Logical system metadata (survives hub wire shim in layoutJson).
         layout.addProperty(UltraScreenIds.META_SYSTEM, screenId);
         layout.addProperty("screen", screenId);
@@ -1411,6 +1442,9 @@ public final class UltraScreenSpec {
         layout.addProperty("buttonGap", gap);
         layout.addProperty("buttonMinWidth", UltraStyle.BTN_MIN_W);
         layout.addProperty("buttonHeight", bh);
+        if (pictures != null) {
+            layout.add("pictures", pictures);
+        }
         layout.addProperty(UltraScreenIds.META_SYSTEM, screenId);
         layout.addProperty("screen", screenId);
         if (model != null) {
