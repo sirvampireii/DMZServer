@@ -103,7 +103,10 @@ def main(out, base=None):
     drew = re.search(r"^HUD CLIENT \S+ drew (\S+): PASS", script, re.M)
     if hud:
         row("native HUD on the LM client: same text as the bars, all five elements drawn",
-            all("PASS" in l for l in hud) and bool(drew) and len(drew.group(1).split(",")) == 5,
+            # 4.7.75+: more elements exist; the five 4.7.72 ones must draw, the rest may wait on a small window
+            # (the client's layout verdict, a separate HUD line, checks nothing overlaps).
+            all("PASS" in l for l in hud) and bool(drew)
+            and {"underdog", "tp", "penalty", "instinct", "momentum"} <= set(drew.group(1).split(",")),
             f"{sum('PASS' in l for l in hud)}/{len(hud)} HUD checks; client drew {drew.group(1) if drew else 'nothing'}")
     else:
         row("native HUD on the LM client: same text as the bars, all five elements drawn", None, "no HUD checks ran")

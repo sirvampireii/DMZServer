@@ -102,6 +102,9 @@ final class UiClient {
         mc.m_5741_();
     }
 
+    /** Third-party popups the probe closes on sight (simple class names). */
+    static final java.util.Set<String> POPUPS = java.util.Set.of("LineagePlateScreen");
+
     private String pendingClick;
     /** Settle ticks before each capture: 8, or 26 on a skins-pass page (a fresh frame-rate second). */
     private boolean fpsCue;
@@ -336,6 +339,22 @@ final class UiClient {
                 && mc.f_91080_ instanceof net.minecraft.client.gui.screens.DisconnectedScreen && joins < 3) {
             joins++;
             join(mc);
+            return;
+        }
+        // Another mod's one-time popup on a fresh client (the bloodline picker) must never cover a menu shot: close it
+        // whenever it shows. It is not an LM screen, and the test account has nothing to pick.
+        if (mc.f_91080_ != null && POPUPS.contains(mc.f_91080_.getClass().getSimpleName())) {
+            UiProbe.write("uiprobe-client.txt", "POPUP closed " + mc.f_91080_.getClass().getName() + "
+", true);
+            mc.m_91152_(null);
+            if (cueScreen != null) {
+                cueScreen = null;                           // the menu it covered is gone: wait for it again
+                wait = 0;
+                cfg = -1;
+                timeout = 0;
+                next(mc);
+                cue = null;
+            }
             return;
         }
         if (hudTick(mc)) {
