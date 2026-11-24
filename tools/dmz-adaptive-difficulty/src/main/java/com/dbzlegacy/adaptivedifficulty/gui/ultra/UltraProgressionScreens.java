@@ -59,7 +59,7 @@ public final class UltraProgressionScreens {
                 .line(ProgressionGuiApi.statusText())
                 .line(UltraStyle.LABEL + "Open the Boosts or Coins tab for controls.")
                 .buttonsAfterLines();
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -81,7 +81,7 @@ public final class UltraProgressionScreens {
         spec.buttonLeft("page:" + PAGE_TP_BOOST, "TP Boost", "normal")
                 .buttonRight("page:" + PAGE_MASTERY_BOOST, "Mastery Boost", "normal")
                 .rowGap();
-        spec.footerBackToMain();
+        spec.back();
         return spec;
     }
 
@@ -119,7 +119,7 @@ public final class UltraProgressionScreens {
                         "confirm")
                 .buttonRight(act + "end", UltraStyle.danger("End this boost"), "danger")
                 .rowGap();
-        spec.footerBack("page:boosts", "Boosts");
+        spec.back();
         return spec;
     }
 
@@ -147,7 +147,7 @@ public final class UltraProgressionScreens {
                         toggle,
                         staffFree ? "confirm" : "dim")
                 .rowGap();
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 }

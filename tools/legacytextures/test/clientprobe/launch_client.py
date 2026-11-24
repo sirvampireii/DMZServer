@@ -61,10 +61,16 @@ natives = os.path.join(game, "natives")
 os.makedirs(natives, exist_ok=True)
 jvm = ["-Xmx4G", "-Djava.library.path=" + natives, "-Dminecraft.launcher.brand=ltprobe"] + extra
 jvm += [sub(a) for a in forge["arguments"]["jvm"]]
+# Play-testing (tools/lm-ui-probe/playtest.sh): LAUNCH_USERNAME / LAUNCH_UUID pick the offline player, LAUNCH_SIZE the
+# window ("1280x720"), LAUNCH_JOIN a server to join on start ("localhost:25610"). The probe keeps its defaults.
+name = os.environ.get("LAUNCH_USERNAME", "LTProbe")
+uuid = os.environ.get("LAUNCH_UUID", "00000000000000000000000000000001")
+w, h = os.environ.get("LAUNCH_SIZE", "854x480").split("x")
+join = ["--quickPlayMultiplayer", os.environ["LAUNCH_JOIN"]] if os.environ.get("LAUNCH_JOIN") else []
 cmd = [java] + jvm + ["-cp", sep.join(cp), forge["mainClass"],
-                      "--username", "LTProbe", "--version", "forge-47.4.10", "--gameDir", game,
+                      "--username", name, "--version", "forge-47.4.10", "--gameDir", game,
                       "--assetsDir", os.path.join(inst, "assets"), "--assetIndex", van["assetIndex"]["id"],
-                      "--uuid", "00000000000000000000000000000001", "--accessToken", "0", "--userType", "legacy",
-                      "--versionType", "release", "--width", "854", "--height", "480"] + forge["arguments"]["game"]
+                      "--uuid", uuid, "--accessToken", "0", "--userType", "legacy",
+                      "--versionType", "release", "--width", w, "--height", h] + forge["arguments"]["game"] + join
 with open(os.path.join(game, "launch.log"), "w", encoding="utf-8") as out:
     sys.exit(subprocess.call(cmd, cwd=game, stdout=out, stderr=subprocess.STDOUT))

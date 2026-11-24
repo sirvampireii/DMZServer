@@ -16,7 +16,8 @@ DOC = ROOT.parents[1] / "docs" / "KAIPATH_GUI_PROTOCOL.md"
 
 # Known do-actions emitted by Ultra*Screens (action name after do: / before next :).
 KNOWN_DO: dict[str, set[str]] = {
-    "hub": {"reload", "skillcheck_denied"},
+    "hub": {"reload", "skillcheck_denied", "hub_search", "hub_search_recent", "hub_search_clear",
+            "hub_search_settings"},
     "admin": {"reload"},
     "difficulty": {
         "activate",
@@ -881,10 +882,11 @@ def main() -> int:
         re.S | re.M,
     )
     admin_body = admin_m.group(0) if admin_m else ""
-    # 4.6.249: Staff Admin has one footer exit, "Back to main menu" (the hub).
-    if "spec.footerBackToMain();" not in admin_body or 'footerBack("nav:hub"' in admin_body:
+    # 4.6.249: Staff Admin has one footer exit, "Back to main menu" (the hub). 4.7.71: the one back() footer;
+    # Staff Admin is a system Home in the page registry, so back() places a single right-hand button.
+    if "spec.back();" not in admin_body or 'footerBack("nav:hub"' in admin_body:
         errors.append(
-            "UltraHubScreens.openAdmin must use a single Back to main menu footer (footerBackToMain)"
+            "UltraHubScreens.openAdmin must use the one back() footer (a single Back to main menu)"
         )
     if "BACK_TO_MAIN" in admin_body:
         errors.append(
@@ -893,9 +895,9 @@ def main() -> int:
     # Hub main packet shape: of("hub") builder path must not emit nav:hub.
     if 'UltraScreenSpec.of("hub")' in hub:
         main_chunk = hub.split('UltraScreenSpec.of("hub")', 1)[1].split("openAdmin", 1)[0]
-        if ".footerBackToMain()" in main_chunk or '"nav:hub"' in main_chunk:
+        if ".footerBackToMain()" in main_chunk or ".back()" in main_chunk or '"nav:hub"' in main_chunk:
             errors.append(
-                'UltraHubScreens openMain (of("hub")) must not add nav:hub / .footerBackToMain()'
+                'UltraHubScreens openMain (of("hub")) must not add nav:hub / a Back footer (it is the main menu)'
             )
     # Full Ultra menu UI shape audit (stacked Back / Cancel+footer / non-ASCII / unbound fields).
     ui_audit = ROOT / "sim" / "audit_ultra_ui_menus.py"
@@ -933,10 +935,15 @@ def main() -> int:
         errors.append("UltraScreenSpec must run UltraStyle.wireText on lines/titles before send")
     if 'addProperty("footer", true)' not in spec_src and 'o.addProperty("footer", true)' not in spec_src:
         errors.append("UltraScreenSpec must emit button footer:true for pinned footer rows")
-    if "footerBack(String" not in spec_src and "footerBack(String backActionId" not in spec_src:
-        errors.append("UltraScreenSpec must expose footerBack(actionId, destination)")
-    if "footerBackHome(String" not in spec_src:
-        errors.append("UltraScreenSpec.footerBackHome must take a destination name")
+    # 4.7.71: one Back footer; where it goes comes from the page registry (and the history on LM clients).
+    if "public UltraScreenSpec back()" not in spec_src:
+        errors.append("UltraScreenSpec must expose the one back() footer")
+    if "PageRegistry.parent(screenId, pageId)" not in spec_src or "NavHistory.previous(" not in spec_src:
+        errors.append("UltraScreenSpec.back must resolve from the page registry and the page history")
+    for gone in ("public UltraScreenSpec footerBackToMain()", "public UltraScreenSpec footerBackHome(",
+                 "public UltraScreenSpec footerBack("):
+        if gone in spec_src:
+            errors.append("UltraScreenSpec still has " + gone + " (4.7.71: one back())")
 
     # Weight shop must accept up to MAX_WEIGHT_VALUE digits (not a stale 4-digit / 9999 / 100k cap).
     weight_shop = (ULTRA / "UltraWeightShopScreens.java").read_text(encoding="utf-8")
@@ -953,7 +960,7 @@ def main() -> int:
         errors.append("UltraWeightShopScreens must define MAX_WEIGHT_DIGITS from MAX_WEIGHT_VALUE")
     # Every open* that sends must pin a footer; forbid generic "Back" / Cancel-as-back duplicates.
     # 4.7.59: footerBackOnly (guide Step 1); 4.7.63: footerGuide (Back + Skip guide on every guide step).
-    footer_call = re.compile(r"footer(?:Back(?:Home|ToMain|Only)?|Guide)\s*\(")
+    footer_call = re.compile(r"(?:footer(?:BackOnly|Guide)\s*\(|\.back\(\))")
     for path in sorted(ULTRA.glob("Ultra*Screens.java")):
         if path.name == "UltraHubScreens.java":
             continue
@@ -990,8 +997,7 @@ def main() -> int:
                     break
             if not delegated and not footer_call.search(body):
                 errors.append(
-                    f"{path.name}.{name}: must call footerBackToMain / footerBackHome(dest) / "
-                    "footerBack(action, dest) so every page has a pinned way back"
+                    f"{path.name}.{name}: must call back() (or a guide footer) so every page has a pinned way back"
                 )
                 continue
             # Generic exact "Back" next to footer = same-feeling duplicate.
@@ -1009,40 +1015,20 @@ def main() -> int:
             if 'dim("Back")' in body or 'dim("Back")' in body:
                 errors.append(f"{path.name}.{name}: dim(\"Back\") with footer - keep one Back")
 
-    # Footers must not ship a Refresh button.
+    # Footers must not ship a Refresh button. 4.7.71: the one back() footer.
     spec_text = SPEC.read_text(encoding="utf-8")
-    for method, pattern in (
-        ("footerBackToMain", r"public UltraScreenSpec footerBackToMain\(\)\s*\{(.*?)\n    \}"),
-        (
-            "footerBackHome",
-            r"public UltraScreenSpec footerBackHome\(String destination\)\s*\{(.*?)\n    \}",
-        ),
-        (
-            "footerBack",
-            r"public UltraScreenSpec footerBack\(String backActionId, String destination\)\s*\{(.*?)\n    \}",
-        ),
-    ):
-        m = re.search(pattern, spec_text, re.S)
-        if m is None:
-            errors.append(f"UltraScreenSpec.{method} not found")
-            continue
+    m = re.search(r"private void placeBack\(ServerPlayer player\)\s*\{(.*?)\n    \}", spec_text, re.S)
+    if m is None:
+        errors.append("UltraScreenSpec.placeBack not found")
+    else:
         body = m.group(1)
         if "nav:refresh" in body or "Refresh" in body:
-            errors.append(f"UltraScreenSpec.{method} must not include Refresh / nav:refresh")
-        if method == "footerBackToMain":
-            # 4.6.249: Home tabs read "Back to main menu" (named like every Back to {destination}).
-            if "BACK_TO_MAIN" not in body or "MAIN_MENU" in body.replace("BACK_TO_MAIN", ""):
-                errors.append(
-                    "UltraScreenSpec.footerBackToMain must use BACK_TO_MAIN (not a lone Main menu)"
-                )
-            if '"nav:hub"' not in body:
-                errors.append(
-                    "UltraScreenSpec.footerBackToMain must place nav:hub on the right"
-                )
-            if "backTo(" in body or "COL_L" in body:
-                errors.append(
-                    "UltraScreenSpec.footerBackToMain must not place a left Back button"
-                )
+            errors.append("UltraScreenSpec.placeBack must not include Refresh / nav:refresh")
+        # 4.6.249: a Home tab reads "Back to main menu" on the right; sub-pages Back on the left + Main menu.
+        if "BACK_TO_MAIN" not in body or '"nav:hub"' not in body or "UltraStyle.MAIN_MENU" not in body:
+            errors.append("UltraScreenSpec.placeBack must use BACK_TO_MAIN / nav:hub / Main menu")
+        if "placeFooter(null, null, action, label)" not in body:
+            errors.append("UltraScreenSpec.placeBack must place a Home tab's Back alone on the right")
     place_footer = spec_text.split("private UltraScreenSpec placeFooter", 1)
     footer_body = (
         place_footer[1].split("private int footerRightX", 1)[0] if len(place_footer) > 1 else ""
@@ -1179,10 +1165,9 @@ def main() -> int:
         errors.append(
             "UltraWeightShopScreens.openShop must not stack page:main Back with footerBack*"
         )
-    if "footerBackHome(\"Spar Home\")" not in shop_body and 'footerBackHome("Spar Home")' not in shop_body:
+    if ".back()" not in shop_body:
         errors.append(
-            'UltraWeightShopScreens.openShop is a Sparring subpage — use '
-            'footerBackHome("Spar Home") (no system tabs)'
+            'UltraWeightShopScreens.openShop is a Sparring subpage — use back() (no system tabs)'
         )
     if 'of("spar")' not in weight_shop and 'of("sparring")' not in weight_shop:
         errors.append('UltraWeightShopScreens must emit screenId spar (moved off Difficulty)')
@@ -1198,12 +1183,18 @@ def main() -> int:
         re.S | re.M,
     )
     home_body = home_m.group(0) if home_m else ""
-    if "Combat rating" in home_body or "Title score" in home_body:
+    # 4.7.71: staff open Combat rating from a staff-only Home button (no fourth tab); players never see it.
+    home_players = home_body.replace('spec.buttonRight("page:stats", UltraStyle.LABEL + "Combat rating", UltraStyle.STYLE_NORMAL)', "")
+    if "Combat rating" in home_players or "Title score" in home_players:
         errors.append("UltraDifficultyScreens.openHome must not show Combat rating / Title score")
     if "weights|Weights" in home_body or '"weights|' in home_body:
         errors.append("UltraDifficultyScreens.openHome must not offer Weights (moved to Sparring)")
-    if "stats|CR|staff" not in difficulty_home and "stats|Combat Rating|staff" not in difficulty_home:
-        errors.append("UltraDifficultyScreens must expose staff-only Combat Rating tab (stats|CR|staff)")
+    if "stats|CR|staff" in difficulty_home or '"home|Home", "tiers|Tiers", "summons|Summons");' not in difficulty_home:
+        errors.append("UltraDifficultyScreens: three tabs for everyone (4.7.71: Combat rating is a staff Home button)")
+    tier_m = re.search(r"private static void openYourTier\b.*?^\s*private static void ", difficulty_home, re.S | re.M)
+    tier_body = tier_m.group(0) if tier_m else ""
+    if 'if (StaffAccess.isStaff(player)) {' not in tier_body or '"page:stats"' not in tier_body:
+        errors.append("UltraDifficultyScreens.openYourTier must give staff the Combat rating button")
     spar_home = (ULTRA / "UltraSparScreens.java").read_text(encoding="utf-8")
     spar_home_m = re.search(
         r"private static void openHome\b.*?^\s*private static void ",
@@ -1224,14 +1215,14 @@ def main() -> int:
         re.S | re.M,
     )
     notice_body = notice_m.group(0) if notice_m else ""
-    if 'footerBackHome("Difficulty Home")' not in team_body:
-        errors.append("UltraDifficultyScreens.openTeam must pin Back to Difficulty Home + Main menu")
+    if ".back()" not in team_body:
+        errors.append("UltraDifficultyScreens.openTeam must pin Back (to Difficulty Home) + Main menu")
     if "openFeatureLocked" in team_body:
         errors.append(
             "UltraDifficultyScreens.openTeam must not use the tabbed locked page (no left Back)"
         )
-    if 'footerBackHome("Difficulty Home")' not in notice_body:
-        errors.append("UltraDifficultyScreens.openTeamNotice must pin Back to Difficulty Home + Main menu")
+    if ".back()" not in notice_body:
+        errors.append("UltraDifficultyScreens.openTeamNotice must pin Back (to Difficulty Home) + Main menu")
     diff_home_m = re.search(
         r"private static void openHome\b.*?^\s*private static void ",
         diff_screens,

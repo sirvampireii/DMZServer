@@ -2084,7 +2084,7 @@ public final class UiProbe {
             s.buttonLeft("do:mock", UltraStyle.confirm("Accept Ren"), UltraStyle.STYLE_CONFIRM).rowGap();
             s.buttonLeft("do:mock", "Challenge a player", UltraStyle.STYLE_NORMAL);
             s.buttonRight("do:mock", "Watch spars", UltraStyle.STYLE_NORMAL).rowGap();
-            s.footerBackToMain();
+            s.back();
             s.send(player);
         });
         // 3. My dojo for a new dojo: one sparring mat, no style yet; the dojo's floor plan goes on the right.
@@ -2107,7 +2107,7 @@ public final class UiProbe {
             s.buttonRight("do:mock", "Members and elites", UltraStyle.STYLE_NORMAL).rowGap();
             s.buttonLeft("do:mock", "Dojo leaderboard", UltraStyle.STYLE_NORMAL);
             s.buttonRight("do:mock", "Roster and bonds", UltraStyle.STYLE_NORMAL).rowGap();
-            s.footerBackToMain();
+            s.back();
             s.send(player);
         });
         // 4. Upgrades for that dojo: LM's real names and costs (DojoCatalog), the map on the right.
@@ -2131,7 +2131,7 @@ public final class UiProbe {
             s.buttonRight("do:mock", "Master quarters - 30", UltraStyle.STYLE_NORMAL).rowGap();
             s.buttonLeft("do:mock", "Garden grounds - 30", UltraStyle.STYLE_NORMAL);
             s.buttonRight("do:mock", "Disciple capacity - 25", UltraStyle.STYLE_NORMAL).rowGap();
-            s.footerBack("page:dojo", "Dojo");
+            s.back();
             s.send(player);
         });
         // 5. Two upgrades from that dojo: Now, After and Where (green) in the band of blank lines, cost before the click.
@@ -2181,7 +2181,7 @@ public final class UiProbe {
                     .buttonsAfterLines();
             s.buttonLeft("do:mock", UltraStyle.confirm("Buy for " + cost + " points"), UltraStyle.STYLE_CONFIRM);
             s.buttonRight("do:mock", "Visit dojo", UltraStyle.STYLE_NORMAL).rowGap();
-            s.footerBack("page:dojo_upgrades", "Upgrades");
+            s.back();
             s.send(player);
         }
     }

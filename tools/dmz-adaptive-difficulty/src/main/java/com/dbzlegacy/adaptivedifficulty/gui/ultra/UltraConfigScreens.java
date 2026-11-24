@@ -267,7 +267,7 @@ public final class UltraConfigScreens {
         }
 
         placeReviewRow(spec, current, slices.size(), module, groupPath, dirty);
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -930,7 +930,7 @@ public final class UltraConfigScreens {
                     UltraStyle.STYLE_NORMAL, MAIN_X + MAIN_W - UltraStyle.BTN_MIN_W, REVIEW_Y,
                     UltraStyle.BTN_MIN_W);
         }
-        spec.footerBack("page:" + ConfigEditor.editorPage(uuid), "Settings");
+        spec.back();
         spec.send(player);
     }
 
@@ -1087,7 +1087,7 @@ public final class UltraConfigScreens {
                 discardY,
                 MAIN_W);
         String back = editorPage == null || editorPage.isBlank() ? "page:edit:difficulty:0:" : "page:" + editorPage;
-        spec.footerBack(back, "Config Editor");
+        spec.back();
         spec.send(player);
     }
 
@@ -1666,7 +1666,7 @@ public final class UltraConfigScreens {
                 MAIN_X,
                 REVIEW_Y,
                 MAIN_W);
-        spec.footerBackToMain();
+        spec.back();
         return spec.toPacket();
     }
 
@@ -1687,7 +1687,7 @@ public final class UltraConfigScreens {
                 y,
                 MAIN_W);
         placeReviewRow(spec, page, pages, "difficulty", "~Player Scaling", 2);
-        spec.footerBackToMain();
+        spec.back();
         return spec.toPacket();
     }
 

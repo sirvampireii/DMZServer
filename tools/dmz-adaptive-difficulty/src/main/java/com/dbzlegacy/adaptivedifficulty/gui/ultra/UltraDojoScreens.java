@@ -107,7 +107,7 @@ public final class UltraDojoScreens {
                     .buttonsAfterLines();
             spec.button("do:" + BoardSpar.ACT_FORFEIT, UltraStyle.danger("Forfeit this spar"), UltraStyle.STYLE_DANGER)
                     .rowGap();
-            spec.footerBackToMain();
+            spec.back();
             spec.send(player);
             return;
         }
@@ -119,7 +119,7 @@ public final class UltraDojoScreens {
             spec.buttonLeft("page:dojo_list", "Find a dojo", UltraStyle.STYLE_NORMAL);
             spec.buttonRight("do:dojo_found", UltraStyle.confirm("Found a dojo"), UltraStyle.STYLE_CONFIRM).rowGap();
             spec.lockedButton("Post a spar").rowGap();
-            spec.footerBackToMain();
+            spec.back();
             spec.send(player);
             return;
         }
@@ -206,7 +206,7 @@ public final class UltraDojoScreens {
         if (BoardSpar.result(me) != null) {
             spec.buttonLeft("page:result", "Last fight", UltraStyle.STYLE_NORMAL).rowGap();
         }
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -238,7 +238,7 @@ public final class UltraDojoScreens {
             spec.button("do:" + BoardSpar.ACT_REMATCH, UltraStyle.confirm("Rematch " + r.opponentName()),
                     UltraStyle.STYLE_CONFIRM).rowGap();
         }
-        spec.footerBack("page:" + TAB_BOARD, "Spar Board");
+        spec.back();
         spec.send(player);
     }
 
@@ -276,7 +276,7 @@ public final class UltraDojoScreens {
             spec.rowGap();
         }
         pager(spec, "pick_challenge", pg, pages);
-        spec.footerBack("page:" + TAB_BOARD, "Spar Board");
+        spec.back();
         spec.send(player);
     }
 
@@ -305,7 +305,7 @@ public final class UltraDojoScreens {
         if (DojoWorld.spectating(player.m_20148_())) {
             spec.button("do:dojo_leave", "Stop watching", UltraStyle.STYLE_NORMAL).rowGap();
         }
-        spec.footerBack("page:" + TAB_BOARD, "Spar Board");
+        spec.back();
         spec.send(player);
     }
 
@@ -332,7 +332,7 @@ public final class UltraDojoScreens {
             }
             spec.buttonLeft("page:dojo_list", "Browse dojos", UltraStyle.STYLE_NORMAL);
             spec.buttonRight("page:mentor", "Training bonds", UltraStyle.STYLE_NORMAL).rowGap();
-            spec.footerBackToMain();
+            spec.back();
             spec.send(player);
             return;
         }
@@ -375,7 +375,7 @@ public final class UltraDojoScreens {
         } else {
             spec.rowGap();
         }
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -391,7 +391,7 @@ public final class UltraDojoScreens {
                     .buttonsAfterLines();
             spec.button("do:dojo_close", UltraStyle.danger("Yes, close the dojo"), UltraStyle.STYLE_DANGER).rowGap();
         }
-        spec.footerBack("page:dojo", "Dojo");
+        spec.back();
         spec.send(player);
     }
 
@@ -400,7 +400,7 @@ public final class UltraDojoScreens {
         UltraScreenSpec spec = sub("dojo_upgrades", notice);
         if (d == null) {
             spec.line(UltraStyle.LABEL + "Join or found a dojo first.").buttonsAfterLines();
-            spec.footerBack("page:dojo", "Dojo");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -434,7 +434,7 @@ public final class UltraDojoScreens {
         if (placed % 2 == 1) {
             spec.rowGap();
         }
-        spec.footerBack("page:dojo", "Dojo");
+        spec.back();
         spec.send(player);
     }
 
@@ -475,7 +475,7 @@ public final class UltraDojoScreens {
         UltraScreenSpec spec = sub("dojo_up:" + up, notice);
         if (d == null || !DojoCatalog.UPGRADES.contains(up)) {
             spec.line(UltraStyle.LABEL + "Pick an upgrade from the list.").buttonsAfterLines();
-            spec.footerBack("page:dojo_upgrades", "Upgrades");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -541,7 +541,7 @@ public final class UltraDojoScreens {
             spec.lockedButton(maxed ? "Fully upgraded" : "Buy for " + cost + " points");
         }
         spec.buttonRight("do:dojo_visit:" + d.masterUuid, "Visit dojo", UltraStyle.STYLE_NORMAL).rowGap();
-        spec.footerBack("page:dojo_upgrades", "Upgrades");
+        spec.back();
         spec.send(player);
     }
 
@@ -550,7 +550,7 @@ public final class UltraDojoScreens {
         UltraScreenSpec spec = sub("dojo_style", notice);
         if (d == null) {
             spec.line(UltraStyle.LABEL + "Join or found a dojo first.").buttonsAfterLines();
-            spec.footerBack("page:dojo", "Dojo");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -618,7 +618,7 @@ public final class UltraDojoScreens {
                 spec.rowGap();
             }
         }
-        spec.footerBack("page:dojo", "Dojo");
+        spec.back();
         spec.send(player);
     }
 
@@ -627,7 +627,7 @@ public final class UltraDojoScreens {
         UltraScreenSpec spec = sub("dojo_elites", notice);
         if (d == null) {
             spec.line(UltraStyle.LABEL + "Join or found a dojo first.").buttonsAfterLines();
-            spec.footerBack("page:dojo", "Dojo");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -660,7 +660,7 @@ public final class UltraDojoScreens {
                 spec.button("do:dojo_promote:" + u, "Make " + name + " elite", UltraStyle.STYLE_NORMAL).rowGap();
             }
         }
-        spec.footerBack("page:dojo", "Dojo");
+        spec.back();
         spec.send(player);
     }
 
@@ -672,7 +672,7 @@ public final class UltraDojoScreens {
         UltraScreenSpec spec = base("dojo_wars", "dojo", notice);
         if (d == null) {
             spec.line(UltraStyle.LABEL + "Join or found a dojo to fight wars.").buttonsAfterLines();
-            spec.footerBackToMain();
+            spec.back();
             spec.send(player);
             return;
         }
@@ -728,7 +728,7 @@ public final class UltraDojoScreens {
         } else {
             spec.lockedButton("Declare a war").rowGap();
         }
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -770,7 +770,7 @@ public final class UltraDojoScreens {
             spec.rowGap();
         }
         pager(spec, "dojo_war_pick", pg, pages);
-        spec.footerBack("page:dojo_wars", "Wars");
+        spec.back();
         spec.send(player);
     }
 
@@ -786,7 +786,7 @@ public final class UltraDojoScreens {
                 UltraStyle.STYLE_CONFIRM);
         spec.buttonRight("do:" + DojoWar.ACT_DECLARE + ":" + target + ":GAUNTLET",
                 UltraStyle.confirm("Declare: gauntlet"), UltraStyle.STYLE_CONFIRM).rowGap();
-        spec.footerBack("page:dojo_war_pick", "Pick a dojo");
+        spec.back();
         spec.send(player);
     }
 
@@ -802,7 +802,7 @@ public final class UltraDojoScreens {
         }
         spec.buttonsAfterLines();
         spec.button("page:dojo_war_view:" + warId, "Refresh", UltraStyle.STYLE_NORMAL).rowGap();
-        spec.footerBack("page:dojo_wars", "Wars");
+        spec.back();
         spec.send(player);
     }
 
@@ -828,7 +828,7 @@ public final class UltraDojoScreens {
             spec.button("do:dojo_visit:" + d.masterUuid, "Visit " + d.name, UltraStyle.STYLE_NORMAL).rowGap();
         }
         pager(spec, "dojo_list", pg, pages);
-        spec.footerBack("page:dojo", "Dojo");
+        spec.back();
         spec.send(player);
     }
 

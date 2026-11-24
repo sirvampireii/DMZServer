@@ -172,7 +172,7 @@ public final class UltraPrestigeScreens {
             spec.line(UltraStyle.VALUE + HubDashboard.fastestNow(player));
         }
         spec.buttonsAfterLines();
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -199,7 +199,7 @@ public final class UltraPrestigeScreens {
                             UltraStyle.STYLE_DIM)
                     .rowGap();
         }
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -234,7 +234,7 @@ public final class UltraPrestigeScreens {
                             UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
-        spec.footerBack("page:turnin", "Prestige");
+        spec.back();
         spec.send(player);
     }
 
@@ -278,7 +278,7 @@ public final class UltraPrestigeScreens {
                     .rowGap();
         }
         // Edit prestige shop lives on Staff Admin (4.7.31); page:staff_edit still works for old links.
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -376,7 +376,7 @@ public final class UltraPrestigeScreens {
         }
         spec.button("page:mastery_lines", UltraStyle.confirm("Apply points to a form"), UltraStyle.STYLE_CONFIRM)
                 .rowGap();
-        spec.footerBack("page:shop", "Shop");
+        spec.back();
         return spec;
     }
 
@@ -421,7 +421,7 @@ public final class UltraPrestigeScreens {
             }
             UltraPickHelper.placePrevNext(spec, "mastery_lines", pg, pages);
         }
-        spec.footerBack("page:mastery_wallet", "Mastery wallet");
+        spec.back();
         return spec;
     }
 
@@ -456,7 +456,7 @@ public final class UltraPrestigeScreens {
                     .rowGap();
         }
         UltraPickHelper.placePrevNext(spec, base, pg, pages);
-        spec.footerBack("page:mastery_lines", "Form lines");
+        spec.back();
         return spec;
     }
 
@@ -514,7 +514,7 @@ public final class UltraPrestigeScreens {
         if (amounts.size() % 2 == 1) {
             spec.rowGap();
         }
-        spec.footerBack("page:" + UltraPickHelper.pageArg("mw_line:" + line.token(), Math.max(0, linePage)), line.label);
+        spec.back();
         return spec;
     }
 
@@ -552,7 +552,7 @@ public final class UltraPrestigeScreens {
                         can ? UltraStyle.confirm(raw) : UltraStyle.dim(raw),
                         can ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM)
                 .rowGap();
-        spec.footerBack("page:mastery_lines", "Form lines");
+        spec.back();
         return spec;
     }
 
@@ -587,7 +587,7 @@ public final class UltraPrestigeScreens {
                 spec.rowGap();
             }
         }
-        spec.footerBack("page:shop", "Shop");
+        spec.back();
         spec.send(player);
     }
 
@@ -697,7 +697,7 @@ public final class UltraPrestigeScreens {
         spec.line(UltraStyle.LABEL + header).buttonsAfterLines();
         if (!shop.enabled) {
             spec.line(UltraStyle.dim("The skill shop is closed right now."));
-            spec.footerBack("page:shop", "Shop");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -735,7 +735,7 @@ public final class UltraPrestigeScreens {
         if (placed == 0) {
             spec.line(UltraStyle.dim("No skills for sale right now. Ask staff to show a skill in the prestige shop settings."));
         }
-        spec.footerBack("page:shop", "Shop");
+        spec.back();
         spec.send(player);
     }
 
@@ -767,7 +767,7 @@ public final class UltraPrestigeScreens {
                 spec.button(action, UltraStyle.confirm(caption), UltraStyle.STYLE_CONFIRM).rowGap();
             }
         }
-        spec.footerBack("page:shop", "Shop");
+        spec.back();
         spec.send(player);
     }
 
@@ -882,7 +882,7 @@ public final class UltraPrestigeScreens {
             }
         }
         // God Ki moved to the Mastery wallet (4.7.21); the Effects row is gone.
-        spec.footerBack("page:shop", "Shop");
+        spec.back();
         spec.send(player);
     }
 
@@ -932,7 +932,7 @@ public final class UltraPrestigeScreens {
         if (rows.isEmpty()) {
             spec.line(UltraStyle.dim("Nothing for sale right now. Ask staff to stock the shop."));
         }
-        spec.footerBack("page:shop", "Shop");
+        spec.back();
         spec.send(player);
     }
 
@@ -997,7 +997,7 @@ public final class UltraPrestigeScreens {
                             UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
-        spec.footerBack("page:custom", UltraStyle.buttonText(PrestigeShopConfig.get().customShop.menuLabel));
+        spec.back();
         spec.send(player);
     }
 
@@ -1125,7 +1125,7 @@ public final class UltraPrestigeScreens {
                             danger ? UltraStyle.STYLE_DANGER : UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
-        spec.footerBack("page:" + backPage, backLabel);
+        spec.back();
         return spec;
     }
 

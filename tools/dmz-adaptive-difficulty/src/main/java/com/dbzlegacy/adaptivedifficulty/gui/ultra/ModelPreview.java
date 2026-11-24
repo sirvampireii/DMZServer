@@ -388,10 +388,21 @@ public final class ModelPreview {
 
     /**
      * Schema-1 parts for a made-up figure of {@code owner}'s race in {@code form}. Body parts are
-     * the form's pieces from the active Ultra catalog; no colors are sent. The subject id is
-     * fixed per owner, not per form: races whose DragonMineZ body is drawn from the Minecraft
-     * skin (Saiyan, Human) get a default skin picked from that id, so one id keeps the same body
-     * while the forms change.
+     * the form's pieces from the active Ultra catalog. The subject id is fixed per owner, not per
+     * form, and stays a made-up id (never {@code local}: a form on the local subject would leak
+     * into the player's own HUD portrait).
+     *
+     * <p>4.7.71: the figure wears the owner's own look, for the previewed form:
+     * <ul>
+     *   <li>{@code colors}: skin / second / hair and own / trim / horn / light, resolved like
+     *       {@link PlayerModelParts} with the previewed form's override in place of the active one;</li>
+     *   <li>{@code headBones}: the owner's worn head bone;</li>
+     *   <li>{@code appearance}: DragonMineZ's own appearance record of the owner (Character#saveAppearance:
+     *       body and hair colors, hair, eyes, body type), gzip NBT in base64; the LM client loads it onto the
+     *       figure before it sets the race and form, so DragonMineZ applies the form's overrides itself;</li>
+     *   <li>{@code skinOwner}: the uuid whose Minecraft skin the figure wears (the owner).</li>
+     * </ul>
+     * Additive fields: KaiPath reads {@code colors} and {@code headBones} as it does for real players.
      */
     public static JsonObject formFigure(ServerPlayer owner, Form form) {
         if (owner == null || form == null) {
@@ -418,8 +429,38 @@ public final class ModelPreview {
         }
         parts.add("bodyParts", body);
         parts.addProperty("suppressNaturalTail", PlayerModelParts.hasChosenTail(body));
+        JsonObject colors = PlayerModelParts.previewColors(owner, form.race(), form.group(), form.form());
+        if (colors != null) {
+            parts.add("colors", colors);
+        }
+        JsonObject head = PlayerModelParts.headBonesOf(owner);
+        if (head != null) {
+            parts.add("headBones", head);
+        }
+        String look = appearance(owner);
+        if (look != null) {
+            parts.addProperty("appearance", look);
+        }
+        parts.addProperty("skinOwner", owner.m_20148_().toString());
         parts.add("extras", new JsonArray());
         return parts;
+    }
+
+    /** {@code owner}'s DragonMineZ appearance (Character#saveAppearance) as gzip NBT in base64, or null. */
+    static String appearance(ServerPlayer owner) {
+        try {
+            Character ch = DmzProgression.character(owner);
+            if (ch == null) {
+                return null;
+            }
+            net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
+            ch.saveAppearance(tag);
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            net.minecraft.nbt.NbtIo.m_128947_(tag, out);
+            return java.util.Base64.getEncoder().encodeToString(out.toByteArray());
+        } catch (Throwable t) {
+            return null;
+        }
     }
 
     /**

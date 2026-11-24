@@ -75,7 +75,7 @@ public final class UltraSkillCheckScreens {
         }
         // Dense list - band follows wired line count; extra skills scroll.
         spec.buttonsAfterLines();
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 

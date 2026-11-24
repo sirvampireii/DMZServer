@@ -78,6 +78,11 @@ public final class UltraScreenSpec {
      */
     private boolean menuFit;
     private PlayerModel playerModel;
+    /** 4.7.71: the page asked for the Back footer ({@link #back}); placed per player when it is sent. */
+    private boolean backFooter;
+    private boolean backPlaced;
+    /** 4.7.71: the breadcrumb line for an LM client with the navigation layer, [title, action] pairs; null for none. */
+    private JsonArray breadcrumb;
     /** 4.7.68 pictures in the body ({@link #pictures}); null when the page has none. */
     private JsonObject pictures;
     /** Lowest button top Y seen so far; used to size the body scroll region. */
@@ -637,35 +642,83 @@ public final class UltraScreenSpec {
     }
 
     /**
-     * System Home-tab footer: one {@code Back to main menu} button on the right ({@code nav:hub}),
-     * named like every other {@code Back to {destination}}. Pinned ({@code footer:true}).
+     * 4.7.71: the one Back footer. Where it goes comes from the page registry ({@link PageRegistry}) and, on an LM
+     * client with the navigation layer, from the player's page history ({@link NavHistory}):
+     * <ul>
+     *   <li>a system Home page: one {@code Back to ...} button on the right;</li>
+     *   <li>any other page: {@code Back to ...} on the left and {@code Main menu} on the right.</li>
+     * </ul>
+     * LM client: Back goes to the page the player came from ({@code nav:back}) and is named after it. Bridge
+     * clients: Back goes to the page's registry parent and is named after it. The guide footers keep their own
+     * ({@link #footerGuide}, {@link #footerBackOnly}).
      */
-    public UltraScreenSpec footerBackToMain() {
-        return placeFooter(null, null, "nav:hub", UltraStyle.BACK_TO_MAIN);
+    public UltraScreenSpec back() {
+        backFooter = true;
+        return this;
+    }
+
+    /** Places the Back footer for {@code player} (null: a bridge view), once. */
+    private void placeBack(ServerPlayer player) {
+        if (!backFooter || backPlaced) {
+            return;
+        }
+        backPlaced = true;
+        // A page with a tab row (a system's Home and its tabs) keeps its one footer button on the right.
+        boolean home = !tabs.isEmpty() || PageRegistry.systemHome(screenId, pageId);
+        boolean nativeNav = player != null && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player);
+        String action;
+        String label;
+        if (nativeNav) {
+            String[] prev = NavHistory.previous(player.m_20148_(), screenId, pageId);
+            if (prev == null) {
+                prev = PageRegistry.parent(screenId, pageId);
+            }
+            action = "nav:back";
+            label = prev == null || (PageRegistry.HUB.equals(prev[0]) && PageRegistry.HUB_MAIN.equals(prev[1]))
+                    ? UltraStyle.BACK_TO_MAIN : UltraStyle.backTo(PageRegistry.title(prev[0], prev[1]));
+        } else {
+            String[] up = home ? null : PageRegistry.parent(screenId, pageId);   // tab pages go back to the main menu
+            if (up == null || PageRegistry.HUB.equals(up[0]) && PageRegistry.HUB_MAIN.equals(up[1])) {
+                action = "nav:hub";
+                label = UltraStyle.BACK_TO_MAIN;
+            } else if (!up[0].equals(screenId)) {
+                action = PageRegistry.systemHome(up[0], up[1]) ? "open:" + up[0] : "nav:hub";
+                label = action.equals("nav:hub") ? UltraStyle.BACK_TO_MAIN : UltraStyle.backTo(PageRegistry.title(up[0], up[1]));
+            } else {
+                action = PageRegistry.systemHome(up[0], up[1]) ? "nav:home" : "page:" + up[1];
+                label = UltraStyle.backTo(PageRegistry.title(up[0], up[1]));
+            }
+        }
+        if (home) {
+            placeFooter(null, null, action, label);
+        } else {
+            placeFooter(action, label, "nav:hub", UltraStyle.MAIN_MENU);
+        }
     }
 
     /**
-     * Sub-page footer (no tab row): left {@code Back to {destination}} ({@code nav:home}) + right
-     * {@code Main menu} ({@code nav:hub}). Both pinned ({@code footer:true}).
-     *
-     * @param destination plain words naming where left goes (e.g. {@code Rival Home}, {@code Shop})
+     * 4.7.71: the breadcrumb line for {@code player}: every page below a system Home with no tab row, on an LM client
+     * with the navigation layer. Each crumb but the last opens its page ({@code go:screen|page}).
      */
-    public UltraScreenSpec footerBackHome(String destination) {
-        return placeFooter(
-                "nav:home",
-                UltraStyle.backTo(destination),
-                "nav:hub",
-                UltraStyle.MAIN_MENU);
-    }
-
-    /**
-     * Nested sub-page footer (no tab row): left {@code Back to {destination}} + right
-     * {@code Main menu}. Use when the parent is not the system home tab.
-     */
-    public UltraScreenSpec footerBack(String backActionId, String destination) {
-        String action =
-                backActionId == null || backActionId.isBlank() ? "nav:home" : backActionId.trim();
-        return placeFooter(action, UltraStyle.backTo(destination), "nav:hub", UltraStyle.MAIN_MENU);
+    private void placeBreadcrumb(ServerPlayer player) {
+        breadcrumb = null;
+        if (player == null || !tabs.isEmpty() || !com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player)) {
+            return;
+        }
+        List<PageRegistry.Ref> crumbs = PageRegistry.crumbs(screenId, pageId);
+        if (crumbs.size() < 3 || PageRegistry.find(screenId, pageId) == null) {
+            return;
+        }
+        JsonArray arr = new JsonArray();
+        for (int i = 0; i < crumbs.size(); i++) {
+            PageRegistry.Ref r = crumbs.get(i);
+            JsonArray c = new JsonArray();
+            c.add(r.title());
+            boolean hubMain = PageRegistry.HUB.equals(r.screen()) && PageRegistry.HUB_MAIN.equals(r.page());
+            c.add(i == crumbs.size() - 1 ? "" : qualifyAction(hubMain ? "nav:hub" : "go:" + r.screen() + "|" + r.page()));
+            arr.add(c);
+        }
+        breadcrumb = arr;
     }
 
     /**
@@ -686,14 +739,6 @@ public final class UltraScreenSpec {
         String action =
                 backActionId == null || backActionId.isBlank() ? "nav:hub" : backActionId.trim();
         return placeFooter(action, UltraStyle.backTo(destination), skipActionId, "Skip guide");
-    }
-
-    /**
-     * @deprecated use {@link #footerBackHome(String)} so the label names the destination.
-     */
-    @Deprecated
-    public UltraScreenSpec footerBackHome() {
-        return footerBackHome("Home");
     }
 
     private UltraScreenSpec placeFooter(
@@ -926,6 +971,7 @@ public final class UltraScreenSpec {
 
     /** Build the wire packet without sending. */
     public GuiOpenPacket toPacket() {
+        placeBack(null);                                    // no player (self-tests, probes): the bridge footer
         if (menuFit) {
             return toMenuPacket();
         }
@@ -1166,6 +1212,9 @@ public final class UltraScreenSpec {
         layout.addProperty("buttonHeight", buttonHeight);
         if (pictures != null) {
             layout.add("pictures", pictures);
+        }
+        if (breadcrumb != null) {
+            layout.add("breadcrumb", breadcrumb);
         }
         // Logical system metadata (survives hub wire shim in layoutJson).
         layout.addProperty(UltraScreenIds.META_SYSTEM, screenId);
@@ -1445,6 +1494,9 @@ public final class UltraScreenSpec {
         if (pictures != null) {
             layout.add("pictures", pictures);
         }
+        if (breadcrumb != null) {
+            layout.add("breadcrumb", breadcrumb);
+        }
         layout.addProperty(UltraScreenIds.META_SYSTEM, screenId);
         layout.addProperty("screen", screenId);
         if (model != null) {
@@ -1554,7 +1606,18 @@ public final class UltraScreenSpec {
         prependInspectBanner(viewer != null ? viewer : player);
         // Pending do: results (purchases, confirms, errors) — viewer-scoped during inspect.
         UltraGuiFeedback.applyPending(this, dest);
+        // 4.7.71: Back and the breadcrumb for this player, then the page joins their history.
+        placeBack(dest);
+        placeBreadcrumb(dest);
         GuiOpenPacket packet = toPacket();
+        if (dest != null) {
+            NavHistory.record(dest.m_20148_(), screenId, pageId);
+            if (PageRegistry.find(screenId, pageId) == null) {
+                com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod.LOGGER.warn(
+                        "[{}] page {}|{} has no PageRegistry entry (no breadcrumb, Back to Home)",
+                        com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod.MOD_ID, screenId, pageId);
+            }
+        }
         List<GuiOpenPacket> probe = PROBE.get();
         if (probe != null) {
             probe.add(packet);

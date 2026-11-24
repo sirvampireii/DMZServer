@@ -88,30 +88,54 @@ final class NativeModelPreview {
         PlayerInfo info = mc.m_91403_() == null ? null : mc.m_91403_().m_104949_(id);
         AbstractClientPlayer made = info != null
                 ? new RemotePlayer(level, info.m_105312_())
-                : new StandIn(level, new GameProfile(id, "Preview"), viewer);
+                : new StandIn(level, new GameProfile(id, "Preview"), viewer, skinOwner(parts));
         STAND_INS.put(id, made);
         // 4.7.61: a made-up figure wears the race and form the menu names (Preview forms).
         NativeFormLook.apply(made, parts);
         return made;
     }
 
-    /** A made-up figure: the viewer's skin and arm model instead of the default one for its UUID. */
+    /** 4.7.71: {@code parts.skinOwner}, the player whose Minecraft skin a made-up figure wears, or null. */
+    private static UUID skinOwner(JsonObject parts) {
+        try {
+            return parts != null && parts.has("skinOwner") ? UUID.fromString(parts.get("skinOwner").getAsString()) : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * A made-up figure: the skin and arm model of its skin owner (4.7.71: {@code parts.skinOwner}, from the tab
+     * list) or the viewer's, instead of the default one for its UUID.
+     */
     private static final class StandIn extends RemotePlayer {
         private final LocalPlayer viewer;
+        private final UUID skinOwner;
 
-        StandIn(ClientLevel level, GameProfile profile, LocalPlayer viewer) {
+        StandIn(ClientLevel level, GameProfile profile, LocalPlayer viewer, UUID skinOwner) {
             super(level, profile);
             this.viewer = viewer;
+            this.skinOwner = skinOwner;
+        }
+
+        private PlayerInfo ownerInfo() {
+            if (skinOwner == null || skinOwner.equals(viewer.m_20148_())) {
+                return null;
+            }
+            Minecraft mc = Minecraft.m_91087_();
+            return mc.m_91403_() == null ? null : mc.m_91403_().m_104949_(skinOwner);
         }
 
         @Override
         public ResourceLocation m_108560_() {
-            return viewer.m_108560_();
+            PlayerInfo info = ownerInfo();
+            return info != null ? info.m_105337_() : viewer.m_108560_();
         }
 
         @Override
         public String m_108564_() {
-            return viewer.m_108564_();
+            PlayerInfo info = ownerInfo();
+            return info != null ? info.m_105336_() : viewer.m_108564_();
         }
 
         @Override

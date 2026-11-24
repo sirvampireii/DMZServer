@@ -204,6 +204,33 @@ public final class UltraGuiActions {
             UltraGui.openHub(viewer, "main");
             return;
         }
+        // 4.7.71: Back goes to the page the player came from; with no history, to the page's registry parent.
+        if ("nav:back".equals(action)) {
+            String current = stringArg(args, "page");
+            String[] prev = NavHistory.pop(viewer.m_20148_(), safeScreen, current);
+            if (prev == null) {
+                prev = PageRegistry.parent(safeScreen, current);
+            }
+            if (prev == null) {
+                UltraGui.openHub(viewer, "main");
+            } else {
+                go(viewer, prev[0], prev[1]);
+            }
+            return;
+        }
+        // 4.7.71: a breadcrumb or a search result opens a page of any system (go:screen|page).
+        if (action.startsWith("go:")) {
+            String target = action.substring(3);
+            int bar = target.indexOf('|');
+            String screen = bar < 0 ? target : target.substring(0, bar);
+            String page = bar < 0 ? "main" : target.substring(bar + 1);
+            if (isStaffOnlySystem(screen) && !com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(viewer)) {
+                UltraGui.openHub(viewer, "main");
+                return;
+            }
+            go(viewer, screen, page);
+            return;
+        }
         if ("nav:home".equals(action)) {
             UltraGui.open(viewer, safeScreen, homePage(safeScreen));
             return;
@@ -329,6 +356,10 @@ public final class UltraGuiActions {
 
         // 4.7.62: Menu skins. Free and instant: save, push the look to the LM client, reopen the picker.
         // 4.7.66: My colors (the Custom skin's editor): keep the typed fields, only Apply saves.
+        // 4.7.71: the hub search (search, a recent search, clear, the matching settings).
+        if (UltraHubScreens.applySearchAction(viewer, parts.action, parts.arg == null ? "" : parts.arg, args)) {
+            return;
+        }
         if (UltraHubScreens.applyCustomAction(viewer, parts.action, stringArg(args, "arg"), args)) {
             UltraHubScreens.openCustomDraft(viewer);
             return;
@@ -1026,6 +1057,15 @@ public final class UltraGuiActions {
         };
     }
 
+    /** Open {@code screen} page {@code page} (the hub through its own door). */
+    static void go(ServerPlayer viewer, String screen, String page) {
+        if (PageRegistry.HUB.equals(screen)) {
+            UltraGui.openHub(viewer, page == null || page.isBlank() ? PageRegistry.HUB_MAIN : page);
+        } else {
+            UltraGui.open(viewer, screen, page == null || page.isBlank() ? homePage(screen) : page);
+        }
+    }
+
     private static String homePage(String screen) {
         return switch (screen == null ? "" : screen) {
             case "rival" -> "home";
@@ -1091,7 +1131,7 @@ public final class UltraGuiActions {
             };
             // 4.7.64 hub tabs: Home (dashboard), Goals, More.
             case "hub" -> switch (t) {
-                case "goals" -> UltraHubScreens.PAGE_GOALS;
+                case "search", "goals" -> UltraHubScreens.PAGE_SEARCH;
                 case "more" -> UltraHubScreens.PAGE_MORE;
                 default -> "main";
             };

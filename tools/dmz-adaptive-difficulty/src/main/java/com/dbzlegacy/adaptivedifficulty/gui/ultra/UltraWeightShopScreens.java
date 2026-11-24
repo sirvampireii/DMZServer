@@ -94,7 +94,7 @@ public final class UltraWeightShopScreens {
                             UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
-        spec.footerBackHome("Spar Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -124,7 +124,7 @@ public final class UltraWeightShopScreens {
                                     + "Update KaiPath to type weight values. "
                                     + "Until then this shop cannot take a typed value.");
             spec.buttonsAfterLines();
-            spec.footerBack("page:weights", "Weights shop");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -147,7 +147,7 @@ public final class UltraWeightShopScreens {
                         UltraStyle.STYLE_CONFIRM,
                         INPUT_ID)
                 .rowGap();
-        spec.footerBack("page:weights", "Weights shop");
+        spec.back();
         spec.send(player);
     }
 
@@ -200,7 +200,7 @@ public final class UltraWeightShopScreens {
                             UltraStyle.STYLE_NORMAL)
                     .rowGap();
         }
-        spec.footerBack("page:weights", "Weights shop");
+        spec.back();
         spec.send(player);
     }
 

@@ -52,6 +52,12 @@ public final class LmNativeProtocol {
      * in body rows). Hello-only like the skins; a page sends pictures only to a client that said it.
      */
     public static final String FEATURE_PICTURES = "pictures";
+    /**
+     * LM 4.7.71: the client takes the navigation layer: Back pops the player's page history ({@code nav:back}), a
+     * breadcrumb line (layoutJson {@code breadcrumb}) under the title of every page below a system Home, and the
+     * hub's search row. Hello-only; bridge clients keep the registry's parent pages and no search row.
+     */
+    public static final String FEATURE_NAV = "nav";
 
     /** Feature ids (bridge spelling) the protocol-1 LM client draws natively. */
     public static final List<String> CLIENT_FEATURES = List.of(
@@ -230,6 +236,7 @@ public final class LmNativeProtocol {
         a.add(FEATURE_CUSTOM_SKIN);
         a.add(com.dbzlegacy.adaptivedifficulty.gui.ultra.ColorWheel.FEATURE);
         a.add(FEATURE_PICTURES);
+        a.add(FEATURE_NAV);
         return a.toString();
     }
 

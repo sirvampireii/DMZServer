@@ -231,7 +231,7 @@ public final class UltraSparScreens {
         if (StaffAccess.isStaff(player)) {
             spec.buttonLeft("page:admin", UltraStyle.danger("Staff Admin"), "danger").rowGap();
         }
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -272,7 +272,7 @@ public final class UltraSparScreens {
                         .rowGap();
             }
         }
-        spec.footerBackHome("Spar Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -291,7 +291,7 @@ public final class UltraSparScreens {
             }
         }
         spec.buttonsAfterLines();
-        spec.footerBack("page:stats", "Your stats");
+        spec.back();
         spec.send(player);
     }
 
@@ -338,7 +338,7 @@ public final class UltraSparScreens {
         }
         String backPage = dojoBoard ? "dojo_war" : "main";
         String backLabel = dojoBoard ? "Wars" : "Spar Home";
-        spec.footerBack("page:" + backPage, backLabel);
+        spec.back();
         spec.send(player);
     }
 
@@ -378,7 +378,7 @@ public final class UltraSparScreens {
         if (!"true".equalsIgnoreCase(ph.get("system_enabled"))) {
             spec.line(UltraStyle.danger("Sparring is turned off. Ask staff to enable it."))
                     .buttonsAfterLines();
-            spec.footerBackToMain();
+            spec.back();
             spec.send(player);
             return;
         }
@@ -393,7 +393,7 @@ public final class UltraSparScreens {
                 "dojo_members|Dojo members",
                 "dojo_previous_members|Previous members",
                 "mentor|Actions");
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -412,7 +412,7 @@ public final class UltraSparScreens {
         if (!"true".equalsIgnoreCase(ph.get("system_enabled"))) {
             spec.line(UltraStyle.danger("Sparring is turned off. Ask staff to enable it."))
                     .buttonsAfterLines();
-            spec.footerBack("page:dojo", "Dojo");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -437,7 +437,7 @@ public final class UltraSparScreens {
                         own ? UltraStyle.dim("Your mentor's dojo") : UltraStyle.confirm("Your mentor's dojo"),
                         own ? "dim" : "confirm")
                 .rowGap();
-        spec.footerBack("page:dojo", "Dojo");
+        spec.back();
         spec.send(player);
     }
 
@@ -461,7 +461,7 @@ public final class UltraSparScreens {
                         UltraStyle.danger("Leave mentor"),
                         "danger")
                 .rowGap();
-        spec.footerBack("page:dojo", "Dojo");
+        spec.back();
         spec.send(player);
     }
 
@@ -564,7 +564,7 @@ public final class UltraSparScreens {
                     "No bond invites waiting. Send one from Actions, or wait for someone to invite you."));
         }
         UltraPickHelper.placePrevNext(spec, "pending", pg, pages);
-        spec.footerBack("page:mentor", "Actions");
+        spec.back();
         spec.send(player);
     }
 
@@ -601,7 +601,7 @@ public final class UltraSparScreens {
             spec.button("do:mentor_decline:" + picker, UltraStyle.danger("Decline"), "danger")
                     .rowGap();
         }
-        spec.footerBack("page:" + UltraPickHelper.pageArg("pending", returnPage), "Invites");
+        spec.back();
         spec.send(player);
     }
 
@@ -641,7 +641,7 @@ public final class UltraSparScreens {
                     case "dojo_war", "dojo_war_pending", "wars" -> "Wars";
                     default -> "Spar Home";
                 };
-        spec.footerBack("page:" + returnPage, backLabel);
+        spec.back();
         spec.send(player);
     }
 
@@ -719,7 +719,7 @@ public final class UltraSparScreens {
                                 : UltraStyle.dim("Mentor TP - OFF"),
                         mentorTpOn ? "confirm" : "dim")
                 .rowGap();
-        spec.footerBackHome("Spar Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -736,7 +736,7 @@ public final class UltraSparScreens {
                 "dojo_hof|Hall of Chosen");
         String pendingLabel = warPending > 0 ? "Requests (" + warPending + ")" : "Requests";
         spec.buttonLeft("page:dojo_war_pending", UltraStyle.confirm(pendingLabel), "confirm").rowGap();
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -751,7 +751,7 @@ public final class UltraSparScreens {
             appendBody(spec, lines);
         }
         spec.buttonsAfterLines();
-        spec.footerBack("page:dojo_war", "Wars");
+        spec.back();
         spec.send(player);
     }
 
@@ -815,7 +815,7 @@ public final class UltraSparScreens {
             spec.rowGap();
         }
         UltraPickHelper.placePrevNext(spec, "dojo_war_pending", pg, pages);
-        spec.footerBack("page:dojo_war", "Wars");
+        spec.back();
         spec.send(player);
     }
 
@@ -853,7 +853,7 @@ public final class UltraSparScreens {
             spec.button("do:dojo_accept:" + picker, UltraStyle.confirm("Accept"), "confirm").rowGap();
             spec.button("do:dojo_decline:" + picker, UltraStyle.danger("Deny"), "danger").rowGap();
         }
-        spec.footerBack("page:" + UltraPickHelper.pageArg("dojo_war_pending", returnPage), "Requests");
+        spec.back();
         spec.send(player);
     }
 
@@ -894,7 +894,7 @@ public final class UltraSparScreens {
             spec.line(UltraStyle.dim("Nobody else is online right now - try again when other players are on."));
         }
         UltraPickHelper.placePrevNext(spec, page, pg, pages);
-        spec.footerBack("page:" + back, "Actions");
+        spec.back();
         spec.send(player);
     }
 
@@ -929,7 +929,7 @@ public final class UltraSparScreens {
             spec.line(UltraStyle.dim("No apprentices to release. Take an apprentice from Actions first."));
         }
         UltraPickHelper.placePrevNext(spec, "pick_release", pg, pages);
-        spec.footerBack("page:mentor", "Actions");
+        spec.back();
         spec.send(player);
     }
 
@@ -966,7 +966,7 @@ public final class UltraSparScreens {
             spec.line(UltraStyle.dim("No rival dojos on the ladder yet. Dojos join automatically once their members spar this season - check back later."));
         }
         UltraPickHelper.placePrevNext(spec, "pick_dojo_challenge", pg, pages);
-        spec.footerBack("page:dojo_war", "Wars");
+        spec.back();
         spec.send(player);
     }
 
@@ -986,7 +986,7 @@ public final class UltraSparScreens {
         spec.buttonLeft("do:admin:save", UltraStyle.confirm("Save data"), "confirm")
                 .buttonRight("do:admin:status", UltraStyle.LABEL + "Show status", UltraStyle.STYLE_NORMAL)
                 .rowGap();
-        spec.footerBackHome("Spar Home");
+        spec.back();
         spec.send(player);
     }
 

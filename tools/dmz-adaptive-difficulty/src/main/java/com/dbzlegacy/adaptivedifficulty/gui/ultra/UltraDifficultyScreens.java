@@ -25,7 +25,7 @@ import java.util.Map;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Difficulty - Home / Tiers / Summons (plus staff-only Combat Rating tab). Sub-pages cover
+ * Difficulty - Home / Tiers / Summons (4.7.71: three tabs for everyone; staff open Combat rating from Home). Sub-pages cover
  * teams, titles, and staff tools. Coin messages are a home-page toggle. Weights live under Sparring.
  */
 public final class UltraDifficultyScreens {
@@ -138,13 +138,8 @@ public final class UltraDifficultyScreens {
                 .title("Difficulty")
                 .page(page)
                 .activeTab(tab);
-        if (StaffAccess.isStaff(player)) {
-            // Combat Rating is staff-only — omitted from the tab row for players.
-            // Short label: 4-up tabs need <=10 chars or KaiPath truncates with mojibake.
-            spec.tabs("home|Home", "tiers|Tiers", "summons|Summons", "stats|CR|staff");
-        } else {
-            spec.tabs("home|Home", "tiers|Tiers", "summons|Summons");
-        }
+        // 4.7.71: every system keeps exactly three tabs, Home first; staff open Combat rating from Home.
+        spec.tabs("home|Home", "tiers|Tiers", "summons|Summons");
         return spec;
     }
 
@@ -271,7 +266,8 @@ public final class UltraDifficultyScreens {
         placeCoinMessageToggle(spec, data != null && data.isCoinDropChat());
         if (StaffAccess.isStaff(player)) {
             // Staff entry reads red, like Staff Admin on the Rival and Sparring homes.
-            spec.buttonLeft("page:admin", UltraStyle.LABEL + "Server tools", UltraStyle.STYLE_NORMAL).rowGap();
+            spec.buttonLeft("page:admin", UltraStyle.LABEL + "Server tools", UltraStyle.STYLE_NORMAL);
+            spec.buttonRight("page:stats", UltraStyle.LABEL + "Combat rating", UltraStyle.STYLE_NORMAL).rowGap();
         }
         if (guide) {
             spec.footerGuide("page:" + DifficultyTutorial.PAGE_STEP2, "Step 2", GUIDE_DONE);
@@ -362,7 +358,7 @@ public final class UltraDifficultyScreens {
                     UltraStyle.STYLE_CONFIRM).rowGap();
             spec.footerGuide("page:" + DifficultyTutorial.PAGE_STEP1, "Step 1", GUIDE_DONE);
         } else {
-            spec.footerBack("page:main", "Home");
+            spec.back();
         }
         spec.send(player);
     }
@@ -408,7 +404,7 @@ public final class UltraDifficultyScreens {
             placeDifficultyToggle(spec, false);
             spec.rowGap();
         }
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -448,7 +444,7 @@ public final class UltraDifficultyScreens {
                         wardenReady ? UltraStyle.confirm(wardenLabel) : UltraStyle.dim(wardenLabel),
                         wardenReady ? "confirm" : "dim")
                 .rowGap();
-        spec.footerBack("page:main", homeLabel(player));
+        spec.back();
         spec.send(player);
     }
 
@@ -476,7 +472,7 @@ public final class UltraDifficultyScreens {
         } else {
             spec.lockedButton("Summon locked").rowGap();
         }
-        spec.footerBack("page:summons", "Summons");
+        spec.back();
         spec.send(player);
     }
 
@@ -510,7 +506,7 @@ public final class UltraDifficultyScreens {
         } else {
             spec.lockedButton("Summon locked").rowGap();
         }
-        spec.footerBack("page:summons", "Summons");
+        spec.back();
         spec.send(player);
     }
 
@@ -632,7 +628,7 @@ public final class UltraDifficultyScreens {
             }
         }
         spec.rowGap();
-        spec.footerBack("page:tiers", "Tiers");
+        spec.back();
         spec.send(player);
     }
 
@@ -652,7 +648,7 @@ public final class UltraDifficultyScreens {
             spec.button("do:lower_tier:0", UltraStyle.danger("Clear active tier"), UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
-        spec.footerBack("page:tiers", "Tiers");
+        spec.back();
         spec.send(player);
     }
 
@@ -667,7 +663,7 @@ public final class UltraDifficultyScreens {
                 .notice("Flush the event log? Recent entries are written out and the log is closed.")
                 .buttonsAfterLines();
         spec.button("do:syslog:flush", UltraStyle.danger("Flush the event log"), UltraStyle.STYLE_DANGER).rowGap();
-        spec.footerBack("page:eventlog", "Event log");
+        spec.back();
         spec.send(player);
     }
 
@@ -687,7 +683,7 @@ public final class UltraDifficultyScreens {
             spec.button("do:toggle_personal", UltraStyle.danger("Turn Difficulty off"), UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
-        spec.footerBack("page:tiers", "Tiers");
+        spec.back();
         spec.send(player);
     }
 
@@ -706,7 +702,7 @@ public final class UltraDifficultyScreens {
             spec.button("do:clear_title", UltraStyle.danger("Unequip title"), UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
-        spec.footerBack("page:titles_p0", "Titles");
+        spec.back();
         spec.send(player);
     }
 
@@ -750,7 +746,7 @@ public final class UltraDifficultyScreens {
                             UltraStyle.confirm(UltraStyle.fitsButton(go) ? go : "Confirm summon"), "confirm")
                     .rowGap();
         }
-        spec.footerBack("page:" + which, name);
+        spec.back();
         spec.send(player);
     }
 
@@ -844,7 +840,7 @@ public final class UltraDifficultyScreens {
                         mode == TeamMode.FULL_TEAM_SCALING ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM)
                 .rowGap();
         // "Home" fits the footer button. "Difficulty Home" truncates to "Back to Difficulty...".
-        spec.footerBackHome("Difficulty Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -891,7 +887,7 @@ public final class UltraDifficultyScreens {
             placeDifficultyToggle(spec, false);
             spec.rowGap();
         }
-        spec.footerBackHome("Difficulty Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -962,7 +958,7 @@ public final class UltraDifficultyScreens {
                         sense ? "confirm" : "dim")
                 .buttonRight("page:title_unequip_ask", UltraStyle.danger("Unequip title"), "danger")
                 .rowGap();
-        spec.footerBackHome("Difficulty Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -972,7 +968,7 @@ public final class UltraDifficultyScreens {
         if (title == null) {
             spec.line(UltraStyle.dim("Couldn't find that - try refreshing the list."))
                     .buttonsAfterLines();
-            spec.footerBack("page:titles_p0", "Titles");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -1002,7 +998,7 @@ public final class UltraDifficultyScreens {
             spec.buttonLeft("do:equip_title:" + title.id, UltraStyle.dim("Already equipped"), UltraStyle.STYLE_DIM)
                     .rowGap();
         }
-        spec.footerBack("page:titles_p0", "Titles");
+        spec.back();
         spec.send(player);
     }
 
@@ -1036,7 +1032,7 @@ public final class UltraDifficultyScreens {
         Map<String, String> ph = new HashMap<>();
         LmOverhaulScaledCombat.putPlaceholders(ph, player);
         long cr = snap == null ? 0L : (snap.combatRating > 0 ? snap.combatRating : snap.calculated);
-        UltraScreenSpec spec = base(player, "stats", "stats")
+        UltraScreenSpec spec = sub("stats")
                 .line(UltraStyle.LABEL + "Combat rating and scaled stats")
                 .labelValue(
                         "Tier",
@@ -1068,7 +1064,7 @@ public final class UltraDifficultyScreens {
                 .labelValue("Top stats", blank(profile.topStatsLabel()))
                 .labelValue("Ancient Coins", AncientCoinEconomy.inventoryBreakdown(player))
                 .buttonsAfterLines();
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -1087,7 +1083,7 @@ public final class UltraDifficultyScreens {
         spec.buttonLeft("open:admin", UltraStyle.LABEL + "LM Staff Admin", UltraStyle.STYLE_NORMAL)
                 .buttonRight("page:eventlog", UltraStyle.LABEL + "Event log", UltraStyle.STYLE_NORMAL)
                 .rowGap();
-        spec.footerBackHome("Difficulty Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -1115,7 +1111,7 @@ public final class UltraDifficultyScreens {
                         logOn ? "danger" : "dim")
                 .buttonRight("page:flush_ask", UltraStyle.danger("Flush"), "danger")
                 .rowGap();
-        spec.footerBack("page:admin", "Server tools");
+        spec.back();
         spec.send(player);
     }
 

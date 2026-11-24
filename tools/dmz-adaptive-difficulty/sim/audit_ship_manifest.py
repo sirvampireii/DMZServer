@@ -229,7 +229,9 @@ def main() -> int:
     check("profile keeps Declare / Accept their declare / Remove / not-on-list / Back to Rival tab",
           '"do:declare:" + arg' in detail and '"page:accept_confirm:" + arg' in detail
           and '"page:remove_confirm:" + profileArg(arg, returnPage)' in detail and "Not on your rival list." in detail
-          and 'UltraPickHelper.pageArg("actions", returnPage), "Rival"' in detail)
+          # 4.7.71: the one back(); the page registry sends a profile back to the Rival tab.
+          and "spec.back()" in detail
+          and 'item("rival", "list_detail:**", "Rival", "rival|actions");' in read(SRC / "gui/ultra/PageRegistry.java"))
     check("Rival list page removed; Home has no Rival list; page:list opens the Rival tab",
           "private static void openList(" not in rival_ui
           and '"list|Rival list"' not in rival_home
@@ -764,7 +766,7 @@ def main() -> int:
     check("Rival has three tabs; stats open from Home and return to Rival Home",
           '.tabs("home|Home", "actions|Rival", "challenge|Challenge");' in g_rival
           and '"info|My rival stats"' in g_rival and 'sub("info")' in g_info
-          and 'footerBackHome("Rival Home")' in g_info)
+          and ".back()" in g_info and 'p("rival", "info", "My rival stats", "rival|home");' in read(SRC / "gui/ultra/PageRegistry.java"))
     check("event log: the turn-on action is never dim while the log is off",
           'logOn ? UltraStyle.confirm("Event log - ON") : "Event log - ON"' in g_diff
           and 'UltraStyle.dim("Event log - ON")' not in g_diff)
@@ -1017,7 +1019,7 @@ def main() -> int:
           "tpBoostLine(ph)" in bs_sel and "masteryBoostLine(ph)" in bs_sel
           and '"page:" + PAGE_TP_BOOST, "TP Boost"' in bs_sel
           and '"page:" + PAGE_MASTERY_BOOST, "Mastery Boost"' in bs_sel
-          and "spec.footerBackToMain();" in bs_sel
+          and ".back()" in bs_sel  # 4.7.71: a tab page's back() reads Back to main menu
           and '.tabs("home|Home", "boosts|Boosts", "coins|Coins")' in bs_scr)
     _presets = ['act + "1.25:30"', 'act + "1.5:30"', 'act + "2:30"', 'act + "2:60"', 'act + "3:30"']
     check("control view: own status line, five confirm presets, danger End, Back to Boosts",
@@ -1025,7 +1027,8 @@ def main() -> int:
           and 'act + "end", UltraStyle.danger("End this boost"), "danger"' in bs_view
           and 'String act = mastery ? "do:masteryboost:" : "do:boost:";' in bs_view
           and "mastery ? masteryBoostLine(ph) : tpBoostLine(ph)" in bs_view
-          and 'spec.footerBack("page:boosts", "Boosts");' in bs_view)
+          and ".back()" in bs_view
+          and 'p("progression", "boosts_tp", "TP Boost", "progression|boosts");' in read(SRC / "gui/ultra/PageRegistry.java"))
     check("pages boosts_tp / boosts_mastery open the views; actions land back on their own view",
           'case PAGE_TP_BOOST -> openBoostControls(player, false);' in bs_scr
           and 'case PAGE_MASTERY_BOOST -> openBoostControls(player, true);' in bs_scr
@@ -1166,7 +1169,9 @@ def main() -> int:
     check("form view id and Back carry the line page",
           'UltraPickHelper.pageArg("mw_form:" + line.token() + ":" + form.name, pg)' in pg_line
           and 'sub(UltraPickHelper.pageArg("mw_form:" + token, Math.max(0, linePage)))' in pg_form
-          and 'footerBack("page:" + UltraPickHelper.pageArg("mw_line:" + line.token(), Math.max(0, linePage)), line.label);' in pg_form)
+          # 4.7.71: back() to the line; the registry maps mw_form:<s|n>:<group>:<form> to mw_line:<s|n>:<group>.
+          and ".back()" in pg_form
+          and 'item("prestige", "mw_form:*:*:**", "Form mastery", "prestige|mw_line:$1:$2");' in read(SRC / "gui/ultra/PageRegistry.java"))
     check("empty state unchanged; hidden empty lines unchanged",
           "You have no unlocked forms yet, so there is nothing to apply points to." in pg_lines
           and "!l.forms.isEmpty()" in read(SRC / "progression/shop/MasteryWallet.java"))
@@ -1771,8 +1776,8 @@ def main() -> int:
     check("Body parts reached only from Home; its Back returns to Character Home; Home footer Back to main menu",
           "page:bodyparts:0" not in ch_bones
           and 'footerBack("page:bones:0", "Model")' not in ch_scr
-          and ch_parts.count('footerBackHome("Character Home")') >= 1
-          and "spec.footerBackToMain();" in ch_home)
+          and ".back()" in ch_parts and ".back()" in ch_home
+          and 'p("character", "bodyparts:0", "Body parts", "character|main"' in read(SRC / "gui/ultra/PageRegistry.java"))
     check("self-test covers the Home index rules", "UltraCharacterScreens.selfTest(broken);" in pc_test)
 
     print("\n--- § prestige cap 20 4.7.12 ---")
@@ -2294,19 +2299,19 @@ def main() -> int:
     p64_ev = read(SRC / "event/DifficultyEvents.java")
     p64_gui = read(SRC / "net/gui/LmGuiNetwork.java")
     check("manifest row for lm 4.7.64", "lm-4764-central-hub" in manifest)
-    check("hub: three tabs, Home first (Home, Goals, More)",
-          '.tabs("home|Home", PAGE_GOALS + "|Goals", PAGE_MORE + "|More")' in p64_hub
-          and 'case "goals" -> UltraHubScreens.PAGE_GOALS;' in p64_act)
+    # 4.7.71: Goals waits for real weekly goals; the hub tabs are Home, Search, More and old goals links open Search.
+    check("hub: three tabs, Home first (Home, Search, More)",
+          '.tabs("home|Home", PAGE_SEARCH + "|Search", PAGE_MORE + "|More")' in p64_hub
+          and 'case "search", "goals" -> UltraHubScreens.PAGE_SEARCH;' in p64_act)
     check("hub Home: next prestige, Fastest now, Train / Compete / Progress, Prestige full width",
           'UltraStyle.header("Your next prestige")' in p64_hub and "HubDashboard.fastestNow(player)" in p64_hub
           and 'UltraStyle.header("Train")' in p64_hub and 'UltraStyle.header("Compete")' in p64_hub
           and 'new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), null);' in p64_hub
           and ('new HubTile("spar_wars", "Dojo wars"' in p64_hub or 'new HubTile("spar_dojo", "My dojo"' in p64_hub))
-    check("Menu skins and Staff Admin moved to More; Goals is a placeholder with no payout",
+    check("Menu skins and Staff Admin moved to More; no Goals placeholder (4.7.71)",
           'new HubTile("menu_skins", "Menu skins"' in p64_hub.split("private static void openMore(", 1)[-1]
           and 'new HubTile("admin", "Staff Admin"' in p64_hub.split("private static void openMore(", 1)[-1]
-          and 'spec.lockedButton("No goals yet")' in p64_hub
-          and "Weekly goals arrive in the next update." in p64_hub)
+          and 'spec.lockedButton("No goals yet")' not in p64_hub)
     check("LM links only to itself: no command runs from a menu, no other mod's screen",
           all(x not in p64_hub + p64_dash + p64_board + p64_spar + p68_dojo
               for x in ("performPrefixedCommand", "dispatchCommand", "/home", "/spawn", "/tpa", "/empire",
@@ -2881,7 +2886,7 @@ def main() -> int:
     check("body parts shop: filters, Find, cards, pages, one action row, Back",
           p49_shop.index("placeFilterRow(spec, filter);") < p49_shop.index('"page:" + PAGE_FIND')
           < p49_shop.index("placePartCards(") < p49_shop.index('base + (pg + 1) + tail')
-          < p49_shop.index('"page:clear_ask:body:" + self') < p49_shop.index('"page:bodycolors"') < p49_shop.index("footerBackHome"))
+          < p49_shop.index('"page:clear_ask:body:" + self') < p49_shop.index('"page:bodycolors"') < p49_shop.index(".back()"))
     check("preview forms: bigger box, scale fit to the form; standard box unchanged",
           "FORMS = new Box(190, 46, 144, 186)" in p49_prev and "STANDARD = new Box(248, 60, 86, 120)" in p49_prev
           and "ModelPreview.formScale(form, ModelPreview.menuBox(box), ModelPreview.BASE_SCALE)" in p49_char
@@ -2920,9 +2925,10 @@ def main() -> int:
           and p48_char.count("ModelPreview.rotateButton(spec, player,") >= 9
           # 4.7.49: the standard box goes through standardModel / ModelPreview.STANDARD.
           and p48_char.count("ModelPreview.rotate(player)") >= 3)
-    check("form figures are made-up uuid subjects with no colors, never subject local",
+    # 4.7.71: a form figure carries the viewer's own colours for that form (previewColors), still on a made-up subject.
+    check("form figures are made-up uuid subjects with the viewer's colours for the form, never subject local",
           '"subject", "uuid:" + UUID.nameUUIDFromBytes' in p48_figure
-          and '"local"' not in p48_prev and '"colors"' not in p48_figure
+          and '"local"' not in p48_prev and "PlayerModelParts.previewColors(" in p48_figure
           and "ConfigManager.getAllFormsForRace(race)" in p48_prev)
     check("Character Home forms page steps the race's forms",
           'PAGE_FORM_PREVIEW = "form_preview"' in p48_char and "openFormPreview" in p48_char
@@ -3896,7 +3902,7 @@ def main() -> int:
           and '.labelValue("You get", gain + " favor")' in sc_pre_ask
           and "PrestigePointsSystem.pointsForTurnIn(amount)" in sc_pre_ask)
     check("confirm pages show the cost and only offer Confirm when nothing blocks it; Back to the source",
-          "if (block == null) {" in sc_pre_ask and 'spec.footerBack("page:" + backPage, backLabel);' in sc_pre_ask
+          "if (block == null) {" in sc_pre_ask and "spec.back();" in sc_pre_ask  # 4.7.71: registry parent
           and sc_pre_ask.count('.labelValue("Cost"') >= 5
           and '"exchange", "Exchange shop"' in sc_pre_ask and '"mastery_wallet", "Mastery wallet"' in sc_pre_ask)
     check("Difficulty: coin tier upgrades -> tier_ask, summons -> summon_ask; do: only on confirm pages",
@@ -4086,16 +4092,16 @@ def main() -> int:
     gf_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
     gf_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
     gf_prog = read(SRC / "gui/ProgressionGuiApi.java")
-    gf_main = gf_spec.split("public UltraScreenSpec footerBackToMain()", 1)[-1].split("\n    }\n", 1)[0]
+    gf_main = gf_spec.split("private void placeBack(ServerPlayer player)", 1)[-1].split("\n    }\n", 1)[0]
     gf_admin = gf_hub.split("private static void openAdmin(", 1)[-1].split("\n    }\n", 1)[0]
     gf_chal = gf_rival.split("private static void openChallenge(", 1)[-1].split("\n    }\n", 1)[0]
     check("manifest gui-followups-249 row", "gui-followups-249" in manifest)
     check("Home-tab footer reads Back to main menu (no lone Main menu)",
-          "UltraStyle.BACK_TO_MAIN" in gf_main and "MAIN_MENU" not in gf_main.replace("BACK_TO_MAIN", ""))
+          "UltraStyle.BACK_TO_MAIN" in gf_main and "placeFooter(null, null, action, label)" in gf_main)
     check("Staff Admin has one footer: Back to main menu",
-          "spec.footerBackToMain();" in gf_admin and 'footerBack("nav:hub"' not in gf_admin)
+          "spec.back();" in gf_admin and 'footerBack("nav:hub"' not in gf_admin)
     check("Difficulty sub-pages say Back to Difficulty Home and the label fits (real glyph widths)",
-          'footerBackHome("Home")' not in gf_diff and gf_diff.count('footerBackHome("Difficulty Home")') == 4
+          "footerBackHome(" not in gf_diff and gf_diff.count(".back()") >= 4
           and "public static int textWidthPx(" in gf_style
           and "UltraStyle.textWidthPx(plainLabel) <= labelPx" in gf_spec)
     check("staff progression toggles reply with the display label",
@@ -4321,9 +4327,11 @@ def main() -> int:
           and "UltraPickHelper.placePrevNext(spec, pageBase, pg, pages)" in rival_ui
           and '" | page "' not in rival_ui
           and "UltraPickHelper.placeNameButtons(spec, doAction, choices, PICK_PER_PAGE, pageBase, pg, null)" in rival_ui)
+    # 4.7.71: on the LM client Back pops the page history (the exact list page); bridge clients get the registry
+    # parent, the Rival tab's first page.
     check("rival profile Back returns to the Rival tab page it came from",
           '"page:list_detail:" + profileArg(arg, page)' in rival_ui
-          and 'UltraPickHelper.pageArg("actions", returnPage), "Rival"' in rival_ui)
+          and 'item("rival", "list_detail:**", "Rival", "rival|actions");' in read(ultra_dir / "PageRegistry.java"))
     self_test = read(ultra_dir / "UltraScreenSelfTest.java")
     check("picker paging self-test covers 124 cases (lists 0-30)",
           "for (int total = 0; total <= 30; total++)" in self_test and "cases != 124" in self_test)

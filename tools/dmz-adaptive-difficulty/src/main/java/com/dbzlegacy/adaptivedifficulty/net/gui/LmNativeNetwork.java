@@ -282,6 +282,12 @@ public final class LmNativeNetwork {
         return f != null && f.contains(LmNativeProtocol.FEATURE_CUSTOM_SKIN);
     }
 
+    /** 4.7.71: this player's LM client takes the navigation layer (history Back, breadcrumbs, hub search). */
+    public static boolean takesNav(ServerPlayer player) {
+        Set<String> f = player == null ? null : FEATURES.get(player.m_20148_());
+        return f != null && f.contains(LmNativeProtocol.FEATURE_NAV);
+    }
+
     /** 4.7.68: this player's LM client draws pictures in a page's body (the dojo upgrade previews). */
     public static boolean takesPictures(ServerPlayer player) {
         Set<String> f = player == null ? null : FEATURES.get(player.m_20148_());

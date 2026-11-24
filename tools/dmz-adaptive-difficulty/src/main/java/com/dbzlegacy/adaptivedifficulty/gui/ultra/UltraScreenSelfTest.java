@@ -121,7 +121,7 @@ public final class UltraScreenSelfTest {
                             .button("do:reload", "Reload", "confirm")
                             .buttonLeft("open:progression", "Progression", "normal")
                             .buttonRight("open:config", "Config", "normal")
-                            .footerBackToMain();
+                            .back();
                     case "difficulty" -> UltraScreenSpec.of("difficulty")
                             .fitMenu()
                             .title("Difficulty")
@@ -130,7 +130,7 @@ public final class UltraScreenSelfTest {
                             .tabs("home|Home", "tiers|Tiers", "summons|Summons", "stats|CR|staff")
                             .line("self-test")
                             .buttonLeft("tab:tiers", "Tiers", "normal")
-                            .footerBackToMain();
+                            .back();
                     case "rival" -> UltraScreenSpec.of("rival")
                             .fitMenu()
                             .title("Rival")
@@ -138,7 +138,7 @@ public final class UltraScreenSelfTest {
                             .activeTab("home")
                             .tabs("home|Home", "actions|Rival", "challenge|Challenge")
                             .line("self-test")
-                            .footerBackToMain();
+                            .back();
                     case "spar" -> UltraScreenSpec.of("spar")
                             .fitMenu()
                             .title("Sparring")
@@ -146,7 +146,7 @@ public final class UltraScreenSelfTest {
                             .activeTab("home")
                             .tabs("home|Home", "dojo|Dojo", "dojo_war|Wars")
                             .line("self-test")
-                            .footerBackToMain();
+                            .back();
                     case "prestige" -> UltraScreenSpec.of("prestige")
                             .fitMenu()
                             .title("Prestige")
@@ -157,7 +157,7 @@ public final class UltraScreenSelfTest {
                             .button("page:tiers", "Difficulty tiers", "confirm")
                             .button("page:effects", "Effects", "confirm")
                             .line("self-test")
-                            .footerBackToMain();
+                            .back();
                     case "character" -> UltraScreenSpec.of("character")
                             .fitMenu()
                             .title("Character Services")
@@ -166,21 +166,21 @@ public final class UltraScreenSelfTest {
                             .tabs("home|Home", "saga|Saga", "android|Android")
                             .line("self-test")
                             .playerModel(248, 60, 86, 120, 0.9f, true)
-                            .footerBackToMain();
+                            .back();
                     case "skillcheck" -> UltraScreenSpec.of("skillcheck")
                             .fitMenu()
                             .title("Skill Check")
                             .page("main")
                             .activeTab("home")
                             .line("self-test")
-                            .footerBackToMain();
+                            .back();
                     case "skills" -> UltraScreenSpec.of("skills")
                             .fitMenu()
                             .title("Skills")
                             .page("main")
                             .activeTab("home")
                             .line("self-test")
-                            .footerBackToMain();
+                            .back();
                     case "progression" -> UltraScreenSpec.of("progression")
                             .fitMenu()
                             .title("Progression")
@@ -188,14 +188,14 @@ public final class UltraScreenSelfTest {
                             .activeTab("home")
                             .tabs("home|Home", "boosts|Boosts", "coins|Coins")
                             .line("self-test")
-                            .footerBackToMain();
+                            .back();
                     case "config" -> UltraScreenSpec.of("config")
                             .title("Config Editor")
                             .page("list")
                             .activeTab("home")
                             .tabs("home|Home")
                             .line("self-test")
-                            .footerBackToMain();
+                            .back();
                     default -> UltraScreenSpec.of(id)
                             .title(id)
                             .page("main")
@@ -665,7 +665,7 @@ public final class UltraScreenSelfTest {
                     UltraScreenSpec.captureSends(() -> UltraScreenSpec.of(id)
                             .title("Footer")
                             .page("home")
-                            .footerBackHome("Home")
+                            .back()
                             .send(null));
             if (footerInk.isEmpty() || footerInk.get(0).buttonsJson() == null) {
                 broken.add(id + " footer probe produced no packet");
@@ -960,7 +960,7 @@ public final class UltraScreenSelfTest {
         dense.textField("input:bodypart_query", "", "e.g. horns", UltraStyle.COL_L, dense.row(), 200,
                 UltraStyle.BTN_H, 32);
         dense.buttonBound("page:bodyparts_find", "Find", "normal", 222, dense.row(), 90, "input:bodypart_query");
-        dense.footerBackHome("Character Home");
+        dense.back();
         GuiOpenPacket densePkt = dense.toPacket();
         checkMenuPacket(broken, "dense", densePkt, true);
         // Content-sized: a short page gets a small panel, the long one a tall panel (taller than
@@ -1202,6 +1202,14 @@ public final class UltraScreenSelfTest {
         com.dbzlegacy.adaptivedifficulty.character.SaiyanTailWipeHelper.selfTest(broken);
         UltraCharacterScreens.selfTest(broken);
         UltraPrestigeScreens.exchangeSelfTest(broken);
+        // 4.7.71: the page registry (titles, parents, chains to the main menu, search) and the page history.
+        for (String problem : PageRegistry.problems()) {
+            broken.add("page-registry: " + problem);
+        }
+        String nav = NavHistory.selfTest();
+        if (!"OK".equals(nav)) {
+            broken.add("nav-history: " + nav);
+        }
 
         if (broken.isEmpty()) {
             LmLog.event(

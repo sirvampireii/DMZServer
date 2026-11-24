@@ -253,6 +253,9 @@ public final class NativeMenuScreen extends Screen {
             if (layout.has("pictures") && layout.get("pictures").isJsonObject()) {
                 pictures = layout.getAsJsonObject("pictures");
             }
+            if (layout.has("breadcrumb") && layout.get("breadcrumb").isJsonArray()) {
+                breadcrumb = layout.getAsJsonArray("breadcrumb");
+            }
         }
         if (fillScreen) {
             if (designW > 0) {
@@ -548,6 +551,7 @@ public final class NativeMenuScreen extends Screen {
         pose.m_85841_(scale(), scale(), 1f);
         drawPanel(g, alpha);
         drawTitle(g);
+        drawBreadcrumb(g, mx, my);
         drawBody(g, now);
         drawPictures(g);
         if (live) {
@@ -685,6 +689,86 @@ public final class NativeMenuScreen extends Screen {
         if (clip) {
             g.m_280618_();
         }
+    }
+
+    // ------------------------------------------------------------------ 4.7.71 breadcrumb
+
+    /** layoutJson {@code breadcrumb}: [title, action] pairs, the main menu first; null for none. */
+    private JsonArray breadcrumb;
+    /** Where each crumb was drawn (design pixels): {x, y, w, h, index}, rebuilt each frame from the same layout. */
+    private final List<int[]> crumbHits = new ArrayList<>();
+
+    /**
+     * The breadcrumb under the title, in the strip above the divider: "Main menu > Sparring > Dojo > Upgrades". Each
+     * crumb but the last (this page) is a link in the skin's trim, underlined under the mouse; crumbs that do not fit
+     * on the left fold into "...".
+     */
+    private void drawBreadcrumb(GuiGraphics g, int mx, int my) {
+        crumbHits.clear();
+        if (breadcrumb == null || breadcrumb.isEmpty()) {
+            return;
+        }
+        int n = breadcrumb.size();
+        String sep = " > ";
+        int sepW = this.f_96547_.m_92895_(sep);
+        int max = panelW - 2 * EDGE;
+        int first = 0;
+        while (first < n - 1 && crumbsWidth(first, sepW) > max) {
+            first++;
+        }
+        int total = crumbsWidth(first, sepW) + (first > 0 ? this.f_96547_.m_92895_("...") + sepW : 0);
+        int x = Math.max(EDGE, (panelW - total) / 2);
+        int y = Math.max(12, headerBottom - 3) - 11;
+        if (first > 0) {
+            g.m_280056_(this.f_96547_, "...", x, y, MenuSkins.OPAQUE | skin.fieldEdge(), false);
+            x += this.f_96547_.m_92895_("...");
+            g.m_280056_(this.f_96547_, sep, x, y, MenuSkins.OPAQUE | skin.fieldEdge(), false);
+            x += sepW;
+        }
+        for (int i = first; i < n; i++) {
+            JsonArray c = breadcrumb.get(i).getAsJsonArray();
+            String title = c.get(0).getAsString();
+            boolean link = c.size() > 1 && !c.get(1).getAsString().isBlank();
+            int w = this.f_96547_.m_92895_(title);
+            boolean hover = link && mx >= x && mx < x + w && my >= y - 1 && my < y + 9;
+            int ink = link ? skin.trim() : skin.text();
+            g.m_280056_(this.f_96547_, title, x, y, MenuSkins.OPAQUE | ink, false);
+            if (hover) {
+                fillRounded(g, x, y + 9, w, 1, 0, MenuSkins.OPAQUE | ink);
+            }
+            if (link) {
+                crumbHits.add(new int[] {x, y - 1, w, 10, i});
+            }
+            x += w;
+            if (i < n - 1) {
+                g.m_280056_(this.f_96547_, sep, x, y, MenuSkins.OPAQUE | skin.fieldEdge(), false);
+                x += sepW;
+            }
+        }
+    }
+
+    private int crumbsWidth(int from, int sepW) {
+        int w = 0;
+        for (int i = from; i < breadcrumb.size(); i++) {
+            w += this.f_96547_.m_92895_(breadcrumb.get(i).getAsJsonArray().get(0).getAsString()) + (i > from ? sepW : 0);
+        }
+        return w;
+    }
+
+    /** A click on a crumb: the server opens that page (the same action a button would send). */
+    private boolean clickCrumb(double x, double y) {
+        for (int[] h : crumbHits) {
+            if (x >= h[0] && x < h[0] + h[2] && y >= h[1] && y < h[1] + h[3]) {
+                JsonArray c = breadcrumb.get(h[4]).getAsJsonArray();
+                playClick("");
+                JsonObject args = new JsonObject();
+                args.addProperty("screen", packet.screenId());
+                args.addProperty("page", packet.pageId());
+                LmNativeNetwork.sendAction(packet.screenId(), c.get(1).getAsString(), args.toString());
+                return true;
+            }
+        }
+        return false;
     }
 
     // ------------------------------------------------------------------ 4.7.68 pictures
@@ -1632,6 +1716,9 @@ public final class NativeMenuScreen extends Screen {
         double x = toDesignX(mouseX);
         double y = toDesignY(mouseY);
         if (button == 0) {
+            if (clickCrumb(x, y)) {
+                return true;
+            }
             for (Wheel wl : wheels) {
                 if (pickWheel(wl, x, y)) {
                     dragWheel = wl;

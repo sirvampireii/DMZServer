@@ -262,7 +262,7 @@ public final class UltraStyle {
 
     /**
      * Contextual back label that names its destination (e.g. {@code Back to Rival Home}).
-     * Prefer {@link UltraScreenSpec#footerBackHome(String)} / {@link UltraScreenSpec#footerBack}
+     * Footers come from {@link UltraScreenSpec#back()} (4.7.71)
      * so the control lives in the pinned footer, not the scrollable body.
      */
     public static String backTo(String destination) {

@@ -241,7 +241,7 @@ public final class UltraCharacterScreens {
         }
         spec.rowGap();
 
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -307,7 +307,7 @@ public final class UltraCharacterScreens {
                     .line(UltraStyle.LABEL + "Preview forms")
                     .line(UltraStyle.LABEL + "Preview forms is a staff tool. Your character and your forms are not affected.")
                     .buttonsAfterLines();
-            spec.footerBackHome("Character Home");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -317,7 +317,7 @@ public final class UltraCharacterScreens {
                     .line(UltraStyle.LABEL + "Preview forms")
                     .line(UltraStyle.LABEL + "Make your character first, then come back to see your race's forms.")
                     .buttonsAfterLines();
-            spec.footerBackHome("Character Home");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -349,7 +349,7 @@ public final class UltraCharacterScreens {
                     UltraStyle.COL_L + FORM_STEP_W + 4, spec.row(), FORM_STEP_W);
             spec.rowGap();
         }
-        spec.footerBackHome("Character Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -485,7 +485,7 @@ public final class UltraCharacterScreens {
             spec.rowGap();
         }
         // footerBackHome only - a second tab:home Back stacked a duplicate button.
-        spec.footerBackHome("Character Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -581,7 +581,7 @@ public final class UltraCharacterScreens {
                         UltraStyle.confirm(confirmLabel),
                         UltraStyle.STYLE_CONFIRM)
                 .rowGap();
-        spec.footerBack("page:race:0", "Race list");
+        spec.back();
         spec.send(player);
     }
 
@@ -657,7 +657,7 @@ public final class UltraCharacterScreens {
             spec.rowGap();
         }
         // footerBackHome only - avoid duplicate Back with tab:home.
-        spec.footerBackHome("Character Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -707,7 +707,7 @@ public final class UltraCharacterScreens {
                 .buttonsAfterLines();
         spec.button(action, label, "default".equals(kind) ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DANGER)
                 .rowGap();
-        spec.footerBack("page:" + origin, origin.startsWith("bodyparts") ? "Body parts" : "Customize model");
+        spec.back();
         spec.send(player);
     }
 
@@ -726,7 +726,7 @@ public final class UltraCharacterScreens {
                         UltraStyle.confirm(payLabel(classDue)),
                         UltraStyle.STYLE_CONFIRM)
                 .rowGap();
-        spec.footerBack("page:class:0", "Class list");
+        spec.back();
         spec.send(player);
     }
 
@@ -737,7 +737,7 @@ public final class UltraCharacterScreens {
         spec.buttonsAfterLines();
         spec.button("page:reskin_confirm", UltraStyle.confirm("Review cost"), UltraStyle.STYLE_CONFIRM)
                 .rowGap();
-        spec.footerBackHome("Character Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -758,7 +758,7 @@ public final class UltraCharacterScreens {
                             UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
-        spec.footerBack("page:reskin", "Reskin");
+        spec.back();
         spec.send(player);
     }
 
@@ -770,7 +770,7 @@ public final class UltraCharacterScreens {
                             + "Not available for Monkey - this race uses a form model.")
                     .buttonsAfterLines();
             ModelPreview.rotateButton(spec, player, "bones:0");
-            spec.footerBackHome("Character Home");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -854,7 +854,7 @@ public final class UltraCharacterScreens {
         } else if (pg > 0) {
             spec.rowGap();
         }
-        spec.footerBackHome("Character Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -970,7 +970,7 @@ public final class UltraCharacterScreens {
                             UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
-        spec.footerBack("page:" + back, backLabel);
+        spec.back();
         spec.send(player);
     }
 
@@ -1035,7 +1035,7 @@ public final class UltraCharacterScreens {
                             + "Not available for Monkey - this race uses a form model.")
                     .buttonsAfterLines();
             ModelPreview.rotateButton(spec, player, "bodyparts:0");
-            spec.footerBackHome("Character Home");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -1078,7 +1078,7 @@ public final class UltraCharacterScreens {
         spec.buttonRight(
                         "page:bodycolors", UltraStyle.LABEL + "Part colors", UltraStyle.STYLE_NORMAL);
         spec.rowGap();
-        spec.footerBackHome("Character Home");
+        spec.back();
         spec.send(player);
     }
 
@@ -1180,7 +1180,7 @@ public final class UltraCharacterScreens {
             spec.line(UltraStyle.LABEL + "Typing a search needs a newer KaiPath client. Pick a group instead:");
             spec.buttonsAfterLines();
             placeFilterRow(spec, "");
-            spec.footerBack("page:bodyparts:0", "Body parts");
+            spec.back();
             spec.send(player);
             return;
         }
@@ -1236,7 +1236,7 @@ public final class UltraCharacterScreens {
         } else if (pg > 0) {
             spec.rowGap();
         }
-        spec.footerBack("page:bodyparts:0", "Body parts");
+        spec.back();
         spec.send(player);
     }
 
@@ -1277,7 +1277,7 @@ public final class UltraCharacterScreens {
                     "Default".equals(value) ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_NORMAL);
             spec.rowGap();
         }
-        spec.footerBack("page:bodyparts:0", "Body parts");
+        spec.back();
         spec.send(player);
     }
 
@@ -1366,7 +1366,7 @@ public final class UltraCharacterScreens {
                 spec.rowGap();
             }
         }
-        spec.footerBack("page:bodycolors", "Part colors");
+        spec.back();
         spec.send(player);
     }
 
@@ -1386,7 +1386,7 @@ public final class UltraCharacterScreens {
         if (!SagaResetConfig.get().enabled) {
             spec.line(UltraStyle.danger(SagaResetService.RESET_OFF))
                     .buttonsAfterLines();
-            spec.footerBackToMain();
+            spec.back();
             spec.send(player);
             return;
         }
@@ -1447,7 +1447,7 @@ public final class UltraCharacterScreens {
         } else if (pg > 0) {
             spec.rowGap();
         }
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -1478,7 +1478,7 @@ public final class UltraCharacterScreens {
                             UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
-        spec.footerBack("tab:saga", "Saga list");
+        spec.back();
         spec.send(player);
     }
 
@@ -1534,7 +1534,7 @@ public final class UltraCharacterScreens {
                             UltraStyle.STYLE_NORMAL)
                     .rowGap();
         }
-        spec.footerBackToMain();
+        spec.back();
         spec.send(player);
     }
 
@@ -1555,7 +1555,7 @@ public final class UltraCharacterScreens {
                 .buttonsAfterLines();
         spec.button("do:android_self", UltraStyle.confirm("Confirm and pay"), UltraStyle.STYLE_CONFIRM)
                 .rowGap();
-        spec.footerBack("tab:android", "Android");
+        spec.back();
         spec.send(player);
     }
 
@@ -1630,7 +1630,7 @@ public final class UltraCharacterScreens {
         } else if (pg > 0) {
             spec.rowGap();
         }
-        spec.footerBack("tab:android", "Android");
+        spec.back();
         spec.send(player);
     }
 
@@ -1680,7 +1680,7 @@ public final class UltraCharacterScreens {
                             UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
-        spec.footerBack("page:android_staff", "Players");
+        spec.back();
         spec.send(player);
     }
 
@@ -1724,7 +1724,7 @@ public final class UltraCharacterScreens {
                         convert ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DANGER)
                 .rowGap();
         String backToPlayer = "page:android_target:" + canonical;
-        spec.footerBack(backToPlayer, "Player");
+        spec.back();
         spec.send(player);
     }
 
