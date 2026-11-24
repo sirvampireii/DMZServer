@@ -1330,10 +1330,32 @@ public final class NativeMenuScreen extends Screen {
         }
     }
 
-    /** {h, s, v} of a wheel, seeded once from its target field. */
+    /** 4.7.82: the field tapped last (a shared wheel colors it). */
+    private String lastBox = "";
+
+    /**
+     * The field a wheel colors: its target, or for a shared wheel (comma list) the one of its fields tapped last,
+     * else the first.
+     */
+    private String wheelTarget(Wheel w) {
+        String t = w.target();
+        if (t.indexOf(',') < 0) {
+            return t;
+        }
+        String[] ids = t.split(",");
+        for (String id : ids) {
+            if (id.equals(lastBox)) {
+                return id;
+            }
+        }
+        return ids[0];
+    }
+
+    /** {h, s, v} of a wheel, seeded once per target field from that field's color. */
     private double[] hsvOf(Wheel w) {
-        return wheelHsv.computeIfAbsent(w.id(), k -> {
-            EditBox box = boxes.get(w.target());
+        String target = wheelTarget(w);
+        return wheelHsv.computeIfAbsent(w.id() + "|" + target, k -> {
+            EditBox box = boxes.get(target);
             int rgb = box == null ? -1 : MenuSkins.parseHex(box.m_94155_());
             return rgb < 0 ? new double[] {0, 1, 1} : ColorWheel.rgbToHsv(rgb);
         });
@@ -1358,6 +1380,19 @@ public final class NativeMenuScreen extends Screen {
         int hy = y + (int) Math.round(c - rr * Math.cos(a));
         marker(g, hx, hy);
         marker(g, sx + (int) Math.round(hsv[1] * ss), sy + (int) Math.round((1 - hsv[2]) * ss));
+        if (w.target().indexOf(',') >= 0) {
+            // A shared wheel outlines the field it colors.
+            String target = wheelTarget(w);
+            for (Field f : fields) {
+                if (f.id().equals(target)) {
+                    int c2 = MenuSkins.OPAQUE | MenuSkins.WHITE;
+                    g.m_280509_(f.x() - 2, f.y() - 2, f.x() + f.w() + 2, f.y() - 1, c2);
+                    g.m_280509_(f.x() - 2, f.y() + f.h() + 1, f.x() + f.w() + 2, f.y() + f.h() + 2, c2);
+                    g.m_280509_(f.x() - 2, f.y() - 2, f.x() - 1, f.y() + f.h() + 2, c2);
+                    g.m_280509_(f.x() + f.w() + 1, f.y() - 2, f.x() + f.w() + 2, f.y() + f.h() + 2, c2);
+                }
+            }
+        }
     }
 
     private static void marker(GuiGraphics g, int x, int y) {
@@ -1377,11 +1412,12 @@ public final class NativeMenuScreen extends Screen {
         if (rgb < 0) {
             return false;
         }
-        EditBox box = boxes.get(w.target());
+        String target = wheelTarget(w);
+        EditBox box = boxes.get(target);
         if (box != null) {
             String hex = MenuSkins.hex(rgb);
             box.m_94144_(hex);
-            typed.put(w.target(), hex);
+            typed.put(target, hex);
         }
         return true;
     }
@@ -1726,6 +1762,9 @@ public final class NativeMenuScreen extends Screen {
         for (Map.Entry<String, EditBox> e : boxes.entrySet()) {
             e.getValue().m_93692_(o instanceof Field fl && fl.id().equals(e.getKey()));
         }
+        if (o instanceof Field fl) {
+            lastBox = fl.id();
+        }
     }
 
     @Override
@@ -1752,6 +1791,7 @@ public final class NativeMenuScreen extends Screen {
                 boolean hit = x >= f.x() && x < f.x() + f.w() && y >= f.y() && y < f.y() + f.h();
                 box.m_93692_(hit);
                 if (hit) {
+                    lastBox = f.id();
                     // A skinned field's text box sits inside the rounded frame: aim the click into it.
                     double bx = Math.max(box.m_252754_(), Math.min(box.m_252754_() + box.m_5711_() - 1, x));
                     double by = Math.max(box.m_252907_(), Math.min(box.m_252907_() + box.m_93694_() - 1, y));

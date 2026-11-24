@@ -845,6 +845,28 @@ public final class UltraScreenSpec {
      * ({@link com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeProtocol#analyze}). Callers still add it only for a
      * client whose hello lists {@link ColorWheel#FEATURE}, so a bridge page carries the hex field alone.
      */
+    /**
+     * 4.7.82: one wheel shared by several hex fields. The LM client colors the field tapped last (the first until
+     * one is tapped) and outlines it. Sent as a comma list in {@code target}.
+     */
+    public UltraScreenSpec sharedColorWheel(String inputId, String[] targetInputIds, int x, int y, int size) {
+        UltraScreenIds.requireValidActionId(screenId, inputId, "color_wheel");
+        StringBuilder targets = new StringBuilder();
+        for (String t : targetInputIds) {
+            UltraScreenIds.requireValidActionId(screenId, t, "color_wheel target");
+            if (targets.length() > 0) {
+                targets.append(',');
+            }
+            targets.append(qualifyAction(t));
+        }
+        if (firstButtonY < 0 || y < firstButtonY) {
+            firstButtonY = y;
+        }
+        int s = Math.max(ColorWheel.MIN_SIZE, size);
+        inputs.add(new Input(qualifyAction(inputId), ColorWheel.TYPE, "", "", x, y, s, s, 0, null, 0, targets.toString()));
+        return this;
+    }
+
     public UltraScreenSpec colorWheel(String inputId, String targetInputId, int x, int y, int size) {
         UltraScreenIds.requireValidActionId(screenId, inputId, "color_wheel");
         UltraScreenIds.requireValidActionId(screenId, targetInputId, "color_wheel target");
