@@ -1,7 +1,7 @@
 # LM native HUD, part 2: moving repeated chat to the HUD (proposal)
 
-Status: **proposal, waiting for approval.** Nothing here is built until the owner approves this page (or a changed
-version). Source: `docs/LM_FULL_REVIEW_2026-11.md` section B, ranked by how often each line fires and how little the
+Status: **approved 2026-11-24, to build as LM 4.7.75.** Owner's answers: all seven elements; the fight pill also
+covers spar sessions and dojo war bouts; the coin toast sums over a 5-second window; the server boost chip is shown. Source: `docs/LM_FULL_REVIEW_2026-11.md` section B, ranked by how often each line fires and how little the
 player can do with it.
 
 ## Rules (same as the 4.7.72 HUD)
