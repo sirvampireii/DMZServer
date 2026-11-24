@@ -78,8 +78,8 @@ public final class UltraProgressionScreens {
                 .line(masteryBoostLine(ph))
                 .line(UltraStyle.LABEL + "Pick a boost to open its presets and End button")
                 .buttonsAfterLines();
-        spec.buttonLeft("page:" + PAGE_TP_BOOST, "TP Boost", "normal")
-                .buttonRight("page:" + PAGE_MASTERY_BOOST, "Mastery Boost", "normal")
+        spec.buttonLeft("page:" + PAGE_TP_BOOST, "TP Boost", UltraStyle.STYLE_NORMAL)
+                .buttonRight("page:" + PAGE_MASTERY_BOOST, "Mastery Boost", UltraStyle.STYLE_NORMAL)
                 .rowGap();
         spec.back();
         return spec;
@@ -98,26 +98,26 @@ public final class UltraProgressionScreens {
         spec.buttonLeft(
                         act + "1.25:30",
                         UltraStyle.confirm(UltraStyle.boostPreset("1.25", "30")),
-                        "confirm")
+                        UltraStyle.STYLE_CONFIRM)
                 .buttonRight(
                         act + "1.5:30",
                         UltraStyle.confirm(UltraStyle.boostPreset("1.5", "30")),
-                        "confirm")
+                        UltraStyle.STYLE_CONFIRM)
                 .rowGap();
         spec.buttonLeft(
                         act + "2:30",
                         UltraStyle.confirm(UltraStyle.boostPreset("2", "30")),
-                        "confirm")
+                        UltraStyle.STYLE_CONFIRM)
                 .buttonRight(
                         act + "2:60",
                         UltraStyle.confirm(UltraStyle.boostPreset("2", "60")),
-                        "confirm")
+                        UltraStyle.STYLE_CONFIRM)
                 .rowGap();
         spec.buttonLeft(
                         act + "3:30",
                         UltraStyle.confirm(UltraStyle.boostPreset("3", "30")),
-                        "confirm")
-                .buttonRight(act + "end", UltraStyle.danger("End this boost"), "danger")
+                        UltraStyle.STYLE_CONFIRM)
+                .buttonRight(act + "end", UltraStyle.danger("End this boost"), UltraStyle.STYLE_DANGER)
                 .rowGap();
         spec.back();
         return spec;

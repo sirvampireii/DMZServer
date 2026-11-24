@@ -269,11 +269,6 @@ public final class UltraScreenSpec {
         return this;
     }
 
-    /** Whether {@link #fitMenu} was called. */
-    public boolean menuFit() {
-        return menuFit;
-    }
-
     /**
      * Optional client-rendered player model preview. Unknown clients ignore this field;
      * layout and buttons still work. JLDK draws the entity; LM only declares bounds.
@@ -319,12 +314,6 @@ public final class UltraScreenSpec {
             float scale,
             boolean rotate) {
         return playerModel(x, y, width, height, scale, rotate, PlayerModelParts.snapshot(player));
-    }
-
-    /** Clear any previously set player model (default: off). */
-    public UltraScreenSpec clearPlayerModel() {
-        this.playerModel = null;
-        return this;
     }
 
     /**

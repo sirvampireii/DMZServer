@@ -1053,8 +1053,8 @@ def main() -> int:
           and '.tabs("home|Home", "boosts|Boosts", "coins|Coins")' in bs_scr)
     _presets = ['act + "1.25:30"', 'act + "1.5:30"', 'act + "2:30"', 'act + "2:60"', 'act + "3:30"']
     check("control view: own status line, five confirm presets, danger End, Back to Boosts",
-          all(p in bs_view for p in _presets) and bs_view.count('"confirm")') == 5
-          and 'act + "end", UltraStyle.danger("End this boost"), "danger"' in bs_view
+          all(p in bs_view for p in _presets) and bs_view.count('UltraStyle.STYLE_CONFIRM)') == 5
+          and 'act + "end", UltraStyle.danger("End this boost"), UltraStyle.STYLE_DANGER' in bs_view
           and 'String act = mastery ? "do:masteryboost:" : "do:boost:";' in bs_view
           and "mastery ? masteryBoostLine(ph) : tpBoostLine(ph)" in bs_view
           and ".back()" in bs_view
@@ -2029,6 +2029,25 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.74 ---")
+    p74_tc = read(SRC / "client/TextCache.java")
+    p74_menu = read(SRC / "client/NativeMenuScreen.java")
+    p74_style = read(SRC / "gui/ultra/UltraStyle.java")
+    p74_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    ultra_src = "".join(read(f) for f in sorted((SRC / "gui/ultra").glob("Ultra*Screens.java")))
+    check("manifest row for lm 4.7.74", "lm-4774-speed-cleanup" in manifest)
+    check("menu text laid out once per screen (no parse/contrast/measure per frame)",
+          "final class TextCache" in p74_tc and "private final TextCache textCache = new TextCache();" in p74_menu
+          and p74_menu.count("textCache.fit(") >= 6 and "textCache.wrap(" in p74_menu
+          and "NativeText.parse(raw, base" not in p74_menu and "NativeText.parse(labelInk(b)" not in p74_menu
+          and has(p74_menu, "void lookChanged() {", "textCache.clear();"))
+    check("menu styles use the STYLE_* constants (no raw style strings in the screens)",
+          not re.search(r',\s*"(confirm|dim|normal|danger)"\)', ultra_src))
+    check("one toggle label format", "public static String toggle(String label, boolean on)" in p74_style
+          and 'UltraStyle.toggle("HUD", hudOn)' in ultra_src)
+    check("dead menu helpers removed", "public UltraScreenSpec clearPlayerModel()" not in p74_spec
+          and "public static String hubTilePaletteName(" not in p74_style)
+
     print("\n--- § lm 4.7.73 ---")
     p73_reg = read(SRC / "gui/ultra/PageRegistry.java")
     p73_dojo = read(SRC / "gui/ultra/UltraDojoScreens.java")
@@ -2048,7 +2067,7 @@ def main() -> int:
               "static void openStyleAsk(", "static void openBonusAsk(", "Its \" + DojoCatalog.BONUS_COST",
               "can't change for"))
     check("demote is danger, toggles read Label - ON/OFF, an active Prev is a normal button",
-          has(p73_dojo, 'UltraStyle.danger("Step down " + name), UltraStyle.STYLE_DANGER', '"War rights - "')
+          has(p73_dojo, 'UltraStyle.danger("Step down " + name), UltraStyle.STYLE_DANGER', 'UltraStyle.toggle("War rights"')
           and 'dim("Prev")' not in p73_pick)
     check("HUD: overlay under chat, starts below boss bars, clears effect icons, Momentum above the action bar",
           has(p73_hud, "registerBelow(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.CHAT_PANEL.id()",
@@ -2570,7 +2589,7 @@ def main() -> int:
           'new HubTile("menu_skins", "Menu skins"' in p62_hub and 'case "menu_skins" -> "page:" + PAGE_SKINS;' in p62_hub
           and 'spec.lockedButtonRight("You are using this");' in p62_hub
           and "UltraHubScreens.applySkinAction(viewer, parts.action, stringArg(args, \"arg\"))" in p62_act
-          and '"Backgrounds - "' in p62_hub and '"Look - "' in p62_hub)
+          and 'UltraStyle.toggle("Backgrounds"' in p62_hub and '"Look - "' in p62_hub)
     check("themed backgrounds baked once per skin and size; panel shadow baked; Lite flattens and strips",
           "BG_MAX = 960;" in p62_bake and "MenuSkins.backgroundPixel(skin, (x + 0.5) / tw, v, lite)" in p62_bake
           and "int ambient = lite ? 0 : SaiyanRoyal.AMBIENT_RINGS;" in p62_bake

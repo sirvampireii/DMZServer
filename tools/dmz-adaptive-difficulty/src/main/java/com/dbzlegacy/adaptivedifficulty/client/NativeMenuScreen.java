@@ -219,8 +219,12 @@ public final class NativeMenuScreen extends Screen {
         return packet;
     }
 
+    /** 4.7.74: this screen's laid-out text (cleared when the skin or the window changes). */
+    private final TextCache textCache = new TextCache();
+
     /** The player's look changed (message 3) while this menu is open: redraw it in the new skin. */
     void lookChanged() {
+        textCache.clear();
         skin = MenuLook.skin();
         lite = MenuLook.lite();
         accentRgb = resolveAccent();
@@ -347,6 +351,7 @@ public final class NativeMenuScreen extends Screen {
 
     @Override
     protected void m_7856_() {
+        textCache.clear();
         for (Map.Entry<String, EditBox> e : boxes.entrySet()) {
             typed.put(e.getKey(), e.getValue().m_94155_());
         }
@@ -630,11 +635,10 @@ public final class NativeMenuScreen extends Screen {
     }
 
     private void drawTitle(GuiGraphics g) {
-        MutableComponent title = NativeText.parse(packet.title(), skin.title(), false, true,
-                NativeText.Ink.on(skin, skin.panel()));
         int maxW = panelW - 2 * EDGE;
-        FormattedCharSequence seq = NativeText.fit(this.f_96547_, title, maxW);
-        int tw = this.f_96547_.m_92724_(seq);
+        FormattedCharSequence seq = textCache.fit(this.f_96547_, packet.title(), skin.title(), false, true, skin,
+                skin.panel(), maxW);
+        int tw = textCache.width;
         int band = Math.max(9, headerBottom - 3);
         int ty = Math.max(3, (band - 9) / 2);
         int tx = "left".equals(titleAlign) ? EDGE : (panelW - tw) / 2;
@@ -689,8 +693,7 @@ public final class NativeMenuScreen extends Screen {
                 continue;
             }
             int base = cards && headerLine(raw) ? skin.trim() : skin.text();
-            FormattedCharSequence seq = NativeText.fit(this.f_96547_,
-                    NativeText.parse(raw, base, false, false, ink), maxW);
+            FormattedCharSequence seq = textCache.fit(this.f_96547_, raw, base, false, false, ink.skin(), ink.bg(), maxW);
             g.m_280649_(this.f_96547_, seq, EDGE, y, MenuSkins.INK_FROM_TEXT, false);
         }
         if (clip) {
@@ -845,8 +848,8 @@ public final class NativeMenuScreen extends Screen {
             }
             String cap = str(it, "c", "");
             if (!cap.isBlank()) {
-                FormattedCharSequence seq = NativeText.fit(this.f_96547_,
-                        NativeText.parse(cap, skin.text(), false, false, NativeText.Ink.on(skin, skin.infoFill())), w - 4);
+                FormattedCharSequence seq = textCache.fit(this.f_96547_, cap, skin.text(), false, false, skin,
+                        skin.infoFill(), w - 4);
                 int tw = this.f_96547_.m_92724_(seq);
                 fillRounded(g, x, y, tw + 6, 11, 0, MenuSkins.PICTURE_CAPTION_FILL);
                 g.m_280649_(this.f_96547_, seq, x + 3, y + 2, MenuSkins.INK_FROM_TEXT, true);
@@ -970,10 +973,10 @@ public final class NativeMenuScreen extends Screen {
         int x = EDGE;
         String lead = rawPrefix(raw, bar >= 0 ? bar : dots);
         if (!NativeText.plain(lead).isBlank()) {
-            FormattedCharSequence seq = NativeText.fit(this.f_96547_,
-                    NativeText.parse(lead, skin.text(), false, false, ink), maxW / 2);
+            FormattedCharSequence seq = textCache.fit(this.f_96547_, lead, skin.text(), false, false, ink.skin(),
+                    ink.bg(), maxW / 2);
             g.m_280649_(this.f_96547_, seq, x, y, MenuSkins.INK_FROM_TEXT, false);
-            x += this.f_96547_.m_92724_(seq) + 4;
+            x += textCache.width + 4;
         }
         int midY = y + 4;
         if (bar >= 0) {
@@ -1074,8 +1077,8 @@ public final class NativeMenuScreen extends Screen {
         int maxW = b.w() - 12;
         NativeText.Ink ink = NativeText.Ink.on(skin, skin.bookFill());
         String title = str(p, "title", "Page " + (page + 1)) + "  (" + (page + 1) + "/" + pages + ")";
-        MutableComponent t = NativeText.parse(title, skin.title(), false, true, ink);
-        g.m_280649_(this.f_96547_, NativeText.fit(this.f_96547_, t, maxW), tx, b.y() + 5, MenuSkins.INK_FROM_TEXT, false);
+        g.m_280649_(this.f_96547_, textCache.fit(this.f_96547_, title, skin.title(), false, true, skin, ink.bg(), maxW),
+                tx, b.y() + 5, MenuSkins.INK_FROM_TEXT, false);
         int y = b.y() + 18;
         int bottom = b.y() + b.h() - 22;
         if (p.has("lines") && p.get("lines").isJsonArray()) {
@@ -1083,8 +1086,8 @@ public final class NativeMenuScreen extends Screen {
                 if (!el.isJsonPrimitive()) {
                     continue;
                 }
-                for (FormattedCharSequence part : this.f_96547_.m_92923_(
-                        NativeText.parse(el.getAsString(), skin.text(), false, false, ink), maxW)) {
+                for (FormattedCharSequence part : textCache.wrap(this.f_96547_, el.getAsString(), skin.text(), skin,
+                        ink.bg(), maxW)) {
                     if (y + 9 > bottom) {
                         break;
                     }
@@ -1176,10 +1179,9 @@ public final class NativeMenuScreen extends Screen {
             maxW -= 12;
         }
         boolean muted = "dim".equals(style);
-        FormattedCharSequence seq = NativeText.fit(this.f_96547_,
-                NativeText.parse(labelInk(b), skin.text(), muted, false, NativeText.Ink.on(skin, face & MenuSkins.RGB_MASK)),
-                Math.max(8, maxW));
-        int tw = this.f_96547_.m_92724_(seq);
+        FormattedCharSequence seq = textCache.fit(this.f_96547_, labelInk(b), skin.text(), muted, false, skin,
+                face & MenuSkins.RGB_MASK, Math.max(8, maxW));
+        int tw = textCache.width;
         int tx = left + Math.max(0, (maxW - tw) / 2);
         int ty = by + (h - 8) / 2;
         g.m_280649_(this.f_96547_, seq, tx, ty, MenuSkins.INK_FROM_TEXT, !muted && skin.textShadow());
@@ -1284,8 +1286,7 @@ public final class NativeMenuScreen extends Screen {
         String text = swatchText(b, s);
         int left = x + 36;
         int maxW = w - 36 - 6;
-        FormattedCharSequence seq = NativeText.fit(this.f_96547_,
-                NativeText.parse(text, s.text(), false, false, NativeText.Ink.on(s, s.panel())), maxW);
+        FormattedCharSequence seq = textCache.fit(this.f_96547_, text, s.text(), false, false, s, s.panel(), maxW);
         g.m_280649_(this.f_96547_, seq, left, y + (h - 8) / 2, MenuSkins.INK_FROM_TEXT, s.textShadow());
     }
 

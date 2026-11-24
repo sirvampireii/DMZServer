@@ -720,7 +720,7 @@ public final class UltraDojoScreens {
             if (elite) {
                 // 4.7.73: a demote is drawn as danger; the toggle reads "Label - ON/OFF" like every other toggle.
                 spec.buttonLeft("do:dojo_demote:" + u, UltraStyle.danger("Step down " + name), UltraStyle.STYLE_DANGER);
-                spec.buttonRight("do:dojo_warrights:" + u, "War rights - " + (d.warRights.contains(u) ? "ON" : "OFF"),
+                spec.buttonRight("do:dojo_warrights:" + u, UltraStyle.toggle("War rights", d.warRights.contains(u)),
                         UltraStyle.STYLE_NORMAL).rowGap();
             } else if (d.elites.size() >= DojoCatalog.MAX_ELITES) {
                 spec.lockedButton("Make " + name + " elite").rowGap();

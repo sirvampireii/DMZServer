@@ -393,7 +393,7 @@ public final class UltraHubScreens {
             tiles.add(new HubTile("admin", "Staff Admin", UltraStyle.STYLE_NORMAL, true));
         }
         placeTiles(spec, Map.of(), tiles);
-        spec.buttonLeft("do:" + LmHud.ACTION_TOGGLE, "HUD - " + (hudOn ? "ON" : "OFF"), UltraStyle.STYLE_NORMAL);
+        spec.buttonLeft("do:" + LmHud.ACTION_TOGGLE, UltraStyle.toggle("HUD", hudOn), UltraStyle.STYLE_NORMAL);
         spec.rowGap();
         spec.send(player);
     }
@@ -496,7 +496,7 @@ public final class UltraHubScreens {
             spec.lockedButtonRight("Tap to make your own");
             spec.rowGap();
         }
-        spec.buttonLeft("do:" + ACTION_BACKGROUNDS, "Backgrounds - " + (prefs.backgrounds() ? "ON" : "OFF"),
+        spec.buttonLeft("do:" + ACTION_BACKGROUNDS, UltraStyle.toggle("Backgrounds", prefs.backgrounds()),
                 UltraStyle.STYLE_NORMAL);
         spec.buttonRight("do:" + ACTION_LOOK, "Look - " + (prefs.lite() ? "Lite" : "Full"), UltraStyle.STYLE_NORMAL);
         spec.rowGap();

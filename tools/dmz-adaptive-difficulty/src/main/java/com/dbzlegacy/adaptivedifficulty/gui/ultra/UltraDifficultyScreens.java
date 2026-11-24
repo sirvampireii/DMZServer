@@ -181,11 +181,6 @@ public final class UltraDifficultyScreens {
     /** Skip (every step) and Got it (Step 3): mark the guide done, open Home. */
     private static final String GUIDE_DONE = "do:" + DifficultyTutorial.ACT_DONE;
 
-    /** "Back to Home" once the guide is done; "Back to Step 1" while it is not. */
-    private static String homeLabel(ServerPlayer player) {
-        return DifficultyTutorial.done(player) ? "Home" : "Step 1";
-    }
-
     /** {@code Step N of 3 - Title} header, then the progress dots. */
     private static void stepHeader(UltraScreenSpec spec, int step, String title) {
         spec.line(UltraStyle.header(DifficultyGuide.stepLabel(step) + " - " + title))
@@ -260,7 +255,7 @@ public final class UltraDifficultyScreens {
         placeDifficultyToggle(spec, personal);
         spec.rowGap();
         if (active > 0) {
-            spec.buttonLeft("page:clear_tier_ask", UltraStyle.danger("Clear active tier"), "danger").rowGap();
+            spec.buttonLeft("page:clear_tier_ask", UltraStyle.danger("Clear active tier"), UltraStyle.STYLE_DANGER).rowGap();
         }
         UltraPickHelper.placePageButtons(spec, "titles|Titles", "team|Rival teams");
         placeCoinMessageToggle(spec, data != null && data.isCoinDropChat());
@@ -468,7 +463,7 @@ public final class UltraDifficultyScreens {
         spec.buttonsAfterLines();
         // 4.7.57 (LM54-C4): a summon that cannot succeed yet shows a dim, inert button.
         if (ready) {
-            spec.button("page:summon_ask:end_dragon", UltraStyle.confirm("Summon End Dragon"), "confirm").rowGap();
+            spec.button("page:summon_ask:end_dragon", UltraStyle.confirm("Summon End Dragon"), UltraStyle.STYLE_CONFIRM).rowGap();
         } else {
             spec.lockedButton("Summon locked").rowGap();
         }
@@ -502,7 +497,7 @@ public final class UltraDifficultyScreens {
         spec.buttonsAfterLines();
         // 4.7.57 (LM54-C4): a summon that cannot succeed yet shows a dim, inert button.
         if (ready) {
-            spec.button(action, UltraStyle.confirm("Summon " + boss.display), "confirm").rowGap();
+            spec.button(action, UltraStyle.confirm("Summon " + boss.display), UltraStyle.STYLE_CONFIRM).rowGap();
         } else {
             spec.lockedButton("Summon locked").rowGap();
         }
@@ -743,7 +738,7 @@ public final class UltraDifficultyScreens {
             String go = "Summon " + name;
             spec.button(dragon ? "do:summon_end_dragon"
                                     : (boss == PlayerBossSummons.Boss.WITHER ? "do:summon_wither" : "do:summon_warden"),
-                            UltraStyle.confirm(UltraStyle.fitsButton(go) ? go : "Confirm summon"), "confirm")
+                            UltraStyle.confirm(UltraStyle.fitsButton(go) ? go : "Confirm summon"), UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
         spec.back();
@@ -956,7 +951,7 @@ public final class UltraDifficultyScreens {
                         "do:toggle_title_sense",
                         sense ? UltraStyle.confirm("Title Sense - ON") : UltraStyle.dim("Title Sense - OFF"),
                         sense ? "confirm" : "dim")
-                .buttonRight("page:title_unequip_ask", UltraStyle.danger("Unequip title"), "danger")
+                .buttonRight("page:title_unequip_ask", UltraStyle.danger("Unequip title"), UltraStyle.STYLE_DANGER)
                 .rowGap();
         spec.back();
         spec.send(player);
@@ -992,7 +987,7 @@ public final class UltraDifficultyScreens {
         }
         spec.buttonsAfterLines();
         if (earned && !equipped) {
-            spec.buttonLeft("do:equip_title:" + title.id, UltraStyle.confirm("Equip this title"), "confirm")
+            spec.buttonLeft("do:equip_title:" + title.id, UltraStyle.confirm("Equip this title"), UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         } else if (earned) {
             spec.buttonLeft("do:equip_title:" + title.id, UltraStyle.dim("Already equipped"), UltraStyle.STYLE_DIM)
@@ -1077,7 +1072,7 @@ public final class UltraDifficultyScreens {
                 .line(UltraStyle.LABEL + "Server tools - typed admin: /difficulty admin")
                 .line(UltraStyle.LABEL + "Reload config, event log, and LM Staff Admin hub")
                 .buttonsAfterLines();
-        spec.buttonLeft("do:reload", UltraStyle.confirm("Reload Legacy Mechanics config"), "confirm")
+        spec.buttonLeft("do:reload", UltraStyle.confirm("Reload Legacy Mechanics config"), UltraStyle.STYLE_CONFIRM)
                 .buttonRight("page:stats", UltraStyle.LABEL + "Staff details", UltraStyle.STYLE_NORMAL)
                 .rowGap();
         spec.buttonLeft("open:admin", UltraStyle.LABEL + "LM Staff Admin", UltraStyle.STYLE_NORMAL)
@@ -1109,7 +1104,7 @@ public final class UltraDifficultyScreens {
                                 ? UltraStyle.danger("Event log - OFF")
                                 : UltraStyle.dim("Event log - OFF"),
                         logOn ? "danger" : "dim")
-                .buttonRight("page:flush_ask", UltraStyle.danger("Flush"), "danger")
+                .buttonRight("page:flush_ask", UltraStyle.danger("Flush"), UltraStyle.STYLE_DANGER)
                 .rowGap();
         spec.back();
         spec.send(player);

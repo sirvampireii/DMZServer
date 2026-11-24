@@ -80,7 +80,7 @@ public final class PageRegistry {
         item("difficulty", "tier_ask:*", "Tier", "difficulty|tiers");
         item("difficulty", "guide_your_tier", "Your tier", "difficulty|guide_tiers");
         item("difficulty", "your_tier", "Your tier", "difficulty|main");
-        item("difficulty", "end_dragon", "Ender Dragon", "difficulty|summons");
+        item("difficulty", "end_dragon", "End Dragon", "difficulty|summons");
         item("difficulty", "summon_ask:*", "Summon", "difficulty|summons");
         item("difficulty", "clear_tier_ask", "Clear active tier", "difficulty|main");
         item("difficulty", "difficulty_off_ask", "Turn difficulty off", "difficulty|main");

@@ -247,45 +247,6 @@ public final class ModelPreview {
         return GEO_SIZE.computeIfAbsent(model, ModelPreview::readGeoSize);
     }
 
-    private static float[] readGeoSize(String model) {
-        String path = "assets/dragonminez/geo/entity/races/" + model + ".geo.json";
-        for (ClassLoader loader : new ClassLoader[] {ConfigManager.class.getClassLoader(),
-                Thread.currentThread().getContextClassLoader()}) {
-            if (loader == null) {
-                continue;
-            }
-            try (InputStream in = loader.getResourceAsStream(path)) {
-                if (in == null) {
-                    continue;
-                }
-                float lowY = Float.MAX_VALUE;
-                float highY = -Float.MAX_VALUE;
-                float lowX = Float.MAX_VALUE;
-                float highX = -Float.MAX_VALUE;
-                JsonObject root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8)).getAsJsonObject();
-                for (JsonElement g : root.getAsJsonArray("minecraft:geometry")) {
-                    JsonArray bones = g.getAsJsonObject().getAsJsonArray("bones");
-                    for (JsonElement b : bones == null ? new JsonArray() : bones) {
-                        JsonArray cubes = b.getAsJsonObject().getAsJsonArray("cubes");
-                        for (JsonElement c : cubes == null ? new JsonArray() : cubes) {
-                            JsonArray o = c.getAsJsonObject().getAsJsonArray("origin");
-                            JsonArray sz = c.getAsJsonObject().getAsJsonArray("size");
-                            lowX = Math.min(lowX, o.get(0).getAsFloat());
-                            highX = Math.max(highX, o.get(0).getAsFloat() + sz.get(0).getAsFloat());
-                            lowY = Math.min(lowY, o.get(1).getAsFloat());
-                            highY = Math.max(highY, o.get(1).getAsFloat() + sz.get(1).getAsFloat());
-                        }
-                    }
-                }
-                if (highY > lowY && highX > lowX) {
-                    return new float[] {Math.max(PLAYER_GEO[0], highY - lowY), Math.max(PLAYER_GEO[1], highX - lowX)};
-                }
-            } catch (Throwable ignored) {
-            }
-        }
-        return PLAYER_GEO;
-    }
-
     private static ServerPlayer viewer(ServerPlayer player) {
         ServerPlayer inspecting = UltraScreenSpec.inspectViewer();
         return inspecting != null ? inspecting : player;

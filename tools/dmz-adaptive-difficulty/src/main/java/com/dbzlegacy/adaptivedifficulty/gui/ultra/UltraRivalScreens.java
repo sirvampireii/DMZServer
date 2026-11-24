@@ -126,7 +126,7 @@ public final class UltraRivalScreens {
         UltraPickHelper.placePageButtons(
                 spec, "info|My rival stats", "top|Leaderboard", "records|Records", "settings|TP Chat");
         if (StaffAccess.isStaff(player)) {
-            spec.buttonLeft("page:admin", UltraStyle.danger("Staff Admin"), "danger").rowGap();
+            spec.buttonLeft("page:admin", UltraStyle.danger("Staff Admin"), UltraStyle.STYLE_DANGER).rowGap();
         }
         spec.back();
         spec.send(player);
@@ -184,7 +184,7 @@ public final class UltraRivalScreens {
             spec.button(
                             "page:pick_replace_mutual",
                             UltraStyle.danger("Drop Mutual"),
-                            "danger")
+                            UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
         spec.back();
@@ -241,9 +241,9 @@ public final class UltraRivalScreens {
                 String action = "page:list_detail:" + profileArg(arg, page);
                 String label = UltraStyle.confirm(labelText);
                 if (placed % 2 == 0) {
-                    spec.buttonLeft(action, label, "confirm");
+                    spec.buttonLeft(action, label, UltraStyle.STYLE_CONFIRM);
                 } else {
-                    spec.buttonRight(action, label, "confirm");
+                    spec.buttonRight(action, label, UltraStyle.STYLE_CONFIRM);
                     spec.rowGap();
                 }
                 placed++;
@@ -284,8 +284,8 @@ public final class UltraRivalScreens {
             accept = "Accept";
             decline = "Decline";
         }
-        spec.button(acceptId, UltraStyle.confirm(accept), "confirm").rowGap();
-        spec.button(declineId, UltraStyle.danger(decline), "danger").rowGap();
+        spec.button(acceptId, UltraStyle.confirm(accept), UltraStyle.STYLE_CONFIRM).rowGap();
+        spec.button(declineId, UltraStyle.danger(decline), UltraStyle.STYLE_DANGER).rowGap();
     }
 
     /** Name plus a short status tag when {@code Name (Status)} would clip. */
@@ -324,18 +324,18 @@ public final class UltraRivalScreens {
                                 ? "They already declared you - Accept becomes Mutual."
                                 : "Silent is private. Declare sends an invite for Mutual."))
                 .buttonsAfterLines();
-        spec.button("do:silent:" + arg, UltraStyle.confirm("Silent (private)"), "confirm")
+        spec.button("do:silent:" + arg, UltraStyle.confirm("Silent (private)"), UltraStyle.STYLE_CONFIRM)
                 .rowGap();
         if (incoming) {
             spec.button(
                             "page:accept_confirm:" + arg,
                             UltraStyle.confirm("Accept their declare"),
-                            "confirm")
+                            UltraStyle.STYLE_CONFIRM)
                     .rowGap();
-            spec.button("do:decline:" + arg, UltraStyle.danger("Decline their declare"), "danger")
+            spec.button("do:decline:" + arg, UltraStyle.danger("Decline their declare"), UltraStyle.STYLE_DANGER)
                     .rowGap();
         } else {
-            spec.button("do:declare:" + arg, UltraStyle.confirm("Declare (send invite)"), "confirm")
+            spec.button("do:declare:" + arg, UltraStyle.confirm("Declare (send invite)"), UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
         spec.back();
@@ -370,7 +370,7 @@ public final class UltraRivalScreens {
         // 3) Challenge actions, then Spectate with Stop spectate on the same row.
         // Records (Home) is the history page. No per-challenge opponent/result/date log is stored.
         UltraPickHelper.placePageButtons(spec, "pick_challenge|Send challenge");
-        spec.buttonLeft("page:pick_spectate", "Spectate", "normal");
+        spec.buttonLeft("page:pick_spectate", "Spectate", UltraStyle.STYLE_NORMAL);
         spec.buttonRight("do:spectate_stop", UltraStyle.confirm("Stop spectate"), UltraStyle.STYLE_CONFIRM).rowGap();
         spec.back();
         spec.send(player);
@@ -425,7 +425,7 @@ public final class UltraRivalScreens {
                 spec.button(
                                 "do:challenge_cancel:" + picker,
                                 UltraStyle.danger(cancel),
-                                "danger")
+                                UltraStyle.STYLE_DANGER)
                         .rowGap();
             }
         }
@@ -504,22 +504,22 @@ public final class UltraRivalScreens {
                     spec.button(
                                     "page:accept_confirm:" + arg,
                                     UltraStyle.confirm("Accept their declare"),
-                                    "confirm")
+                                    UltraStyle.STYLE_CONFIRM)
                             .rowGap();
                 } else {
-                    spec.button("do:declare:" + arg, UltraStyle.confirm("Declare"), "confirm")
+                    spec.button("do:declare:" + arg, UltraStyle.confirm("Declare"), UltraStyle.STYLE_CONFIRM)
                             .rowGap();
                 }
             }
             // Ask first (4.7.31): the ask page says what removal does before anything changes.
-            spec.button("page:remove_confirm:" + profileArg(arg, returnPage), UltraStyle.danger("Remove rival"), "danger")
+            spec.button("page:remove_confirm:" + profileArg(arg, returnPage), UltraStyle.danger("Remove rival"), UltraStyle.STYLE_DANGER)
                     .rowGap();
         } else if (arg != null && !arg.isBlank()) {
             spec.line(UltraStyle.dim("Not on your rival list."));
         }
         if (rival != null) {
             spec.button("page:list_detail:" + profile + (showYou ? "" : VIEW_YOU),
-                            showYou ? "Show your rival" : "Show you", "normal")
+                            showYou ? "Show your rival" : "Show you", UltraStyle.STYLE_NORMAL)
                     .rowGap();
         }
         spec.back();
@@ -803,12 +803,12 @@ public final class UltraRivalScreens {
                 spec.buttonLeft(
                         "do:challenge_send:" + target + "@" + min,
                         UltraStyle.confirm(min + " min"),
-                        "confirm");
+                        UltraStyle.STYLE_CONFIRM);
                 if (min + 1 <= 10) {
                     spec.buttonRight(
                             "do:challenge_send:" + target + "@" + (min + 1),
                             UltraStyle.confirm((min + 1) + " min"),
-                            "confirm");
+                            UltraStyle.STYLE_CONFIRM);
                 }
                 spec.rowGap();
             }
@@ -849,7 +849,7 @@ public final class UltraRivalScreens {
                 .notice(notice)
                 .buttonsAfterLines();
         if (!arg.isBlank()) {
-            spec.button("do:remove:" + arg, UltraStyle.danger("End rivalry"), "danger")
+            spec.button("do:remove:" + arg, UltraStyle.danger("End rivalry"), UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
         spec.back();
@@ -865,7 +865,7 @@ public final class UltraRivalScreens {
                 .notice("Accept mutual rivalry with " + plain + " instead of sending another declare?")
                 .buttonsAfterLines();
         if (arg != null && !arg.isBlank()) {
-            spec.button("do:accept:" + arg, UltraStyle.confirm("Accept mutual rivalry"), "confirm")
+            spec.button("do:accept:" + arg, UltraStyle.confirm("Accept mutual rivalry"), UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         }
         spec.back();
@@ -903,9 +903,9 @@ public final class UltraRivalScreens {
             String action = "page:replace_confirm:" + (pg > 0 ? arg + "|" + pg : arg);
             String styled = UltraStyle.danger("Drop " + UltraStyle.plain(label));
             if (placed % 2 == 0) {
-                spec.buttonLeft(action, styled, "danger");
+                spec.buttonLeft(action, styled, UltraStyle.STYLE_DANGER);
             } else {
-                spec.buttonRight(action, styled, "danger");
+                spec.buttonRight(action, styled, UltraStyle.STYLE_DANGER);
                 spec.rowGap();
             }
             placed++;
@@ -918,7 +918,7 @@ public final class UltraRivalScreens {
         }
         UltraPickHelper.placePrevNext(spec, "pick_replace_mutual", pg, pages);
         // Escape hatch — do not trap the player on this page.
-        spec.button("do:cancel_mutual_replace", UltraStyle.dim("Decline instead"), "dim").rowGap();
+        spec.button("do:cancel_mutual_replace", UltraStyle.dim("Decline instead"), UltraStyle.STYLE_DIM).rowGap();
         spec.back();
         spec.send(player);
     }
@@ -954,7 +954,7 @@ public final class UltraRivalScreens {
             spec.button(
                             "do:accept_replace:" + dropArg,
                             UltraStyle.danger(act),
-                            "danger")
+                            UltraStyle.STYLE_DANGER)
                     .rowGap();
         }
         spec.back();
@@ -980,8 +980,8 @@ public final class UltraRivalScreens {
         UltraScreenSpec spec = sub("admin")
                 .line(UltraStyle.LABEL + "Staff rival tools")
                 .buttonsAfterLines();
-        spec.buttonLeft("do:admin:save", UltraStyle.confirm("Save data"), "confirm")
-                .buttonRight("do:admin:refresh", UltraStyle.confirm("Reload data"), "confirm")
+        spec.buttonLeft("do:admin:save", UltraStyle.confirm("Save data"), UltraStyle.STYLE_CONFIRM)
+                .buttonRight("do:admin:refresh", UltraStyle.confirm("Reload data"), UltraStyle.STYLE_CONFIRM)
                 .rowGap();
         spec.button("do:admin:status", UltraStyle.LABEL + "Status", UltraStyle.STYLE_NORMAL).rowGap();
         spec.back();

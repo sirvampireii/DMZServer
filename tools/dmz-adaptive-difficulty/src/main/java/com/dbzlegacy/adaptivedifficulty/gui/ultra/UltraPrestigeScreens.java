@@ -505,9 +505,9 @@ public final class UltraPrestigeScreens {
             }
             String action = "page:ask:mastery_apply:" + token + ":" + a;
             if (i % 2 == 0) {
-                spec.buttonLeft(action, UltraStyle.confirm(raw), "confirm");
+                spec.buttonLeft(action, UltraStyle.confirm(raw), UltraStyle.STYLE_CONFIRM);
             } else {
-                spec.buttonRight(action, UltraStyle.confirm(raw), "confirm");
+                spec.buttonRight(action, UltraStyle.confirm(raw), UltraStyle.STYLE_CONFIRM);
                 spec.rowGap();
             }
         }

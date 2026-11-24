@@ -517,10 +517,6 @@ public final class UltraStyle {
         }
     }
 
-    public static String buttonLabel(String styled) {
-        return fitAsciiLabel(styled, 28 * CHAR_W_EST);
-    }
-
     /** Plain glyphs that fit a standard {@link #BTN_W} button (pad included). */
     public static int standardButtonChars() {
         return Math.max(1, labelMaxWidth(BTN_W) / CHAR_W_EST);
@@ -613,6 +609,11 @@ public final class UltraStyle {
 
     public static String confirm(String label) {
         return wireText(CONFIRM + plain(label));
+    }
+
+    /** 4.7.74: the one toggle label format, {@code Label - ON} / {@code Label - OFF}. */
+    public static String toggle(String label, boolean on) {
+        return label + " - " + (on ? "ON" : "OFF");
     }
 
     public static String danger(String label) {
@@ -775,11 +776,6 @@ public final class UltraStyle {
      */
     public static String systemPaletteName(String screenId) {
         return paletteNameForAccentLetter(systemAccentCode(screenId));
-    }
-
-    /** Hub tile {@code palette} name for a system id. */
-    public static String hubTilePaletteName(String system) {
-        return paletteNameForAccentLetter(hubTileAccentCode(system));
     }
 
     /** Map a letter accent code to a generic palette name (empty in → empty out). */
