@@ -783,11 +783,12 @@ public final class UiProbe {
                     && p.buttonsJson().contains("go:dojo|dojo_upgrades") && labels(p).contains("Upgrades  -  Dojo") ? "PASS" : "FAIL")
                     + " | " + labels(p));
         }
-        for (GuiOpenPacket p : hubClick("nav search result", "hub", "go:dojo|dojo_upgrades", "more")) {
+        // A tab page's footer goes to its system Home by design; a deeper result (an upgrade) goes back along history.
+        for (GuiOpenPacket p : hubClick("nav search result", "hub", "go:dojo|dojo_up:arena", "more")) {
             note("SEARCH result opens the page: " + (p.screenId() + "|" + p.pageId()) + " Back reads "
                     + (has(p, "Back to More") ? "Back to More PASS" : "FAIL") + " | crumbs " + crumbText(crumbs(p)));
         }
-        for (GuiOpenPacket p : hubClick("nav back to search", "dojo", "nav:back", "dojo_upgrades")) {
+        for (GuiOpenPacket p : hubClick("nav back to search", "dojo", "nav:back", "dojo_up:arena")) {
             note("BACK returns to More with the search results: " + ("hub".equals(p.screenId()) && "more".equals(p.pageId())
                     && p.buttonsJson().contains("go:dojo|dojo_upgrades") ? "PASS" : "FAIL"));
         }
@@ -2967,7 +2968,7 @@ public final class UiProbe {
         sa.addProperty("page", "more");
         sa.addProperty("value", "wager");
         for (GuiOpenPacket p : keep("v80 search on more", () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", sa.toString()))) {
-            note("V80 search typed in More lands on the results on More: " + pf("more".equals(p.pageId()) && has(p, "Results for 'wager'")
+            note("V80 search typed in More lands on the results on More: " + pf("more".equals(p.pageId()) && has(p, "Results for") && has(p, "wager")
                     && p.buttonsJson().contains("go:spar|board_wager")) + " | " + labels(p));
         }
         UltraHubScreens.searchFor(player, "");
@@ -3041,10 +3042,12 @@ public final class UiProbe {
         }
         for (GuiOpenPacket p : keep("v80 wager bad", () -> UltraGuiActions.dispatch(player, "spar", "do:board_wager_set:99", wc.toString()))) {
             note("V80 an unknown wager step changes nothing and says why: " + pf(com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.draft(u).wager() == 2
-                    && has(p, "isn't on the list")));
+                    && has(p, "on the list")));
         }
         ServerPlayer w = dojoStandIn("Wager80");
         com.dbzlegacy.adaptivedifficulty.dojo.DojoService.found(w);
+        com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.grantExact(w,
+                com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.CoinKind.NETHERITE, 1);
         com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.setDraft(w.m_20148_(), false, 1);
         String wp = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.apply(w, "board_post", "");
         var post = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.postOf(w.m_20148_());

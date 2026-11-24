@@ -33,7 +33,7 @@ for line in (open(D + "/uiprobe-client.txt", encoding="utf-8", errors="replace")
     elif not line.startswith("  "):
         cur = None
 
-ACC = {"difficulty": "E23B3B", "rival": "FFFFFF", "spar": "00AAAA", "prestige": "55FFFF", "character": "55FF55",
+ACC = {"difficulty": "E23B3B", "rival": "FFFFFF", "spar": "00AAAA", "dojo": "00AAAA", "prestige": "55FFFF", "character": "55FF55",
        "skillcheck": "FFFF55", "skills": "FFFF55", "admin": "AA0000", "config": "AA0000", "progression": "AA0000"}
 # LM 4.7.62: a menu without a system accent (the main menu, Menu skins) takes the skin's trim.
 TRIM = {"saiyan_royal": "F0B429", "namek_serenity": "FFD166", "obsidian_gold": "E8B33C",
