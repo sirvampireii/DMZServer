@@ -1,96 +1,92 @@
-# Dojo visuals (LM 4.7.68, Phase 1: pictures first)
+# Dojo visuals (LM 4.7.68, Phase 1: pictures for approval)
 
-These pictures are for approval before the dojo generator and the dojo menus are built. They are rendered from the
-same design data the in-game generator will place (`tools/dojo-visuals/design.py`), so a built dojo looks like its
-picture.
+These pictures are for approval before any placement code is written. Every one is rendered from the same structure
+files the game will place, so a built dojo looks like its picture.
+
+## How they are made: the mod-toolkit, not a new generator
+
+The dojo is authored with the owner's mod-toolkit (`Desktop/Repository/mod-toolkit`, plugged into LM by
+`tools/dmz-adaptive-difficulty/tools/toolkit.json`). One command rebuilds everything:
+
+```
+bash tools/dmz-adaptive-difficulty/tools/dojo/make.sh          # or: make.sh ki_t2 for one style and tier
+```
+
+1. **BuildKit** builds each tier's hall shell from a recipe (`tools/dojo/hall_t1.json`, `hall_t2.json`,
+   `hall_t3.json`) in the toolkit's `japanese` style. The tiers are style variants made with `"extends": "japanese"`.
+   The shell has a foundation terrace with a veranda, the hall with shoji walls and dark posts, a flared hip roof
+   (refined and masterwork add a ring eave round the hall), and an entrance porch with a gable roof.
+2. **DojoKit** (`tools/fx/DojoKit.java`, LM's own toolkit class) fills the one gap BuildKit has no part for: the
+   rooms inside one hall. It reads every position from the recipe's `"dojo"` section: ring anchors, the south-wing
+   rooms, the balcony, the doors and the landing points. Phase 2's placement code reads the same section. DojoKit
+   also places the style banners, the grounds (path, stone lanterns, SceneKit trees, torii) and a DetailKit weathering
+   pass, and renders the pictures with BlockRender.
+3. **BuildLint** checks every structure that ships (`buildlint.txt`).
+4. **GuiKit** mocks up the dojo menus from `tools/guikit.json` in Minecraft's font, at 5 window sizes and GUI scales
+   2, 3 and auto.
+
+The structures are committed to `tools/dmz-adaptive-difficulty/src/main/resources/data/legacymechanics/structures/dojo/`:
+
+- `hall_t1.nbt`, `hall_t2.nbt`, `hall_t3.nbt`: the bare shells.
+- `dojo_<style>_t<tier>.nbt`: the whole plot for each style and tier, 12 in all.
+
+In game they load as `legacymechanics:dojo/...` through `StructureTemplate`.
 
 ## The dojo is one Japanese hall
 
-Each dojo is a single traditional Japanese building: its guild hall, where members gather. Every room is inside it.
+Every room is inside the hall. Only the garden and grounds are outside.
 
-- **The hall floor:** up to six sparring rings in two rows of three. A ring you haven't bought is open tatami.
-- **The spectator balcony:** a mezzanine along the north wall, looking down onto the rings.
-- **The south wing:** behind sliding-door partitions, the training area, meditation room, trophy hall and master
-  quarters, with a corridor from the main doors.
-- **Outside the hall:** only the garden and grounds: a path, stone lanterns, trees, and a torii at the top tier.
+- **The hall floor:** six ring spaces in two rows of three, 17 x 17 each. A ring you haven't bought is plain tatami.
+  Pillars with lights run between the rings, and lanterns hang on chains over each ring.
+- **The spectator balcony:** a mezzanine along the north wall with a rail, benches and stairs at the west end.
+- **The south wing:** behind a shoji partition, the training area, meditation room, trophy hall and master quarters,
+  with a corridor from the main doors.
+- **The entrance porch** with the main doors and a noren of the style's colour.
+- **Outside:** a path with stone lanterns. Refined adds trees, and masterwork adds cherry trees and a torii.
 
-The bones are the same for every style: a stone foundation, a raised veranda all round, dark posts every four
-blocks, white shoji walls with a dark grid, sliding doors, and a tiled hip roof with flared eaves.
+The pictures show tier N with 2N rings and every room and the balcony at tier N.
 
-## Tiers set the materials
+## Tiers set the materials, styles set the accents
 
 | Part | Basic | Refined | Masterwork |
 |---|---|---|---|
 | Foundation | Cobblestone | Stone bricks | Polished blackstone |
-| Walls | Birch walls | Shoji with a dark-oak grid | Shoji with a dark-oak grid |
-| Roof | Wood shingle | Deepslate tile, trim band | Deepslate tile, gold eaves and finials |
-| Floors and lights | Plain floors | Tatami, lanterns | Tatami, lanterns |
-| Veranda posts | Wood | Wood | Vermilion |
-| Garden | Path and stone lanterns | Adds trees | Adds a torii gate |
-
-Rooms and rings follow the same three tiers.
-
-## Styles set the accents
-
-A style never changes the building, only its banners, colors and room dressing:
+| Walls and posts | Birch walls, spruce frame | White shoji, dark oak frame | White shoji, vermilion (mangrove) frame |
+| Roof | Wood, single eave | Deepslate tile, ring eave | Deepslate tile, ring eave |
+| Floors | Oak | Spruce, tatami rooms | Dark oak, tatami rings |
+| Grounds | Path and stone lanterns | Adds trees | Cherry trees and a torii |
 
 | Style | Accent | Training area |
 |---|---|---|
-| Ki Masters | Sky blue and cyan, soul lanterns | Focus stones and a beacon |
-| Melee | Crimson | Hay dummies and targets |
-| Strike Moves | Orange and iron | Anvils and iron blocks |
-| Evasion | Green and lime | Bamboo and azalea |
+| Ki Masters | Sky blue and cyan, soul lanterns | Focus stones with end rods; a beacon at masterwork |
+| Melee | Crimson | Straw dummies with arms, targets |
+| Strike Moves | Orange and iron | Anvils on iron |
+| Evasion | Green and lime | Bamboo poles, azalea |
 
-Each style's color shows in the banners hung from the eaves, the noren over the main doors, the ring borders and
-inlays, the hall banners and the cushions.
-
-## Approach: data templates, one placement path (and why)
-
-LM had no structure tooling before 4.7.68: no templates, no schematics, no generator. The first 4.7.68 draft placed
-blocks with one-off code. It is replaced by the tool below once these pictures are approved.
-
-DragonMineZ's tournament grounds (`OtherworldTournamentGrounds` in dragonminez-2.2) ship a schematic. Its `Build`
-class parses the palette and places it one chunk column at a time under a per-tick time budget, holding chunk
-tickets ahead of the cursor, with protected bounds and a built revision. LM uses that placement method with a
-different source:
-
-- **One hall template.** The hall is one template of symbols, generated by `design.py` and exported into the LM
-  jar. Every part has a symbol: foundation, veranda, posts, shoji, roof, floor, tatami, the ring spaces, each room
-  and the balcony. A tier palette and a style accent palette resolve the symbols to blocks. A hand-built
-  schematic per style and tier could not be re-rendered into pictures and would drift between twelve files.
-- **One placement path.** The whole hall goes through one budgeted chunk-column placer, with plot spacing, ground
-  flattening, safe spawn and landing points, and ring bounds. A purchase re-places only the part that changed (a
-  ring, a room or the balcony) from the same template at its new tier, so the hall never gets a different build
-  pasted on top.
-- **Built-in checks.** After placing, the tool verifies the build: no floating blocks, no open or cut roofs, flat
-  ring floors, clear sightlines from the balcony to every ring, and safe spawn points. A dojo that fails does not
-  generate.
+A style shows in the banners round the hall, the noren, the ring borders and inlays, the hall banners, the cushions
+and the training pieces. It never changes the building.
 
 ## Pictures
 
-- `sheet_floor_plans.png`: the hall from above with the roof off, labeled, 4 styles x 3 tiers. Per image:
-  `plan_<style>_t<tier>.png`.
-- `sheet_arena_floor.png`: the rings from the spectator balcony. Per image: `arena_<style>_t<tier>.png`.
-- `sheet_training_area.png`: the training area from its door. Per image: `training_<style>_t<tier>.png`.
-- `sheet_outside.png`: the hall and grounds from outside. Per image: `outside_<style>_t<tier>.png`.
-- `menu_dojo_tab.png`, `menu_upgrade.png`, `menu_spar_board.png`: menu mockups in Saiyan Royal chrome with the
-  Sparring dark aqua accent.
-- `menu_navigation.png`: every dojo action with its taps from the main menu, all 3 or fewer.
+- `sheet_plan.jpg`: floor plans with the roof off, labeled. Rows are Ki Masters, Melee, Strike Moves and Evasion;
+  columns are basic, refined and masterwork. Single images: `plan_<style>_t<tier>.jpg`.
+- `sheet_arena.jpg`: the hall floor from the spectator balcony (`arena_*.jpg`).
+- `sheet_training.jpg`: the training area from its door (`training_*.jpg`).
+- `sheet_outside.jpg`, `sheet_front.jpg`, `sheet_night.jpg`: the plot from above, from the path, and at night.
+- `menu_*_sheet.png`: GuiKit menu mockups (main menu, Spar Board, My dojo, Upgrades) at every window size and scale.
+  `menu_plan_ki_t2.png` is the map on the upgrade screen: a BlockRender top view with the ring being bought in gold.
+- `buildlint.txt`: BuildLint's findings for every structure.
 
-## Navigation
+## Navigation (3 taps or fewer)
 
-The main menu's "Sparring & Dojo" tile becomes "Spar Board" and "Dojo wars" becomes "My dojo". From the main menu:
+The main menu's "Sparring & Dojo" tile becomes **Spar Board**, and "Dojo wars" becomes **My dojo** (wars move
+inside it).
 
-- **Spar Board (1 tap):** accept, post, and watch are 2 taps; challenging a player is 3.
-- **My dojo (1 tap):** visit is 2 taps. Buying an upgrade, the floor-plan preview, style and bonus, wars, elites
-  and visiting another dojo are 3.
-
-## The floor-plan preview
-
-On the LM client the upgrade screen draws the hall's floor plan as colored blocks, generated from the dojo's real
-state: the balcony, six ring spaces and the south wing rooms, each in its tier color, with the part this purchase
-changes outlined. This is a new additive menu element, like the color wheel. KaiPath players see the same plan as
-text rows.
-
-Re-render everything: `python tools/dojo-visuals/render.py docs/dojo-visuals`, then `sheets.py` and
-`mock_menus.py` with the same folder.
+| From the main menu | Taps |
+|---|---|
+| Spar Board | 1 |
+| Accept a post, post a spar, watch | 2 |
+| Challenge a player | 3 (Spar Board, Challenge a player, pick) |
+| My dojo | 1 |
+| Visit dojo, Upgrades, Style and bonus, Wars, Members and elites, Browse dojos | 2 |
+| Buy an upgrade, pick a style or bonus, declare or join a war, visit another dojo | 3 |

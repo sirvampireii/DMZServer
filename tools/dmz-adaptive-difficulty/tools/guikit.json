@@ -1,0 +1,541 @@
+{
+  "_comment": "LM 4.7.68 dojo menus, mocked up with GuiKit (mod-toolkit) before the screens change. GUI pixels. The panel is 400 x 232 so it fits every window down to 854 x 480 and 1280 x 720 at GUI scale 3. Text is LM's real wording (UltraDojoScreens / UltraHubScreens). Navigation from the main menu: Spar Board 1 tap, accept / post / watch 2, challenge a player 3; My dojo 1, visit 2, upgrades / style and bonus / wars / members / browse 2, buying an upgrade 3.",
+  "sizes": [
+    "1920x1080",
+    "2560x1440",
+    "1366x768",
+    "1280x720",
+    "854x480"
+  ],
+  "scales": [
+    2,
+    3,
+    "auto"
+  ],
+  "screens": [
+    {
+      "id": "main_menu",
+      "dim": true,
+      "elements": [
+        {
+          "type": "panel",
+          "id": "panel",
+          "anchor": "center",
+          "w": 400,
+          "h": 232,
+          "style": "dark",
+          "children": [
+            {
+              "type": "text",
+              "id": "title",
+              "text": "Main menu",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 8,
+              "w": 200,
+              "colour": "#ffd36b"
+            },
+            {
+              "type": "text",
+              "id": "hint",
+              "text": "Spar Board and My dojo are one tap from here.",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 22,
+              "w": 380,
+              "colour": "#a8b0bc"
+            },
+            {
+              "type": "button",
+              "id": "prestige",
+              "text": "Prestige",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 38,
+              "w": 380,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "difficulty",
+              "text": "Difficulty",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 64,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "spar_board",
+              "text": "Spar Board",
+              "anchor": "top_left",
+              "x": 139,
+              "y": 64,
+              "w": 122,
+              "h": 20,
+              "state": "hover"
+            },
+            {
+              "type": "button",
+              "id": "rival",
+              "text": "Rival",
+              "anchor": "top_left",
+              "x": 268,
+              "y": 64,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "my_dojo",
+              "text": "My dojo",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 90,
+              "w": 122,
+              "h": 20,
+              "state": "hover"
+            },
+            {
+              "type": "button",
+              "id": "character",
+              "text": "Character Services",
+              "anchor": "top_left",
+              "x": 139,
+              "y": 90,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "skills",
+              "text": "Skills",
+              "anchor": "top_left",
+              "x": 268,
+              "y": 90,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "text",
+              "id": "was",
+              "text": "Renamed in 4.7.68: \"Sparring & Dojo\" is now Spar Board, \"Dojo wars\" is now My dojo (wars live inside it).",
+              "wrap": true,
+              "maxLines": 3,
+              "anchor": "top_left",
+              "x": 10,
+              "y": 120,
+              "w": 380,
+              "colour": "#a8b0bc"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "spar_board",
+      "dim": true,
+      "elements": [
+        {
+          "type": "panel",
+          "id": "panel",
+          "anchor": "center",
+          "w": 400,
+          "h": 232,
+          "style": "dark",
+          "children": [
+            {
+              "type": "text",
+              "id": "title",
+              "text": "Spar Board",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 8,
+              "w": 200,
+              "colour": "#55e0d0"
+            },
+            {
+              "type": "text",
+              "id": "count",
+              "text": "On the board (3) - fights happen in a dojo arena",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 22,
+              "w": 380,
+              "colour": "#a8b0bc"
+            },
+            {
+              "type": "list",
+              "id": "posts",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 36,
+              "w": 380,
+              "h": 92,
+              "rowH": 22,
+              "selected": 0,
+              "items": [
+                "Kaito - Ranked - Wager 50 TP - Looking for: TP",
+                "Mira - Friendly - Looking for: Potential Unlock",
+                "Ren - Friendly - Range 1.2M-2M - Looking for: Anything",
+                "Sora - Ranked - No wager - Looking for: TP"
+              ]
+            },
+            {
+              "type": "text",
+              "id": "pu",
+              "text": "Potential Unlock trains only on friendly spars, and only for a fighter who posted Looking for: Potential Unlock.",
+              "wrap": true,
+              "maxLines": 2,
+              "anchor": "top_left",
+              "x": 10,
+              "y": 132,
+              "w": 380,
+              "colour": "#a8b0bc"
+            },
+            {
+              "type": "button",
+              "id": "accept",
+              "text": "Accept vs Kaito",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 160,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "post",
+              "text": "Post a spar",
+              "anchor": "top_left",
+              "x": 139,
+              "y": 160,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "watch",
+              "text": "Watch",
+              "anchor": "top_left",
+              "x": 268,
+              "y": 160,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "challenge",
+              "text": "Challenge a player",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 184,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "refresh",
+              "text": "Refresh",
+              "anchor": "top_left",
+              "x": 139,
+              "y": 184,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "back",
+              "text": "Back to Main menu",
+              "anchor": "bottom_left",
+              "x": 10,
+              "y": -6,
+              "w": 122,
+              "h": 20
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "my_dojo",
+      "dim": true,
+      "elements": [
+        {
+          "type": "panel",
+          "id": "panel",
+          "anchor": "center",
+          "w": 400,
+          "h": 232,
+          "style": "dark",
+          "children": [
+            {
+              "type": "text",
+              "id": "title",
+              "text": "Dojo - Crane School",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 8,
+              "w": 250,
+              "colour": "#55e0d0"
+            },
+            {
+              "type": "text",
+              "id": "about",
+              "text": "A dojo is your home for spars, wars and training.",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 22,
+              "w": 380,
+              "colour": "#a8b0bc"
+            },
+            {
+              "type": "text",
+              "id": "master",
+              "text": "Master: Kaito",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 38,
+              "w": 185
+            },
+            {
+              "type": "text",
+              "id": "members",
+              "text": "Members: 6 of 10",
+              "anchor": "top_left",
+              "x": 205,
+              "y": 38,
+              "w": 185
+            },
+            {
+              "type": "text",
+              "id": "style",
+              "text": "Style: Ki Masters (refined)",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 50,
+              "w": 185
+            },
+            {
+              "type": "text",
+              "id": "points",
+              "text": "Dojo Points: 240",
+              "anchor": "top_left",
+              "x": 205,
+              "y": 50,
+              "w": 185
+            },
+            {
+              "type": "text",
+              "id": "clout",
+              "text": "Clout this season: 1,280",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 62,
+              "w": 185
+            },
+            {
+              "type": "text",
+              "id": "record",
+              "text": "Record: 4 won, 1 lost",
+              "anchor": "top_left",
+              "x": 205,
+              "y": 62,
+              "w": 185
+            },
+            {
+              "type": "button",
+              "id": "visit",
+              "text": "Visit dojo",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 82,
+              "w": 380,
+              "h": 20,
+              "state": "hover"
+            },
+            {
+              "type": "button",
+              "id": "upgrades",
+              "text": "Upgrades",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 108,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "style_bonus",
+              "text": "Style and bonus",
+              "anchor": "top_left",
+              "x": 139,
+              "y": 108,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "wars",
+              "text": "Wars",
+              "anchor": "top_left",
+              "x": 268,
+              "y": 108,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "members_b",
+              "text": "Members and elites",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 132,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "browse",
+              "text": "Browse dojos",
+              "anchor": "top_left",
+              "x": 139,
+              "y": 132,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "leaderboard",
+              "text": "Dojo leaderboard",
+              "anchor": "top_left",
+              "x": 268,
+              "y": 132,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "back",
+              "text": "Back to Main menu",
+              "anchor": "bottom_left",
+              "x": 10,
+              "y": -6,
+              "w": 122,
+              "h": 20
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dojo_upgrades",
+      "dim": true,
+      "elements": [
+        {
+          "type": "panel",
+          "id": "panel",
+          "anchor": "center",
+          "w": 400,
+          "h": 232,
+          "style": "dark",
+          "children": [
+            {
+              "type": "text",
+              "id": "title",
+              "text": "Upgrades",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 8,
+              "w": 200,
+              "colour": "#55e0d0"
+            },
+            {
+              "type": "text",
+              "id": "points",
+              "text": "Dojo Points: 240",
+              "anchor": "top_right",
+              "x": -10,
+              "y": 8,
+              "w": 120,
+              "align": "right"
+            },
+            {
+              "type": "list",
+              "id": "upgrades",
+              "anchor": "top_left",
+              "x": 10,
+              "y": 24,
+              "w": 190,
+              "h": 124,
+              "rowH": 20,
+              "selected": 1,
+              "items": [
+                "Ring 4 - built",
+                "Ring 5 - 200 points",
+                "Training area: masterwork",
+                "Meditation: masterwork",
+                "Balcony: masterwork",
+                "Capacity: 15 members"
+              ],
+              "scroll": true
+            },
+            {
+              "type": "image",
+              "id": "plan",
+              "texture": "../../docs/dojo-visuals/menu_plan_ki_t2.png",
+              "anchor": "top_left",
+              "x": 208,
+              "y": 24,
+              "w": 182,
+              "h": 132
+            },
+            {
+              "type": "text",
+              "id": "map",
+              "text": "Gold on the map: what this builds.",
+              "anchor": "top_left",
+              "x": 208,
+              "y": 158,
+              "w": 182,
+              "colour": "#a8b0bc"
+            },
+            {
+              "type": "text",
+              "id": "cost",
+              "text": "Ring 5 costs 200 of your 240 Dojo Points. Points are spent at once and an upgrade can't be undone.",
+              "wrap": true,
+              "maxLines": 2,
+              "anchor": "top_left",
+              "x": 10,
+              "y": 172,
+              "w": 380,
+              "colour": "#ffd36b"
+            },
+            {
+              "type": "button",
+              "id": "buy",
+              "text": "Buy for 200 points",
+              "anchor": "bottom_right",
+              "x": -10,
+              "y": -6,
+              "w": 122,
+              "h": 20
+            },
+            {
+              "type": "button",
+              "id": "back",
+              "text": "Back to My dojo",
+              "anchor": "bottom_left",
+              "x": 10,
+              "y": -6,
+              "w": 122,
+              "h": 20
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

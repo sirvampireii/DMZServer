@@ -62,6 +62,18 @@ when touching chat or action messages.
 5. Restart — config at `config/legacymechanics.json` (auto-migrates from `dmz_adaptive_difficulty.json`)
 6. `/difficulty` → hub: Buy / Lower / Titles + personal & coin-chat toggles (Details is ops-only)
 
+## Build notes: dojo structures (4.7.68)
+
+The dojo plots are structure files made with the owner's mod-toolkit (`Desktop/Repository/mod-toolkit`, plugged in by
+`tools/toolkit.json`), not by LM code. They ship in `src/main/resources/data/legacymechanics/structures/dojo/`:
+`dojo_<style>_t<tier>.nbt` for the styles ki, melee, strike and evasion and the tiers 1 to 3 (12 files, about 3 MB).
+In game they load as `legacymechanics:dojo/dojo_<style>_t<tier>` through `StructureTemplate`.
+
+- Sources: the BuildKit hall recipes `tools/dojo/hall_t1.json`..`hall_t3.json` (japanese style; the `"dojo"` section
+  holds the ring anchors, rooms, balcony, doors and landing points) and `tools/fx/DojoKit.java` (interior and grounds).
+- Rebuild: `bash tools/dojo/make.sh` (BuildKit, DojoKit, BuildLint, GuiKit; pictures go to `docs/dojo-visuals`).
+- A structure file must never ship from a recipe or DojoKit change that is not committed.
+
 ## Commands
 
 - `/difficulty` — GUI

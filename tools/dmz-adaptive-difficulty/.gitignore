@@ -5,3 +5,4 @@ base/*.jar
 !reference/prestige-shop-228.1/**/*.class
 !reference/weapon-hotpath-4.6.229/**/*.class
 libraries/ProfTools*.jar
+tools/fx/out/
