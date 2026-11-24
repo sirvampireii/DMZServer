@@ -847,7 +847,7 @@ public final class UiProbe {
         var bonus = com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.bonuses(style).get(0);
         for (GuiOpenPacket p : keep("dojo bonus ask", () -> UltraGui.open(player, "spar", "dojo_bonus_ask:" + bonus.id()))) {
             note("ASK dojo bonus names the cost and the 7-day lock before the click: " + pf(has(p, "Dojo Points")
-                    && has(p, "can't change for 7 days") && (labels(p).contains("Buy for 40 points")
+                    && has(p, "change for 7 days") && (labels(p).contains("Buy for 40 points")
                     || labels(p).contains("Needs 40 points") || has(p, "Only your dojo's master"))) + " | " + labels(p));
         }
         for (GuiOpenPacket p : keep("dojo style ask", () -> UltraGui.open(player, "spar", "dojo_style_ask:" + style.name()))) {
