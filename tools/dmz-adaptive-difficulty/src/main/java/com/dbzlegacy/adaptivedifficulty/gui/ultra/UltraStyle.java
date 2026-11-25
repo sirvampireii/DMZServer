@@ -309,9 +309,9 @@ public final class UltraStyle {
             return "";
         }
         return VALUE + switch (kind) {
-            case COINS -> "Ancient Coins drop from the mobs you defeat. Coins in your inventory or wallet count.";
-            case FAVOR -> "Get favor by trading a prestige you hold for favor.";
-            case DOJO_POINTS -> "Your dojo earns points from hosted spars, training with disciples, disciple milestones and wars.";
+            case COINS -> "Coins drop from the mobs you defeat.";
+            case FAVOR -> "Trade a prestige you hold for favor.";
+            case DOJO_POINTS -> "Dojos earn points by hosting spars, training and wars.";
         };
     }
 
@@ -322,7 +322,7 @@ public final class UltraStyle {
         }
         return switch (kind) {
             case COINS -> "Where to get coins";
-            case FAVOR -> "Trade prestige for favor";
+            case FAVOR -> "Earn favor: Trade";
             case DOJO_POINTS -> "How points are earned";
         };
     }
@@ -336,7 +336,7 @@ public final class UltraStyle {
             return null;
         }
         return switch (kind) {
-            case COINS -> null;
+            case COINS -> "go:hub|coins";
             case FAVOR -> "go:prestige|exchange";
             case DOJO_POINTS -> "go:dojo|dojo_upgrades";
         };

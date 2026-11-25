@@ -29,7 +29,6 @@ public final class DojoRankings {
     private static final long DAY_MS = 24L * 60L * 60L * 1000L;
     public static final long CHALLENGE_TTL_MS = 24L * 60L * 60L * 1000L;
     public static final double BASE_RP_PER_WIN = 12.0;
-    public static final double CHALLENGE_RP_MULT = 2.0;
     public static final double DRAW_RP = 4.0;
     public static final int MAX_HOF_SEASONS = 24;
     public static final int MIN_NAME_LEN = 3;
@@ -311,13 +310,13 @@ public final class DojoRankings {
         double tpA = aRt.sessionTp;
         double tpB = bRt.sessionTp;
         boolean challenge = isActiveChallenge(keyA, keyB);
-        double mult = challenge ? CHALLENGE_RP_MULT : 1.0;
+        // 4.7.85: no 2x ranking points for an old-style challenge (that award went with the old war path).
 
         // Season RP and spar activity count for EVERY inter-dojo spar — rival dojos legitimately
         // spar outside of wars. Only the WAR RECORD (dojo- and member-level wins / losses / draws)
         // is gated on an actually-declared, still-active war; a friendly spar must not inflate it.
         if (Math.abs(tpA - tpB) < 0.5) {
-            double rp = DRAW_RP * mult;
+            double rp = DRAW_RP;
             awardRp(keyA, rp);
             awardRp(keyB, rp);
             bumpMemberRp(keyA, a, rp);
@@ -336,7 +335,7 @@ public final class DojoRankings {
         ServerPlayer loser = aWins ? b : a;
         String winKey = aWins ? keyA : keyB;
         String loseKey = aWins ? keyB : keyA;
-        double rp = BASE_RP_PER_WIN * mult;
+        double rp = BASE_RP_PER_WIN;
         awardRp(winKey, rp);
         bumpMemberRp(winKey, winner, rp);
         if (challenge) {
@@ -1077,8 +1076,8 @@ public final class DojoRankings {
             String rival = key.equalsIgnoreCase(active.fromDojoUuid)
                     ? active.toDojoName
                     : active.fromDojoName;
-            lines.add(UltraStyle.HEADER + "Active war " + UltraStyle.VALUE + "vs " + blank(rival, "?")
-                    + " " + UltraStyle.DIM + "(2x RP)");
+            // 4.7.85: no "(2x RP)": the old-challenge award is gone.
+            lines.add(UltraStyle.HEADER + "Active war " + UltraStyle.VALUE + "vs " + blank(rival, "?"));
             lines.add(UltraStyle.DIM + "Their members show on the war tracker.");
         }
         return lines;
@@ -1242,129 +1241,9 @@ public final class DojoRankings {
         return out;
     }
 
-    public static String challengeDojo(ServerPlayer challenger, ServerPlayer target) {
-        if (target == null) {
-            return challengeDojoByMasterKey(challenger, null);
-        }
-        return challengeDojoByMasterKey(challenger, target.m_20148_().toString());
-    }
-
-    /** Declare war on a rival dojo by the defending master's UUID (master may be offline). */
-    public static String challengeDojoByMasterKey(ServerPlayer challenger, String targetMasterRaw) {
-        if (challenger == null) {
-            return UltraStyle.DANGER + "Players only.";
-        }
-        if (!isDojoMaster(challenger)) {
-            return UltraStyle.DANGER + "Only dojo masters (with apprentices) can declare war.";
-        }
-        if (targetMasterRaw == null || targetMasterRaw.isBlank()) {
-            return UltraStyle.DANGER + "Pick a rival dojo master.";
-        }
-        String toKey = SparStore.canonicalDojoKey(normalizeMasterUuid(targetMasterRaw));
-        if (toKey.isBlank()) {
-            return UltraStyle.DANGER + "That dojo no longer exists. Pick another dojo from the list.";
-        }
-        String fromKey = SparStore.canonicalDojoKey(challenger.m_20148_().toString());
-        if (fromKey.equalsIgnoreCase(toKey)) {
-            return UltraStyle.DANGER + "You cannot challenge your own dojo.";
-        }
-        if (!isDojoMasterUuid(toKey)) {
-            return UltraStyle.DANGER + "That dojo has no master with apprentices.";
-        }
-        // Drop any expired records first so a finished war can never linger as a stale blocker.
-        pruneExpiredChallenges();
-        if (findChallenge(fromKey, toKey) != null) {
-            return UltraStyle.DANGER + "A challenge already exists between these dojos.";
-        }
-        long now = System.currentTimeMillis();
-        SparStore.DojoChallenge c = new SparStore.DojoChallenge();
-        c.fromDojoUuid = fromKey;
-        c.fromDojoName = dojoDisplayName(fromKey);
-        c.toDojoUuid = toKey;
-        c.toDojoName = dojoDisplayName(toKey);
-        c.fromMentorUuid = fromKey;
-        c.expiresAt = now + CHALLENGE_TTL_MS;
-        c.active = false;
-        c = SparStore.normalizeDojoChallenge(toKey, c);
-        SparStore.get().dojoChallenges.put(c.toDojoUuid, c);
-        SparStore.get().markDirty();
-        MinecraftServer server = challenger.m_20194_();
-        ServerPlayer targetOnline = null;
-        if (server != null) {
-            try {
-                targetOnline = server.m_6846_().m_11259_(UUID.fromString(toKey));
-            } catch (IllegalArgumentException ignored) {
-                targetOnline = null;
-            }
-        }
-        if (targetOnline != null && isDojoMaster(targetOnline)) {
-            DmzRewards.msg(targetOnline, LmChat.note("Dojo", UltraStyle.VALUE + c.fromDojoName
-                    + " " + UltraStyle.YELLOW + " challenged your dojo to war."));
-            DmzRewards.msg(targetOnline, LmChat.tip("/spar", "- Dojo War - War pending"));
-        }
-        return UltraStyle.GREEN + "War challenge sent to " + UltraStyle.VALUE + blank(c.toDojoName, dojoDisplayName(toKey)) + UltraStyle.GREEN + ".";
-    }
-
-    private static boolean isDojoMasterUuid(String masterKey) {
-        if (masterKey == null || masterKey.isBlank()) {
-            return false;
-        }
-        try {
-            UUID u = UUID.fromString(masterKey);
-            return SparStore.get().bond(u).apprenticeCount() > 0;
-        } catch (IllegalArgumentException ignored) {
-            return false;
-        }
-    }
-
-    public static String acceptChallenge(ServerPlayer master) {
-        if (master == null) {
-            return UltraStyle.DANGER + "Players only.";
-        }
-        if (!isDojoMaster(master)) {
-            LmLog.event(
-                    "[{}] dojoAcceptWar rejected: not dojo master player={}",
-                    AdaptiveDifficultyMod.MOD_ID,
-                    master.m_7755_().getString());
-            return UltraStyle.DANGER + "Only dojo masters can accept war.";
-        }
-        String key = master.m_20148_().toString().toLowerCase(Locale.ROOT);
-        SparStore.DojoChallenge c = SparStore.get().dojoChallenges.get(key);
-        long now = System.currentTimeMillis();
-        LmLog.event(
-                "[{}] dojoAcceptWar player={} key={} pendingFound={} expiresAt={} now={} active={} from={}",
-                AdaptiveDifficultyMod.MOD_ID,
-                master.m_7755_().getString(),
-                key,
-                c != null,
-                c == null ? -1L : c.expiresAt,
-                now,
-                c != null && c.active,
-                c == null ? null : c.fromDojoName);
-        if (c == null || c.expiresAt <= now) {
-            return UltraStyle.DANGER + "No pending dojo war challenge.";
-        }
-        c.active = true;
-        c.expiresAt = System.currentTimeMillis() + CHALLENGE_TTL_MS;
-        SparStore.get().markDirty();
-        broadcast(LmChat.ok("Dojo", UltraStyle.HEADER + "DOJO WAR " + UltraStyle.VALUE + c.fromDojoName
-                + " " + UltraStyle.LABEL + "vs " + UltraStyle.VALUE + c.toDojoName
-                + " " + UltraStyle.DIM + "- spars vs that dojo earn 2x ranking points. Their members show on the war tracker."));
-        return UltraStyle.GREEN + "Dojo war accepted. " + UltraStyle.LABEL + "Spars vs " + UltraStyle.VALUE + c.fromDojoName + " " + UltraStyle.GREEN + "now earn double ranking points.";
-    }
-
-    public static String declineChallenge(ServerPlayer master) {
-        if (master == null) {
-            return UltraStyle.DANGER + "Players only.";
-        }
-        String key = master.m_20148_().toString().toLowerCase(Locale.ROOT);
-        SparStore.DojoChallenge c = SparStore.get().dojoChallenges.remove(key);
-        if (c == null) {
-            return UltraStyle.DANGER + "No pending challenge.";
-        }
-        SparStore.get().markDirty();
-        return UltraStyle.LABEL + "Declined war challenge from " + UltraStyle.VALUE + blank(c.fromDojoName, "?") + UltraStyle.LABEL + ".";
-    }
+    // 4.7.85: the old /spar dojo challenge write path (declare by player or by master key, accept, decline)
+    // is gone. Since 4.7.84 the commands declare menu wars (DojoWar.legacyChallenge / legacyAnswer),
+    // so nothing creates SparStore.DojoChallenge records any more; revokeOutgoingChallenge below stays for the GUI.
 
     /**
      * Pending dojo war cards for GUI: {@code masterUuid\tdojoName\tIN|OUT\texpiresMs\tonline\twar}.

@@ -116,9 +116,11 @@ CHECKS: list[Check] = [
     Check("rival-challenge-reopen", "rival",
           ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/gui/cnpc/CnpcLmRivalGui.java",),
           '"challenge_send", sendArg, "challenge_pending"', retired=True),
+    # 4.7.85: a dojo war against an offline master is declared through DojoWar.legacyChallenge (uuid: args); the old
+    # DojoRankings.challengeDojoByMasterKey write path is gone.
     Check("dojo-war-offline", "spar",
-          ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/sparring/DojoRankings.java",),
-          "challengeDojoByMasterKey"),
+          ("tools/dmz-adaptive-difficulty/src/main/java/com/dbzlegacy/adaptivedifficulty/dojo/DojoWar.java",),
+          "public static String legacyChallenge("),
     Check("build-backend-ship-overlay", "build",
           ("tools/dmz-adaptive-difficulty/build.sh",),
           "sparring/DojoRankings.class"),

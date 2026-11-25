@@ -75,6 +75,7 @@ public final class PageRegistry {
         p(HUB, HUB_MAIN, "Main menu", null, "home hub start");
         p(HUB, "more", "More", "hub|main", "settings meditation search find hud");
         p(HUB, "goals", "Weekly goals", "hub|main", "goals week weekly progress");
+        p(HUB, "coins", "Where to get coins", "hub|more", "coins ancient money drop earn where get");
         p(HUB, "skins", "Menu skins", "hub|more", "theme look colors colour background");
         p(HUB, "skin_custom", "My colors", "hub|skins", "custom skin hex colour wheel");
         // 4.7.84 (H6): My colors > From a skin (copy a skin's colors into the fields, or the defaults).

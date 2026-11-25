@@ -668,3 +668,11 @@ unchanged.
 lines), `ConfigFieldHelp` (help text without the `V3:` prefix) and `ProgressionGuiApi` (Coins lore copy) re-baselined
 for `LegacyMechanics-4.7.84.jar`. Menu and copy changes only: no price, wallet, favor or purchase logic changed. The
 other 22 are unchanged.
+
+## Re-baseline (2026-11-25, 4.7.85 shortfall offers)
+
+`UltraPrestigeScreens` re-baselined for `LegacyMechanics-4.7.85.jar`: a "Not enough favor" confirm offers "Earn favor:
+Trade" through the shared `UltraScreenSpec.offerGetMore` (the page's own line and button helpers are gone). No price,
+wallet, favor or purchase logic changed. The other 24 are unchanged. These reference `.class` files are not build
+output: `build.sh` verifies the built classes against them byte for byte, so a class that changes must be re-extracted
+here in the same commit, or the build fails at the prestige-shop verify step.

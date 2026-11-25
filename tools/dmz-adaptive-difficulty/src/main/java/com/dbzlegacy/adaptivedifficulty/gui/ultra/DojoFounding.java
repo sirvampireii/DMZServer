@@ -281,6 +281,9 @@ public final class DojoFounding {
             String bad = DojoService.identityChangeProblem(d, DojoCatalog.BANNER_CHANGE_COST);
             if (bad != null) {
                 spec.line(UltraStyle.dangerLine(bad)).buttonsAfterLines();
+                if (DojoService.identityCooldownLeft(d) <= 0L) {
+                    spec.offerGetMore(UltraStyle.Shortfall.DOJO_POINTS, null);   // 4.7.85 (N6)
+                }
                 spec.back();
                 spec.send(p);
                 return;
@@ -312,6 +315,9 @@ public final class DojoFounding {
         String bad = DojoService.identityChangeProblem(d, DojoCatalog.NAME_CHANGE_COST);
         if (bad != null) {
             spec.line(UltraStyle.dangerLine(bad)).buttonsAfterLines();
+            if (DojoService.identityCooldownLeft(d) <= 0L) {
+                spec.offerGetMore(UltraStyle.Shortfall.DOJO_POINTS, null);   // 4.7.85 (N6)
+            }
         } else {
             spec.buttonsAfterLines();
             inputRow(spec, INPUT_RENAME, "", "New name", ACT_RENAME, "Rename");

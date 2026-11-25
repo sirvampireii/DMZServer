@@ -5214,8 +5214,10 @@ def main() -> int:
     check("spar dojo war pending decide", "dojo_war_pending_decide:" in spar_chest)
     dojo_rank = read(SRC / "sparring/DojoRankings.java")
     spar_api = read(SRC / "gui/SparGuiApi.java")
-    check("dojo war offline by master uuid", "challengeDojoByMasterKey" in dojo_rank)
-    check("spar GUI dojo_challenge uuid path", "dojoChallengeByMasterUuid" in read(SRC / "sparring/SparringSystem.java")
+    # 4.7.85: the old challenge write path is deleted; a war on an offline master goes through DojoWar.legacyChallenge.
+    check("dojo war offline by master uuid", "challengeDojoByMasterKey" not in dojo_rank
+          and "public static String legacyChallenge(" in read(SRC / "dojo/DojoWar.java"))
+    check("spar GUI dojo_challenge uuid path", "dojoChallengeByMasterUuid" not in read(SRC / "sparring/SparringSystem.java")
           # 4.7.84 (pick a): the old path declares through DojoWar.legacyChallenge, which still takes uuid: args.
           and "DojoWar.legacyChallenge(player, a)" in spar_api.split("dojo_challenge", 1)[1].split("dojo_accept", 1)[0]
           and 'raw.regionMatches(true, 0, "uuid:", 0, 5)' in read(SRC / "dojo/DojoWar.java"))

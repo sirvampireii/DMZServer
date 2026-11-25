@@ -516,6 +516,12 @@ public final class UltraDojoScreens {
                     UltraStyle.STYLE_CONFIRM).rowGap();
         } else {
             spec.lockedButton("Accept and stake").rowGap();
+            // 4.7.85 (N6): short of the stake: coins, or the dojo's points.
+            if (why.contains("in Ancient Coins on you")) {
+                spec.offerGetMore(UltraStyle.Shortfall.COINS, null);
+            } else if (why.contains("Dojo Points for this wager")) {
+                spec.offerGetMore(UltraStyle.Shortfall.DOJO_POINTS, null);
+            }
         }
         spec.back();
         spec.send(player);
@@ -963,6 +969,9 @@ public final class UltraDojoScreens {
             spec.lockedButton(maxed ? "Fully upgraded" : "Buy for " + cost + " points");
         }
         spec.buttonRight("do:dojo_visit:" + d.masterUuid, "Visit dojo", UltraStyle.STYLE_NORMAL).rowGap();
+        if (!maxed && DojoService.canManage(player.m_20148_(), d) && d.points < cost) {
+            spec.offerGetMore(UltraStyle.Shortfall.DOJO_POINTS, null);   // 4.7.85 (N6)
+        }
         spec.back();
         spec.send(player);
     }
@@ -1138,6 +1147,9 @@ public final class UltraDojoScreens {
             long cd = DojoService.identityCooldownLeft(d);
             spec.lockedButton(cd > 0L ? "Changes again in " + DojoService.cooldownText(cd)
                     : "Needs " + DojoCatalog.STYLE_CHANGE_COST + " points").rowGap();
+            if (cd <= 0L) {
+                spec.offerGetMore(UltraStyle.Shortfall.DOJO_POINTS, null);   // 4.7.85 (N6)
+            }
         } else if (first) {
             spec.button("do:dojo_style:" + to.name(), UltraStyle.confirm("Use this style"), UltraStyle.STYLE_CONFIRM)
                     .rowGap();
@@ -1176,6 +1188,7 @@ public final class UltraDojoScreens {
                     UltraStyle.STYLE_CONFIRM).rowGap();
         } else {
             spec.lockedButton("Needs " + DojoCatalog.BONUS_COST + " points").rowGap();
+            spec.offerGetMore(UltraStyle.Shortfall.DOJO_POINTS, null);   // 4.7.85 (N6)
         }
         spec.back();
         spec.send(player);

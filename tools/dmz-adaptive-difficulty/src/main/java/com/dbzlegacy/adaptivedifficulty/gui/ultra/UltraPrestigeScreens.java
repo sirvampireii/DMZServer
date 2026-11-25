@@ -1187,9 +1187,6 @@ public final class UltraPrestigeScreens {
         if (block != null) {
             spec.line(UltraStyle.danger(block));
         }
-        if (favorShort) {
-            spec.line(UltraStyle.LABEL + GET_FAVOR_LINE);
-        }
         spec.buttonsAfterLines();
         if (block == null) {
             String raw = UltraStyle.fitsButton(confirmLabel) ? confirmLabel : "Confirm";
@@ -1198,22 +1195,14 @@ public final class UltraPrestigeScreens {
                             danger ? UltraStyle.STYLE_DANGER : UltraStyle.STYLE_CONFIRM)
                     .rowGap();
         } else if (favorShort) {
-            placeGetFavorButton(spec);
+            spec.offerGetMore(UltraStyle.Shortfall.FAVOR, "page:exchange");   // 4.7.85 (N6): "Earn favor: Trade"
         }
         spec.back();
         return spec;
     }
 
-    // ── N6 / P-N4 (4.7.84): "not enough favor" offers the way to get more ──────────
-    // The one swap point: replace GET_FAVOR_LINE / placeGetFavorButton with the shared N6 helper when it lands.
-
-    /** The line under a "Not enough favor" reason on a confirm page. */
-    static final String GET_FAVOR_LINE = "Get favor by trading a prestige on the Trade tab.";
-
-    /** The way to more favor under a "Not enough favor" reason: a normal button to the Trade tab (navigation only). */
-    static void placeGetFavorButton(UltraScreenSpec spec) {
-        spec.button("page:exchange", UltraStyle.plain("Trade for favor"), UltraStyle.STYLE_NORMAL).rowGap();
-    }
+    // N6 (4.7.84/4.7.85): a "not enough favor" confirm offers the way to get more through
+    // UltraScreenSpec.offerGetMore(FAVOR, "page:exchange") in askFinish.
 
     /** True for {@link PrestigePointsSystem#notEnoughFavor}'s text (every favor shortfall on these pages). */
     static boolean isFavorShortfall(String block) {
