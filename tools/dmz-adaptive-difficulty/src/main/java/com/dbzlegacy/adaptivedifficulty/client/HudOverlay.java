@@ -132,7 +132,8 @@ final class HudOverlay {
      */
     private static final Slot[] TOP = {UNDERDOG, FIGHT, WAR, PENALTY, ELITE, BOOST, TP};
     /** 4.7.76: top-stack chips that wait when the stack is out of room (the core pills come first). */
-    private static final Slot[] TOP_EXTRA = {ELITE, BOOST};
+    // 4.7.87: the War pill waits for room like the elite and boost chips (ahead of them); the core pills keep their place.
+    private static final Slot[] TOP_EXTRA = {WAR, ELITE, BOOST};
     /** 4.7.76: the top stack stays in the upper part of the screen so the right-edge cards keep their place. */
     static final float TOP_SHARE = 0.42f;
     /** 4.7.77: the top stack's narrowest width, even with many status-effect icons. */
@@ -398,7 +399,7 @@ final class HudOverlay {
             if (!skinId.equals(s.skinId) || topCap != s.layoutCap) {
                 layout(s, topCap);
             }
-            if (s != ELITE && s != BOOST && used + s.h <= topBudget) {
+            if (s != WAR && s != ELITE && s != BOOST && used + s.h <= topBudget) {
                 s.fits = true;
                 used += s.h + GAP;
             }
