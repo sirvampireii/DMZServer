@@ -97,6 +97,14 @@ public final class LmChat {
         return "§d§l" + n;
     }
 
+    /**
+     * 4.7.87: card chrome - a {@link #title}, the {@link #DIVIDER} or a {@link #tip} footer. The HUD drops these and
+     * keeps the body lines (a method, so the section-sign constants are not inlined into other classes).
+     */
+    public static boolean isChrome(String line) {
+        return line != null && (line.startsWith("§d§l") || line.equals(DIVIDER) || line.startsWith("§8Tip ·"));
+    }
+
     /** Tip footer line: {@code §8Tip · §e/cmd §7rest}. */
     public static String tip(String command, String rest) {
         String cmd = command == null || command.isBlank() ? "/lm" : command.trim();

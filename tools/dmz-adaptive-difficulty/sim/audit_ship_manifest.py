@@ -2389,7 +2389,8 @@ def main() -> int:
     check("manifest row for lm 4.7.75", "lm-4775-hud-chat" in manifest)
     check("HUD part 2 elements registered on both sides",
           all(f'"{e}"' in p75_hud for e in ("fight", "spar", "potential", "coins", "elite", "boost"))
-          and has(p75_over, "TOP = {UNDERDOG, FIGHT, PENALTY, ELITE, BOOST, TP}", "BOTTOM = {MOMENTUM, SPAR, POTENTIAL}"))
+          # 4.7.87 added the war / dojo pill under the fight pill; the 4.7.75 order around it stays.
+          and has(p75_over, "TOP = {UNDERDOG, FIGHT, WAR, PENALTY, ELITE, BOOST, TP}", "BOTTOM = {MOMENTUM, SPAR, POTENTIAL}"))
     check("fight pill replaces the challenge score / range chat and the spectator line for HUD players only",
           has(p75_rc, "chatUnlessHud(a, scoreLine(ch));", "chatUnlessHud(a, LmChat.fail(\"Challenge\", TOO_FAR));",
               "public static java.util.List<String> fightLines(", "return LmChat.tagged(\"Challenge\", scoreBody(ch));")

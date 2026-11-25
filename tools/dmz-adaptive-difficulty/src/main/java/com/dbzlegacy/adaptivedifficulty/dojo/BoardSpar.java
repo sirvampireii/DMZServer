@@ -376,16 +376,37 @@ public final class BoardSpar {
                 t == null ? "" : t.m_7755_().getString(), System.currentTimeMillis(), d.want()));
         String what = (d.ranked() ? "ranked" : "friendly") + " spar, " + wagerText(kind, amount);
         if (t != null) {
-            Component line = Component.m_237113_(LmChat.info("Spar", UltraStyle.VALUE + p.m_7755_().getString()
-                    + UltraStyle.LABEL + " challenges you to a " + what + ". "))
-                    .m_7220_(Component.m_237113_(UltraStyle.GREEN + "[Open the Spar Board]").m_130948_(Style.f_131099_
-                            .m_131142_(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/lm open spar sparboard"))
-                            .m_131144_(new HoverEvent(HoverEvent.Action.f_130831_,
-                                    Component.m_237113_("See the challenge and accept it")))));
-            t.m_213846_(line);
+            postNotice(t, p.m_7755_().getString(), what);
             return "Challenged " + t.m_7755_().getString() + " to a " + what + ". 15 minutes to accept.";
         }
         return "Posted a " + what + " for 15 minutes. The fight happens in your dojo's arena.";
+    }
+
+    /** 4.7.87: the Spar Board, where a challenge is accepted. */
+    public static final String BOARD_ACTION = "go:spar|sparboard";
+
+    /**
+     * A challenge to {@code t}: the chat line with its [Open the Spar Board] link, or for a HUD player the same words
+     * as a dojo toast that opens the Spar Board.
+     */
+    public static void postNotice(ServerPlayer t, String from, String what) {
+        String head = LmChat.info("Spar", UltraStyle.VALUE + from + UltraStyle.LABEL + " challenges you to a " + what
+                + ". ");
+        if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(t)) {
+            java.util.List<String> lines = new ArrayList<>(com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.chatLines(head));
+            lines.add(UltraStyle.GREEN + "Open the Spar Board");
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(t, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR,
+                    lines, 1f, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("spar"), BOARD_ACTION,
+                    com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR_REQUEST_MS, true);
+            return;
+        }
+        Component line = Component.m_237113_(head)
+                .m_7220_(Component.m_237113_(UltraStyle.GREEN + "[Open the Spar Board]").m_130948_(Style.f_131099_
+                        .m_131142_(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/lm open spar sparboard"))
+                        .m_131144_(new HoverEvent(HoverEvent.Action.f_130831_,
+                                Component.m_237113_("See the challenge and accept it")))));
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.vanilla(t, "chat", line.getString());
+        t.m_213846_(line);
     }
 
     /** {@code acceptor} takes {@code poster}'s post: escrow, teleport both into the poster's arena, start. */
@@ -446,7 +467,11 @@ public final class BoardSpar {
         SparringSystem.startBoardSession(poster, acceptor, b.id, b.ranked, b.potentialA, b.potentialB);
         String what = (b.ranked ? "Ranked" : "Friendly") + " spar in " + host.name + ", ring " + (arena + 1)
                 + (b.wager > 0 ? ", " + wagerText(b.wagerKind, b.wager) + " each at stake" : "") + ".";
-        DmzRewards.msg(poster, LmChat.ok("Spar", acceptor.m_7755_().getString() + " accepted. " + what));
+        // 4.7.87: a HUD poster reads it as a dojo toast (the fight pill and start toast follow from the session).
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.toastOrChat(poster, LmChat.ok("Spar",
+                acceptor.m_7755_().getString() + " accepted. " + what), com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR,
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("spar"), "open:spar",
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR_TOAST_MS);
         return "Accepted. " + what + " KO, ring-out or the 5-minute clock decides it.";
     }
 
@@ -818,8 +843,8 @@ public final class BoardSpar {
                 giveCoins(p, x.amount);
                 DojoStore.get().escrow.remove(e.getKey());
                 DojoStore.get().markDirty();
-                DmzRewards.msg(p, LmChat.ok("Spar", "Your wager winnings arrived: " + AncientCoinEconomy.format(x.amount)
-                        + "."));
+                long amount = x.amount;
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.whenClientKnown(p, () -> winningsNotice(p, amount));
             }
         }
         if (!inBout(p.m_20148_()) && !DojoWar.fighting(p.m_20148_()) && DojoWorld.hasSpot(p.m_20148_())
@@ -828,8 +853,24 @@ public final class BoardSpar {
         }
         String nudge = loginNudge(DojoStore.get().dojos.get(id));
         if (nudge != null) {
-            DmzRewards.msg(p, LmChat.info("Dojo", nudge));
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.whenClientKnown(p, () -> nudgeNotice(p, nudge));
         }
+    }
+
+    /** 4.7.87: wager winnings paid at login - chat, or the coin toast with the same words and amount. */
+    public static void winningsNotice(ServerPlayer p, long amount) {
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.toastOrChat(p, LmChat.ok("Spar", "Your wager winnings arrived: "
+                + AncientCoinEconomy.format(amount) + "."), com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.COINS,
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.ACCENT_CURRENCY, "",
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR_TOAST_MS);
+    }
+
+    /** 4.7.87: the dojo login nudge - chat, or a dojo toast with the same words that opens the Dojo. */
+    public static void nudgeNotice(ServerPlayer p, String nudge) {
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.toastOrChat(p, LmChat.info("Dojo", nudge),
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR,
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("dojo"), "go:dojo|home",
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR_REQUEST_MS);
     }
 
     /**

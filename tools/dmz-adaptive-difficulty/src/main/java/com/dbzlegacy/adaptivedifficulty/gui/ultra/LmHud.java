@@ -3,6 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 import com.dbzlegacy.adaptivedifficulty.data.LmPlayerStore;
 import com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork;
 import com.dbzlegacy.adaptivedifficulty.net.gui.NativeHudPacket;
+import com.dbzlegacy.adaptivedifficulty.util.LmChat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -45,10 +46,24 @@ public final class LmHud {
     public static final String ELITE = "elite";
     /** Global TP and mastery boosts with time left. */
     public static final String BOOST = "boost";
+    /**
+     * 4.7.87: the dojo toast and pill, top row next to FIGHT. The war lifecycle (declare and sign-off requests, the
+     * sign-up pill with its countdown, war announcements and results), Spar Board post and accept notices, mentor
+     * bond invites and replies, and the dojo login nudge. Tapping it opens the page where the decision lives.
+     */
+    public static final String WAR = "war";
     public static final List<String> ELEMENTS = List.of(UNDERDOG, INSTINCT, TP, PENALTY, MOMENTUM, FIGHT, SPAR,
-            POTENTIAL, COINS, ELITE, BOOST);
+            POTENTIAL, COINS, ELITE, BOOST, WAR);
     /** Elements that are events: each send shows (or refreshes) the element, so identical sends still go. */
-    static final java.util.Set<String> EVENTS = java.util.Set.of(INSTINCT, TP, COINS, POTENTIAL);
+    static final java.util.Set<String> EVENTS = java.util.Set.of(INSTINCT, TP, COINS, POTENTIAL, WAR);
+    /** 4.7.87: how long a dojo / war toast stays (it drains on the client). */
+    public static final int WAR_TOAST_MS = 8_000;
+    /** 4.7.87: a request that waits on the player (war declare, sign-off, bond invite) stays a little longer. */
+    public static final int WAR_REQUEST_MS = 15_000;
+    /** 4.7.87: spar session start and end toasts on the TP element. */
+    public static final int SPAR_TOAST_MS = 6_000;
+    /** 4.7.87: HUD lines wrap at about this many characters (a 240 px pill). */
+    static final int WRAP_CHARS = 40;
     /** The coin toast sums drops within this window. */
     public static final long COIN_WINDOW_MS = 5_000L;
     /** Potential meter fades this long after the last training hit. */
@@ -229,6 +244,7 @@ public final class LmHud {
     public static void forget(ServerPlayer player) {
         if (player != null) {
             LAST.remove(player.m_20148_());
+            WAIT_HELLO.remove(player.m_20148_());
             com.dbzlegacy.adaptivedifficulty.progression.skills.PotentialProgression.forgetHud(player.m_20148_());
             com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.forgetToast(player.m_20148_());
         }
@@ -256,6 +272,174 @@ public final class LmHud {
             capture = prev;
         }
         return new ArrayList<>(out);
+    }
+
+    // ------------------------------------------------------------------ 4.7.87 chat lines as toasts
+
+    /**
+     * 4.7.87 no-doubling: a HUD player gets {@code lines} as a toast on {@code element} that drains over {@code ms};
+     * everyone else gets {@code chat} exactly as before (through {@link LmChat#send}, which the vanilla capture sees).
+     * True when it went to the HUD.
+     */
+    public static boolean toastOrChat(ServerPlayer player, String chat, String element, List<String> lines,
+            String accent, String action, int ms) {
+        if (player == null) {
+            return false;
+        }
+        if (active(player)) {
+            show(player, element, lines, 1f, accent, action, ms, true);
+            return true;
+        }
+        LmChat.send(player, chat);
+        return false;
+    }
+
+    /** As above, with the chat message's own lines ({@link #chatLines}) on the HUD. */
+    public static boolean toastOrChat(ServerPlayer player, String chat, String element, String accent, String action,
+            int ms) {
+        return toastOrChat(player, chat, element, chatLines(chat), accent, action, ms);
+    }
+
+    /**
+     * HUD lines with the same words and numbers as a chat message: the {@code [System]} tag, the card title, the
+     * divider and the tip footer are chrome and are dropped; a long line wraps at word breaks, keeping its colour.
+     */
+    public static List<String> chatLines(String chat) {
+        List<String> out = new ArrayList<>();
+        if (chat == null) {
+            return out;
+        }
+        String tagHead = UltraStyle.MARK + "5" + UltraStyle.MARK + "l[";
+        String tagTail = "] " + UltraStyle.MARK + "r";
+        for (String line : LmChat.normalize(chat).split("\\n", -1)) {
+            if (UltraStyle.plain(line).isEmpty() || LmChat.isChrome(line)) {
+                continue;
+            }
+            if (line.startsWith(tagHead)) {
+                int close = line.indexOf(tagTail);
+                if (close > 0) {
+                    line = line.substring(close + tagTail.length());
+                }
+            }
+            out.addAll(wrap(line, WRAP_CHARS));
+        }
+        return out;
+    }
+
+    /** {@code text} cut at word breaks into lines of about {@code max} visible characters; colour codes carry over. */
+    public static List<String> wrap(String text, int max) {
+        List<String> out = new ArrayList<>();
+        if (text == null || text.isEmpty()) {
+            return out;
+        }
+        char mark = UltraStyle.MARK.charAt(0);
+        StringBuilder cur = new StringBuilder();
+        String carry = "";
+        String lastCode = "";
+        String codeAtBreak = "";
+        int visible = 0;
+        int breakAt = -1;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == mark && i + 1 < text.length()) {
+                char k = text.charAt(i + 1);
+                boolean colour = k == 'r' || k == 'R' || "0123456789abcdefABCDEF".indexOf(k) >= 0;
+                lastCode = colour ? "" + mark + k : lastCode + mark + k;
+                cur.append(c).append(k);
+                i++;
+                continue;
+            }
+            if (c == ' ') {
+                breakAt = cur.length();
+                codeAtBreak = lastCode;
+            }
+            cur.append(c);
+            visible++;
+            if (visible > max && breakAt > 0) {
+                out.add(carry + cur.substring(0, breakAt));
+                String rest = cur.substring(breakAt + 1);
+                carry = codeAtBreak;
+                cur = new StringBuilder(rest);
+                visible = UltraStyle.plain(rest).length();
+                breakAt = -1;
+            }
+        }
+        if (!UltraStyle.plain(cur.toString()).isEmpty()) {
+            out.add(carry + cur);
+        }
+        return out;
+    }
+
+    private static String joinedPlain(List<String> lines) {
+        StringBuilder sb = new StringBuilder();
+        for (String l : lines) {
+            if (sb.length() > 0) {
+                sb.append(' ');
+            }
+            sb.append(UltraStyle.plain(l));
+        }
+        return sb.toString();
+    }
+
+    /** 4.7.87: login notices wait at most this long for the LM client's hello (then they go to chat). */
+    public static final long HELLO_WAIT_MS = 5_000L;
+
+    private record Waiting(long since, List<Runnable> notices) {}
+
+    private static final Map<UUID, Waiting> WAIT_HELLO = new ConcurrentHashMap<>();
+
+    /**
+     * 4.7.87: run a login notice once it is known whether this player takes the HUD. At login an LM client's hello
+     * has not arrived yet, so {@link #active} still reads false; the notice waits for the hello (at most
+     * {@link #HELLO_WAIT_MS}, then it runs and goes to chat). A bridge or vanilla client runs it now, so chat is
+     * exactly as before.
+     */
+    public static void whenClientKnown(ServerPlayer player, Runnable notice) {
+        if (player == null || notice == null) {
+            return;
+        }
+        if (!LmNativeNetwork.hasNativeClient(player) || LmNativeNetwork.helloArrived(player)) {
+            notice.run();
+            return;
+        }
+        WAIT_HELLO.computeIfAbsent(player.m_20148_(), k -> new Waiting(System.currentTimeMillis(),
+                new CopyOnWriteArrayList<>())).notices().add(notice);
+    }
+
+    /** The hello arrived (server thread): run this player's waiting login notices. */
+    public static void helloArrived(ServerPlayer player) {
+        Waiting w = player == null ? null : WAIT_HELLO.remove(player.m_20148_());
+        if (w != null) {
+            runAll(w);
+        }
+    }
+
+    /** Server tick: login notices whose hello never came run now (chat). */
+    public static void pulse(net.minecraft.server.MinecraftServer server, int tick) {
+        if (server == null || tick % 20 != 0 || WAIT_HELLO.isEmpty()) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        for (Map.Entry<UUID, Waiting> e : WAIT_HELLO.entrySet()) {
+            if (now - e.getValue().since() < HELLO_WAIT_MS) {
+                continue;
+            }
+            WAIT_HELLO.remove(e.getKey());
+            if (server.m_6846_().m_11259_(e.getKey()) != null) {
+                runAll(e.getValue());
+            }
+        }
+    }
+
+    private static void runAll(Waiting w) {
+        for (Runnable r : w.notices()) {
+            try {
+                r.run();
+            } catch (Throwable t) {
+                com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod.LOGGER.warn("[{}] login notice failed: {}",
+                        com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod.MOD_ID, t.toString());
+            }
+        }
     }
 
     // ------------------------------------------------------------------ text shared with the bars
@@ -292,6 +476,29 @@ public final class LmHud {
         }
         if (!NativeHudPacket.hide(MOMENTUM).signature().contains("false")) {
             bad.add("hide packet");
+        }
+        // 4.7.87: the dojo / war element is registered and is an event; chat lines keep their words on the HUD.
+        if (!ELEMENTS.contains(WAR) || !EVENTS.contains(WAR)) {
+            bad.add("war element registered as an event");
+        }
+        String card = LmChat.card("Sparring", "/spar", null, UltraStyle.GREEN + "Session started with "
+                + UltraStyle.VALUE + "Kai", UltraStyle.DIM + "Stay active.");
+        List<String> cl = chatLines(card);
+        if (cl.size() != 2 || !"Session started with Kai".equals(UltraStyle.plain(cl.get(0)))) {
+            bad.add("card chat lines on the HUD: " + cl);
+        }
+        String war = "War! Red Dojo vs Blue Dojo (bracket). Sign-up is open for 60 seconds: open Dojo > Wars and tap"
+                + " Join the war.";
+        List<String> wl = chatLines(LmChat.info("War", UltraStyle.VALUE + war));
+        if (wl.size() < 2 || wl.size() > NativeHudPacket.MAX_LINES || !war.equals(joinedPlain(wl))) {
+            bad.add("war chat line wraps on the HUD with the same words: " + wl);
+        }
+        String ink = wl.isEmpty() || wl.get(0).length() < 2 ? "?" : wl.get(0).substring(0, 2);
+        for (String l : wl) {
+            if (!l.startsWith(ink) || !ink.startsWith(UltraStyle.MARK)) {
+                bad.add("wrapped HUD lines keep their colour: " + wl);
+                break;
+            }
         }
         return bad;
     }

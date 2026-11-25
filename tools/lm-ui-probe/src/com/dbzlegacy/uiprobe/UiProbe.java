@@ -3256,6 +3256,151 @@ public final class UiProbe {
         com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().markDirty();
         // 4: every HUD element once, on the HUD only, for a HUD player; the vanilla version for everyone else.
         v80HudMatrix();
+        // 4.7.87: spars and wars on the HUD instead of chat, the same rule.
+        v87HudMatrix();
+    }
+
+    /**
+     * 4.7.87 cases: {name, HUD element, the words the chat line (and the HUD line) carries, the HUD tap action or "" for
+     * any}. Each is fired through the method the game sends it from.
+     */
+    static final String[][] HUD87_CASES = {
+            {"spar start", LmHud.TP, "Session started with Probe partner", "open:spar"},
+            {"spar end", LmHud.TP, "Session ended with ?", "open:spar"},
+            {"streak", LmHud.SPAR, "Streak 3 days", "open:spar"},
+            {"wager winnings on login", LmHud.COINS, "Your wager winnings arrived:", ""},
+            {"dojo login nudge", LmHud.WAR, "still needs a banner", "go:dojo|home"},
+            {"board post", LmHud.WAR, "challenges you to a friendly spar", "go:spar|sparboard"},
+            {"war declare", LmHud.WAR, "declared a bracket war on your dojo", "go:dojo|dojo_wars"},
+            {"war accept + sign-up", LmHud.WAR, "War! Probe Red vs Probe Blue (bracket).", "go:dojo|dojo_wars"},
+            {"war result", LmHud.WAR, "Probe Red wins the war 2-1! Champion: Kai.", "go:dojo|dojo_wars"},
+            {"mentor invite", LmHud.WAR, "wants you as their Apprentice.", "go:dojo|pending"},
+    };
+
+    private void trigger87(String name, long now) throws Exception {
+        var srv = player.m_20194_();
+        var spar = com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.class;
+        switch (name) {
+            case "spar start" -> com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.startNotice(player,
+                    "Probe partner", probeSparRuntime(now), UltraStyle.DIM + "Stay active: trade damage, move, and keep"
+                            + " the fight going.", now);
+            case "spar end" -> {
+                var rt = probeSparRuntime(now);
+                rt.sessionTp = 42;
+                rt.sessionMelee = 30;
+                rt.sessionKi = 12;
+                rt.sessionMaxCombo = 5;
+                call(spar, "report", new Class<?>[] {ServerPlayer.class,
+                        com.dbzlegacy.adaptivedifficulty.sparring.SparPlayerRuntime.class, ServerPlayer.class, long.class,
+                        String.class}, player, rt, null, 95_000L, "probe");
+            }
+            case "streak" -> com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.streakNotice(player, 3);
+            case "wager winnings on login" -> com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.winningsNotice(player, 150L);
+            case "dojo login nudge" -> com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.nudgeNotice(player,
+                    "Your dojo Probe Hall still needs a banner. It's free the first time: open Dojo from the main menu.");
+            case "board post" -> com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.postNotice(player, "Probe rival",
+                    "friendly spar, no wager");
+            case "war declare" -> call(com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.class, "request",
+                    new Class<?>[] {net.minecraft.server.MinecraftServer.class, String.class, String.class}, srv,
+                    player.m_20148_().toString(), "Probe Red declared a bracket war on your dojo. Accept it or turn it"
+                            + " down on Dojo > Wars.");
+            case "war accept + sign-up" -> {
+                var w = new com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.WarRecord();
+                w.id = "war-probe-87";
+                w.fromName = "Probe Red";
+                w.toName = "Probe Blue";
+                w.fromDojo = player.m_20148_().toString();
+                w.toDojo = PROBE_RIVAL.toString();
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.signupNotice(player, w, "War! Probe Red vs Probe Blue"
+                        + " (bracket). Sign-up is open for 60 seconds: open Dojo > Wars and tap Join the war.");
+            }
+            case "war result" -> com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.warNotice(player,
+                    "Probe Red wins the war 2-1! Champion: Kai.", LmHud.WAR_TOAST_MS);
+            case "mentor invite" -> com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem.inviteNotice(player,
+                    "Probe mentor", "Apprentice");
+            default -> throw new IllegalArgumentException(name);
+        }
+    }
+
+    /**
+     * 4.7.87 no doubling for the spar, war, board, dojo and bond lines moved to the HUD: a HUD player gets each once on
+     * its element (with the same words and the page it opens) and nothing in chat; a HUD-off player and a bridge client
+     * get the chat line once and nothing on the HUD.
+     */
+    private void v87HudMatrix() {
+        java.util.UUID u = player.m_20148_();
+        boolean takes = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesHud(player);
+        boolean wasOn = LmHud.enabled(player);
+        int checked = 0;
+        int passed = 0;
+        for (boolean on : new boolean[] {true, false}) {
+            LmHud.set(player, on);
+            boolean hudMode = on && takes;
+            String mode = hudMode ? "HUD on" : takes ? "HUD off" : on ? "bridge" : "bridge, HUD off";
+            for (String[] c : HUD87_CASES) {
+                String name = c[0];
+                String el = c[1];
+                String words = c[2];
+                String action = c[3];
+                LmHud.hideAll(player);
+                long now = System.currentTimeMillis();
+                LmHud.Both b;
+                try {
+                    b = LmHud.captureBoth(() -> {
+                        try {
+                            trigger87(name, now);
+                        } catch (Exception ex) {
+                            throw new RuntimeException(ex);
+                        }
+                    });
+                } catch (Throwable t) {
+                    note("V87 HUD once " + mode + " " + name + ": ERROR " + t + " FAIL");
+                    LmHud.hideAll(player);
+                    checked++;
+                    continue;
+                }
+                LmHud.hideAll(player);
+                List<com.dbzlegacy.adaptivedifficulty.net.gui.NativeHudPacket> mine = new ArrayList<>();
+                long anyHud = 0;
+                for (LmHud.Sent x : b.hud()) {
+                    if (x.player().equals(u) && x.packet().show()) {
+                        anyHud++;
+                        if (x.packet().element().equals(el)) {
+                            mine.add(x.packet());
+                        }
+                    }
+                }
+                List<String> van = new ArrayList<>();
+                for (LmHud.Vanilla v : b.vanilla()) {
+                    if (v.player().equals(u)) {
+                        van.add(v.channel() + ":" + UltraStyle.plain(v.text()));
+                    }
+                }
+                long said = van.stream().filter(t -> t.contains(words)).count();
+                boolean ok;
+                String detail;
+                if (hudMode) {
+                    String text = mine.isEmpty() ? "" : LmHud.joined(mine.get(0).lines());
+                    String flat = text.replace(" - ", " ");
+                    boolean sameWords = flat.contains(words) || text.contains(words);
+                    boolean opens = action.isEmpty() || (!mine.isEmpty() && action.equals(mine.get(0).action()));
+                    ok = mine.size() == 1 && van.isEmpty() && sameWords && opens;
+                    detail = "hud=" + mine.size() + " action=" + (mine.isEmpty() ? "-" : mine.get(0).action())
+                            + " lines=\"" + text + "\" vanilla=" + van;
+                } else {
+                    ok = anyHud == 0 && said == 1;
+                    detail = "hud=" + anyHud + " chat with the words=" + said + " vanilla=" + van;
+                }
+                checked++;
+                if (ok) {
+                    passed++;
+                }
+                note("V87 HUD once " + mode + " " + name + ": " + pf(ok) + " | " + detail);
+            }
+        }
+        LmHud.set(player, wasOn);
+        note("V87 HUD no-doubling matrix (spars and wars): " + passed + " of " + checked + " checks pass ("
+                + (takes ? "LM client" : "bridge") + "): " + pf(passed == checked && checked > 0));
     }
 
     static final String[] HUD_ELEMENTS = {LmHud.UNDERDOG, LmHud.INSTINCT, LmHud.TP, LmHud.PENALTY, LmHud.MOMENTUM,

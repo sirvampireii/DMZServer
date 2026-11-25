@@ -185,7 +185,7 @@ public final class DojoWar {
         store().wars.add(w);
         store().markDirty();
         if (needsSignoff) {
-            tell(p.m_20194_(), mine.masterUuid, p.m_7755_().getString() + " wants to declare a " + fmt.toLowerCase()
+            request(p.m_20194_(), mine.masterUuid, p.m_7755_().getString() + " wants to declare a " + fmt.toLowerCase()
                     + " war on " + them.name + ". Sign it off on Dojo > Wars.");
             return "Sent to your master for sign-off. The war goes out once they approve.";
         }
@@ -200,9 +200,9 @@ public final class DojoWar {
         }
         String msg = w.fromName + " declared a " + w.format.toLowerCase() + " war on your dojo. Accept it or turn it down"
                 + " on Dojo > Wars.";
-        tell(server, them.masterUuid, msg);
+        request(server, them.masterUuid, msg);
         for (String e : them.elites) {
-            tell(server, e, msg);
+            request(server, e, msg);
         }
     }
 
@@ -274,14 +274,16 @@ public final class DojoWar {
         // 4.7.84 (DJ-6): the chat line says where to join; the Wars tab shows the sign-up card with the countdown.
         String msg = "War! " + w.fromName + " vs " + w.toName + " (" + w.format.toLowerCase() + "). Sign-up is open for "
                 + (SIGNUP_MS / 1000L) + " seconds: open Dojo > Wars and tap Join the war.";
+        // 4.7.87: the accepter signs up first, so their sign-up pill already reads "Signed up". A HUD player gets the
+        // pill (same words, live countdown) instead of the chat line.
+        join(p, w.id);
         for (String dojo : new String[] {w.fromDojo, w.toDojo}) {
             Dojo d = DojoService.byMaster(dojo);
-            tell(p.m_20194_(), dojo, msg);
+            signupNotice(online(p.m_20194_(), dojo), w, msg);
             for (String m : DojoService.disciples(d)) {
-                tell(p.m_20194_(), m, msg);
+                signupNotice(online(p.m_20194_(), m), w, msg);
             }
         }
-        join(p, w.id);
         return "War accepted. Sign-up is open for one minute.";
     }
 
@@ -364,8 +366,10 @@ public final class DojoWar {
         switch (r.phase) {
             case "SIGNUP" -> {
                 if (now < r.signupUntil) {
+                    signupHud(server, r);
                     return;
                 }
+                signupHudHide(server, r);
                 r.signed.removeIf(u -> server.m_6846_().m_11259_(u) == null);
                 r.seeds = draw(r, RNG);
                 boolean from = false;
@@ -613,7 +617,7 @@ public final class DojoWar {
 
     /**
      * 4.7.75: the fight pill for the two fighters of a war bout (names, damage dealt, clock). The bout announcements
-     * stay in chat (they are a record of the war).
+     * stay in chat for players without the HUD; 4.7.87: a HUD player reads them as war toasts (the record is Wars).
      */
     static void boutHud(MinecraftServer server, Run r, long now) {
         for (UUID u : new UUID[] {r.x, r.y}) {
@@ -645,24 +649,128 @@ public final class DojoWar {
         return "Order: " + String.join(", ", n) + ".";
     }
 
+    /**
+     * 4.7.87: war announcements (sign-up closed, rules, next bout, fight, bout results, the winner) go to the signed-up
+     * fighters. A HUD player reads each as a war toast (the war's record is the Wars tab); everyone else in chat.
+     */
     static void announce(MinecraftServer server, Run r, String text) {
         for (UUID u : new LinkedHashSet<>(r.signed)) {
             ServerPlayer p = server.m_6846_().m_11259_(u);
             if (p != null) {
-                DmzRewards.msg(p, LmChat.info("War", UltraStyle.VALUE + text));
+                warNotice(p, text, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR_TOAST_MS);
             }
         }
     }
 
+    /** 4.7.87: one war line: chat, or for a HUD player a war toast with the same words that opens Dojo > Wars. */
+    public static void warNotice(ServerPlayer p, String text, int ms) {
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.toastOrChat(p, LmChat.info("War", UltraStyle.VALUE + text),
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR,
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("dojo"), WARS_ACTION, ms);
+    }
+
+    /** Dojo &gt; Wars, where war requests are decided and the war's record lives. */
+    public static final String WARS_ACTION = "go:dojo|dojo_wars";
+
     static void tell(MinecraftServer server, String uuid, String text) {
-        try {
-            ServerPlayer p = server == null ? null : server.m_6846_().m_11259_(UUID.fromString(uuid));
-            if (p != null) {
-                DmzRewards.msg(p, LmChat.info("War", UltraStyle.VALUE + text));
-            }
-        } catch (IllegalArgumentException ignored) {
+        ServerPlayer p = online(server, uuid);
+        if (p != null) {
+            warNotice(p, text, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR_TOAST_MS);
         }
     }
+
+    /** 4.7.87: a request that waits on the player (declare, sign-off): the war toast stays a little longer. */
+    static void request(MinecraftServer server, String uuid, String text) {
+        ServerPlayer p = online(server, uuid);
+        if (p != null) {
+            warNotice(p, text, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR_REQUEST_MS);
+        }
+    }
+
+    static ServerPlayer online(MinecraftServer server, String uuid) {
+        try {
+            return server == null || uuid == null ? null : server.m_6846_().m_11259_(UUID.fromString(uuid));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    /**
+     * 4.7.87: the accept line to a member of either dojo. Chat as before; a HUD player gets the sign-up pill instead
+     * (the same words, with the countdown and who signed up, from the 4.7.84 DJ-6 sign-up state).
+     */
+    public static void signupNotice(ServerPlayer p, WarRecord w, String msg) {
+        if (p == null) {
+            return;
+        }
+        if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(p)) {
+            signupPill(p, w);
+            return;
+        }
+        DmzRewards.msg(p, LmChat.info("War", UltraStyle.VALUE + msg));
+    }
+
+    /** Members of both dojos online now (masters, elites, disciples), once each. */
+    static List<ServerPlayer> members(MinecraftServer server, WarRecord w) {
+        List<ServerPlayer> out = new ArrayList<>();
+        for (String dojo : new String[] {w.fromDojo, w.toDojo}) {
+            Dojo d = DojoService.byMaster(dojo);
+            ServerPlayer m = online(server, dojo);
+            if (m != null && !out.contains(m)) {
+                out.add(m);
+            }
+            for (String u : DojoService.disciples(d)) {
+                ServerPlayer q = online(server, u);
+                if (q != null && !out.contains(q)) {
+                    out.add(q);
+                }
+            }
+        }
+        return out;
+    }
+
+    /** Once a second while sign-up runs: the pill for every HUD member (sent only when its text changes). */
+    static void signupHud(MinecraftServer server, Run r) {
+        for (ServerPlayer p : members(server, r.rec)) {
+            if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(p)) {
+                signupPill(p, r.rec);
+            }
+        }
+    }
+
+    /** Sign-up closed: the pill goes (the next war line is a toast). */
+    static void signupHudHide(MinecraftServer server, Run r) {
+        for (ServerPlayer p : members(server, r.rec)) {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(p, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR);
+        }
+    }
+
+    /**
+     * The sign-up pill: "War! A vs B (bracket).", "Sign-up closes in m:ss.", who signed up from each side, and the
+     * way in ("Open Dojo > Wars and tap Join the war." or the join reply once signed). Tapping it opens Dojo > Wars.
+     */
+    public static void signupPill(ServerPlayer p, WarRecord w) {
+        Dojo mine = DojoService.dojoOf(p);
+        boolean ours = mine == null || w.fromDojo.equals(mine.masterUuid);
+        String my = ours ? w.fromDojo : w.toDojo;
+        String their = ours ? w.toDojo : w.fromDojo;
+        long left = signupLeftMs(w.id);
+        List<String> lines = new ArrayList<>();
+        lines.add(UltraStyle.VALUE + "War! " + w.fromName + " vs " + w.toName + " (" + w.format.toLowerCase() + ").");
+        lines.add(UltraStyle.LABEL + "Sign-up closes in " + UltraStyle.VALUE + BoardSpar.clock(left) + UltraStyle.LABEL
+                + ".");
+        lines.add(UltraStyle.LABEL + "Signed up: " + signedCount(w.id, my) + " from your dojo, "
+                + signedCount(w.id, their) + " from theirs.");
+        lines.add(signedUp(w.id, p.m_20148_())
+                ? UltraStyle.GREEN + "Signed up. The bracket is drawn when sign-up closes."
+                : UltraStyle.YELLOW + "Open Dojo > Wars and tap Join the war.");
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(p, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR,
+                lines, (float) Math.max(0.0, Math.min(1.0, left / (double) SIGNUP_MS)),
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("dojo"), WARS_ACTION, SIGNUP_PILL_MS, false);
+    }
+
+    /** The pill hides itself this long after its last refresh (a refresh comes every second while sign-up runs). */
+    static final int SIGNUP_PILL_MS = 3_000;
 
     // ------------------------------------------------------------------ combat rules
 

@@ -190,6 +190,8 @@ public final class LmNativeNetwork {
                     AdaptiveDifficultyMod.VERSION, features);
             // 4.7.62: the client draws in the player's skin from the first menu on.
             context.enqueueWork(() -> sendPrefs(sender));
+            // 4.7.87: login notices that waited to learn whether this client takes the HUD.
+            context.enqueueWork(() -> com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.helloArrived(sender));
         }
         context.setPacketHandled(true);
     }
@@ -227,6 +229,11 @@ public final class LmNativeNetwork {
     public static Set<String> features(ServerPlayer player) {
         Set<String> f = player == null ? null : FEATURES.get(player.m_20148_());
         return f != null ? f : LmNativeProtocol.parseFeatures("");
+    }
+
+    /** 4.7.87: this player's LM client hello has arrived (its feature list is known). */
+    public static boolean helloArrived(ServerPlayer player) {
+        return player != null && FEATURES.containsKey(player.m_20148_());
     }
 
     /** LM client version from the hello, or "" before it arrives. */
