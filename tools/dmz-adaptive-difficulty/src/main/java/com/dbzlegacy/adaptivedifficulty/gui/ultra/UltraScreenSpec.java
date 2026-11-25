@@ -83,6 +83,8 @@ public final class UltraScreenSpec {
     private boolean backPlaced;
     /** 4.7.71: the breadcrumb line for an LM client with the navigation layer, [title, action] pairs; null for none. */
     private JsonArray breadcrumb;
+    /** 4.7.84 (N5): where this page's Back goes on an LM client (set by placeBack), so the breadcrumb agrees. */
+    private String[] backTarget;
     /** 4.7.68 pictures in the body ({@link #pictures}); null when the page has none. */
     private JsonObject pictures;
     /** Lowest button top Y seen so far; used to size the body scroll region. */
@@ -652,35 +654,43 @@ public final class UltraScreenSpec {
             return;
         }
         backPlaced = true;
-        // A system's Home (its first tab) keeps one footer button on the right: Back to main menu. Its other tabs are
-        // siblings, not a trail: they go back to the system Home (the registry parent, never the tab history), with
-        // Main menu beside it.
+        backTarget = null;
+        // 4.7.84 (N1): a system's Home (its first tab) always exits to the main menu: one "Back to main menu" on the
+        // right, never "Back to <a page from earlier>". (N3) Its other tabs follow the trail like any page, where tabs
+        // replace each other, so Back from a tab goes to where the player was before the system.
         boolean firstTab = !tabs.isEmpty() && tabs.get(0).id().equals(activeTab);
         boolean otherTab = !tabs.isEmpty() && !firstTab;
         boolean home = firstTab || (!otherTab && PageRegistry.systemHome(screenId, pageId));
-        boolean nativeNav = player != null && !otherTab
+        boolean nativeNav = player != null && !home
                 && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player);
         String action;
         String label;
-        if (nativeNav) {
+        if (home) {
+            action = "nav:hub";
+            label = UltraStyle.BACK_TO_MAIN;
+        } else if (nativeNav) {
             String[] prev = NavHistory.previous(player.m_20148_(), screenId, pageId);
             if (prev == null) {
                 prev = PageRegistry.parent(screenId, pageId);
             }
+            backTarget = prev;
             action = "nav:back";
+            // N4: the short title when the full one does not fit; never a cut phrase.
             label = prev == null || (PageRegistry.HUB.equals(prev[0]) && PageRegistry.HUB_MAIN.equals(prev[1]))
-                    ? UltraStyle.BACK_TO_MAIN : UltraStyle.backTo(PageRegistry.title(prev[0], prev[1]));
+                    ? UltraStyle.BACK_TO_MAIN : UltraStyle.backTo(PageRegistry.backTitle(prev[0], prev[1]));
         } else {
-            String[] up = home ? null : PageRegistry.parent(screenId, pageId);   // a system Home goes to the main menu
+            // Bridge clients: the registry parent (another tab goes to its system Home).
+            String[] up = PageRegistry.parent(screenId, pageId);
             if (up == null || PageRegistry.HUB.equals(up[0]) && PageRegistry.HUB_MAIN.equals(up[1])) {
                 action = "nav:hub";
                 label = UltraStyle.BACK_TO_MAIN;
             } else if (!up[0].equals(screenId)) {
                 action = PageRegistry.systemHome(up[0], up[1]) ? "open:" + up[0] : "nav:hub";
-                label = action.equals("nav:hub") ? UltraStyle.BACK_TO_MAIN : UltraStyle.backTo(PageRegistry.title(up[0], up[1]));
+                label = action.equals("nav:hub") ? UltraStyle.BACK_TO_MAIN
+                        : UltraStyle.backTo(PageRegistry.backTitle(up[0], up[1]));
             } else {
                 action = PageRegistry.systemHome(up[0], up[1]) ? "nav:home" : "page:" + up[1];
-                label = UltraStyle.backTo(PageRegistry.title(up[0], up[1]));
+                label = UltraStyle.backTo(PageRegistry.backTitle(up[0], up[1]));
             }
         }
         // Back that already goes to the main menu is the one exit: no second "Main menu" beside it.
@@ -694,14 +704,28 @@ public final class UltraScreenSpec {
     /**
      * 4.7.71: the breadcrumb line for {@code player}: every page below a system Home with no tab row, on an LM client
      * with the navigation layer. Each crumb but the last opens its page ({@code go:screen|page}).
+     *
+     * <p>4.7.84 (N5): the breadcrumb and Back agree. When Back goes somewhere other than the registry parent (the
+     * player came from another system or another branch), the breadcrumb is that page's path followed by this page,
+     * so its last link is where Back goes.
      */
     private void placeBreadcrumb(ServerPlayer player) {
         breadcrumb = null;
         if (player == null || !tabs.isEmpty() || !com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesNav(player)) {
             return;
         }
+        if (PageRegistry.find(screenId, pageId) == null) {
+            return;
+        }
         List<PageRegistry.Ref> crumbs = PageRegistry.crumbs(screenId, pageId);
-        if (crumbs.size() < 3 || PageRegistry.find(screenId, pageId) == null) {
+        String[] parent = PageRegistry.parent(screenId, pageId);
+        if (backTarget != null && (parent == null || !(backTarget[0].equals(parent[0]) && backTarget[1].equals(parent[1])))
+                && PageRegistry.find(backTarget[0], backTarget[1]) != null) {
+            List<PageRegistry.Ref> trail = new ArrayList<>(PageRegistry.crumbs(backTarget[0], backTarget[1]));
+            trail.add(new PageRegistry.Ref(screenId, pageId, PageRegistry.title(screenId, pageId)));
+            crumbs = trail;
+        }
+        if (crumbs.size() < 3) {
             return;
         }
         JsonArray arr = new JsonArray();
@@ -714,6 +738,28 @@ public final class UltraScreenSpec {
             arr.add(c);
         }
         breadcrumb = arr;
+    }
+
+    /**
+     * 4.7.84 (N6): on a confirm page that can't run because the player is short of {@code kind}, say how to get more
+     * and offer the way there: one line ({@link UltraStyle#getMoreLine}) and, when there is a page for it, one wide
+     * normal button ({@link UltraStyle#getMoreButton}) on the current row. {@code goAction} overrides where the button
+     * goes (for example {@code page:exchange} inside Prestige); null uses {@link UltraStyle#getMoreAction} (coins have
+     * no page by default, so they get the line only unless a {@code goAction} is given).
+     *
+     * <p>Call it after {@link #buttonsAfterLines}, where the button belongs (before {@link #back}). Example:
+     * {@code spec.offerGetMore(UltraStyle.Shortfall.FAVOR, null)} under "Not enough favor: this costs 5 and you have 2."
+     */
+    public UltraScreenSpec offerGetMore(UltraStyle.Shortfall kind, String goAction) {
+        if (kind == null) {
+            return this;
+        }
+        line(UltraStyle.getMoreLine(kind));
+        String action = goAction == null || goAction.isBlank() ? UltraStyle.getMoreAction(kind) : goAction.trim();
+        if (action != null) {
+            buttonWide(action, UltraStyle.getMoreButton(kind), UltraStyle.STYLE_NORMAL, null).rowGap();
+        }
+        return this;
     }
 
     /**
@@ -1631,13 +1677,24 @@ public final class UltraScreenSpec {
         // Pending do: results (purchases, confirms, errors) — viewer-scoped during inspect.
         UltraGuiFeedback.applyPending(this, dest);
         // 4.7.71: Back and the breadcrumb for this player, then the page joins their history.
+        // 4.7.84 (N3): a page with a tab row is one of its system's tabs; tabs replace each other in the trail.
+        if (!tabs.isEmpty()) {
+            NavHistory.markTab(screenId, pageId);
+        }
         placeBack(dest);
         placeBreadcrumb(dest);
         GuiOpenPacket packet = toPacket();
         if (dest != null) {
             // The id as it goes on the wire (long ids are cut to the packet limit): Back compares against what the
             // client sends back.
+            if (!tabs.isEmpty()) {
+                NavHistory.markTab(screenId, packet.pageId());
+            }
             NavHistory.record(dest.m_20148_(), screenId, packet.pageId());
+            // 4.7.84 (X5): real pages (and the UI probe's crawl) are measured against the height budget.
+            if (menuFit) {
+                UltraScreenSelfTest.observeHeight(packet);
+            }
             if (PageRegistry.find(screenId, pageId) == null) {
                 com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod.LOGGER.warn(
                         "[{}] page {}|{} has no PageRegistry entry (no breadcrumb, Back to Home)",

@@ -70,14 +70,19 @@ public final class UltraSkillCheckScreens {
                 }
             }
         }
+        // 4.7.84 (S-1): say where locked skills come from; the button opens the Prestige skill shop.
+        spec.line(UltraStyle.LABEL + LOCKED_HINT);
         if (staffAdmin) {
-            spec.line(UltraStyle.LABEL + "Staff: /skills - Donators: /skillcheck");
+            spec.line(UltraStyle.LABEL + "Staff open this with /skills; donators with /skillcheck.");
         }
-        // Dense list - band follows wired line count; extra skills scroll.
         spec.buttonsAfterLines();
+        spec.buttonLeft("go:prestige|skills", UltraStyle.plain("Buy skill levels"), UltraStyle.STYLE_NORMAL).rowGap();
         spec.back();
         spec.send(player);
     }
+
+    /** 4.7.84 (S-1): one line under the list; kept levels are bought with favor in Prestige > Shop > Skills. */
+    static final String LOCKED_HINT = "Locked skills unlock through the story; buy kept levels with favor.";
 
     /** A one-line service error is not a skill list. */
     private static boolean skillListMissing(List<String> lines) {

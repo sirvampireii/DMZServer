@@ -1,5 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.calc;
 
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration;
 import com.dragonminez.common.stats.StatsData;
 import com.dragonminez.common.stats.character.Stats;
@@ -145,11 +146,11 @@ public final class LmOverhaulScaledCombat {
     /** Chat / lore lines: Overhaul scale + live melee/strike/ki/defense. */
     public static List<String> compactLines(StatsData data) {
         List<String> lines = new ArrayList<>(3);
-        lines.add("§7Overhaul scale §f" + formatScale(data));
-        lines.add("§7Melee §f" + formatNum(melee(data))
-                + " §8· §7Strike §f" + formatNum(strike(data)));
-        lines.add("§7Ki §f" + formatNum(ki(data))
-                + " §8· §7Defense §f" + formatNum(defense(data)));
+        lines.add(UltraStyle.GRAY + "Overhaul scale " + UltraStyle.WHITE + formatScale(data));
+        lines.add(UltraStyle.GRAY + "Melee " + UltraStyle.WHITE + formatNum(melee(data))
+                + " " + UltraStyle.DARK_GRAY + "· " + UltraStyle.GRAY + "Strike " + UltraStyle.WHITE + formatNum(strike(data)));
+        lines.add(UltraStyle.GRAY + "Ki " + UltraStyle.WHITE + formatNum(ki(data))
+                + " " + UltraStyle.DARK_GRAY + "· " + UltraStyle.GRAY + "Defense " + UltraStyle.WHITE + formatNum(defense(data)));
         return lines;
     }
 

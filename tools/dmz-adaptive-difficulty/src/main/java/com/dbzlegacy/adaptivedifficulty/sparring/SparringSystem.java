@@ -46,7 +46,10 @@ public final class SparringSystem {
     public static final long MENTOR_CHANGE_COOLDOWN_MS = 12L * 60L * 60L * 1000L;
     /** Mentor invite TTL — 1 hour so Pending Accept/Decline isn't rushed. */
     public static final long MENTOR_INVITE_MS = 60L * 60L * 1000L;
-    /** Max apprentices per mentor (dojo roster). Each player still has at most one master. */
+    /**
+     * The pre-4.7.68 fixed apprentice cap. Not the cap any more: {@link #apprenticeCap} (the dojo's disciple capacity,
+     * 5 to 29) is, and since 4.7.84 every menu line shows that instead of this.
+     */
     public static final int MAX_APPRENTICES = 8;
 
     /**
@@ -1446,26 +1449,24 @@ public final class SparringSystem {
         }
         SparStore.MentorBond bond = SparStore.get().bond(player.m_20148_());
         SparStore.LeaderboardEntry lb = SparStore.get().leaderboard.get(player.m_20148_().toString());
-        lines.add(UltraStyle.AQUA + "Training bonds");
-        lines.add(UltraStyle.DIM + "  - " + UltraStyle.LABEL + "Mentor " + UltraStyle.VALUE
-                + (bond.mentorName == null || bond.mentorName.isBlank() ? "none" : bond.mentorName));
+        // 4.7.84: four lines (was nine), so Your spar stats and its three fight buttons fit in 300 px. The apprentice
+        // count drops the fixed "/8": the real cap is the dojo's capacity, shown on Training bonds.
         int apps = bond.apprenticeCount();
-        if (apps <= 0) {
-            lines.add(UltraStyle.DIM + "  - " + UltraStyle.LABEL + "Apprentices " + UltraStyle.VALUE + "none");
-        } else {
-            lines.add(UltraStyle.DIM + "  - " + UltraStyle.LABEL + "Apprentices " + UltraStyle.VALUE + apps + UltraStyle.DIM + "/" + UltraStyle.VALUE + MAX_APPRENTICES
-                    + " " + UltraStyle.DIM + "- " + UltraStyle.VALUE + bond.apprenticeNamesSummary());
-        }
-        lines.add(UltraStyle.DIM + "  - " + UltraStyle.LABEL + "Streak " + UltraStyle.VALUE + bond.streakCurrent + " " + UltraStyle.DIM + "(best " + bond.streakBest + ")");
+        lines.add(UltraStyle.LABEL + "Mentor " + UltraStyle.VALUE
+                + (bond.mentorName == null || bond.mentorName.isBlank() ? "none" : bond.mentorName)
+                + UltraStyle.DIM + " | " + UltraStyle.LABEL + "Apprentices " + UltraStyle.VALUE
+                + (apps <= 0 ? "none" : String.valueOf(apps)));
+        lines.add(UltraStyle.LABEL + "Spar streak " + UltraStyle.VALUE + bond.streakCurrent
+                + (bond.streakCurrent == 1 ? " day" : " days") + UltraStyle.DIM + " (best " + bond.streakBest + ")");
         if (lb != null) {
-            lines.add(UltraStyle.YELLOW + "Lifetime");
-            lines.add(UltraStyle.DIM + "  - " + UltraStyle.LABEL + "Total TP " + UltraStyle.GREEN + DmzRewards.formatWhole(lb.totalTp));
-            lines.add(UltraStyle.DIM + "  - " + UltraStyle.LABEL + "Sessions " + UltraStyle.VALUE + lb.sessions
-                    + " " + UltraStyle.DIM + "| best combo " + UltraStyle.VALUE + lb.highestCombo);
-            lines.add(UltraStyle.DIM + "  - " + UltraStyle.LABEL + "Best payout " + UltraStyle.GREEN + DmzRewards.formatWhole(lb.bestPayout)
-                    + " " + UltraStyle.DIM + "| perfects " + UltraStyle.VALUE + lb.perfectSessions);
+            lines.add(UltraStyle.LABEL + "TP from spars " + UltraStyle.GREEN + DmzRewards.formatWhole(lb.totalTp)
+                    + UltraStyle.DIM + " | " + UltraStyle.LABEL + "best spar " + UltraStyle.GREEN
+                    + DmzRewards.formatWhole(lb.bestPayout));
+            lines.add(UltraStyle.LABEL + "Spars " + UltraStyle.VALUE + lb.sessions
+                    + UltraStyle.DIM + " | " + UltraStyle.LABEL + "perfect " + UltraStyle.VALUE + lb.perfectSessions
+                    + UltraStyle.DIM + " | " + UltraStyle.LABEL + "best combo " + UltraStyle.VALUE + lb.highestCombo);
         } else {
-            lines.add(UltraStyle.LABEL + "No lifetime spar stats yet.");
+            lines.add(UltraStyle.LABEL + "No lifetime totals yet.");
         }
         return lines;
     }
@@ -1733,13 +1734,16 @@ public final class SparringSystem {
         long now = System.currentTimeMillis();
         // Cooldown set when releasing an apprentice / changing roster.
         if (now < mine.apprenticeChangeReadyAt) {
-            return UltraStyle.DANGER + "Dojo cooldown active (12h).";
+            // 4.7.84 (walk-rival 4.3): say what happened and when it ends.
+            return UltraStyle.DANGER + "You changed your apprentices recently. You can invite again in "
+                    + UltraStyle.VALUE + com.dbzlegacy.adaptivedifficulty.dojo.DojoService.cooldownText(
+                            mine.apprenticeChangeReadyAt - now) + UltraStyle.DANGER + ".";
         }
         if (mine.isMentoringUuid(target.m_20148_().toString())) {
             return UltraStyle.DANGER + "You already mentor " + UltraStyle.VALUE + target.m_7755_().getString() + UltraStyle.DANGER + ".";
         }
         if (mine.apprenticeCount() >= apprenticeCap(player.m_20148_().toString())) {
-            return UltraStyle.DANGER + "Dojo full (" + UltraStyle.VALUE + apprenticeCap(player.m_20148_().toString()) + " " + UltraStyle.DANGER + "disciples). Buy capacity in the Dojo tab for more.";
+            return UltraStyle.DANGER + "Dojo full (" + UltraStyle.VALUE + apprenticeCap(player.m_20148_().toString()) + " " + UltraStyle.DANGER + "disciples). Buy Disciple capacity on Dojo > Upgrades for more room.";
         }
         SparStore.MentorBond theirs = SparStore.get().bond(target.m_20148_());
         if (theirs.mentorUuid != null && !theirs.mentorUuid.isBlank()) {
@@ -1769,7 +1773,9 @@ public final class SparringSystem {
         long now = System.currentTimeMillis();
         // Cooldown set when leaving a mentor.
         if (now < mine.mentorChangeReadyAt) {
-            return UltraStyle.DANGER + "Mentor change cooldown active (12h).";
+            return UltraStyle.DANGER + "You left a master recently. You can ask a new one in "
+                    + UltraStyle.VALUE + com.dbzlegacy.adaptivedifficulty.dojo.DojoService.cooldownText(
+                            mine.mentorChangeReadyAt - now) + UltraStyle.DANGER + ".";
         }
         if (mine.mentorUuid != null && !mine.mentorUuid.isBlank()) {
             return UltraStyle.DANGER + "You already have a mentor.";
@@ -1933,13 +1939,14 @@ public final class SparringSystem {
                 && mentorBond.apprenticeCount() >= apprenticeCap(mentor.m_20148_().toString())) {
             SparStore.get().invites.remove(player.m_20148_().toString());
             SparStore.get().markDirty();
-            return UltraStyle.DANGER + "Dojo full (" + UltraStyle.VALUE + apprenticeCap(mentor.m_20148_().toString()) + " " + UltraStyle.DANGER + "disciples). Buy capacity in the Dojo tab for more.";
+            return UltraStyle.DANGER + "Dojo full (" + UltraStyle.VALUE + apprenticeCap(mentor.m_20148_().toString()) + " " + UltraStyle.DANGER + "disciples). Buy Disciple capacity on Dojo > Upgrades for more room.";
         }
         bindMentor(mentor, apprentice);
         SparStore.get().invites.remove(player.m_20148_().toString());
         SparStore.get().markDirty();
         String mentoring = "You are now mentoring " + UltraStyle.VALUE + apprentice.m_7755_().getString()
-                + " " + UltraStyle.DIM + "(" + mentorBond.apprenticeCount() + "/" + MAX_APPRENTICES + ")";
+                + " " + UltraStyle.DIM + "(" + mentorBond.apprenticeCount() + "/"
+                + apprenticeCap(mentor.m_20148_().toString()) + ")";
         String mentored = "Your mentor is now " + UltraStyle.VALUE + mentor.m_7755_().getString();
         // The player who clicked already gets the return line on the menu. The other person does not.
         if (player == mentor) {
@@ -2290,7 +2297,8 @@ public final class SparringSystem {
     public static String bondStatus(ServerPlayer player) {
         SparStore.MentorBond bond = SparStore.get().bond(player.m_20148_());
         int n = bond.apprenticeCount();
-        String apps = n <= 0 ? "none" : n + "/" + MAX_APPRENTICES + " (" + bond.apprenticeNamesSummary() + ")";
+        String apps = n <= 0 ? "none"
+                : n + "/" + apprenticeCap(player.m_20148_().toString()) + " (" + bond.apprenticeNamesSummary() + ")";
         return UltraStyle.GOLD + "Mentor: " + UltraStyle.VALUE + blank(bond.mentorName, "none")
                 + " " + UltraStyle.DIM + "| " + UltraStyle.GOLD + "Apprentices: " + UltraStyle.VALUE + apps;
     }

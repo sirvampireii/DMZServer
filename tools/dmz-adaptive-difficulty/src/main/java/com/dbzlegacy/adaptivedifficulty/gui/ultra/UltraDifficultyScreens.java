@@ -24,7 +24,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Difficulty - Home / Tiers / Summons (4.7.71: three tabs for everyone; staff open Combat rating from Home). Sub-pages cover
- * teams, titles, and staff tools. Coin messages are a home-page toggle. Weights live under Sparring.
+ * teams, titles, and staff tools. Coin drop chat is a home-page toggle. Weights live under Sparring.
  */
 public final class UltraDifficultyScreens {
     /** Titles shown per list page (enum can grow past this). */
@@ -155,7 +155,7 @@ public final class UltraDifficultyScreens {
      */
     private static void openGuideStep1(ServerPlayer player) {
         DifficultySnapshot snap = DifficultyCache.refresh(player);
-        String tierName = snap == null || snap.activeTier <= 0 ? "No tier yet. Pick one in Step 2." : "T" + snap.activeTier + " " + snap.activeTierName;
+        String tierName = snap == null || snap.activeTier <= 0 ? "No tier yet. Pick one in Step 2." : snap.activeTierName;
         UltraScreenSpec spec = base(player, DifficultyTutorial.PAGE_STEP1, "home");
         stepHeader(spec, 1, "What is Difficulty");
         spec.line(UltraStyle.VALUE + "Difficulty makes the mobs near you fight at a level you pick, and pays you more for it.")
@@ -174,7 +174,7 @@ public final class UltraDifficultyScreens {
     }
 
     /** 4.7.63: said once, on Step 1. */
-    static final String GUIDE_ONCE = "This guide shows once. Replay it from Home.";
+    static final String GUIDE_ONCE = "You only see this guide once. Replay it any time from Difficulty Home.";
     /** Skip (every step) and Got it (Step 3): mark the guide done, open Home. */
     private static final String GUIDE_DONE = "do:" + DifficultyTutorial.ACT_DONE;
 
@@ -193,13 +193,18 @@ public final class UltraDifficultyScreens {
         }
         long left = com.dbzlegacy.adaptivedifficulty.progression.Momentum.remainingMillis(player);
         long max = cfg.momentumMaxBankSeconds * 1000L;
-        spec.labelValue("Momentum:", com.dbzlegacy.adaptivedifficulty.progression.Momentum.clock(left) + " banked of "
-                        + com.dbzlegacy.adaptivedifficulty.progression.Momentum.clock(max))
+        // 4.7.84 (D-4): two short lines plus the bar; the same numbers as before, in plain words.
+        spec.labelValue("Momentum:", com.dbzlegacy.adaptivedifficulty.progression.Momentum.clock(left) + " of "
+                        + com.dbzlegacy.adaptivedifficulty.progression.Momentum.clock(max) + " saved")
                 .line(UltraStyle.color(left > 0L ? "a" : "8", DifficultyGuide.bar(left, max, 24)))
-                .line(UltraStyle.LABEL + "Beat difficulty mobs to bank Mastery Boost time (+"
-                        + cfg.momentumSecondsPerKill + "s each).")
-                .line(UltraStyle.LABEL + "Mastery from hitting them: "
-                        + DifficultyGuide.mastery(cfg.momentumMasteryMultiplier) + ".");
+                .line(UltraStyle.LABEL + momentumHowLine(cfg.momentumSecondsPerKill, cfg.momentumMasteryMultiplier));
+    }
+
+    /** {@code Each difficulty kill saves 10s. While you have time saved, hits give +50% mastery.} */
+    static String momentumHowLine(long secondsPerKill, double masteryMultiplier) {
+        long pct = Math.round((masteryMultiplier - 1.0) * 100.0);
+        return "Each difficulty kill saves " + secondsPerKill + "s."
+                + (pct > 0 ? " While you have time saved, hits give +" + pct + "% mastery." : "");
     }
 
     /**
@@ -223,8 +228,8 @@ public final class UltraDifficultyScreens {
         }
         spec.labelValue("Tier:", active <= 0 || snap == null
                         ? (guide ? "No tier yet. Pick one in Step 2." : "No tier yet. Pick one in Tiers.")
-                        : "T" + active + " " + snap.activeTierName)
-                .labelValue("Difficulty:", personal ? "ON" : "OFF");
+                        : snap.activeTierName)   // 4.7.84 (D-1): the name already starts with "T1 "
+                .labelValue("Difficulty:", personal ? "on - mobs near you match your tier" : "off - mobs are normal");
         com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.Active trial =
                 com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.active(player);
         if (trial != null) {
@@ -234,15 +239,7 @@ public final class UltraDifficultyScreens {
                     + (trial.prev() > 0 ? "back to T" + trial.prev() : "back to no tier"));
         }
         momentumLines(spec, player);
-        if (!guide) {
-            // 4.7.64: two lines from the systems this one feeds (next prestige, rival standing).
-            HubDashboard.Prestige pr = HubDashboard.prestige(player);
-            spec.line(UltraStyle.header("Beyond Difficulty"));
-            if (pr.enabled()) {
-                spec.labelValue("Prestige:", HubDashboard.levelsToGo(pr.level(), pr.required(), pr.ready()));
-            }
-            spec.line(UltraStyle.VALUE + HubDashboard.rivalLine(player));
-        }
+        // 4.7.84 (D-4): the "Beyond Difficulty" prestige and rival lines are gone; the main menu shows both.
         spec.buttonsAfterLines();
         if (guide) {
             // 4.7.78: the end of the guide has one action; every tool waits on Home.
@@ -253,13 +250,13 @@ public final class UltraDifficultyScreens {
             return;
         }
         // 4.7.78: Home turns difficulty on and off; tiers (and clearing one) live in the Tiers tab.
-        // 4.7.81 (GuiKit): paired rows - [Difficulty | Coin messages] [Titles | Replay guide] [Server tools | Combat rating].
+        // 4.7.81 (GuiKit): paired rows - [Difficulty | Coin drop chat] [Titles | How difficulty works] [Server tools | Combat rating].
         placeDifficultyToggle(spec, personal, true);
         placeCoinMessageToggle(spec, data != null && data.isCoinDropChat(), false);
         spec.rowGap();
         spec.buttonLeft("page:titles_p0", "Titles", UltraStyle.STYLE_NORMAL);
         // Replay on demand, with the other Home actions; never clears the done mark.
-        spec.buttonRight("page:" + DifficultyTutorial.PAGE_STEP1, UltraStyle.plain("Replay the difficulty guide"),
+        spec.buttonRight("page:" + DifficultyTutorial.PAGE_STEP1, UltraStyle.plain("How difficulty works"),
                 UltraStyle.STYLE_NORMAL).rowGap();
         if (StaffAccess.isStaff(player)) {
             // Staff entry reads red, like Staff Admin on the Rival and Sparring homes.
@@ -316,23 +313,19 @@ public final class UltraDifficultyScreens {
         } else {
             spec.line(UltraStyle.header("Pick your level"));
         }
-        if (!guide && !personal) {
-            // 4.7.78: no tier rows and no toggle here; difficulty is turned on from Home.
-            spec.line(UltraStyle.dangerLine("Difficulty is off."))
-                    .line(UltraStyle.LABEL + "Turn it on from Difficulty Home, then pick a tier here.")
-                    .buttonsAfterLines();
-            spec.button("nav:home", UltraStyle.confirm("Go to Difficulty Home"), UltraStyle.STYLE_CONFIRM).rowGap();
-            spec.back();
-            spec.send(player);
-            return;
-        }
-        spec.line(UltraStyle.VALUE + "Tap a tier to see what changes. Nothing is bought until you confirm.");
+        // 4.7.84 (D-2, owner-approved; reverses the 4.7.78 "toggle only on Home" note): with difficulty off, Tiers
+        // shows the switch first, then the tier list, in the guide's Step 2 and on the plain Tiers tab alike (D-5).
         if (!personal) {
-            spec.line(UltraStyle.danger("Difficulty is off. Turn it on to use a tier."));
+            spec.line(UltraStyle.danger(guide ? "First, turn difficulty on." : "Turn difficulty on to pick a tier."));
         }
+        spec.line(UltraStyle.VALUE + "Tap a tier to see what changes. Nothing is paid until you confirm.");
         // 4.7.57 rule kept: buttons only, no per-tier cost or requirement lines. Every tier opens its
         // detail page; a locked tier is dim but still opens it, where the requirement is spelled out.
         spec.buttonsAfterLines();
+        if (!personal) {
+            placeDifficultyToggle(spec, false, true);
+            spec.rowGap();
+        }
         int placed = 0;
         for (int t = 1; t <= 7; t++) {
             UnlockTier ut = UnlockTier.byId(t);
@@ -348,11 +341,6 @@ public final class UltraDifficultyScreens {
             placed++;
         }
         if (placed % 2 == 1) {
-            spec.rowGap();
-        }
-        if (guide && !personal) {
-            // The guide's Step 2 is the onboarding path: it keeps its turn-on toggle.
-            placeDifficultyToggle(spec, false);
             spec.rowGap();
         }
         if (!guide && active > 0) {
@@ -424,14 +412,13 @@ public final class UltraDifficultyScreens {
         UltraScreenSpec spec = base(player, "summons", "summons")
                 // 4.7.59: guide chrome (header, Back in the left slot); bosses work as in 4.7.57.
                 .line(UltraStyle.header("Boss summons"))
-                .line(UltraStyle.LABEL + "Each boss needs a personal difficulty tier to summon.")
-                .line(UltraStyle.LABEL
-                        + "Different bosses unlock at different tiers - open a boss for its requirements.")
-                .line(UltraStyle.LABEL + "Select a boss, then confirm.")
+                // 4.7.84 (D-4): one plain line instead of three.
+                .line(UltraStyle.LABEL + "Summon a boss that fights at your tier. Each boss needs a tier range and a"
+                        + " place - tap one to see what it needs.")
                 .labelValue("Cost", cost)
                 .buttonsAfterLines();
         // Boss list: ready state only — per-boss requirements live on the confirm page.
-        String dragonLabel = ready ? "End Dragon" : "Dragon locked";
+        String dragonLabel = ready ? "End Dragon" : "End Dragon - Locked";
         spec.buttonLeft(
                         "page:end_dragon",
                         ready ? UltraStyle.confirm(dragonLabel) : UltraStyle.dim(dragonLabel),
@@ -440,8 +427,8 @@ public final class UltraDifficultyScreens {
         // Wither and Warden: ready / locked from each boss's own gates, same as the dragon button.
         boolean witherReady = PlayerBossSummons.canOpenSummonMenu(player, PlayerBossSummons.Boss.WITHER);
         boolean wardenReady = PlayerBossSummons.canOpenSummonMenu(player, PlayerBossSummons.Boss.WARDEN);
-        String witherLabel = witherReady ? "Wither" : "Wither locked";
-        String wardenLabel = wardenReady ? "Warden" : "Warden locked";
+        String witherLabel = witherReady ? "Wither" : "Wither - Locked";
+        String wardenLabel = wardenReady ? "Warden" : "Warden - Locked";
         spec.buttonLeft(
                         "page:wither",
                         witherReady ? UltraStyle.confirm(witherLabel) : UltraStyle.dim(witherLabel),
@@ -464,20 +451,20 @@ public final class UltraDifficultyScreens {
         UltraScreenSpec spec = sub("end_dragon")
                 .line(UltraStyle.header("End Dragon"))
                 .labelValue("Cost", cost)
-                .labelValue("Status", ready ? "Ready" : "Requirements not met");
+                .labelValue("Status:", ready ? "ready" : "not ready yet");
         for (String line : summonStatusLines(player, ready)) {
             spec.line(line);
         }
         spec.line(UltraStyle.VALUE + EndDimensionStrength.summonLootBonusLine(player));
         if (!ready) {
-            spec.line(UltraStyle.dim("Clear the notes above, then return here to confirm."));
+            spec.line(UltraStyle.dim("Do the steps above, then come back to summon."));
         }
         spec.buttonsAfterLines();
         // 4.7.57 (LM54-C4): a summon that cannot succeed yet shows a dim, inert button.
         if (ready) {
             spec.button("page:summon_ask:end_dragon", UltraStyle.confirm("Summon End Dragon"), UltraStyle.STYLE_CONFIRM).rowGap();
         } else {
-            spec.lockedButton("Summon locked").rowGap();
+            spec.lockedButton("Summon - Locked").rowGap();
         }
         spec.back();
         spec.send(player);
@@ -499,19 +486,19 @@ public final class UltraDifficultyScreens {
                                 : " (" + boss.netheriteCoins() + " Ancient Netherite)"))
                 .labelValue("Tiers", "T" + boss.minTier + " - T" + boss.maxTier)
                 .labelValue("Where", boss.dimensionName)
-                .labelValue("Status", ready ? "Ready" : "Requirements not met");
+                .labelValue("Status:", ready ? "ready" : "not ready yet");
         for (String line : PlayerBossSummons.statusLines(player, boss, ready)) {
             spec.line(line);
         }
         if (!ready) {
-            spec.line(UltraStyle.dim("Clear the notes above, then return here to confirm."));
+            spec.line(UltraStyle.dim("Do the steps above, then come back to summon."));
         }
         spec.buttonsAfterLines();
         // 4.7.57 (LM54-C4): a summon that cannot succeed yet shows a dim, inert button.
         if (ready) {
             spec.button(action, UltraStyle.confirm("Summon " + boss.display), UltraStyle.STYLE_CONFIRM).rowGap();
         } else {
-            spec.lockedButton("Summon locked").rowGap();
+            spec.lockedButton("Summon - Locked").rowGap();
         }
         spec.back();
         spec.send(player);
@@ -584,59 +571,123 @@ public final class UltraDifficultyScreens {
         UnlockTier now = UnlockTier.byId(owned);
         double before = now == null ? 0.0 : now.enemyScalingMultiplier();
         double after = tier.enemyScalingMultiplier();
+        boolean personal = data.isPersonalEnabled();
+        boolean open = unlocked || eligible;
+        // 4.7.84 (D-3): one row for enemy strength (damage and health always match), plain TP and cost rows, only the
+        // coins the player holds, and one unlock row. Mastery gain and the Momentum line are the same on every tier,
+        // so they live on Difficulty Home only.
         UltraScreenSpec spec = sub("tier_ask:" + t)
                 .line(UltraStyle.header("T" + t + " " + tier.display + " - " + heading))
-                .labelValue("Enemy damage", DifficultyGuide.strength(before, after))
-                .labelValue("Enemy health", DifficultyGuide.strength(before, after))
-                .labelValue("TP earned", DifficultyGuide.tp(before, after))
-                .labelValue("Mastery gain", DifficultyGuide.mastery(DifficultyConfig.get().momentumMasteryMultiplier))
-                .labelValue("Cost", cost <= 0L ? (free && !down ? "Free for staff" : "Free") : AncientCoinEconomy.formatExactCost(cost))
-                .labelValue("Ancient Coins", AncientCoinEconomy.inventoryBreakdown(player))
-                .labelValue("Needs", "Level " + tier.requiredDmzLevel() + " or Prestige " + tier.requiredPrestige()
-                        + (unlocked || eligible ? " - you have it" : " - not yet"))
-                .line(UltraStyle.LABEL + "Beat difficulty mobs to bank Mastery Boost time.");
+                .labelValue("Enemies:", DifficultyGuide.strength(before, after))
+                .labelValue("TP per kill:", tpPerKill(DifficultyGuide.tp(before, after)))
+                .labelValue("Cost:", cost <= 0L ? (free && !down ? "Free for staff" : "Free") : AncientCoinEconomy.formatExactCost(cost))
+                .labelValue("You have:", coinsHeld(player))
+                .labelValue("Unlocks at:", "level " + tier.requiredDmzLevel() + " or prestige " + tier.requiredPrestige()
+                        + (open ? " (you qualify)" : " (not yet)"));
         if (down) {
             spec.line(UltraStyle.dim("Switching down is free. Going back up later costs Ancient Coins again."));
         } else if (owned != t) {
             spec.line(UltraStyle.dim("Coins spent are not refunded. Switching to a lower tier later is free."));
         }
         String block = null;
-        if (!data.isPersonalEnabled()) {
-            block = "Turn on difficulty on the Your tier step first.";
+        if (!personal && open) {
+            block = TIER_OFF_LINE;
         } else if (owned == t) {
             block = "T" + t + " is already your tier.";
-        } else if (!unlocked && !eligible) {
+        } else if (!open) {
             block = "T" + t + " is locked. " + capFirst(UltraDifficultyTierUi.lockedReason(player, tier)) + ".";
         } else if (cost > 0L && !AncientCoinEconomy.canAfford(player, cost)) {
-            block = UltraStyle.plain(AncientCoinEconomy.missingText(player, cost));
+            // N6 swap point: the "where to get coins" line goes here (see coinShortfallLine).
+            block = coinShortfallLine(player, cost);
         }
         if (block != null) {
             spec.line(UltraStyle.danger(block));
         }
         String trialBlock = com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.blockReason(player, t);
         // Difficulty off is already said above; the trial line only adds a different reason.
-        if (trialBlock != null && owned != t && data.isPersonalEnabled()) {
-            spec.line(UltraStyle.dim("Free trial: " + trialBlock));
+        if (trialBlock != null && owned != t && personal) {
+            spec.line(UltraStyle.dim("Free trial: " + trialReason(trialBlock)));
         }
         spec.buttonsAfterLines();
+        if (!personal) {
+            // 4.7.84 (D-2, owner-approved): the switch sits where "Tier locked" used to be. Turning it on is free and
+            // instant; the player then picks the tier from the list.
+            if (open) {
+                spec.buttonWide("do:toggle_personal", UltraStyle.plain(TIER_OFF_BUTTON), UltraStyle.STYLE_CONFIRM, null)
+                        .rowGap();
+                if (owned != t) {
+                    spec.lockedButton("Free trial - Locked").rowGap();
+                }
+            } else {
+                spec.lockedButton("T" + t + " - Locked");
+                placeDifficultyToggle(spec, false, false);
+                spec.rowGap();
+            }
+            spec.back();
+            spec.send(player);
+            return;
+        }
         if (block == null) {
             String pay = down ? "Switch to T" + t
                     : cost <= 0L ? "Activate T" + t : "Pay " + AncientCoinEconomy.compactCost(cost);
             spec.buttonLeft("do:activate:" + t, UltraStyle.confirm(UltraStyle.fitsButton(pay) ? pay : "Confirm"),
                     UltraStyle.STYLE_CONFIRM);
         } else if (owned != t) {
-            spec.lockedButton(down ? "Switch locked" : "Tier locked");
+            spec.lockedButton(down ? "Switch - Locked" : "T" + t + " - Locked");
         }
         if (owned != t) {
             if (trialBlock == null) {
                 spec.buttonRight("do:trial:" + t, UltraStyle.confirm("Try one fight free"), UltraStyle.STYLE_CONFIRM);
             } else {
-                spec.lockedButtonRight("Free trial locked");
+                spec.lockedButtonRight("Free trial - Locked");
             }
         }
         spec.rowGap();
         spec.back();
         spec.send(player);
+    }
+
+    /** 4.7.84 (D-2): the tier page's reason line while difficulty is off (replaces "...the Your tier step first"). */
+    static final String TIER_OFF_LINE = "Difficulty is off. Turn it on below, then pick this tier.";
+    /** 4.7.84 (D-2): the switch on a tier page the player has unlocked (replaces the dim "Tier locked"). */
+    static final String TIER_OFF_BUTTON = "Turn difficulty on to use this tier";
+
+    /**
+     * Not enough Ancient Coins for a tier. N6 swap point: one line, so the shared "where to get coins" helper can
+     * replace (or follow) it without touching the page layout.
+     */
+    static String coinShortfallLine(ServerPlayer player, long cost) {
+        return UltraStyle.plain(AncientCoinEconomy.missingText(player, cost));
+    }
+
+    /** {@code TP per kill: grows with enemy health} (was "TP earned Grows with enemy health"). */
+    static String tpPerKill(String tp) {
+        return tp != null && tp.startsWith("Grows with enemy health") ? "grows with enemy health" : tp;
+    }
+
+    /** {@code Free trial: opens once you meet...}, not {@code Free trial: Free trials open once...}. */
+    static String trialReason(String reason) {
+        String r = reason == null ? "" : reason.trim();
+        return r.startsWith("Free trials open once") ? "opens once" + r.substring("Free trials open once".length()) : r;
+    }
+
+    /**
+     * 4.7.84 (D-3): the Ancient Coins the player holds, non-zero kinds only, highest first ({@code 3 Gold, 12
+     * Copper}), or {@code no Ancient Coins}. Menu only; chat keeps the full per-kind list.
+     */
+    static String coinsHeld(ServerPlayer player) {
+        if (!AncientCoinEconomy.realCoinsAvailable()) {
+            return UltraStyle.plain(AncientCoinEconomy.inventoryBreakdown(player));
+        }
+        AncientCoinEconomy.CoinKind[] kinds = AncientCoinEconomy.CoinKind.values();
+        StringBuilder sb = new StringBuilder();
+        for (int i = kinds.length - 1; i >= 0; i--) {
+            long n = AncientCoinEconomy.countOf(player, kinds[i]);
+            if (n > 0L) {
+                sb.append(sb.length() == 0 ? "" : ", ").append(n).append(' ').append(kinds[i].display);
+            }
+        }
+        return sb.length() == 0 ? "no Ancient Coins" : sb.toString();
     }
 
     /** Ask before clearing the active tier (4.7.31): turning a tier back on costs Ancient Coins. */
@@ -787,7 +838,7 @@ public final class UltraDifficultyScreens {
                         + ", and you must be in The End.");
         if (!canSummon) {
             if (!SystemGate.participates(subject)) {
-                lines.add(UltraStyle.LABEL + "Turn on difficulty from Difficulty Home first.");
+                lines.add(UltraStyle.LABEL + "Turn difficulty on (Difficulty Home or Tiers) first.");
             } else {
                 lines.add(UltraStyle.LABEL + "Activate a tier in that range on the Tiers tab first.");
             }
@@ -803,8 +854,8 @@ public final class UltraDifficultyScreens {
      */
     private static void placeCoinMessageToggle(UltraScreenSpec spec, boolean on, boolean left) {
         String label = on
-                ? UltraStyle.confirm("Coin messages - ON")
-                : UltraStyle.plain("Coin messages - OFF");
+                ? UltraStyle.confirm("Coin drop chat - ON")
+                : UltraStyle.plain("Coin drop chat - OFF");
         String style = on ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL;
         if (left) {
             spec.buttonLeft("do:toggle_coin_chat", label, style);
@@ -1056,6 +1107,30 @@ public final class UltraDifficultyScreens {
                 .rowGap();
         spec.back();
         spec.send(player);
+    }
+
+    /**
+     * 4.7.84 startup self-test (wire it from UltraScreenSelfTest): the plain-copy helpers and the tier-page switch.
+     */
+    public static void selfTest(java.util.List<String> broken) {
+        if (!"Each difficulty kill saves 10s. While you have time saved, hits give +50% mastery."
+                .equals(momentumHowLine(10, 1.5)) || !"Each difficulty kill saves 10s.".equals(momentumHowLine(10, 1.0))) {
+            broken.add("Difficulty: Momentum line should read 'Each difficulty kill saves 10s. ...', got "
+                    + momentumHowLine(10, 1.5));
+        }
+        if (!"opens once you meet this tier's requirement.".equals(
+                trialReason("Free trials open once you meet this tier's requirement."))) {
+            broken.add("Difficulty: the free trial reason must not say 'Free trial' twice");
+        }
+        if (!"grows with enemy health".equals(tpPerKill("Grows with enemy health"))) {
+            broken.add("Difficulty: TP per kill should read 'grows with enemy health'");
+        }
+        if (UltraStyle.textWidthPx(TIER_OFF_BUTTON) > UltraStyle.labelMaxWidth(UltraStyle.BTN_W * 2 + UltraStyle.BTN_GAP)) {
+            broken.add("Difficulty: '" + TIER_OFF_BUTTON + "' must fit the wide tier-page button");
+        }
+        if (TIER_OFF_LINE.contains("Your tier step")) {
+            broken.add("Difficulty: the tier page must not point to the Your tier step for the switch");
+        }
     }
 
     /** {@code SOME_ENUM} -> {@code Some enum} for staff pages (4.7.56). */

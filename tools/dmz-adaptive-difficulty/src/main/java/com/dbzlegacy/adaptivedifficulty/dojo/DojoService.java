@@ -87,6 +87,19 @@ public final class DojoService {
         return out;
     }
 
+    /**
+     * 4.7.84 (owner pick b): the dojo title a disciple carries, "Disciple of Sparmate's Dojo"; null for the master and
+     * for players in no dojo. Display only: it changes no stat. LM has no chat, tab-list or name-tag hook, so the
+     * Dojo Home and the Members page show it beside the player's name.
+     */
+    public static String discipleTitle(UUID player) {
+        Dojo d = dojoOf(player);
+        if (d == null || isMaster(player, d)) {
+            return null;
+        }
+        return "Disciple of " + d.name;
+    }
+
     public static String nameOf(String uuid) {
         if (uuid == null) {
             return "?";
@@ -192,7 +205,7 @@ public final class DojoService {
         }
         Dojo mine = store().dojos.get(id.toString());
         if (mine != null && !mine.open) {
-            return "Your dojo is closed. Reopen it from the Dojo tab (every upgrade drops one tier).";
+            return "Your dojo is closed. Reopen it on Dojo Home (every upgrade drops one tier).";
         }
         SparStore.MentorBond b = SparStore.get().bondsByPlayer.get(id.toString());
         if (b != null && b.mentorUuid != null && !b.mentorUuid.isBlank()) {
@@ -202,8 +215,10 @@ public final class DojoService {
     }
 
     /**
-     * 4.7.78: found a dojo with its first identity: the name the player typed, the style they picked and the banner
-     * design they chose (copied, the item is not taken). Free, and starts no cooldown. The old guards run here.
+     * 4.7.78: found a dojo with its first identity: the name the player typed, the style they picked and, optionally
+     * (4.7.84, owner pick d), the banner design they chose (copied, the item is not taken). Without a banner the dojo
+     * flies its style's default banner until the master picks one (the first pick stays free). Founding is free and
+     * starts no cooldown; a player's first founding pays {@link DojoCatalog#FOUNDING_GRANT} Dojo Points (owner pick c).
      */
     public static String found(ServerPlayer p, String name, String styleId, String bannerBase, List<String> patterns) {
         String bad = foundProblem(p);
@@ -218,21 +233,95 @@ public final class DojoService {
         if (s == null) {
             return "Pick one of the four styles.";
         }
-        if (bannerBase == null || bannerBase.isBlank()) {
-            return "Pick a banner you made at a loom first.";
-        }
         UUID id = p.m_20148_();
+        boolean hadDojo = store().dojos.containsKey(id.toString());
         Dojo d = fresh(id.toString(), p.m_7755_().getString(), System.currentTimeMillis());
         d.name = name.trim();
         d.style = s.name();
-        d.bannerBase = bannerBase;
-        d.bannerPatterns = new ArrayList<>(patterns == null ? List.of() : patterns);
+        boolean banner = bannerBase != null && !bannerBase.isBlank();
+        d.bannerBase = banner ? bannerBase : "";
+        d.bannerPatterns = new ArrayList<>(banner && patterns != null ? patterns : List.of());
+        DojoStore.PlayerRecord rec = store().player(d.masterUuid, p.m_7755_().getString());
+        int grant = foundingGrant(rec, hadDojo);
+        if (grant > 0) {
+            rec.foundingGrantPaid = true;
+            d.points += grant;
+            d.pointsEarnedTotal += grant;
+        }
         store().dojos.put(d.masterUuid, d);
-        store().player(d.masterUuid, p.m_7755_().getString());
         store().markDirty();
         DojoWorld.ensureBuilt(p.m_20194_(), d);
-        return "You founded " + d.name + ". Your hall starts empty with one sparring mat; upgrades build into it. "
-                + "Spar on the board to start earning Dojo Points.";
+        return "You founded " + d.name + ". Your hall starts with one ring; upgrades build into it."
+                + (grant > 0 ? " Your dojo starts with " + grant + " Dojo Points." : "")
+                + (banner ? "" : " It flies a default banner until you choose one (free).")
+                + " Host spars on the Spar Board to earn more points.";
+    }
+
+    /**
+     * 4.7.84: the founding grant for a player founding now: {@link DojoCatalog#FOUNDING_GRANT} on their first founding
+     * only. A player who already had a dojo (closed, migrated or founded before) or was paid once gets 0.
+     */
+    public static int foundingGrant(DojoStore.PlayerRecord rec, boolean hadDojo) {
+        return hadDojo || (rec != null && rec.foundingGrantPaid) ? 0 : DojoCatalog.FOUNDING_GRANT;
+    }
+
+    /** 4.7.84: true when the master has not picked a banner yet (the dojo flies its style's default banner). */
+    public static boolean defaultBanner(Dojo d) {
+        return d != null && (d.bannerBase == null || d.bannerBase.isBlank());
+    }
+
+    /** 4.7.84: the banner colour id the dojo flies: its own, or its style's default (white with no style). */
+    public static String bannerColour(Dojo d) {
+        if (d == null) {
+            return "white";
+        }
+        if (!defaultBanner(d)) {
+            return d.bannerBase;
+        }
+        DojoCatalog.Style s = DojoCatalog.Style.of(d.style);
+        return s == null ? "white" : s.bannerColour;
+    }
+
+    /** 4.7.84: "6 days 23h", "5h 12m": the time left on a lock, never rounded up past the real lock. */
+    public static String daysText(long ms) {
+        if (ms < DAY_MS) {
+            return cooldownText(ms);
+        }
+        long days = ms / DAY_MS;
+        long hours = (ms % DAY_MS) / (60L * 60L * 1000L);
+        return days + (days == 1 ? " day" : " days") + (hours > 0 ? " " + hours + "h" : "");
+    }
+
+    /**
+     * 4.7.84 (DJ-3): why {@code p} can't ask {@code d}'s master to take them on right now, or null when they can. The
+     * same checks {@code SparringSystem.apprenticeInvite} makes, plus the master being online; short enough for a
+     * button ("Ask to join - " + reason).
+     */
+    public static String joinProblem(ServerPlayer p, Dojo d, boolean masterOnline) {
+        if (d == null || !d.open) {
+            return "dojo closed";
+        }
+        UUID id = p.m_20148_();
+        if (d.masterUuid.equals(id.toString())) {
+            return "your own dojo";
+        }
+        if (dojoOf(id) != null) {
+            return "you're in a dojo";
+        }
+        SparStore.MentorBond mine = SparStore.get().bondsByPlayer.get(id.toString());
+        if (mine != null && mine.mentorUuid != null && !mine.mentorUuid.isBlank()) {
+            return "leave your master first";
+        }
+        if (mine != null && System.currentTimeMillis() < mine.mentorChangeReadyAt) {
+            return "in " + cooldownText(mine.mentorChangeReadyAt - System.currentTimeMillis());
+        }
+        if (disciples(d).size() >= disciplesAllowed(d.masterUuid)) {
+            return "dojo full";
+        }
+        if (!masterOnline) {
+            return "master offline";
+        }
+        return null;
     }
 
     /** Milliseconds until the name, style or banner may change again (0 when free to change). */
@@ -277,7 +366,7 @@ public final class DojoService {
             return "Only the master can pick the dojo's banner.";
         }
         if (bannerBase == null || bannerBase.isBlank()) {
-            return "Hold or carry a banner you made at a loom, then pick it.";
+            return "Hold or carry any banner you crafted, then pick it.";
         }
         boolean first = d.bannerBase == null || d.bannerBase.isBlank();
         if (!first) {
@@ -292,29 +381,6 @@ public final class DojoService {
         store().markDirty();
         return first ? "Your dojo flies its new banner." : "Your dojo's banner changed (" + DojoCatalog.BANNER_CHANGE_COST
                 + " Dojo Points).";
-    }
-
-    /** Found a dojo alone (free). Before 4.7.78 this was one tap; the menu now uses the founding flow. */
-    public static String found(ServerPlayer p) {
-        UUID id = p.m_20148_();
-        if (dojoOf(id) != null) {
-            return "You're already in a dojo.";
-        }
-        Dojo mine = store().dojos.get(id.toString());
-        if (mine != null && !mine.open) {
-            return "Your dojo is closed. Reopen it from the Dojo tab (every upgrade drops one tier).";
-        }
-        SparStore.MentorBond b = SparStore.get().bondsByPlayer.get(id.toString());
-        if (b != null && b.mentorUuid != null && !b.mentorUuid.isBlank()) {
-            return "Your master's dojo is closed. Ask them to reopen it, or leave the bond to found your own.";
-        }
-        Dojo d = fresh(id.toString(), p.m_7755_().getString(), System.currentTimeMillis());
-        store().dojos.put(d.masterUuid, d);
-        store().player(d.masterUuid, p.m_7755_().getString());
-        store().markDirty();
-        DojoWorld.ensureBuilt(p.m_20194_(), d);
-        return "You founded " + d.name + ". Your hall starts empty with one sparring mat; upgrades build into it. "
-                + "Spar on the board to start earning Dojo Points.";
     }
 
     /** Close the dojo (master only). Members, style and upgrades are kept for a reopen. */
@@ -508,7 +574,7 @@ public final class DojoService {
         d.builtSignature = "";
         store().markDirty();
         DojoWorld.ensureBuilt(p.m_20194_(), d);
-        String now = DojoCatalog.ARENA.equals(upgrade) ? (t + 1) + " arenas"
+        String now = DojoCatalog.ARENA.equals(upgrade) ? (t + 1) + " rings"
                 : DojoCatalog.CAPACITY.equals(upgrade) ? DojoCatalog.disciplesAllowed(t + 1) + " disciples"
                 : DojoCatalog.lookName(DojoCatalog.lookTier(upgrade, t + 1)) + " look";
         return "Bought " + DojoCatalog.upgradeName(upgrade) + " for " + cost + " points. Now: " + now + ".";
@@ -561,7 +627,7 @@ public final class DojoService {
         }
         long left = bonusCooldownLeft(d);
         if (left > 0L) {
-            return "You can change the bonus again in " + (left / DAY_MS + 1) + " days.";
+            return "You can change the bonus again in " + daysText(left) + ".";
         }
         if (d.points < DojoCatalog.BONUS_COST) {
             return "A bonus costs " + DojoCatalog.BONUS_COST + " Dojo Points. Your dojo has " + d.points + ".";
@@ -627,11 +693,11 @@ public final class DojoService {
         long joined = d.joinedAt.getOrDefault(targetUuid, System.currentTimeMillis());
         long left = joined + DojoCatalog.ELITE_MIN_MS - System.currentTimeMillis();
         if (left > 0L) {
-            return nameOf(targetUuid) + " can be an elite after " + (left / DAY_MS + 1) + " more days in the dojo.";
+            return nameOf(targetUuid) + " can be an elite in " + daysText(left) + ".";
         }
         d.elites.add(targetUuid);
         store().markDirty();
-        return nameOf(targetUuid) + " is now an elite: they can invite members, buy upgrades and declare wars.";
+        return nameOf(targetUuid) + " is now an elite: they can buy upgrades and declare wars.";
     }
 
     public static String demote(ServerPlayer master, String targetUuid) {
@@ -693,6 +759,17 @@ public final class DojoService {
         }
         if (first != 2 || d.points != DojoCatalog.Earn.HOST.dailyCap) {
             bad.add("hosting pays 2 points a spar, 20 a day at most (got " + d.points + ")");
+        }
+        DojoStore.PlayerRecord rec = new DojoStore.PlayerRecord();
+        if (foundingGrant(rec, false) != DojoCatalog.FOUNDING_GRANT || foundingGrant(rec, true) != 0) {
+            bad.add("founding grant: paid on a first founding, never when the player already had a dojo");
+        }
+        rec.foundingGrantPaid = true;
+        if (foundingGrant(rec, false) != 0) {
+            bad.add("founding grant: paid once per player");
+        }
+        if (!daysText(7L * DAY_MS - 1000L).startsWith("6 days")) {
+            bad.add("bonus lock text: just after buying it reads 6 days and some hours, never 8 days");
         }
         d.upgrades.put(DojoCatalog.TRAINING, 3);
         d.upgrades.put(DojoCatalog.ARENA, 4);

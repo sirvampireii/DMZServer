@@ -117,15 +117,16 @@ public final class LivingWorldNearbyMeditation {
             return;
         }
         if (level >= cap) {
-            out.add(UltraStyle.DARK_PURPLE + "Meditation " + UltraStyle.VALUE + level + "/" + cap
-                    + " " + UltraStyle.DIM + "- " + UltraStyle.GOLD + "Max");
+            out.add(UltraStyle.DARK_PURPLE + "Meditation level " + UltraStyle.VALUE + level + UltraStyle.DIM + " of "
+                    + UltraStyle.VALUE + cap + " " + UltraStyle.GOLD + "(max)");
             return;
         }
         long need = requirementMs(level);
         long progress = shownProgress(player, level, need);
-        out.add(UltraStyle.DARK_PURPLE + "Meditation " + UltraStyle.VALUE + level + "/" + cap
-                + " " + UltraStyle.DIM + "- " + UltraStyle.VALUE
-                + compact(progress) + "/" + compact(need));
+        // 4.7.84 (walk-hub 1.3): plain words, "Meditation level 0 of 10 (0s of 1m to the next)".
+        out.add(UltraStyle.DARK_PURPLE + "Meditation level " + UltraStyle.VALUE + level + UltraStyle.DIM + " of "
+                + UltraStyle.VALUE + cap + UltraStyle.DIM + " (" + UltraStyle.VALUE + compact(progress)
+                + UltraStyle.DIM + " of " + UltraStyle.VALUE + compact(need) + UltraStyle.DIM + " to the next)");
     }
 
     private static boolean resolveApi() {

@@ -17,12 +17,45 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>a new page goes on top (at most {@value #MAX} deep).</li>
  * </ul>
  * Kept for the session: page reloads keep it, logout clears it.
+ *
+ * <p>LM 4.7.84:
+ * <ul>
+ *   <li>N2: a menu opened fresh (a tile, a command, a key, anything that is not a click inside a menu) starts a new
+ *       trail ({@link #fresh}); only clicks made inside menus build history.</li>
+ *   <li>N3: the tab pages of one system are one family. Switching tabs replaces the tab already in the trail
+ *       instead of stacking, so Back from any tab leaves the system to where the player was before it.</li>
+ * </ul>
  */
 public final class NavHistory {
     private NavHistory() {}
 
     static final int MAX = 32;
     private static final Map<UUID, Deque<String>> STACKS = new ConcurrentHashMap<>();
+    /** 4.7.84 (N3): every {@code screen|page} sent with a tab row, learned as pages are sent. */
+    private static final java.util.Set<String> TAB_PAGES = ConcurrentHashMap.newKeySet();
+
+    /** {@code screen} page {@code page} is one of its system's tabs (it was sent with a tab row). */
+    public static void markTab(String screen, String page) {
+        if (screen != null && page != null && TAB_PAGES.size() < 4096) {
+            TAB_PAGES.add(key(screen, page));
+        }
+    }
+
+    /** Two tab pages of the same system: switching between them replaces, never stacks. */
+    static boolean tabFamily(String a, String b) {
+        if (a == null || b == null || a.equals(b) || !TAB_PAGES.contains(a) || !TAB_PAGES.contains(b)) {
+            return false;
+        }
+        return split(a)[0].equals(split(b)[0]);
+    }
+
+    /**
+     * N2: a menu opened from outside a menu (tile, command, key, timer) starts a new trail. The page about to be
+     * shown is then recorded on an empty stack, so its Back goes to its registry parent.
+     */
+    public static void fresh(UUID player) {
+        clear(player);
+    }
 
     static String key(String screen, String page) {
         return (screen == null ? "" : screen) + "|" + (page == null ? "" : page);
@@ -45,6 +78,17 @@ public final class NavHistory {
             if (top != null && siblings(top, k)) {
                 d.pollFirst();
             }
+            // 4.7.84 (N3): a tab replaces the tab of its system already in the trail (and whatever was opened from
+            // it): Home > Wars > Home is one step, not three.
+            String tab = tabInStack(d, k);
+            if (tab != null) {
+                while (!d.isEmpty() && !tab.equals(d.peekFirst())) {
+                    d.pollFirst();
+                }
+                d.pollFirst();
+                d.addFirst(k);
+                return;
+            }
             if (d.contains(k)) {
                 while (!d.isEmpty() && !k.equals(d.peekFirst())) {
                     d.pollFirst();
@@ -56,6 +100,19 @@ public final class NavHistory {
                 d.pollLast();
             }
         }
+    }
+
+    /** The newest entry that is {@code k} itself or a tab of {@code k}'s family, when {@code k} is a tab; else null. */
+    private static String tabInStack(Deque<String> d, String k) {
+        if (!TAB_PAGES.contains(k)) {
+            return null;
+        }
+        for (String e : d) {
+            if (e.equals(k) || tabFamily(e, k)) {
+                return e;
+            }
+        }
+        return null;
     }
 
     /** Same screen, same first part of the page id, same registry parent: pages of one family. */
@@ -83,6 +140,18 @@ public final class NavHistory {
         }
         String k = key(screen, page);
         synchronized (d) {
+            // 4.7.84 (N3): a tab's Back is the page under its family's entry (where the player was before the system).
+            String tab = tabInStack(d, k);
+            if (tab != null) {
+                boolean next = false;
+                for (String e : d) {
+                    if (next) {
+                        return split(e);
+                    }
+                    next = e.equals(tab);
+                }
+                return null;
+            }
             Iterator<String> it = d.iterator();
             boolean below = !k.equals(d.peekFirst());          // the page is not on top yet: the top is "previous"
             boolean first = true;
@@ -161,7 +230,27 @@ public final class NavHistory {
         ok &= snapshot(u).size() == 2;
         String[] popped = pop(u, "spar", "main");
         ok &= popped != null && popped[0].equals("hub") && snapshot(u).size() == 1;
+        // 4.7.84 (N3): tabs replace each other; Back from any tab leaves the system.
         clear(u);
-        return ok ? "OK" : "FAIL " + snapshot(u);
+        markTab("lm_selftest", "home");
+        markTab("lm_selftest", "wars");
+        record(u, "hub", "goals");
+        record(u, "lm_selftest", "home");
+        String[] tabBefore = previous(u, "lm_selftest", "wars");       // label worked out before the record
+        record(u, "lm_selftest", "wars");
+        ok &= tabBefore != null && tabBefore[1].equals("goals") && snapshot(u).size() == 2;
+        record(u, "lm_selftest", "wars_detail");
+        record(u, "lm_selftest", "home");                              // a tab again: trims the sub-page and the tab
+        String[] tabBack = previous(u, "lm_selftest", "home");
+        ok &= tabBack != null && tabBack[1].equals("goals") && snapshot(u).size() == 2;
+        // N2: a fresh open starts a new trail.
+        fresh(u);
+        record(u, "lm_selftest", "wars");
+        ok &= snapshot(u).size() == 1 && previous(u, "lm_selftest", "wars") == null;
+        TAB_PAGES.remove(key("lm_selftest", "home"));
+        TAB_PAGES.remove(key("lm_selftest", "wars"));
+        String result = ok ? "OK" : "FAIL " + snapshot(u);
+        clear(u);
+        return result;
     }
 }

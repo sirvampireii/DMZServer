@@ -58,7 +58,7 @@ public final class UltraProgressionScreens {
                 .line(UltraStyle.LABEL + "Training boosts, Ancient Coins, and staff tools");
         // 4.7.81: features by name, not config keys (the chat status keeps the keys staff type).
         for (String line : com.dbzlegacy.adaptivedifficulty.progression.ProgressionConfig.statusLinesInWords()) {
-            spec.line(line);
+            spec.line(groupColon(line));
         }
         spec.line(com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalTpBoost.statusLine())
                 .line(com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.statusLine())
@@ -66,6 +66,18 @@ public final class UltraProgressionScreens {
                 .buttonsAfterLines();
         spec.back();
         spec.send(player);
+    }
+
+    /**
+     * 4.7.84 (P-A2): {@code TP: TP boost, Mastery boost and Bio-Android on}, not {@code TP TP boost ...}; the group
+     * name and its list ran together. Adds a colon after the group word (the first space before the value color).
+     */
+    static String groupColon(String line) {
+        if (line == null) {
+            return null;
+        }
+        int at = line.indexOf(" " + UltraStyle.VALUE);
+        return at <= 0 || line.charAt(at - 1) == ':' ? line : line.substring(0, at) + ":" + line.substring(at);
     }
 
     private static void openBoosts(ServerPlayer player) {

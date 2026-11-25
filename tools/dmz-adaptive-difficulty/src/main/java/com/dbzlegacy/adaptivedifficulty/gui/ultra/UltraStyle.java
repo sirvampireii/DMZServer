@@ -274,13 +274,72 @@ public final class UltraStyle {
         if (dest.regionMatches(true, 0, "Back to ", 0, 8)) {
             return LABEL + dest;
         }
-        // 4.7.71: a long page name drops its last words so the footer never cuts the label
-        // ("Back to Character Services" -> "Back to Character").
-        int room = labelMaxWidth(BTN_W);
-        while (textWidthPx("Back to " + dest) > room && dest.lastIndexOf(' ') > 0) {
-            dest = dest.substring(0, dest.lastIndexOf(' ')).trim();
+        // 4.7.84 (N4): never a cut phrase ("Back to Wager Ancient", "Back to Convert to"). A name that does not fit
+        // is a plain "Back"; callers pass PageRegistry.backTitle, which already swaps in a short title.
+        if (!backFits(dest)) {
+            return BACK;
         }
         return LABEL + "Back to " + dest;
+    }
+
+    /** True when {@code "Back to " + destination} fits a footer button's label without cutting (4.7.84, N4). */
+    public static boolean backFits(String destination) {
+        return destination != null && textWidthPx("Back to " + plain(destination).trim()) <= labelMaxWidth(BTN_W);
+    }
+
+    /**
+     * 4.7.84 (N6): what the player is short of on a confirm page that cannot run. {@link UltraScreenSpec#offerGetMore}
+     * adds the way to get more.
+     */
+    public enum Shortfall {
+        /** Ancient Coins. */
+        COINS,
+        /** Prestige favor. */
+        FAVOR,
+        /** Dojo Points (the dojo's treasury). */
+        DOJO_POINTS
+    }
+
+    /**
+     * 4.7.84 (N6): one plain line saying how to get more of {@code kind}, for a confirm page that says "Not enough
+     * ...". Pair it with {@link #getMoreButton} (or use {@link UltraScreenSpec#offerGetMore}, which places both).
+     */
+    public static String getMoreLine(Shortfall kind) {
+        if (kind == null) {
+            return "";
+        }
+        return VALUE + switch (kind) {
+            case COINS -> "Ancient Coins drop from the mobs you defeat. Coins in your inventory or wallet count.";
+            case FAVOR -> "Get favor by trading a prestige you hold for favor.";
+            case DOJO_POINTS -> "Your dojo earns points from hosted spars, training with disciples, disciple milestones and wars.";
+        };
+    }
+
+    /** 4.7.84 (N6): the label of the button that leads to more of {@code kind}. */
+    public static String getMoreButton(Shortfall kind) {
+        if (kind == null) {
+            return "";
+        }
+        return switch (kind) {
+            case COINS -> "Where to get coins";
+            case FAVOR -> "Trade prestige for favor";
+            case DOJO_POINTS -> "How points are earned";
+        };
+    }
+
+    /**
+     * 4.7.84 (N6): where that button goes by default ({@code go:screen|page}), or null when there is no page for it
+     * (coins: the line says it; a caller may pass its own page).
+     */
+    public static String getMoreAction(Shortfall kind) {
+        if (kind == null) {
+            return null;
+        }
+        return switch (kind) {
+            case COINS -> null;
+            case FAVOR -> "go:prestige|exchange";
+            case DOJO_POINTS -> "go:dojo|dojo_upgrades";
+        };
     }
 
     public static String plain(String text) {

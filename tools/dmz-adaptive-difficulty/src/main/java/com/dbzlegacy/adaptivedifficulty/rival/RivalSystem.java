@@ -958,16 +958,19 @@ public final class RivalSystem {
         RivalConstants.RpTier tier = RivalConstants.tierFor(me.totalRp);
         lines.add(UltraStyle.LABEL + "Total RP " + UltraStyle.VALUE + (int) me.totalRp + " " + UltraStyle.DIM + "(" + UltraStyle.MARK + tier.color() + tier.name() + UltraStyle.DIM + ")");
         lines.add(UltraStyle.LABEL + "Title perk " + UltraStyle.YELLOW + (tier.perk() == null || tier.perk().isBlank() ? "None" : tier.perk()));
-        lines.add(UltraStyle.LABEL + "Rival TP bonus " + UltraStyle.GREEN + "+" + Math.round(tier.tpMult() * 100.0) + "%");
-        lines.add(UltraStyle.LABEL + "Record " + UltraStyle.GREEN + me.officialWins + UltraStyle.LABEL + "/" + UltraStyle.DANGER + me.officialLosses + UltraStyle.LABEL + "/" + UltraStyle.YELLOW + me.officialDraws
-                + " " + UltraStyle.DIM + "(KO " + me.knockouts + ")");
+        // 4.7.84: the bonus over normal rival TP, as RivalTpCurve.scale applies it (title multiplier 1.0 = +0%).
+        lines.add(UltraStyle.LABEL + "Rival TP bonus " + UltraStyle.GREEN + "+" + titleTpBonusPercent(tier) + "%");
+        lines.add(UltraStyle.LABEL + "Record " + UltraStyle.VALUE + recordText(me.officialWins, me.officialLosses,
+                me.officialDraws, me.knockouts));
         lines.add(UltraStyle.LABEL + "Streak " + UltraStyle.VALUE + me.currentWinStreak + " " + UltraStyle.DIM + "(best " + me.bestWinStreak + ")");
-        lines.add(UltraStyle.LABEL + "Challenges " + UltraStyle.VALUE + me.challengesPlayed + " " + UltraStyle.LABEL + "Surpass " + UltraStyle.VALUE + me.surpassAwards);
+        lines.add(UltraStyle.LABEL + "Challenges " + UltraStyle.VALUE + me.challengesPlayed + UltraStyle.LABEL
+                + " - surpassed a rival " + UltraStyle.VALUE + me.surpassAwards + UltraStyle.LABEL
+                + (me.surpassAwards == 1 ? " time" : " times"));
         lines.add(UltraStyle.LABEL + "Career dmg " + UltraStyle.VALUE + (int) me.careerDamageDealt
                 + " " + UltraStyle.DIM + "| combo " + UltraStyle.VALUE + me.careerHighestCombo
                 + " " + UltraStyle.DIM + "| hits " + UltraStyle.VALUE + me.careerHits);
         lines.add(UltraStyle.LABEL + "Mutual slots " + UltraStyle.VALUE + me.countMutual() + UltraStyle.DIM + "/" + UltraStyle.VALUE + RivalConstants.MAX_MUTUAL_RIVALS);
-        lines.add(UltraStyle.LABEL + "TP chat " + UltraStyle.VALUE + (me.tpMessages ? "ON" : "OFF") + " " + UltraStyle.DIM + "(/rival tpmsg)");
+        // 4.7.84: the TP chat state shows on its own toggle (Rivals > Rival TP chat), not here.
         ServerPlayer combatSrc = viewer;
         if (targetName != null && !targetName.isBlank() && viewer != null) {
             ServerPlayer online = findOnline(viewer.m_20194_(), targetName);
@@ -976,10 +979,29 @@ public final class RivalSystem {
             }
         }
         if (combatSrc != null) {
-            lines.add(UltraStyle.GOLD + "Combat (after Overhaul)");
+            lines.add(UltraStyle.GOLD + (combatSrc == viewer ? "Your combat stats" : "Their combat stats"));
             lines.addAll(LmOverhaulScaledCombat.compactLines(DmzProgression.stats(combatSrc)));
         }
         return lines;
+    }
+
+    /**
+     * 4.7.84: the rival TP bonus a title gives, in whole percent over normal rival TP. {@link RivalTpCurve#scale}
+     * multiplies rival TP by the title's {@code tpMult} when the curve is on, so 1.00 is +0% and 1.05 is +5%.
+     */
+    public static int titleTpBonusPercent(RivalConstants.RpTier tier) {
+        if (tier == null || !RivalTpCurve.ENABLED || !(tier.tpMult() > 0.0) || !Double.isFinite(tier.tpMult())) {
+            return 0;
+        }
+        return (int) Math.max(0L, Math.round((tier.tpMult() - 1.0) * 100.0));
+    }
+
+    /** 4.7.84: "3 wins, 1 loss, 0 draws (2 knockouts)" - spelled out, not 3/1/0. */
+    public static String recordText(int wins, int losses, int draws, int knockouts) {
+        return wins + (wins == 1 ? " win, " : " wins, ")
+                + losses + (losses == 1 ? " loss, " : " losses, ")
+                + draws + (draws == 1 ? " draw" : " draws")
+                + " (" + knockouts + (knockouts == 1 ? " knockout)" : " knockouts)");
     }
 
     public static String setTpMsg(ServerPlayer player, Boolean on) {

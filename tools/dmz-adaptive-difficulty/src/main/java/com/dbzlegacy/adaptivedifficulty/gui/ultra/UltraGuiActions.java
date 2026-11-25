@@ -79,7 +79,15 @@ public final class UltraGuiActions {
         }
 
         try {
-            dispatchResolved(player, subject, screen, action, args, actionId);
+            // 4.7.84 (N2): a click on a menu page (its args name the page it came from) keeps the Back trail; an
+            // action sent from outside a menu (a HUD card, the HUD key) opens its page on a fresh trail.
+            final ServerPlayer subj = subject;
+            final JsonObject a = args;
+            if (!stringArg(args, "page").isBlank()) {
+                UltraGui.runAsMenuClick(() -> dispatchResolved(player, subj, screen, action, a, actionId));
+            } else {
+                dispatchResolved(player, subject, screen, action, args, actionId);
+            }
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.error(
                     "[{}] UltraGuiActions.handle failed rawActionId={} screen={} resolvedAction={} args={} viewer={}",
@@ -934,7 +942,7 @@ public final class UltraGuiActions {
                 default -> page.isBlank() ? homePage(screen) : page;
             };
             case "prestige" -> switch (parts.action == null ? "" : parts.action) {
-                case "confirm", "confirm_now", "confirm_gui" -> "turnin";
+                case "confirm", "confirm_now", "confirm_gui" -> "main";   // 4.7.84 (P-1): Prestige now is on Home
                 case "turnin", "turn_in", "redeem" -> "exchange";
                 case "skill", "buy_skill", "skillup" -> "skills";
                 case "tier", "buy_tier", "unlock_tier" -> "tiers";
@@ -1096,9 +1104,11 @@ public final class UltraGuiActions {
                 };
                 yield "edit:" + id + ":0:";
             }
+            // 4.7.84 (C-2): Home / Looks / Story; Android lives on Home.
             case "character" -> switch (t) {
-                case "saga", "reset" -> "reset:0";
-                case "android", "android_remove" -> UltraStyle.PAGE_ANDROID_REMOVE;
+                case "looks", "look" -> UltraCharacterScreens.PAGE_LOOKS;
+                case "story", "saga", "reset" -> "reset:0";
+                case "android", "android_remove" -> "main";
                 default -> "main";
             };
             case "difficulty" -> switch (t) {
@@ -1113,18 +1123,24 @@ public final class UltraGuiActions {
                 case "info", "information" -> "info";
                 default -> "home";
             };
+            // 4.7.84: a tab id that names one of a tab's own pages (the Spar Board's post, wager, accept and watch
+            // pages; Dojo Home's settings, members and dojo list; the style picker; a war) selects that tab.
             case "spar", "sparring" -> switch (t) {
                 case "leaderboard" -> "leaderboard";
-                case "sparboard", "board" -> "sparboard";
-                default -> "main";
+                case "sparboard", "board", "board_post", "board_wager", "board_wager_coins", "board_wager_points",
+                        "pick_challenge", "watch", "result" -> "sparboard";
+                default -> t.startsWith("sparboard:") || t.startsWith("board_accept:")
+                        || t.startsWith("pick_challenge:") ? "sparboard" : "main";
             };
             case "dojo" -> switch (t) {
-                case "dojo_upgrades", "upgrades" -> "dojo_upgrades";
+                case "dojo_upgrades", "upgrades", "dojo_style_pick" -> "dojo_upgrades";
                 case "dojo_wars", "wars" -> "dojo_wars";
-                default -> "home";
+                default -> t.startsWith("dojo_war_view:") ? "dojo_wars" : "home";
             };
+            // 4.7.84 (P-1): Home / Shop / Trade, "Prestige now" on Home.
             case "prestige" -> switch (t) {
-                case "prestige", "turnin", "points" -> "turnin";
+                case "trade", "exchange" -> "exchange";
+                case "prestige", "turnin", "points" -> "main";
                 case "shop" -> "shop";
                 default -> "main";
             };

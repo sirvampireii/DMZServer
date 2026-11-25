@@ -175,7 +175,7 @@ public final class SkillUnlockService {
     private static void appendPotentialCompact(List<String> out, ServerPlayer player, Skills skills) {
         int level = skillLevel(skills, "potentialunlock");
         if (level >= HARD_MAX_POTENTIAL) {
-            out.add(UltraStyle.LIGHT_PURPLE + "Potential " + UltraStyle.VALUE + level + "/"
+            out.add(UltraStyle.LIGHT_PURPLE + "Potential Unlock " + UltraStyle.VALUE + level + "/"
                     + HARD_MAX_POTENTIAL + " " + UltraStyle.DIM + "- " + UltraStyle.GOLD + "Max");
             return;
         }
@@ -185,9 +185,9 @@ public final class SkillUnlockService {
         if (progress > required) {
             progress = required;
         }
-        out.add(UltraStyle.LIGHT_PURPLE + "Potential " + UltraStyle.VALUE + level + "/"
-                + HARD_MAX_POTENTIAL + " " + UltraStyle.DIM + "- " + UltraStyle.VALUE
-                + progress + "/" + required);
+        // 4.7.84 (S-1): spelled out - "Potential Unlock 0/30 (0 of 100 points)".
+        out.add(UltraStyle.LIGHT_PURPLE + "Potential Unlock " + UltraStyle.VALUE + level + "/"
+                + HARD_MAX_POTENTIAL + " " + UltraStyle.LABEL + "(" + progress + " of " + required + " points)");
     }
 
     private static void appendSaga(List<String> out, ServerPlayer player, Skills skills) {
@@ -205,17 +205,28 @@ public final class SkillUnlockService {
     }
 
     private static void appendSagaCompact(List<String> out, ServerPlayer player, Skills skills) {
-        appendSagaSkillCompact(out, player, skills, "kicontrol", "Ki Control", UltraStyle.DARK_AQUA, 1);
+        // 4.7.84 (S-1): full names (was "Heal Red" and "IT"), as the Prestige skill shop spells them. The four
+        // shortest names share two lines (Ki Control | Ki Boost, Kaioken | Fusion) so Skill Check fits its page.
+        List<String> one = new ArrayList<>();
+        appendSagaSkillCompact(one, player, skills, "kicontrol", "Ki Control", UltraStyle.DARK_AQUA, 1);
+        appendSagaSkillCompact(one, player, skills, "kiboost", "Ki Boost", UltraStyle.DARK_AQUA, 4);
+        out.add(compactPair(one));
         appendSagaSkillCompact(out, player, skills, "kimanipulation", "Ki Manipulation", UltraStyle.BLUE, 10);
         appendSagaSkillCompact(out, player, skills, "kisense", "Ki Sense", UltraStyle.DARK_PURPLE, 10);
         appendSagaSkillCompact(out, player, skills, "defense_penetration", "Defense Penetration", UltraStyle.RED, 10);
-        appendSagaSkillCompact(out, player, skills, "healing_reduction", "Heal Red", UltraStyle.DARK_RED, 10);
-        appendSagaSkillCompact(out, player, skills, "instant_transmission", "IT", UltraStyle.LIGHT_PURPLE, 10);
+        appendSagaSkillCompact(out, player, skills, "healing_reduction", "Healing Reduction", UltraStyle.DARK_RED, 10);
+        appendSagaSkillCompact(out, player, skills, "instant_transmission", "Instant Transmission", UltraStyle.LIGHT_PURPLE, 10);
         appendSagaSkillCompact(out, player, skills, "ki_infusion", "Ki Infusion", UltraStyle.AQUA, 10);
-        appendSagaSkillCompact(out, player, skills, "kiboost", "Ki Boost", UltraStyle.DARK_AQUA, 4);
         appendSagaSkillCompact(out, player, skills, "kiprotection", "Ki Protection", UltraStyle.BLUE, 10);
-        appendSagaSkillCompact(out, player, skills, "kaioken", "Kaioken", UltraStyle.RED, 5);
-        appendSagaSkillCompact(out, player, skills, "fusion", "Fusion", UltraStyle.LIGHT_PURPLE, 5);
+        List<String> two = new ArrayList<>();
+        appendSagaSkillCompact(two, player, skills, "kaioken", "Kaioken", UltraStyle.RED, 5);
+        appendSagaSkillCompact(two, player, skills, "fusion", "Fusion", UltraStyle.LIGHT_PURPLE, 5);
+        out.add(compactPair(two));
+    }
+
+    /** Two short compact skill rows on one line: {@code Kaioken 0/5 - Locked | Fusion 0/5 - Locked}. */
+    private static String compactPair(List<String> rows) {
+        return String.join(" " + UltraStyle.DIM + "| ", rows);
     }
 
     private static void appendSagaSkill(

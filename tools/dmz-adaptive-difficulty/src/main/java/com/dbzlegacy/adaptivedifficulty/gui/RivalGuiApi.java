@@ -165,7 +165,7 @@ public final class RivalGuiApi {
     public static List<String> challengeLines(ServerPlayer player) {
         List<String> lines = new ArrayList<>();
         lines.add(UltraStyle.LABEL
-                + "Timed fights against a rival. Challenge deaths can raise Nemesis.");
+                + "Timed fights against a rival. Die to the same rival in challenges and they can become your Nemesis.");
         if (player != null && RivalChallengeManager.get().isInChallenge(player.m_20148_())) {
             lines.add(UltraStyle.NOTICE_BODY + "You are in an active challenge.");
         } else {
@@ -825,7 +825,68 @@ public final class RivalGuiApi {
         if (!DifficultyConfig.get().enableRivalSystem) {
             return List.of(UltraStyle.DANGER + "Rival system is disabled.");
         }
-        return RivalProgression.get().hofLines();
+        // 4.7.84: the store keys ("highest_rp") become plain labels ("Most RP: LTProbe (0 RP)"). The source's own
+        // "Hall of Fame" heading is dropped: the Records page draws "Records - Hall of fame" above these lines.
+        List<String> out = new ArrayList<>();
+        for (String raw : RivalProgression.get().hofLines()) {
+            String plain = raw == null ? "" : UltraStyle.plain(raw).trim();
+            if (plain.isEmpty() || plain.equalsIgnoreCase("Hall of Fame")) {
+                continue;
+            }
+            int dash = plain.indexOf(" " + (char) 0x2014 + " ");
+            if (dash <= 0) {
+                out.add(UltraStyle.LABEL + (plain.equalsIgnoreCase("No entries yet.")
+                        ? "Nobody is in the Hall of fame yet. Win challenges to get in." : plain));
+                continue;
+            }
+            String key = plain.substring(0, dash).trim();
+            String value = plain.substring(dash + 3).trim();
+            out.add(UltraStyle.LABEL + hofLabel(key) + ": " + UltraStyle.VALUE + value);
+        }
+        return out;
+    }
+
+    /** Plain label for a Hall of fame key, which arrives with its underscores turned into spaces. */
+    static String hofLabel(String key) {
+        String k = key == null ? "" : key.trim().toLowerCase(Locale.ROOT).replace('_', ' ');
+        return switch (k) {
+            case "highest rp" -> "Most RP";
+            case "most battles" -> "Most challenges";
+            case "greatest rivals" -> "Greatest rivals";
+            case "longest streak" -> "Longest win streak";
+            case "longest rivalry" -> "Longest rivalry";
+            case "season champion", "season champ" -> "Season champion";
+            default -> k.isEmpty() ? "-" : Character.toUpperCase(k.charAt(0)) + k.substring(1);
+        };
+    }
+
+    /**
+     * 4.7.84 "My rival stats" (Rivals Home): one page for the standing that used to be split over My rival stats,
+     * Records - Stats and Records - Title. Tier and RP, perk, the real TP bonus, record, streak and challenges;
+     * the page adds Nemesis and Mutual rivals. Combat stats are not here (they belong to Character).
+     */
+    public static List<String> myStatsLines(ServerPlayer player) {
+        List<String> lines = new ArrayList<>();
+        if (player == null || !DifficultyConfig.get().enableRivalSystem) {
+            lines.add(UltraStyle.DANGER + "Rival system is disabled.");
+            return lines;
+        }
+        RivalPlayerRecord me = RivalStore.get().ensurePlayer(player);
+        RivalConstants.RpTier tier = RivalConstants.tierFor(me.totalRp);
+        String perk = tier.perk() == null || tier.perk().isBlank() || "None".equalsIgnoreCase(tier.perk())
+                ? "none yet (reach " + RivalConstants.RP_TIERS[Math.min(1, RivalConstants.RP_TIERS.length - 1)].min()
+                        + " RP)"
+                : tier.perk();
+        lines.add(UltraStyle.labelValue("Rival tier", tier.name() + " - " + (int) Math.floor(Math.max(0.0, me.totalRp))
+                + " RP"));
+        lines.add(UltraStyle.labelValue("Tier perk", perk));
+        lines.add(UltraStyle.labelValue("Rival TP bonus", "+" + RivalSystem.titleTpBonusPercent(tier) + "%"));
+        lines.add(UltraStyle.labelValue("Record", RivalSystem.recordText(
+                me.officialWins, me.officialLosses, me.officialDraws, me.knockouts)));
+        lines.add(UltraStyle.labelValue("Win streak", me.currentWinStreak + " (best " + me.bestWinStreak + ")"));
+        lines.add(UltraStyle.labelValue("Challenges", me.challengesPlayed + " played, surpassed a rival "
+                + me.surpassAwards + (me.surpassAwards == 1 ? " time" : " times")));
+        return lines;
     }
 
     public static List<String> journalLines(ServerPlayer player) {

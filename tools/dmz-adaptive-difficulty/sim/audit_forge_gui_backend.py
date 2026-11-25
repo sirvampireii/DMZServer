@@ -89,7 +89,8 @@ def main() -> int:
     char = GUI / "ultra" / "UltraCharacterScreens.java"
     if char.is_file():
         ctext = char.read_text(encoding="utf-8")
-        for needle in ("Change race", "Change class", "Customize model"):
+        # 4.7.84 (C-1): "Customize model" reads "Model and colors".
+        for needle in ("Change race", "Change class", "Model and colors"):
             if needle not in ctext:
                 errors.append(f"UltraCharacterScreens.java: missing '{needle}' button")
     else:

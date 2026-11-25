@@ -18,6 +18,29 @@ import net.minecraft.server.level.ServerPlayer;
 public final class UltraGui {
     private UltraGui() {}
 
+    /**
+     * 4.7.84 (N2): set while a click made inside a menu is being handled ({@link UltraGuiActions#dispatch} with the
+     * page it came from). Any other {@link #open} (a hub tile from a command, {@code /lm}, a key, an NPC, a timer such
+     * as the spar result) starts a fresh Back trail.
+     */
+    private static final ThreadLocal<int[]> MENU_CLICK = ThreadLocal.withInitial(() -> new int[1]);
+
+    /** Runs {@code r} as the handling of a click inside a menu: pages it opens keep the player's Back trail. */
+    public static void runAsMenuClick(Runnable r) {
+        int[] depth = MENU_CLICK.get();
+        depth[0]++;
+        try {
+            r.run();
+        } finally {
+            depth[0]--;
+        }
+    }
+
+    /** True while a click made inside a menu is being handled on this thread. */
+    public static boolean inMenuClick() {
+        return MENU_CLICK.get()[0] > 0;
+    }
+
     public static boolean preferUltra(ServerPlayer player) {
         // 4.7.58: the LM client draws menus itself; KaiPath stays the bridge for everyone else.
         return player != null
@@ -51,6 +74,10 @@ public final class UltraGui {
             return;
         }
 
+        // N2: opened from outside a menu: a new trail, so Back never names a page from an earlier visit.
+        if (!inMenuClick()) {
+            NavHistory.fresh(player.m_20148_());
+        }
         ServerPlayer effective = AdminInspectSessions.resolveSubject(player);
         if (effective == null) {
             effective = player;

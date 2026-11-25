@@ -47,6 +47,15 @@ public final class UltraHubScreens {
      * {@code from:<preset id>}, {@code reset}. Every click carries the five fields ({@code args.bindInputs}).
      */
     public static final String ACTION_CUSTOM = "menu_custom";
+    /** 4.7.84 (H6): My colors &gt; From a skin: the five "From" buttons and Reset, off the editor page. */
+    public static final String PAGE_CUSTOM_FROM = "skin_custom_from";
+    /**
+     * {@code do:menu_custom:pick_from} on My colors: keep the typed fields in the draft, then open From a skin (the
+     * fields are not on that page, so a plain page link would drop what was typed).
+     */
+    static final String OP_PICK_FROM = "pick_from";
+    /** Players whose next My colors reopen shows From a skin instead (set by {@link #OP_PICK_FROM}). */
+    private static final java.util.Set<java.util.UUID> SHOW_FROM = java.util.concurrent.ConcurrentHashMap.newKeySet();
     static final String[] TONE_NAMES = {"Panel", "Primary", "Trim", "Text", "Confirm"};
     /** Plain names of the motifs on the Scene button. */
     static final Map<MenuSkins.Motif, String> MOTIF_NAMES = Map.of(
@@ -112,6 +121,10 @@ public final class UltraHubScreens {
             openCustom(player, false);
             return;
         }
+        if (PAGE_CUSTOM_FROM.equals(p)) {
+            openCustomFrom(player);
+            return;
+        }
         if (PAGE_GOALS.equals(p)) {
             openGoals(player);
             return;
@@ -156,9 +169,9 @@ public final class UltraHubScreens {
     /**
      * Hub Home (4.7.64): the dashboard, then the systems grouped by what they are for. Prestige is the spine: the
      * first group is the next prestige (level bar, levels to go) and "Fastest now", the one existing thing that
-     * moves the player toward it quickest. Then one snapshot line per system under Train, Compete and Progress.
-     * Buttons follow the same order: Prestige full width, then Train, Compete and Progress pairs. The LM client
-     * draws each header's lines in their own box; KaiPath shows the same lines flat.
+     * moves the player toward it quickest. Then one snapshot line per system under "Your systems" (4.7.84: one card
+     * instead of Train, Compete and Progress). Buttons: Prestige beside "Fastest now", then the system pairs. The LM
+     * client draws each header's lines in their own box; KaiPath shows the same lines flat.
      */
     private static void openMain(ServerPlayer player) {
         if (player == null) {
@@ -174,26 +187,25 @@ public final class UltraHubScreens {
         for (String l : HubDashboard.prestigeLines(player)) {
             spec.line(l);
         }
-        spec.line(UltraStyle.VALUE + HubDashboard.fastestNow(player));
-        spec.line(UltraStyle.header("Train"));
+        // 4.7.84 (H3): the line and the button that opens what it names.
+        String[] fastest = HubDashboard.fastestNowWithGo(player);
+        spec.line(UltraStyle.VALUE + fastest[0]);
+        // 4.7.84 (X5): two cards, "Your next prestige" and "Your systems" (Train, Compete and Progress were three
+        // headers), and no spar streak line (Sparring Home shows it), so Home fits the 300 px budget.
+        spec.line(UltraStyle.header("Your systems"));
         spec.line(UltraStyle.VALUE + HubDashboard.difficultyLine(player));
-        String streak = HubDashboard.streakLine(player);
-        if (streak != null) {
-            spec.line(UltraStyle.VALUE + streak);
-        }
-        spec.line(UltraStyle.header("Compete"));
         spec.line(UltraStyle.VALUE + HubDashboard.rivalLine(player));
         spec.line(UltraStyle.VALUE + HubDashboard.dojoLine(player));
         String potential = HubDashboard.potentialLine(player);
         if (potential != null) {
-            spec.line(UltraStyle.header("Progress"));
             spec.line(UltraStyle.VALUE + potential);
         }
         spec.buttonsAfterLines();
         // 4.7.78: the search row lives at the top of the More tab now; Home is the dashboard and the systems.
 
-        // Prestige: the payoff, full width.
-        placeTile(spec, ph, new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), null);
+        // Prestige: the payoff, with the "Fastest now" button beside it (4.7.84, H3; was full width).
+        placeTile(spec, ph, new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), true);
+        spec.buttonRight(fastest[1], fastest[2], UltraStyle.STYLE_NORMAL);
         spec.rowGap();
         // Hub tiles: normal (dark) + per-system accent. Nothing is "selected" on the hub.
         List<HubTile> tiles = new ArrayList<>();
@@ -225,16 +237,26 @@ public final class UltraHubScreens {
     static final int RESULTS_MAX = 8;
     static final String SEARCH_INPUT = "input:hub_search";
 
-    /** The search field with Search on its right, on the current row. */
+    /**
+     * The search field with Search on its right, on the current row; with a query, Clear search joins the row
+     * (4.7.84, H1: one row instead of two).
+     */
     private static void placeSearchRow(UltraScreenSpec spec, String query) {
         int btn = UltraStyle.BTN_MIN_W;
-        // the field and Search share one row, across both button columns
-        int fieldW = UltraStyle.BTN_W * 2 + UltraStyle.BTN_GAP - btn - UltraStyle.BTN_GAP;
+        boolean clear = query != null && !query.isBlank();
+        int clearW = 92;
+        // the field and Search (and Clear search) share one row, across both button columns
+        int span = UltraStyle.BTN_W * 2 + UltraStyle.BTN_GAP;
+        int fieldW = span - btn - UltraStyle.BTN_GAP - (clear ? clearW + UltraStyle.BTN_GAP : 0);
         int y = spec.row();
-        spec.textFieldRow(SEARCH_INPUT, query == null ? "" : query, "Search menus, pages and settings",
+        spec.textFieldRow(SEARCH_INPUT, query == null ? "" : query, "Search menus and pages",
                 UltraStyle.COL_L, fieldW);
         spec.buttonBound("do:hub_search", UltraStyle.confirm("Search"), UltraStyle.STYLE_CONFIRM,
                 UltraStyle.COL_L + fieldW + UltraStyle.BTN_GAP, y, btn, SEARCH_INPUT);
+        if (clear) {
+            spec.button("do:hub_search_clear", UltraStyle.LABEL + "Clear search", UltraStyle.STYLE_NORMAL,
+                    UltraStyle.COL_L + span - clearW, y, clearW);
+        }
         spec.rowGap();
     }
 
@@ -272,30 +294,81 @@ public final class UltraHubScreens {
      * empty. A client that cannot type gets a line saying so. Lines go in first; {@link #placeSearchButtons} adds the
      * field and the results after {@code buttonsAfterLines}.
      */
-    private record SearchState(boolean typing, String query, List<PageRegistry.Hit> hits,
-            List<com.dbzlegacy.adaptivedifficulty.config.editor.ConfigEditor.SearchHit> settings) {}
+    private record SearchState(boolean typing, String query, List<PageRegistry.Hit> hits, int total,
+            List<com.dbzlegacy.adaptivedifficulty.config.editor.ConfigEditor.SearchHit> settings) {
+        /** A search is showing (results or "nothing matches"): the other sections of More step aside. */
+        boolean active() {
+            return typing && !query.isBlank();
+        }
+    }
+
+    /**
+     * 4.7.84 (H2): the count line over the results, with the real number of matches before the cut to
+     * {@link #RESULTS_MAX}: "3 matches for 'tier'", "10 matches for 'prestige', showing 8. Add a word to narrow it."
+     */
+    static String resultsLine(String query, int total, int shown, int settings) {
+        String q = "'" + query + "'";
+        String head = total + (total == 1 ? " match" : " matches") + " for " + q;
+        if (total > shown) {
+            head += ", showing " + shown + ". Add a word to narrow it.";
+        } else {
+            head += ".";
+        }
+        return settings <= 0 ? head : head + " " + settings + (settings == 1 ? " setting" : " settings") + " too.";
+    }
 
     private static SearchState searchLines(UltraScreenSpec spec, ServerPlayer player) {
         boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player);
         boolean staff = StaffAccess.isStaff(player);
         String query = typing ? QUERY.getOrDefault(player.m_20148_(), "") : "";
-        spec.line(UltraStyle.header("Search"));
         if (!typing) {
+            spec.line(UltraStyle.header("Search"));
             spec.line(UltraStyle.LABEL + "Typing a search needs a newer client. Open a system from Home instead.");
-            return new SearchState(false, "", List.of(), List.of());
+            return new SearchState(false, "", List.of(), 0, List.of());
         }
-        List<PageRegistry.Hit> hits = PageRegistry.search(query, staff, RESULTS_MAX);
+        List<PageRegistry.Hit> all = PageRegistry.searchAll(query, staff);
+        List<PageRegistry.Hit> hits = all.size() > RESULTS_MAX ? all.subList(0, RESULTS_MAX) : all;
         List<com.dbzlegacy.adaptivedifficulty.config.editor.ConfigEditor.SearchHit> settings = staff && !query.isBlank()
                 ? com.dbzlegacy.adaptivedifficulty.config.editor.ConfigEditor.searchAll(query) : List.of();
         if (query.isBlank()) {
-            spec.line(UltraStyle.LABEL + "Type part of a name - a menu, a page or a setting - then tap Search.");
+            // Players never get settings (settings search is staff-only), so only staff are told about them.
+            spec.line(UltraStyle.LABEL + (staff ? "Type a page, menu or setting, like race or tiers."
+                    : "Type what you want, like race, tiers or skin."));
         } else if (hits.isEmpty() && settings.isEmpty()) {
             spec.line(UltraStyle.LABEL + "Nothing matches '" + query + "'. Try a shorter word, like dojo or skin.");
         } else {
-            spec.labelValue("Results for '" + query + "'", hits.size() + (hits.size() == 1 ? " page" : " pages")
-                    + (settings.isEmpty() ? "" : ", " + settings.size() + (settings.size() == 1 ? " setting" : " settings")));
+            spec.line(UltraStyle.VALUE + resultsLine(query, all.size(), hits.size(), settings.size()));
         }
-        return new SearchState(true, query, hits, settings);
+        return new SearchState(true, query, hits, all.size(), settings);
+    }
+
+    /**
+     * A result's label (4.7.84): a system Home is just its name ("Dojo"); any other page says where it lives
+     * ("Trophy hall - in Dojo > Upgrades"), shortened to its parent and then to the title alone when it does not fit
+     * {@code roomPx}.
+     */
+    static String resultLabel(PageRegistry.Hit h, int roomPx) {
+        String title = h.page().title();
+        if (PageRegistry.systemHome(h.page().screen(), h.page().pattern())
+                || PageRegistry.HUB.equals(h.page().screen()) && PageRegistry.HUB_MAIN.equals(h.page().pattern())) {
+            return UltraStyle.VALUE + title;
+        }
+        String where = h.path().startsWith("Main menu > ") ? h.path().substring("Main menu > ".length()) : h.path();
+        if (where.endsWith(" > " + title)) {
+            where = where.substring(0, where.length() - (" > " + title).length());
+        } else if (where.equals(title)) {
+            where = "Main menu";
+        }
+        String full = title + " - in " + where;
+        if (UltraStyle.textWidthPx(full) <= roomPx) {
+            return UltraStyle.VALUE + title + UltraStyle.LABEL + " - in " + where;
+        }
+        String parent = where.contains(" > ") ? where.substring(where.lastIndexOf(" > ") + 3) : where;
+        String mid = title + " - in " + parent;
+        if (UltraStyle.textWidthPx(mid) <= roomPx) {
+            return UltraStyle.VALUE + title + UltraStyle.LABEL + " - in " + parent;
+        }
+        return UltraStyle.VALUE + title;
     }
 
     private static void placeSearchButtons(UltraScreenSpec spec, ServerPlayer player, SearchState st) {
@@ -320,25 +393,26 @@ public final class UltraHubScreens {
             }
             return;
         }
-        for (PageRegistry.Hit h : st.hits()) {
-            // Where the page lives: its path without "Main menu" in front and without its own name at the end.
-            String where = h.path().startsWith("Main menu > ") ? h.path().substring("Main menu > ".length()) : h.path();
-            if (where.endsWith(" > " + h.page().title())) {
-                where = where.substring(0, where.length() - (" > " + h.page().title()).length());
-            } else if (where.equals(h.page().title())) {
-                where = "Main menu";
+        // 4.7.84 (H1): two results a row, so 8 results take 4 rows and More stays within the height budget.
+        int room = UltraStyle.labelMaxWidth(UltraStyle.BTN_W);
+        List<PageRegistry.Hit> hits = st.hits();
+        for (int i = 0; i < hits.size(); i++) {
+            PageRegistry.Hit h = hits.get(i);
+            String action = "go:" + h.page().screen() + "|" + h.page().pattern();
+            String label = resultLabel(h, room);
+            if (i % 2 == 0) {
+                spec.buttonLeft(action, label, UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.buttonRight(action, label, UltraStyle.STYLE_NORMAL).rowGap();
             }
-            String label = UltraStyle.VALUE + h.page().title() + UltraStyle.LABEL + "  -  " + where;
-            int room = UltraStyle.labelMaxWidth(UltraStyle.BTN_W * 2 + UltraStyle.BTN_GAP);
-            spec.buttonWide("go:" + h.page().screen() + "|" + h.page().pattern(),
-                    UltraStyle.textWidthPx(UltraStyle.plain(label)) <= room ? label : UltraStyle.VALUE + h.page().title(),
-                    UltraStyle.STYLE_NORMAL, null).rowGap();
+        }
+        if (hits.size() % 2 == 1) {
+            spec.rowGap();
         }
         if (!st.settings().isEmpty()) {
             spec.buttonWide("do:hub_search_settings", UltraStyle.LABEL + "Settings matching '" + query + "' ("
                     + st.settings().size() + ")", UltraStyle.STYLE_NORMAL, null).rowGap();
         }
-        spec.buttonLeft("do:hub_search_clear", UltraStyle.LABEL + "Clear search", UltraStyle.STYLE_NORMAL).rowGap();
     }
 
     /** The search buttons: search, a recent search, clear, the matching settings. False for any other action. */
@@ -383,33 +457,42 @@ public final class UltraHubScreens {
     /**
      * More (4.7.64; 4.7.80 search): search (field, results or recents), meditation progress, menu skins, the HUD
      * switch, and Staff Admin for staff.
+     *
+     * <p>4.7.84 (H1): search comes first (its line, then the field as the first row). While a search is showing,
+     * its results replace the other sections (Meditation, Your menus, HUD); Clear search brings them back. The page
+     * stays within the 300 px height budget either way.
      */
     private static void openMore(ServerPlayer player) {
         boolean staff = StaffAccess.isStaff(player);
         UltraScreenSpec spec = base(PAGE_MORE, PAGE_MORE);
         SearchState search = searchLines(spec, player);
-        spec.line(UltraStyle.header("Meditation"));
-        String med = HubDashboard.meditationLine(player);
-        spec.line(med != null ? med : UltraStyle.LABEL + "Meditation progress is off on this server.");
-        spec.line(UltraStyle.LABEL + "Meditate near another player.");
-        spec.line(UltraStyle.header("Your menus"));
-        spec.line(UltraStyle.LABEL + "Pick a skin, backgrounds, and Full or Lite.");
-        // 4.7.72: the native HUD switch. Same lines for every client (one spec); it only changes anything for
-        // players with the Legacy Mechanics client.
+        boolean sections = !search.active();
         boolean hudOn = LmHud.enabled(player);
-        spec.labelValue("HUD:", hudOn ? "rival, TP and penalty info on screen" : "boss bars and chat lines");
-        spec.line(UltraStyle.LABEL + "The HUD needs the Legacy Mechanics client.");
+        if (sections) {
+            spec.line(UltraStyle.header("Meditation"));
+            String med = HubDashboard.meditationLine(player);
+            spec.line(med != null ? med : UltraStyle.LABEL + "Meditation progress is off on this server.");
+            spec.line(UltraStyle.LABEL + "Meditate near another player.");
+            spec.line(UltraStyle.header("Your menus"));
+            // 4.7.72: the native HUD switch; it only changes anything for players with the Legacy Mechanics client.
+            spec.labelValue("HUD:", hudOn ? "rival, TP and penalty info on screen" : "boss bars and chat lines");
+            if (!com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.hasNativeClient(player)) {
+                spec.line(UltraStyle.LABEL + "The HUD needs the Legacy Mechanics client.");
+            }
+        }
         spec.buttonsAfterLines();
         // 4.7.80: search lives here entirely (field, results, recents); there is no Search tab.
         placeSearchButtons(spec, player, search);
-        List<HubTile> tiles = new ArrayList<>();
-        tiles.add(new HubTile("menu_skins", "Menu skins", UltraStyle.STYLE_NORMAL, true));
-        if (staff) {
-            tiles.add(new HubTile("admin", "Staff Admin", UltraStyle.STYLE_NORMAL, true));
+        if (sections) {
+            // Menu skins and the HUD switch share a row; Staff Admin (staff only) gets its own.
+            placeTile(spec, Map.of(), new HubTile("menu_skins", "Menu skins", UltraStyle.STYLE_NORMAL, true), true);
+            spec.buttonRight("do:" + LmHud.ACTION_TOGGLE, UltraStyle.toggle("HUD", hudOn), UltraStyle.STYLE_NORMAL);
+            spec.rowGap();
+            if (staff) {
+                placeTile(spec, Map.of(), new HubTile("admin", "Staff Admin", UltraStyle.STYLE_NORMAL, true), true);
+                spec.rowGap();
+            }
         }
-        placeTiles(spec, Map.of(), tiles);
-        spec.buttonLeft("do:" + LmHud.ACTION_TOGGLE, UltraStyle.toggle("HUD", hudOn), UltraStyle.STYLE_NORMAL);
-        spec.rowGap();
         spec.send(player);
     }
 
@@ -423,6 +506,8 @@ public final class UltraHubScreens {
         List<WeeklyGoals.Goal> goals = WeeklyGoals.goals(WeeklyGoals.week(now));
         spec.line(UltraStyle.header("Weekly goals"));
         spec.labelValue("Resets in", WeeklyGoals.resetsIn(now));
+        // 4.7.84 (H5): say plainly that goals pay nothing yet. OWNER: the wording lives in WeeklyGoals.NO_PAYOUT_NOTE.
+        spec.line(UltraStyle.LABEL + WeeklyGoals.NO_PAYOUT_NOTE);
         spec.line(UltraStyle.LABEL + "Everyone gets the same three goals. Progress counts from the start of the week.");
         for (WeeklyGoals.Goal g : goals) {
             long have = WeeklyGoals.progress(player.m_20148_(), g.id());
@@ -554,11 +639,14 @@ public final class UltraHubScreens {
     }
 
     /**
-     * My colors (4.7.66): the Custom skin's editor. Five hex fields (Panel, Primary, Trim, Text, Confirm), each with a
-     * color wheel beside it on an LM client that draws one; Style (dark or light) and Scene (the motif); Apply with a
-     * live swatch of what is typed; "From" buttons that copy a preset's colors into the fields; Reset to the Saiyan
-     * Royal defaults. Only Apply saves. A client that cannot send the fields (KaiPath, or an LM client before
-     * 4.7.66) gets a plain note instead; it can still wear Custom from the picker.
+     * My colors (4.7.66): the Custom skin's editor. Five hex fields (Panel, Primary, Trim, Text, Confirm) with one
+     * shared color wheel (4.7.82) on an LM client that draws one; Style (dark or light) and Scene (the motif); Apply
+     * with a live swatch of what is typed. Only Apply saves. A client that cannot send the fields (KaiPath, or an LM
+     * client before 4.7.66) gets a plain note instead; it can still wear Custom from the picker.
+     *
+     * <p>4.7.84 (H6): about 290 px instead of 530. The name/box pairs sit two to a row, the wheel shares its row with
+     * Apply, the swatch and "From a skin", and the five "From" buttons and Reset moved to their own page
+     * ({@link #openCustomFrom}). Every action id stays the same.
      */
     static void openCustom(ServerPlayer player, boolean keepDraft) {
         if (player == null) {
@@ -585,13 +673,12 @@ public final class UltraHubScreens {
             spec.send(player);
             return;
         }
-        spec.line(UltraStyle.VALUE + (wheels ? "Type a color like #e23b3b, or tap a color's box and pick it on the wheel."
-                        : "Type a color like #e23b3b."))
-                .line(UltraStyle.VALUE + "Apply saves them and every menu uses them.")
-                .line(UltraStyle.LABEL + "From copies a skin's colors into the fields. Reset fills in the defaults.")
-                .line(UltraStyle.LABEL + "Nothing changes until you tap Apply. It is free.");
+        spec.line(UltraStyle.VALUE + (wheels ? "Tap a box, then pick on the wheel or type #e23b3b."
+                : "Type a color like #e23b3b in each box."));
         if (d.message() != null && !d.message().isBlank()) {
             spec.line(d.error() ? UltraStyle.danger(d.message()) : UltraStyle.VALUE + d.message());
+        } else {
+            spec.line(UltraStyle.LABEL + "Only Apply saves, and it is free.");
         }
         if (prefs.usingCustom() && MenuSkins.customTextAdjusted(prefs.custom())) {
             spec.line(UltraStyle.LABEL + "Text color adjusted so it stays readable (now "
@@ -604,34 +691,68 @@ public final class UltraHubScreens {
         }
         String apply = "do:" + ACTION_CUSTOM + ":apply:" + MenuSkins.customToken(draftCustom(d, prefs.custom()));
         spec.bindInputsToButtons(fields).enterClicks(apply);
-        // 4.7.82 (GuiKit): five short rows (name | hex field) and ONE wheel under them for the field tapped last,
-        // instead of a 44px wheel on every row (the page was ~587px tall and shrank to tiny buttons).
+        // Two name | box pairs a row (the 350 grid: name 16+70, box 92+70, name 168+70, box 244+80). The fifth
+        // pair shares its row with Style and Scene.
+        int[] nameX = {16, 168};
+        int[] boxX = {92, 244};
+        int[] boxW = {70, 80};
         for (int i = 0; i < fields.length; i++) {
+            int col = i % 2;
             int row = spec.row();
             spec.button(UltraGuiActions.NO_ACTION, UltraStyle.dim(TONE_NAMES[i] + " color"), UltraStyle.STYLE_DIM,
-                    UltraStyle.COL_L, row, UltraStyle.BTN_W);
-            spec.textField(fields[i], d.raw()[i], "#rrggbb", UltraStyle.COL_R, row, UltraStyle.BTN_W, UltraStyle.BTN_H, 9);
+                    nameX[col], row, 70);
+            spec.textField(fields[i], d.raw()[i], "#rrggbb", boxX[col], row, boxW[col], UltraStyle.BTN_H, 9);
             spec.colorPreview(fields[i]);
-            spec.rowGap();
+            if (col == 1) {
+                spec.rowGap();
+            }
         }
+        int styleRow = spec.row();
+        spec.button("do:" + ACTION_CUSTOM + ":dark", "Style - " + (d.dark() ? "Dark" : "Light"),
+                UltraStyle.STYLE_NORMAL, 168, styleRow, 70);
+        spec.button("do:" + ACTION_CUSTOM + ":motif", "Scene - " + MOTIF_SHORT.get(d.motif()),
+                UltraStyle.STYLE_NORMAL, 244, styleRow, 80);
+        spec.rowGap();
+        // The wheel (for the box tapped last) with Apply, the live swatch and From a skin beside it.
+        int row = spec.row();
         if (wheels) {
-            int row = spec.row();
-            int span = UltraStyle.COL_R + UltraStyle.BTN_W - UltraStyle.COL_L;
-            spec.sharedColorWheel(SHARED_WHEEL, fields, UltraStyle.COL_L + (span - WHEEL_SIZE) / 2, row, WHEEL_SIZE);
-            spec.rowGap();
+            spec.sharedColorWheel(SHARED_WHEEL, fields, UltraStyle.COL_L, row, WHEEL_SIZE);
         }
-        spec.buttonLeft("do:" + ACTION_CUSTOM + ":dark", "Style - " + (d.dark() ? "Dark" : "Light"),
-                UltraStyle.STYLE_NORMAL);
-        spec.buttonRight("do:" + ACTION_CUSTOM + ":motif", "Scene - " + MOTIF_NAMES.get(d.motif()),
-                UltraStyle.STYLE_NORMAL);
-        spec.rowGap();
+        int x0 = wheels ? 100 : UltraStyle.COL_L;
         // Bound to the first field the classic way too (args.value); bindInputs carries all five.
-        spec.buttonBound(apply, UltraStyle.confirm("Apply my colors"), UltraStyle.STYLE_CONFIRM, fields[0]);
+        spec.buttonBound(apply, UltraStyle.confirm("Apply my colors"), UltraStyle.STYLE_CONFIRM, x0, row, 74, fields[0]);
         // The LM client draws this locked label as a live swatch of the fields as typed.
-        spec.lockedButtonRight("Preview");
+        spec.button(UltraGuiActions.NO_ACTION, UltraStyle.dim("Preview"), UltraStyle.STYLE_DIM, x0 + 79, row, 70);
+        spec.button("do:" + ACTION_CUSTOM + ":" + OP_PICK_FROM, "From a skin", UltraStyle.STYLE_NORMAL, x0 + 154, row,
+                70);
         spec.rowGap();
+        spec.back();
+        spec.send(player);
+    }
+
+    /** Scene names short enough for the Scene button ("Scene - Wisps"); {@link #MOTIF_NAMES} stays the long name. */
+    static final Map<MenuSkins.Motif, String> MOTIF_SHORT = Map.of(
+            MenuSkins.Motif.BANNER, "Banner", MenuSkins.Motif.NAMEK, "Namek", MenuSkins.Motif.VEINS, "Veins",
+            MenuSkins.Motif.WISPS, "Wisps", MenuSkins.Motif.CLOUDS, "Clouds");
+
+    /**
+     * My colors &gt; From a skin (4.7.84, H6): copy one skin's five colors into the editor's fields, or the default
+     * colors. Each fills the fields and goes back to My colors; nothing is saved until Apply there.
+     */
+    static void openCustomFrom(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        UltraScreenSpec spec = UltraScreenSpec.of("hub")
+                .fitMenu()
+                .title("From a skin")
+                .page(PAGE_CUSTOM_FROM)
+                .activeTab("home");
+        spec.line(UltraStyle.VALUE + "Pick a skin to copy its colors into your boxes.")
+                .line(UltraStyle.LABEL + "Nothing is saved until you tap Apply on My colors.")
+                .buttonsAfterLines();
         String[] from = {"From Saiyan Royal", "From Namek", "From Obsidian", "From Beerus", "From Zeno Omni"};
-        for (int i = 0; i < MenuSkins.ALL.size(); i++) {
+        for (int i = 0; i < MenuSkins.ALL.size() && i < from.length; i++) {
             String action = "do:" + ACTION_CUSTOM + ":from:" + MenuSkins.ALL.get(i).id();
             if (i % 2 == 0) {
                 spec.buttonLeft(action, from[i], UltraStyle.STYLE_NORMAL);
@@ -648,6 +769,10 @@ public final class UltraHubScreens {
 
     /** Reopen My colors keeping what the player typed (after an editor click). */
     public static void openCustomDraft(ServerPlayer player) {
+        if (player != null && SHOW_FROM.remove(player.m_20148_())) {
+            openCustomFrom(player);
+            return;
+        }
         openCustom(player, true);
     }
 
@@ -728,6 +853,11 @@ public final class UltraHubScreens {
             }
             case "reset" -> next = Draft.of(MenuSkins.Custom.DEFAULT,
                     "Filled in the default colors. Tap Apply to use them.");
+            case OP_PICK_FROM -> {
+                // 4.7.84 (H6): keep what was typed, then show From a skin.
+                next = new Draft(raw, d.dark(), d.motif(), null, false);
+                SHOW_FROM.add(player.m_20148_());
+            }
             case "apply" -> next = applyDraft(player, prefs, new Draft(raw, d.dark(), d.motif(), null, false));
             default -> next = new Draft(raw, d.dark(), d.motif(), null, false);
         }

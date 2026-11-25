@@ -24,11 +24,14 @@ import net.minecraftforge.registries.ForgeRegistries;
  * <ol>
  *   <li>Name: the player types it (3 to 24 letters, numbers or spaces; no generated name).</li>
  *   <li>Style: one of the four {@link DojoCatalog.Style}s, the same the master can change later on the style page.</li>
- *   <li>Banner: a banner the player made at a loom, held or carried. The dojo copies its design (base colour and
- *       patterns); the item stays in the inventory. No banner: the flow says to make one first and founds nothing.</li>
+ *   <li>Banner (4.7.84: optional, owner pick d): any crafted banner the player holds or carries. The dojo copies its
+ *       design (base colour and patterns); the item stays in the inventory. "Use a default banner for now" founds
+ *       with the style's default banner; "Choose your dojo's banner (free)" then stays on Dojo Home until one is
+ *       picked.</li>
  * </ol>
  *
- * The founding picks are free and start no cooldown. After founding, the master changes the name (20 Dojo Points),
+ * The founding picks are free and start no cooldown; a player's first founding also pays
+ * {@link DojoCatalog#FOUNDING_GRANT} Dojo Points (owner pick c). After founding, the master changes the name (20 Dojo Points),
  * style (40, on the style page) or banner (20) with one shared 12-hour cooldown; an older dojo's first banner pick is
  * free. {@link DojoService} enforces every rule; this class only draws the pages and passes the choices on.
  */
@@ -50,6 +53,8 @@ public final class DojoFounding {
     static final String ACT_SET_BANNER = "dojo_banner_set";
     static final String ACT_RENAME = "dojo_rename_set";
     static final int BANNERS_SHOWN = 6;
+    /** 4.7.84: the banner step's "Use a default banner for now" choice (the draft's base while no banner is picked). */
+    static final String DEFAULT_BANNER = "default";
 
     /** One player's founding choices so far. */
     record Draft(String name, String style, String base, List<String> patterns) {
@@ -108,7 +113,8 @@ public final class DojoFounding {
 
     private static void inputRow(UltraScreenSpec spec, String inputId, String value, String placeholder, String action,
             String label) {
-        int btn = UltraStyle.BTN_MIN_W;
+        // 4.7.84: the button is as wide as its label needs (at least 80 px), so "Next: pick a style" is not cut.
+        int btn = Math.max(UltraStyle.BTN_MIN_W, UltraStyle.textWidthPx(label) + UltraStyle.BTN_PAD * 2 + 4);
         int fieldW = UltraStyle.BTN_W * 2 + UltraStyle.BTN_GAP - btn - UltraStyle.BTN_GAP;
         int y = spec.row();
         // GuiKit 4.7.81: the field stops at the dojo name limit (DojoService.nameProblem: 3 to 24 characters).
@@ -125,10 +131,12 @@ public final class DojoFounding {
             return;
         }
         spec.line(UltraStyle.header("Found a dojo - step 1 of 3: name"))
-                .line(UltraStyle.VALUE + "Name your dojo. Other players see it on the leaderboard and in wars.")
-                .line(UltraStyle.LABEL + "3 to 24 letters, numbers or spaces. Next you pick a style, then a banner.")
-                .buttonsAfterLines();
-        inputRow(spec, INPUT_NAME, draft(p).name(), "Your dojo's name", ACT_NAME, "Next");
+                .line(UltraStyle.VALUE + "Name your dojo. Other players see it on the dojo list and in wars.")
+                .line(UltraStyle.LABEL + "3 to 24 letters, numbers or spaces. Next you pick a style, then a banner"
+                        + " (optional).");
+        grantLine(spec, p);
+        spec.buttonsAfterLines();
+        inputRow(spec, INPUT_NAME, draft(p).name(), "Your dojo's name", ACT_NAME, "Next: pick a style");
         spec.back();
         spec.send(p);
     }
@@ -182,12 +190,48 @@ public final class DojoFounding {
             return;
         }
         DojoCatalog.Style s = DojoCatalog.Style.of(d.style());
-        spec.line(UltraStyle.header("Found a dojo - step 3 of 3: banner"))
-                .line(UltraStyle.labelValue("Name", d.name()))
-                .line(UltraStyle.labelValue("Style", s == null ? d.style() : s.label));
-        bannerPicker(spec, p, "do:" + ACT_BANNER + ":", "Use");
+        spec.line(UltraStyle.header("Found a dojo - step 3 of 3: banner (optional)"))
+                .line(UltraStyle.labelValue("Name", d.name()) + UltraStyle.LABEL + " - " + UltraStyle.labelValue("Style",
+                        s == null ? d.style() : s.label));
+        // 4.7.84 (owner pick d): founding works without a banner; the dojo flies its style's default banner until the
+        // master picks one on Dojo Home (the first pick stays free).
+        List<Banner> found = banners(p);
+        String colour = s == null ? "white" : s.bannerColour;
+        if (found.isEmpty()) {
+            spec.line(UltraStyle.LABEL + "You carry no banner. That's fine: use the default and choose your own later on"
+                    + " Dojo Home (free).");
+        } else {
+            spec.line(UltraStyle.LABEL + "Pick a banner you carry (the dojo copies its design; the banner stays yours),"
+                    + " or use the default for now.");
+        }
+        spec.buttonsAfterLines();
+        spec.buttonWide("do:" + ACT_BANNER + ":" + DEFAULT_BANNER, UltraStyle.confirm("Use a default banner for now ("
+                + describeColour(colour) + ")"), UltraStyle.STYLE_CONFIRM, null).rowGap();
+        for (Banner b : found) {
+            spec.buttonWide("do:" + ACT_BANNER + ":" + b.source(), "Use: " + describe(b.base(), b.patterns())
+                    + where(b.source()), UltraStyle.STYLE_NORMAL, null).rowGap();
+        }
+        if (found.isEmpty()) {
+            spec.button("page:" + PAGE_BANNER, "Check again", UltraStyle.STYLE_NORMAL).rowGap();
+        }
         spec.back();
         spec.send(p);
+    }
+
+    /** 4.7.84 (owner pick c): "Your first dojo starts with 15 Dojo Points." while this player's grant is unpaid. */
+    static void grantLine(UltraScreenSpec spec, ServerPlayer p) {
+        String id = p.m_20148_().toString();
+        int grant = DojoService.foundingGrant(com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().players.get(id),
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().dojos.containsKey(id));
+        if (grant > 0) {
+            spec.line(UltraStyle.LABEL + "Your first dojo starts with " + grant + " Dojo Points.");
+        }
+    }
+
+    /** "Red" for {@code red}, "Light blue" for {@code light_blue}. */
+    static String describeColour(String base) {
+        String b = base == null || base.isBlank() ? "white" : base.replace('_', ' ');
+        return Character.toUpperCase(b.charAt(0)) + b.substring(1);
     }
 
     static void openConfirm(ServerPlayer p, String notice) {
@@ -201,13 +245,17 @@ public final class DojoFounding {
             return;
         }
         DojoCatalog.Style s = DojoCatalog.Style.of(d.style());
+        boolean useDefault = DEFAULT_BANNER.equals(d.base());
         spec.line(UltraStyle.header("Found " + d.name() + "?"))
                 .line(UltraStyle.labelValue("Name", d.name()))
                 .line(UltraStyle.labelValue("Style", s == null ? d.style() : s.label + " (" + s.covers + ")"))
-                .line(UltraStyle.labelValue("Banner", describe(d.base(), d.patterns())))
-                .line(UltraStyle.LABEL + "Founding is free. Your banner item stays in your inventory.")
-                .line(UltraStyle.LABEL + "You become the master. Your hall starts with one sparring mat.")
-                .buttonsAfterLines();
+                .line(UltraStyle.labelValue("Banner", useDefault ? "default (" + describeColour(s == null ? "white"
+                        : s.bannerColour) + "), choose your own later for free" : describe(d.base(), d.patterns())))
+                .line(UltraStyle.LABEL + (useDefault ? "Founding is free." : "Founding is free. Your banner item stays in"
+                        + " your inventory."))
+                .line(UltraStyle.LABEL + "You become the master. Your hall starts with one ring.");
+        grantLine(spec, p);
+        spec.buttonsAfterLines();
         spec.button("do:" + ACT_CONFIRM, UltraStyle.confirm("Found " + d.name()), UltraStyle.STYLE_CONFIRM).rowGap();
         spec.back();
         spec.send(p);
@@ -238,7 +286,8 @@ public final class DojoFounding {
                 return;
             }
         } else {
-            spec.line(UltraStyle.LABEL + "Your first banner is free.");
+            spec.line(UltraStyle.labelValue("Now", "default (" + describeColour(DojoService.bannerColour(d)) + ")"))
+                    .line(UltraStyle.LABEL + "Your first banner is free.");
         }
         bannerPicker(spec, p, "do:" + ACT_SET_BANNER + ":", first ? "Use" : "Use for " + DojoCatalog.BANNER_CHANGE_COST);
         spec.back();
@@ -271,16 +320,21 @@ public final class DojoFounding {
         spec.send(p);
     }
 
-    /** The banners the player holds or carries, as buttons; or, with none, how to make one (and no button). */
+    /**
+     * The banners the player holds or carries, as buttons; or, with none, how to get one and a "Check again" button
+     * (4.7.84: any crafted banner works, plain is fine).
+     */
     private static void bannerPicker(UltraScreenSpec spec, ServerPlayer p, String actionPrefix, String verb) {
         List<Banner> found = banners(p);
         if (found.isEmpty()) {
-            spec.line(UltraStyle.dangerLine("You have no banner."))
-                    .line(UltraStyle.LABEL + "Make one at a loom (a banner, dyes and patterns), then come back.")
+            spec.line(UltraStyle.dangerLine("You have no banner with you."))
+                    .line(UltraStyle.LABEL + "Craft any banner (6 wool and a stick; add patterns at a loom if you like),"
+                            + " hold it or carry it, then check again.")
                     .buttonsAfterLines();
+            spec.button("page:" + PAGE_PICK_BANNER, "Check again", UltraStyle.STYLE_NORMAL).rowGap();
             return;
         }
-        spec.line(UltraStyle.VALUE + "Pick a banner you made. The dojo copies its design; the banner stays yours.")
+        spec.line(UltraStyle.VALUE + "Pick a banner you carry. The dojo copies its design; the banner stays yours.")
                 .buttonsAfterLines();
         // Full-width rows: "Use for 20: Light gray, 6 patterns (off hand)" is cut on a half-width button.
         for (Banner b : found) {
@@ -301,44 +355,43 @@ public final class DojoFounding {
 
     /** The banner line on the Dojo Home (name and style are already there). */
     static void bannerLines(UltraScreenSpec spec, Dojo d) {
-        spec.line(UltraStyle.labelValue("Banner", d.bannerBase == null || d.bannerBase.isBlank()
-                ? "not picked yet" : describe(d.bannerBase, d.bannerPatterns)));
+        spec.line(UltraStyle.labelValue("Banner", bannerText(d)));
+    }
+
+    /** "Red, 1 pattern", or (4.7.84) "default (Red)" while the master has not picked one. */
+    static String bannerText(Dojo d) {
+        return DojoService.defaultBanner(d) ? "default (" + describeColour(DojoService.bannerColour(d)) + ")"
+                : describe(d.bannerBase, d.bannerPatterns);
     }
 
     /**
-     * The master's identity buttons on the Dojo Home: choose the banner (free, when there is none), or change the
-     * banner / rename (cost shown; dim with the time left during the cooldown, dim with the cost when unaffordable).
+     * The master's identity buttons (4.7.84: on Dojo settings): rename and change the banner, cost shown; dim with the
+     * time left during the cooldown, dim with the cost when unaffordable. With no banner picked yet the banner button
+     * is the free first pick.
      */
     static void identityButtons(UltraScreenSpec spec, ServerPlayer p, Dojo d, boolean master) {
         if (!master) {
             return;
         }
-        if (d.bannerBase == null || d.bannerBase.isBlank()) {
-            spec.button("page:" + PAGE_PICK_BANNER, UltraStyle.confirm("Choose your dojo's banner"),
-                    UltraStyle.STYLE_CONFIRM).rowGap();
-        }
+        boolean firstBanner = DojoService.defaultBanner(d);
         long cd = DojoService.identityCooldownLeft(d);
-        String bannerLabel = "Change banner - " + DojoCatalog.BANNER_CHANGE_COST;
-        String renameLabel = "Rename - " + DojoCatalog.NAME_CHANGE_COST;
+        String renameLabel = "Rename - " + DojoCatalog.NAME_CHANGE_COST + " points";
+        String bannerLabel = "Banner - " + DojoCatalog.BANNER_CHANGE_COST + " points";
         if (cd > 0L) {
             spec.lockedButton("Rename in " + DojoService.cooldownText(cd));
-            if (d.bannerBase != null && !d.bannerBase.isBlank()) {
-                spec.lockedButtonRight("Banner in " + DojoService.cooldownText(cd));
-            }
-            spec.rowGap();
-            return;
-        }
-        if (d.points < DojoCatalog.NAME_CHANGE_COST) {
+        } else if (d.points < DojoCatalog.NAME_CHANGE_COST) {
             spec.lockedButton("Rename - needs " + DojoCatalog.NAME_CHANGE_COST);
         } else {
             spec.buttonLeft("page:" + PAGE_RENAME, renameLabel, UltraStyle.STYLE_NORMAL);
         }
-        if (d.bannerBase != null && !d.bannerBase.isBlank()) {
-            if (d.points < DojoCatalog.BANNER_CHANGE_COST) {
-                spec.lockedButtonRight("Banner - needs " + DojoCatalog.BANNER_CHANGE_COST);
-            } else {
-                spec.buttonRight("page:" + PAGE_PICK_BANNER, bannerLabel, UltraStyle.STYLE_NORMAL);
-            }
+        if (firstBanner) {
+            spec.buttonRight("page:" + PAGE_PICK_BANNER, UltraStyle.confirm("Banner (free)"), UltraStyle.STYLE_CONFIRM);
+        } else if (cd > 0L) {
+            spec.lockedButtonRight("Banner in " + DojoService.cooldownText(cd));
+        } else if (d.points < DojoCatalog.BANNER_CHANGE_COST) {
+            spec.lockedButtonRight("Banner - needs " + DojoCatalog.BANNER_CHANGE_COST);
+        } else {
+            spec.buttonRight("page:" + PAGE_PICK_BANNER, bannerLabel, UltraStyle.STYLE_NORMAL);
         }
         spec.rowGap();
     }
@@ -378,6 +431,12 @@ public final class DojoFounding {
                 return true;
             }
             case ACT_BANNER -> {
+                if (DEFAULT_BANNER.equals(a)) {
+                    Draft d = draft(p);
+                    DRAFTS.put(id, new Draft(d.name(), d.style(), DEFAULT_BANNER, List.of()));
+                    openConfirm(p, null);
+                    return true;
+                }
                 Banner b = bannerAt(p, a);
                 if (b == null) {
                     openBanner(p, "That banner is gone. Pick one you still carry.");
@@ -390,7 +449,9 @@ public final class DojoFounding {
             }
             case ACT_CONFIRM -> {
                 Draft d = draft(p);
-                String msg = DojoService.found(p, d.name(), d.style(), d.base(), d.patterns());
+                boolean useDefault = DEFAULT_BANNER.equals(d.base());
+                String msg = DojoService.found(p, d.name(), d.style(), useDefault ? "" : d.base(),
+                        useDefault ? List.of() : d.patterns());
                 if (DojoService.dojoOf(p) != null) {
                     DRAFTS.remove(id);
                     UltraDojoScreens.openDojoNotice(p, msg);

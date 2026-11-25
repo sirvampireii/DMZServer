@@ -260,7 +260,7 @@ def main() -> int:
           and '"page:remove_confirm:" + profileArg(arg, returnPage)' in detail and "Not on your rival list." in detail
           # 4.7.71: the one back(); the page registry sends a profile back to the Rival tab.
           and "spec.back()" in detail
-          and 'item("rival", "list_detail:**", "Rival", "rival|actions");' in read(SRC / "gui/ultra/PageRegistry.java"))
+          and 'item("rival", "list_detail:**", "Rival profile", "rival|actions");' in read(SRC / "gui/ultra/PageRegistry.java"))
     check("Rival list page removed; Home has no Rival list; page:list opens the Rival tab",
           "private static void openList(" not in rival_ui
           and '"list|Rival list"' not in rival_home
@@ -795,7 +795,8 @@ def main() -> int:
           'accentCode = "8";' not in g_footer
           and "UltraStyle.readableButtonInk(face, UltraStyle.systemAccentCode(screenId))" in g_footer)
     check("Rival has three tabs; stats open from Home and return to Rival Home",
-          '.tabs("home|Home", "actions|Rival", "challenge|Challenge");' in g_rival
+          # 4.7.84 (R-4): the Rival tab reads "My rivals".
+          '.tabs("home|Home", "actions|My rivals", "challenge|Challenge");' in g_rival
           and '"info|My rival stats"' in g_rival and 'sub("info")' in g_info
           and ".back()" in g_info and 'p("rival", "info", "My rival stats", "rival|home");' in read(SRC / "gui/ultra/PageRegistry.java"))
     check("event log: the turn-on action is never dim while the log is off",
@@ -1460,7 +1461,8 @@ def main() -> int:
           and "pinPrestigeCap" not in pf_cfg_bridge
           and "return LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE;" in pf_cap)
     check("menus state the rule; next requirement shows the level cap",
-          "Reach your level cap to earn your next prestige." in pf_ultra
+          # 4.7.84: "Next prestige at level N" says the rule in fewer words.
+          '"Next prestige at level"' in pf_ultra
           and "Reaching your current cap" not in pf_ultra and "Reaching your current cap" not in pf_gui
           and "Reaching your current cap" not in pf_ps
           and 'out.put("next_required", String.valueOf(required))' in pf_gui)
@@ -1788,29 +1790,33 @@ def main() -> int:
     ch_bones = _after(ch_scr, "private static void openBones(").split("\n    private static void ", 1)[0]
     ch_parts = _after(ch_scr, "private static void openBodyParts(").split("\n    private static void ", 1)[0]
     check("manifest character-home-index row", "character-home-index" in manifest)
-    check("tabs stay Home, Saga, Android",
-          '.tabs("home|Home", "saga|Saga", "android|Android")' in ch_scr)
-    check("Home lists the five non-tab destinations once each, in order, and not the tabs",
-          [a for a in ["page:race:0", "page:class:0", "page:bones:0", "page:bodyparts:0", "page:reskin"]
-           if ch_home.count('"' + a + '"') == 1] == ["page:race:0", "page:class:0", "page:bones:0",
-                                                      "page:bodyparts:0", "page:reskin"]
+    # 4.7.84 (C-2): the tabs are Home / Looks / Story. Home has race, class and Android; Looks has every way to
+    # change how you look (model and colors, body parts, part colors, skin, and staff's Preview forms).
+    ch_looks = _after(ch_scr, "private static void openLooks(").split("\n    }\n", 1)[0]
+    check("tabs are Home, Looks, Story (4.7.84; were Home, Saga, Android)",
+          '.tabs("home|Home", PAGE_LOOKS + "|Looks", "story|Story")' in ch_scr)
+    check("Home and Looks list their destinations once each, in order, and not the tabs",
+          [a for a in ["page:race:0", "page:class:0"] if ch_home.count('"' + a + '"') == 1] == ["page:race:0", "page:class:0"]
+          and [a for a in ["page:bones:0", "page:bodyparts:0", "page:reskin"] if ch_looks.count('"' + a + '"') == 1]
+              == ["page:bones:0", "page:bodyparts:0", "page:reskin"]
           and "tab:saga" not in ch_home and "tab:android" not in ch_home and "saga_reset" not in ch_home
-          and ch_home.index('"page:race:0"') < ch_home.index('"page:class:0"') < ch_home.index('"page:bones:0"')
-              < ch_home.index('"page:bodyparts:0"') < ch_home.index('"page:reskin"'))
-    # 4.7.48: Preview forms is the sixth destination.
-    check("each Home entry has a plain line with its state; blocked entries stay listed, dimmed, with a reason",
-          ch_home.count(".line(indexLine(") == 6
-          and ch_home.index('"page:reskin"') < ch_home.index('"page:" + PAGE_FORM_PREVIEW + ":0"')
+          and "placeAndroidButton(spec, android);" in ch_home
+          and ch_home.index('"page:race:0"') < ch_home.index('"page:class:0"')
+          and ch_looks.index('"page:bones:0"') < ch_looks.index('"page:bodyparts:0"') < ch_looks.index('"page:reskin"'))
+    # 4.7.48: Preview forms is a destination too (on Looks since 4.7.84).
+    check("each Home and Looks entry has a plain line when blocked; blocked entries stay listed, dimmed, with a reason",
+          ch_home.count("blockLine(spec, ") == 3 and ch_looks.count("blockLine(spec, ") == 4
+          and ch_looks.index('"page:reskin"') < ch_looks.index('"page:" + PAGE_FORM_PREVIEW + ":0"')
           and "CosmeticBodyPartService.equippedParts(player).size()" in ch_home
           and 'return "Turned off on this server right now.";' in ch_scr
           and 'return "Not available for your rank. Ask staff which rank unlocks this.";' in ch_scr
           and 'return "Available again in " + cooldownWait + ".";' in ch_scr
           and "spec.lockedButton(locked)" in _after(ch_scr, "private static void indexButton("))
-    check("Body parts reached only from Home; its Back returns to Character Home; Home footer Back to main menu",
+    check("Body parts reached from Looks; its Back returns to Looks; Home footer Back to main menu (4.7.84)",
           "page:bodyparts:0" not in ch_bones
           and 'footerBack("page:bones:0", "Model")' not in ch_scr
           and ".back()" in ch_parts and ".back()" in ch_home
-          and 'p("character", "bodyparts:0", "Body parts", "character|main"' in read(SRC / "gui/ultra/PageRegistry.java"))
+          and 'p("character", "bodyparts:0", "Body parts", "character|looks"' in read(SRC / "gui/ultra/PageRegistry.java"))
     check("self-test covers the Home index rules", "UltraCharacterScreens.selfTest(broken);" in pc_test)
 
     print("\n--- § prestige cap 20 4.7.12 ---")
@@ -1857,11 +1863,11 @@ def main() -> int:
           and "if (!packsMigrated || !godKiMigrated) {" in xp_cfg)
     check("Bulk line and lore list every bonus pack; reply bonus is gained minus amount",
           "bulkLine(amounts, PrestigePointsSystem::pointsForTurnIn)" in xp_scr
-          and "Bulk: 3 for 4 favor, 6 for 8 favor, 9 for 13 favor, 12 for 18 favor, 15 for 23 favor," in xp_scr
+          and "Trade more at once for a bonus: 3 for 4 favor, 6 for 8, 9 for 13, 12 for 18, 15 for 23," in xp_scr
           and "§f15§7, or §f18 §7at a time." in xp_api
           and "(gained - want)" in xp_pts)
     check("every exchange button shows its favor gain in a label that fits",
-          'return "Exchange " + amount + ": +" + gain + " favor";' in xp_scr
+          'return "Trade " + amount + " for " + gain + " favor";' in xp_scr  # 4.7.84 (P-3)
           and "? exchangeLabel(amount, gain)" in xp_scr
           and "String label = exchangeLabel(packs[i], got);" in xp_scr)
     check("self-test covers exchange payouts, Bulk line, button fit and migration",
@@ -2032,6 +2038,75 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.84 ---")
+    p84_reg = read(SRC / "gui/ultra/PageRegistry.java")
+    p84_nav = read(SRC / "gui/ultra/NavHistory.java")
+    p84_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p84_gui = read(SRC / "gui/ultra/UltraGui.java")
+    p84_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    p84_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p84_board = read(SRC / "dojo/BoardSpar.java")
+    p84_rank = read(SRC / "sparring/DojoRankings.java")
+    p84_war = read(SRC / "dojo/DojoWar.java")
+    p84_cmd = read(SRC / "command/SparCommands.java")
+    p84_sapi = read(SRC / "gui/SparGuiApi.java")
+    p84_cat = read(SRC / "dojo/DojoCatalog.java")
+    p84_svc = read(SRC / "dojo/DojoService.java")
+    p84_found = read(SRC / "gui/ultra/DojoFounding.java")
+    p84_spar = read(SRC / "gui/ultra/UltraSparScreens.java")
+    p84_sys = read(SRC / "sparring/SparringSystem.java")
+    p84_cfg = read(SRC / "gui/ultra/UltraConfigScreens.java")
+    check("manifest row for lm 4.7.84", "lm-4784-navigation" in manifest)
+    check("N1: a system Home exits to the main menu (nav:hub), never Back to an earlier page",
+          'action = "nav:hub";' in _after(p84_spec, "private void placeBack(ServerPlayer player) {")
+          and "boolean firstTab = !tabs.isEmpty() && tabs.get(0).id().equals(activeTab);" in p84_spec)
+    check("N2/N3: a fresh open starts a new trail; tabs replace each other in the trail",
+          "NavHistory.fresh(player.m_20148_());" in p84_gui and "if (!inMenuClick()) {" in p84_gui
+          and "NavHistory.markTab(screenId, pageId);" in p84_spec and "String tab = tabInStack(d, k);" in p84_nav)
+    check("N4: short Back titles exist and every one fits 'Back to ...'",
+          "private static void shortTitle(String screen, String pattern, String shortTitle)" in p84_reg
+          and 'shortTitle("spar", "board_wager_coins", "Coin wager");' in p84_reg
+          and "short title does not fit 'Back to'" in p84_reg)
+    check("X5: the 300 px height budget is measured (overBudgetPages)",
+          "overBudgetPages()" in p84_test and "observeHeight(packet)" in p84_spec)
+    check("H2: search finds what players type; 'menu' and 'main' do not match every page",
+          '{"hair", "character|reskin"}' in p84_reg and 'for (String word : new String[] {"main", "menu"})' in p84_reg)
+    check("main menu Home is two cards: Your next prestige and Your systems",
+          'UltraStyle.header("Your next prestige")' in p84_hub and 'UltraStyle.header("Your systems")' in p84_hub
+          and 'UltraStyle.header("Compete")' not in p84_hub and "HubDashboard.streakLine(player)" not in
+          _after(p84_hub, "private static void openMain(").split("\n    }\n", 1)[0])
+    check("P2-1: a forfeit pays the winner both stakes; only a disconnect refunds",
+          "public static UUID wagerPayee(UUID winner, String how) {" in p84_board
+          and '!"DISCONNECT".equals(how) ? winner : null' in p84_board)
+    check("P2-2: ki sense reads running menu wars", "runningWarEnemy(" in p84_rank)
+    check("pick a: the old /spar dojo challenge declares through DojoWar",
+          "public static String legacyChallenge(" in p84_war and "legacyChallenge(" in p84_cmd
+          and "legacyChallenge(" in p84_sapi)
+    check("pick c/d: founding grant 15 points once; a dojo can start with a default banner",
+          "FOUNDING_GRANT = 15;" in p84_cat and "foundingGrantPaid" in p84_svc
+          and 'DEFAULT_BANNER = "default";' in p84_found)
+    check("pick b: a disciple's dojo title", '"Disciple of "' in p84_svc)
+    check("DJ-7: Request master lists masters only; Leave mentor and Release dim when they can't act; real cap",
+          "static List<String> onlineMasterNames(ServerPlayer self)" in p84_spar
+          and 'spec.lockedButton("Leave mentor - none");' in p84_spar
+          and 'spec.lockedButtonRight("Release - none");' in p84_spar
+          and "SparringSystem.apprenticeCap(player.m_20148_().toString())" in p84_sapi
+          and "SparringSystem.MAX_APPRENTICES" not in p84_sapi)
+    check("SparringSystem copy: cooldown time left; capacity on Dojo > Upgrades",
+          "You can invite again in " in p84_sys and "You can ask a new one in " in p84_sys
+          and "Buy capacity in the Dojo tab" not in p84_sys
+          and "Buy Disciple capacity on Dojo > Upgrades for more room." in p84_sys)
+    check("P-A1: on/off config settings skip the Accepts row and the default chip; the module tab reads Progression",
+          'String accepts = toggleRow ? "" : ConfigEditor.acceptedValues(module, path);' in p84_cfg
+          and "boolean noChip = onOff && !dirty" in p84_cfg and '{"progression", "Progression"}' in p84_cfg)
+
+    print("\n--- § lm 4.7.83 ---")
+    p83_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    check("manifest row for lm 4.7.83", "lm-4783-selftest-label" in manifest)
+    check("boot self-test: label clipping sample overflows by real width; a fitting label is kept",
+          'String wide = "Android Removal Service";' in p83_test
+          and "fitAsciiLabel must keep a label that fits by real width" in p83_test)
+
     print("\n--- § lm 4.7.82 ---")
     p82_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
     p82_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
@@ -2127,7 +2202,7 @@ def main() -> int:
           and has(p80_board, 'ACT_WAGER_SET = "board_wager_set"', "case ACT_WAGER_SET ->")
           and "(d.wager() + 1) % wagerSteps()" not in p80_board
           and has(p80_board, "String afford = canStake(viewer, post.wagerKind(), post.wager());", "if (!escrow(post, poster, acceptor)) {")
-          and 'p("spar", "board_wager", "Wager", "spar|sparboard"' in p80_reg)
+          and 'p("spar", "board_wager", "Wager", "spar|board_post"' in p80_reg)  # 4.7.84: under Post a spar
     check("4: no doubling: vanilla notices report to the capture; HUD players get no penalty chat, fight start, boost status",
           has(p80_hud, "public record Vanilla(", "public static Both captureBoth(Runnable r)")
           and 'LmHud.vanilla(player, "chat", line);' in p80_chat and 'LmHud.vanilla(player, "subtitle", subtitle);' in p80_note
@@ -2183,10 +2258,10 @@ def main() -> int:
           and "placeSearchRow(spec" not in _after(p78_hub, "private static void openMain(").split("\n    }\n", 1)[0])
     check("C: Home has no Change tier / Clear tier; Tiers locked when off, clears the tier; Step 3 only Got it; replay label",
           'UltraStyle.confirm("Change tier")' not in p78_diff and "No tier yet. Pick one in Tiers." in p78_diff
-          and "Turn it on from Difficulty Home, then pick a tier here." in p78_diff
+          and "Turn difficulty on to pick a tier." in p78_diff  # 4.7.84 (D-2)
           and ordered(p78_diff, "if (!guide && active > 0) {", '"page:clear_tier_ask"')
           and ordered(p78_diff, '"Got it - take me to Difficulty"', "spec.footerGuide(", "return;", "placeDifficultyToggle(spec, personal, true);")
-          and 'UltraStyle.plain("Replay the difficulty guide")' in p78_diff)
+          and 'UltraStyle.plain("How difficulty works")' in p78_diff)
     check("C: rival teams removed; every player scales personally; stored team mode dropped",
           not (SRC / "team/TeamScaling.java").exists() and not (SRC / "data/TeamMode.java").exists()
           and not (SRC / "gui/DifficultyTeamGuiApi.java").exists() and "openTeam" not in p78_diff
@@ -2195,15 +2270,19 @@ def main() -> int:
     check("D: hub Sparring and Dojo tiles; Sparring Home/Leaderboard/Spar Board; Dojo its own system",
           'new HubTile("spar", "Sparring"' in p78_hub and 'new HubTile("dojo", "Dojo"' in p78_hub
           and '.tabs("home|Home", "leaderboard|Leaderboard", "sparboard|Spar Board")' in p78_spar
-          and "private static void openLeaderboard(" in p78_spar and '"Open the Spar Board"' not in p78_spar
+          # 4.7.84 (SP-1): Sparring Home leads to the board ("Open the Spar Board"), reversing 4.7.78.
+          and "private static void openLeaderboard(" in p78_spar and '"Open the Spar Board"' in p78_spar
           and 'TAB_DOJO_HOME + "|Home", TAB_UPGRADES + "|Upgrades", TAB_WARS + "|Wars"' in p78_dojo
           and "public static void openSystem(ServerPlayer player, String page)" in p78_dojo
           and 'p("dojo", "home", "Dojo", "hub|main", "my dojo");' in p78_reg and 'p("spar", "dojo"' not in p78_reg)
     check("D: founding asks name, style and banner; banner copied, never consumed; shown on Dojo Home",
-          has(p78_found, "PAGE_NAME = \"found\"", "ACT_STYLE", "ACT_BANNER", "ACT_CONFIRM", "Make one at a loom")
+          has(p78_found, "PAGE_NAME = \"found\"", "ACT_STYLE", "ACT_BANNER", "ACT_CONFIRM",
+              "Craft any banner (6 wool and a stick; add patterns at a loom if you like),")
           and "shrink" not in p78_found and "m_41774_" not in p78_found
           and "public static String found(ServerPlayer p, String name, String styleId, String bannerBase, List<String> patterns)" in p78_svc
-          and "public String bannerBase" in p78_store and "DojoFounding.bannerLines(spec, d);" in p78_dojo)
+          # 4.7.84 (DJ-1): Dojo Home folds the banner into its stats card ("Banner" + DojoFounding.bannerText).
+          and "public String bannerBase" in p78_store
+          and 'UltraStyle.labelValue("Banner", DojoFounding.bannerText(d))' in p78_dojo)
     check("D amendment: style 40, name 20, banner 20 Dojo Points; one 12-hour cooldown; founding and first banner free",
           has(p78_cat, "STYLE_CHANGE_COST = 40;", "NAME_CHANGE_COST = 20;", "BANNER_CHANGE_COST = 20;",
               "IDENTITY_COOLDOWN_MS = 12L * 60L * 60L * 1000L;")
@@ -2232,7 +2311,7 @@ def main() -> int:
     p77_dojo = read(SRC / "gui/ultra/UltraDojoScreens.java")
     check("dojo leaderboard by clout and war wins, on the Wars tab; old boards open it",
           has(p77_dojo, 'lower.startsWith("dojo_list_wars")', "DojoService.byWarWins()",
-              'spec.button("page:dojo_list_wars", "Dojo leaderboard"', 'lower.equals("dojo_top_wars")'))
+              'spec.buttonRight("page:dojo_list_wars", "Dojo leaderboard"', 'lower.equals("dojo_top_wars")'))
     check("top pills keep a readable width; Rival settings show each state once",
           "TOP_MIN_W = 160" in p77_over and 'labelValue("TP Chat"' not in p77_rival)
 
@@ -2316,7 +2395,7 @@ def main() -> int:
               "static void openStyleAsk(", "static void openBonusAsk(", "Its \" + DojoCatalog.BONUS_COST",
               "can't change for"))
     check("demote is danger, toggles read Label - ON/OFF, an active Prev is a normal button",
-          has(p73_dojo, 'UltraStyle.danger("Step down " + name), UltraStyle.STYLE_DANGER', 'UltraStyle.toggle("War rights"')
+          has(p73_dojo, 'UltraStyle.danger("Step down"), UltraStyle.STYLE_DANGER', 'UltraStyle.toggle("War rights"')
           and 'dim("Prev")' not in p73_pick)
     check("HUD: overlay under chat, starts below boss bars, clears effect icons, Momentum above the action bar",
           has(p73_hud, "registerBelow(net.minecraftforge.client.gui.overlay.VanillaGuiOverlay.CHAT_PANEL.id()",
@@ -2453,13 +2532,14 @@ def main() -> int:
           "Dojo host = DojoService.dojoOf(poster);" in p68_board and 'DojoWorld.rememberSpot(poster, "spar");' in p68_board
           and "DojoWorld.returnPlayer(p);" in p68_board and "s.yaw = p.m_146908_();" in p68_world
           and "p.m_8999_(target, s.x, s.y, s.z, s.yaw, s.pitch);" in p68_world)
-    check("listing shows name, level, Friendly Fist, friendly/ranked, wait time and wager; level range filter",
-          '" Lv " + lvl' in p68_ui and '", Friendly Fist "' in p68_ui and '", waiting "' in p68_ui
+    # 4.7.84 (SP-4): the Friendly Fist mark left the listing; the wait reads "3:12 ago".
+    check("listing shows name, level, friendly/ranked, wait time and wager; level range filter",
+          '" Lv " + lvl' in p68_ui and '", Friendly Fist "' not in p68_ui and '" ago"' in p68_ui
           and "Math.abs(level(poster) - level(viewer)) > post.range()" in p68_board
           and "LEVEL_RANGES = {0, 25, 50, 100};" in p68_cat)
     check("ranked gate: 30 friendly spars, the count shown, ranked dim until then",
-          "RANKED_GATE = 30;" in p68_cat and '" friendly spars done, "' in p68_ui
-          and 'spec.lockedButton("Ranked: locked");' in p68_ui and "return unranked(id) >= DojoCatalog.RANKED_GATE;" in p68_board)
+          "RANKED_GATE = 30;" in p68_cat and '" friendly spars: " + unranked + " done, "' in p68_ui
+          and 'spec.lockedButton("Kind - Friendly");' in p68_ui and "return unranked(id) >= DojoCatalog.RANKED_GATE;" in p68_board)
     check("friendly pays nothing; ranked pays spar TP and alone feeds the leaderboard, streak and season RP",
           "if (!rt.boardRanked) {\n            return 0;\n        }" in p68_combat
           and "if (aRt.boardCredit) {\n            updateLeaderboard(player, aRt, duration);" in p68_sys
@@ -2504,7 +2584,7 @@ def main() -> int:
           'return "v2|t=" + tier + "|s=" + style + "|a=" + arenas' in p68_state
           and "if (was == null || !was.key().equals(key)) {" in p68_place
           and "steps.add(new Step(key + \"/base\", zero, boxes));" in p68_place
-          and "Your hall starts empty with one sparring mat; upgrades build into it." in p68_svc)
+          and "Your hall starts with one ring; upgrades build into it." in p68_svc)  # 4.7.84 (X7): "ring"
     check("placed like DMZ's grounds: chunk tickets, a per-tick time budget, checks when the plot is done",
           "TICK_BUDGET_NANOS = 6_000_000L;" in p68_place and "cache.m_8387_(TICKET, c, 0, c);" in p68_place
           and "cache.m_8438_(TICKET, c, 0, c);" in p68_place and "static void afterBuild(ServerLevel level, int plot, String master)" in p68_world
@@ -2571,7 +2651,7 @@ def main() -> int:
           and "rt.boardPotential = !ranked && (p == a ? potentialA : potentialB);" in p68_sys
           and "b.potentialB = !b.ranked && draft(acceptor.m_20148_()).want() == Want.POTENTIAL;" in p68_board
           and 'TP("TP"), POTENTIAL("Potential Unlock"), ANY("Anything");' in p68_board
-          and '", looking for " + p.want().label' in p68_ui)
+          and '" - wants " + p.want().label' in p68_ui)
     check("no dojo bonus, training session or arena touches Potential Unlock",
           "dojo" not in p68_pu.replace("dojo arena", "")
           and "potential" not in (p68_svc + p68_cat + p68_war).lower())
@@ -2629,7 +2709,7 @@ def main() -> int:
           and 'spec.buttonLeft("page:" + PAGE_CUSTOM, "Edit my colors", UltraStyle.STYLE_NORMAL);' in p66_hub)
     check("editor: five hex fields, Style and Scene, Apply with live swatch, From presets, Reset; only Apply saves",
           'TONE_NAMES = {"Panel", "Primary", "Trim", "Text", "Confirm"};' in p66_hub
-          and 'spec.lockedButtonRight("Preview");' in p66_hub and '":dark"' in p66_hub and '":motif"' in p66_hub
+          and 'UltraStyle.dim("Preview")' in p66_hub and '":dark"' in p66_hub and '":motif"' in p66_hub
           and '":from:"' in p66_hub and '":reset"' in p66_hub
           and 'case "apply" -> next = applyDraft(' in p66_hub
           and p66_hub.count("MenuPrefs.setCustom(player, c);") == 1
@@ -2724,10 +2804,12 @@ def main() -> int:
     check("hub: three tabs, Home first (4.7.80: Home, Goals, More)",
           '.tabs("home|Home", PAGE_GOALS + "|Goals", PAGE_MORE + "|More")' in p64_hub
           and 'case "search", "more" -> UltraHubScreens.PAGE_MORE;' in p64_act)
-    check("hub Home: next prestige, Fastest now, Train / Compete / Progress, Prestige full width",
-          'UltraStyle.header("Your next prestige")' in p64_hub and "HubDashboard.fastestNow(player)" in p64_hub
-          and 'UltraStyle.header("Train")' in p64_hub and 'UltraStyle.header("Compete")' in p64_hub
-          and 'new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), null);' in p64_hub
+    # 4.7.84: Train / Compete / Progress became one "Your systems" card (X5 height budget); Prestige sits beside the
+    # "Fastest now" button (H3), so its tile is a half-width pair now.
+    check("hub Home: next prestige, Fastest now with its button, Your systems, Prestige beside Fastest now",
+          'UltraStyle.header("Your next prestige")' in p64_hub and "HubDashboard.fastestNowWithGo(player)" in p64_hub
+          and 'UltraStyle.header("Your systems")' in p64_hub and 'UltraStyle.header("Train")' not in p64_hub
+          and 'new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), true);' in p64_hub
           and 'new HubTile("dojo", "Dojo"' in p64_hub)
     check("Menu skins and Staff Admin moved to More; no Goals placeholder (4.7.71)",
           'new HubTile("menu_skins", "Menu skins"' in _after(p64_hub, "private static void openMore(")
@@ -2748,8 +2830,10 @@ def main() -> int:
     check("spar board: 15 min listing, want cycle, ask with cooldown, say yes, cleared on spar start and logout",
           False, retired=True)
     check("spar board preview uses the real hit multiplier and pays nothing", False, retired=True)
-    check("each Home shows lines from the other systems",
-          'UltraStyle.header("Beyond Difficulty")' in p64_diff and "HubDashboard.rivalLine(player)" in p64_diff
+    # 4.7.84 (D-4): Difficulty's "Beyond Difficulty" lines left (the main menu shows both); Prestige and Sparring
+    # keep theirs.
+    check("Prestige and Sparring Homes show lines from the other systems",
+          'UltraStyle.header("Beyond Difficulty")' not in p64_diff
           and "HubDashboard.fastestNow(player)" in p64_pres
           and "HubDashboard.sparWinLine(player)" in p64_spar)
     check("native draws one box per header group; bridge text unchanged",
@@ -2791,8 +2875,8 @@ def main() -> int:
           and "DifficultyTutorial.markDone(player);" in p63_dact
           and "DifficultyTutorial.ACT_DONE.equals(parts.action)" in p63_act)
     check("Step 1 says once that the guide shows once; Home replays it without clearing the mark",
-          'GUIDE_ONCE = "This guide shows once. Replay it from Home.";' in p63_diff
-          and 'UltraStyle.plain("Replay the difficulty guide")' in p63_diff   # reworded in 4.7.78
+          'GUIDE_ONCE = "You only see this guide once. Replay it any time from Difficulty Home.";' in p63_diff
+          and 'UltraStyle.plain("How difficulty works")' in p63_diff   # reworded in 4.7.78 and 4.7.84
           and "markDone" not in p63_diff and '"done", false' not in p63_tut)
 
     print("\n--- § lm 4.7.62 ---")
@@ -3001,9 +3085,10 @@ def main() -> int:
     check("guide flow: 3 steps with dots, Back in the left slot, detail page with before/after and trial",
           'stepHeader(spec, 1, "What is Difficulty")' in p59_diff and 'stepHeader(spec, 2, "Pick your level")' in p59_diff
           and 'stepHeader(spec, 3, "Your tier")' in p59_diff and 'spec.footerGuide("nav:hub", "main menu", GUIDE_DONE);' in p59_diff
-          and '"Try one fight free"' in p59_diff and 'labelValue("Enemy damage"' in p59_diff
-          and 'labelValue("TP earned"' in p59_diff and 'labelValue("Mastery gain"' in p59_diff
-          and 'spec.lockedButton("Summon locked")' in p59_diff)
+          # 4.7.84 (D-3): one card, "Enemies:" and "TP per kill:" (the mastery row went); "Summon - Locked".
+          and '"Try one fight free"' in p59_diff and 'labelValue("Enemies:"' in p59_diff
+          and 'labelValue("TP per kill:"' in p59_diff
+          and 'spec.lockedButton("Summon - Locked")' in p59_diff)
 
     print("\n--- § lm 4.7.57 ---")
     p57_diff = read(SRC / "gui/ultra/UltraDifficultyScreens.java")
@@ -3013,9 +3098,9 @@ def main() -> int:
     p57_dact = read(SRC / "service/DifficultyActions.java")
     check("manifest row for lm 4.7.57", "lm-4757-menu-regressions" in manifest)
     check("locked summons show a dim, inert Summon locked button (LM54-C4)",
-          p57_diff.count('spec.lockedButton("Summon locked").rowGap();') == 2
+          p57_diff.count('spec.lockedButton("Summon - Locked").rowGap();') == 2
           and "Only a summon that can succeed gets a button" not in p57_diff
-          and "Clear the notes above, then return here to confirm." in p57_diff
+          and "Do the steps above, then come back to summon." in p57_diff
           and 'public static final String NO_ACTION = "nav:none";' in p57_act
           and "if (NO_ACTION.equals(action)) {" in p57_act
           and "button(UltraGuiActions.NO_ACTION, UltraStyle.dim(" in p57_spec)
@@ -3030,7 +3115,7 @@ def main() -> int:
           # 4.7.59: locked caption names the tier (T5 Master - Locked).
           and 'UltraStyle.dim(name + " - Locked")' in p57_diff)
     check("tier detail page covers every tier; switch down confirms with Switch to T#",
-          '"Switch to T" + t' in p57_diff and '"Needs"' in p57_diff
+          '"Switch to T" + t' in p57_diff and '"Unlocks at:"' in p57_diff
           and "Lower tiers are free - pick T" not in p57_diff
           and "diff-tier:" not in p57_dact and "Click again within 10 seconds to confirm" not in p57_dact[
               p57_dact.find("private static Result setTier"):p57_dact.find("private static Result lowerTier")])
@@ -3054,7 +3139,7 @@ def main() -> int:
     p56_chat = g("gui/DifficultyChatMenu.java")
     check("manifest row for lm 4.7.56", "lm-4756-gui-humanize" in manifest)
     check("B1/B3 prestige confirm names skills, techniques and quests; chat says level, not power",
-          p56_pres.count("This resets your stats, skills, techniques and quest progress") == 1
+          p56_pres.count("Prestiging resets your stats, skills, techniques and quest progress") == 1
           and "This resets your stats, skills, techniques and quest progress" in p56_psys
           and " power for the next one" not in p56_psys and " power earns your next prestige" not in p56_psys)
     check("A6 replace confirm button names the demotion",
@@ -3091,7 +3176,8 @@ def main() -> int:
     check("A9 full words: no Nem/Mut abbreviations, no W/L/D, no '?' markers",
           '"Nem"' not in p56_rival and "W/L/D" not in p56_rapi and '"? offline"' not in p56_rapi)
     check("item 52 pickers 20 a page: android, race, class",
-          "ANDROID_PICK_PER_PAGE = 20;" in p56_char and "RACES_PER_PAGE = 20;" in p56_char and "CLASSES_PER_PAGE = 20;" in p56_char)
+          # 4.7.84 (C-3): all 24 races on one page.
+          "ANDROID_PICK_PER_PAGE = 20;" in p56_char and "RACES_PER_PAGE = 24;" in p56_char and "CLASSES_PER_PAGE = 20;" in p56_char)
     check("C17 staff command text: no raw exception text, no JSON path",
           '"Invalid value: " + e.getMessage()' not in p56_cmd and "config/adaptivedifficulty.json" not in p56_cmd)
 
@@ -3107,6 +3193,7 @@ def main() -> int:
     p55_fit = _after(p55_spec, "public UltraScreenSpec fitMenu() {").split("\n    }\n", 1)[0]
     p55_home = _after(p55_char, "private static void openHome(ServerPlayer player) {").split("\n    }\n", 1)[0]
     p55_forms = _after(p55_char, "private static void openFormPreview(ServerPlayer player, int index) {")
+    p55_looks = _after(p55_char, "private static void openLooks(ServerPlayer player) {").split("\n    }\n", 1)[0]
     check("manifest row for lm 4.7.55", "lm-4755-centered-menus" in manifest)
     # 4.7.57 widened MENU_W from PANEL_W (350) to 426.
     check("menu sizes: 426 (also with a model), never over 460 (1080p at GUI 4); no design box",
@@ -3141,8 +3228,9 @@ def main() -> int:
           and "ModelPreview.MENU_STANDARD" in p55_test and "UltraStyle.MENU_DESIGN" not in p55_test)
     check("Preview forms is staff-only: no line or button for players, the page refuses them",
           "static boolean staffMayPreviewForms(ServerPlayer fallback) {\n        return StaffAccess.isStaff(actingViewer(fallback));" in p55_char
-          and "boolean formsShown = staffMayPreviewForms(player);" in p55_home
-          and p55_home.count("if (formsShown) {") == 2
+          # 4.7.84 (C-2): Preview forms lives on the Looks tab.
+          and "boolean formsShown = staffMayPreviewForms(player);" in p55_looks
+          and p55_looks.count("if (formsShown) {") == 2
           and p55_forms.index("if (!staffMayPreviewForms(player)) {") < p55_forms.index("ModelPreview.raceForms(player)")
           and "Preview forms is a staff tool." in p55_forms)
     check("protocol doc: centered menus; fillScreen only for the config editor; wire unchanged",
@@ -3150,11 +3238,12 @@ def main() -> int:
           and "Only the staff config editor sets `fillScreen`" in p55_doc and 'protocol `"1"`' in p55_doc)
     p55_spar = read(SRC / "gui/ultra/UltraSparScreens.java")
     p55_rival = read(SRC / "gui/ultra/UltraRivalScreens.java")
-    check("name pickers: 20 names a page (dojo online picker and rival picker), still paged",
-          "private static final int NAMES_PER_PAGE = 20;" in p55_spar
+    # 4.7.84 (DJ-7, X5): 8 names a dojo picker page, 10 a rival picker page, so pickers fit the height budget.
+    check("name pickers: 8 / 10 names a page (dojo online picker and rival picker), still paged",
+          "private static final int NAMES_PER_PAGE = 8;" in p55_spar
           and "UltraPickHelper.pageSlice(names, NAMES_PER_PAGE, pg)" in p55_spar
           and "UltraPickHelper.placePrevNext(spec, page, pg, pages);" in p55_spar
-          and "private static final int PICK_PER_PAGE = 20;" in p55_rival
+          and "private static final int PICK_PER_PAGE = 10;" in p55_rival
           and "UltraPickHelper.pageCount(total, PICK_PER_PAGE)" in p55_rival
           and "UltraPickHelper.pageLabel(spec, pg, pages);" in p55_rival)
 
@@ -3305,10 +3394,12 @@ def main() -> int:
     check("every standard model page calls the toggle right after buttonsAfterLines",
           p49_char.count("buttonsAfterLines();\n        ModelPreview.rotateButton(") + p49_char.count("buttonsAfterLines();\n            ModelPreview.rotateButton(") >= 8
           and "buttonsAfterLines();\n        ModelPreview.rotateButton(" in p49_rival)
-    check("body parts shop: filters, Find, cards, pages, one action row, Back",
-          p49_shop.index("placeFilterRow(spec, filter);") < p49_shop.index('"page:" + PAGE_FIND')
-          < p49_shop.index("placePartCards(") < p49_shop.index('base + (pg + 1) + tail')
-          < p49_shop.index('"page:clear_ask:body:" + self') < p49_shop.index('"page:bodycolors"') < p49_shop.index(".back()"))
+    # 4.7.84 (C-7): the action row (Find, Clear parts, Part colors) sits above the cards; then the shared pager.
+    _p49_order = ["placeFilterRow(spec, filter);", '"page:" + PAGE_FIND', '"page:clear_ask:body:" + self',
+                  '"page:bodycolors"', "placePartCards(", 'placePager(spec, "page:bodyparts:"', ".back()"]
+    check("body parts shop: filters, Find, Clear parts, Part colors, cards, pages, Back",
+          all(x in p49_shop for x in _p49_order)
+          and [p49_shop.index(x) for x in _p49_order] == sorted(p49_shop.index(x) for x in _p49_order))
     check("preview forms: bigger box, scale fit to the form; standard box unchanged",
           "FORMS = new Box(190, 46, 144, 186)" in p49_prev and "STANDARD = new Box(248, 60, 86, 120)" in p49_prev
           and "ModelPreview.formScale(form, ModelPreview.menuBox(box), ModelPreview.BASE_SCALE)" in p49_char
@@ -3874,7 +3965,7 @@ def main() -> int:
     check("P1 prestige: level cap + real number, no Need power / Need higher level",
           all("Need power" not in x and "Need higher level" not in x for x in (gh_pres, gh_prog))
           and '.labelValue("Need",' not in gh_pres and '"Reach level " + ph.getOrDefault("required_fmt", "0")' in gh_pres
-          and 'spec.labelValue("Level cap", ph.getOrDefault("required_fmt", "0"));' in gh_pres
+          and '.labelValue("Next prestige at level", ph.getOrDefault("required_fmt", "0")' in gh_pres
           and "int need = h < PRESTIGE_NEED.length ? PRESTIGE_NEED[h] : PRESTIGE_NEED_TOP;"
           in gh("progression/LmOverhaulCapMath.java"))
     check("P1 wording: full wipe, End this boost, GUI:/-> help, Ancient Coins path, weight names, Mutant/Majin",
@@ -3888,7 +3979,7 @@ def main() -> int:
     gh_char = gh("gui/ultra/UltraCharacterScreens.java")
     check("P1 Android: one accurate forms line on every Android page, no 'cannot be undone'",
           "It cannot be undone." not in gh_char and "within 10 seconds. This cannot be undone." not in gh_char
-          and gh_char.count("ANDROID_FORMS_LINE") == 4
+          and gh_char.count("ANDROID_FORMS_LINE") == 3  # 4.7.84 (C-2): the Android tab page is gone
           and '"Converting to Android deletes Super and Legendary forms."' in gh_char)
     gh_diff = gh("gui/ultra/UltraDifficultyScreens.java")
     check("P1 Clear active tier and P2 Unequip title go through ask pages",
@@ -3908,7 +3999,7 @@ def main() -> int:
           all(w not in gh("gui/DifficultyChatMenu.java") for w in
               ('"SYSTEM DISABLED"', '"NOT AVAILABLE"', '"DIFFICULTY OFF"', '"CURRENT"', '"[SWITCH]"', '"LOCKED"', '"EQUIPPED"')))
     check("P2 polish: Equipped, Reload Legacy Mechanics config, dash toggles, Staff only., full skill names",
-          '"Equipped: " + bone' in gh_char and "Reload LM config" not in gh_diff
+          '"wearing " + UltraStyle.plain(bone)' in gh_char and "Reload LM config" not in gh_diff
           and "Reload LM config" not in gh("gui/ultra/UltraHubScreens.java")
           and "Turn event log" not in gh_diff and "Rival teams" not in gh_diff   # 4.7.78: team mode toggles removed
           and all("That menu is for staff only." not in gh(f) for f in
@@ -4326,7 +4417,7 @@ def main() -> int:
     check("confirm pages show the cost and only offer Confirm when nothing blocks it; Back to the source",
           "if (block == null) {" in sc_pre_ask and "spec.back();" in sc_pre_ask  # 4.7.71: registry parent
           and sc_pre_ask.count('.labelValue("Cost"') >= 5
-          and '"exchange", "Exchange shop"' in sc_pre_ask and '"mastery_wallet", "Mastery wallet"' in sc_pre_ask)
+          and '"exchange", "Trade"' in sc_pre_ask and '"mastery_wallet", "Mastery wallet"' in sc_pre_ask)
     check("Difficulty: coin tier upgrades -> tier_ask, summons -> summon_ask; do: only on confirm pages",
           'String action = "page:tier_ask:" + t;' in sc_diff_src and '"do:activate:' not in sc_diff_src
           and '"page:summon_ask:end_dragon"' in sc_diff_src and '"page:summon_ask:" + page' in sc_diff_src
@@ -4752,7 +4843,7 @@ def main() -> int:
     # parent, the Rival tab's first page.
     check("rival profile Back returns to the Rival tab page it came from",
           '"page:list_detail:" + profileArg(arg, page)' in rival_ui
-          and 'item("rival", "list_detail:**", "Rival", "rival|actions");' in read(ultra_dir / "PageRegistry.java"))
+          and 'item("rival", "list_detail:**", "Rival profile", "rival|actions");' in read(ultra_dir / "PageRegistry.java"))
     self_test = read(ultra_dir / "UltraScreenSelfTest.java")
     check("picker paging self-test covers 124 cases (lists 0-30)",
           "for (int total = 0; total <= 30; total++)" in self_test and "cases != 124" in self_test)
@@ -5125,7 +5216,9 @@ def main() -> int:
     spar_api = read(SRC / "gui/SparGuiApi.java")
     check("dojo war offline by master uuid", "challengeDojoByMasterKey" in dojo_rank)
     check("spar GUI dojo_challenge uuid path", "dojoChallengeByMasterUuid" in read(SRC / "sparring/SparringSystem.java")
-          and "uuid:" in spar_api.split("dojo_challenge", 1)[1].split("dojo_accept", 1)[0])
+          # 4.7.84 (pick a): the old path declares through DojoWar.legacyChallenge, which still takes uuid: args.
+          and "DojoWar.legacyChallenge(player, a)" in spar_api.split("dojo_challenge", 1)[1].split("dojo_accept", 1)[0]
+          and 'raw.regionMatches(true, 0, "uuid:", 0, 5)' in read(SRC / "dojo/DojoWar.java"))
     dojo_war_cnpc = cnpc_spar.split("paintDojoWar", 1)[1].split("paintDojoWarPending", 1)[0] if "paintDojoWar" in cnpc_spar else ""
     check("CNPC dojo war hub no accept/decline", "dojo_accept" not in dojo_war_cnpc)
     check("spar Training bonds wording", "Training bonds" in cnpc_spar and "Training bonds" in spar_chest, retired=True)
@@ -5199,10 +5292,12 @@ def main() -> int:
           and "refund(player, cost);" in cs_sys.split("executeAndroidConversion", 1)[1].split("public static long amountDue", 1)[0])
     check("Android tab shows only the applicable button (Convert / Remove / none)",
           "AndroidConversion.eligibility(player)" in char_ui
-          and "case UPGRADED ->" in char_ui and "case ELIGIBLE ->" in char_ui
+          # 4.7.84 (C-2): Home's Android button (placeAndroidButton) picks Remove / Convert / dim.
+          and "case UPGRADED, ELIGIBLE ->" in char_ui and "private static void placeAndroidButton(" in char_ui
+          and "state == AndroidConversion.Eligibility.UPGRADED" in char_ui
           and '"Eligible races: " + AndroidConversion.eligibleRaceHint()' in char_ui
           and "already an Android by race" in char_ui
-          and 'UltraStyle.confirm("Convert to Android")' in char_ui
+          and 'UltraStyle.plain("Convert to Android")' in char_ui
           and '"do:android"' not in char_ui)
     check("staff target page shows only Convert or Remove; staff tools stay free",
           "targetState == AndroidConversion.Eligibility.ELIGIBLE" in char_ui

@@ -47,7 +47,9 @@ def main() -> int:
             ok(f"{key}: Ultra open()", "public static void open(" in text)
 
     char = (ULTRA / "UltraCharacterScreens.java").read_text(encoding="utf-8") if (ULTRA / "UltraCharacterScreens.java").is_file() else ""
-    for needle in ("Change race", "Change class", "Customize model"):
+    # 4.7.84 (C-1/C-2): "Customize model" reads "Model and colors"; the Android tab folded into Home and Looks has
+    # the preview.
+    for needle in ("Change race", "Change class", "Model and colors"):
         ok(f"character Home has {needle}", needle in char)
     ok(
         "character playerModel only on home + model customize",
@@ -55,7 +57,7 @@ def main() -> int:
         and "sub(player, \"bones:\" + pg, true)" in char
         and 'base(player, "reset:' in char
         and ", false)" in char
-        and 'base(player, UltraStyle.PAGE_ANDROID_REMOVE, "android", false)' in char
+        and 'base(player, PAGE_LOOKS, PAGE_LOOKS, true)' in char
         and "sub(player, \"race:\" + pg, false)" in char
         and "sub(player, \"class:\" + pg, false)" in char
         and 'sub(player, "reskin", false)' in char,

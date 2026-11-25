@@ -1,5 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
+import com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar;
 import com.dbzlegacy.adaptivedifficulty.gui.RivalGuiApi;
 import com.dbzlegacy.adaptivedifficulty.gui.SparGuiApi;
 import com.dbzlegacy.adaptivedifficulty.sparring.SparBoard;
@@ -11,7 +12,8 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Sparring Ultra UI (Home / Leaderboard) and the training-bond pages drawn on the Dojo screen.
- * Home: what a spar is worth, Weights, chat, staff. Leaderboard: Hall of Infamy, stats + last three fights.
+ * Home (4.7.84): how many players are looking for a spar, Open the Spar Board, then Training weights and Spar TP
+ * chat. Leaderboard (4.7.84): the Hall of Infamy top 5 itself, More rankings, Your stats.
  * Dojo side: roster, members (your dojo / mentor's dojo), Training bonds. Wars, the Spar Board and the rest
  * of the Dojo tab live in {@link UltraDojoScreens}.
  */
@@ -45,10 +47,7 @@ public final class UltraSparScreens {
             UltraDojoScreens.open(player, "dojo_wars", null);
             return;
         }
-        if ("dojo_roster".equals(lower)) {
-            openDojo(player, "home");
-            return;
-        }
+        // 4.7.84 (DJ-2): "Roster and bonds" became the one Members page (UltraDojoScreens.open reads dojo_roster).
         if (UltraDojoScreens.open(player, raw, null)) {
             return;
         }
@@ -100,7 +99,7 @@ public final class UltraSparScreens {
             case "pick_apprentice" -> openOnlinePick(
                     player, "Invite apprentice", "mentor_invite", "pick_apprentice", "mentor", pickPage);
             case "pick_mentor" -> openOnlinePick(
-                    player, "Ask as apprentice", "apprentice_invite", "pick_mentor", "mentor", pickPage);
+                    player, "Request a master", "apprentice_invite", "pick_mentor", "mentor", pickPage);
             case "pick_release" -> openReleasePick(player, pickPage);
             case "weights", "weight", "weight_shop" -> UltraWeightShopScreens.openShop(player);
             default -> openHome(player);
@@ -168,21 +167,30 @@ public final class UltraSparScreens {
         if (notice != null && !notice.isBlank()) {
             spec.notice(notice);
         }
-        // 4.7.78: the Spar Board is its own tab; Home does not advertise it.
-        spec.line(UltraStyle.header("What a spar is worth to you"));
-        spec.line(UltraStyle.VALUE + HubDashboard.sparWinLine(player));
+        // 4.7.84 (SP-1): Home leads to the board. A live summary (who is looking, your own post), one tap to the
+        // Spar Board, then what a spar is worth. Training weights and Spar TP chat sit below. The tabs are unchanged.
+        spec.line(UltraStyle.header("Sparring"));
+        spec.line(UltraStyle.LABEL + "Fight other players in a dojo ring for TP and dojo clout.");
+        spec.line(UltraStyle.VALUE + boardSummary(player));
+        String mine = ownPostLine(player);
+        if (mine != null) {
+            spec.line(UltraStyle.LABEL + mine);
+        }
+        spec.line(UltraStyle.LABEL + HubDashboard.sparWinLine(player));
         // 4.7.68: spar sessions train Potential Unlock only when you look for it on a friendly spar.
-        spec.line(UltraStyle.LABEL + "Potential Unlock trains in the world, and in friendly spars when you look for it.");
+        spec.line(UltraStyle.LABEL
+                + "Want to train Potential Unlock? Pick 'Looking for - Potential Unlock' on a friendly spar.");
         String streak = HubDashboard.streakLine(player);
         if (streak != null) {
             spec.line(UltraStyle.VALUE + streak);
         }
         spec.buttonsAfterLines();
+        spec.button("page:sparboard", UltraStyle.confirm("Open the Spar Board"), UltraStyle.STYLE_CONFIRM).rowGap();
         // 4.7.78: Hall of Infamy and Your stats moved to the Leaderboard tab.
         UltraPickHelper.placePageButtons(
                 spec,
-                "weights|Weights",
-                "settings|TP Chat");
+                "weights|Training weights",
+                "settings|Spar TP chat");
         if (StaffAccess.isStaff(player)) {
             spec.buttonLeft("page:admin", UltraStyle.danger("Staff Admin"), UltraStyle.STYLE_DANGER).rowGap();
         }
@@ -190,14 +198,66 @@ public final class UltraSparScreens {
         spec.send(player);
     }
 
-    /** 4.7.78: the Leaderboard tab: Hall of Infamy and your own spar record. */
+    /**
+     * "N players are looking for a spar right now." (4.7.84, SP-1). Counts the live Spar Board posts this player can
+     * see, their own post left out; read only ({@link BoardSpar#board} is the list the Spar Board itself draws).
+     */
+    private static String boardSummary(ServerPlayer player) {
+        int n = 0;
+        try {
+            for (BoardSpar.Post post : BoardSpar.board(player)) {
+                if (post != null && !player.m_20148_().equals(post.poster())) {
+                    n++;
+                }
+            }
+        } catch (RuntimeException ignored) {
+            n = 0;
+        }
+        if (n <= 0) {
+            return "Nobody is posting right now.";
+        }
+        return n == 1 ? "1 player is looking for a spar right now." : n + " players are looking for a spar right now.";
+    }
+
+    /** "Your post: friendly, no wager - 12:40 left.", or null when this player has no post up. */
+    private static String ownPostLine(ServerPlayer player) {
+        BoardSpar.Post post = BoardSpar.postOf(player.m_20148_());
+        if (post == null) {
+            return null;
+        }
+        long left = BoardSpar.POST_MS - (System.currentTimeMillis() - post.at());
+        if (left <= 0L) {
+            return null;
+        }
+        return "Your post: " + (post.ranked() ? "ranked" : "friendly") + ", "
+                + BoardSpar.wagerText(post.wagerKind(), post.wager()) + " - " + BoardSpar.clock(left) + " left.";
+    }
+
+    /** Hall of Infamy rows shown on the Leaderboard tab itself (4.7.84, SP-6). */
+    private static final int LEADERBOARD_TOP = 5;
+
+    /**
+     * 4.7.84 (SP-6): the Leaderboard tab is the board, not a menu of boards: the Hall of Infamy top 5 by TP, then
+     * More rankings (sessions, perfect spars, combo, time) and Your stats.
+     */
     private static void openLeaderboard(ServerPlayer player) {
         UltraScreenSpec spec = base("leaderboard", "leaderboard");
-        spec.line(UltraStyle.header("Leaderboard"))
-                .line(UltraStyle.labelValue("Hall of Infamy", "the top sparrers by TP, sessions and combos"))
-                .line(UltraStyle.labelValue("Your stats", "your spar record and your last three fights"));
+        spec.line(UltraStyle.header("Hall of Infamy - top " + LEADERBOARD_TOP + " by TP"));
+        List<String> lines = SparGuiApi.topLines(player, "tp");
+        // The source's first line is its own "Hall of Infamy - Training points" heading; the tab draws its own.
+        int from = lines != null && lines.size() > 1 ? 1 : 0;
+        int shown = 0;
+        if (lines != null) {
+            for (int i = from; i < lines.size() && shown < LEADERBOARD_TOP; i++) {
+                String line = lines.get(i);
+                if (line != null && !line.isBlank()) {
+                    spec.line(line);
+                    shown++;
+                }
+            }
+        }
         spec.buttonsAfterLines();
-        UltraPickHelper.placePageButtons(spec, "infamy|Hall of Infamy", "stats|Your stats");
+        UltraPickHelper.placePageButtons(spec, "infamy|More rankings", "stats|Your stats");
         spec.back();
         spec.send(player);
     }
@@ -276,11 +336,14 @@ public final class UltraSparScreens {
                 ? SparGuiApi.dojoTopLines(player, cat)
                 : SparGuiApi.topLines(player, cat);
         // The board's first line is its own heading ("Hall of Infamy - ...", "Dojo Top - ..."); the page adds none.
+        // 4.7.84: the heading and the top 8, so the page and its five board buttons fit in 300 px.
         UltraScreenSpec spec = sub(dojoBoard ? "dojo_top_" + cat : "top_" + cat);
         if (lines != null) {
+            int shown = 0;
             for (String line : lines) {
-                if (line != null && !line.isBlank()) {
+                if (line != null && !line.isBlank() && shown < TOP_LINES) {
                     spec.line(line);
+                    shown++;
                 }
             }
         }
@@ -300,6 +363,9 @@ public final class UltraSparScreens {
         spec.back();
         spec.send(player);
     }
+
+    /** A ranking page's heading plus its top 8 rows (4.7.84 height budget). */
+    private static final int TOP_LINES = 9;
 
     private static String boardLabel(String cat) {
         return switch (cat == null ? "" : cat.toLowerCase(Locale.ROOT)) {
@@ -408,25 +474,40 @@ public final class UltraSparScreens {
             }
         }
         spec.buttonsAfterLines();
-        UltraPickHelper.placePageButtons(
-                spec,
-                "pick_apprentice|Recruit",
-                "pick_mentor|Request master",
-                "pending|Bond invites",
-                "pick_release|Release");
-        spec.buttonLeft(
-                        "page:pick_confirm:mentor|mentor|leave",
-                        UltraStyle.danger("Leave mentor"),
-                        UltraStyle.STYLE_DANGER)
-                .rowGap();
+        // 4.7.84 (DJ-7): what you can't do is dim, with the reason on the page (no apprentice to release, no mentor
+        // to leave).
+        com.dbzlegacy.adaptivedifficulty.sparring.SparStore.MentorBond bond =
+                com.dbzlegacy.adaptivedifficulty.sparring.SparStore.get().bond(player.m_20148_());
+        boolean hasMentor = bond != null && bond.mentorUuid != null && !bond.mentorUuid.isBlank();
+        boolean hasApprentice = bond != null && bond.apprenticeCount() > 0;
+        UltraPickHelper.placePageButtons(spec, "pick_apprentice|Recruit", "pick_mentor|Request master");
+        spec.buttonLeft("page:pending", "Bond invites", UltraStyle.STYLE_NORMAL);
+        if (hasApprentice) {
+            spec.buttonRight("page:pick_release", "Release", UltraStyle.STYLE_NORMAL);
+        } else {
+            spec.lockedButtonRight("Release - none");
+        }
+        spec.rowGap();
+        if (hasMentor) {
+            spec.buttonLeft(
+                    "page:pick_confirm:mentor|mentor|leave",
+                    UltraStyle.danger("Leave mentor"),
+                    UltraStyle.STYLE_DANGER);
+        } else {
+            spec.lockedButton("Leave mentor - none");
+        }
+        spec.rowGap();
         spec.back();
         spec.send(player);
     }
 
     /** Cards per picker page — the old hard cap, so each page keeps its layout. */
     private static final int CARDS_PER_PAGE = 8;
-    /** Online-player picker page size (20 since 4.7.55; the page scrolls when it is taller than the window). */
-    private static final int NAMES_PER_PAGE = 20;
+    /**
+     * Online-player picker page size: 8 a page since 4.7.84 (DJ-7, X5), so the picker fits the 300 px height
+     * budget instead of shrinking (it was 20 since 4.7.55).
+     */
+    private static final int NAMES_PER_PAGE = 8;
 
     /** Card rows with a usable first field, in source order — what a picker can act on. */
     private static List<String> actionableCards(List<String> cards) {
@@ -656,19 +737,23 @@ public final class UltraSparScreens {
         Map<String, String> ph = SparGuiApi.placeholders(player);
         boolean tpOn = "true".equalsIgnoreCase(ph.get("tpMsg"));
         boolean mentorTpOn = "true".equalsIgnoreCase(ph.get("mentorTpMsg"));
+        // 4.7.84 (SP-5, X7): "Spar TP chat" is Sparring's one name for this setting (Rivals has "Rival TP chat"),
+        // and each line says what its toggle does.
         UltraScreenSpec spec = sub("settings")
-                .line(UltraStyle.header("Training point messages"))
+                .line(UltraStyle.header("Spar TP chat"))
+                .line(UltraStyle.LABEL + "Spar TP chat: a chat line each time a spar pays you TP.")
+                .line(UltraStyle.LABEL + "Mentor TP chat: a chat line when your apprentices' spars pay you a share.")
                 .buttonsAfterLines();
-        // An OFF toggle still works: normal style, not the dim locked look (as on the rival TP Chat page).
+        // An OFF toggle still works: normal style, not the dim locked look (as on the Rival TP chat page).
         spec.buttonLeft(
                         "do:tpmsg:toggle",
-                        tpOn ? UltraStyle.confirm("TP Chat - ON") : "TP Chat - OFF",
+                        tpOn ? UltraStyle.confirm("Spar TP chat - ON") : "Spar TP chat - OFF",
                         tpOn ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL)
                 .buttonRight(
                         "do:mentor_tpmsg:toggle",
                         mentorTpOn
-                                ? UltraStyle.confirm("Mentor TP - ON")
-                                : "Mentor TP - OFF",
+                                ? UltraStyle.confirm("Mentor TP chat - ON")
+                                : "Mentor TP chat - OFF",
                         mentorTpOn ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL)
                 .rowGap();
         spec.back();
@@ -678,7 +763,9 @@ public final class UltraSparScreens {
     private static void openOnlinePick(
             ServerPlayer player, String heading, String action, String page, String back, int pageIndex) {
         List<String> names = new java.util.ArrayList<>();
-        List<String> online = RivalGuiApi.onlinePlayerNames(player);
+        // 4.7.84 (DJ-7): "Request master" lists masters only (online players with an open dojo), not everyone.
+        boolean mastersOnly = "apprentice_invite".equals(action);
+        List<String> online = mastersOnly ? onlineMasterNames(player) : RivalGuiApi.onlinePlayerNames(player);
         if (online != null) {
             for (String name : online) {
                 if (name != null && !name.isBlank()) {
@@ -691,9 +778,13 @@ public final class UltraSparScreens {
         String here = UltraPickHelper.pageArg(page, pg);
         UltraScreenSpec spec = dsub(here)
                 .line(UltraStyle.header(heading))
-                .line(UltraStyle.LABEL + "Choose an online player. You confirm on the next page.");
+                .line(UltraStyle.LABEL + (mastersOnly
+                        ? "Choose a dojo master who is online. You confirm on the next page."
+                        : "Choose an online player. You confirm on the next page."));
         if (names.isEmpty()) {
-            spec.line(UltraStyle.dim("Nobody else is online right now - try again when other players are on."));
+            spec.line(UltraStyle.dim(mastersOnly
+                    ? "No dojo master is online right now. Browse dojos on Dojo > Wars to ask one to take you in."
+                    : "Nobody else is online right now - try again when other players are on."));
         }
         UltraPickHelper.pageLabel(spec, pg, pages);
         spec.buttonsAfterLines();
@@ -715,6 +806,28 @@ public final class UltraSparScreens {
         UltraPickHelper.placePrevNext(spec, page, pg, pages);
         spec.back();
         spec.send(player);
+    }
+
+    /** 4.7.84 (DJ-7): online players (not {@code self}) who are the master of an open dojo, sorted by name. */
+    static List<String> onlineMasterNames(ServerPlayer self) {
+        List<String> names = new java.util.ArrayList<>();
+        net.minecraft.server.MinecraftServer server = self == null ? null : self.m_20194_();
+        if (server == null) {
+            return names;
+        }
+        for (ServerPlayer p : server.m_6846_().m_11314_()) {
+            if (p == null || p.m_20148_().equals(self.m_20148_())) {
+                continue;
+            }
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo d =
+                    com.dbzlegacy.adaptivedifficulty.dojo.DojoService.byMaster(p.m_20148_().toString());
+            String name = p.m_7755_().getString();
+            if (d != null && d.open && name != null && !name.isBlank()) {
+                names.add(name);
+            }
+        }
+        names.sort(String.CASE_INSENSITIVE_ORDER);
+        return names;
     }
 
     private static void openReleasePick(ServerPlayer player, int page) {

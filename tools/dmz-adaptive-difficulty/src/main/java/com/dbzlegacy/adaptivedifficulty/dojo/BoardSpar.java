@@ -28,10 +28,14 @@ import net.minecraft.server.level.ServerPlayer;
  * LM 4.7.68 Spar Board: the only way a formal spar starts. A player posts (friendly or ranked, an optional wager,
  * a level range), or challenges one player directly; another accepts; both are teleported into the poster's dojo
  * arena, fight, and go back to exactly where they stood. A bout ends by KO (a lethal blow is caught at 1 HP),
- * ring-out (past the ring's edge and its apron, {@value DojoWorld#RING_OUT_HALF} blocks from the centre), forfeit,
- * disconnect or the
+ * ring-out (past the ring's edge and its apron, {@value DojoWorld#RING_OUT_HALF} blocks from the centre), forfeit
+ * (the other fighter wins and takes any wager), disconnect or the
  * {@value DojoCatalog#BOUT_TIMEOUT_MS} ms timeout (more damage wins). Friendly bouts pay nothing and count toward
  * the ranked gate; ranked bouts pay spar TP and feed the leaderboard and streak. Plain world PvP is not a spar.
+ *
+ * <p>4.7.84 (P2-1): a wager goes to the winner on a KO, a ring-out, a forfeit, and a timeout one fighter led on
+ * damage. Both stakes come back only on a disconnect, a dead-even timeout, or a crash or restart
+ * ({@link #refundStaleEscrow}). A forfeit still gives no ranked credit.
  */
 public final class BoardSpar {
     private BoardSpar() {}
@@ -290,7 +294,11 @@ public final class BoardSpar {
 
     // ------------------------------------------------------------------ the board
 
-    /** Live posts the viewer can see: challenges for them first, then the rest by wait time. */
+    /**
+     * Live posts the viewer can see. 4.7.84 (SP-2): challenges for them first, then posts they can accept now, then the
+     * ones they can't (dim on the board); inside each group, posts looking for what the viewer looks for, then the
+     * oldest first.
+     */
     public static List<Post> board(ServerPlayer viewer) {
         long now = System.currentTimeMillis();
         POSTS.values().removeIf(p -> now - p.at() > POST_MS);
@@ -305,7 +313,15 @@ public final class BoardSpar {
             out.add(p);
         }
         UUID me = viewer.m_20148_();
-        out.sort(Comparator.comparing((Post p) -> !me.equals(p.target())).thenComparingLong(Post::at));
+        Want mine = draft(me).want();
+        Map<UUID, Boolean> can = new java.util.HashMap<>();
+        for (Post p : out) {
+            can.put(p.poster(), p.poster().equals(me) || whyNot(viewer, p) == null);
+        }
+        out.sort(Comparator.comparing((Post p) -> !me.equals(p.target()))
+                .thenComparing(p -> !can.getOrDefault(p.poster(), false))
+                .thenComparing(p -> p.want() != mine && p.want() != Want.ANY && mine != Want.ANY)
+                .thenComparingLong(Post::at));
         return out;
     }
 
@@ -501,14 +517,16 @@ public final class BoardSpar {
         server.m_6937_(new net.minecraft.server.TickTask(server.m_129921_(), () -> end(b, winner, "KO")));
     }
 
-    /** Forfeit from the menu: the other fighter wins, wagers are refunded. */
+    /** Forfeit from the menu: the other fighter wins and takes any wager (4.7.84, P2-1). */
     static String forfeit(ServerPlayer p) {
         Bout b = boutOf(p.m_20148_());
         if (b == null) {
             return "You're not in a board spar.";
         }
+        boolean wagered = b.wager > 0L && b.wagerKind != null && !b.wagerKind.isBlank();
+        String other = p.m_20148_().equals(b.a) ? b.nameB : b.nameA;
         end(b, p.m_20148_().equals(b.a) ? b.b : b.a, "FORFEIT");
-        return "You forfeited. Any wager was refunded.";
+        return "You forfeited, so " + other + " wins." + (wagered ? " They took both stakes." : "");
     }
 
     /** Once a second: ring-outs and the timeout. */
@@ -683,8 +701,7 @@ public final class BoardSpar {
                 }
             }
         }
-        String wagerLine = settleWager(b, winner, decisive && winner != null && !"TIMEOUT".equals(how) ? winner : null,
-                dojoA, dojoB);
+        String wagerLine = settleWager(b, winner, wagerPayee(winner, how), dojoA, dojoB);
         store.markDirty();
         for (UUID me : new UUID[] {b.a, b.b}) {
             boolean isA = me.equals(b.a);
@@ -703,7 +720,10 @@ public final class BoardSpar {
             lines.add(UltraStyle.labelValue("Potential Unlock", (isA ? b.potentialA : b.potentialB)
                     ? "trained this spar" : b.ranked ? "off (ranked spars never train it)" : "off (not looked for)"));
             if (!counted) {
-                lines.add(UltraStyle.LABEL + "Didn't count: a spar counts after 1 minute with both fighters landing hits.");
+                // 4.7.84 (SP-4): a forfeit or a disconnect never counts, however long the fight ran.
+                lines.add(UltraStyle.LABEL + ("FORFEIT".equals(how) ? "Didn't count for ranking: a forfeit never counts."
+                        : "DISCONNECT".equals(how) ? "Didn't count: someone disconnected. Any wager was refunded."
+                        : "Didn't count: a spar counts after 1 minute with both fighters landing hits."));
             } else if (b.ranked && !rankedFresh) {
                 lines.add(UltraStyle.LABEL + "No ranked credit: you two had a ranked spar in the last 15 minutes.");
             }
@@ -717,6 +737,15 @@ public final class BoardSpar {
         AdaptiveDifficultyMod.LOGGER.info("[{}] board bout {} {} vs {} -> {} by {} counted={} credit={}",
                 AdaptiveDifficultyMod.MOD_ID, b.id, b.nameA, b.nameB,
                 winner == null ? "draw" : (winner.equals(b.a) ? b.nameA : b.nameB), how, counted, credit);
+    }
+
+    /**
+     * 4.7.84 (P2-1): who takes both stakes. The winner on a KO, a ring-out, a forfeit and a timeout one fighter led on
+     * damage; nobody (both refunded) on a disconnect or a dead-even timeout ({@code winner} null). A crash or restart
+     * refunds through {@link #refundStaleEscrow}.
+     */
+    public static UUID wagerPayee(UUID winner, String how) {
+        return winner != null && !"DISCONNECT".equals(how) ? winner : null;
     }
 
     static String howText(String how) {
@@ -797,6 +826,28 @@ public final class BoardSpar {
                 && DojoWorld.inDojoWorld(p)) {
             DojoWorld.returnPlayer(p);
         }
+        String nudge = loginNudge(DojoStore.get().dojos.get(id));
+        if (nudge != null) {
+            DmzRewards.msg(p, LmChat.info("Dojo", nudge));
+        }
+    }
+
+    /**
+     * 4.7.84 (DJ-13): the login line for a master whose open dojo has no style or no banner of its own yet (a dojo
+     * made from an old mentor bond starts with neither), or null. Both first picks are free.
+     */
+    public static String loginNudge(Dojo d) {
+        if (d == null || !d.open) {
+            return null;
+        }
+        boolean noStyle = d.style == null || d.style.isBlank();
+        boolean noBanner = DojoService.defaultBanner(d);
+        if (!noStyle && !noBanner) {
+            return null;
+        }
+        String what = noStyle && noBanner ? "a fighting style and a banner" : noStyle ? "a fighting style" : "a banner";
+        return "Your dojo " + d.name + " still needs " + what + ". " + (noStyle && noBanner ? "Both are" : "It's")
+                + " free the first time: open Dojo from the main menu.";
     }
 
     /** Server start: any escrow left from a crash is refunded (a bout cannot survive a restart). */
@@ -952,6 +1003,12 @@ public final class BoardSpar {
         }
         if (Want.TP.next() != Want.POTENTIAL || Want.POTENTIAL.next() != Want.ANY || Want.ANY.next() != Want.TP) {
             bad.add("looking for cycles TP, Potential Unlock, Anything");
+        }
+        UUID w = new UUID(1L, 2L);
+        if (!w.equals(wagerPayee(w, "FORFEIT")) || !w.equals(wagerPayee(w, "TIMEOUT")) || !w.equals(wagerPayee(w, "KO"))
+                || wagerPayee(w, "DISCONNECT") != null || wagerPayee(null, "TIMEOUT") != null) {
+            bad.add("wagers: the winner takes both on a KO, ring-out, forfeit or a timeout with a damage lead; "
+                    + "refunds only on a disconnect or a dead-even timeout");
         }
         if (!"5:00".equals(clock(DojoCatalog.BOUT_TIMEOUT_MS)) || parse("x") != null) {
             bad.add("bout clock and id parsing");
