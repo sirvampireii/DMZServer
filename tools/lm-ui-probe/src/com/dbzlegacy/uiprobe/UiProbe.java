@@ -1816,8 +1816,9 @@ public final class UiProbe {
         {"custom", "prep"}, {"open", "hub", "skins"}, {"wait", "60"}, {"say", "uirecord custom1-picker"},
         {"wait", "20"}, {"open", "hub", "skin_custom"}, {"wait", "60"}, {"say", "uirecord custom2-editor"},
         {"wait", "20"}, {"say", "uiclick wheel:0"}, {"wait", "20"}, {"say", "uirecord custom3-wheel-picked"},
-        // 4.7.82: the wheel is shared: tap the Primary field, then the wheel colors Primary (Panel stays red).
-        {"wait", "20"}, {"say", "uiclick field:1"}, {"wait", "10"}, {"say", "uiclick wheel:0"}, {"wait", "20"},
+        // 4.7.82: the wheel is shared: tap the Trim field (gold), then the wheel colors Trim (Panel stays red). A ring
+        // tap keeps the field's own shade and sets the hue, so a field that is already red would not change.
+        {"wait", "20"}, {"say", "uiclick field:2"}, {"wait", "10"}, {"say", "uiclick wheel:0"}, {"wait", "20"},
         {"say", "uirecord custom3b-wheel-second-field"},
         {"wait", "20"}, {"say", "uiclick label:Apply my colors"}, {"wait", "60"},
         {"say", "uirecord custom4-applied"}, {"wait", "20"}, {"custom", "check"}, {"custom", "reset"}, {"wait", "20"},
@@ -2166,9 +2167,12 @@ public final class UiProbe {
                     note("FINAL CUSTOM real client: wheel tap fills Panel, Apply saves it: panel="
                             + String.format("%06x", v.custom().panel()) + " "
                             + pf("custom".equals(v.skin()) && (!wheels || v.custom().panel() == 0xFF0000)));
-                    note("FINAL CUSTOM real client: after tapping the Primary field the shared wheel colors Primary: primary="
-                            + String.format("%06x", v.custom().primary()) + " "
-                            + pf("custom".equals(v.skin()) && (!wheels || v.custom().primary() == 0xFF0000)));
+                    int trim = v.custom().trim();
+                    boolean reddened = ((trim >> 16) & 0xFF) > ((trim >> 8) & 0xFF) + 40 && trim != 0xF0B429;
+                    note("FINAL CUSTOM real client: after tapping the Trim field the shared wheel colors Trim (hue to red), "
+                            + "Panel and Primary untouched: trim=" + String.format("%06x", trim) + " "
+                            + pf("custom".equals(v.skin()) && (!wheels || (reddened && v.custom().panel() == 0xFF0000
+                                    && v.custom().primary() == 0xE23B3B))));
                 }
                 write("uiprobe-script.txt", scriptLog.toString(), false);
             }

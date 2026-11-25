@@ -796,11 +796,18 @@ public final class UltraScreenSelfTest {
             if (buttons.contains("\"icon\":\"minecraft:")) {
                 broken.add("character: tab buttons must not carry a vanilla item icon");
             }
-            String fit = UltraStyle.fitAsciiLabel("Android Removal", UltraStyle.labelMaxWidth(102));
+            // 4.7.83: labels are measured by real glyph widths since 4.7.81; "Android Removal" (81px) fits a 102px
+            // tab now, so the sample is one that truly overflows.
+            String wide = "Android Removal Service";
+            String fit = UltraStyle.fitAsciiLabel(wide, UltraStyle.labelMaxWidth(102));
+            if (!UltraStyle.fitAsciiLabel("Android Removal", UltraStyle.labelMaxWidth(102)).equals("Android Removal")) {
+                broken.add("fitAsciiLabel must keep a label that fits by real width");
+            }
             if (fit.indexOf('\u00E2') >= 0 || fit.indexOf('\u2026') >= 0) {
                 broken.add("fitAsciiLabel must use ASCII ellipsis only");
             }
-            if (!fit.endsWith("...") || fit.length() >= "Android Removal".length()) {
+            if (!fit.endsWith("...") || fit.length() >= wide.length()
+                    || UltraStyle.textWidthPx(fit) > UltraStyle.labelMaxWidth(102)) {
                 broken.add("fitAsciiLabel must clip labels that exceed tab text budget");
             }
         }
@@ -1065,6 +1072,7 @@ public final class UltraScreenSelfTest {
         List<int[]> rects = new ArrayList<>();
         List<String> names = new ArrayList<>();
         int mainX = -1;
+        int mainW = UltraStyle.BTN_W;
         int footerBottom = -1;
         for (String json : new String[] {pkt.buttonsJson(), pkt.inputsJson()}) {
             if (json == null || json.isBlank()) {
@@ -1086,6 +1094,7 @@ public final class UltraScreenSelfTest {
                 }
                 if ("Main menu".equals(name)) {
                     mainX = x;
+                    mainW = w;   // 4.7.81: the footer is as wide as the widened columns
                 }
                 if ("Main menu".equals(name) || name.startsWith("Back to")) {
                     footerBottom = Math.max(footerBottom, y + h);
@@ -1143,7 +1152,7 @@ public final class UltraScreenSelfTest {
         if (footer && footerBottom >= 0 && footerBottom != lowest) {
             broken.add(tag + ": the footer row must follow the content (ends at " + footerBottom + ", content at " + lowest + ")");
         }
-        if (footer && mainX >= 0 && mainX + UltraStyle.BTN_W != panelW - UltraStyle.MENU_EDGE) {
+        if (footer && mainX >= 0 && mainX + mainW != panelW - UltraStyle.MENU_EDGE) {
             broken.add(tag + ": Main menu must sit on the right content edge, x=" + mainX);
         }
     }
