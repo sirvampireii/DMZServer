@@ -538,7 +538,10 @@ public final class UltraCharacterScreens {
         return word != null && !word.isEmpty() && "aeiouAEIOU".indexOf(word.charAt(0)) >= 0 ? "an" : "a";
     }
 
-    /** Races per page (4.7.84, C-3): three columns of 8 rows, so all 24 races fit one page. Paging stays for more. */
+    /**
+     * Races per page (4.7.84, C-3): all 24 races fit one page. Paging stays for more. 4.7.85 (X5): four columns of 6
+     * rows, so the page fits the 300 px height budget.
+     */
     private static final int RACES_PER_PAGE = 24;
     /**
      * Three-column cell on the legacy grid (4.7.84): the filter row's 98px at 16 / 122 / 228, which the menu reflow
@@ -566,14 +569,43 @@ public final class UltraCharacterScreens {
         }
         return options[options.length - 1];
     }
+    /**
+     * Four-column cell on the legacy grid (4.7.85, X5): 80px (the button minimum) at 16 / 94 / 172 / 250. The cells
+     * overlap once widened, so the menu reflow gives the row four equal columns: 97px on a page with no model, 80px
+     * beside the model (the menu widens to 452px for them).
+     */
+    private static final int COL4_W = UltraStyle.BTN_MIN_W;
+    private static final int COL4_STEP = 78;
+    /** Text room in a four-column cell on a page with no model (97px less the button padding, rounded down). */
+    private static final int COL4_LABEL_PX = UltraStyle.labelMaxWidth(96);
+
+    /** Place the {@code index}-th cell of a four-column grid; the row ends after the fourth cell. */
+    private static void placeCol4(UltraScreenSpec spec, int index, String action, String label, String style) {
+        int col = index % 4;
+        spec.button(action, label, style, UltraStyle.COL_L + col * COL4_STEP, spec.row(), COL4_W);
+        if (col == 3) {
+            spec.rowGap();
+        }
+    }
+
+    /** The first label that fits a four-column cell, else the last one. */
+    private static String fitCol4(String... options) {
+        for (String o : options) {
+            if (UltraStyle.textWidthPx(o) <= COL4_LABEL_PX) {
+                return o;
+            }
+        }
+        return options[options.length - 1];
+    }
+
     /** Saga reset / class pickers: two-up rows; page so discovery growth never truncates. */
     private static final int DISCOVERY_PER_PAGE = 8;
     /** Class picker page size (4.7.56: 20 a page, like the race and name pickers). */
     private static final int CLASSES_PER_PAGE = 20;
 
     /**
-     * Change race (4.7.84, C-3): all 24 races on one page in three columns, under two lines - what happens next and
-     * what keeping costs. "Listed cost" and the race count are gone.
+     * Change race (4.7.84, C-3): all 24 races on one page, under two lines - what happens next and what keeping
+     * costs. "Listed cost" and the race count are gone. 4.7.85 (X5): four columns (6 rows instead of 8).
      */
     private static void openRace(ServerPlayer player, int page) {
         List<String> cards = CharacterServicesGuiApi.raceCards(player);
@@ -602,15 +634,15 @@ public final class UltraCharacterScreens {
                 continue;
             }
             if (current) {
-                placeCol3(spec, placed, "page:race_confirm:" + id + ":0",
-                        UltraStyle.dim(fitCol3(name + " (you)", name)), UltraStyle.STYLE_DIM);
+                placeCol4(spec, placed, "page:race_confirm:" + id + ":0",
+                        UltraStyle.dim(fitCol4(name + " (you)", name)), UltraStyle.STYLE_DIM);
             } else {
                 // 4.7.81: a race is an option (the next page asks before anything is paid) - normal, not green.
-                placeCol3(spec, placed, "page:race_confirm:" + id + ":0", UltraStyle.plain(name), UltraStyle.STYLE_NORMAL);
+                placeCol4(spec, placed, "page:race_confirm:" + id + ":0", UltraStyle.plain(name), UltraStyle.STYLE_NORMAL);
             }
             placed++;
         }
-        if (placed % 3 != 0) {
+        if (placed % 4 != 0) {
             spec.rowGap();
         }
         if (placed == 0) {
@@ -996,30 +1028,27 @@ public final class UltraCharacterScreens {
         if (placed % 2 == 1) {
             spec.rowGap();
         }
-        spec.buttonLeft(
-                        "page:clear_ask:default:bones:" + pg,
-                        UltraStyle.confirm("Race default"),
-                        UltraStyle.STYLE_CONFIRM)
-                .buttonRight(
-                        "page:clear_ask:bones:bones:" + pg,
-                        UltraStyle.danger("Clear parts"),
-                        UltraStyle.STYLE_DANGER)
-                .rowGap();
+        // 4.7.85 (X5): Race default, Clear parts and the one page button share a row (three columns); with both Prev
+        // and Next the page buttons keep their own row.
+        int toolsRow = spec.row();
+        spec.button("page:clear_ask:default:bones:" + pg, UltraStyle.confirm("Race default"), UltraStyle.STYLE_CONFIRM,
+                UltraStyle.COL_L, toolsRow, FILTER_W);
+        spec.button("page:clear_ask:bones:bones:" + pg, UltraStyle.danger("Clear parts"), UltraStyle.STYLE_DANGER,
+                UltraStyle.COL_L + FILTER_W + UltraStyle.BTN_PAD, toolsRow, FILTER_W);
         // Body parts is its own entry on Character Home (4.7.11); no second link here.
-        if (pg > 0) {
+        boolean prev = pg > 0;
+        boolean next = pg + 1 < pages;
+        if (prev != next) {
+            spec.button("page:bones:" + (prev ? pg - 1 : pg + 1), UltraStyle.LABEL + (prev ? "Prev" : "Next"),
+                    UltraStyle.STYLE_NORMAL, UltraStyle.COL_L + 2 * (FILTER_W + UltraStyle.BTN_PAD), toolsRow,
+                    FILTER_W);
+        }
+        spec.rowGap();
+        if (prev && next) {
             spec.buttonLeft(
                     "page:bones:" + (pg - 1), UltraStyle.LABEL + "Prev", UltraStyle.STYLE_NORMAL);
-        }
-        if (pg + 1 < pages) {
-            if (pg > 0) {
-                spec.buttonRight(
-                        "page:bones:" + (pg + 1), UltraStyle.LABEL + "Next", UltraStyle.STYLE_NORMAL);
-            } else {
-                spec.buttonLeft(
-                        "page:bones:" + (pg + 1), UltraStyle.LABEL + "Next", UltraStyle.STYLE_NORMAL);
-            }
-            spec.rowGap();
-        } else if (pg > 0) {
+            spec.buttonRight(
+                    "page:bones:" + (pg + 1), UltraStyle.LABEL + "Next", UltraStyle.STYLE_NORMAL);
             spec.rowGap();
         }
         spec.back();
@@ -1215,62 +1244,103 @@ public final class UltraCharacterScreens {
         int pages = CosmeticBodyPartService.pageCount(filter);
         int pg = Math.min(pages - 1, Math.max(0, page));
         String self = "all".equals(filter) ? "bodyparts:" + pg : "bodyparts:" + pg + ":" + filter;
-        // 4.7.84 (C-7): one status row and one rule line; Find a part shares the tools row with Clear parts and
-        // Part colors, so the page is the filters, one tools row, the cards and the pager.
+        // 4.7.84 (C-7): one status row; Find a part and Part colors share the second filter row.
+        // 4.7.85 (X5): one body line (page and what you wear, cut to a count when the names do not fit beside the
+        // model), filters and tools in four columns, the cards in three and Clear parts beside the page buttons, so
+        // the page fits the 300 px height budget.
         String worn = UltraStyle.plain(CosmeticBodyPartService.wornLabel(player));
-        UltraScreenSpec spec = sub(player, self, true)
-                .line(UltraStyle.VALUE + ("all".equals(filter) ? "" : CosmeticBodyPartService.filterLabel(filter) + " - ")
-                        + "Page " + (pg + 1) + " of " + pages + " - wearing: "
-                        + ("none".equalsIgnoreCase(worn) || worn.isBlank() ? "nothing" : worn));
+        String status = ("all".equals(filter) ? "" : CosmeticBodyPartService.filterLabel(filter) + " - ")
+                + "Page " + (pg + 1) + " of " + pages + " - wearing: ";
+        int wornCount = CosmeticBodyPartService.equippedParts(player).size();
+        String wornText = "none".equalsIgnoreCase(worn) || worn.isBlank() ? "nothing" : worn;
+        if ((status + wornText).length() > MODEL_LINE_CHARS) {
+            wornText = wornCount + (wornCount == 1 ? " piece" : " pieces");
+        }
+        UltraScreenSpec spec = sub(player, self, true).line(UltraStyle.VALUE + status + wornText);
         appendCompactLines(spec, CharacterServicesGuiApi.linesForPage(player, "bodyparts:" + pg), false, true, true);
-        spec.line(UltraStyle.LABEL + "Tap a locked piece to try it on first.");
         spec.buttonsAfterLines();
         ModelPreview.rotateButton(spec, player, self);
+        int filterTop = spec.row();
         placeFilterRow(spec, filter);
-        int x2 = UltraStyle.COL_L + (FILTER_W + UltraStyle.BTN_PAD);
-        int x3 = UltraStyle.COL_L + 2 * (FILTER_W + UltraStyle.BTN_PAD);
+        // Row 2 of the filters: Wings, Horns, then Find a part and Part colors.
+        int toolsRow = filterTop + UltraStyle.BTN_H + UltraStyle.BTN_GAP;
+        List<String> cards = CosmeticBodyPartService.cards(player, pg, filter);
+        int cardRows = (countCards(cards) + 2) / 3;
+        int pagerRow = spec.row() + cardRows * (UltraStyle.BTN_H + UltraStyle.BTN_GAP);
         spec.button("page:" + PAGE_FIND, UltraStyle.LABEL + "Find a part", UltraStyle.STYLE_NORMAL,
-                UltraStyle.COL_L, spec.row(), FILTER_W);
+                UltraStyle.COL_L + 2 * COL4_STEP, toolsRow, COL4_W);
+        // Clear parts sits at the right end of the page-button row under the cards.
         spec.button("page:clear_ask:body:" + self, UltraStyle.danger("Clear parts"), UltraStyle.STYLE_DANGER,
-                x2, spec.row(), FILTER_W);
+                UltraStyle.COL_L + 2 * (FILTER_W + UltraStyle.BTN_PAD), pagerRow, FILTER_W);
         spec.button("page:bodycolors", UltraStyle.LABEL + "Part colors", UltraStyle.STYLE_NORMAL,
-                x3, spec.row(), FILTER_W);
-        spec.rowGap();
-        placePartCards(spec, CosmeticBodyPartService.cards(player, pg, filter), shopToken(pg, filter));
+                UltraStyle.COL_L + 3 * COL4_STEP, toolsRow, COL4_W);
+        placePartCards(spec, cards, shopToken(pg, filter), true);
         placePager(spec, "page:bodyparts:", pg, pages, "all".equals(filter) ? "" : ":" + filter);
+        if (spec.row() == pagerRow) {
+            // One page (no Prev or Next): Clear parts still ends its own row.
+            spec.rowGap();
+        }
         spec.back();
         spec.send(player);
+    }
+
+    /**
+     * Characters a body line holds beside the menu model (4.7.85): KaiPath's wrap budget, the body width left of the
+     * model over {@link UltraStyle#BODY_GLYPH_PX}.
+     */
+    private static final int MODEL_LINE_CHARS = UltraStyle.bodyTextFitPx(UltraStyle.MENU_MODEL_W,
+            ModelPreview.MENU_STANDARD.x()) / UltraStyle.BODY_GLYPH_PX;
+    /**
+     * Text room in a three-column card on a model page whose four-column filter rows widen the menu to 452px: three
+     * equal 108px cells (4.7.85).
+     */
+    private static final int MODEL_COL3_LABEL_PX = UltraStyle.labelMaxWidth(108);
+    /** Text room in a three-column card on a page with no model (three clean 129px cells). */
+    private static final int COL3_CARD_LABEL_PX = UltraStyle.labelMaxWidth(129);
+
+    /** Cards {@link #placePartCards} draws (non-blank, with an id). */
+    private static int countCards(List<String> cards) {
+        int n = 0;
+        for (String card : cards) {
+            if (card != null && !card.isBlank() && !card.split("\t", -1)[0].trim().isBlank()) {
+                n++;
+            }
+        }
+        return n;
     }
 
     /** Filter width: three 98px buttons in a row (at least 80px, 8px apart). */
     private static final int FILTER_W = 98;
 
     /**
-     * Slot filters (P-02), three per row; the current one is green. Each re-renders the list from
-     * page 1.
+     * Slot filters (P-02), four per row (4.7.85, X5; were three); the current one is green. Each re-renders the list
+     * from page 1. Body parts puts Find a part and Part colors in the two free cells of the second row.
      */
     private static void placeFilterRow(UltraScreenSpec spec, String current) {
         List<String> filters = CosmeticBodyPartService.FILTERS;
         for (int i = 0; i < filters.size(); i++) {
             String f = filters.get(i);
             boolean on = f.equals(current);
-            int x = UltraStyle.COL_L + (i % 3) * (FILTER_W + UltraStyle.BTN_PAD);
+            int x = UltraStyle.COL_L + (i % 4) * COL4_STEP;
             String label = CosmeticBodyPartService.filterLabel(f);
             spec.button("all".equals(f) ? "page:bodyparts:0" : "page:bodyparts:0:" + f,
                     on ? UltraStyle.confirm(label) : UltraStyle.LABEL + label,
                     on ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL,
-                    x, spec.row(), FILTER_W);
-            if (i % 3 == 2 || i == filters.size() - 1) {
+                    x, spec.row(), COL4_W);
+            if (i % 4 == 3 || i == filters.size() - 1) {
                 spec.rowGap();
             }
         }
     }
 
     /**
-     * Two-up piece cards. On: green, tap turns it off. Owned: tap turns it on. Locked: gray with
-     * its price on the button (P-02), tap opens the confirm page under {@code token}.
+     * Piece cards, three to a row (4.7.85, X5; were two). On: green, tap turns it off. Owned: tap turns it on.
+     * Locked: gray with its price on the button (P-02), tap opens the confirm page under {@code token}. Labels are
+     * fitted to one cell ({@code model}: the Body parts shop beside the model; else the Find page); a price always
+     * stays whole.
      */
-    private static void placePartCards(UltraScreenSpec spec, List<String> cards, String token) {
+    private static void placePartCards(UltraScreenSpec spec, List<String> cards, String token, boolean model) {
+        int labelPx = model ? MODEL_COL3_LABEL_PX : COL3_CARD_LABEL_PX;
         int placed = 0;
         for (String card : cards) {
             if (card == null || card.isBlank()) {
@@ -1289,27 +1359,44 @@ public final class UltraCharacterScreens {
             String style;
             if ("E".equals(state)) {
                 String on = name + " - Equipped";
-                label = UltraStyle.confirm(UltraStyle.fitsButton(on) ? on : UltraStyle.buttonText(name));
+                label = UltraStyle.confirm(UltraStyle.textWidthPx(on) <= labelPx ? on : UltraStyle.clipPlain(name, labelPx));
                 style = UltraStyle.STYLE_CONFIRM;
             } else if ("L".equals(state)) {
-                label = UltraStyle.dim(priced(name, price.isEmpty() ? "Locked" : price));
+                // The standard-button caption when it fits the cell, else the name cut further (price kept).
+                String full = priced(name, price.isEmpty() ? "Locked" : price);
+                label = UltraStyle.dim(UltraStyle.textWidthPx(full) <= labelPx ? full
+                        : pricedPx(name, price.isEmpty() ? "Locked" : price, labelPx));
                 style = UltraStyle.STYLE_DIM;
                 action = "page:part_ask:" + token + ":" + id;
             } else {
-                label = UltraStyle.LABEL + UltraStyle.buttonText(name);
+                label = UltraStyle.LABEL + UltraStyle.clipPlain(name, labelPx);
                 style = UltraStyle.STYLE_NORMAL;
             }
-            if (placed % 2 == 0) {
-                spec.buttonLeft(action, label, style);
-            } else {
-                spec.buttonRight(action, label, style);
+            int col = placed % 3;
+            spec.button(action, label, style, UltraStyle.COL_L + col * (FILTER_W + UltraStyle.BTN_PAD), spec.row(),
+                    FILTER_W);
+            if (col == 2) {
                 spec.rowGap();
             }
             placed++;
         }
-        if (placed % 2 == 1) {
+        if (placed % 3 != 0) {
             spec.rowGap();
         }
+    }
+
+    /** {@link #priced} for a cell with {@code labelPx} of text room: the name is cut, the price stays whole. */
+    static String pricedPx(String name, String price, int labelPx) {
+        String suffix = " " + price;
+        String full = name + suffix;
+        if (UltraStyle.textWidthPx(full) <= labelPx) {
+            return full;
+        }
+        String cut = name;
+        while (cut.length() > 1 && UltraStyle.textWidthPx(cut + ".." + suffix) > labelPx) {
+            cut = cut.substring(0, cut.length() - 1).trim();
+        }
+        return cut + ".." + suffix;
     }
 
     /** {@code Wings feather 5 Iron}; the name is cut short so the price always fits the button. */
@@ -1381,7 +1468,8 @@ public final class UltraCharacterScreens {
         }
         int from = pg * CosmeticBodyPartService.CARDS_PER_PAGE;
         int to = Math.min(shown.size(), from + CosmeticBodyPartService.CARDS_PER_PAGE);
-        placePartCards(spec, CosmeticBodyPartService.cards(player, shown.subList(Math.min(from, to), to)), "find");
+        placePartCards(spec, CosmeticBodyPartService.cards(player, shown.subList(Math.min(from, to), to)), "find",
+                false);
         if (pg > 0) {
             spec.buttonLeft("page:" + PAGE_FIND + ":" + (pg - 1), UltraStyle.LABEL + "Prev", UltraStyle.STYLE_NORMAL);
         }
@@ -1453,23 +1541,25 @@ public final class UltraCharacterScreens {
     static final String PICK_INPUT = "input:bodycolor_hex";
     static final String PICK_WHEEL = "input:bodycolor_wheel";
 
-    /** Preset swatch grid for one channel, laid out like the shop's card pages. */
+    /**
+     * Preset swatch grid for one channel. 4.7.85 (X5): one body line (the color now and that a swatch saves at once),
+     * the swatches four to a row, the wheel with the hex field and Apply beside it, then Reset and the page button on
+     * one row, so the page fits the 300 px height budget.
+     */
     private static void openBodyColorSwatches(ServerPlayer player, String channel, int page) {
         int pages = CosmeticBodyPartService.colorPageCount();
         int pg = Math.min(pages - 1, Math.max(0, page));
-        UltraScreenSpec spec =
-                sub(player, "bodycolors:" + channel + ":" + pg, true)
-                        .labelValue(
-                                channelLabel(channel),
-                                CosmeticBodyPartService.partColorValue(player, channel));
-        spec.line(UltraStyle.LABEL + "Pick a swatch. It saves immediately.");
         // 4.7.67: any color, typed (KaiPath and the LM client) or from the wheel (LM client).
         boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player);
         boolean wheel = typing && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesColorWheel(player);
+        UltraScreenSpec spec = sub(player, "bodycolors:" + channel + ":" + pg, true);
+        String now = CosmeticBodyPartService.partColorValue(player, channel);
         if (typing) {
-            spec.line(UltraStyle.LABEL + (wheel ? "Or pick any color: tap the wheel or type a hex like #e23b3b, then Apply."
-                    : "Or pick any color: type a hex like #e23b3b, then Apply."));
+            // The hex field, the wheel and Apply explain themselves; the line says what a swatch tap does.
+            spec.line(UltraStyle.labelValue(channelLabel(channel), now) + UltraStyle.LABEL + " - swatches save at once");
         } else {
+            spec.labelValue(channelLabel(channel), now);
+            spec.line(UltraStyle.LABEL + "Pick a swatch. It saves immediately.");
             spec.line(UltraStyle.LABEL + "Typed fields need KaiPath 1.3.9 or newer. Until then pick a swatch.");
         }
         spec.buttonsAfterLines();
@@ -1478,65 +1568,70 @@ public final class UltraCharacterScreens {
         for (CosmeticBodyPartService.Preset preset : CosmeticBodyPartService.colorPresets(pg)) {
             String action =
                     "do:bodypart_color:" + channel + ":" + String.format(Locale.ROOT, "%06x", preset.rgb() & 0xFFFFFF);
-            String label = UltraStyle.LABEL + UltraStyle.buttonText(preset.name());
-            if (placed % 2 == 0) {
-                spec.buttonLeft(action, label, UltraStyle.STYLE_NORMAL);
-            } else {
-                spec.buttonRight(action, label, UltraStyle.STYLE_NORMAL);
-                spec.rowGap();
-            }
+            String label = UltraStyle.LABEL + UltraStyle.clipPlain(preset.name(), COL4_SWATCH_LABEL_PX);
+            placeCol4(spec, placed, action, label, UltraStyle.STYLE_NORMAL);
             placed++;
         }
-        if (placed % 2 == 1) {
-            spec.rowGap();
-        }
-        spec.buttonLeft(
-                        "do:bodypart_color_reset:" + channel,
-                        UltraStyle.confirm("Reset to natural look"),
-                        UltraStyle.STYLE_CONFIRM)
-                .rowGap();
-        if (pg > 0) {
-            spec.buttonLeft(
-                    "page:bodycolors:" + channel + ":" + (pg - 1),
-                    UltraStyle.LABEL + "Prev",
-                    UltraStyle.STYLE_NORMAL);
-        }
-        if (pg + 1 < pages) {
-            if (pg > 0) {
-                spec.buttonRight(
-                        "page:bodycolors:" + channel + ":" + (pg + 1),
-                        UltraStyle.LABEL + "Next",
-                        UltraStyle.STYLE_NORMAL);
-            } else {
-                spec.buttonLeft(
-                        "page:bodycolors:" + channel + ":" + (pg + 1),
-                        UltraStyle.LABEL + "Next",
-                        UltraStyle.STYLE_NORMAL);
-            }
-            spec.rowGap();
-        } else if (pg > 0) {
+        if (placed % 4 != 0) {
             spec.rowGap();
         }
         if (typing) {
             // Pick any color (4.7.67): the hex field (a color square shows what is typed), Apply through the same
-            // do:bodypart_color path as a swatch, and on the LM client a wheel that fills the field.
+            // do:bodypart_color path as a swatch, and on the LM client a wheel that fills the field. 4.7.85: the
+            // field and Apply sit beside the wheel, in its row.
             String input = PICK_INPUT;
-            Integer now = CosmeticBodyPartService.partColor(player, channel);
+            Integer rgb = CosmeticBodyPartService.partColor(player, channel);
             int row = spec.row();
-            spec.textField(input, now == null ? "" : CosmeticBodyPartService.hex(now), "#rrggbb", UltraStyle.COL_L, row,
-                    UltraStyle.BTN_W, UltraStyle.BTN_H, 9);
-            spec.colorPreview(input);
-            spec.buttonBound("do:bodypart_color:" + channel + ":", UltraStyle.confirm("Apply this color"),
-                    UltraStyle.STYLE_CONFIRM, UltraStyle.COL_R, row, UltraStyle.BTN_W, input);
-            spec.rowGap();
             if (wheel) {
                 spec.colorWheel(PICK_WHEEL, input, UltraStyle.COL_L, spec.row(), 56);
-                spec.rowGap();
             }
+            int fieldX = wheel ? WHEEL_FIELD_X : UltraStyle.COL_L;
+            int fieldW = wheel ? WHEEL_FIELD_W : UltraStyle.BTN_W;
+            spec.textField(input, rgb == null ? "" : CosmeticBodyPartService.hex(rgb), "#rrggbb", fieldX, row,
+                    fieldW, UltraStyle.BTN_H, 9);
+            spec.colorPreview(input);
+            spec.buttonBound("do:bodypart_color:" + channel + ":", UltraStyle.confirm("Apply this color"),
+                    UltraStyle.STYLE_CONFIRM, wheel ? WHEEL_APPLY_X : UltraStyle.COL_R, row,
+                    wheel ? WHEEL_APPLY_W : UltraStyle.BTN_W, input);
+            spec.setRow(row + (wheel ? 56 : UltraStyle.BTN_H) + UltraStyle.BTN_GAP);
+        }
+        // Reset and the page button share a row (one page button on each of the two swatch pages).
+        spec.buttonLeft(
+                "do:bodypart_color_reset:" + channel,
+                UltraStyle.confirm("Reset to natural look"),
+                UltraStyle.STYLE_CONFIRM);
+        boolean prev = pg > 0;
+        boolean next = pg + 1 < pages;
+        if (prev != next) {
+            spec.buttonRight("page:bodycolors:" + channel + ":" + (prev ? pg - 1 : pg + 1),
+                    UltraStyle.LABEL + (prev ? "Prev" : "Next"), UltraStyle.STYLE_NORMAL);
+        }
+        spec.rowGap();
+        if (prev && next) {
+            spec.buttonLeft(
+                    "page:bodycolors:" + channel + ":" + (pg - 1),
+                    UltraStyle.LABEL + "Prev",
+                    UltraStyle.STYLE_NORMAL);
+            spec.buttonRight(
+                    "page:bodycolors:" + channel + ":" + (pg + 1),
+                    UltraStyle.LABEL + "Next",
+                    UltraStyle.STYLE_NORMAL);
+            spec.rowGap();
         }
         spec.back();
         spec.send(player);
     }
+
+    /** Text room in a swatch cell: four equal 80px cells beside the model, the menu widened to 452px (4.7.85). */
+    private static final int COL4_SWATCH_LABEL_PX = UltraStyle.labelMaxWidth(UltraStyle.BTN_MIN_W);
+    /**
+     * Beside the 56px wheel (4.7.85), on the legacy grid: the hex field at 80 (70 wide) and Apply at 156 (84 wide).
+     * The 452px menu scales them to clean cells right of the wheel: the field about 106px, Apply 127px.
+     */
+    private static final int WHEEL_FIELD_X = 80;
+    private static final int WHEEL_FIELD_W = 70;
+    private static final int WHEEL_APPLY_X = 156;
+    private static final int WHEEL_APPLY_W = 84;
 
     /**
      * Story tab: saga reset (4.7.84, C-8). Sagas you can reset (done or in progress) come first, then locked, then

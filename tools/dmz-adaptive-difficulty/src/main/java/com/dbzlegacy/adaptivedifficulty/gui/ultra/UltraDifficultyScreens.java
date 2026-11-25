@@ -318,7 +318,8 @@ public final class UltraDifficultyScreens {
         if (!personal) {
             spec.line(UltraStyle.danger(guide ? "First, turn difficulty on." : "Turn difficulty on to pick a tier."));
         }
-        spec.line(UltraStyle.VALUE + "Tap a tier to see what changes. Nothing is paid until you confirm.");
+        // 4.7.85 (X5): one line (was two), so Step 2 fits the 300 px height budget.
+        spec.line(UltraStyle.VALUE + "Tap a tier to see what changes. You pay only on confirm.");
         // 4.7.57 rule kept: buttons only, no per-tier cost or requirement lines. Every tier opens its
         // detail page; a locked tier is dim but still opens it, where the requirement is spelled out.
         spec.buttonsAfterLines();
@@ -340,17 +341,34 @@ public final class UltraDifficultyScreens {
             }
             placed++;
         }
-        if (placed % 2 == 1) {
-            spec.rowGap();
-        }
+        // 4.7.85 (X5): the row's next button fills the free slot beside T7 (seven tiers leave one), so the list
+        // ends one row sooner.
+        boolean free = placed % 2 == 1;
         if (!guide && active > 0) {
             // 4.7.78: clearing the active tier lives in the Tiers list (same confirm page and cost warning).
-            spec.buttonLeft("page:clear_tier_ask", UltraStyle.danger("Clear active tier"), UltraStyle.STYLE_DANGER)
-                    .rowGap();
+            if (free) {
+                spec.buttonRight("page:clear_tier_ask", UltraStyle.danger("Clear active tier"), UltraStyle.STYLE_DANGER)
+                        .rowGap();
+                free = false;
+            } else {
+                spec.buttonLeft("page:clear_tier_ask", UltraStyle.danger("Clear active tier"), UltraStyle.STYLE_DANGER)
+                        .rowGap();
+            }
         }
         if (guide) {
-            spec.button("page:" + DifficultyTutorial.PAGE_STEP3, UltraStyle.confirm("Next: Your tier"),
-                    UltraStyle.STYLE_CONFIRM).rowGap();
+            if (free) {
+                spec.buttonRight("page:" + DifficultyTutorial.PAGE_STEP3, UltraStyle.confirm("Next: Your tier"),
+                        UltraStyle.STYLE_CONFIRM).rowGap();
+                free = false;
+            } else {
+                spec.button("page:" + DifficultyTutorial.PAGE_STEP3, UltraStyle.confirm("Next: Your tier"),
+                        UltraStyle.STYLE_CONFIRM).rowGap();
+            }
+        }
+        if (free) {
+            spec.rowGap();
+        }
+        if (guide) {
             spec.footerGuide("page:" + DifficultyTutorial.PAGE_STEP1, "Step 1", GUIDE_DONE);
         } else {
             spec.back();
@@ -484,8 +502,8 @@ public final class UltraDifficultyScreens {
                         + (PaidFeatureAccess.bypassAncientCoinCost(player)
                                 ? ""
                                 : " (" + boss.netheriteCoins() + " Ancient Netherite)"))
-                .labelValue("Tiers", "T" + boss.minTier + " - T" + boss.maxTier)
-                .labelValue("Where", boss.dimensionName)
+                // 4.7.85 (X5): tiers and place on one line, so the page fits the 300 px height budget.
+                .labelValue("Tiers", "T" + boss.minTier + " - T" + boss.maxTier + ", in " + boss.dimensionName)
                 .labelValue("Status:", ready ? "ready" : "not ready yet");
         for (String line : PlayerBossSummons.statusLines(player, boss, ready)) {
             spec.line(line);

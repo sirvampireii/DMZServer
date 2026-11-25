@@ -22,7 +22,8 @@ public final class UltraRivalScreens {
      * Online player pickers: two-up rows; page so large servers never truncate. 4.7.84 (X5): 10 a page (was 20), so a
      * full page is five name rows and stays under 300 px with its heading, pager and footer.
      */
-    private static final int PICK_PER_PAGE = 10;
+    /** 4.7.85 (X5): 8 names a page (was 10), so a full picker page fits the 300 px height budget. */
+    private static final int PICK_PER_PAGE = 8;
     // GuiKit 4.7.81 page sizes: one row per request / challenge, so a page stays short.
     private static final int RIVALS_PER_PAGE = 6;
     private static final int DECLARES_PER_PAGE = 4;
@@ -1010,7 +1011,7 @@ public final class UltraRivalScreens {
     private static String pickExplainer(String doAction) {
         return switch (doAction == null ? "" : doAction) {
             case "rival_pick", "declare", "silent" ->
-                    "Next you choose: keep it private, or ask them to be rivals back.";
+                    "Next: keep it private, or ask them to be rivals back.";
             case "challenge_pick" -> "Pick who to challenge. Next step chooses length.";
             case "spectate" -> "Only fights that are in progress.";
             default -> "Choose an online player.";

@@ -122,8 +122,9 @@ public final class CharacterServicesGuiApi {
                 lines.add(UltraStyle.DANGER + "Your rank can't use Model and colors yet. Ask staff which rank unlocks it.");
                 return lines;
             }
-            lines.add(UltraStyle.LABEL + "One piece from each group. Demon horns can be worn together.");
-            lines.add(UltraStyle.LABEL + "A part you don't own shows its price first. Nothing is charged until you confirm.");
+            // 4.7.85 (X5): one model-page line each (44 characters beside the model), so the page fits 300 px.
+            lines.add(UltraStyle.LABEL + "One piece per group; demon horns stack.");
+            lines.add(UltraStyle.LABEL + "Locked parts ask you to confirm the price.");
             return lines;
         }
         if (p.startsWith("bodyparts:") || "bodyparts".equals(p)) {
