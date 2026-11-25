@@ -2038,6 +2038,34 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.87 ---")
+    p87_hud = read(SRC / "gui/ultra/LmHud.java")
+    p87_over = read(SRC / "client/HudOverlay.java")
+    p87_war = read(SRC / "dojo/DojoWar.java")
+    p87_spar = read(SRC / "sparring/SparringSystem.java")
+    p87_board = read(SRC / "dojo/BoardSpar.java")
+    p87_probe = (ROOT / "tools/lm-ui-probe/src/com/dbzlegacy/uiprobe/UiProbe.java").read_text(encoding="utf-8")
+    check("manifest row for lm 4.7.87", "lm-4787-hud-spar-war" in manifest)
+    check("WAR element: registered server side and drawn in the HUD's top row",
+          'public static final String WAR = "war";' in p87_hud
+          and "private static final Slot WAR = new Slot(LmHud.WAR);" in p87_over
+          and "TOP = {UNDERDOG, FIGHT, WAR," in p87_over)
+    check("one helper: a HUD player gets the toast, everyone else the same chat line; login notices wait for the hello",
+          "public static boolean toastOrChat(ServerPlayer player, String chat, String element" in p87_hud
+          and "public static List<String> chatLines(String chat)" in p87_hud
+          and "public static void whenClientKnown(ServerPlayer player, Runnable notice)" in p87_hud)
+    check("spar lines on the HUD: start, end summary, streak, board post/accept, winnings, dojo nudge, bonds",
+          has(p87_spar, "public static void startNotice(", "public static void streakNotice(",
+              "public static void inviteNotice(", "static void bondNotice(")
+          and has(p87_board, "public static void postNotice(", "public static void winningsNotice(",
+                  "public static void nudgeNotice("))
+    check("war lifecycle on the WAR element: requests, sign-up pill (reusing the DJ-6 state), announcements, results",
+          has(p87_war, "public static void warNotice(", "static void request(", "public static void signupNotice(",
+              "public static void signupPill(", "signupLeftMs(")
+          and "SIGNUP_MS = 60_000L" in p87_war)
+    check("probe: each converted line shows once on the HUD for a HUD player and once in chat otherwise",
+          "private void v87HudMatrix()" in p87_probe and "static final String[][] HUD87_CASES" in p87_probe)
+
     print("\n--- § lm 4.7.86 ---")
     p86_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
     p86_dash = read(SRC / "gui/ultra/HubDashboard.java")
