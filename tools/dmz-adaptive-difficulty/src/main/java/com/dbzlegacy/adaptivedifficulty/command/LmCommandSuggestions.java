@@ -177,6 +177,32 @@ public final class LmCommandSuggestions {
     /**
      * Mohist Bukkit tab passes {@code args}; last entry is the partial token being completed.
      */
+    /**
+     * 4.7.88: tab suggestions this source may actually use. Brigadier's server-side
+     * {@code getCompletionSuggestions} lists every child, even one whose {@code requires()} refuses the source (the
+     * vanilla client never sees those because its command list is filtered when sent). The Mohist bridge completes
+     * on the server, so a suggestion is kept only when the line up to and including it still parses for this
+     * source: an admin node is dropped for a staff player who is not in creative, and for every player.
+     */
+    public static List<String> usableSuggestions(
+            com.mojang.brigadier.CommandDispatcher<CommandSourceStack> dispatcher, CommandSourceStack source,
+            String line) throws Exception {
+        List<String> out = new ArrayList<>();
+        var parse = dispatcher.parse(line, source);
+        for (com.mojang.brigadier.suggestion.Suggestion s : dispatcher.getCompletionSuggestions(parse, line.length())
+                .get(3, java.util.concurrent.TimeUnit.SECONDS).getList()) {
+            String text = s.getText();
+            if (text == null || text.isEmpty()) {
+                continue;
+            }
+            String candidate = line.substring(0, Math.min(line.length(), s.getRange().getStart())) + text;
+            if (!dispatcher.parse(candidate, source).getReader().canRead()) {
+                out.add(text);
+            }
+        }
+        return out;
+    }
+
     public static boolean expectsPlayerName(String label, String[] args) {
         return expectsPlayerName(label, args, null);
     }

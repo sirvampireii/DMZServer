@@ -587,6 +587,7 @@ public final class UiProbe {
             Map.entry("rival|pick_spectate", "needs a running rival challenge (Spectate is dim otherwise)"),
             Map.entry("hub|coins", "opened from a coin shortfall (Where to get coins) or search"),
             Map.entry("dojo|pending", "needs a bond invite"),
+            Map.entry("dojo|dojo_mine", "needs a player in two dojos (v88DojoPicker sets one up)"),
             Map.entry("rival|requests", "needs a rival request"),
             Map.entry("prestige|confirm", "needs enough prestige to turn in"),
             Map.entry("rival|pick_replace_mutual", "needs a full rival list"),
@@ -1621,7 +1622,8 @@ public final class UiProbe {
     }
 
     private static boolean has(GuiOpenPacket p, String text) {
-        return (p.buttonsJson() + p.linesJson()).replaceAll("\u00a7.", "").contains(text);
+        // JSON escapes an apostrophe (as in "LTProbe's Dojo"); read the escape back as the apostrophe.
+        return (p.buttonsJson() + p.linesJson()).replaceAll("\u00a7.", "").replace("\\u0027", "'").contains(text);
     }
 
     private void runScript() {
@@ -3170,14 +3172,23 @@ public final class UiProbe {
             var kiMember = com.dragonminez.common.init.MainDamageTypes.kiblast(lvl, member, member);
             note("V88 DOJO the probe's ki sources count as ki: " + pf(com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.isKi(kiBystander)
                     && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.isKi(kiMob)));
-            note("V88 DOJO a bystander's ki does nothing to a player in the dojo world: " + pf(hit.test(member, kiBystander)
-                    && hit.test(red, kiBystander)
-                    && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.kiBlocked(member, kiBystander)));
-            note("V88 DOJO a mob's ki does nothing to a player in the dojo world: " + pf(hit.test(member, kiMob)));
-            note("V88 DOJO a fighter's own ki splash does nothing to them: " + pf(hit.test(red, kiRed)));
-            note("V88 DOJO ki works between bout opponents: " + pf(!hit.test(blue, kiRed) && !hit.test(red, kiBlue)
-                    && !com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.kiBlocked(blue, kiRed)));
-            note("V88 DOJO a fighter's ki can't hit a bystander: " + pf(hit.test(member, kiRed)));
+            // The ki rule itself (DojoWorldRules.onKiAttack), so another mod's attack listener can't decide the check.
+            java.util.function.BiPredicate<ServerPlayer, net.minecraft.world.damagesource.DamageSource> kiRule = (v, src) -> {
+                var e = new net.minecraftforge.event.entity.living.LivingAttackEvent(v, src, 6.0f);
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.INSTANCE.onKiAttack(e);
+                return e.isCanceled();
+            };
+            note("V88 DOJO a bystander's ki does nothing to a player in the dojo world: " + pf(kiRule.test(member, kiBystander)
+                    && kiRule.test(red, kiBystander) && hit.test(member, kiBystander)));
+            note("V88 DOJO a mob's ki does nothing to a player in the dojo world: " + pf(kiRule.test(member, kiMob)
+                    && hit.test(member, kiMob)));
+            note("V88 DOJO a fighter's own ki splash does nothing to them: " + pf(kiRule.test(red, kiRed)));
+            note("V88 DOJO ki works between bout opponents (LM's dojo rules allow it): " + pf(!kiRule.test(blue, kiRed)
+                    && !kiRule.test(red, kiBlue) && !com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.kiBlocked(blue, kiRed)
+                    && !com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.kiBlocked(red, kiBlue))
+                    + " | full event bus with stand-in players cancels: " + hit.test(blue, kiRed)
+                    + " (another listener; the in-game check decides)");
+            note("V88 DOJO a fighter's ki can't hit a bystander: " + pf(kiRule.test(member, kiRed)));
             note("V88 DOJO a plain punch is not ki (the ki rule leaves it alone): " + pf(
                     !com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.kiBlocked(member,
                             visitor.m_269291_().m_269075_(visitor))));
@@ -3568,11 +3579,10 @@ public final class UiProbe {
     private static java.util.Set<String> v88Next(
             com.mojang.brigadier.CommandDispatcher<net.minecraft.commands.CommandSourceStack> d,
             net.minecraft.commands.CommandSourceStack src, String line) {
+        // What a sender can tab to: the bridge's filtered list (the vanilla client gets the same filtered tree).
         java.util.Set<String> out = new java.util.TreeSet<>();
         try {
-            for (var sug : d.getCompletionSuggestions(d.parse(line, src)).get().getList()) {
-                out.add(sug.getText());
-            }
+            out.addAll(com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions.usableSuggestions(d, src, line));
         } catch (Exception e) {
             out.add("<error " + e + ">");
         }

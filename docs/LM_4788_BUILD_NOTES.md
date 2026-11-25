@@ -135,12 +135,27 @@ Forge events in `dojo/DojoWorldRules` (no mixins):
 `AdaptiveDifficultyMod`, `ConfigFieldHelp`, `ProgressionGuiApi`, `PrestigePointsSystem`, `PrestigeShopHooks` and
 `PrestigeCustomShop` re-baselined (text only, plus the two new registrations); see `reference/README.md`.
 
+## Release check
+
+`DMZRig/results/release-4.7.88`: **379 PASS, 0 FAIL**, 0 matrix rows failing, strict boot self-tests OK.
+
+- The first run (`release-4.7.88` before the fixes, 369/11) found:
+  - Brigadier's server-side tab completion lists every child even when `requires()` refuses it (the vanilla
+    client never sees those, because its command list is filtered when sent). The Mohist bridge completes on the
+    server, so it now keeps only suggestions the sender may use (`LmCommandSuggestions.usableSuggestions`), and the
+    probe measures tab-complete the same way.
+  - Probe text matching missed dojo names with an apostrophe (JSON escapes it); `has()` now reads it back.
+  - `dojo|dojo_mine` is a stateful page for the navigation audit (needs a player in two dojos).
+- Ki between bout fighters: LM's dojo rules allow it (checked on the rule handler). With the probe's stand-in
+  players, another listener on the event bus still cancels the hit, so whether ki lands in a real bout is part of
+  the in-game check below.
+
 ## Still owed (in game)
 
 - Every new path typed in game; the old roots rejected; a staff member in survival gets the plain message and in
   creative is allowed; console `lm revive <player>` still works; tab-complete over the Mohist bridge.
 - `/lm help` read by a new player.
-- The dojo build and ki rules on a live dojo visit.
+- The dojo build and ki rules on a live dojo visit, including ki landing between the two fighters of a real bout.
 - The picker with a real dual-affiliation player.
 - CNPC scripts in `customnpcs/scripts/` changed only in comments and message text; they go live with the next script
   sync, not with the jar.

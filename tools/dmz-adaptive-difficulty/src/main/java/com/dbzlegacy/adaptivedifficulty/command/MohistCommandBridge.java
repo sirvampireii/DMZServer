@@ -1,9 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.command;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
-import com.mojang.brigadier.ParseResults;
-import com.mojang.brigadier.suggestion.Suggestion;
-import com.mojang.brigadier.suggestion.Suggestions;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -16,7 +13,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Mohist routes player chat through Bukkit. Registers Bukkit commands that forward the
@@ -164,12 +160,10 @@ public final class MohistCommandBridge {
         if (LmCommandSuggestions.needsTrailingSpaceForTab(label, coalesced, source) && !line.endsWith(" ")) {
             line = line + " ";
         }
-        int cursor = line.length();
         try {
             var dispatcher = server.m_129892_().m_82094_();
-            ParseResults<CommandSourceStack> parse = dispatcher.parse(line, source);
-            Suggestions suggestions = dispatcher.getCompletionSuggestions(parse, cursor)
-                    .get(3, TimeUnit.SECONDS);
+            // 4.7.88: only nodes this sender may use (admin nodes need staff in creative).
+            List<String> usable = LmCommandSuggestions.usableSuggestions(dispatcher, source, line);
             List<String> out = new ArrayList<>();
             String partial = LmCommandSuggestions.playerNamePartial(label, coalesced, source);
             if (LmCommandSuggestions.expectsPlayerName(label, coalesced, source)) {
@@ -180,11 +174,7 @@ public final class MohistCommandBridge {
                     return players;
                 }
             }
-            for (Suggestion s : suggestions.getList()) {
-                String text = bukkitSuggestionToken(line, s);
-                if (text == null || text.isEmpty()) {
-                    continue;
-                }
+            for (String text : usable) {
                 if (!partial.isEmpty() && !text.toLowerCase(Locale.ROOT).startsWith(partial.toLowerCase(Locale.ROOT))) {
                     continue;
                 }
@@ -209,11 +199,6 @@ public final class MohistCommandBridge {
             }
         }
         return line.toString();
-    }
-
-    private static String bukkitSuggestionToken(String line, Suggestion s) {
-        String text = s.getText();
-        return text == null || text.isEmpty() ? null : text;
     }
 
     private static CommandSourceStack commandSource(MinecraftServer server, Object sender) {
