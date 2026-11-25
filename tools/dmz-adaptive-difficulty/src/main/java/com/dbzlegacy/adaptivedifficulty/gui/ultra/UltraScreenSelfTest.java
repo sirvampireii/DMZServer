@@ -1072,6 +1072,7 @@ public final class UltraScreenSelfTest {
         List<int[]> rects = new ArrayList<>();
         List<String> names = new ArrayList<>();
         int mainX = -1;
+        int mainW = UltraStyle.BTN_W;
         int footerBottom = -1;
         for (String json : new String[] {pkt.buttonsJson(), pkt.inputsJson()}) {
             if (json == null || json.isBlank()) {
@@ -1093,6 +1094,7 @@ public final class UltraScreenSelfTest {
                 }
                 if ("Main menu".equals(name)) {
                     mainX = x;
+                    mainW = w;   // 4.7.81: the footer is as wide as the widened columns
                 }
                 if ("Main menu".equals(name) || name.startsWith("Back to")) {
                     footerBottom = Math.max(footerBottom, y + h);
@@ -1150,7 +1152,7 @@ public final class UltraScreenSelfTest {
         if (footer && footerBottom >= 0 && footerBottom != lowest) {
             broken.add(tag + ": the footer row must follow the content (ends at " + footerBottom + ", content at " + lowest + ")");
         }
-        if (footer && mainX >= 0 && mainX + UltraStyle.BTN_W != panelW - UltraStyle.MENU_EDGE) {
+        if (footer && mainX >= 0 && mainX + mainW != panelW - UltraStyle.MENU_EDGE) {
             broken.add(tag + ": Main menu must sit on the right content edge, x=" + mainX);
         }
     }
