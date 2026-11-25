@@ -208,9 +208,9 @@ public final class UltraHubScreens {
         // 4.7.78: the search row lives at the top of the More tab now; Home is the dashboard and the systems.
 
         // Prestige: the payoff, with the "Fastest now" button beside it (4.7.84, H3; was full width).
+        // 4.7.85 (X5): three to a row, the system tiles following Prestige and Go, so Home fits the 300 px budget.
         placeTile(spec, ph, new HubTile("prestige", "Prestige", UltraStyle.STYLE_NORMAL, false), true);
-        spec.buttonRight(fastest[1], fastest[2], UltraStyle.STYLE_NORMAL);
-        spec.rowGap();
+        spec.button(fastest[1], fastest[2], UltraStyle.STYLE_NORMAL, tileX(1), spec.row(), TILE_W);
         // Hub tiles: normal (dark) + per-system accent. Nothing is "selected" on the hub.
         List<HubTile> tiles = new ArrayList<>();
         tiles.add(new HubTile("difficulty", "Difficulty", UltraStyle.STYLE_NORMAL, true));
@@ -226,7 +226,7 @@ public final class UltraHubScreens {
             tiles.add(new HubTile("skills", "Skills", UltraStyle.STYLE_NORMAL, true));
         }
         // 4.7.71: no dim Skill Check tile for players who cannot use it: a tile that lands nowhere teaches a dead end.
-        placeTiles(spec, ph, tiles);
+        placeTiles(spec, ph, tiles, 2);
         // Menu skins and Staff Admin moved to More (4.7.64); Find body parts lives on the Body parts shop.
         spec.send(player);
     }
@@ -382,17 +382,20 @@ public final class UltraHubScreens {
         String query = st.query();
         placeSearchRow(spec, query);
         if (query.isBlank()) {
+            // 4.7.85 (X5): three recent searches a row (5 take 2 rows), so More fits the 300 px budget.
             List<String> recent = recentSearches(player);
+            int room = UltraStyle.labelMaxWidth(TILE_MENU_W);
             for (int i = 0; i < recent.size(); i++) {
                 String r = "Recent: " + recent.get(i);
-                String label = UltraStyle.LABEL + (UltraStyle.fitsButton(r) ? r : UltraStyle.buttonText(recent.get(i)));
-                if (i % 2 == 0) {
-                    spec.buttonLeft("do:hub_search_recent:" + i, label, UltraStyle.STYLE_NORMAL);
-                } else {
-                    spec.buttonRight("do:hub_search_recent:" + i, label, UltraStyle.STYLE_NORMAL).rowGap();
+                String label = UltraStyle.LABEL + (UltraStyle.textWidthPx(r) <= room ? r
+                        : UltraStyle.clipPlain(recent.get(i), room));
+                spec.button("do:hub_search_recent:" + i, label, UltraStyle.STYLE_NORMAL, tileX(i % 3), spec.row(),
+                        TILE_W);
+                if (i % 3 == 2) {
+                    spec.rowGap();
                 }
             }
-            if (recent.size() % 2 == 1) {
+            if (recent.size() % 3 != 0) {
                 spec.rowGap();
             }
             return;
@@ -480,22 +483,21 @@ public final class UltraHubScreens {
             spec.line(UltraStyle.header("Your menus"));
             // 4.7.72: the native HUD switch; it only changes anything for players with the Legacy Mechanics client.
             spec.labelValue("HUD:", hudOn ? "rival, TP and penalty info on screen" : "boss bars and chat lines");
-            if (!com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.hasNativeClient(player)) {
-                spec.line(UltraStyle.LABEL + "The HUD needs the Legacy Mechanics client.");
-            }
+            // 4.7.86: said to every client again (one spec for both render paths: a client-only line shifts the layout).
+            spec.line(UltraStyle.LABEL + "The HUD needs the Legacy Mechanics client.");
         }
         spec.buttonsAfterLines();
         // 4.7.80: search lives here entirely (field, results, recents); there is no Search tab.
         placeSearchButtons(spec, player, search);
         if (sections) {
-            // Menu skins and the HUD switch share a row; Staff Admin (staff only) gets its own.
+            // Menu skins, the HUD switch and Staff Admin (staff only) share one row (4.7.85, X5: three columns).
             placeTile(spec, Map.of(), new HubTile("menu_skins", "Menu skins", UltraStyle.STYLE_NORMAL, true), true);
-            spec.buttonRight("do:" + LmHud.ACTION_TOGGLE, UltraStyle.toggle("HUD", hudOn), UltraStyle.STYLE_NORMAL);
-            spec.rowGap();
+            spec.button("do:" + LmHud.ACTION_TOGGLE, UltraStyle.toggle("HUD", hudOn), UltraStyle.STYLE_NORMAL,
+                    tileX(1), spec.row(), TILE_W);
             if (staff) {
-                placeTile(spec, Map.of(), new HubTile("admin", "Staff Admin", UltraStyle.STYLE_NORMAL, true), true);
-                spec.rowGap();
+                placeTileAt(spec, Map.of(), new HubTile("admin", "Staff Admin", UltraStyle.STYLE_NORMAL, true), 2);
             }
+            spec.rowGap();
         }
         spec.send(player);
     }
@@ -624,13 +626,13 @@ public final class UltraHubScreens {
                 .title("Menu skins")
                 .page(PAGE_SKINS)
                 .activeTab("home");
-        spec.line(UltraStyle.VALUE + "Pick how your menus look. Tap a name to use it.")
-                .line(UltraStyle.VALUE + "Switching is free and you can switch back.")
-                .labelValue("Backgrounds:", "a themed scene behind menus")
-                .labelValue("Lite:", "plainer, faster menus for slow PCs");
-        // Same text on both paths (one spec): true for everyone, useful for players without the client.
-        spec.line(UltraStyle.LABEL + "Full skins need the Legacy Mechanics client.");
-        spec.line(UltraStyle.LABEL + "Custom: pick your own colors.");
+        // 4.7.85 (X5): one line (was six), so the page fits the 300 px height budget. The rows name every choice; a
+        // player without the Legacy Mechanics client reads what full skins need instead.
+        if (com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.hasNativeClient(player)) {
+            spec.line(UltraStyle.VALUE + "Tap a name to use it. It's free, and you can switch back.");
+        } else {
+            spec.line(UltraStyle.LABEL + "Full skins need the Legacy Mechanics client.");
+        }
         spec.buttonsAfterLines();
         for (MenuSkins.Skin skin : MenuSkins.ALL) {
             boolean using = skin.id().equals(prefs.skin());
@@ -647,20 +649,27 @@ public final class UltraHubScreens {
         // 4.7.66: Custom, after Zeno Omni. The action carries the palette token so the swatch shows the player's
         // own colors; tapping it wears Custom (free) and opens My colors.
         String customAction = "do:" + ACTION_SKIN + ":" + MenuSkins.customToken(prefs.custom());
-        if (prefs.usingCustom()) {
+        boolean edit = prefs.usingCustom();
+        if (edit) {
             spec.buttonLeft(customAction, UltraStyle.confirm(MenuSkins.CUSTOM_NAME), UltraStyle.STYLE_CONFIRM);
             spec.lockedButtonRight("You are using this");
             spec.rowGap();
+            // 4.7.85 (X5): Edit my colors shares the toggles' row (three columns).
             spec.buttonLeft("page:" + PAGE_CUSTOM, "Edit my colors", UltraStyle.STYLE_NORMAL);
-            spec.rowGap();
         } else {
             spec.buttonLeft(customAction, MenuSkins.CUSTOM_NAME, UltraStyle.STYLE_NORMAL);
             spec.lockedButtonRight("Tap to make your own");
             spec.rowGap();
         }
-        spec.buttonLeft("do:" + ACTION_BACKGROUNDS, UltraStyle.toggle("Backgrounds", prefs.backgrounds()),
-                UltraStyle.STYLE_NORMAL);
-        spec.buttonRight("do:" + ACTION_LOOK, "Look - " + (prefs.lite() ? "Lite" : "Full"), UltraStyle.STYLE_NORMAL);
+        String backgrounds = UltraStyle.toggle("Backgrounds", prefs.backgrounds());
+        String look = "Look - " + (prefs.lite() ? "Lite" : "Full");
+        if (edit) {
+            spec.button("do:" + ACTION_BACKGROUNDS, backgrounds, UltraStyle.STYLE_NORMAL, tileX(1), spec.row(), TILE_W);
+            spec.button("do:" + ACTION_LOOK, look, UltraStyle.STYLE_NORMAL, tileX(2), spec.row(), TILE_W);
+        } else {
+            spec.buttonLeft("do:" + ACTION_BACKGROUNDS, backgrounds, UltraStyle.STYLE_NORMAL);
+            spec.buttonRight("do:" + ACTION_LOOK, look, UltraStyle.STYLE_NORMAL);
+        }
         spec.rowGap();
         spec.back();
         spec.send(player);
@@ -701,14 +710,18 @@ public final class UltraHubScreens {
             spec.send(player);
             return;
         }
-        spec.line(UltraStyle.VALUE + (wheels ? "Tap a box, then pick on the wheel or type #e23b3b."
-                : "Type a color like #e23b3b in each box."));
-        if (d.message() != null && !d.message().isBlank()) {
+        // 4.7.85 (X5): one line - how to edit and that Apply saves (free), or the last result in its place - so the
+        // page fits the 300 px height budget.
+        boolean message = d.message() != null && !d.message().isBlank();
+        if (message) {
             spec.line(d.error() ? UltraStyle.danger(d.message()) : UltraStyle.VALUE + d.message());
         } else {
-            spec.line(UltraStyle.LABEL + "Only Apply saves, and it is free.");
+            spec.line(UltraStyle.VALUE + (wheels ? "Tap a box, pick or type a color, then Apply (free)."
+                    : "Type a color like #e23b3b in each box, then Apply (free)."));
         }
-        if (prefs.usingCustom() && MenuSkins.customTextAdjusted(prefs.custom())) {
+        // 4.7.86: the readability note shows after a successful Apply too (the player needs to know their text color
+        // was changed); with the result line that is two lines, still within the height budget.
+        if (!(message && d.error()) && prefs.usingCustom() && MenuSkins.customTextAdjusted(prefs.custom())) {
             spec.line(UltraStyle.LABEL + "Text color adjusted so it stays readable (now "
                     + MenuSkins.hex(MenuSkins.customText(prefs.custom())) + ").");
         }
@@ -944,33 +957,68 @@ public final class UltraHubScreens {
     }
 
     /**
-     * Pack hub tiles two-up. Panel height follows {@link UltraScreenSpec} content packing
-     * (compact min height when there is no body copy), so more systems just add rows.
+     * Pack hub tiles three to a row (4.7.85, X5; were two-up), the first in column {@code startCol} of the current
+     * row. Panel height follows {@link UltraScreenSpec} content packing, so more systems just add rows.
      */
-    private static void placeTiles(UltraScreenSpec spec, Map<String, String> ph, List<HubTile> tiles) {
+    private static void placeTiles(UltraScreenSpec spec, Map<String, String> ph, List<HubTile> tiles, int startCol) {
         if (spec == null || tiles == null || tiles.isEmpty()) {
             return;
         }
-        int placed = 0;
+        int col = startCol;
         for (HubTile tile : tiles) {
             if (tile == null || tile.system == null || tile.system.isBlank()) {
                 continue;
             }
-            boolean left = placed % 2 == 0;
-            placeTile(spec, ph, tile, left);
-            placed++;
-            if (!left) {
+            placeTileAt(spec, ph, tile, col);
+            col++;
+            if (col == 3) {
                 spec.rowGap();
+                col = 0;
             }
         }
-        if (placed % 2 == 1) {
+        if (col != 0) {
             spec.rowGap();
         }
     }
 
-    /** {@code left} true/false: a half-width tile in that column; null: full width (Prestige, 4.7.64). */
+    /**
+     * Three-column cell on the legacy grid (4.7.85): 98px at 16 / 122 / 228, which the menu reflow scales to three
+     * clean 129px cells on the 426px menu.
+     */
+    static final int TILE_W = 98;
+    /** Menu width of {@link #TILE_W}: the text room of a cell is {@code labelMaxWidth(TILE_MENU_W)}. */
+    static final int TILE_MENU_W = 129;
+
+    static int tileX(int col) {
+        return UltraStyle.COL_L + col * (TILE_W + UltraStyle.BTN_PAD);
+    }
+
+    /** One tile in column {@code col} (0-2) of the current row. */
+    private static void placeTileAt(UltraScreenSpec spec, Map<String, String> ph, HubTile tile, int col) {
+        String[] t = tileFace(ph, tile);
+        spec.button(actionFor(tile.system()), t[0], t[1], tileX(col), spec.row(), TILE_W, null, t[2]);
+    }
+
+    /**
+     * {@code left} true: the first cell of a three-column row (4.7.85; was the left half); false: the right half;
+     * null: full width (Prestige, 4.7.64).
+     */
     private static void placeTile(
             UltraScreenSpec spec, Map<String, String> ph, HubTile tile, Boolean left) {
+        if (Boolean.TRUE.equals(left)) {
+            placeTileAt(spec, ph, tile, 0);
+            return;
+        }
+        String[] t = tileFace(ph, tile);
+        if (left == null) {
+            spec.buttonWide(actionFor(tile.system()), t[0], t[1], t[2]);
+        } else {
+            spec.buttonRight(actionFor(tile.system()), t[0], t[1], t[2]);
+        }
+    }
+
+    /** A tile's {label, style, accent}: lit in its system's ink when the system is on, dim when it is off. */
+    private static String[] tileFace(Map<String, String> ph, HubTile tile) {
         String system = tile.system();
         // Spar Board, My dojo and Dojo wars live in Sparring: same availability and accent.
         // 4.7.78: the Dojo tile is available whenever Sparring is (it is the same feature switch).
@@ -978,7 +1026,6 @@ public final class UltraHubScreens {
         boolean on = tile.alwaysOn()
                 || "difficulty".equals(system)
                 || (ph != null && "true".equalsIgnoreCase(ph.get(owner)));
-        String action = actionFor(system);
         // Per-system identity on the label text (chrome stays default). fitAsciiLabel strips
         // section-sign; UltraScreenSpec re-applies via the accent letter + UltraStyle.color.
         String ink = UltraStyle.systemAccent(owner);
@@ -991,13 +1038,7 @@ public final class UltraHubScreens {
                 : UltraStyle.STYLE_DIM;
         // hubTileAccentCode == systemAccentCode; letter re-applied after fitAsciiLabel.
         String accent = on ? UltraStyle.hubTileAccentCode(owner) : "";
-        if (left == null) {
-            spec.buttonWide(action, styled, style, accent);
-        } else if (left) {
-            spec.buttonLeft(action, styled, style, accent);
-        } else {
-            spec.buttonRight(action, styled, style, accent);
-        }
+        return new String[] {styled, style, accent};
     }
 
     private static String actionFor(String system) {

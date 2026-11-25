@@ -211,16 +211,17 @@ public final class PlayerBossSummons {
             lines.add(UltraStyle.LABEL + boss.display + " summoning is turned off. Ask staff to turn it on.");
             return lines;
         }
-        lines.add(UltraStyle.LABEL + "The " + boss.display + " matches your difficulty. Only you can damage it.");
-        // 4.7.84 (D-3 fit): the page's Tiers and Where rows already give the range and the place.
-        lines.add(UltraStyle.LABEL + "Difficulty must be on. One living " + boss.display + " at a time per player.");
+        // 4.7.85 (X5): each line fits one menu line (57 characters), so the summon page fits 300 px.
+        lines.add(UltraStyle.LABEL + "The " + boss.display + " matches your difficulty. Only you can hurt it.");
+        // 4.7.84 (D-3 fit): the page's Tiers row already gives the range and the place.
+        lines.add(UltraStyle.LABEL + "Difficulty must be on. One living " + boss.display + " per player.");
         int myTier = DifficultyCache.data(player).getActiveTier();
         if (myTier >= boss.minTier && myTier <= boss.maxTier) {
             lines.add(UltraStyle.VALUE + SummonLootBonus.describe(myTier, boss.minTier));
         } else {
-            lines.add(UltraStyle.LABEL + "Higher tiers drop more: +"
+            lines.add(UltraStyle.LABEL + "Per tier above T" + boss.minTier + ": +"
                     + Math.max(0, DifficultyConfig.get().summonLootBonusPerTierPercent)
-                    + "% chance per kill to double every drop, per tier above T" + boss.minTier + ".");
+                    + "% chance to double a kill's drops.");
         }
         if (!ready) {
             if (!SystemGate.participates(player)) {

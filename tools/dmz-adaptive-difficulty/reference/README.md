@@ -676,3 +676,9 @@ Trade" through the shared `UltraScreenSpec.offerGetMore` (the page's own line an
 wallet, favor or purchase logic changed. The other 24 are unchanged. These reference `.class` files are not build
 output: `build.sh` verifies the built classes against them byte for byte, so a class that changes must be re-extracted
 here in the same commit, or the build fails at the prestige-shop verify step.
+
+## Re-baseline (2026-11-25, 4.7.86 height budget)
+
+`UltraPrestigeScreens` re-baselined for `LegacyMechanics-4.7.86.jar`: the skill shop lists its skills in three columns
+with captions fitted by measured width, so the page fits the 300 px menu height budget. No price, wallet, favor or
+purchase logic changed. The other 24 are unchanged.

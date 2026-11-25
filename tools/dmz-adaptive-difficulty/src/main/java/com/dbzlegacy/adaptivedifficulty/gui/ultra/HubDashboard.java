@@ -69,8 +69,10 @@ public final class HubDashboard {
             out.add(UltraStyle.LABEL + "Prestige is off on this server.");
             return out;
         }
-        out.add(UltraStyle.VALUE + levelBar(p.level(), p.required()));
-        out.add((p.ready() ? UltraStyle.GREEN : UltraStyle.VALUE) + levelsToGo(p.level(), p.required(), p.ready()));
+        // 4.7.86 (height budget): one line, "Level 42,310 of 50,000. 7,690 levels to your next prestige", so Home stays
+        // within 300 px even with a two-line notice. The bar lives on the Prestige pages.
+        out.add((p.ready() ? UltraStyle.GREEN : UltraStyle.VALUE) + "Level " + DmzRewards.formatWhole(p.level()) + " of "
+                + DmzRewards.formatWhole(p.required()) + ". " + levelsToGo(p.level(), p.required(), p.ready()));
         return out;
     }
 

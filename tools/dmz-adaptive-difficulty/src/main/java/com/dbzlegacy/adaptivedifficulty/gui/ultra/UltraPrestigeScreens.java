@@ -345,6 +345,24 @@ public final class UltraPrestigeScreens {
         }
     }
 
+    /**
+     * Three-column cell on the legacy grid (4.7.85, X5): 98px at 16 / 122 / 228, which the menu reflow scales to
+     * three clean 129px cells on the 426px menu.
+     */
+    private static final int TRIPLE_W = 98;
+    /** Text room in a {@link #TRIPLE_W} cell once widened (129px less the button padding). */
+    private static final int SKILL_CELL_PX = UltraStyle.labelMaxWidth(129);
+
+    /** The {@code index}-th cell of a three-column grid; the row ends after the third cell. */
+    private static void tripleButton(UltraScreenSpec spec, int index, String action, String label, String style) {
+        int col = index % 3;
+        spec.button(action, label, style, UltraStyle.COL_L + col * (TRIPLE_W + UltraStyle.BTN_PAD), spec.row(),
+                TRIPLE_W);
+        if (col == 2) {
+            spec.rowGap();
+        }
+    }
+
     /** Ends a half-filled last row of {@link #pairButton}. */
     private static void endPairs(UltraScreenSpec spec, int placed) {
         if (placed % 2 == 1) {
@@ -705,7 +723,7 @@ public final class UltraPrestigeScreens {
         }
     }
 
-    /** All skills on one page. */
+    /** All skills on one page. 4.7.85 (X5): three to a row (16 skills take 6 rows), so the page fits 300 px. */
     private static void openSkillsShop(ServerPlayer player) {
         Map<String, String> ph = ProgressionGuiApi.prestigePlaceholders(player);
         PrestigeShopConfig.SkillShop shop = PrestigeShopConfig.get().skillShop;
@@ -752,20 +770,20 @@ public final class UltraPrestigeScreens {
             boolean maxed = max > 0 && bought >= max;
             // Price tag only when this skill's cost differs from the header price.
             String caption = skillCaption(label, bought, max, maxed,
-                    cost != shop.costPerPurchase ? cost : -1);
+                    cost != shop.costPerPurchase ? cost : -1, SKILL_CELL_PX);
             String action = "page:ask:skill:" + id;
             // 4.7.81: a skill is an option (its confirm page asks before buying) - normal, not green.
             // 4.7.84 (P-2): dim when favor is short, with the shortfall when it fits; it still opens the confirm page.
             boolean shortFavor = !maxed && favor < cost;
             if (shortFavor) {
-                caption = shortfallCaption(caption, cost - favor);
+                caption = shortfallCaption(caption, cost - favor, SKILL_CELL_PX);
             }
-            pairButton(spec, placed, action,
+            tripleButton(spec, placed, action,
                     maxed || shortFavor ? UltraStyle.dim(caption) : UltraStyle.plain(caption),
                     maxed || shortFavor ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_NORMAL);
             placed++;
         }
-        if (placed % 2 == 1) {
+        if (placed % 3 != 0) {
             spec.rowGap();
         }
         if (placed == 0) {
@@ -945,6 +963,17 @@ public final class UltraPrestigeScreens {
      * 4.7.84 (P-2): a buy the player can't afford reads {@code <caption> - need N more favor}, or a shorter form
      * that fits a button, or the caption alone (the confirm page states the exact shortfall).
      */
+    /** {@link #shortfallCaption} for a cell with {@code px} of text room (4.7.85: measured, not counted). */
+    static String shortfallCaption(String caption, int need, int px) {
+        for (String c : new String[] {caption + " - need " + need + " more favor", caption + " - need " + need + " more",
+                caption + " - need " + need}) {
+            if (UltraStyle.textWidthPx(c) <= px) {
+                return c;
+            }
+        }
+        return caption;
+    }
+
     static String shortfallCaption(String caption, int need) {
         for (String c : new String[] {caption + " - need " + need + " more favor", caption + " - need " + need + " more",
                 caption + " - need " + need}) {
@@ -1072,19 +1101,20 @@ public final class UltraPrestigeScreens {
 
     /**
      * Skill button: short name plus level, and the price when {@code cost >= 0}. Drops the max tag
-     * (or price) when the full caption would clip.
+     * (or price) when the full caption would clip. 4.7.85 (X5): fitted to {@code px}, the measured text room of a
+     * three-column cell.
      */
-    private static String skillCaption(String label, int bought, int max, boolean maxed, int cost) {
+    private static String skillCaption(String label, int bought, int max, boolean maxed, int cost, int px) {
         // 4.7.56: the full skill name, as on the ask page; the level and price drop first.
         String name = label == null || label.isBlank() ? "Skill" : label;
         String prog = bought + "/" + (max > 0 ? max : "?");
         String priceTag = cost >= 0 && !maxed ? " (" + cost + ")" : "";
         String withMax = name + " " + prog + (maxed ? " max" : priceTag);
-        if (UltraStyle.fitsButton(withMax)) {
+        if (UltraStyle.textWidthPx(withMax) <= px) {
             return withMax;
         }
         String base = name + " " + prog;
-        return UltraStyle.fitsButton(base) ? base : UltraStyle.buttonText(name);
+        return UltraStyle.textWidthPx(base) <= px ? base : UltraStyle.clipPlain(name, px);
     }
 
     private static String[] shopSkillIds(Map<String, String> ph) {

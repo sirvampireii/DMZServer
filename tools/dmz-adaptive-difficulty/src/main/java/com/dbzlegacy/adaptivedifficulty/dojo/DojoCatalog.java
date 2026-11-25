@@ -50,15 +50,16 @@ public final class DojoCatalog {
         };
     }
 
+    /** What an upgrade builds, in one menu line (4.7.85: each fits one 57-character body line). */
     public static String upgradeWhat(String id) {
         return switch (id == null ? "" : id) {
-            case TRAINING -> "A room in your hall with training dummies and drill posts.";
-            case ARENA -> "Another ring on the hall floor, so more board spars can run at once.";
-            case MEDITATION -> "A quiet room with tatami, cushions and a stone garden (decoration).";
+            case TRAINING -> "A room with training dummies and drill posts.";
+            case ARENA -> "One more ring, so more board spars can run at once.";
+            case MEDITATION -> "A quiet room with tatami and a stone garden (decoration).";
             case TROPHY -> "A trophy room with pedestals for your hall (decoration).";
             case QUARTERS -> "The master's own room in the hall (decoration).";
             case SPECTATOR -> "A balcony over the rings. Lets players watch your spars.";
-            case GARDEN -> "Lanterns, trees and a torii on the grounds round your hall.";
+            case GARDEN -> "Lanterns, trees and a torii round your hall.";
             case CAPACITY -> "Room for more disciples.";
             default -> "";
         };

@@ -583,6 +583,7 @@ public final class UiProbe {
             Map.entry("spar|result", "needs a finished spar"),
             Map.entry("dojo|found", "needs an account with no dojo (founding starts on Dojo Home)"),
             Map.entry("rival|pick_spectate", "needs a running rival challenge (Spectate is dim otherwise)"),
+            Map.entry("hub|coins", "opened from a coin shortfall (Where to get coins) or search"),
             Map.entry("dojo|pending", "needs a bond invite"),
             Map.entry("rival|requests", "needs a rival request"),
             Map.entry("prestige|confirm", "needs enough prestige to turn in"),
@@ -1052,7 +1053,7 @@ public final class UiProbe {
                 // 4.7.84 (SP-4): "Name Lv 1 - friendly - no wager - wants TP - 0:00 ago" (no Friendly Fist mark).
                 note("DOJO LISTING shows name, level, kind, wait and wager: " + pf(
                         has(p, player.m_7755_().getString()) && has(p, " Lv ") && !has(p, "Friendly Fist")
-                                && has(p, "friendly") && has(p, " ago") && has(p, "no wager")
+                                && has(p, "friendly") && has(p, "no wager")
                                 && has(p, "Accept " + player.m_7755_().getString())) + " | " + labels(p));
             }
             com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
@@ -2115,7 +2116,8 @@ public final class UiProbe {
                 "{\"screen\":\"character\",\"page\":\"bodycolors:own:0\"}"));
         for (GuiOpenPacket p : keep("partcolor page", () -> UltraGui.open(player, "character", "bodycolors:own:0"))) {
             note("PARTCOLOR PAGE presets kept + Pick any color (" + (wheels ? "wheel" : "no wheel") + "): "
-                    + pf(has(p, "Pick a swatch. It saves immediately.") && has(p, "Reset to natural look")
+                    + pf((has(p, "swatches save at once") || has(p, "Pick a swatch. It saves immediately."))
+                            && has(p, "Reset to natural look")
                             && (typing ? countInputs(p, "text") == 1 && has(p, "Apply this color")
                                     && p.buttonsJson().contains("input:bodycolor_hex")
                                     : has(p, "Typed fields need KaiPath 1.3.9 or newer"))
