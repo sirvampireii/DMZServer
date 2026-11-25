@@ -123,13 +123,17 @@ final class HudOverlay {
     private static final Slot COINS = new Slot(LmHud.COINS);
     private static final Slot ELITE = new Slot(LmHud.ELITE);
     private static final Slot BOOST = new Slot(LmHud.BOOST);
+    /** 4.7.87: dojo / war toasts and the war sign-up pill, in the top row right under the fight pill. */
+    private static final Slot WAR = new Slot(LmHud.WAR);
     /**
      * Top centre stack: the steady pills first, the 3-second TP notice last, so nothing jumps when it comes and goes.
      * 4.7.75: the fight pill under the Underdog pill, then the penalty, the elite sense and the server boosts.
+     * 4.7.87: the war / dojo pill right under the fight pill (a core pill: it carries requests and the sign-up clock).
      */
-    private static final Slot[] TOP = {UNDERDOG, FIGHT, PENALTY, ELITE, BOOST, TP};
+    private static final Slot[] TOP = {UNDERDOG, FIGHT, WAR, PENALTY, ELITE, BOOST, TP};
     /** 4.7.76: top-stack chips that wait when the stack is out of room (the core pills come first). */
-    private static final Slot[] TOP_EXTRA = {ELITE, BOOST};
+    // 4.7.87: the War pill waits for room like the elite and boost chips (ahead of them); the core pills keep their place.
+    private static final Slot[] TOP_EXTRA = {WAR, ELITE, BOOST};
     /** 4.7.76: the top stack stays in the upper part of the screen so the right-edge cards keep their place. */
     static final float TOP_SHARE = 0.42f;
     /** 4.7.77: the top stack's narrowest width, even with many status-effect icons. */
@@ -137,7 +141,8 @@ final class HudOverlay {
     /** 4.7.75: the bottom-right row, stacking upward from the Momentum meter's place. */
     private static final Slot[] BOTTOM = {MOMENTUM, SPAR, POTENTIAL};
     /** Every single-slot element (cards are separate). */
-    private static final Slot[] SINGLES = {UNDERDOG, FIGHT, PENALTY, ELITE, BOOST, TP, MOMENTUM, SPAR, POTENTIAL, COINS};
+    private static final Slot[] SINGLES = {UNDERDOG, FIGHT, WAR, PENALTY, ELITE, BOOST, TP, MOMENTUM, SPAR, POTENTIAL,
+            COINS};
     private static final ArrayDeque<Slot> CARDS = new ArrayDeque<>();
 
     private static KeyMapping openKey;
@@ -237,6 +242,7 @@ final class HudOverlay {
             case LmHud.COINS -> COINS;
             case LmHud.ELITE -> ELITE;
             case LmHud.BOOST -> BOOST;
+            case LmHud.WAR -> WAR;
             default -> null;
         };
     }
@@ -393,7 +399,7 @@ final class HudOverlay {
             if (!skinId.equals(s.skinId) || topCap != s.layoutCap) {
                 layout(s, topCap);
             }
-            if (s != ELITE && s != BOOST && used + s.h <= topBudget) {
+            if (s != WAR && s != ELITE && s != BOOST && used + s.h <= topBudget) {
                 s.fits = true;
                 used += s.h + GAP;
             }

@@ -603,19 +603,27 @@ public final class SparringSystem {
             tipA = UltraStyle.AQUA + "Dojo peers " + UltraStyle.DIM + "· +" + Math.round(SparCombat.DOJO_PEER_SPAR_BONUS_PCT * 100) + "% TP";
             tipB = tipA;
         }
-        DmzRewards.msg(a, LmChat.card(
-                "Sparring",
-                "/spar",
-                null,
-                UltraStyle.GREEN + "Session started with " + UltraStyle.VALUE + b.m_7755_().getString(),
-                tipA));
-        DmzRewards.msg(b, LmChat.card(
-                "Sparring",
-                "/spar",
-                null,
-                UltraStyle.GREEN + "Session started with " + UltraStyle.VALUE + a.m_7755_().getString(),
-                tipB));
+        startNotice(a, b.m_7755_().getString(), aRt, tipA, now);
+        startNotice(b, a.m_7755_().getString(), bRt, tipB, now);
         SystemTelemetry.log("sparring", "spar_start", a, b, null);
+    }
+
+    /**
+     * 4.7.87: the session-start card. A HUD player gets the fight pill now (not at the next pulse) and the card's
+     * lines ("Session started with ...", the tip) as a short TP-element toast; everyone else gets the card in chat.
+     */
+    public static void startNotice(ServerPlayer p, String partnerName, SparPlayerRuntime rt, String tip, long now) {
+        String card = LmChat.card(
+                "Sparring",
+                "/spar",
+                null,
+                UltraStyle.GREEN + "Session started with " + UltraStyle.VALUE + partnerName,
+                tip);
+        if (com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(p)) {
+            sparHud(p, partnerName, rt, now);
+        }
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.toastOrChat(p, card, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.TP,
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("spar"), "open:spar", com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.SPAR_TOAST_MS);
     }
 
     public static void endSession(ServerPlayer player, ServerPlayer partner, String reason) {
@@ -678,18 +686,22 @@ public final class SparringSystem {
             String reason
     ) {
         String who = partner == null ? "?" : partner.m_7755_().getString();
-        DmzRewards.msg(player, LmChat.info("Spar", "Session ended with " + UltraStyle.VALUE + who
+        List<String> chat = new ArrayList<>();
+        chat.add(LmChat.info("Spar", "Session ended with " + UltraStyle.VALUE + who
                 + " " + UltraStyle.DIM + "(" + reason + ", " + (durationMs / 1000L) + "s)"));
-        DmzRewards.msg(player, LmChat.note("Spar", UltraStyle.LABEL + "TP " + UltraStyle.GREEN + "+" + DmzRewards.formatWhole(rt.sessionTp)
+        chat.add(LmChat.note("Spar", UltraStyle.LABEL + "TP " + UltraStyle.GREEN + "+" + DmzRewards.formatWhole(rt.sessionTp)
                 + " " + UltraStyle.DIM + "| melee " + UltraStyle.VALUE + (int) rt.sessionMelee
                 + " " + UltraStyle.DIM + "| ki " + UltraStyle.VALUE + (int) rt.sessionKi
                 + " " + UltraStyle.DIM + "| combo " + UltraStyle.VALUE + rt.sessionMaxCombo));
         if (rt.clashWins + rt.clashLosses + rt.clashTies > 0) {
-            DmzRewards.msg(player, LmChat.note("Spar", UltraStyle.LABEL + "Strike clashes: "
+            chat.add(LmChat.note("Spar", UltraStyle.LABEL + "Strike clashes: "
                     + UltraStyle.GREEN + "won " + rt.clashWins
                     + " " + UltraStyle.DIM + "| " + UltraStyle.VALUE + "lost " + rt.clashLosses
                     + " " + UltraStyle.DIM + "| " + UltraStyle.VALUE + "tied " + rt.clashTies));
         }
+        // 4.7.87: a HUD player reads the same summary (TP earned, melee, ki, combo, clashes) as one TP-element toast.
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.toastOrChat(player, String.join("\n", chat), com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.TP,
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("spar"), "open:spar", com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.SPAR_TOAST_MS);
     }
 
     private static void updateLeaderboard(ServerPlayer player, SparPlayerRuntime rt, long durationMs) {
@@ -749,9 +761,18 @@ public final class SparringSystem {
             }
             bond.streakLastDay = today;
             bond.streakBest = Math.max(bond.streakBest, bond.streakCurrent);
-            DmzRewards.msg(player, LmChat.ok("Spar", "Daily training secured. " + UltraStyle.YELLOW + "Streak "
-                    + bond.streakCurrent + " day" + (bond.streakCurrent == 1 ? "" : "s")));
+            streakNotice(player, bond.streakCurrent);
         }
+    }
+
+    /**
+     * 4.7.87: "Daily training secured. Streak N days" - in chat, or for a HUD player the same text as a short toast on
+     * the spar chip (free once the session ended; the session summary has the TP element).
+     */
+    public static void streakNotice(ServerPlayer player, int days) {
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.toastOrChat(player, LmChat.ok("Spar", "Daily training secured. " + UltraStyle.YELLOW + "Streak "
+                + days + " day" + (days == 1 ? "" : "s")), com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.SPAR, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("spar"),
+                "open:spar", com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.SPAR_TOAST_MS);
     }
 
     /** Seed / hold the movement AFK window (script refreshMovementActivity). */
@@ -1136,11 +1157,14 @@ public final class SparringSystem {
      * Training, combo, combo break, recover countdown) for HUD players. Sends only when the text changes.
      */
     private static void sparHud(ServerPlayer player, ServerPlayer partner, SparPlayerRuntime rt, long now) {
+        sparHud(player, partner == null ? "?" : partner.m_7755_().getString(), rt, now);
+    }
+
+    private static void sparHud(ServerPlayer player, String them, SparPlayerRuntime rt, long now) {
         if (!com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.active(player) || !rt.active) {
             return;
         }
         String me = player.m_7755_().getString();
-        String them = partner == null ? "?" : partner.m_7755_().getString();
         com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.show(player, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT, java.util.List.of(
                 UltraStyle.color("f", me) + " " + UltraStyle.color("e", String.valueOf((int) rt.sessionDmg)) + " "
                         + UltraStyle.color("7", "-") + " " + UltraStyle.color("e", String.valueOf((int) rt.sessionTaken))
@@ -1740,10 +1764,37 @@ public final class SparringSystem {
         invite.expiresAt = now + MENTOR_INVITE_MS;
         SparStore.get().invites.put(target.m_20148_().toString(), invite);
         SparStore.get().markDirty();
-        DmzRewards.msg(target, LmChat.note("Mentor", UltraStyle.VALUE + invite.fromName
-                + " " + UltraStyle.YELLOW + "wants you as their Apprentice."));
-        DmzRewards.msg(target, LmChat.tip("/spar", "- Training bonds - Bond invites to Accept or Decline"));
+        inviteNotice(target, invite.fromName, "Apprentice");
         return UltraStyle.GREEN + "Invite sent to " + UltraStyle.VALUE + target.m_7755_().getString() + UltraStyle.GREEN + ".";
+    }
+
+    /** 4.7.87: Training bonds &gt; Bond invites, where Accept and Decline live. */
+    public static final String BOND_INVITES_ACTION = "go:dojo|pending";
+    /** 4.7.87: Training bonds. */
+    public static final String BONDS_ACTION = "go:dojo|mentor";
+
+    /**
+     * 4.7.87: a bond invite. In chat as before; for a HUD player a dojo pill with the same two lines that opens Bond
+     * invites (Accept and Decline stay on that page).
+     */
+    public static void inviteNotice(ServerPlayer target, String fromName, String role) {
+        String head = LmChat.note("Mentor", UltraStyle.VALUE + fromName + " " + UltraStyle.YELLOW + "wants you as their "
+                + role + ".");
+        String tip = LmChat.tip("/spar", "- Training bonds - Bond invites to Accept or Decline");
+        List<String> lines = new ArrayList<>(com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.chatLines(head));
+        lines.add(UltraStyle.LABEL + "Training bonds - Bond invites to Accept or Decline");
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.toastOrChat(target, head + "\n" + tip,
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR, lines,
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("dojo"), BOND_INVITES_ACTION,
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR_REQUEST_MS);
+    }
+
+    /** 4.7.87: a bond reply (accepted, denied, cancelled): chat, or a dojo toast that opens Training bonds. */
+    static void bondNotice(ServerPlayer p, String chat) {
+        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.toastOrChat(p, chat,
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR,
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.accentOf("dojo"), BONDS_ACTION,
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.WAR_TOAST_MS);
     }
 
     public static String apprenticeInvite(ServerPlayer player, ServerPlayer target) {
@@ -1775,9 +1826,7 @@ public final class SparringSystem {
         invite.expiresAt = now + MENTOR_INVITE_MS;
         SparStore.get().invites.put(target.m_20148_().toString(), invite);
         SparStore.get().markDirty();
-        DmzRewards.msg(target, LmChat.note("Mentor", UltraStyle.VALUE + invite.fromName
-                + " " + UltraStyle.YELLOW + "wants you as their Mentor."));
-        DmzRewards.msg(target, LmChat.tip("/spar", "- Training bonds - Bond invites to Accept or Decline"));
+        inviteNotice(target, invite.fromName, "Mentor");
         return UltraStyle.GREEN + "Invite sent to " + UltraStyle.VALUE + target.m_7755_().getString() + UltraStyle.GREEN + ".";
     }
 
@@ -1934,10 +1983,10 @@ public final class SparringSystem {
         String mentored = "Your mentor is now " + UltraStyle.VALUE + mentor.m_7755_().getString();
         // The player who clicked already gets the return line on the menu. The other person does not.
         if (player == mentor) {
-            DmzRewards.msg(apprentice, LmChat.ok("Mentor", mentored));
+            bondNotice(apprentice, LmChat.ok("Mentor", mentored));
             return UltraStyle.GREEN + mentoring;
         }
-        DmzRewards.msg(mentor, LmChat.ok("Mentor", mentoring));
+        bondNotice(mentor, LmChat.ok("Mentor", mentoring));
         return UltraStyle.GREEN + mentored;
     }
 
@@ -1959,7 +2008,7 @@ public final class SparringSystem {
             try {
                 ServerPlayer other = server.m_6846_().m_11259_(UUID.fromString(invite.fromUuid));
                 if (other != null) {
-                    DmzRewards.msg(other, LmChat.fail("Mentor", UltraStyle.VALUE + player.m_7755_().getString()
+                    bondNotice(other, LmChat.fail("Mentor", UltraStyle.VALUE + player.m_7755_().getString()
                             + " " + UltraStyle.DANGER + "denied your invite."));
                 }
             } catch (IllegalArgumentException ignored) {
@@ -1994,7 +2043,7 @@ public final class SparringSystem {
             try {
                 ServerPlayer other = server.m_6846_().m_11259_(UUID.fromString(targetKey));
                 if (other != null) {
-                    DmzRewards.msg(other, LmChat.info("Mentor", UltraStyle.VALUE + player.m_7755_().getString()
+                    bondNotice(other, LmChat.info("Mentor", UltraStyle.VALUE + player.m_7755_().getString()
                             + " " + UltraStyle.LABEL + "cancelled their invite."));
                 }
             } catch (IllegalArgumentException ignored) {
