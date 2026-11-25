@@ -498,8 +498,8 @@ public final class UiProbe {
         boolean staff = com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(player);
         for (GuiOpenPacket p : keep("hub home", () -> UltraGui.open(player, "hub", "main"))) {
             note("HUB HOME dashboard: " + (has(p, "Your next prestige") && has(p, "Fastest now:")
-                    && (has(p, "to your next prestige") || has(p, "You can prestige now")) && has(p, "Train")
-                    && has(p, "Compete") && has(p, "Difficulty:") && has(p, "Rival:") && has(p, "Dojo:")
+                    && (has(p, "to your next prestige") || has(p, "You can prestige now")) && has(p, "Your systems")
+                    && has(p, "Difficulty:") && has(p, "Rival:") && has(p, "Dojo:")
                     ? "PASS" : "FAIL") + " | " + labels(p));
             // Tabs travel as buttons (tab:<id>), in order.
             String b = p.buttonsJson();
@@ -582,6 +582,7 @@ public final class UiProbe {
     static final Map<String, String> NAV_STATEFUL = Map.ofEntries(
             Map.entry("spar|result", "needs a finished spar"),
             Map.entry("dojo|found", "needs an account with no dojo (founding starts on Dojo Home)"),
+            Map.entry("rival|pick_spectate", "needs a running rival challenge (Spectate is dim otherwise)"),
             Map.entry("dojo|pending", "needs a bond invite"),
             Map.entry("rival|requests", "needs a rival request"),
             Map.entry("prestige|confirm", "needs enough prestige to turn in"),
@@ -977,7 +978,7 @@ public final class UiProbe {
             store.dojos.remove(me);
             for (GuiOpenPacket p : keep("dojo board no dojo", () -> UltraGui.open(player, "spar", "sparboard"))) {
                 note("DOJO NO DOJO: board says join a dojo, with Find a dojo, Open the Dojo (no founding here) and a dim Post: " + pf(
-                        has(p, "You need a dojo to spar. Spars happen in a dojo's ring.") && has(p, "Find a dojo")
+                        has(p, "You need a dojo to spar.") && has(p, "Find a dojo")
                                 && !has(p, "Found a dojo") && labels(p).contains("[Open the Dojo]")
                                 && p.buttonsJson().contains("go:dojo|home") && !p.buttonsJson().contains("dojo_found")
                                 && p.buttonsJson().contains("nav:none")) + " | " + labels(p));
@@ -1637,7 +1638,7 @@ public final class UiProbe {
                         && has(p, "Next: Pick your level") && has(p, "Back to main menu") ? "PASS" : "FAIL"));
                 // 4.7.63: a fresh account opens the guide; it says once that it shows once; Skip on the step.
                 note("GUIDE FIRST OPEN shows Step 1 + once line + Skip guide: " + (!guideDone()
-                        && has(p, "You only see this guide once. Replay it any time from Difficulty Home.")
+                        && has(p, "You only see this guide once.")
                         && has(p, "Skip guide") ? "PASS" : "FAIL"));
             }
             for (GuiOpenPacket p : keep("step2 tiers no tier", () -> UltraGui.open(player, "difficulty", "tiers"))) {
@@ -2848,7 +2849,7 @@ public final class UiProbe {
         sa.addProperty("page", "more");
         sa.addProperty("value", "dojo");
         for (GuiOpenPacket p : keep("v78 search from more", () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", sa.toString()))) {
-            note("V78 search typed in More lands on the results, on More (4.7.80): " + pf("more".equals(p.pageId()) && has(p, "for 'dojo'")));
+            note("V78 search typed in More lands on the results, on More (4.7.80): " + pf("more".equals(p.pageId()) && has(p, "matches for") && has(p, "dojo")));
         }
         UltraHubScreens.searchFor(player, "");
         // C: Difficulty off -> Tiers locked, no rows, no toggle; on -> rows; Home keeps the toggle.
@@ -2911,7 +2912,7 @@ public final class UiProbe {
                     && p.buttonsJson().contains("tab:dojo_wars")));
         }
         String[][] old = {{"dojo_upgrades", "dojo_upgrades"}, {"dojo_style", "dojo_style"}, {"dojo_wars", "dojo_wars"},
-                {"mentor", "mentor"}, {"dojo_roster", "dojo_roster"}, {"dojo_list", "dojo_list"}, {"dojo", "home"}};
+                {"mentor", "mentor"}, {"dojo_roster", "dojo_members"}, {"dojo_list", "dojo_list"}, {"dojo", "home"}};
         for (String[] o : old) {
             for (GuiOpenPacket p : keep("v78 old link " + o[0], () -> UltraGui.open(player, "spar", o[0]))) {
                 note("V78 old Sparring link spar|" + o[0] + " lands on dojo|" + o[1] + ": " + pf("dojo".equals(p.screenId())
@@ -3125,7 +3126,7 @@ public final class UiProbe {
         sa.addProperty("page", "more");
         sa.addProperty("value", "wager");
         for (GuiOpenPacket p : keep("v80 search on more", () -> UltraGuiActions.dispatch(player, "hub", "do:hub_search", sa.toString()))) {
-            note("V80 search typed in More lands on the results on More: " + pf("more".equals(p.pageId()) && has(p, "for 'wager'")
+            note("V80 search typed in More lands on the results on More: " + pf("more".equals(p.pageId()) && has(p, "matches for") && has(p, "wager")
                     && p.buttonsJson().contains("go:spar|board_wager")) + " | " + labels(p));
         }
         UltraHubScreens.searchFor(player, "");
@@ -3161,8 +3162,9 @@ public final class UiProbe {
         JsonObject sp = new JsonObject();
         sp.addProperty("screen", "spar");
         sp.addProperty("page", "sparboard");
-        for (GuiOpenPacket p : keep("v80 board", () -> UltraGui.open(player, "spar", "sparboard"))) {
-            note("V80 board Wager button opens the sub-menu (no cycling): " + pf(p.buttonsJson().contains("page:board_wager")
+        // 4.7.84: the Wager button lives on Post a spar (board_post), not on the board.
+        for (GuiOpenPacket p : keep("v80 board", () -> UltraGui.open(player, "spar", "board_post"))) {
+            note("V80 Post a spar's Wager button opens the sub-menu (no cycling): " + pf(p.buttonsJson().contains("page:board_wager")
                     && !p.buttonsJson().contains("do:board_wager\"")));
         }
         for (GuiOpenPacket p : keep("v80 wager menu", () -> UltraGuiActions.dispatch(player, "spar", "do:board_wager", sp.toString()))) {

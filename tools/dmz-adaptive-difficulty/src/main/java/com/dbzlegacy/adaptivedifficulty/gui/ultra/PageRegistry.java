@@ -229,7 +229,8 @@ public final class PageRegistry {
         item("dojo", "dojo_elites", "Members", "dojo|home");
         item("dojo", "dojo_close", "Close dojo", "dojo|home");
         item("dojo", "dojo_roster", "Members", "dojo|home");
-        p("dojo", "dojo_members_own", "Dojo members", "dojo|dojo_members", "roster");
+        // 4.7.85: an old link (the one Members page replaced it in 4.7.84); kept routable, not a page of its own.
+        item("dojo", "dojo_members_own", "Dojo members", "dojo|dojo_members");
         item("dojo", "dojo_members_*", "Dojo members", "dojo|dojo_members");
         p("dojo", "dojo_previous_members_own", "Previous members", "dojo|dojo_members", "left");
         item("dojo", "dojo_previous_members", "Previous members", "dojo|dojo_members");

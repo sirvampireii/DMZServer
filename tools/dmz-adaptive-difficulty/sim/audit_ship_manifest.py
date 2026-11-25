@@ -2038,6 +2038,33 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.85 ---")
+    p85_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
+    p85_style = read(SRC / "gui/ultra/UltraStyle.java")
+    p85_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
+    p85_reg = read(SRC / "gui/ultra/PageRegistry.java")
+    p85_rank = read(SRC / "sparring/DojoRankings.java")
+    p85_spar = read(SRC / "sparring/SparringSystem.java")
+    check("manifest row for lm 4.7.85", "lm-4785-audit-fixes" in manifest)
+    check("N6: offerGetMore is wired into every confirm page that can be short (coins, favor, Dojo Points)",
+          "public UltraScreenSpec offerGetMore(UltraStyle.Shortfall kind, String goAction, boolean withLine)" in p85_spec
+          and all(read(SRC / ("gui/ultra/" + f)).count("offerGetMore(UltraStyle.Shortfall.") >= n for f, n in (
+              ("UltraDifficultyScreens.java", 1), ("UltraCharacterScreens.java", 5), ("UltraWeightShopScreens.java", 1),
+              ("UltraPrestigeScreens.java", 1), ("UltraDojoScreens.java", 5), ("DojoFounding.java", 2)))
+          and 'case FAVOR -> "Earn favor: Trade";' in p85_style and 'case COINS -> "go:hub|coins";' in p85_style
+          and "GET_FAVOR_LINE" not in read(SRC / "gui/ultra/UltraPrestigeScreens.java"))
+    check("N6: the coins button lands on a real page (Where to get coins), registered under More",
+          "private static void openCoins(ServerPlayer player)" in p85_hub and "if (PAGE_COINS.equals(p)) {" in p85_hub
+          and 'p(HUB, "coins", "Where to get coins", "hub|more"' in p85_reg)
+    check("dead old-war write path and its 2x-RP award are gone; dojo_war_cancel -> dojoRevokeWar kept",
+          "CHALLENGE_RP_MULT" not in p85_rank and "public static String challengeDojo(" not in p85_rank
+          and "public static String acceptChallenge(" not in p85_rank and 'UltraStyle.DIM + "(2x RP)"' not in p85_rank
+          and "dojoAcceptWar" not in p85_spar and "dojoDeclineWar" not in p85_spar
+          and "public static String dojoRevokeWar(" in p85_spar
+          and "public static String revokeOutgoingChallenge(" in p85_rank)
+    check("Back never reads a bare Back: a name too long for the button reads Back to previous page",
+          'BACK_TO_PREVIOUS = "Back to previous page";' in p85_style and "return LABEL + BACK_TO_PREVIOUS;" in p85_style)
+
     print("\n--- § lm 4.7.84 ---")
     p84_reg = read(SRC / "gui/ultra/PageRegistry.java")
     p84_nav = read(SRC / "gui/ultra/NavHistory.java")
