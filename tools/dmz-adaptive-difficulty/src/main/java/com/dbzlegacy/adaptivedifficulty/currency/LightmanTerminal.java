@@ -36,7 +36,7 @@ public final class LightmanTerminal {
             return "";
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.warn(
-                    "[{}] /terminal failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
+                    "[{}] /lm terminal failed: {}", AdaptiveDifficultyMod.MOD_ID, t.toString());
             return "§cCould not open the currency terminal.";
         }
     }

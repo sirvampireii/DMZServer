@@ -1,7 +1,7 @@
 # End Dragon — Adaptive Difficulty summon (2.3.80)
 
 ## Player path (Difficulty GUI only)
-- Button: **Summon End Dragon** on `/difficulty` main page
+- Button: **Summon End Dragon** on `/lm difficulty` main page
 - Requirements:
   - Personal Adaptive Difficulty **ON**
   - Active Unlock Tier **T4–T7** (Prestige 4 unlocks T4 eligibility — still must buy/activate)
@@ -17,10 +17,10 @@
 - Hygiene keeps **at most one living dragon per summoner** and never culls another player's fight.
 
 ## Staff
-- **No staff spawn** — `/enddragon spawn` and `/spawndragon` are not commands. Players summon from the Difficulty menu.
-- Clear: `/cleardragons`, `/killdragons`, `/enddragon clear|cleanup`
-- Repair exit podium: `/enddragon repair`
-- Bare `/enddragon` prints staff usage help
+- **No staff spawn** — `/lm admin enddragon spawn` and `/spawndragon` are not commands. Players summon from the Difficulty menu.
+- Clear: `/cleardragons`, `/killdragons`, `/lm admin enddragon clear|cleanup`
+- Repair exit podium: `/lm admin enddragon repair`
+- Bare `/lm admin enddragon` prints staff usage help
 
 ## Config
 - `enableEndPlayerDragonSummon` (default true)

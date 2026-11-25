@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -54,6 +55,142 @@ public final class DojoService {
         return p == null ? null : dojoOf(p.m_20148_());
     }
 
+    // ------------------------------------------------------------------ 4.7.88: more than one dojo
+
+    /** 4.7.88: how a player belongs to a dojo. */
+    public enum Role {
+        MASTER("Master"),
+        DISCIPLE("Disciple");
+
+        public final String label;
+
+        Role(String label) {
+            this.label = label;
+        }
+    }
+
+    /** 4.7.88: one open dojo a player belongs to, and as what. */
+    public record Affiliation(Dojo dojo, Role role) {}
+
+    /**
+     * 4.7.88: every open dojo {@code player} belongs to: their own (as master) first, then their master's (as disciple)
+     * from the mentor bond. Empty when they are in none. {@link #dojoOf(UUID)} is the first of these.
+     */
+    public static List<Affiliation> affiliations(UUID player) {
+        List<Affiliation> out = new ArrayList<>();
+        if (player == null) {
+            return out;
+        }
+        String id = player.toString();
+        Dojo own = store().dojos.get(id);
+        if (own != null && own.open) {
+            out.add(new Affiliation(own, Role.MASTER));
+        }
+        SparStore.MentorBond b = SparStore.get().bondsByPlayer.get(id);
+        if (b != null && b.mentorUuid != null && !b.mentorUuid.isBlank() && !b.mentorUuid.equals(id)) {
+            Dojo m = store().dojos.get(b.mentorUuid);
+            if (m != null && m.open && m != own) {
+                out.add(new Affiliation(m, Role.DISCIPLE));
+            }
+        }
+        return out;
+    }
+
+    /** 4.7.88: {@code player}'s place in {@code d}, or null when they don't belong to it. */
+    public static Affiliation affiliation(UUID player, Dojo d) {
+        if (d == null) {
+            return null;
+        }
+        for (Affiliation a : affiliations(player)) {
+            if (a.dojo() == d) {
+                return a;
+            }
+        }
+        return null;
+    }
+
+    /** 4.7.88: the dojo each player last opened from "Your dojos" (master UUID); not saved, a restart forgets it. */
+    private static final Map<UUID, String> VIEWED = new ConcurrentHashMap<>();
+
+    /**
+     * 4.7.88: make {@code masterUuid}'s dojo the one {@code player}'s Dojo pages show and act on. Only a dojo they
+     * belong to; false (and nothing changes) otherwise.
+     */
+    public static boolean view(UUID player, String masterUuid) {
+        if (player == null || masterUuid == null) {
+            return false;
+        }
+        for (Affiliation a : affiliations(player)) {
+            if (a.dojo().masterUuid.equals(masterUuid)) {
+                VIEWED.put(player, masterUuid);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 4.7.88: back to the default dojo ({@link #dojoOf(UUID)}). */
+    public static void clearView(UUID player) {
+        if (player != null) {
+            VIEWED.remove(player);
+        }
+    }
+
+    /**
+     * 4.7.88: the dojo {@code player}'s Dojo pages show and every dojo management action applies to: the one they picked
+     * on "Your dojos" while they still belong to it, else {@link #dojoOf(UUID)}. Rights are always checked against
+     * this dojo, so a master viewing a dojo where they are a disciple can do only what a disciple can.
+     */
+    public static Dojo viewedDojo(UUID player) {
+        if (player == null) {
+            return null;
+        }
+        String m = VIEWED.get(player);
+        if (m != null) {
+            for (Affiliation a : affiliations(player)) {
+                if (a.dojo().masterUuid.equals(m)) {
+                    return a.dojo();
+                }
+            }
+            VIEWED.remove(player);
+        }
+        return dojoOf(player);
+    }
+
+    public static Dojo viewedDojo(ServerPlayer p) {
+        return p == null ? null : viewedDojo(p.m_20148_());
+    }
+
+    /**
+     * 4.7.88: the dojo among {@code masterUuids} that {@code player} belongs to (the viewed one first), or null. Wars
+     * use it: a war names its two dojos, so a player in both sides' dojos acts for the one they are viewing.
+     */
+    public static Dojo memberDojoAmong(UUID player, String... masterUuids) {
+        return pickAmong(player, false, masterUuids);
+    }
+
+    /** 4.7.88: {@link #memberDojoAmong}, limited to dojos {@code player} may manage (master or elite). */
+    public static Dojo managedDojoAmong(UUID player, String... masterUuids) {
+        return pickAmong(player, true, masterUuids);
+    }
+
+    private static Dojo pickAmong(UUID player, boolean manage, String... masterUuids) {
+        if (player == null || masterUuids == null) {
+            return null;
+        }
+        List<Dojo> fits = new ArrayList<>();
+        for (Affiliation a : affiliations(player)) {
+            for (String m : masterUuids) {
+                if (m != null && a.dojo().masterUuid.equals(m) && (!manage || canManage(player, a.dojo()))) {
+                    fits.add(a.dojo());
+                    break;
+                }
+            }
+        }
+        Dojo viewed = viewedDojo(player);
+        return fits.contains(viewed) ? viewed : fits.isEmpty() ? null : fits.get(0);
+    }
+
     public static Dojo byMaster(String masterUuid) {
         return masterUuid == null ? null : store().dojos.get(masterUuid);
     }
@@ -93,8 +230,12 @@ public final class DojoService {
      * Dojo Home and the Members page show it beside the player's name.
      */
     public static String discipleTitle(UUID player) {
-        Dojo d = dojoOf(player);
-        if (d == null || isMaster(player, d)) {
+        return discipleTitle(player, dojoOf(player));
+    }
+
+    /** 4.7.88: {@link #discipleTitle(UUID)} in a given dojo (the one being viewed); null unless a disciple of it. */
+    public static String discipleTitle(UUID player, Dojo d) {
+        if (d == null || isMaster(player, d) || affiliation(player, d) == null) {
             return null;
         }
         return "Disciple of " + d.name;
@@ -361,7 +502,7 @@ public final class DojoService {
      * no cooldown; a change costs {@link DojoCatalog#BANNER_CHANGE_COST} and starts the shared cooldown.
      */
     public static String setBanner(ServerPlayer p, String bannerBase, List<String> patterns) {
-        Dojo d = dojoOf(p);
+        Dojo d = viewedDojo(p);
         if (d == null || !isMaster(p.m_20148_(), d)) {
             return "Only the master can pick the dojo's banner.";
         }
@@ -388,6 +529,10 @@ public final class DojoService {
         Dojo d = store().dojos.get(p.m_20148_().toString());
         if (d == null || !d.open) {
             return "You don't run an open dojo.";
+        }
+        // 4.7.88: a master viewing a dojo where they are a disciple can't close their own from there.
+        if (viewedDojo(p) != d) {
+            return "Open your own dojo from Your dojos first, then close it in Dojo settings.";
         }
         if (BoardSpar.boutsIn(d.masterUuid) > 0 || DojoWar.runningFor(d.masterUuid) != null) {
             return "Wait until the fights in your dojo end, then close it.";
@@ -416,7 +561,7 @@ public final class DojoService {
     }
 
     public static String rename(ServerPlayer p, String name) {
-        Dojo d = dojoOf(p);
+        Dojo d = viewedDojo(p);
         if (d == null || !isMaster(p.m_20148_(), d)) {
             return "Only the master can rename the dojo.";
         }
@@ -551,7 +696,7 @@ public final class DojoService {
 
     /** Buy the next level of {@code upgrade} (master or elite). */
     public static String buy(ServerPlayer p, String upgrade) {
-        Dojo d = dojoOf(p);
+        Dojo d = viewedDojo(p);
         if (d == null) {
             return "Join or found a dojo first.";
         }
@@ -583,7 +728,7 @@ public final class DojoService {
     // ------------------------------------------------------------------ style and bonus
 
     public static String setStyle(ServerPlayer p, String styleId) {
-        Dojo d = dojoOf(p);
+        Dojo d = viewedDojo(p);
         if (d == null || !isMaster(p.m_20148_(), d)) {
             return "Only the master picks the dojo's style.";
         }
@@ -613,7 +758,7 @@ public final class DojoService {
 
     /** Pick (or change) the active bonus from the style's catalog: costs points, changes have a cooldown. */
     public static String pickBonus(ServerPlayer p, String bonusId) {
-        Dojo d = dojoOf(p);
+        Dojo d = viewedDojo(p);
         if (d == null || !isMaster(p.m_20148_(), d)) {
             return "Only the master picks the dojo's bonus.";
         }
@@ -677,7 +822,7 @@ public final class DojoService {
     // ------------------------------------------------------------------ elites
 
     public static String promote(ServerPlayer master, String targetUuid) {
-        Dojo d = dojoOf(master);
+        Dojo d = viewedDojo(master);
         if (d == null || !isMaster(master.m_20148_(), d)) {
             return "Only the master names elites.";
         }
@@ -701,7 +846,7 @@ public final class DojoService {
     }
 
     public static String demote(ServerPlayer master, String targetUuid) {
-        Dojo d = dojoOf(master);
+        Dojo d = viewedDojo(master);
         if (d == null || !isMaster(master.m_20148_(), d)) {
             return "Only the master manages elites.";
         }
@@ -714,7 +859,7 @@ public final class DojoService {
     }
 
     public static String toggleWarRights(ServerPlayer master, String targetUuid) {
-        Dojo d = dojoOf(master);
+        Dojo d = viewedDojo(master);
         if (d == null || !isMaster(master.m_20148_(), d) || !d.elites.contains(targetUuid)) {
             return "Only the master gives war rights, and only to an elite.";
         }

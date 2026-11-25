@@ -1089,7 +1089,7 @@ public final class UltraDifficultyScreens {
             return;
         }
         UltraScreenSpec spec = sub("admin")
-                .line(UltraStyle.LABEL + "Server tools - typed admin: /difficulty admin")
+                .line(UltraStyle.LABEL + "Server tools - typed admin: /lm admin difficulty")
                 .line(UltraStyle.LABEL + "Reload config, event log, and LM Staff Admin hub")
                 .buttonsAfterLines();
         spec.buttonLeft("do:reload", UltraStyle.confirm("Reload Legacy Mechanics config"), UltraStyle.STYLE_CONFIRM)

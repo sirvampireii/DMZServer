@@ -615,7 +615,7 @@ public final class SparringSystem {
     public static void startNotice(ServerPlayer p, String partnerName, SparPlayerRuntime rt, String tip, long now) {
         String card = LmChat.card(
                 "Sparring",
-                "/spar",
+                "/lm spar",
                 null,
                 UltraStyle.GREEN + "Session started with " + UltraStyle.VALUE + partnerName,
                 tip);
@@ -1780,7 +1780,7 @@ public final class SparringSystem {
     public static void inviteNotice(ServerPlayer target, String fromName, String role) {
         String head = LmChat.note("Mentor", UltraStyle.VALUE + fromName + " " + UltraStyle.YELLOW + "wants you as their "
                 + role + ".");
-        String tip = LmChat.tip("/spar", "- Training bonds - Bond invites to Accept or Decline");
+        String tip = LmChat.tip("/lm spar", "- Training bonds - Bond invites to Accept or Decline");
         List<String> lines = new ArrayList<>(com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.chatLines(head));
         lines.add(UltraStyle.LABEL + "Training bonds - Bond invites to Accept or Decline");
         com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.toastOrChat(target, head + "\n" + tip,

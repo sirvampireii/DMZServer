@@ -4,7 +4,7 @@
 ============================================================
  LegacyMechanics (Forge) owns this system:
    Java: com.dbzlegacy.adaptivedifficulty.command.SparCommands
-   Use: /spar
+   Use: /lm spar
 
  Full script backup: uploads/scripts/Sparring Command Handler.js
    and/or uploads/script-backups-full/ / live-scripts-2026-08-27/

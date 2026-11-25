@@ -682,3 +682,12 @@ here in the same commit, or the build fails at the prestige-shop verify step.
 `UltraPrestigeScreens` re-baselined for `LegacyMechanics-4.7.86.jar`: the skill shop lists its skills in three columns
 with captions fitted by measured width, so the page fits the 300 px menu height budget. No price, wallet, favor or
 purchase logic changed. The other 24 are unchanged.
+
+## Re-baseline (2026-11-25, 4.7.88 one command tree)
+
+`AdaptiveDifficultyMod` (registers the creative-mode admin gate and the dojo world rules), `ConfigFieldHelp`,
+`ProgressionGuiApi`, `PrestigePointsSystem`, `PrestigeShopHooks` and `PrestigeCustomShop` re-baselined for
+`LegacyMechanics-4.7.88.jar`. Every LM command moved under `/lm`, so the help and usage text in these classes now
+names the new paths (`/lm admin prestige ...` for the old padmin tree, `/lm admin progression ...`,
+`/lm skillcheck`, `/lm terminal`, `/lm difficulty`). Text only in the five shop/help classes: no price, wallet, favor
+or purchase logic changed. The other 19 are unchanged.

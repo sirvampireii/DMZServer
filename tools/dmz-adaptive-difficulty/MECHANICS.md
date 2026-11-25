@@ -29,7 +29,7 @@ Flags: `enableRivalSystem`, `enableSparringSystem`, `rivalPresenceTp`, `rivalIns
 ## Player GUIs (CMI → chest → chat)
 
 **Players should use `/lm` only.** Hub buttons call `lm do open <system>` (plugin opens
-inventories directly). Bare `/difficulty`, `/rival`, `/spar`, `/skillcheck` still open GUIs
+inventories directly). Bare `/lm difficulty`, `/lm rival`, `/lm spar`, `/lm skillcheck` still open GUIs
 for compatibility, but help text advertises `/lm`.
 
 Removed duplicate aliases (2.3.20+): `/lmgui`, `/dmzdiffgui`, `/adiffgui`,
@@ -42,23 +42,23 @@ main `/lm` hub window is titled **Legacy Mechanics**.
 | Command | Who | GUI |
 |---------|-----|-----|
 | `/lm` (`/legacymechanics`) | All | Hub — Difficulty · Rival · Spar (+ Skill Check / Prestige for donators/staff; staff also Progression · Admin · Logs) |
-| `/difficulty` | All | Unlock tiers · Titles · personal toggle (compat; prefer `/lm`) |
-| `/rival` | All | List · Challenge · Top · Progress submenu |
-| `/spar` (`/sparring`) | All | Stats · Top · Mentor (pickers on Mentor page only) |
-| `/skillcheck` | Donators | Skill Check (core / saga) — LuckPerms `legacymechanics.donator` |
-| `/progression` (`/prog`) | Staff | Category hub · Flags |
-| `/prestige` | Staff | Prestige confirm |
-| `/skills` | Staff | Skill unlock admin browser (per-skill items) |
+| `/lm difficulty` | All | Unlock tiers · Titles · personal toggle (compat; prefer `/lm`) |
+| `/lm rival` | All | List · Challenge · Top · Progress submenu |
+| `/lm spar` (`/sparring`) | All | Stats · Top · Mentor (pickers on Mentor page only) |
+| `/lm skillcheck` | Donators | Skill Check (core / saga) — LuckPerms `legacymechanics.donator` |
+| `/lm progression` (`/lm progression`) | Staff | Category hub · Flags |
+| `/lm prestige` | Staff | Prestige confirm |
+| `/lm admin skills` | Staff | Skill unlock admin browser (per-skill items) |
 
 ## Admin commands (keep typed)
 
 - `/lm admin help|reload|clear <player> [scope]|migrate-cnpc|syslog|open <system>` — hub staff tree
-- `/difficulty admin …` — whitelist, syslog, inspect GUI, reload, settings
-- `/rival admin save|refresh|reload|status|open [page]` — rivalry-v4 + progression-v4
-- `/spar admin save|status|mentor resetcd [player]` — sparring.json
-- `/progression admin …` / `/prog admin <flag> on|off` — module flags
-- `/progression boost start|end`, `android` (staff)
-- `/enddragon clear|repair`, `/cleardragons` (staff spawn disabled; players use Difficulty GUI)
+- `/lm admin difficulty …` — whitelist, syslog, inspect GUI, reload, settings
+- `/lm admin rival save|refresh|reload|status|open [page]` — rivalry-v4 + progression-v4
+- `/lm admin spar save|status|mentor resetcd [player]` — sparring.json
+- `/lm admin progression flags …` / `/lm progression admin <flag> on|off` — module flags
+- `/lm admin progression boost start|end`, `android` (staff)
+- `/lm admin enddragon clear|repair`, `/cleardragons` (staff spawn disabled; players use Difficulty GUI)
 
 Data is **mod JSON only** (`config/legacymechanics/rivalry-v4.json`, `progression-v4.json`,
 `sparring.json`) — no CNPC writes.
@@ -72,7 +72,7 @@ seasons / quests / achievements / HOF / journal / titles, spectator, fusion kill
 ### Sparring features
 
 Auto sessions, mentor, block TP, clash drip, Friendly Fist, release-control drip,
-perfect training banner, ki type classification, charging holds activity, `/spar top`.
+perfect training banner, ki type classification, charging holds activity, `/lm spar top`.
 
 ### Progression / Fabled / Skill Check
 
@@ -80,13 +80,13 @@ See **[PROGRESSION.md](PROGRESSION.md)** for module map (grouped by script famil
 config toggles, CNPC Skill Check setup, and scripts to disable on test. Full audit:
 **[AUDIT.md](AUDIT.md)**.
 
-`/progression` is a **staff category hub**: Skills · TP Gains · Race · Combat · End · Shop ·
+`/lm progression` is a **staff category hub**: Skills · TP Gains · Race · Combat · End · Shop ·
 Fabled · Utility (plus Prestige/Skills shortcuts). Also includes End portal
 guard, and Title progression / Admin inspect (from the server-fixes line).
 
 Donators: grant `legacymechanics.donator` (LuckPerms) — hub hides Skill Check without it.
 CNPC Skill Check: tag `lm_skillcheck` or name “Skill Check” (no NPC script).
-Slash `/skillcheck` needs `legacymechanics.donator`.
+Slash `/lm skillcheck` needs `legacymechanics.donator`.
 
 NPC command `skillcheck`. Staff Skills: NPC command `skills` or `lm open skills`.
 

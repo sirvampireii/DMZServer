@@ -985,7 +985,7 @@
    "page": "admin",
    "title": "Difficulty",
    "lines": [
-    "&7Server tools - typed admin: /difficulty admin",
+    "&7Server tools - typed admin: /lm admin difficulty",
     "&7Reload config, event log, and LM Staff Admin hub"
    ],
    "rows": [
@@ -1892,7 +1892,7 @@
     "&7Challenges &f2242 &7Surpass &f31",
     "&7Career dmg &f1250000 &8| combo &f312 &8| hits &f98000",
     "&7Mutual slots &f3&8/&f3",
-    "&7TP chat &fON &8(/rival tpmsg)",
+    "&7TP chat &fON &8(/lm rival tpmsg)",
     "&6Combat (after Overhaul)",
     "&7Overhaul scale &fx1.25",
     "&7Melee &f1250000 &8- &7Strike &f1250000",
@@ -1966,7 +1966,7 @@
    ],
    "back": true,
    "source": "UltraRivalScreens.java openRecords('stats'); RivalSystem.statsLines",
-   "notes": "Representative sub-record page. Season, Quests, Achievements, Hall of fame, Journal and Title share this layout (lines plus the same 8 record buttons) and are skipped. ISSUES: 'Rival TP bonus +200%' prints the multiplier (2.00 shown as 200%), while the tier perk says '+100% rival TP', so the two numbers contradict. Player copy includes a typed command '(/rival tpmsg)' and the abbreviation 'Career dmg'. RivalSystem.statsLines uses an em dash, and LmOverhaulScaledCombat.compactLines uses raw '§' and middle dots (wireText fixes them on the wire, but raw § in LM sources breaks the UltraStyle rule).",
+   "notes": "Representative sub-record page. Season, Quests, Achievements, Hall of fame, Journal and Title share this layout (lines plus the same 8 record buttons) and are skipped. ISSUES: 'Rival TP bonus +200%' prints the multiplier (2.00 shown as 200%), while the tier perk says '+100% rival TP', so the two numbers contradict. Player copy includes a typed command '(/lm rival tpmsg)' and the abbreviation 'Career dmg'. RivalSystem.statsLines uses an em dash, and LmOverhaulScaledCombat.compactLines uses raw '§' and middle dots (wireText fixes them on the wire, but raw § in LM sources breaks the UltraStyle rule).",
    "fit": true,
    "staff": false
   },

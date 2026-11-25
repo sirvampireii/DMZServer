@@ -264,7 +264,7 @@ public final class DojoFounding {
     /** Pick or change the dojo's banner (master): the first pick is free, a change costs points and the cooldown. */
     static void openPickBanner(ServerPlayer p, String notice) {
         UltraScreenSpec spec = UltraDojoScreens.dojoSub(PAGE_PICK_BANNER, notice);
-        Dojo d = DojoService.dojoOf(p);
+        Dojo d = DojoService.viewedDojo(p);
         if (d == null || !DojoService.isMaster(p.m_20148_(), d)) {
             spec.line(UltraStyle.LABEL + "Only your dojo's master can pick its banner.").buttonsAfterLines();
             spec.back();
@@ -300,7 +300,7 @@ public final class DojoFounding {
     /** Rename the dojo (master): costs points and the shared cooldown. */
     static void openRename(ServerPlayer p, String notice) {
         UltraScreenSpec spec = UltraDojoScreens.dojoSub(PAGE_RENAME, notice);
-        Dojo d = DojoService.dojoOf(p);
+        Dojo d = DojoService.viewedDojo(p);
         if (d == null || !DojoService.isMaster(p.m_20148_(), d)) {
             spec.line(UltraStyle.LABEL + "Only your dojo's master can rename it.").buttonsAfterLines();
             spec.back();

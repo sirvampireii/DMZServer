@@ -58,7 +58,7 @@ public final class DifficultyActions {
 
     /**
      * When true, {@link #openGui} syncs unlocks/titles but does not reopen a menu.
-     * Used by the Bukkit companion so it owns inventory reopen after {@code /difficulty do}.
+     * Used by the Bukkit companion so it owns inventory reopen after {@code /lm difficulty do}.
      */
     private static final ThreadLocal<Boolean> SUPPRESS_GUI_REOPEN =
             ThreadLocal.withInitial(() -> Boolean.FALSE);
@@ -70,7 +70,7 @@ public final class DifficultyActions {
 
     /**
      * Re-read live DMZ level/data before painting Buy GUI / placeholders.
-     * Bukkit {@code /difficulty} opens inventory without going through {@link #openGui},
+     * Bukkit {@code /lm difficulty} opens inventory without going through {@link #openGui},
      * so this must also be invoked from the companion bridge on every open.
      */
     public static void prepareGui(ServerPlayer player) {

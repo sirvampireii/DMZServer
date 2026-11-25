@@ -229,7 +229,7 @@ public final class RivalChallengeManager {
         RivalStore.get().saveIfNeeded(now);
         DmzRewards.msg(to, LmChat.note("Challenge", "§e" + req.fromName
                 + " §7challenged you for §f" + mins + "§7 min."));
-        DmzRewards.msg(to, LmChat.tip("/rival", "→ Rival"));
+        DmzRewards.msg(to, LmChat.tip("/lm rival", "→ Rival"));
         return "§aChallenge sent to §f" + req.toName + "§a (" + mins + " min).";
     }
 
@@ -350,12 +350,12 @@ public final class RivalChallengeManager {
             if (pending != null) {
                 return UltraStyle.DANGER + "You have a pending challenge to " + UltraStyle.WHITE + pending.toName
                         + UltraStyle.DANGER + ". To cancel it, type " + UltraStyle.WHITE
-                        + "/rival do challenge cancel " + pending.toName;
+                        + "/lm rival do challenge cancel " + pending.toName;
             }
             if (live) {
                 return UltraStyle.DANGER + "You are in a live challenge with " + UltraStyle.WHITE + them
                         + UltraStyle.DANGER + ". To forfeit it, type " + UltraStyle.WHITE
-                        + "/rival do challenge cancel " + them;
+                        + "/lm rival do challenge cancel " + them;
             }
             return UltraStyle.DANGER + "You have no pending or live challenge to cancel.";
         }
@@ -381,7 +381,7 @@ public final class RivalChallengeManager {
             long mins = Math.max(1L, req.durationMs / 60_000L);
             out.append('\n').append(UltraStyle.WHITE).append(req.fromName).append(UltraStyle.LABEL)
                     .append(" (").append(mins).append(" min) - type ").append(UltraStyle.WHITE)
-                    .append("/rival do challenge ").append(verb).append(' ').append(req.fromName);
+                    .append("/lm rival do challenge ").append(verb).append(' ').append(req.fromName);
         }
         if (out.length() == 0) {
             return UltraStyle.DANGER + "No pending challenge to " + verb + ".";

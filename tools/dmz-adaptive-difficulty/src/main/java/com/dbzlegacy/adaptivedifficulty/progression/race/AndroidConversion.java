@@ -194,7 +194,7 @@ public final class AndroidConversion {
 
     public static String convert(ServerPlayer player) {
         if (!ProgressionConfig.androidConversion()) {
-            return "§cAndroid conversion is disabled. §7Staff: enable the android flag in /progression.";
+            return "§cAndroid conversion is disabled. §7Staff: enable the android flag in /lm admin progression flags.";
         }
         if (player == null) {
             return "§cPlayer required.";
@@ -272,7 +272,7 @@ public final class AndroidConversion {
      */
     public static String remove(ServerPlayer actor, ServerPlayer target) {
         if (!ProgressionConfig.androidConversion()) {
-            return "§cAndroid tools are disabled. §7Staff: enable the android flag in /progression.";
+            return "§cAndroid tools are disabled. §7Staff: enable the android flag in /lm admin progression flags.";
         }
         if (actor == null || target == null) {
             return "§cPlayer required.";
@@ -325,7 +325,7 @@ public final class AndroidConversion {
         }
         if (!ProgressionConfig.androidConversion()) {
             return UltraStyle.DANGER + "Android tools are disabled. "
-                    + UltraStyle.GRAY + "Staff: enable the android flag in /progression.";
+                    + UltraStyle.GRAY + "Staff: enable the android flag in /lm admin progression flags.";
         }
         if (target == null) {
             return UltraStyle.DANGER + "Player required.";

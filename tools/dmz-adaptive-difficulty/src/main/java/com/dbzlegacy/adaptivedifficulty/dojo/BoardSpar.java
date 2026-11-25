@@ -603,7 +603,7 @@ public final class BoardSpar {
     }
 
     /**
-     * SparringSystem is ending a session (logout, inactivity, /spar end, death): settle the bout first so the
+     * SparringSystem is ending a session (logout, inactivity, /lm spar end, death): settle the bout first so the
      * leaderboard sees the right credit. Called at the start of {@code endSession}.
      */
     public static void beforeSessionEnd(ServerPlayer player, ServerPlayer partner, String reason) {

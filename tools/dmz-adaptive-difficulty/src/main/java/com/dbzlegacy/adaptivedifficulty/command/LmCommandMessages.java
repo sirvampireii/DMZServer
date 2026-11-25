@@ -12,7 +12,7 @@ public final class LmCommandMessages {
     public static final String PLAYERS_ONLY = "§cRun that while logged in as a player.";
 
     public static final String PLAYERS_ONLY_CONSOLE =
-            "§cThat’s for in-game players. From console, see §f/difficulty admin help§7.";
+            "§cThat’s for in-game players. From console, see §f/lm admin difficulty help§7.";
 
     public static final String PLAYERS_ONLY_INSPECT =
             "§cRun inspect while logged in on your staff account.";

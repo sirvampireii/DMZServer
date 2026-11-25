@@ -7,7 +7,7 @@ import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import net.minecraft.server.level.ServerPlayer;
 
-/** {@code /skills} (staff) and Skill Check Ultra entry. */
+/** {@code /lm admin skills} (staff) and Skill Check Ultra entry. */
 public final class SkillsMenu {
     private SkillsMenu() {}
 

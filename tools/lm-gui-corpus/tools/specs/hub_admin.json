@@ -3549,7 +3549,7 @@
       {
        "id": "line14",
        "type": "text",
-       "text": "§7Staff: /skills - Donators: /skillcheck",
+       "text": "§7Staff: /lm admin skills - Donators: /lm skillcheck",
        "x": 10,
        "y": 232,
        "w": 406

@@ -159,7 +159,7 @@ public final class GlobalTpBoost {
         applyEffect(player, amp, ticks);
     }
 
-    /** Trigger 30 / {@code /progression boost start}. */
+    /** Trigger 30 / {@code /lm admin progression boost start}. */
     public static String startBoost(ServerPlayer actor, int encoded, String purchaser) {
         if (!ProgressionConfig.globalTpBoost()) {
             return "§cGlobal TP Boost is disabled.";
@@ -198,10 +198,10 @@ public final class GlobalTpBoost {
     public static String undecodedReply(String encoded) {
         return UltraStyle.DANGER + "Boost value " + UltraStyle.WHITE + encoded + UltraStyle.DANGER
                 + " was not understood. Use one of these:\n"
-                + UltraStyle.YELLOW + "progression boost start <encoded>" + UltraStyle.GRAY
+                + UltraStyle.YELLOW + "/lm admin progression boost start <encoded>" + UltraStyle.GRAY
                 + " - for example " + UltraStyle.WHITE + "2000030" + UltraStyle.GRAY + " for 2x, 30 minutes\n"
-                + UltraStyle.YELLOW + "progression boost start <multiplier> <minutes>" + UltraStyle.GRAY
-                + " - for example " + UltraStyle.WHITE + "progression boost start 2 30";
+                + UltraStyle.YELLOW + "/lm admin progression boost start <multiplier> <minutes>" + UltraStyle.GRAY
+                + " - for example " + UltraStyle.WHITE + "/lm admin progression boost start 2 30";
     }
 
     public static String startBoostMinutes(ServerPlayer actor, double multiplier, int minutes, String purchaser) {
@@ -217,7 +217,7 @@ public final class GlobalTpBoost {
         return result;
     }
 
-    /** Trigger 31 / {@code /progression boost end}. */
+    /** Trigger 31 / {@code /lm admin progression boost end}. */
     public static String endBoost(boolean announce) {
         long now = System.currentTimeMillis();
         if (now < END_LOCK.get()) {

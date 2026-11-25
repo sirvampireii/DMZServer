@@ -32,7 +32,7 @@ public final class AdaptiveDifficultyMod {
     /** Forge modId — lowercase; not used for NBT / GUI class lookup. */
     public static final String MOD_ID = "legacymechanics";
     /** Product line version (was DMZ Adaptive Difficulty 3.3.x). */
-    public static final String VERSION = "4.7.87";
+    public static final String VERSION = "4.7.88";
 
     private static boolean dedicatedServer() {
         try {
@@ -90,6 +90,8 @@ public final class AdaptiveDifficultyMod {
         // FallDamageDiag before DifficultyEvents so HIGHEST onHurt aligns the pool first.
         MinecraftForge.EVENT_BUS.register(new FallDamageDiag());
         MinecraftForge.EVENT_BUS.register(new DifficultyEvents());
+        // 4.7.88: dojo world building (the master in their own plot only) and ki (only between bout opponents).
+        MinecraftForge.EVENT_BUS.register(com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.INSTANCE);
         // Prestige per DMZ Ultra character, and fresh stats for a new character (account-wide without Ultra).
         com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter.register();
         MinecraftForge.EVENT_BUS.register(com.dbzlegacy.adaptivedifficulty.kube.LmHotPath.INSTANCE);
@@ -101,6 +103,7 @@ public final class AdaptiveDifficultyMod {
         RivalCommands.register();
         SparCommands.register();
         MechanicsCommands.register();
+        com.dbzlegacy.adaptivedifficulty.command.AdminGate.register();
         CharacterCommands.register();
         ProgressionCommands.register();
         TerminalCommands.register();

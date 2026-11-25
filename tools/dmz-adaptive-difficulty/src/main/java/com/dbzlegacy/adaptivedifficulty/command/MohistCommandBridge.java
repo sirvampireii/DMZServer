@@ -1,7 +1,6 @@
 package com.dbzlegacy.adaptivedifficulty.command;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
-import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.suggestion.Suggestion;
 import com.mojang.brigadier.suggestion.Suggestions;
@@ -92,35 +91,11 @@ public final class MohistCommandBridge {
                     Class.forName("org.bukkit.plugin.Plugin"));
             ctor.setAccessible(true);
 
-            String staffPerm = CommandAccess.staffBukkitPermission();
-            String skillPerm = CommandAccess.skillCheckBukkitPermission();
-
+            // 4.7.88: every LM command lives under /lm, so the bridge forwards /lm only. The old top-level roots
+            // (difficulty, diff, rival, spar, progression, prestige, padmin, character, skillcheck, skills,
+            // enddragon, androidify, terminal) are gone; vanilla keeps its own difficulty command.
             registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
                     "lm", List.of(), null);
-            registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
-                    "difficulty", List.of("diff"), null);
-            registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
-                    "rival", List.of(), null);
-            registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
-                    "spar", List.of(), null);
-            registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
-                    "skillcheck", List.of(), skillPerm);
-            registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
-                    "progression", List.of(), null);
-            registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
-                    "prestige", List.of(), null);
-            registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
-                    "skills", List.of(), staffPerm);
-            registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
-                    "character", List.of(), null);
-            registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
-                    "enddragon", List.of(), staffPerm);
-            registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
-                    "androidify", List.of(), staffPerm);
-            registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
-                    "padmin", List.of(), staffPerm);
-            registerOne(server, commandMap, pluginCommandClass, ctor, hostPlugin, executor, tabCompleterProxy,
-                    "terminal", List.of(), null);
 
             registered = true;
             AdaptiveDifficultyMod.LOGGER.info(
@@ -168,10 +143,6 @@ public final class MohistCommandBridge {
         if (source == null) {
             return;
         }
-        if (!mayUseBukkitRoot(source, label)) {
-            LmCommandFeedback.tell(source, LmCommandMessages.NO_PERMISSION_BRIDGE);
-            return;
-        }
         String[] coalesced = LmAdminArgCoalesce.forMohist(label, args);
         String line = commandLine(label, coalesced);
         try {
@@ -185,7 +156,7 @@ public final class MohistCommandBridge {
     private static List<String> tabComplete(
             MinecraftServer server, Object sender, String label, String[] args) {
         CommandSourceStack source = commandSource(server, sender);
-        if (source == null || !mayUseBukkitRoot(source, label)) {
+        if (source == null) {
             return Collections.emptyList();
         }
         String[] coalesced = LmAdminArgCoalesce.forMohist(label, args);
@@ -272,16 +243,6 @@ public final class MohistCommandBridge {
         } catch (Throwable ignored) {
         }
         return server.m_129893_();
-    }
-
-    private static boolean mayUseBukkitRoot(CommandSourceStack source, String label) {
-        if (CommandAccess.isStaffOnlyBukkitCommand(label)) {
-            return StaffAccess.isStaffSource(source);
-        }
-        if (CommandAccess.isSkillCheckBukkitCommand(label)) {
-            return StaffAccess.hasSkillCheckSource(source);
-        }
-        return true;
     }
 
     /** Entity-attached stack so feedback and brigadier suggestions reach the player on Mohist. */

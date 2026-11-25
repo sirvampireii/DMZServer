@@ -3,12 +3,12 @@
 LegacyMechanics ports CNPC “natural progression” scripts into Forge, plus soft-dependency
 **Fabled** bridges (Bukkit / LuckPerms via reflection — never hard-crash if missing).
 
-**Access:** `/progression` / `/skills` are **staff only** (op level 2 or
+**Access:** `/lm progression` / `/lm admin skills` are **staff only** (op level 2 or
 `difficulty.admin`). Normal players use Difficulty / Rival / Spar / **Prestige** /
 Remove Android from `/lm`. Donators with `legacymechanics.donator` get **Skill Check**
-(`/skillcheck` or CNPC).
+(`/lm skillcheck` or CNPC).
 
-Staff UI (`/progression` / `/prog`) is a **category hub** matching the script families below.
+Staff UI (`/lm progression` / `/lm progression`) is a **category hub** matching the script families below.
 
 ## Install (test)
 
@@ -21,9 +21,9 @@ Staff UI (`/progression` / `/prog`) is a **category hub** matching the script fa
 
 | Audience | Commands |
 |----------|----------|
-| All players | `/lm`, `/difficulty`, `/rival`, `/spar`, `/lm` → Prestige · Remove Android |
-| Donators | `/skillcheck` — requires LuckPerms `legacymechanics.donator` |
-| Staff | `/progression` · `/prog` · `/skills` · Flags / Logs · Android convert |
+| All players | `/lm`, `/lm difficulty`, `/lm rival`, `/lm spar`, `/lm` → Prestige · Remove Android |
+| Donators | `/lm skillcheck` — requires LuckPerms `legacymechanics.donator` |
+| Staff | `/lm progression` · `/lm progression` · `/lm admin skills` · Flags / Logs · Android convert |
 
 ## Skill Check (donators)
 
@@ -31,7 +31,7 @@ Staff UI (`/progression` / `/prog`) is a **category hub** matching the script fa
 - Staff are **not** auto-granted — without the node they see **Skills** (admin) on the hub, not Skill Check.
 - Config (`legacymechanics.json`): `enableSkillCheck`, `donatorPermission`,
   `skillCheckNpcNameContains` (default needles: `Skill Check`, `SkillCheck`, `Skill Progress`).
-- Reuses the same skill progress lines as staff `/skills` (core / saga) with
+- Reuses the same skill progress lines as staff `/lm admin skills` (core / saga) with
   **Skill Check** branding.
 - Hub shows **Skill Check** only when the player has the permission.
 
@@ -45,7 +45,7 @@ Any of:
 4. NPC command (player): `skillcheck` or `lm open skillcheck`
 
 Right-click a marked CustomNPC → Skill Check UI for **any** player (NPC is the gate).
-Slash `/skillcheck` still needs `legacymechanics.donator`.
+Slash `/lm skillcheck` still needs `legacymechanics.donator`.
 
 ### CNPC setup (Rival / Spar / Hub / Difficulty / Prestige)
 
@@ -63,12 +63,12 @@ Or NPC interaction command **as the player** (no `/`): `lm` · `rival` · `spar`
 
 ### CNPC setup (staff Skills admin)
 
-Staff `/skills` has no special CNPC name hook — use an NPC interaction command as the player:
+Staff `/lm admin skills` has no special CNPC name hook — use an NPC interaction command as the player:
 
 - `skills`
 - or `lm open skills`
 
-## Staff UI pages (`/progression`)
+## Staff UI pages (`/lm progression`)
 
 | Page id | Title | Contents |
 |---------|-------|----------|
@@ -81,7 +81,7 @@ Staff `/skills` has no special CNPC name hook — use an NPC interaction command
 | `android_remove` | Remove Android | player picker → two-click confirm remove |
 | `combat` | Combat | kiweapons, piercing, dot, apothic |
 | `end` | End | end (End Dimension Strength), endportal |
-| `shop` | Shop | prestige + skills status · buttons open `/prestige` and `/skills` |
+| `shop` | Shop | prestige + skills status · buttons open `/lm prestige` and `/lm admin skills` |
 | `fabled` | Fabled Bridges | master + energy/stat/tpsp/attr/prestige skill/faction/cleaner/raceclass/classperm |
 | `utility` | Utility | shadow, playerstatchecker |
 | `admin` / `flags` | Staff Flags | toggles grouped by the same categories (+ `flags_fabled` for bridge subs) |
@@ -213,7 +213,7 @@ Staff `/skills` has no special CNPC name hook — use an NPC interaction command
 - `YardratRace` / `YardratSkills`
 - `Spirtualist Ki Control`
 - `AndrioidConversion`
-- Android Upgrade Removal CNPC (use `/progression android remove` / GUI instead)
+- Android Upgrade Removal CNPC (use `/lm progression android remove` / GUI instead)
 
 ### Combat
 
@@ -227,7 +227,7 @@ Staff `/skills` has no special CNPC name hook — use an NPC interaction command
 ### Shop
 
 - Prestige NPC / SkillUnlockNPC (when shop ports are active)
-- SkillCheckCommand.js (replaced by `/skillcheck` + trigger 21 + CNPC interact)
+- SkillCheckCommand.js (replaced by `/lm skillcheck` + trigger 21 + CNPC interact)
 
 ### Fabled bridges (when `enableFabledBridge` is on)
 
@@ -253,8 +253,8 @@ Staff `/skills` has no special CNPC name hook — use an NPC interaction command
 ## Chat / telemetry
 
 - `/lm` hub → Difficulty · Rival · Spar · Help (+ Skill Check for donators; staff Progression/Prestige/Skills/Logs)
-- Staff: `/prog do page skills|tp|race|combat|end|shop|fabled|utility`
-- Staff: `/prog do page admin` · `/prog admin <flag> on|off`
+- Staff: `/lm progression do page skills|tp|race|combat|end|shop|fabled|utility`
+- Staff: `/lm progression do page admin` · `/lm progression admin <flag> on|off`
 - System telemetry (`enableSystemTelemetry`): rate-limited `system=fabled` events
   (`login_sync`, `energy_spend`, `tp_sp_spend`, `prestige_skill`, `prestige_faction`,
   `race_class`, `race_skill`, `class_perm_grant`, `value_clean`)

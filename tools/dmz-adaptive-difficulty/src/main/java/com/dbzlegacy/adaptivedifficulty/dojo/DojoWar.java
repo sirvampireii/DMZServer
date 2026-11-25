@@ -151,7 +151,8 @@ public final class DojoWar {
 
     public static String declare(ServerPlayer p, String targetDojo, String format) {
         prune();
-        Dojo mine = DojoService.dojoOf(p);
+        // 4.7.88: the war goes out from the dojo the player is viewing ("Your dojos"), with the rights they have there.
+        Dojo mine = DojoService.viewedDojo(p);
         if (mine == null || !DojoService.canManage(p.m_20148_(), mine)) {
             return "Only a master or an elite can declare a war.";
         }
@@ -208,7 +209,8 @@ public final class DojoWar {
 
     public static String signoff(ServerPlayer p, String warId) {
         WarRecord w = byId(warId);
-        Dojo mine = DojoService.dojoOf(p);
+        // 4.7.88: the player's dojo on this war's side (a player can be in two dojos).
+        Dojo mine = w == null ? null : DojoService.managedDojoAmong(p.m_20148_(), w.fromDojo);
         if (w == null || !"PENDING_SIGNOFF".equals(w.status)) {
             return "That war isn't waiting for sign-off.";
         }
@@ -224,7 +226,7 @@ public final class DojoWar {
 
     public static String decline(ServerPlayer p, String warId) {
         WarRecord w = byId(warId);
-        Dojo mine = DojoService.dojoOf(p);
+        Dojo mine = w == null ? null : DojoService.managedDojoAmong(p.m_20148_(), w.toDojo, w.fromDojo);
         if (w == null || !open(w) || "RUNNING".equals(w.status) || mine == null
                 || !DojoService.canManage(p.m_20148_(), mine)) {
             return "There's no war to turn down.";
@@ -244,7 +246,7 @@ public final class DojoWar {
     public static String accept(ServerPlayer p, String warId) {
         prune();
         WarRecord w = byId(warId);
-        Dojo mine = DojoService.dojoOf(p);
+        Dojo mine = w == null ? null : DojoService.managedDojoAmong(p.m_20148_(), w.toDojo);
         if (w == null || !"CHALLENGED".equals(w.status)) {
             return "That challenge is no longer open.";
         }
@@ -293,7 +295,7 @@ public final class DojoWar {
         if (r == null || !"SIGNUP".equals(r.phase)) {
             return "Sign-up for that war is closed.";
         }
-        Dojo d = DojoService.dojoOf(p);
+        Dojo d = DojoService.memberDojoAmong(p.m_20148_(), r.rec.fromDojo, r.rec.toDojo);
         if (d == null || !(d.masterUuid.equals(r.rec.fromDojo) || d.masterUuid.equals(r.rec.toDojo))) {
             return "Only members of the two dojos can fight in this war.";
         }
@@ -750,7 +752,7 @@ public final class DojoWar {
      * way in ("Open Dojo > Wars and tap Join the war." or the join reply once signed). Tapping it opens Dojo > Wars.
      */
     public static void signupPill(ServerPlayer p, WarRecord w) {
-        Dojo mine = DojoService.dojoOf(p);
+        Dojo mine = DojoService.memberDojoAmong(p.m_20148_(), w.fromDojo, w.toDojo);
         boolean ours = mine == null || w.fromDojo.equals(mine.masterUuid);
         String my = ours ? w.fromDojo : w.toDojo;
         String their = ours ? w.toDojo : w.fromDojo;
@@ -913,7 +915,7 @@ public final class DojoWar {
     // ------------------------------------------------------------------ the old war commands (owner pick a)
 
     /**
-     * 4.7.84 (owner pick a): {@code /spar dojo challenge <player>} and the legacy GUI "dojo challenge" actions declare
+     * 4.7.84 (owner pick a): {@code /lm dojo challenge <player>} and the legacy GUI "dojo challenge" actions declare
      * the same war as the menu ({@code war_declare:<master>:BRACKET}). {@code who} names the other dojo by any of its
      * members online, its master's name or UUID ({@code uuid:} allowed), or its dojo name. Nothing writes the old
      * 2x-ranking-point challenge records any more.
@@ -963,7 +965,7 @@ public final class DojoWar {
     }
 
     /**
-     * 4.7.84 (owner pick a): {@code /spar dojo accept|decline} and the legacy GUI actions answer the newest war
+     * 4.7.84 (owner pick a): {@code /lm dojo accept|decline} and the legacy GUI actions answer the newest war
      * challenge waiting on the player's dojo, the same as Accept / Turn it down on Dojo > Wars.
      */
     public static String legacyAnswer(ServerPlayer p, boolean accept) {

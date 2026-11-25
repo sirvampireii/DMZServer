@@ -18,7 +18,7 @@ import net.minecraft.world.entity.LivingEntity;
 
 /**
  * Donator / CNPC Skill Check — reuses Skills GUI data with player-facing branding.
- * Staff Progression {@code /skills} remains the full staff unlock browser.
+ * Staff Progression {@code /lm admin skills} remains the full staff unlock browser.
  */
 public final class SkillCheckService {
     private static final String TAG_NEEDLE = "lm_skillcheck";
@@ -91,7 +91,7 @@ public final class SkillCheckService {
 
     /**
      * CNPC right-click: a Skill Check NPC opens the menu for every player.
-     * Slash {@code /skillcheck} still requires {@link #canUse}.
+     * Slash {@code /lm skillcheck} still requires {@link #canUse}.
      */
     public static boolean tryOpenFromNpc(ServerPlayer player, Entity npc) {
         if (player == null || npc == null) {
@@ -107,14 +107,14 @@ public final class SkillCheckService {
             DmzRewards.msg(player, "§cSkill Check is disabled.");
             return true;
         }
-        // Slash /skillcheck still uses canUse(player). This NPC is for every player.
+        // Slash /lm skillcheck still uses canUse(player). This NPC is for every player.
         openAtNpc(player);
         return true;
     }
 
     /**
      * Right-click Skill Check NPC. Any online player may open it.
-     * Slash {@code /skillcheck} still requires {@link #canUse}.
+     * Slash {@code /lm skillcheck} still requires {@link #canUse}.
      */
     public static void openAtNpc(ServerPlayer player) {
         if (player == null) {
@@ -128,7 +128,7 @@ public final class SkillCheckService {
         com.dbzlegacy.adaptivedifficulty.gui.SkillsMenu.openSkillCheck(player, "core");
     }
 
-    /** Trigger 21 / dialog script path. The NPC is the gate. Slash {@code /skillcheck} still uses {@link #canUse}. */
+    /** Trigger 21 / dialog script path. The NPC is the gate. Slash {@code /lm skillcheck} still uses {@link #canUse}. */
     public static void trigger21(ServerPlayer player) {
         openAtNpc(player);
     }

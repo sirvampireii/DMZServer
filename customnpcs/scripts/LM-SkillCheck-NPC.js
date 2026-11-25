@@ -4,7 +4,7 @@
  * ============================================================
  * Same behavior as SkillCheckPlayerNpc.js.
  * Right-click opens Skill Check for every player.
- * Slash /skillcheck still requires legacymechanics.skillcheck.
+ * Slash /lm skillcheck still requires legacymechanics.skillcheck.
  *
  * Needs LegacyMechanics 4.5.156 or newer, and a panel restart after the jar upload.
  * ============================================================

@@ -11,8 +11,8 @@ scripts while matching `enable*` flags are ON.
 ## Verdict
 
 **Forge-only.** Right-click GUI NPCs use scoreboard tags / strict names
-(`CnpcGuiOpener` + `SkillCheckService`). Commands: `/rival` `/spar` `/prestige`
-`/skillcheck` `/enddragon` `/progression …` `/lm`. No Global Player scripts,
+(`CnpcGuiOpener` + `SkillCheckService`). Commands: `/lm rival` `/lm spar` `/lm prestige`
+`/lm skillcheck` `/lm admin enddragon` `/lm progression …` `/lm`. No Global Player scripts,
 no `LM-SkillCheck-NPC.js`, no `noppes script trigger` required.
 
 If any CMI/shop/dialog still fires `noppes script trigger N`, retarget it to the
@@ -25,16 +25,16 @@ Forge command in `CNPC-FREE.md` (with scripts gone those triggers no-op).
 | Script | Live server | Java owner | Flag | Parity |
 |--------|-------------|------------|------|--------|
 | End Dimension Strength.js | DELETED / backup | `EndDimensionStrength` | `enableEndDimensionStrength` | OK vs live 2.12.0 |
-| EndDragon-Forge-Trigger.js | DELETED / backup | same + `/enddragon` | same | OK — Forge cmds |
+| EndDragon-Forge-Trigger.js | DELETED / backup | same + `/lm admin enddragon` | same | OK — Forge cmds |
 | Disable End Portals.js | DELETED / backup | `EndPortalGuard` | `enableEndPortalGuard` | OK |
-| Global TP Boost.js / TP boost end.js | DELETED / backup | `GlobalTpBoost` | `enableGlobalTpBoost` | OK — `/progression boost` |
+| Global TP Boost.js / TP boost end.js | DELETED / backup | `GlobalTpBoost` | `enableGlobalTpBoost` | OK — `/lm admin progression boost` |
 | Meditation + ChangeBiomeMED | DELETED / backup | `MeditationProgression` | `enableMeditation` | OK |
 | Potential.js | DELETED / backup | `PotentialProgression` | `enablePotential` | OK |
-| AndrioidConversion.js | DELETED / backup | `AndroidConversion` | `enableAndroidConversion` | OK — `/progression android` |
-| Rival System + Command Handler | DELETED / backup | `RivalSystem` / `RivalCommands` | `enableRivalSystem` | OK — `/rival` |
-| Sparring TP + Command Handler | DELETED / backup | `SparringSystem` / `SparCommands` | `enableSparringSystem` | OK — `/spar` |
-| Prestige NPC.js | DELETED / backup | `PrestigeSystem` | `enablePrestigeSystem` | OK — `/prestige` |
-| SkillCheck / SkillUnlock | DELETED / backup | `SkillCheckService` / `SkillUnlockService` | skill flags | OK — tag / `/skillcheck` |
+| AndrioidConversion.js | DELETED / backup | `AndroidConversion` | `enableAndroidConversion` | OK — `/lm admin progression android` |
+| Rival System + Command Handler | DELETED / backup | `RivalSystem` / `RivalCommands` | `enableRivalSystem` | OK — `/lm rival` |
+| Sparring TP + Command Handler | DELETED / backup | `SparringSystem` / `SparCommands` | `enableSparringSystem` | OK — `/lm spar` |
+| Prestige NPC.js | DELETED / backup | `PrestigeSystem` | `enablePrestigeSystem` | OK — `/lm prestige` |
+| SkillCheck / SkillUnlock | DELETED / backup | `SkillCheckService` / `SkillUnlockService` | skill flags | OK — tag / `/lm skillcheck` |
 | LM-SkillCheck-NPC.js | **not required** | `SkillCheckService` | `enableSkillCheck` | Use tag `lm_skillcheck` |
 | Farming / Flight / SprintJump / combat / Fabled / Race / Yardrat / ShadowDummy / StatChecker | DELETED / backup | matching Java | matching flags | OK |
 
@@ -69,10 +69,10 @@ GUIs/hub, telemetry, CNPC data migrator, Building TP.
 
 ## Intentional differences vs old scripts
 
-- End portals stay blocked (title feedback) — teleport in, then `/enddragon`.
-- `/skillcheck` slash needs `legacymechanics.skillcheck`; NPC tag/name does not.
+- End portals stay blocked (title feedback) — teleport in, then `/lm admin enddragon`.
+- `/lm skillcheck` slash needs `legacymechanics.skillcheck`; NPC tag/name does not.
 - Global TP Boost persists to `global-tp-boost.json` (survives restart; 2.3.60).
 - PlayerStatChecker has a 1.5s cooldown and cancels the interact.
-- Rival spectate TTL 10 min via `/rival spectate` (script was 2 min `/spectaterival`).
+- Rival spectate TTL 10 min via `/lm rival spectate` (script was 2 min `/spectaterival`).
 - Conversation-era UX: player Prestige + Remove Android on hub; mentor invite 2 min;
   Spar last-3 individual report cards; GUI hub hops via `/lmdo lm open hub`.

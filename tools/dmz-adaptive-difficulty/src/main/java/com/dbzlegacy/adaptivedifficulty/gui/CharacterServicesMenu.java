@@ -4,7 +4,7 @@ import com.dbzlegacy.adaptivedifficulty.character.CharacterServicesConfig;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGui;
 import net.minecraft.server.level.ServerPlayer;
 
-/** Player UI for Character Services ({@code /character} / hub). */
+/** Player UI for Character Services ({@code /lm character} / hub). */
 public final class CharacterServicesMenu {
     private CharacterServicesMenu() {}
 

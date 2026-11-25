@@ -73,7 +73,7 @@ public final class UltraSkillCheckScreens {
         // 4.7.84 (S-1): say where locked skills come from; the button opens the Prestige skill shop.
         spec.line(UltraStyle.LABEL + LOCKED_HINT);
         if (staffAdmin) {
-            spec.line(UltraStyle.LABEL + "Staff open this with /skills; donators with /skillcheck.");
+            spec.line(UltraStyle.LABEL + "Staff open this with /lm admin skills; donators with /lm skillcheck.");
         }
         spec.buttonsAfterLines();
         spec.buttonLeft("go:prestige|skills", UltraStyle.plain("Buy skill levels"), UltraStyle.STYLE_NORMAL).rowGap();

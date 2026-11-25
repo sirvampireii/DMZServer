@@ -575,6 +575,8 @@ public final class UiProbe {
         v78Script();
         v80Script();
         v84Script();
+        v88DojoRules();
+        v88Commands();
     }
 
     // ---- 4.7.71 navigation audit and scripted checks (test only) ----
@@ -2999,6 +3001,208 @@ public final class UiProbe {
         }
     }
 
+    /**
+     * 4.7.88 dojo world rules, fired as the Forge events the game posts: only a dojo's master builds, and only in their
+     * own plot; nobody builds outside a hall (refusals in plain words, once per held click); the hall builder still
+     * finishes; ki hurts nobody in the dojo world except a bout opponent; spectators still can't be hit. Two probe
+     * dojos and five stand-ins in the dojo world, removed afterwards (their plots stay built).
+     */
+    @SuppressWarnings("unchecked")
+    private void v88DojoRules() {
+        var server = player.m_20194_();
+        var lvl = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.level(server);
+        var layout = com.dbzlegacy.adaptivedifficulty.dojo.DojoLayout.get();
+        if (lvl == null || layout == null) {
+            note("V88 DOJO RULES the dojo world or its layout is missing FAIL");
+            return;
+        }
+        var store = com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get();
+        java.util.function.Function<String, ServerPlayer> fake = n -> net.minecraftforge.common.util.FakePlayerFactory.get(lvl,
+                new com.mojang.authlib.GameProfile(java.util.UUID.nameUUIDFromBytes(("uiprobe88:" + n)
+                        .getBytes(StandardCharsets.UTF_8)), n));
+        ServerPlayer red = fake.apply("ProbeRedMaster");
+        ServerPlayer blue = fake.apply("ProbeBlueMaster");
+        ServerPlayer member = fake.apply("ProbeRedMember");
+        ServerPlayer visitor = fake.apply("ProbeVisitor");
+        ServerPlayer watcher = fake.apply("ProbeWatcher");
+        java.util.function.BiFunction<ServerPlayer, String, com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo> mk = (m, n) -> {
+            var d = new com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo();
+            d.masterUuid = m.m_20148_().toString();
+            d.masterName = m.m_7755_().getString();
+            d.name = n;
+            d.open = true;
+            d.foundedAt = System.currentTimeMillis();
+            d.upgrades.put(com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.ARENA, 1);
+            store.dojos.put(d.masterUuid, d);
+            return d;
+        };
+        var dRed = mk.apply(red, "Probe Red Hall");
+        var dBlue = mk.apply(blue, "Probe Blue Hall");
+        dRed.joinedAt.put(member.m_20148_().toString(), 0L);
+        String boutId = "probe-88-bout";
+        Map<java.util.UUID, String> spectating = null;
+        Map<String, com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.Bout> bouts = null;
+        Map<java.util.UUID, String> boutOf = null;
+        try {
+            java.lang.reflect.Field fs = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.class.getDeclaredField("SPECTATING");
+            fs.setAccessible(true);
+            spectating = (Map<java.util.UUID, String>) fs.get(null);
+            java.lang.reflect.Field fb = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.class.getDeclaredField("BOUTS");
+            fb.setAccessible(true);
+            bouts = (Map<String, com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.Bout>) fb.get(null);
+            java.lang.reflect.Field fo = com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.class.getDeclaredField("BOUT_OF");
+            fo.setAccessible(true);
+            boutOf = (Map<java.util.UUID, String>) fo.get(null);
+
+            // ---- the hall builder places with setBlock, so the build rules never stop it
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.ensureBuilt(server, dRed);
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.ensureBuilt(server, dBlue);
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoPlacer.finishNow();
+            var lastCheck = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.LAST_CHECK;
+            note("V88 DOJO hall auto-build still completes with the build rules on: " + pf(
+                    com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.ready(dRed)
+                            && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.ready(dBlue)
+                            && "OK".equals(lastCheck.get(dRed.masterUuid)) && "OK".equals(lastCheck.get(dBlue.masterUuid)))
+                    + " | " + lastCheck.get(dRed.masterUuid) + " / " + lastCheck.get(dBlue.masterUuid));
+
+            var cRed = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.plotCorner(dRed.plot);
+            var cBlue = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.plotCorner(dBlue.plot);
+            net.minecraft.core.BlockPos inRed = cRed.m_7918_(layout.sx / 2, layout.floorY, layout.sz / 2);
+            net.minecraft.core.BlockPos inBlue = cBlue.m_7918_(layout.sx / 2, layout.floorY, layout.sz / 2);
+            net.minecraft.core.BlockPos between = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.plotOrigin(dRed.plot)
+                    .m_7918_(com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.PLOT_SPACING / 2 - 1, 1, 0);
+            net.minecraft.core.BlockPos ringRow = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.ringOrigin(0).m_7494_();
+            note("V88 DOJO plot lookup: the hall is its plot, between plots and the ring row are no plot: " + pf(
+                    com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.plotIndexAt(inRed) == dRed.plot
+                            && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.plotIndexAt(inBlue) == dBlue.plot
+                            && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.plotIndexAt(between) < 0
+                            && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.plotIndexAt(ringRow) < 0));
+
+            java.util.function.BiPredicate<ServerPlayer, net.minecraft.core.BlockPos> brk = (p, pos) -> {
+                var e = new net.minecraftforge.event.level.BlockEvent.BreakEvent(lvl, pos, lvl.m_8055_(pos), p);
+                MinecraftForge.EVENT_BUS.post(e);
+                return e.isCanceled();
+            };
+            java.util.function.BiPredicate<ServerPlayer, List<net.minecraft.core.BlockPos>> place = (p, at) -> {
+                List<net.minecraftforge.common.util.BlockSnapshot> snaps = new ArrayList<>();
+                for (net.minecraft.core.BlockPos pos : at) {
+                    snaps.add(net.minecraftforge.common.util.BlockSnapshot.create(lvl.m_46472_(), lvl, pos));
+                }
+                var e = at.size() == 1
+                        ? new net.minecraftforge.event.level.BlockEvent.EntityPlaceEvent(snaps.get(0),
+                                lvl.m_8055_(at.get(0).m_7495_()), p)
+                        : new net.minecraftforge.event.level.BlockEvent.EntityMultiPlaceEvent(snaps,
+                                lvl.m_8055_(at.get(0).m_7495_()), p);
+                MinecraftForge.EVENT_BUS.post(e);
+                return e.isCanceled();
+            };
+            java.util.function.BiPredicate<ServerPlayer, net.minecraft.core.BlockPos> bucket = (p, pos) -> {
+                var bhr = new net.minecraft.world.phys.BlockHitResult(new net.minecraft.world.phys.Vec3(pos.m_123341_() + 0.5,
+                        pos.m_123342_() + 1.0, pos.m_123343_() + 0.5), net.minecraft.core.Direction.UP, pos, false);
+                var e = new net.minecraftforge.event.entity.player.FillBucketEvent(p,
+                        net.minecraft.world.item.ItemStack.f_41583_, lvl, bhr);
+                MinecraftForge.EVENT_BUS.post(e);
+                return e.isCanceled();
+            };
+            // Chat lines one action sends to one stand-in (the refusal, or nothing).
+            java.util.function.BiFunction<ServerPlayer, Runnable, List<String>> said = (p, r) -> {
+                List<String> out = new ArrayList<>();
+                for (LmHud.Vanilla v : LmHud.captureBoth(r).vanilla()) {
+                    if (v.player().equals(p.m_20148_())) {
+                        out.add(v.text());
+                    }
+                }
+                return out;
+            };
+            String onlyMaster = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.ONLY_MASTER;
+            String noHall = com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.NO_HALL;
+
+            // ---- building: everyone but the plot's master is refused, in plain words, once per held click
+            boolean[] got = new boolean[2];
+            List<String> first = said.apply(member, () -> got[0] = brk.test(member, inRed));
+            List<String> again = said.apply(member, () -> got[1] = brk.test(member, inRed));
+            note("V88 DOJO a member can't break blocks in their master's hall, told once in plain words: " + pf(got[0] && got[1]
+                    && first.size() == 1 && first.get(0).contains(onlyMaster) && again.isEmpty()) + " | " + first + " / " + again);
+            note("V88 DOJO a member can't place blocks in the hall: " + pf(place.test(member, List.of(inRed.m_7494_()))));
+            note("V88 DOJO a visitor can't break, place or pour a bucket in a hall: " + pf(brk.test(visitor, inRed)
+                    && place.test(visitor, List.of(inRed.m_7494_())) && bucket.test(visitor, inRed)));
+            spectating.put(watcher.m_20148_(), dRed.masterUuid);
+            note("V88 DOJO a spectator can't break or place blocks: " + pf(brk.test(watcher, inRed)
+                    && place.test(watcher, List.of(inRed.m_7494_()))));
+            note("V88 DOJO another dojo's master can't build in this hall: " + pf(brk.test(blue, inRed)
+                    && place.test(blue, List.of(inRed.m_7494_()))));
+            note("V88 DOJO the master builds in their own hall (break, place, multi-place, bucket): " + pf(!brk.test(red, inRed)
+                    && !place.test(red, List.of(inRed.m_7494_()))
+                    && !place.test(red, List.of(inRed.m_7494_(), inRed.m_7494_().m_7494_()))
+                    && !bucket.test(red, inRed)));
+            note("V88 DOJO the master can't build in another master's hall: " + pf(brk.test(red, inBlue)
+                    && place.test(red, List.of(inBlue.m_7494_())) && bucket.test(red, inBlue)));
+            boolean[] outsideOk = new boolean[1];
+            List<String> outside = said.apply(red, () -> outsideOk[0] = brk.test(red, between) && place.test(red, List.of(between))
+                    && brk.test(red, ringRow) && place.test(red, List.of(ringRow)));
+            note("V88 DOJO nobody builds outside a hall (between plots, the ring row), even a master: " + pf(outsideOk[0]
+                    && outside.size() == 1 && outside.get(0).contains(noHall)) + " | " + outside);
+            note("V88 DOJO a multi-block place that reaches outside the hall is refused: " + pf(place.test(red,
+                    List.of(inRed.m_7494_(), between))));
+
+            // ---- ki: nobody is hurt by ki in the dojo world except a bout opponent
+            var bout = new com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.Bout();
+            bout.id = boutId;
+            bout.a = red.m_20148_();
+            bout.b = blue.m_20148_();
+            bout.nameA = red.m_7755_().getString();
+            bout.nameB = blue.m_7755_().getString();
+            bout.host = dRed.masterUuid;
+            bout.startAt = System.currentTimeMillis();
+            bouts.put(boutId, bout);
+            boutOf.put(red.m_20148_(), boutId);
+            boutOf.put(blue.m_20148_(), boutId);
+            java.util.function.BiPredicate<ServerPlayer, net.minecraft.world.damagesource.DamageSource> hit = (v, src) -> {
+                var e = new net.minecraftforge.event.entity.living.LivingAttackEvent(v, src, 6.0f);
+                MinecraftForge.EVENT_BUS.post(e);
+                return e.isCanceled();
+            };
+            var kiBystander = com.dragonminez.common.init.MainDamageTypes.kiblast(lvl, visitor, visitor);
+            var mob = net.minecraft.world.entity.EntityType.f_20501_.m_20615_(lvl);
+            var kiMob = com.dragonminez.common.init.MainDamageTypes.kiblast(lvl, mob, mob);
+            var kiRed = com.dragonminez.common.init.MainDamageTypes.kiblast(lvl, red, red);
+            var kiBlue = com.dragonminez.common.init.MainDamageTypes.kiblast(lvl, blue, blue);
+            var kiMember = com.dragonminez.common.init.MainDamageTypes.kiblast(lvl, member, member);
+            note("V88 DOJO the probe's ki sources count as ki: " + pf(com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.isKi(kiBystander)
+                    && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.isKi(kiMob)));
+            note("V88 DOJO a bystander's ki does nothing to a player in the dojo world: " + pf(hit.test(member, kiBystander)
+                    && hit.test(red, kiBystander)
+                    && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.kiBlocked(member, kiBystander)));
+            note("V88 DOJO a mob's ki does nothing to a player in the dojo world: " + pf(hit.test(member, kiMob)));
+            note("V88 DOJO a fighter's own ki splash does nothing to them: " + pf(hit.test(red, kiRed)));
+            note("V88 DOJO ki works between bout opponents: " + pf(!hit.test(blue, kiRed) && !hit.test(red, kiBlue)
+                    && !com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.kiBlocked(blue, kiRed)));
+            note("V88 DOJO a fighter's ki can't hit a bystander: " + pf(hit.test(member, kiRed)));
+            note("V88 DOJO a plain punch is not ki (the ki rule leaves it alone): " + pf(
+                    !com.dbzlegacy.adaptivedifficulty.dojo.DojoWorldRules.kiBlocked(member,
+                            visitor.m_269291_().m_269075_(visitor))));
+            note("V88 DOJO a spectator still can't be hit, by a punch or by ki: " + pf(hit.test(watcher,
+                    red.m_269291_().m_269075_(red)) && hit.test(watcher, kiRed) && hit.test(watcher, kiMember)));
+        } catch (Throwable t) {
+            note("V88 DOJO RULES ERROR " + t + " FAIL");
+            LOG.error("v88 dojo rules", t);
+        } finally {
+            if (spectating != null) {
+                spectating.remove(watcher.m_20148_());
+            }
+            if (bouts != null) {
+                bouts.remove(boutId);
+            }
+            if (boutOf != null) {
+                boutOf.remove(red.m_20148_());
+                boutOf.remove(blue.m_20148_());
+            }
+            store.dojos.remove(dRed.masterUuid);
+            store.dojos.remove(dBlue.masterUuid);
+            store.markDirty();
+        }
+    }
+
     // ---- 4.7.84 navigation, search, board pager, Ask to join, founding grant, wager forfeits, height budget ----
     private void v84Script() {
         java.util.UUID u = player.m_20148_();
@@ -3259,6 +3463,8 @@ public final class UiProbe {
         v80HudMatrix();
         // 4.7.87: spars and wars on the HUD instead of chat, the same rule.
         v87HudMatrix();
+        // 4.7.88: Your dojos, the picker for a player in two dojos.
+        v88DojoPicker();
     }
 
     /**
@@ -3328,6 +3534,170 @@ public final class UiProbe {
      * its element (with the same words and the page it opens) and nothing in chat; a HUD-off player and a bridge client
      * get the chat line once and nothing on the HUD.
      */
+    // ---- 4.7.88: one command tree under /lm, the creative-mode admin gate, /lm hud ----
+    static final String[] V88_NEW_PATHS = {
+            "lm help", "lm hud", "lm hud on", "lm hud off", "lm open dojo", "lm open goals",
+            "lm difficulty", "lm difficulty help", "lm difficulty reset", "lm difficulty do page main",
+            "lm admin difficulty", "lm admin difficulty status", "lm admin difficulty whitelist list",
+            "lm rival", "lm rival help", "lm rival stats", "lm rival top", "lm admin rival status",
+            "lm spar", "lm spar help", "lm spar stats", "lm spar weight", "lm admin spar status",
+            "lm admin spar mentor resetcd",
+            "lm dojo", "lm dojo help", "lm dojo summary", "lm dojo members", "lm dojo previous-members",
+            "lm dojo top", "lm dojo hof", "lm dojo season advance",
+            "lm progression", "lm progression help", "lm progression android remove",
+            "lm admin progression", "lm admin progression status", "lm admin progression boost status",
+            "lm admin progression masteryboost status", "lm admin progression flags",
+            "lm admin progression android ProbeNobody", "lm admin progression android remove ProbeNobody",
+            "lm prestige", "lm prestige help", "lm prestige balance", "lm prestige effects",
+            "lm admin prestige", "lm admin prestige menu", "lm admin prestige info", "lm admin prestige do page main",
+            "lm character", "lm character help", "lm admin character help",
+            "lm admin character cooldown clear ProbeNobody", "lm admin character reskin ProbeNobody",
+            "lm skillcheck", "lm admin skills", "lm admin enddragon", "lm admin enddragon help",
+            "lm admin androidify ProbeNobody", "lm admin inspect ProbeNobody dojo",
+            "lm revive", "lm admin help"};
+    static final String[] V88_OLD_ROOTS = {"diff", "rival", "spar", "progression", "prog", "prestige", "padmin",
+            "character", "skillcheck", "skills", "enddragon", "androidify", "terminal"};
+
+    private static boolean v88Parses(com.mojang.brigadier.CommandDispatcher<net.minecraft.commands.CommandSourceStack> d,
+            net.minecraft.commands.CommandSourceStack src, String line) {
+        var parse = d.parse(line, src);
+        return !parse.getReader().canRead() && parse.getExceptions().isEmpty()
+                && parse.getContext().getCommand() != null;
+    }
+
+    private static java.util.Set<String> v88Next(
+            com.mojang.brigadier.CommandDispatcher<net.minecraft.commands.CommandSourceStack> d,
+            net.minecraft.commands.CommandSourceStack src, String line) {
+        java.util.Set<String> out = new java.util.TreeSet<>();
+        try {
+            for (var sug : d.getCompletionSuggestions(d.parse(line, src)).get().getList()) {
+                out.add(sug.getText());
+            }
+        } catch (Exception e) {
+            out.add("<error " + e + ">");
+        }
+        return out;
+    }
+
+    private void v88Commands() {
+        var server = player.m_20194_();
+        var d = server.m_129892_().m_82094_();
+        var console = server.m_129893_();
+        // Every new path parses for a staff source (console: no player, so the creative rule does not apply).
+        java.util.List<String> broken = new java.util.ArrayList<>();
+        for (String line : V88_NEW_PATHS) {
+            if (!"lm revive".equals(line) && !v88Parses(d, console, line)) {
+                broken.add(line);
+            }
+        }
+        note("V88 CMD every new /lm path parses (" + V88_NEW_PATHS.length + "): " + pf(broken.isEmpty())
+                + (broken.isEmpty() ? "" : " broken=" + broken));
+        boolean terminalNode = d.getRoot().getChild("lm") != null
+                && d.getRoot().getChild("lm").getChild("terminal") != null;
+        note("V88 CMD /lm terminal registered (console still cannot open it): " + pf(terminalNode
+                && !v88Parses(d, console, "lm terminal")));
+        // Old roots are gone; difficulty is vanilla again (no LM branch under it).
+        java.util.List<String> still = new java.util.ArrayList<>();
+        for (String root : V88_OLD_ROOTS) {
+            if (d.getRoot().getChild(root) != null) {
+                still.add(root);
+            }
+        }
+        note("V88 CMD old roots are unknown commands: " + pf(still.isEmpty()) + (still.isEmpty() ? "" : " still=" + still));
+        note("V88 CMD /difficulty is vanilla again (hard parses, LM's admin/do do not): " + pf(
+                v88Parses(d, console, "difficulty hard") && !v88Parses(d, console, "difficulty admin status")
+                        && !v88Parses(d, console, "difficulty do page main")));
+        note("V88 CMD dead leaves gone (migrate-cnpc, LM vanilla setters, gamedifficulty): " + pf(
+                !v88Parses(d, console, "lm admin migrate-cnpc") && !v88Parses(d, console, "lm difficulty hard")
+                        && !v88Parses(d, console, "lm admin difficulty gamedifficulty hard")));
+        // The creative-mode gate, on the real staff player.
+        boolean staff = com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(player);
+        if (!staff) {
+            note("V88 GATE SKIP: the probe player is not staff");
+        } else {
+            net.minecraft.world.level.GameType was = player.f_8941_.m_9290_();
+            try {
+                player.m_143403_(net.minecraft.world.level.GameType.SURVIVAL);
+                var src = player.m_20203_();
+                java.util.Set<String> survivalTop = v88Next(d, src, "lm ");
+                java.util.Set<String> survivalRival = v88Next(d, src, "lm rival ");
+                boolean refused = com.dbzlegacy.adaptivedifficulty.command.AdminGate.needsCreativeOnly(src, "lm admin help")
+                        && com.dbzlegacy.adaptivedifficulty.command.AdminGate.needsCreativeOnly(src, "/lm admin difficulty status");
+                boolean reviveKept = v88Parses(d, src, "lm revive")
+                        && !com.dbzlegacy.adaptivedifficulty.command.AdminGate.needsCreativeOnly(src, "lm revive");
+                boolean playerLeaves = v88Parses(d, src, "lm prestige balance") && v88Parses(d, src, "lm dojo")
+                        && v88Parses(d, src, "lm progression android remove");
+                player.m_143403_(net.minecraft.world.level.GameType.CREATIVE);
+                var csrc = player.m_20203_();
+                java.util.Set<String> creativeTop = v88Next(d, csrc, "lm ");
+                note("V88 GATE staff in survival: tab shows no admin nodes (" + survivalTop + "): " + pf(
+                        !survivalTop.contains("admin") && !survivalTop.contains("mastery")
+                                && !survivalTop.contains("fusionreset") && survivalTop.contains("dojo")
+                                && !survivalRival.contains("declare")));
+                note("V88 GATE staff in survival: typed admin command refused with the plain message: " + pf(refused
+                        && com.dbzlegacy.adaptivedifficulty.command.AdminGate.NEED_CREATIVE.contains(
+                                "Staff admin commands need creative mode.")
+                        && com.dbzlegacy.adaptivedifficulty.command.AdminGate.NEED_CREATIVE.contains(
+                                "Switch to creative and try again.")));
+                note("V88 GATE untouched in survival: /lm revive and player leaves: " + pf(reviveKept && playerLeaves));
+                note("V88 GATE staff in creative: tab shows admin, mastery, fusionreset: " + pf(
+                        creativeTop.contains("admin") && creativeTop.contains("mastery")
+                                && creativeTop.contains("fusionreset")
+                                && v88Parses(d, csrc, "lm admin help")
+                                && !com.dbzlegacy.adaptivedifficulty.command.AdminGate.needsCreativeOnly(csrc, "lm admin help")));
+                note("V88 GATE console keeps admin, revive <player> and staff leaves: " + pf(
+                        v88Parses(d, console, "lm admin help") && v88Parses(d, console, "lm revive ProbeNobody")
+                                && v88Parses(d, console, "lm mastery grant-first-superform 1 ProbeNobody")));
+            } finally {
+                player.m_143403_(was);
+            }
+        }
+        // A non-staff player never sees admin nodes, in any mode.
+        var nobody = net.minecraftforge.common.util.FakePlayerFactory.get(player.m_284548_(),
+                new com.mojang.authlib.GameProfile(java.util.UUID.nameUUIDFromBytes("lm-probe-v88-cmd".getBytes()),
+                        "ProbeV88Cmd"));
+        java.util.Set<String> pTop = v88Next(d, nobody.m_20203_().m_81325_(0), "lm ");
+        note("V88 CMD player tab: menus yes, admin no (" + pTop + "): " + pf(!pTop.contains("admin")
+                && pTop.contains("difficulty") && pTop.contains("rival") && pTop.contains("dojo")
+                && pTop.contains("hud") && pTop.contains("prestige")));
+        // /lm help is plain and lists the new paths.
+        String help = com.dbzlegacy.adaptivedifficulty.command.LmCommandHelp.lmPlayer();
+        note("V88 HELP /lm help: grouped, plain, no admin, new paths: " + pf(help.contains("Open a menu")
+                && help.contains("Your stuff") && help.contains("Get help") && !help.contains("admin")
+                && help.contains("/lm dojo") && help.contains("/lm hud on") && help.contains("/lm difficulty")
+                && !help.contains("/spar") && !help.contains("/rival ") || false));
+        // /lm hud flips the same switch as the More tab toggle, and back.
+        boolean before = com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.enabled(player);
+        try {
+            var src = player.m_20203_();
+            server.m_129892_().m_230957_(src, "lm hud off");
+            boolean off = !com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.enabled(player);
+            String offLine = com.dbzlegacy.adaptivedifficulty.command.MechanicsCommands.hudStateLine(player, false);
+            server.m_129892_().m_230957_(src, "lm hud on");
+            boolean on = com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.enabled(player);
+            note("V88 HUD /lm hud off then on flips the More-tab switch: " + pf(off && on
+                    && offLine.contains("Your HUD is off.")));
+        } finally {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.set(player, before);
+        }
+        // The Mohist bridge forwards /lm only; its tab helper still finds player slots on the new paths.
+        note("V88 BRIDGE player-name slots on new paths: " + pf(
+                com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions.expectsPlayerName(
+                        "lm", new String[] {"rival", "stats", ""})
+                        && com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions.expectsPlayerName(
+                        "lm", new String[] {"admin", "spar", "mentor", "resetcd", ""})
+                        && com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions.expectsPlayerName(
+                        "lm", new String[] {"admin", "difficulty", "inspect", ""})
+                        && com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions.expectsPlayerName(
+                        "lm", new String[] {"admin", "clear", ""})
+                        && !com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions.expectsPlayerName(
+                        "lm", new String[] {"rival", ""})));
+        // Staff inspect gains dojo (a record, then their menu); no dojo clear scope.
+        java.util.List<String> rec = com.dbzlegacy.adaptivedifficulty.gui.ForgeInspectGui.dojoRecordLines(nobody);
+        note("V88 INSPECT dojo record for a player with no dojo reads plainly: " + pf(
+                rec.size() == 1 && rec.get(0).contains("is not in a dojo.")));
+    }
+
     private void v87HudMatrix() {
         java.util.UUID u = player.m_20148_();
         boolean takes = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesHud(player);
@@ -3402,6 +3772,197 @@ public final class UiProbe {
         LmHud.set(player, wasOn);
         note("V87 HUD no-doubling matrix (spars and wars): " + passed + " of " + checked + " checks pass ("
                 + (takes ? "LM client" : "bridge") + "): " + pf(passed == checked && checked > 0));
+    }
+
+    /**
+     * 4.7.88 Your dojos. A real dual player (their own dojo founded as master, plus a mentor bond as disciple in another
+     * master's dojo) gets the picker first, with Visit and View for each dojo; one dojo goes straight to its Home; none
+     * gets the no-dojo Home. Viewing the master's dojo shows what a disciple sees (no settings, no Buy), and management
+     * actions posted while viewing it are refused there and never land on the player's own dojo; back on their own
+     * dojo, management works.
+     */
+    private void v88DojoPicker() {
+        var store = com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get();
+        var spar = com.dbzlegacy.adaptivedifficulty.sparring.SparStore.get();
+        java.util.UUID u = player.m_20148_();
+        String me = u.toString();
+        String myName = player.m_7755_().getString();
+        var savedOwn = store.dojos.get(me);
+        var bond = spar.bond(u);
+        String savedMentor = bond.mentorUuid;
+        String savedMentorName = bond.mentorName;
+        ServerPlayer sensei = dojoStandIn("ProbeSensei88");
+        String su = sensei.m_20148_().toString();
+        var savedSensei = store.dojos.get(su);
+        String arena = com.dbzlegacy.adaptivedifficulty.dojo.DojoCatalog.ARENA;
+        int checked = 0;
+        int passed = 0;
+        try {
+            // 0: no dojo -> the no-dojo Home (found one or browse).
+            store.dojos.remove(me);
+            store.dojos.remove(su);
+            bond.mentorUuid = "";
+            bond.mentorName = "";
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoService.clearView(u);
+            boolean ok = false;
+            for (GuiOpenPacket p : keep("v88 entry no dojo", () -> UltraGui.open(player, "dojo", "main"))) {
+                ok = "dojo".equals(p.screenId()) && "home".equals(p.pageId()) && has(p, "No dojo yet")
+                        && has(p, "Browse dojos") && !has(p, "Your dojos");
+                note("V88 no dojo: the Dojo entry opens the no-dojo Home: " + pf(ok) + " | " + p.pageId() + " "
+                        + labels(p));
+            }
+            checked++;
+            passed += ok ? 1 : 0;
+
+            // 1: one dojo -> straight to its Home.
+            String r1 = foundDojo(player);
+            var own = store.dojos.get(me);
+            ok = false;
+            if (own == null) {
+                note("V88 one dojo: founding failed: " + r1 + " FAIL");
+            } else {
+                own.bannerBase = "red";                     // no free banner pick, so the row has room
+                for (GuiOpenPacket p : keep("v88 entry one dojo", () -> UltraGui.open(player, "dojo", "main"))) {
+                    ok = "home".equals(p.pageId()) && has(p, own.name) && has(p, "Dojo settings")
+                            && !has(p, "Your dojos") && !p.buttonsJson().contains("dojo_switch");
+                    note("V88 one dojo: the Dojo entry goes straight to its Home: " + pf(ok) + " | " + p.pageId() + " "
+                            + labels(p));
+                }
+            }
+            checked++;
+            passed += ok ? 1 : 0;
+
+            // 2: a real dual player: the sensei founds a dojo and takes the probe player as a disciple.
+            String r2 = foundDojo(sensei);
+            var theirs = store.dojos.get(su);
+            if (own == null || theirs == null) {
+                throw new IllegalStateException("dual set-up failed: " + r1 + " / " + r2);
+            }
+            var sb = spar.bond(sensei.m_20148_());
+            sb.addApprentice(me, myName);
+            bond.mentorUuid = su;
+            bond.mentorName = "ProbeSensei88";
+            theirs.joinedAt.put(me, 0L);
+            var aff = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.affiliations(u);
+            ok = aff.size() == 2 && aff.get(0).dojo() == own
+                    && aff.get(0).role() == com.dbzlegacy.adaptivedifficulty.dojo.DojoService.Role.MASTER
+                    && aff.get(1).dojo() == theirs
+                    && aff.get(1).role() == com.dbzlegacy.adaptivedifficulty.dojo.DojoService.Role.DISCIPLE;
+            note("V88 dual: affiliations are own (Master) then the master's (Disciple): " + pf(ok) + " | " + aff.size());
+            checked++;
+            passed += ok ? 1 : 0;
+
+            ok = false;
+            for (GuiOpenPacket p : keep("v88 entry dual", () -> UltraGui.open(player, "dojo", "main"))) {
+                String b = p.buttonsJson();
+                ok = "dojo_mine".equals(p.pageId()) && has(p, "Your dojos") && has(p, own.name) && has(p, theirs.name)
+                        && has(p, "Master") && has(p, "Disciple")
+                        && b.contains("do:dojo_visit:" + me) && b.contains("do:dojo_visit:" + su)
+                        && b.contains("do:dojo_switch:" + me) && b.contains("do:dojo_switch:" + su)
+                        && labels(p).contains("[Visit") && labels(p).contains("[View");
+                note("V88 dual: the Dojo entry shows Your dojos with Visit and View per dojo: " + pf(ok) + " | "
+                        + p.pageId() + " " + labels(p));
+            }
+            checked++;
+            passed += ok ? 1 : 0;
+
+            // View the master's dojo: what a disciple sees.
+            own.points = 500;
+            theirs.points = 500;
+            int ownArena = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.tier(own, arena);
+            int theirArena = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.tier(theirs, arena);
+            String ownStyle = own.style;
+            String theirStyle = theirs.style;
+            ok = false;
+            for (GuiOpenPacket p : hubClick("v88 view master's dojo", "dojo", "do:dojo_switch:" + su, "dojo_mine")) {
+                ok = "home".equals(p.pageId()) && has(p, theirs.name) && !has(p, "Dojo settings")
+                        && has(p, "Your dojos") && has(p, "Disciple of " + theirs.name);
+                note("V88 view the master's dojo: its Home as a disciple sees it (no settings, Your dojos): " + pf(ok)
+                        + " | " + p.pageId() + " " + labels(p));
+            }
+            ok &= com.dbzlegacy.adaptivedifficulty.dojo.DojoService.viewedDojo(u) == theirs;
+            checked++;
+            passed += ok ? 1 : 0;
+
+            ok = false;
+            for (GuiOpenPacket p : keep("v88 disciple upgrade", () -> UltraGui.open(player, "dojo", "dojo_up:" + arena))) {
+                ok = !p.buttonsJson().contains("do:dojo_buy:");
+                note("V88 view the master's dojo: no Buy on an upgrade: " + pf(ok) + " | " + labels(p));
+            }
+            for (GuiOpenPacket p : keep("v88 disciple settings", () -> UltraGui.open(player, "dojo", "dojo_settings"))) {
+                boolean refused = has(p, "Only the master can rename the dojo") && !has(p, "Close dojo");
+                note("V88 view the master's dojo: Dojo settings is refused: " + pf(refused) + " | " + labels(p));
+                ok &= refused;
+            }
+            checked++;
+            passed += ok ? 1 : 0;
+
+            // Management actions posted while viewing the master's dojo: refused, and nothing lands on the own dojo.
+            hubClick("v88 forged buy", "dojo", "do:dojo_buy:" + arena, "dojo_up:" + arena);
+            hubClick("v88 forged style", "dojo", "do:dojo_style:"
+                    + ("KI".equals(theirStyle) ? "EVASION" : "KI"), "dojo_style");
+            hubClick("v88 forged close", "dojo", "do:dojo_close", "dojo_close");
+            ok = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.tier(theirs, arena) == theirArena
+                    && com.dbzlegacy.adaptivedifficulty.dojo.DojoService.tier(own, arena) == ownArena
+                    && theirs.points == 500 && own.points == 500
+                    && java.util.Objects.equals(theirs.style, theirStyle) && java.util.Objects.equals(own.style, ownStyle)
+                    && own.open && theirs.open;
+            note("V88 management posted while viewing the master's dojo is refused (buy, style, close; own dojo"
+                    + " untouched): " + pf(ok) + " | arena " + ownArena + "/" + theirArena + " points " + own.points + "/"
+                    + theirs.points + " open " + own.open);
+            checked++;
+            passed += ok ? 1 : 0;
+
+            // A forged View of a dojo the player isn't in changes nothing.
+            ok = false;
+            for (GuiOpenPacket p : hubClick("v88 forged view", "dojo", "do:dojo_switch:"
+                    + java.util.UUID.nameUUIDFromBytes("uiprobe:nobody88".getBytes(StandardCharsets.UTF_8)), "dojo_mine")) {
+                ok = "dojo_mine".equals(p.pageId());
+            }
+            ok &= com.dbzlegacy.adaptivedifficulty.dojo.DojoService.viewedDojo(u) == theirs;
+            note("V88 View of a dojo the player isn't in is refused: " + pf(ok));
+            checked++;
+            passed += ok ? 1 : 0;
+
+            // Back on their own dojo, management works.
+            ok = false;
+            for (GuiOpenPacket p : hubClick("v88 view own dojo", "dojo", "do:dojo_switch:" + me, "dojo_mine")) {
+                ok = "home".equals(p.pageId()) && has(p, own.name) && has(p, "Dojo settings") && has(p, "Your dojos");
+                note("V88 view the own dojo: Home with Dojo settings and Your dojos: " + pf(ok) + " | " + labels(p));
+            }
+            hubClick("v88 own buy", "dojo", "do:dojo_buy:" + arena, "dojo_up:" + arena);
+            ok &= com.dbzlegacy.adaptivedifficulty.dojo.DojoService.tier(own, arena) == ownArena + 1
+                    && com.dbzlegacy.adaptivedifficulty.dojo.DojoService.tier(theirs, arena) == theirArena;
+            note("V88 the master still manages their own dojo (Buy lands on it, not the other): " + pf(ok) + " | arena "
+                    + com.dbzlegacy.adaptivedifficulty.dojo.DojoService.tier(own, arena) + "/"
+                    + com.dbzlegacy.adaptivedifficulty.dojo.DojoService.tier(theirs, arena));
+            checked++;
+            passed += ok ? 1 : 0;
+        } catch (Throwable t) {
+            note("V88 Your dojos: ERROR " + t + " FAIL");
+            checked++;
+        } finally {
+            var sb = spar.bondsByPlayer.get(su);
+            if (sb != null) {
+                sb.removeApprenticeUuid(me);
+            }
+            spar.bondsByPlayer.remove(su);
+            bond.mentorUuid = savedMentor;
+            bond.mentorName = savedMentorName;
+            store.dojos.remove(me);
+            store.dojos.remove(su);
+            if (savedOwn != null) {
+                store.dojos.put(me, savedOwn);
+            }
+            if (savedSensei != null) {
+                store.dojos.put(su, savedSensei);
+            }
+            com.dbzlegacy.adaptivedifficulty.dojo.DojoService.clearView(u);
+            store.markDirty();
+            backing().remove(sensei);
+            byUuid().remove(sensei.m_20148_());
+        }
+        note("V88 Your dojos picker: " + passed + " of " + checked + " checks pass: " + pf(passed == checked && checked > 0));
     }
 
     static final String[] HUD_ELEMENTS = {LmHud.UNDERDOG, LmHud.INSTINCT, LmHud.TP, LmHud.PENALTY, LmHud.MOMENTUM,

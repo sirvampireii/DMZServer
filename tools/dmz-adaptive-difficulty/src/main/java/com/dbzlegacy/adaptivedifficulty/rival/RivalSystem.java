@@ -222,7 +222,7 @@ public final class RivalSystem {
         store.markDirty();
 
         DmzRewards.msg(target, LmChat.tagged("Rival", "§e" + me.name + " §7visibly declared you as a rival."));
-        DmzRewards.msg(target, LmChat.tip("/rival", "→ Rival"));
+        DmzRewards.msg(target, LmChat.tip("/lm rival", "→ Rival"));
         return "§aDeclared §f" + them.name + "§a. §8They appear on your list as Declared;"
                 + " they were notified (Pending)." + declaredNote;
     }
@@ -413,7 +413,7 @@ public final class RivalSystem {
             // The other player has no menu open. The actor's result is the return line.
             DmzRewards.msg(online, LmChat.card(
                     "Rival Mutual",
-                    "/rival",
+                    "/lm rival",
                     null,
                     dualSilent
                             ? "§a" + me.name + " accepted — Declared → Mutual."
@@ -1179,7 +1179,7 @@ public final class RivalSystem {
         // Actor sees the returned line on the Ultra page (or command chat). Target has no menu.
         DmzRewards.msg(target, LmChat.card(
                 "Rival Declared",
-                "/rival",
+                "/lm rival",
                 "→ Rival → Accept Mutual",
                 "§7Rival   §e" + me.name,
                 "§8You both silently rivaled each other.",

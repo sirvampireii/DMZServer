@@ -481,7 +481,7 @@ public final class LmHud {
         if (!ELEMENTS.contains(WAR) || !EVENTS.contains(WAR)) {
             bad.add("war element registered as an event");
         }
-        String card = LmChat.card("Sparring", "/spar", null, UltraStyle.GREEN + "Session started with "
+        String card = LmChat.card("Sparring", "/lm spar", null, UltraStyle.GREEN + "Session started with "
                 + UltraStyle.VALUE + "Kai", UltraStyle.DIM + "Stay active.");
         List<String> cl = chatLines(card);
         if (cl.size() != 2 || !"Session started with Kai".equals(UltraStyle.plain(cl.get(0)))) {

@@ -16,7 +16,7 @@ public final class RivalPlayerRecord {
     public String nemesisUuid = "";
 
     public Map<String, RivalLink> rivals = new ConcurrentHashMap<>();
-    /** Archived links after {@code /rival remove} — restored on re-declare (Command Handler). */
+    /** Archived links after {@code /lm rival remove} — restored on re-declare (Command Handler). */
     public Map<String, RivalLink> pastRivals = new ConcurrentHashMap<>();
     /** Per-rival surpass cooldown timestamps (ms). */
     public Map<String, Long> surpassCooldown = new ConcurrentHashMap<>();

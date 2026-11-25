@@ -23,7 +23,12 @@ import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
-/** {@code /lm} — Legacy Mechanics hub (player menus + staff admin). */
+/**
+ * {@code /lm} — Legacy Mechanics hub (player menus + staff admin). 4.7.88: the one command tree; every system's
+ * branch ({@code /lm difficulty}, {@code /lm rival}, {@code /lm spar}, {@code /lm dojo}, {@code /lm prestige},
+ * {@code /lm character}, {@code /lm progression}, {@code /lm skillcheck}, {@code /lm terminal},
+ * {@code /lm admin <system>}) registers into it from its own class; Brigadier merges them.
+ */
 public final class MechanicsCommands {
     private MechanicsCommands() {}
 
@@ -41,7 +46,7 @@ public final class MechanicsCommands {
      * Staff receive the full tree in ClientboundCommandsPacket. Catch a missing
      * ArgumentTypeInfos entry at boot instead of kicking staff on login (the 4.6.205
      * regression). Runs at LOW priority so every LM tree registered during this event
-     * (/character, /progression, /prestige, /terminal, …) is inside the audited dispatcher.
+     * (/lm character, /lm progression, /lm prestige, /lm terminal, …) is inside the audited dispatcher.
      */
     @SubscribeEvent(priority = EventPriority.LOW)
     public void onRegisterAudit(RegisterCommandsEvent event) {
@@ -49,11 +54,11 @@ public final class MechanicsCommands {
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> build() {
-        LiteralArgumentBuilder<CommandSourceStack> root = Commands.m_82127_("lm")
-                .requires(CommandAccess::isPlayerSlashUser);
+        LiteralArgumentBuilder<CommandSourceStack> root = CommandAccess.lmRoot();
         return root.executes(ctx -> open(ctx.getSource(), "main"))
                 .then(Commands.m_82127_("gui").executes(ctx -> open(ctx.getSource(), "main")))
                 .then(Commands.m_82127_("help").executes(ctx -> playerHelp(ctx.getSource())))
+                .then(hudLiteral())
                 .then(Commands.m_82127_("saga").executes(ctx -> openSystem(ctx.getSource(), "saga")))
                 .then(Commands.m_82127_("open")
                         .then(LmCommandSuggestions.word("system", LmCommandSuggestions.LM_OPEN_SYSTEMS)
@@ -86,12 +91,11 @@ public final class MechanicsCommands {
                 .then(fusionResetLiteral())
                 .then(LmRevive.literal())
                 .then(masteryLiteral())
-                .then(CommandAccess.staffLiteral("admin")
+                .then(CommandAccess.adminRoot()
                         .executes(ctx -> adminHelp(ctx.getSource()))
                         .then(Commands.m_82127_("help").executes(ctx -> adminHelp(ctx.getSource())))
                         .then(Commands.m_82127_("reload").executes(ctx -> adminReload(ctx.getSource())))
                         .then(Commands.m_82127_("config").executes(ctx -> adminConfig(ctx.getSource())))
-                        .then(migrateCnpcLiteral())
                         .then(adminClearRoot())
                         .then(characterCooldownAdmin())
                         .then(Commands.m_82127_("syslog")
@@ -103,11 +107,42 @@ public final class MechanicsCommands {
                         .then(adminInspectRoot()));
     }
 
-    private static LiteralArgumentBuilder<CommandSourceStack> migrateCnpcLiteral() {
-        return Commands.m_82127_("migrate-cnpc")
-                .executes(ctx -> adminMigrateCnpc(ctx.getSource(), false))
-                .then(Commands.m_82127_("force")
-                        .executes(ctx -> adminMigrateCnpc(ctx.getSource(), true)));
+    /**
+     * {@code /lm hud on|off}, bare {@code /lm hud} for the state: the same switch as the More tab's HUD toggle
+     * ({@link com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud}, key {@code lm_hud}, default on).
+     */
+    private static LiteralArgumentBuilder<CommandSourceStack> hudLiteral() {
+        return Commands.m_82127_("hud")
+                .executes(ctx -> hud(ctx.getSource(), null))
+                .then(Commands.m_82127_("status").executes(ctx -> hud(ctx.getSource(), null)))
+                .then(Commands.m_82127_("on").executes(ctx -> hud(ctx.getSource(), Boolean.TRUE)))
+                .then(Commands.m_82127_("off").executes(ctx -> hud(ctx.getSource(), Boolean.FALSE)));
+    }
+
+    private static int hud(CommandSourceStack source, Boolean want) {
+        ServerPlayer player = playerOrNull(source);
+        if (player == null) {
+            return 0;
+        }
+        if (want != null) {
+            com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.set(player, want);
+        }
+        LmCommandFeedback.tell(source, hudStateLine(player, want != null));
+        return 1;
+    }
+
+    /** Plain words for the HUD switch. Public for the probe. */
+    public static String hudStateLine(ServerPlayer player, boolean changed) {
+        boolean on = com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.enabled(player);
+        String head = changed ? (on ? "HUD turned on." : "HUD turned off.") : (on ? "Your HUD is on." : "Your HUD is off.");
+        String body = on
+                ? " Fight, spar and war notices show on your screen. Turn it off with /lm hud off."
+                : " Those notices show in chat and boss bars instead. Turn it on with /lm hud on.";
+        String color = on ? UltraStyle.GREEN : UltraStyle.YELLOW;
+        String extra = on && !com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesHud(player)
+                ? UltraStyle.GRAY + " The HUD needs the Legacy Mechanics client; without it you still get chat."
+                : "";
+        return color + head + UltraStyle.GRAY + body + extra;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> adminClearRoot() {
@@ -357,6 +392,17 @@ public final class MechanicsCommands {
                 com.dbzlegacy.adaptivedifficulty.gui.SparMenu.open(player, "main");
                 yield true;
             }
+            // 4.7.88: the same destinations as the hub's Dojo tile (open:dojo -> dojo|main -> openDojoEntry, which
+            // shows the "Your dojos" picker first for a player in two dojos) and Goals tab (hub|goals).
+            case "dojo" -> {
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraDojoScreens.openDojoEntry(player);
+                yield true;
+            }
+            case "goals" -> {
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGui.open(
+                        player, "hub", com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraHubScreens.PAGE_GOALS);
+                yield true;
+            }
             case "progression", "prog" -> {
                 if (!StaffAccess.isStaff(player)) {
                     player.m_213846_(Component.m_237113_(LmCommandMessages.STAFF_ONLY));
@@ -412,7 +458,7 @@ public final class MechanicsCommands {
             default -> {
                 player.m_213846_(Component.m_237113_(LmCommandMessages.unknownOpenTarget(
                         s,
-                        "difficulty, rival, spar, prestige, skillcheck, character, saga, progression, skills, config")));
+                        "difficulty, rival, spar, dojo, goals, prestige, character, skillcheck, saga")));
                 yield false;
             }
         };
@@ -464,16 +510,6 @@ public final class MechanicsCommands {
         }
         String sys = system == null || system.isBlank() ? "hub" : system;
         return com.dbzlegacy.adaptivedifficulty.gui.ForgeInspectGui.open(admin, subject, sys) ? 1 : 0;
-    }
-
-    private static int adminMigrateCnpc(CommandSourceStack source, boolean force) {
-        if (StaffAccess.denyUnlessStaff(source) == 0) {
-            return 0;
-        }
-        String msg = com.dbzlegacy.adaptivedifficulty.data.CnpcDataMigrator.forceMigrateWorld(
-                source.m_81377_(), force);
-        LmCommandFeedback.tellLines(source, msg);
-        return 1;
     }
 
     private static int adminClear(CommandSourceStack source, String player, String scope) {

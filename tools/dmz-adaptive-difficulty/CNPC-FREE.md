@@ -11,14 +11,14 @@ reference only** — do not load them while matching `enable*` flags are ON.
 
 | Old CNPC / trigger | Forge replacement |
 |--------------------|-------------------|
-| Rival System + Command Handler | `/rival` · `/lm` → Rival · tag `lm_rival` |
-| Sparring TP + Command Handler | `/spar` · `/lm` → Spar · tag `lm_spar` |
-| Prestige NPC | `/prestige` · tag `lm_prestige` |
-| SkillCheck / SkillUnlock / trigger 21 | `/skillcheck` (perm) · NPC tag `lm_skillcheck` |
-| End Dimension Strength / triggers 50–51 | `/enddragon clear|repair` · `/cleardragons` |
-| Global TP Boost / triggers 30–31 | `/progression boost …` |
+| Rival System + Command Handler | `/lm rival` · `/lm` → Rival · tag `lm_rival` |
+| Sparring TP + Command Handler | `/lm spar` · `/lm` → Spar · tag `lm_spar` |
+| Prestige NPC | `/lm prestige` · tag `lm_prestige` |
+| SkillCheck / SkillUnlock / trigger 21 | `/lm skillcheck` (perm) · NPC tag `lm_skillcheck` |
+| End Dimension Strength / triggers 50–51 | `/lm admin enddragon clear|repair` · `/cleardragons` |
+| Global TP Boost / triggers 30–31 | `/lm admin progression boost …` |
 | Meditation + ChangeBiomeMED / trigger 41 | Living World circle; trigger is a no-op |
-| Android trigger 45 | `/progression android [player]` |
+| Android trigger 45 | `/lm admin progression android [player]` |
 | Flight / SprintJump / Potential / Farming / combat / Fabled bridges / Race Lock / Yardrat / ShadowDummy / StatChecker | automatic (Forge events) |
 
 ## GUI NPCs (no scripts on the NPC)

@@ -21,7 +21,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Port of {@code SkillUnlockNPC.js} + {@code SkillCheckCommand.js} (trigger 21)
- * as {@code /skills} chat GUI pages. Also exposes list builders for inventory GUIs.
+ * as {@code /lm admin skills} chat GUI pages. Also exposes list builders for inventory GUIs.
  */
 public final class SkillUnlockService {
     public static final int TRIGGER_ID = 21;
@@ -34,7 +34,7 @@ public final class SkillUnlockService {
     }
 
     /**
-     * @param skillCheck when true, titles/nav use Skill Check branding ({@code /skillcheck}).
+     * @param skillCheck when true, titles/nav use Skill Check branding ({@code /lm skillcheck}).
      */
     public static void open(ServerPlayer player, String page, boolean skillCheck) {
         if (!DifficultyConfig.get().enableSkillUnlockService || player == null) {

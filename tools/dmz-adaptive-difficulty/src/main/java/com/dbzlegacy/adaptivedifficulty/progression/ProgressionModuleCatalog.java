@@ -114,7 +114,7 @@ public final class ProgressionModuleCatalog {
             out.add("§7Legacy §f" + m.legacyScript());
         }
         out.add("§8Edit the Java module or JSON, then §f/lm admin reload§8.");
-        out.add("§8Toggle in-game: progression section GUIs or §f/prog do flag " + flagKey);
+        out.add("§8Toggle in-game: progression section GUIs or §f/lm admin progression do flag " + flagKey);
         return out;
     }
 

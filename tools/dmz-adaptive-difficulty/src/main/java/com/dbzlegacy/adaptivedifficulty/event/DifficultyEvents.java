@@ -1125,22 +1125,7 @@ public final class DifficultyEvents {
         DragonBallRadarPickup.onBreak(event);
     }
 
-    /** 4.7.68: dojo halls are protected: only staff break or place blocks in the dojo world. */
-    @SubscribeEvent(priority = EventPriority.HIGH)
-    public void onDojoBreak(BlockEvent.BreakEvent event) {
-        if (event.getPlayer() instanceof net.minecraft.server.level.ServerPlayer p
-                && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.inDojoWorld(p) && !com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(p)) {
-            event.setCanceled(true);
-        }
-    }
-
-    @SubscribeEvent(priority = EventPriority.HIGH)
-    public void onDojoPlace(BlockEvent.EntityPlaceEvent event) {
-        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer p
-                && com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld.inDojoWorld(p) && !com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(p)) {
-            event.setCanceled(true);
-        }
-    }
+    // 4.7.88: building in the dojo world (master in their own plot only, no staff bypass) lives in dojo.DojoWorldRules.
 
     /** 4.7.68: blasts (ki attacks, anything that explodes) in the dojo world hurt fighters but break no blocks. */
     @SubscribeEvent

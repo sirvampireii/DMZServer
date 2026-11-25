@@ -124,7 +124,7 @@ public final class PrestigeShopHooks {
     }
 
     private static String shopHelp() {
-        return "\u00a76Prestige shop - staff\n\u00a7f/padmin shop list \u00a77- custom entries and prices\n\u00a7f/padmin shop check \u00a77- find typos in reward lines\n\u00a7f/padmin shop reload \u00a77- reload config/legacymechanics/prestige-shop.json\n\u00a7f/padmin custom <player> \u00a77- perks a player owns\n\u00a7f/padmin custom <player> <entry> <give|take|set> [n] \u00a77- no favor charged or refunded\n\u00a77Edit everything in \u00a7f/lm \u00a77> Config > Prestige shop.";
+        return "\u00a76Prestige shop - staff\n\u00a7f/lm admin prestige shop list \u00a77- custom entries and prices\n\u00a7f/lm admin prestige shop check \u00a77- find typos in reward lines\n\u00a7f/lm admin prestige shop reload \u00a77- reload config/legacymechanics/prestige-shop.json\n\u00a7f/lm admin prestige custom <player> \u00a77- perks a player owns\n\u00a7f/lm admin prestige custom <player> <entry> <give|take|set> [n] \u00a77- no favor charged or refunded\n\u00a77Edit everything in \u00a7f/lm \u00a77> Config > Prestige shop.";
     }
 
     private static String shopList() {
@@ -156,7 +156,7 @@ public final class PrestigeShopHooks {
         for (Map.Entry<String, PrestigeShopConfig.CustomEntry> entry : PrestigeShopConfig.get().customEntries.entrySet()) {
             n += PrestigeCustomShop.problems(entry.getKey(), entry.getValue()).size();
         }
-        return n == 0 ? "\u00a7aNo problems found." : "\u00a7c" + n + " problem(s) - run /padmin shop check.";
+        return n == 0 ? "\u00a7aNo problems found." : "\u00a7c" + n + " problem(s) - run /lm admin prestige shop check.";
     }
 
     public static void addModules(List<ConfigRegistry.Module> list) {
@@ -253,7 +253,7 @@ public final class PrestigeShopHooks {
         PrestigeShopHooks.help("godKi.costPerPoint", "Not used since 4.7.21: a God Ki level costs 10 mastery points in the Mastery wallet.");
         PrestigeShopHooks.help("godKi.masteryPerPoint", "God Ki mastery each level grants. A level is 10 wallet points, so one point adds a tenth of this.");
         PrestigeShopHooks.help("godKi.maxPoints10MigratedV1", "Set by LM once it raised the old 5-level God Ki cap to 10. Leave it on.");
-        PrestigeShopHooks.help("godKi.maxPoints", "Most God Ki / Divine Ki Mastery levels a player can reach (default 10 = 10,000 mastery; staff /padmin godki caps at 10).");
+        PrestigeShopHooks.help("godKi.maxPoints", "Most God Ki / Divine Ki Mastery levels a player can reach (default 10 = 10,000 mastery; staff /lm admin prestige godki caps at 10).");
         PrestigeShopHooks.help("masteryWallet", "Mastery points wallet (Shop > Mastery wallet): 1 favor buys 10 points, 1 point adds 50 mastery to an unlocked form. God Ki Mastery: 10 points a level.");
         PrestigeShopHooks.help("masteryWallet.enabled", "Sells mastery points for favor. Points players already have can still be applied when this is off.");
         PrestigeShopHooks.help("customShop", "The Special perks page with your own entries.");

@@ -254,7 +254,7 @@ public final class UltraWeightShopScreens {
     }
 
     /**
-     * {@code /spar weight buy <type> <value>} — same purchase path as the GUI confirm
+     * {@code /lm spar weight buy <type> <value>} — same purchase path as the GUI confirm
      * button; the outcome is returned as chat feedback instead of being stashed for the
      * next screen.
      */
@@ -267,7 +267,7 @@ public final class UltraWeightShopScreens {
         return purchase(player, offer, value, false);
     }
 
-    /** {@code /spar weight quote <type> <value>} — price check without opening a screen. */
+    /** {@code /lm spar weight quote <type> <value>} — price check without opening a screen. */
     public static String quoteFromCommand(ServerPlayer player, String typeId, int value) {
         WeightOffer offer = WeightOffer.fromId(typeId);
         String bad = validateCommandOffer(offer, value);
@@ -282,7 +282,7 @@ public final class UltraWeightShopScreens {
                         + String.format(java.util.Locale.ROOT, "%,d", value)
                         + " - "
                         + costText
-                        + ". Buy: /spar weight buy "
+                        + ". Buy: /lm spar weight buy "
                         + offer.id
                         + " "
                         + value);

@@ -37,13 +37,13 @@ public final class RivalSpectator {
         st.until = System.currentTimeMillis() + DEFAULT_DURATION_MS;
         st.lastPulse = 0L;
         ACTIVE.put(spectator.m_20148_(), st);
-        // Menu-first: the confirmation is the return value (the menu paints it; /rival chats it).
+        // Menu-first: the confirmation is the return value (the menu paints it; /lm rival chats it).
         return com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.GREEN + "Watching "
                 + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.WHITE + ch.nameA
                 + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.GRAY + " vs "
                 + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.WHITE + ch.nameB
                 + "\n" + com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.GRAY
-                + "Tap Stop spectate (or /rival spectate stop) to end early.";
+                + "Tap Stop spectate (or /lm rival spectate stop) to end early.";
     }
 
     public static String stop(ServerPlayer spectator) {

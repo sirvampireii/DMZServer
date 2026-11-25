@@ -130,6 +130,8 @@ KNOWN_DO: dict[str, set[str]] = {
         "dojo_demote",
         "dojo_warrights",
         "dojo_visit",
+        # 4.7.88: View on Your dojos (the dojo the Dojo pages show and act on).
+        "dojo_switch",
         "dojo_spectate",
         "dojo_leave",
         "war_declare",

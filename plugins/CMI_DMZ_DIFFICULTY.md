@@ -5,10 +5,10 @@ Requires:
 - CMI
 - `AdaptiveDifficultyGUI-1.0.14.jar` (must match Forge `AdaptiveDifficulty-1.0.14.jar`)
 
-The companion plugin registers Bukkit `/difficulty` and opens a CMILib inventory GUI.
+The companion plugin registers Bukkit `/lm difficulty` and opens a CMILib inventory GUI.
 Fallback order: CMI → Bukkit chest → clickable chat.
 
-If `/difficulty` opens chat instead of an inventory:
+If `/lm difficulty` opens chat instead of an inventory:
 1. Confirm both jars above are installed and the server was fully restarted
 2. Confirm CMILib + CMI are enabled (`/plugins` should list CMILib, CMI, AdaptiveDifficultyGUI)
 3. Config `guiBackend` should be `cmi` (or `auto`) in `config/adaptivedifficulty.json`

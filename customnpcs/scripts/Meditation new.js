@@ -9,7 +9,7 @@
  fights the mod's global trial rotator
  (config/legacymechanics/meditation-trial.json).
 
- The old trainer and /progression meditation are gone.
+ The old trainer and /lm progression meditation are gone.
  Meditation levels while the player is already meditating
  near a Living World circle. Do not re-enable these handlers.
 ============================================================

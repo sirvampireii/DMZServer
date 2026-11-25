@@ -1,3 +1,3 @@
 # LM command tree audit
 
-PASS — canonical command trees (/diff and /padmin are the only shortcuts)
+PASS — canonical command trees, all under /lm (no shortcuts)

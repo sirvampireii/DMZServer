@@ -36,7 +36,7 @@ import net.minecraftforge.fml.loading.FMLPaths;
 /**
  * One-time CustomNPCs storeddata → LegacyMechanics JSON/NBT migration.
  * <p>
- * World (server start / {@code /lm admin migrate-cnpc}): Rival DB, Rival progression,
+ * World (server start; the staff re-import command was retired in 4.7.88): Rival DB, Rival progression,
  * Spar leaderboard → {@code rivalry-v4.json} / {@code progression-v4.json} /
  * {@code sparring.json}. CNPC world keys are cleared <b>only after a successful import</b>.
  * <p>
@@ -94,47 +94,6 @@ public final class CnpcDataMigrator {
     }
 
     /**
-     * Staff re-import. {@code forceOverwrite} clears LM Rival/Spar LB/progression first.
-     * Always searches live CNPC → import-backup → world_data.json.
-     */
-    public static String forceMigrateWorld(MinecraftServer server, boolean forceOverwrite) {
-        if (server == null) {
-            return "§cNo server.";
-        }
-        try {
-            Path marker = ConfigPaths.dataDir().resolve(MARKER_FILE);
-            Files.deleteIfExists(marker);
-            WORLD_RAN.set(false);
-            // Resolve source FIRST — never wipe LM if we have nothing worth importing.
-            WorldBlob preview = resolveWorldBlob(server);
-            int previewPlayers = preview == null ? 0 : countRivalPlayers(preview.rivalRaw);
-            int previewRich = preview == null ? 0 : countRichCnpcPlayers(preview.rivalRaw);
-            boolean worthForce = preview != null && preview.hasAnything()
-                    && (previewPlayers > 0 || previewRich > 0
-                    || (preview.fileMap != null && preview.fileMap.keySet().stream()
-                    .anyMatch(k -> k != null && k.startsWith("spar.leaderboard.")))
-                    || notBlank(preview.progRaw));
-            if (forceOverwrite && !worthForce) {
-                return "§cForce aborted — no usable CNPC/backup Rival/Spar data found.\n"
-                        + "§7LM stores were NOT cleared.\n"
-                        + "§8Drop world_data.json into config/legacymechanics/cnpc-import-backup/ and retry.";
-            }
-            if (forceOverwrite) {
-                RivalStore.get().players.clear();
-                RivalStore.get().declareRequests.clear();
-                RivalStore.get().markDirty();
-                RivalProgression.get().resetForImport();
-                SparStore.get().leaderboard.clear();
-                SparStore.get().recentSessions.clear();
-                SparStore.get().markDirty();
-            }
-            return runWorldMigrate(server, forceOverwrite);
-        } catch (Throwable t) {
-            return "§cMigration error: " + t;
-        }
-    }
-
-    /**
      * Core world import. Never clears CNPC keys unless at least one blob was imported.
      * Never reports success when zero players/LB rows were taken.
      */
@@ -146,9 +105,7 @@ public final class CnpcDataMigrator {
                 return "§cNo CNPC Rival/Spar data found.\n"
                         + "§7Checked: ScriptController compound, §f<world>/customnpcs/scripts/world_data.json§7,\n"
                         + "§7and §fcnpc-import-backup/§7.\n"
-                        + "§8Put a pre-wipe world_data.json into "
-                        + "config/legacymechanics/cnpc-import-backup/ then "
-                        + "/lm admin migrate-cnpc force";
+                        + "§8The one-time CNPC import is finished; nothing else to import.";
             }
 
             Path backupDir = ConfigPaths.dataDir().resolve("cnpc-import-backup");
@@ -190,8 +147,7 @@ public final class CnpcDataMigrator {
                 rivalPlayers = importRivalDatabase(blob.rivalRaw);
             } else if (notBlank(blob.rivalRaw)) {
                 AdaptiveDifficultyMod.LOGGER.info(
-                        "[{}] Skipping Rival import — LM already has {} players (CNPC {} from {}). "
-                                + "Use /lm admin migrate-cnpc force to overwrite.",
+                        "[{}] Skipping Rival import — LM already has {} players (CNPC {} from {}).",
                         AdaptiveDifficultyMod.MOD_ID, lmPlayers, cnpcPlayers, blob.source);
             }
 
@@ -262,7 +218,7 @@ public final class CnpcDataMigrator {
             return "§eNo rows imported from §f" + blob.source
                     + "\n§7LM rivals §f" + lmPlayers
                     + " §7· CNPC rivals §f" + cnpcPlayers
-                    + "\n§8CNPC keys were NOT cleared. Try §f/lm admin migrate-cnpc force";
+                    + "\n§8CNPC keys were NOT cleared.";
         } catch (Throwable t) {
             WORLD_RAN.set(false);
             AdaptiveDifficultyMod.LOGGER.warn(

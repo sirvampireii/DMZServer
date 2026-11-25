@@ -63,10 +63,10 @@ endKiCleanupEnabled=Purge / cap leftover DMZ ki_laser / ki_blast in The End (v2.
 endKiPurgeWhenNoDragon=When no dragon is alive, purge all End ki projectiles.
 endKiMaxAliveWhileDragon=Hard cap on End ki projectiles while a dragon is alive (script default 32).
 enableOverhaulPrestigeIntegration=Use dmzrevamp Statistics prestige UI + native scaling/rebirth.
-enableSkillCheck=Donator Skill Check UI (/skillcheck, CNPC interact / trigger 21).
+enableSkillCheck=Donator Skill Check UI (/lm skillcheck, CNPC interact / trigger 21).
 donatorPermission=LuckPerms node for donators: Skill Check.
 selfRevivePermission=LuckPerms node that lets a player use /lm revive on themselves (staff always can).
-terminalPermission=LuckPerms node that lets a player open the currency terminal with /terminal.
+terminalPermission=LuckPerms node that lets a player open the currency terminal with /lm terminal.
 reviveOthersPermission=LuckPerms node that lets a player who is not staff revive others with /lm revive <player>.
 reviveCooldownSeconds=Seconds a player who is not an op waits after a successful /lm revive before using it again (0 = off).
 skillCheckNpcNameContains=CNPC display-name needles (case-insensitive substring) that open Skill Check on interact.

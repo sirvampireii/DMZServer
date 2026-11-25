@@ -5,8 +5,8 @@
 
  Forwards to LegacyMechanics EndDimensionStrength.
  Prefer Forge commands (no CMI alias):
-   /enddragon · /enddragon spawn
-   /cleardragons · /enddragon clear
+   /lm admin enddragon · /lm admin enddragon spawn
+   /cleardragons · /lm admin enddragon clear
 ============================================================
 */
 

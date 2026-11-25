@@ -832,7 +832,7 @@ public final class PrestigePointsSystem {
         ));
         return "§aPermanent unlock §fT" + tierId + " " + tier.display
                 + " §7(§e-" + cost + " §7favor)"
-                + "\n§7Survives prestige · still activate with Ancient Coins via §f/difficulty §7Tiers"
+                + "\n§7Survives prestige · still activate with Ancient Coins via §f/lm difficulty §7Tiers"
                 + "\n§7Favor left: §e" + getPoints(player);
     }
 
@@ -858,7 +858,7 @@ public final class PrestigePointsSystem {
         }
         return "§aGranted permanent difficulty tiers §fT1–T" + tierId
                 + " §8(" + player.m_6302_() + ")"
-                + "\n§7Activate via §f/difficulty §7Tiers (Ancient Coins).";
+                + "\n§7Activate via §f/lm difficulty §7Tiers (Ancient Coins).";
     }
 
     /**
@@ -893,7 +893,7 @@ public final class PrestigePointsSystem {
         return "§aPermanent difficulty tiers §fT" + before + " §7→ §fT" + next
                 + " §8(" + player.m_6302_() + ")"
                 + (next > 0
-                ? "\n§7Owns permanent §fT1–T" + next + "§7. Activate via §f/difficulty§7."
+                ? "\n§7Owns permanent §fT1–T" + next + "§7. Activate via §f/lm difficulty§7."
                 : "\n§7No permanent prestige tiers.");
     }
 

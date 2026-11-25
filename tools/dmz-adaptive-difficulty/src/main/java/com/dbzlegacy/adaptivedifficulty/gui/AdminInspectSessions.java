@@ -91,9 +91,6 @@ public final class AdminInspectSessions {
                     "reload",
                     "reloadconfig",
                     "syslog",
-                    "migrate-cnpc",
-                    "migratecnpc",
-                    "cnpcmigrate",
                     "guitest_ack" -> viewer;
             default -> resolveSubject(viewer);
         };

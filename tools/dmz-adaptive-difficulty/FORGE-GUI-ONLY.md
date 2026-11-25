@@ -17,16 +17,16 @@ Legacy Mechanics **4.5.3+** can run with **only** `mods/LegacyMechanics-*.jar`. 
 ## Player commands (Forge brigadier)
 
 These register on the Forge mod. On Mohist, **remove** `plugins/LegacyMechanicsGUI-*.jar` so Bukkit
-does not shadow `/lm`, `/difficulty`, `/rival`, `/spar`, `/prestige`, `/skills`, `/skillcheck`.
+does not shadow `/lm`, `/lm difficulty`, `/lm rival`, `/lm spar`, `/lm prestige`, `/lm admin skills`, `/lm skillcheck`.
 
 | Command | UI |
 |---------|-----|
 | `/lm`, `/legacymechanics` | CNPC hub |
-| `/difficulty` | CNPC difficulty |
-| `/rival`, `/spar`, `/prestige` | CNPC panels |
-| `/skills` | Staff CNPC / SkillUnlock chat fallback |
-| `/skillcheck` | Donator CNPC |
-| `/progression` | Staff CNPC (player **Remove Android** via hub) |
+| `/lm difficulty` | CNPC difficulty |
+| `/lm rival`, `/lm spar`, `/lm prestige` | CNPC panels |
+| `/lm admin skills` | Staff CNPC / SkillUnlock chat fallback |
+| `/lm skillcheck` | Donator CNPC |
+| `/lm progression` | Staff CNPC (player **Remove Android** via hub) |
 
 ## Staff test GUI
 

@@ -60,7 +60,7 @@ when touching chat or action messages.
 3. **Do not load CNPC Global Player / NPC scripts** for systems this mod owns (`CNPC-FREE.md`)
 4. Tag GUI NPCs (`lm_rival`, `lm_spar`, `lm_skillcheck`, …) or use slash commands
 5. Restart — config at `config/legacymechanics.json` (auto-migrates from `dmz_adaptive_difficulty.json`)
-6. `/difficulty` → hub: Buy / Lower / Titles + personal & coin-chat toggles (Details is ops-only)
+6. `/lm difficulty` → hub: Buy / Lower / Titles + personal & coin-chat toggles (Details is ops-only)
 
 ## Build notes: dojo structures (4.7.68)
 
@@ -83,11 +83,11 @@ The dojo plots are structure files made with the owner's mod-toolkit (`Desktop/R
 
 ## Commands
 
-- `/difficulty` — GUI
+- `/lm difficulty` — GUI
 - `/lm admin clear <player> [all|rival|spar|difficulty|progression]` — staff wipe of one player's LM data
 - `/lm admin migrate-cnpc` / `force` — import CNPC Rival/Spar into LM stores
-- `/difficulty admin off|on|toggle|status` — master system switch (ops / staff)
-- `/difficulty admin reload|settings|set <key> <value>`
+- `/lm admin difficulty off|on|toggle|status` — master system switch (ops / staff)
+- `/lm admin difficulty reload|settings|set <key> <value>`
 - Actions: `activate <1-7>`, `reset`, `character_reset`, title equip, `toggle_personal`, `toggle_coin_chat`
 
 When disabled: no mob scaling, kill coins, AI, death reset, or tier purchases.
@@ -97,8 +97,8 @@ Staff gate: op level ≥2 / Bukkit op, or `difficulty.admin` (config `adminPermi
 Live `admin set` is allowlisted + clamped; change `adminPermission` only in JSON + reload.
 
 ### Testing whitelist
-- `/difficulty admin whitelist on|off|toggle`
-- `/difficulty admin whitelist add <player>` / `remove <player>` / `list` / `clear`
+- `/lm admin difficulty whitelist on|off|toggle`
+- `/lm admin difficulty whitelist add <player>` / `remove <player>` / `list` / `clear`
 - Alias: `wl`
 - When on, only listed players use AD (scaling, coins, purchases). Persists in config.
 
@@ -240,7 +240,7 @@ destroying gear before Corpse can store it. `DeathDropGuard` un-cancels drops
 only when the player is already dead — combat Q-drop block stays intact.
 
 ### Bugfix (2.3.62)
-`/difficulty` (Bukkit/Mohist) now pulls live DMZ level + unlock data on every open
+`/lm difficulty` (Bukkit/Mohist) now pulls live DMZ level + unlock data on every open
 via `DifficultyActions.prepareGui` / `ForgeBridge.prepareDifficultyGui`. Fixes stuck
 Buy GUI samples (level 1 / stale mid-level) that previously needed `resynclevel`.
 
@@ -357,7 +357,7 @@ Tuned from combat telemetry (`hits-2026-08-04.jsonl`):
 - Stretch T4–T6 for tanks (`tankDamageHealthRatio` 0.22→0.28, nudges, live-share)
 - Soft-cap crushing T5–T7 landings at 62/58/48% live bag (event clamp)
 
-- **Balance telemetry (Bukkit owns `/difficulty` on Mohist):** `/difficulty admin telemetry on|off|status|flush|test` — when ON, logs AD hits for **all players** using the difficulty system to `config/legacymechanics/telemetry/hits-YYYY-MM-DD.jsonl` (rate-limited; not whitelist-gated). Use `test` to write a probe line and confirm the folder. Summarize with `sim/summarize_telemetry.py --dir <that folder>`.
+- **Balance telemetry (Bukkit owns `/lm difficulty` on Mohist):** `/lm admin difficulty telemetry on|off|status|flush|test` — when ON, logs AD hits for **all players** using the difficulty system to `config/legacymechanics/telemetry/hits-YYYY-MM-DD.jsonl` (rate-limited; not whitelist-gated). Use `test` to write a probe line and confirm the folder. Summarize with `sim/summarize_telemetry.py --dir <that folder>`.
 - **Skills:** Ki Protection leaves mid/high-tier hits load-bearing (DMZ 1%/lvl mitigation); Ki Infusion / Potential Unlock raise pack HP sponge. Melee kits chase earlier and deal painted shock/slam damage so zombies are not toothless vs skeleton ki.
 - Mob damage uses soft-blended STR/SKP/PWR (+ mild ENE) × tier%, then **VIT/RES floors** (`tankDamageHealthRatio` **0.28** / `tankDamageDefenseRatio` 0.45) so VIT dumps and tank class track the same ladder as even builds, then a raised VIT-relative hit cap (ki-protection friendly). Counters (class + top-2 of STR/SKP/RES/VIT/PWR/ENE) ramp with tier%.
 - Tier scale vs player fight stats: T1 21% · T2 42% · T3 65% · T4 90% · T5 135% · T6 160% · T7 200%. Form soft curve stock: `transformScaleWeight` 0.65 · `transformScaleExponent` 0.75.

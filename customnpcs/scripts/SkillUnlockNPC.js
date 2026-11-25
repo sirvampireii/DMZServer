@@ -4,7 +4,7 @@
 ============================================================
  LegacyMechanics (Forge) owns this system:
    Java: com.dbzlegacy.adaptivedifficulty.progression.shop.SkillUnlockService
-   Use: /skills (staff) · /skillcheck
+   Use: /lm admin skills (staff) · /lm skillcheck
 
  Full script backup: uploads/scripts/SkillUnlockNPC.js
    and/or uploads/script-backups-full/ / live-scripts-2026-08-27/

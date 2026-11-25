@@ -4,7 +4,7 @@
  Trigger ID: 30
 
  Forwards to LegacyMechanics GlobalTpBoost (no double-apply).
- Prefer: /progression boost start <encoded> [name]
+ Prefer: /lm admin progression boost start <encoded> [name]
 ============================================================
 */
 

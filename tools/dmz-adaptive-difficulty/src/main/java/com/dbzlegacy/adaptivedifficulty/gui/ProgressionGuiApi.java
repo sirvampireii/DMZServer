@@ -34,7 +34,7 @@ import net.minecraft.server.level.ServerPlayer;
 public final class ProgressionGuiApi {
     private ProgressionGuiApi() {}
 
-    /** Full chat help for {@code /progression} (Bukkit command tree). Staff-only list. */
+    /** Full chat help for {@code /lm progression} (Bukkit command tree). Staff-only list. */
     public static String commandHelp() {
         return commandHelp(true);
     }
@@ -50,19 +50,20 @@ public final class ProgressionGuiApi {
                     "§7Other actions: §f/lm §7-> Prestige - Remove Android - Skill Check");
         }
         return String.join("\n",
-                "§6§l/progression §8(alias §7/prog§8) §7- command tree",
-                "§e/progression §7- §e/progression gui [page] §8- open GUI",
-                "§e/progression help §8- this list",
-                "§e/progression status §8- flag + boost summary",
-                "§e/progression flags §7- §eadmin §8- flags GUI",
-                "§e/progression admin <flag> <on|off> §8- toggle a module flag",
-                "§e/progression android [player] §8- Gero android convert",
-                "§e/progression android remove [player] §8- remove Android upgrade",
-                "§e/progression boost §8- TP boost status",
-                "§e/progression boost start <mult> <minutes> [name]",
-                "§e/progression boost start <encoded> [name]",
-                "§e/progression boost end",
-                "§e/progression do <action> [arg] [page] §8- GUI actions",
+                "§6§l/lm admin progression §7- command tree",
+                "§e/lm admin progression §7- §e/lm admin progression gui [page] §8- open GUI",
+                "§e/lm admin progression help §8- this list",
+                "§e/lm admin progression status §8- flag + boost summary",
+                "§e/lm admin progression flags §8- flags GUI",
+                "§e/lm admin progression flags <flag> <on|off> §8- toggle a module flag",
+                "§e/lm admin progression android [player] §8- Gero android convert",
+                "§e/lm progression android remove §8- remove your own Android upgrade",
+                "§e/lm admin progression android remove <player> §8- remove it from a player",
+                "§e/lm admin progression boost §8- TP boost status",
+                "§e/lm admin progression boost start <mult> <minutes> [name]",
+                "§e/lm admin progression boost start <encoded> [name]",
+                "§e/lm admin progression boost end",
+                "§e/lm admin progression do <action> [arg] [page] §8- GUI actions",
                 "§8Pages: main - skills - tp - race - combat - end - utility - shop - status - economy - admin - help",
                 "§8Economy: staff free Ancient Coin costs - §f/lm §7-> Staff Admin -> Progression panel -> Ancient Coins",
                 "§8Flags: potential boost bio",
@@ -90,7 +91,7 @@ public final class ProgressionGuiApi {
         return ProgressionModuleCatalog.formatSectionDoc(page);
     }
 
-    /** Staff: {@code /progression admin <flag> <on|off>}. */
+    /** Staff: {@code /lm admin progression flags <flag> <on|off>}. */
     public static String adminFlag(ServerPlayer actor, String flag, String value) {
         if (actor == null) {
             return "§cThis only works in-game - console can't open this menu.";
@@ -102,7 +103,7 @@ public final class ProgressionGuiApi {
             return "§cProgression system is disabled.";
         }
         if (flag == null || flag.isBlank()) {
-            return "§cName a setting and ON or OFF, for example §f/progression admin potential on§c.";
+            return "§cName a setting and ON or OFF, for example §f/lm admin progression flags potential on§c.";
         }
         boolean on = "on".equalsIgnoreCase(value) || "true".equalsIgnoreCase(value) || "1".equals(value);
         boolean off = "off".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value) || "0".equals(value);
@@ -117,7 +118,7 @@ public final class ProgressionGuiApi {
 
     /**
      * Staff End dragon clear/repair — optional Bukkit {@code /lmdo enddragon …}
-     * bridge. Prefer Forge {@code /enddragon clear} / {@code /cleardragons} (no CMI).
+     * bridge. Prefer Forge {@code /lm admin enddragon clear} / {@code /cleardragons} (no CMI).
      * Staff spawn is disabled; players summon from the Difficulty GUI.
      */
     public static String endDragon(ServerPlayer actor, String action) {
@@ -125,7 +126,7 @@ public final class ProgressionGuiApi {
             return "§cThis only works in-game - console can't open this menu.";
         }
         if (!StaffAccess.isStaff(actor)) {
-            return "§cStaff only. §7Use §f/enddragon clear§7 (op) or staff.";
+            return "§cStaff only. §7Use §f/lm admin enddragon clear§7 (op) or staff.";
         }
         if (!DifficultyConfig.get().enableEndDimensionStrength) {
             return "§cEnd Dimension Strength is disabled.";
@@ -141,14 +142,14 @@ public final class ProgressionGuiApi {
                 yield "";
             }
             case "spawn", "spawndragon" ->
-                    "§cDragon spawn is disabled. §7Admins clear dragons with §f/enddragon clear§7.";
+                    "§cDragon spawn is disabled. §7Admins clear dragons with §f/lm admin enddragon clear§7.";
             default -> "§7Staff: §fclear§7 / §frepair§7. §8Player summons: Difficulty GUI only.";
         };
     }
 
     /**
      * Staff: Dr. Gero android upgrade for {@code actor} (blank target) or an online player name.
-     * Used by Bukkit {@code /progression android} — avoids Mohist brigadier forwardCommand.
+     * Used by Bukkit {@code /lm admin progression android} — avoids Mohist brigadier forwardCommand.
      * <p>
      * Console / Saga: pass {@code actor == null} with a non-blank online {@code targetName}
      * (also exposed as {@link #androidConvertConsole(String)}).
@@ -229,7 +230,7 @@ public final class ProgressionGuiApi {
 
     /**
      * Global TP boost controls (staff in-game, or console for store purchases).
-     * Args (space-separated after {@code /progression boost}):
+     * Args (space-separated after {@code /lm admin progression boost}):
      * <ul>
      *   <li>empty / status / help — status + usage</li>
      *   <li>end / stop — end active boost</li>
@@ -482,11 +483,11 @@ public final class ProgressionGuiApi {
     }
 
     private static String masteryBoostUsage() {
-        return UltraStyle.YELLOW + "/progression masteryboost " + UltraStyle.GRAY + "- status\n"
-                + UltraStyle.YELLOW + "/progression masteryboost end " + UltraStyle.GRAY + "- stop the active boost\n"
-                + UltraStyle.YELLOW + "/progression masteryboost start <multiplier> <minutes> [name] "
+        return UltraStyle.YELLOW + "/lm admin progression masteryboost " + UltraStyle.GRAY + "- status\n"
+                + UltraStyle.YELLOW + "/lm admin progression masteryboost end " + UltraStyle.GRAY + "- stop the active boost\n"
+                + UltraStyle.YELLOW + "/lm admin progression masteryboost start <multiplier> <minutes> [name] "
                 + UltraStyle.GRAY + "- for example " + UltraStyle.WHITE + "2 30 PlayerName\n"
-                + UltraStyle.YELLOW + "/progression masteryboost start <code> [name] "
+                + UltraStyle.YELLOW + "/lm admin progression masteryboost start <code> [name] "
                 + UltraStyle.GRAY + "- store code, same format as the TP boost\n"
                 + UltraStyle.DARK_GRAY + "Console works too (store): "
                 + UltraStyle.WHITE + "progression masteryboost start 2 30 {username}\n"
@@ -494,10 +495,10 @@ public final class ProgressionGuiApi {
     }
 
     private static String boostUsage() {
-        return "§e/progression boost §7- status\n"
-                + "§e/progression boost end §7- stop active boost\n"
-                + "§e/progression boost start <mult> <minutes> [name] §7- e.g. §f2 30 PlayerName\n"
-                + "§e/progression boost start <encoded> [name] §7- Fabled encoded\n"
+        return "§e/lm admin progression boost §7- status\n"
+                + "§e/lm admin progression boost end §7- stop active boost\n"
+                + "§e/lm admin progression boost start <mult> <minutes> [name] §7- e.g. §f2 30 PlayerName\n"
+                + "§e/lm admin progression boost start <encoded> [name] §7- Fabled encoded\n"
                 + "§8Console OK (store): §fprogression boost start 2 30 {username}\n"
                 + "§8[Staff] CNPC: Staff Admin -> Progression panel -> TP gains -> Global TP boost";
     }
@@ -803,18 +804,19 @@ public final class ProgressionGuiApi {
             }
             case "help" -> {
                 List<String> help = new ArrayList<>();
-                help.add("§6§l/progression §8- Potential Unlock");
+                help.add("§6§l/lm progression §8- Potential Unlock");
                 help.add("§7Spar to raise Potential Unlock.");
                 if (player != null && StaffAccess.isStaff(player)) {
-                    help.add("§e/progression §7- Category hub (flags per section)");
-                    help.add("§e/prog do page skills|tp|race|combat|end|utility");
-                    help.add("§e/progression boost §7- status - start &lt;mult&gt; &lt;min&gt; - end");
-                    help.add("§e/progression android [player] §7- Android convert (Gero)");
-                    help.add("§e/progression android remove [player] §7- remove Android upgrade");
-                    help.add("§e/prestige §7- Prestige GUI (staff slash; players use /lm)");
-                    help.add("§e/skills §7- Skill unlocks (staff)");
-                    help.add("§e/skillcheck §7- Skill Check (donator)");
-                    help.add("§8Staff - tap flags in section GUIs - §f/prog do module_doc <section>");
+                    help.add("§e/lm admin progression §7- Category hub (flags per section)");
+                    help.add("§e/lm admin progression do page skills|tp|race|combat|end|utility");
+                    help.add("§e/lm admin progression boost §7- status - start &lt;mult&gt; &lt;min&gt; - end");
+                    help.add("§e/lm admin progression android [player] §7- Android convert (Gero)");
+                    help.add("§e/lm progression android remove §7- remove your own Android upgrade");
+                    help.add("§e/lm admin progression android remove <player> §7- remove it from a player");
+                    help.add("§e/lm prestige §7- Prestige menu");
+                    help.add("§e/lm admin skills §7- Skill unlocks (staff)");
+                    help.add("§e/lm skillcheck §7- Skill Check (donator)");
+                    help.add("§8Staff - tap flags in section GUIs - §f/lm admin progression do module_doc <section>");
                 } else {
                     help.add("§7Other actions: §f/lm §7-> Prestige - Remove Android - Skill Check");
                 }
@@ -909,7 +911,7 @@ public final class ProgressionGuiApi {
     }
 
     /**
-     * Dispatch {@code /progression do} actions. Does not reopen GUI — caller reopens.
+     * Dispatch {@code /lm admin progression do} actions. Does not reopen GUI — caller reopens.
      *
      * @param action {@code page}, {@code flag}, {@code refresh}
      * @param arg    page name, or flag key (toggles), or {@code key:on}/{@code key:off}
@@ -1198,7 +1200,7 @@ public final class ProgressionGuiApi {
     }
 
     /**
-     * Dispatch {@code /prestige do} — confirm, turn-in, shop buys.
+     * Dispatch {@code /lm admin prestige do} — confirm, turn-in, shop buys.
      */
     public static String handlePrestigeDo(ServerPlayer player, String action, String arg, String page) {
         String shop = PrestigeShopHooks.handleDo(player, action, arg, page);
@@ -1353,7 +1355,7 @@ public final class ProgressionGuiApi {
     }
 
     /**
-     * Staff prestige admin — used by Bukkit {@code /prestige admin …} / {@code /padmin}
+     * Staff prestige admin — used by Bukkit {@code /lm prestige admin …} / {@code /lm admin prestige}
      * via ForgeBridge (avoids Mohist brigadier forward failures).
      * {@code actor} may be {@code null} when invoked from console (already privileged).
      *
@@ -1371,7 +1373,7 @@ public final class ProgressionGuiApi {
             return PrestigeAdmin.help();
         }
         String[] parts = trimmed.split("\\s+");
-        // /padmin admin points … (staff following "/prestige admin" help on the dedicated command)
+        // /lm admin prestige admin points … (staff following "/lm prestige admin" help on the dedicated command)
         if (parts.length > 1 && "admin".equalsIgnoreCase(parts[0])) {
             String[] shifted = new String[parts.length - 1];
             System.arraycopy(parts, 1, shifted, 0, shifted.length);
@@ -1379,7 +1381,7 @@ public final class ProgressionGuiApi {
         }
         String sub = parts[0].toLowerCase(Locale.ROOT);
 
-        // Shorthand: /padmin addpoints|setpoints|removepoints <player> <n>
+        // Shorthand: /lm admin prestige addpoints|setpoints|removepoints <player> <n>
         if ("addpoints".equals(sub) || "givepoints".equals(sub) || "grantpoints".equals(sub)
                 || "setpoints".equals(sub)
                 || "removepoints".equals(sub) || "takepoints".equals(sub)) {
@@ -1392,7 +1394,7 @@ public final class ProgressionGuiApi {
             FieldAdjust adj = parseFieldAdjust(actor, "points", synth);
             if (adj.error != null) {
                 return adj.error.contains("Usage")
-                        ? "§cUsage: /padmin " + sub + " <player> <n>"
+                        ? "§cUsage: /lm admin prestige " + sub + " <player> <n>"
                         : adj.error;
             }
             return PrestigeAdmin.adjustPoints(adj.target, mode, adj.amount);
@@ -1403,15 +1405,15 @@ public final class ProgressionGuiApi {
             if (target == null) {
                 return parts.length > 1
                         ? "§cPlayer not online: §f" + parts[1]
-                        : "§cUsage: /padmin info <player>";
+                        : "§cUsage: /lm admin prestige info <player>";
             }
             return PrestigeAdmin.info(target);
         }
         if ("tier".equals(sub) || "tiers".equals(sub) || "difficulty".equals(sub)) {
             if (parts.length < 4) {
-                return "§cUsage: /padmin tier <player> <set|add|remove> <0-7>"
-                        + "\n§c       /padmin tier <player> give <1-7>"
-                        + "\n§c       /padmin tier <player> clear <1-7|all>";
+                return "§cUsage: /lm admin prestige tier <player> <set|add|remove> <0-7>"
+                        + "\n§c       /lm admin prestige tier <player> give <1-7>"
+                        + "\n§c       /lm admin prestige tier <player> clear <1-7|all>";
             }
             ServerPlayer target = resolveOnline(actor, parts[1]);
             if (target == null) {
@@ -1432,7 +1434,7 @@ public final class ProgressionGuiApi {
         }
         if ("skills".equals(sub) || "invested".equals(sub)) {
             if (parts.length < 2) {
-                return "§cUsage: /padmin skills <player>";
+                return "§cUsage: /lm admin prestige skills <player>";
             }
             ServerPlayer target = resolveOnline(actor, parts[1]);
             if (target == null) {
@@ -1449,9 +1451,9 @@ public final class ProgressionGuiApi {
                 return PrestigeAdmin.listSkills(target);
             }
             if (parts.length < 5) {
-                return "§cUsage: /padmin skill <player> <skillId> <set|add|remove> <levels>"
-                        + "\n§8Example: /padmin skill Steve potentialunlock set 10"
-                        + "\n§8List: /padmin skills <player>";
+                return "§cUsage: /lm admin prestige skill <player> <skillId> <set|add|remove> <levels>"
+                        + "\n§8Example: /lm admin prestige skill Steve potentialunlock set 10"
+                        + "\n§8List: /lm admin prestige skills <player>";
             }
             ServerPlayer target = resolveOnline(actor, parts[1]);
             if (target == null) {
@@ -1482,7 +1484,7 @@ public final class ProgressionGuiApi {
                 default -> "§cSomething went wrong. Try again, or ask staff if it keeps happening.";
             };
         }
-        return "§cUnknown: /padmin " + sub + "\n" + PrestigeAdmin.help();
+        return "§cUnknown: /lm admin prestige " + sub + "\n" + PrestigeAdmin.help();
     }
 
     private static final class FieldAdjust {
@@ -1533,8 +1535,8 @@ public final class ProgressionGuiApi {
      * and {@code <player> 10} (implied set).
      */
     private static FieldAdjust parseFieldAdjust(ServerPlayer actor, String field, String[] parts) {
-        String usage = "§cUsage: /padmin " + field + " <player> <set|add|remove> <n>"
-                + "\n§8Also: /padmin " + field + " set <n>  -  /padmin " + field + " <player> <n>";
+        String usage = "§cUsage: /lm admin prestige " + field + " <player> <set|add|remove> <n>"
+                + "\n§8Also: /lm admin prestige " + field + " set <n>  -  /lm admin prestige " + field + " <player> <n>";
         if (parts == null || parts.length < 2) {
             return FieldAdjust.err(usage);
         }
@@ -1547,7 +1549,7 @@ public final class ProgressionGuiApi {
                 return FieldAdjust.err(usage);
             }
             if (actor == null) {
-                return FieldAdjust.err("§cUsage: /padmin " + field + " <player> set <n>");
+                return FieldAdjust.err("§cUsage: /lm admin prestige " + field + " <player> set <n>");
             }
             return FieldAdjust.ok(actor, "set", n);
         }
@@ -1559,7 +1561,7 @@ public final class ProgressionGuiApi {
                     return FieldAdjust.err(usage);
                 }
                 if (actor == null) {
-                    return FieldAdjust.err("§cUsage: /padmin " + field + " <player> " + mode + " <n>");
+                    return FieldAdjust.err("§cUsage: /lm admin prestige " + field + " <player> " + mode + " <n>");
                 }
                 return FieldAdjust.ok(actor, mode, n);
             }
@@ -1642,9 +1644,9 @@ public final class ProgressionGuiApi {
         String p = page == null || page.isBlank() ? "core" : page.toLowerCase(Locale.ROOT);
         if ("help".equals(p)) {
             return List.of(
-                    "§6§l/skills §8- Skill Progress (staff)",
-                    "§e/skills §7- every tracked skill on one page",
-                    "§e/skillcheck §7- Donator Skill Check"
+                    "§6§l/lm admin skills §8- Skill Progress (staff)",
+                    "§e/lm admin skills §7- every tracked skill on one page",
+                    "§e/lm skillcheck §7- Donator Skill Check"
             );
         }
         if ("skillcheck".equals(p) || "check".equals(p) || "compact".equals(p)) {
@@ -1654,7 +1656,7 @@ public final class ProgressionGuiApi {
     }
 
     /**
-     * Dispatch {@code /skills do} — {@code page} with core/saga (reopen only).
+     * Dispatch {@code /lm admin skills do} — {@code page} with core/saga (reopen only).
      */
     public static String handleSkillsDo(ServerPlayer player, String action, String arg, String page) {
         if (player == null) {
