@@ -961,7 +961,7 @@ public final class UltraScreenSelfTest {
      * WARN only for now (4.7.84): over-budget pages are logged, never fail the boot. Flip to true once every system's
      * pages are within budget; {@link #verifyHeightBudget} then throws like the other menu checks.
      */
-    public static final boolean HEIGHT_BUDGET_STRICT = false;
+    public static final boolean HEIGHT_BUDGET_STRICT = true;   // 4.7.86: an over-budget page fails the boot self-test
 
     /**
      * Pages allowed over the budget: staff and config pages (staff use large windows and these pages are tools,

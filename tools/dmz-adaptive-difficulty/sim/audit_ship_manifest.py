@@ -2038,6 +2038,27 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.86 ---")
+    p86_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    p86_dash = read(SRC / "gui/ultra/HubDashboard.java")
+    p86_dojo = read(SRC / "gui/ultra/UltraDojoScreens.java")
+    p86_char = read(SRC / "gui/ultra/UltraCharacterScreens.java")
+    p86_probe = (ROOT / "tools/lm-ui-probe/src/com/dbzlegacy/uiprobe/UiProbe.java").read_text(encoding="utf-8")
+    p86_corpus = ROOT / "tools/lm-gui-corpus"
+    check("manifest row for lm 4.7.86", "lm-4786-height-budget" in manifest)
+    check("X5: the 300 px height budget is enforced at boot (strict), staff/config pages allowed",
+          "HEIGHT_BUDGET_PX = 300;" in p86_test and "HEIGHT_BUDGET_STRICT = true;" in p86_test
+          and 'throw new IllegalStateException("LegacyMechanics Ultra height budget self-check failed: "' in p86_test)
+    check("X5: the probe fails a release when any player page goes over budget after the crawl",
+          "UltraScreenSelfTest.overBudgetPages()" in p86_probe)
+    check("height: one-line board posts, compact Dojo Home and upgrade pages, part colors in 4 columns, one-line Home prestige",
+          "always one body line" in p86_dojo and "PICTURE_ROWS = 5" in p86_dojo
+          and '"Level " + DmzRewards.formatWhole(p.level()) + " of "' in p86_dash
+          and "swatches save at once" in p86_char)
+    check("proof: the GuiKit crawl findings for the real 4.7.86 menus are committed",
+          (p86_corpus / "findings/real-crawl-findings.md").exists()
+          and "4.7.86" in (p86_corpus / "findings/real-crawl-findings.md").read_text(encoding="utf-8"))
+
     print("\n--- § lm 4.7.85 ---")
     p85_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
     p85_style = read(SRC / "gui/ultra/UltraStyle.java")
@@ -2559,9 +2580,9 @@ def main() -> int:
           "Dojo host = DojoService.dojoOf(poster);" in p68_board and 'DojoWorld.rememberSpot(poster, "spar");' in p68_board
           and "DojoWorld.returnPlayer(p);" in p68_board and "s.yaw = p.m_146908_();" in p68_world
           and "p.m_8999_(target, s.x, s.y, s.z, s.yaw, s.pitch);" in p68_world)
-    # 4.7.84 (SP-4): the Friendly Fist mark left the listing; the wait reads "3:12 ago".
-    check("listing shows name, level, friendly/ranked, wait time and wager; level range filter",
-          '" Lv " + lvl' in p68_ui and '", Friendly Fist "' not in p68_ui and '" ago"' in p68_ui
+    # 4.7.84 (SP-4): the Friendly Fist mark left the listing. 4.7.86 (height budget): one line per post, no wait time.
+    check("listing shows name, level, friendly/ranked and wager on one line; level range filter",
+          '" Lv " + lvl' in p68_ui and '", Friendly Fist "' not in p68_ui and "always one body line" in p68_ui
           and "Math.abs(level(poster) - level(viewer)) > post.range()" in p68_board
           and "LEVEL_RANGES = {0, 25, 50, 100};" in p68_cat)
     check("ranked gate: 30 friendly spars, the count shown, ranked dim until then",
@@ -2678,7 +2699,7 @@ def main() -> int:
           and "rt.boardPotential = !ranked && (p == a ? potentialA : potentialB);" in p68_sys
           and "b.potentialB = !b.ranked && draft(acceptor.m_20148_()).want() == Want.POTENTIAL;" in p68_board
           and 'TP("TP"), POTENTIAL("Potential Unlock"), ANY("Anything");' in p68_board
-          and '" - wants " + p.want().label' in p68_ui)
+          and '", wants " + want' in p68_ui and 'w == BoardSpar.Want.POTENTIAL ? "PU"' in p68_ui)
     check("no dojo bonus, training session or arena touches Potential Unlock",
           "dojo" not in p68_pu.replace("dojo arena", "")
           and "potential" not in (p68_svc + p68_cat + p68_war).lower())
@@ -3270,7 +3291,7 @@ def main() -> int:
           "private static final int NAMES_PER_PAGE = 8;" in p55_spar
           and "UltraPickHelper.pageSlice(names, NAMES_PER_PAGE, pg)" in p55_spar
           and "UltraPickHelper.placePrevNext(spec, page, pg, pages);" in p55_spar
-          and "private static final int PICK_PER_PAGE = 10;" in p55_rival
+          and "private static final int PICK_PER_PAGE = 8;" in p55_rival
           and "UltraPickHelper.pageCount(total, PICK_PER_PAGE)" in p55_rival
           and "UltraPickHelper.pageLabel(spec, pg, pages);" in p55_rival)
 
