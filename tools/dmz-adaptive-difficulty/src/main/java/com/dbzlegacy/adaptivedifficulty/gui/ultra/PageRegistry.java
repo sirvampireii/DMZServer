@@ -75,6 +75,7 @@ public final class PageRegistry {
         p(HUB, HUB_MAIN, "Main menu", null, "home hub start");
         p(HUB, "more", "More", "hub|main", "settings meditation search find hud");
         p(HUB, "goals", "Weekly goals", "hub|main", "goals week weekly progress");
+        p(HUB, "coins", "Where to get coins", "hub|more", "coins ancient money drop earn where get");
         p(HUB, "skins", "Menu skins", "hub|more", "theme look colors colour background");
         p(HUB, "skin_custom", "My colors", "hub|skins", "custom skin hex colour wheel");
         // 4.7.84 (H6): My colors > From a skin (copy a skin's colors into the fields, or the defaults).
@@ -228,7 +229,8 @@ public final class PageRegistry {
         item("dojo", "dojo_elites", "Members", "dojo|home");
         item("dojo", "dojo_close", "Close dojo", "dojo|home");
         item("dojo", "dojo_roster", "Members", "dojo|home");
-        p("dojo", "dojo_members_own", "Dojo members", "dojo|dojo_members", "roster");
+        // 4.7.85: an old link (the one Members page replaced it in 4.7.84); kept routable, not a page of its own.
+        item("dojo", "dojo_members_own", "Dojo members", "dojo|dojo_members");
         item("dojo", "dojo_members_*", "Dojo members", "dojo|dojo_members");
         p("dojo", "dojo_previous_members_own", "Previous members", "dojo|dojo_members", "left");
         item("dojo", "dojo_previous_members", "Previous members", "dojo|dojo_members");

@@ -1629,22 +1629,6 @@ public final class SparringSystem {
         return DojoRankings.infoLines(player);
     }
 
-    public static String dojoChallenge(ServerPlayer player, ServerPlayer target) {
-        return DojoRankings.challengeDojo(player, target);
-    }
-
-    public static String dojoChallengeByMasterUuid(ServerPlayer player, String targetMasterUuid) {
-        return DojoRankings.challengeDojoByMasterKey(player, targetMasterUuid);
-    }
-
-    public static String dojoAcceptWar(ServerPlayer player) {
-        return DojoRankings.acceptChallenge(player);
-    }
-
-    public static String dojoDeclineWar(ServerPlayer player) {
-        return DojoRankings.declineChallenge(player);
-    }
-
     public static List<String> pendingDojoWarCards(ServerPlayer player) {
         return DojoRankings.pendingDojoWarCards(player);
     }

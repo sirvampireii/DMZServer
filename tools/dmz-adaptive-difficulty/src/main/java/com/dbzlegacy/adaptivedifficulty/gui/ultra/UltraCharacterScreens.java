@@ -701,6 +701,9 @@ public final class UltraCharacterScreens {
             spec.line(short_);
         }
         spec.buttonsAfterLines();
+        if (short_ != null) {
+            spec.offerGetMore(UltraStyle.Shortfall.COINS, null);   // 4.7.85 (N6)
+        }
         // 4.7.81: five choices (0/25/50/75/100); 4.7.84: three columns, "Keep 25% - Free" / "Keep 25% - 3 Gold".
         int[] keepSteps = CharacterServicesConfig.MENU_KEEP_STEPS;
         int placed = 0;
@@ -877,6 +880,9 @@ public final class UltraCharacterScreens {
             spec.line(classShort);
         }
         spec.buttonsAfterLines();
+        if (classShort != null) {
+            spec.offerGetMore(UltraStyle.Shortfall.COINS, null);   // 4.7.85 (N6)
+        }
         spec.button(
                         "do:class_confirm:" + id,
                         UltraStyle.confirm(payLabel(classDue)),
@@ -901,11 +907,15 @@ public final class UltraCharacterScreens {
         // The lines above already say "turned off", "not for your rank" or the wait; add only a new reason.
         boolean said = (!lines.isEmpty() && lines.get(0) != null && lines.get(0).startsWith(UltraStyle.DANGER))
                 || !CharacterServicesSystem.cooldownWait(player, "reskin").isBlank();
+        boolean reskinShort = !ready && notEnoughCoinsLine(player, due) != null;
         if (!ready && !said) {
             String short_ = notEnoughCoinsLine(player, due);
             spec.line(short_ != null ? short_ : UltraStyle.danger(UltraStyle.plain(pre)));
         }
         spec.buttonsAfterLines();
+        if (reskinShort) {
+            spec.offerGetMore(UltraStyle.Shortfall.COINS, null);   // 4.7.85 (N6)
+        }
         String go = due <= 0L
                 ? "Open the look editor"
                 : "Open the look editor - Pay "
@@ -1116,10 +1126,14 @@ public final class UltraCharacterScreens {
         } else {
             block = notEnoughCoinsLine(player, cost);
         }
+        boolean partShort = !owned && block != null;
         if (block != null) {
             spec.line(block);
         }
         spec.buttonsAfterLines();
+        if (partShort) {
+            spec.offerGetMore(UltraStyle.Shortfall.COINS, null);   // 4.7.85 (N6)
+        }
         ModelPreview.rotateButton(spec, player, (part ? "part_ask:" : "bone_ask:") + token + ":" + id);
         if (block == null) {
             String pay = cost <= 0L ? "Unlock " + name : "Pay " + com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.compactCost(cost);
@@ -1713,6 +1727,9 @@ public final class UltraCharacterScreens {
             spec.line(short_);
         }
         spec.buttonsAfterLines();
+        if (short_ != null) {
+            spec.offerGetMore(UltraStyle.Shortfall.COINS, null);   // 4.7.85 (N6)
+        }
         spec.button("do:android_self", UltraStyle.confirm("Confirm and pay"), UltraStyle.STYLE_CONFIRM)
                 .rowGap();
         spec.back();

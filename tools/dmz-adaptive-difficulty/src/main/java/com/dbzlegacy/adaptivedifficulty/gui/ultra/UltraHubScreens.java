@@ -129,6 +129,10 @@ public final class UltraHubScreens {
             openGoals(player);
             return;
         }
+        if (PAGE_COINS.equals(p)) {
+            openCoins(player);
+            return;
+        }
         // 4.7.80: search lives on More; the old Search page id opens More.
         if (PAGE_SEARCH.equals(p) || PAGE_MORE.equals(p)) {
             openMore(player);
@@ -582,6 +586,30 @@ public final class UltraHubScreens {
         spec.back();
         spec.send(player);
     }
+
+    /** 4.7.85 (N6): where "Where to get coins" lands from any coin shortfall. */
+    static final String PAGE_COINS = "coins";
+
+    /**
+     * 4.7.85 (N6): the coin source list, written from {@code AncientCoinEconomy.rollKillLoot} / {@code rollKind}:
+     * kills drop coins, the active tier sets which coins, elites and bosses drop more, some titles help.
+     */
+    private static void openCoins(ServerPlayer player) {
+        UltraScreenSpec spec = UltraScreenSpec.of("hub").fitMenu().title("Where to get coins").page(PAGE_COINS)
+                .activeTab(PAGE_MORE);
+        spec.line(UltraStyle.header("Where to get coins"))
+                .line(UltraStyle.VALUE + "Every mob you defeat can drop Ancient Coins.")
+                .line(UltraStyle.LABEL + "Your difficulty tier sets which coins drop: Copper with no tier, Iron and Gold"
+                        + " from T2-T3, Emerald from T4, Diamond from T5, Netherite from T6.")
+                .line(UltraStyle.LABEL + "Elites drop 1 more coin, bosses 2 more. Some titles raise the drop chance.")
+                .line(UltraStyle.LABEL + "Coins in your inventory and your wallet both count toward a price.")
+                .buttonsAfterLines();
+        spec.buttonLeft("go:difficulty|tiers", "Difficulty tiers", UltraStyle.STYLE_NORMAL);
+        spec.buttonRight("go:difficulty|titles", "Titles", UltraStyle.STYLE_NORMAL).rowGap();
+        spec.back();
+        spec.send(player);
+    }
+
 
     /**
      * Menu skins (4.7.62): the five skins, one row each. The name applies the skin at once (free, no confirm,

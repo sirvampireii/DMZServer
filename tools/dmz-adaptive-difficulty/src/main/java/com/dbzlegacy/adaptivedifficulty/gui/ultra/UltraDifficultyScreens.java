@@ -597,9 +597,9 @@ public final class UltraDifficultyScreens {
         } else if (!open) {
             block = "T" + t + " is locked. " + capFirst(UltraDifficultyTierUi.lockedReason(player, tier)) + ".";
         } else if (cost > 0L && !AncientCoinEconomy.canAfford(player, cost)) {
-            // N6 swap point: the "where to get coins" line goes here (see coinShortfallLine).
             block = coinShortfallLine(player, cost);
         }
+        boolean coinShort = owned != t && open && personal && cost > 0L && !AncientCoinEconomy.canAfford(player, cost);
         if (block != null) {
             spec.line(UltraStyle.danger(block));
         }
@@ -609,6 +609,9 @@ public final class UltraDifficultyScreens {
             spec.line(UltraStyle.dim("Free trial: " + trialReason(trialBlock)));
         }
         spec.buttonsAfterLines();
+        if (coinShort) {
+            spec.offerGetMore(UltraStyle.Shortfall.COINS, null);   // 4.7.85 (N6)
+        }
         if (!personal) {
             // 4.7.84 (D-2, owner-approved): the switch sits where "Tier locked" used to be. Turning it on is free and
             // instant; the player then picks the tier from the list.

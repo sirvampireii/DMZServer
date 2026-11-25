@@ -265,6 +265,9 @@ public final class UltraStyle {
      * Footers come from {@link UltraScreenSpec#back()} (4.7.71)
      * so the control lives in the pinned footer, not the scrollable body.
      */
+    /** 4.7.85: the Back label when the destination's name is too long for the button. */
+    public static final String BACK_TO_PREVIOUS = "Back to previous page";
+
     public static String backTo(String destination) {
         if (destination == null || destination.isBlank()) {
             return BACK;
@@ -274,10 +277,11 @@ public final class UltraStyle {
         if (dest.regionMatches(true, 0, "Back to ", 0, 8)) {
             return LABEL + dest;
         }
-        // 4.7.84 (N4): never a cut phrase ("Back to Wager Ancient", "Back to Convert to"). A name that does not fit
-        // is a plain "Back"; callers pass PageRegistry.backTitle, which already swaps in a short title.
+        // 4.7.84 (N4): never a cut phrase ("Back to Wager Ancient", "Back to Convert to"); callers pass
+        // PageRegistry.backTitle, which already swaps in a short title. 4.7.85: a name that still does not fit reads
+        // "Back to previous page", never a bare "Back" (the menu rules forbid a bare Back).
         if (!backFits(dest)) {
-            return BACK;
+            return LABEL + BACK_TO_PREVIOUS;
         }
         return LABEL + "Back to " + dest;
     }
@@ -309,9 +313,9 @@ public final class UltraStyle {
             return "";
         }
         return VALUE + switch (kind) {
-            case COINS -> "Ancient Coins drop from the mobs you defeat. Coins in your inventory or wallet count.";
-            case FAVOR -> "Get favor by trading a prestige you hold for favor.";
-            case DOJO_POINTS -> "Your dojo earns points from hosted spars, training with disciples, disciple milestones and wars.";
+            case COINS -> "Coins drop from the mobs you defeat.";
+            case FAVOR -> "Trade a prestige you hold for favor.";
+            case DOJO_POINTS -> "Dojos earn points by hosting spars, training and wars.";
         };
     }
 
@@ -322,7 +326,7 @@ public final class UltraStyle {
         }
         return switch (kind) {
             case COINS -> "Where to get coins";
-            case FAVOR -> "Trade prestige for favor";
+            case FAVOR -> "Earn favor: Trade";
             case DOJO_POINTS -> "How points are earned";
         };
     }
@@ -336,7 +340,7 @@ public final class UltraStyle {
             return null;
         }
         return switch (kind) {
-            case COINS -> null;
+            case COINS -> "go:hub|coins";
             case FAVOR -> "go:prestige|exchange";
             case DOJO_POINTS -> "go:dojo|dojo_upgrades";
         };

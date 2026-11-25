@@ -180,6 +180,7 @@ public final class UltraWeightShopScreens {
                             UltraStyle.LABEL + "Change value",
                             UltraStyle.STYLE_NORMAL)
                     .rowGap();
+            spec.offerGetMore(UltraStyle.Shortfall.COINS, null);   // 4.7.85 (N6)
         } else {
             spec.button(
                             "do:weight_buy:" + offer.id + ":" + value,

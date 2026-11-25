@@ -213,6 +213,8 @@ def main(out, base=None):
             lines = [x for x in (r["lines"] or [])
                      if not re.search(r"The model (uses|wears)|colors, not your own|hair and skin, in this form|^skin, in this form.|^not your own.",
                                       plain(x))
+                     # 4.7.84: More tells only players without the LM client that the HUD needs it.
+                     and plain(x) != "The HUD needs the Legacy Mechanics client."
                      # 4.7.80 Goals: the reset clock and the week's progress move between the two runs.
                      and not (r["screen"] == "hub" and r["page"] == "goals"
                               and re.search(r"Resets in|\[[#-]+\]|^Done", plain(x)))]

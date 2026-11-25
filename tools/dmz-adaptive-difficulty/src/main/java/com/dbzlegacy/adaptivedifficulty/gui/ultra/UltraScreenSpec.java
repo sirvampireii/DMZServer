@@ -751,10 +751,19 @@ public final class UltraScreenSpec {
      * {@code spec.offerGetMore(UltraStyle.Shortfall.FAVOR, null)} under "Not enough favor: this costs 5 and you have 2."
      */
     public UltraScreenSpec offerGetMore(UltraStyle.Shortfall kind, String goAction) {
+        // 4.7.85: the button alone by default; the shortfall line above it already says what is missing, and an extra
+        // body line would push tight confirm pages over the 300 px height budget.
+        return offerGetMore(kind, goAction, false);
+    }
+
+    /** {@link #offerGetMore(UltraStyle.Shortfall, String)}, plus the one-line "how to get more" when {@code withLine}. */
+    public UltraScreenSpec offerGetMore(UltraStyle.Shortfall kind, String goAction, boolean withLine) {
         if (kind == null) {
             return this;
         }
-        line(UltraStyle.getMoreLine(kind));
+        if (withLine) {
+            line(UltraStyle.getMoreLine(kind));
+        }
         String action = goAction == null || goAction.isBlank() ? UltraStyle.getMoreAction(kind) : goAction.trim();
         if (action != null) {
             buttonWide(action, UltraStyle.getMoreButton(kind), UltraStyle.STYLE_NORMAL, null).rowGap();
