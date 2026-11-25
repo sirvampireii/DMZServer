@@ -796,11 +796,18 @@ public final class UltraScreenSelfTest {
             if (buttons.contains("\"icon\":\"minecraft:")) {
                 broken.add("character: tab buttons must not carry a vanilla item icon");
             }
-            String fit = UltraStyle.fitAsciiLabel("Android Removal", UltraStyle.labelMaxWidth(102));
+            // 4.7.83: labels are measured by real glyph widths since 4.7.81; "Android Removal" (81px) fits a 102px
+            // tab now, so the sample is one that truly overflows.
+            String wide = "Android Removal Service";
+            String fit = UltraStyle.fitAsciiLabel(wide, UltraStyle.labelMaxWidth(102));
+            if (!UltraStyle.fitAsciiLabel("Android Removal", UltraStyle.labelMaxWidth(102)).equals("Android Removal")) {
+                broken.add("fitAsciiLabel must keep a label that fits by real width");
+            }
             if (fit.indexOf('\u00E2') >= 0 || fit.indexOf('\u2026') >= 0) {
                 broken.add("fitAsciiLabel must use ASCII ellipsis only");
             }
-            if (!fit.endsWith("...") || fit.length() >= "Android Removal".length()) {
+            if (!fit.endsWith("...") || fit.length() >= wide.length()
+                    || UltraStyle.textWidthPx(fit) > UltraStyle.labelMaxWidth(102)) {
                 broken.add("fitAsciiLabel must clip labels that exceed tab text budget");
             }
         }

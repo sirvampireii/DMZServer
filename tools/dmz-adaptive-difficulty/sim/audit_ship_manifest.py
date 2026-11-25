@@ -2032,6 +2032,13 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.83 ---")
+    p83_test = read(SRC / "gui/ultra/UltraScreenSelfTest.java")
+    check("manifest row for lm 4.7.83", "lm-4783-selftest-label" in manifest)
+    check("boot self-test: label clipping sample overflows by real width; a fitting label is kept",
+          'String wide = "Android Removal Service";' in p83_test
+          and "fitAsciiLabel must keep a label that fits by real width" in p83_test)
+
     print("\n--- § lm 4.7.82 ---")
     p82_hub = read(SRC / "gui/ultra/UltraHubScreens.java")
     p82_spec = read(SRC / "gui/ultra/UltraScreenSpec.java")
