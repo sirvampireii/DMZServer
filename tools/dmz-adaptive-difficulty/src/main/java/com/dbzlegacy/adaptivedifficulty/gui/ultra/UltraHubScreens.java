@@ -483,9 +483,8 @@ public final class UltraHubScreens {
             spec.line(UltraStyle.header("Your menus"));
             // 4.7.72: the native HUD switch; it only changes anything for players with the Legacy Mechanics client.
             spec.labelValue("HUD:", hudOn ? "rival, TP and penalty info on screen" : "boss bars and chat lines");
-            if (!com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.hasNativeClient(player)) {
-                spec.line(UltraStyle.LABEL + "The HUD needs the Legacy Mechanics client.");
-            }
+            // 4.7.86: said to every client again (one spec for both render paths: a client-only line shifts the layout).
+            spec.line(UltraStyle.LABEL + "The HUD needs the Legacy Mechanics client.");
         }
         spec.buttonsAfterLines();
         // 4.7.80: search lives here entirely (field, results, recents); there is no Search tab.
@@ -720,7 +719,9 @@ public final class UltraHubScreens {
             spec.line(UltraStyle.VALUE + (wheels ? "Tap a box, pick or type a color, then Apply (free)."
                     : "Type a color like #e23b3b in each box, then Apply (free)."));
         }
-        if (!message && prefs.usingCustom() && MenuSkins.customTextAdjusted(prefs.custom())) {
+        // 4.7.86: the readability note shows after a successful Apply too (the player needs to know their text color
+        // was changed); with the result line that is two lines, still within the height budget.
+        if (!(message && d.error()) && prefs.usingCustom() && MenuSkins.customTextAdjusted(prefs.custom())) {
             spec.line(UltraStyle.LABEL + "Text color adjusted so it stays readable (now "
                     + MenuSkins.hex(MenuSkins.customText(prefs.custom())) + ").");
         }
