@@ -583,6 +583,7 @@ public final class UiProbe {
             Map.entry("spar|result", "needs a finished spar"),
             Map.entry("dojo|found", "needs an account with no dojo (founding starts on Dojo Home)"),
             Map.entry("rival|pick_spectate", "needs a running rival challenge (Spectate is dim otherwise)"),
+            Map.entry("hub|coins", "opened from a coin shortfall (Where to get coins) or search"),
             Map.entry("dojo|pending", "needs a bond invite"),
             Map.entry("rival|requests", "needs a rival request"),
             Map.entry("prestige|confirm", "needs enough prestige to turn in"),

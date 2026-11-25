@@ -215,6 +215,9 @@ def main(out, base=None):
                                       plain(x))
                      # 4.7.84: More tells only players without the LM client that the HUD needs it.
                      and plain(x) != "The HUD needs the Legacy Mechanics client."
+                     # 4.7.86: Menu skins says one client-specific line (same line count, so the layout matches).
+                     and plain(x) not in ("Tap a name to use it. It's free, and you can switch back.",
+                                          "Full skins need the Legacy Mechanics client.")
                      # 4.7.80 Goals: the reset clock and the week's progress move between the two runs.
                      and not (r["screen"] == "hub" and r["page"] == "goals"
                               and re.search(r"Resets in|\[[#-]+\]|^Done", plain(x)))]

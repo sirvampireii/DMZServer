@@ -422,6 +422,28 @@ def write_findings(pages, report, src, total_packets):
                 continue
             kept.append(it)
         p['folded'] = folded
+        # 4.7.86: two GuiKit rules read only the label, so the crawl knows better:
+        # - "is a bare Back" fires on body-part names ("Back Crystals"); only a button that navigates back counts.
+        # - the staff config editor shows literal config VALUES (an attribute id, a command); those are the setting
+        #   itself, not menu copy, so raw-id / field-fit errors on config pages are exempt.
+        exempt = []
+        btns = p['packet'].get('buttons') or []
+        for it in list(kept):
+            lv, el, msg, sz = it
+            if lv != 'ERROR':
+                continue
+            m = re.match(r'"(.+?)" is a bare Back', msg)
+            if m:
+                lab = m.group(1)
+                navs = [b for b in btns if plain(b.get('label') or '') == lab]
+                if navs and all(not semantic(b['id']).startswith('nav:') for b in navs):
+                    kept.remove(it)
+                    exempt.append('%s: "%s" is a part name, not a Back button' % (el, lab))
+                continue
+            if p['sid'].startswith('config_') and ('shows a raw id' in msg or "doesn't fit the field" in msg):
+                kept.remove(it)
+                exempt.append('%s: a staff config value, shown as stored' % el)
+        p['exempt'] = exempt
         # GuiKit warns once per control and size for "under 12 px to click": one summary per page instead
         tiny = [i for i in kept if i[0] == 'warn' and 'under 12 px to click' in i[2]]
         p['tiny_controls'] = sorted(set(i[1] for i in tiny))
@@ -528,6 +550,11 @@ def write_findings(pages, report, src, total_packets):
 
     # every error, flat
     allerr = [(p, e) for p in pages for e in p['errors']]
+    ex = [(p['sid'], e) for p in pages for e in p.get('exempt', [])]
+    if ex:
+        L += ['## Exempt (%d)' % len(ex), '',
+              'GuiKit rules that read only a label, overruled by what the crawl knows about the button:', '']
+        L += ['- `%s` %s' % (sid, e) for sid, e in ex] + ['']
     L += ['## Every ERROR (%d)' % len(allerr), '']
     if report is None:
         L += ['(no GuiKit report)', '']
