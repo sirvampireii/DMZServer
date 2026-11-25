@@ -36,7 +36,8 @@ Automated checks: `python3 tools/dmz-adaptive-difficulty/sim/audit_cnpc_gui_styl
 
 Retired CNPC menus used `navSystemRoot` and `navSubmenu`; nothing calls them now. Ultra menus follow the rule below:
 `UltraScreenSpec.back()` reads the page registry ("Back to X" on the left, "Main menu" on the right; a system Home
-shows one "Back to main menu"). Never "Hub".
+shows one "Back to main menu"). Never "Hub". The 4.7.84 rules (fresh trail, tabs, short names, height budget) are
+at the end of this file.
 
 ## Bukkit chest / CMI
 
@@ -71,3 +72,21 @@ shows one "Back to main menu"). Never "Hub".
 - **Staff config editor exception.** The editor keeps its dense 15 px row step (13 px buttons,
   2 px apart) in its own full-screen 426x240 frame so a category fits on one page. Player menus
   keep the normal row gap.
+
+## Ultra menus: navigation and fit (owner rulings, LM 4.7.84)
+
+- **A system Home exits to the main menu.** A system's Home (its first tab) shows one "Back to main menu" button,
+  bottom right (`nav:hub`). It never says "Back to <a page from earlier>".
+- **A fresh open starts a fresh trail.** A menu opened from outside a menu (a hub tile, a command, a key, a
+  dispatch without a page arg) clears the Back history (`NavHistory.fresh`). Only clicks made inside menus build
+  it, so Back always means "where I just was".
+- **Tabs don't stack in the Back trail.** Switching tabs replaces the tab already in the trail
+  (`NavHistory.markTab` / `record`). Back from any tab leaves the system, to where the player was before it.
+- **Short Back names.** When "Back to " + a page's title does not fit a footer button, the label uses the page's
+  short title from `PageRegistry.shortTitle` ("Back to Coin wager", never the cut "Back to Wager Ancient"). A page
+  with no short title that still does not fit gets a plain "Back", never a cut phrase. Every short title must fit
+  (`PageRegistry.problems()` checks it).
+- **The 300 px height budget.** Every player page is at most 300 px of native panel height, so it never shrinks
+  under 0.75x at 854x480 GUI 2 or 1366x768 GUI 3 (`UltraScreenSelfTest.overBudgetPages()`). Menus still shrink to
+  fit and never scroll; a page over budget gets fewer or shorter rows (pickers page at 8 names, long lists use a
+  pager), not a scrollbar.

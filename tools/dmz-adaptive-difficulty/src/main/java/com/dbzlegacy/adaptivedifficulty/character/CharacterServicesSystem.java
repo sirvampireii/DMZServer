@@ -163,17 +163,15 @@ public final class CharacterServicesSystem {
         List<String> lines = new ArrayList<>();
         TransferableStats now = captureStats(player);
         if (now == null) {
-            lines.add("§7We could not read your stats yet - try again in a moment.");
+            lines.add(UltraStyle.LABEL + "We could not read your stats yet - try again in a moment.");
             return lines;
         }
         TransferableStats kept = now.scaled(preservationPercent);
-        lines.add("§8After change (at " + preservationPercent + "%):");
-        lines.add(statLine("Strength", now.strength, kept.strength));
-        lines.add(statLine("Strike", now.strike, kept.strike));
-        lines.add(statLine("Defense", now.resistance, kept.resistance));
-        lines.add(statLine("Vitality", now.vitality, kept.vitality));
-        lines.add(statLine("Ki Power", now.kiPower, kept.kiPower));
-        lines.add(statLine("Energy", now.energy, kept.energy));
+        // 4.7.84 (C-5): two rows of the stats after the change, not six "before -> after" rows.
+        lines.add(UltraStyle.LABEL + "After: " + UltraStyle.VALUE + "Strength " + format(kept.strength)
+                + ", Strike " + format(kept.strike) + ", Defense " + format(kept.resistance));
+        lines.add(UltraStyle.VALUE + "Vitality " + format(kept.vitality) + ", Ki Power " + format(kept.kiPower)
+                + ", Energy " + format(kept.energy));
         return lines;
     }
 
@@ -335,20 +333,23 @@ public final class CharacterServicesSystem {
     /** Explains level scaling + coin normalization so UI matches {@link #executeReskin} charges. */
     public static String reskinCostExplanation(ServerPlayer player) {
         CharacterServicesConfig.Reskin rs = CharacterServicesConfig.get().reskin;
+        // 4.7.84 (C-4): the cost line already says "free" for a no-charge account, so this line stays empty then.
         if (CharacterServicesAccess.bypassCost(player)) {
-            return "§8No charge for your account";
+            return "";
         }
         if (!rs.levelCostMultiplier) {
-            return "§8Fixed price for everyone";
+            return UltraStyle.DIM + "Same price for everyone";
         }
         long base = rs.baseCostCopper;
         long pay = reskinCost(player);
         int lvl = DmzProgression.tierScalingDmzLevel(player);
         if (pay <= base) {
-            return "§8Price scales with level (§f" + lvl + "§8) - you are at the base price";
+            return UltraStyle.DIM + "The price grows with your level (" + UltraStyle.WHITE + lvl + UltraStyle.DIM
+                    + "). You pay the base price.";
         }
-        return "§8Price scales with level (§f" + lvl + "§8) - base §f"
-                + formatCost(base) + " §8-> you pay §f" + formatCost(pay);
+        return UltraStyle.DIM + "The price grows with your level (" + UltraStyle.WHITE + lvl + UltraStyle.DIM
+                + "): base " + UltraStyle.WHITE + formatCost(base) + UltraStyle.DIM + ", you pay "
+                + UltraStyle.WHITE + formatCost(pay);
     }
 
     /** Level-scaled copper, snapped to payable Ancient Coin denominations (same as AD tier buys). */
@@ -373,8 +374,9 @@ public final class CharacterServicesSystem {
     }
 
     public static String cooldownLine(ServerPlayer player, String kind) {
+        // 4.7.84 (C-9): nothing to say when there is no wait; a wait reads "You can change again in 3h 12m."
         if (CharacterServicesAccess.bypassCooldown(player)) {
-            return "§aReady whenever you are §8(no cooldown for your account)";
+            return "";
         }
         CharacterServicesStore.PlayerRecord rec =
                 CharacterServicesStore.get().record(player.m_20148_().toString());
@@ -395,18 +397,14 @@ public final class CharacterServicesSystem {
                 cd = CharacterServicesConfig.get().reskin.cooldownMs;
             }
             default -> {
-                return "§7-";
+                return "";
             }
         }
         long left = last + cd - now;
         if (left <= 0L) {
-            return "§aReady to use";
+            return "";
         }
-        return "§7On cooldown - ready in §f" + formatDuration(left);
-    }
-
-    private static String statLine(String label, int before, int after) {
-        return "§7" + label + " §f" + format(before) + " §8-> §f" + format(after);
+        return UltraStyle.LABEL + "You can change again in " + UltraStyle.VALUE + formatDuration(left) + UltraStyle.LABEL + ".";
     }
 
     public static String executeRaceChange(ServerPlayer player, String targetRace, int preservationPercent) {
@@ -754,16 +752,16 @@ public final class CharacterServicesSystem {
             return block;
         }
         if (!staffGrant && !CharacterServicesAccess.canReskin(player)) {
-            return "§cYou do not have permission to reskin. Ask staff if you need access.";
+            return UltraStyle.DANGER + "Your rank can't change skin yet. Ask staff which rank unlocks it.";
         }
         CharacterServicesConfig.Reskin rs = CharacterServicesConfig.get().reskin;
         if (!rs.enabled) {
-            return "§cReskin is turned off on this server.";
+            return UltraStyle.DANGER + "Changing your skin is turned off on this server.";
         }
         if (!staffGrant && !CharacterServicesAccess.bypassCooldown(player)) {
             long left = cooldownRemaining(player, "reskin");
             if (left > 0L) {
-                return "§cReskin is on cooldown. Try again in §f" + formatDuration(left) + "§c.";
+                return UltraStyle.DANGER + "You can change your skin again in " + UltraStyle.WHITE + formatDuration(left) + UltraStyle.DANGER + ".";
             }
         }
         long cost = staffGrant ? 0L : reskinAmountDue(player);

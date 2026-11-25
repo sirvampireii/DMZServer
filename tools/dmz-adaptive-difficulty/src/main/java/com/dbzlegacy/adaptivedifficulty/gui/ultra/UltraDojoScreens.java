@@ -7,6 +7,7 @@ import com.dbzlegacy.adaptivedifficulty.dojo.DojoStore;
 import com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo;
 import com.dbzlegacy.adaptivedifficulty.dojo.DojoWar;
 import com.dbzlegacy.adaptivedifficulty.dojo.DojoWorld;
+import com.dbzlegacy.adaptivedifficulty.sparring.SparringSystem;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -19,12 +20,20 @@ import net.minecraft.server.level.ServerPlayer;
  * reopen, Dojo Points and clout, upgrades with the layout-map preview and "Visit dojo", style and bonus, elites,
  * wars with the live bracket, the dojo leaderboard). Buttons for what the player can't do yet are dim and inert,
  * never hidden, and the page says why.
+ *
+ * <p>4.7.84: every page fits about 300 px of panel height (no scrolling). The Spar Board shows 4 posts a page with
+ * a pager (posts aimed at you first) and posting moved to its own page; Dojo Home has 5 actions with the floor plan
+ * beside the stats; one Members page (6 a page) replaces "Roster and bonds" and "Members and elites"; the dojo list
+ * opens a dojo profile with "Ask to join"; the Wars tab shows a war's sign-up with its countdown.
  */
 public final class UltraDojoScreens {
     private UltraDojoScreens() {}
 
     static final String TAB_BOARD = "sparboard";
-    static final int BOARD_SHOWN = 5;
+    /** 4.7.84 (SP-2): posts a board page shows; a pager reaches the rest. */
+    static final int BOARD_SHOWN = 4;
+    /** 4.7.84 (SP-2): the compose page (kind, wager, range, looking for, Post). */
+    static final String PAGE_POST = "board_post";
 
     static UltraScreenSpec base(String page, String tab, String notice) {
         UltraScreenSpec spec = UltraScreenSpec.of("spar")
@@ -44,6 +53,15 @@ public final class UltraDojoScreens {
     static final String TAB_DOJO_HOME = "home";
     static final String TAB_UPGRADES = "dojo_upgrades";
     static final String TAB_WARS = "dojo_wars";
+    static final String PAGE_SETTINGS = "dojo_settings";
+    static final String PAGE_MEMBERS = "dojo_members";
+    static final String PAGE_MEMBER = "dojo_member:";
+    static final String PAGE_VIEW = "dojo_view:";
+    static final String PAGE_JOIN_ASK = "dojo_join_ask:";
+    static final String PAGE_STYLE_PICK = "dojo_style_pick";
+    static final String ACT_JOIN = "dojo_join";
+    /** 4.7.84 (DJ-2): members a Members page shows. */
+    static final int MEMBERS_SHOWN = 6;
 
     static UltraScreenSpec dojoBase(String page, String tab, String notice) {
         UltraScreenSpec spec = UltraScreenSpec.of("dojo")
@@ -68,8 +86,8 @@ public final class UltraDojoScreens {
 
     /**
      * 4.7.78: the Dojo system's pages (screen {@code dojo}). Home, Upgrades and Wars are its tabs; every other dojo page
-     * (style, elites, wars, leaderboard, founding, roster and bonds) opens here too. Pages this class does not own go
-     * to the Sparring router, whose dojo pages (roster, members, training bonds) also draw on the Dojo screen.
+     * (style, members, wars, the dojo list, founding) opens here too. Pages this class does not own go to the Sparring
+     * router, whose dojo pages (previous members, training bonds) also draw on the Dojo screen.
      */
     public static void openSystem(ServerPlayer player, String page) {
         String raw = page == null || page.isBlank() ? TAB_DOJO_HOME : page.trim();
@@ -80,6 +98,9 @@ public final class UltraDojoScreens {
             openUpgrades(player, null);
         } else if (lower.equals("wars")) {
             openWars(player, null);
+        } else if (lower.equals("dojo_roster")) {
+            // 4.7.84 (DJ-2): "Roster and bonds" became the one Members page.
+            openMembers(player, 0, null);
         } else if (!open(player, raw, null)) {
             UltraSparScreens.open(player, raw);
         }
@@ -97,8 +118,11 @@ public final class UltraDojoScreens {
     public static boolean open(ServerPlayer player, String raw, String notice) {
         String p = raw == null ? "" : raw.trim();
         String lower = p.toLowerCase(Locale.ROOT);
-        if (lower.equals(TAB_BOARD) || lower.equals("board")) {
-            openBoard(player, notice);
+        String base = UltraPickHelper.pageBase(lower);
+        if (base.equals(TAB_BOARD) || base.equals("board")) {
+            openBoard(player, UltraPickHelper.pageIndex(lower), notice);
+        } else if (lower.equals(PAGE_POST)) {
+            openBoardPost(player, notice);
         } else if (lower.equals("result")) {
             openResult(player, notice);
         } else if (lower.equals(PAGE_WAGER)) {
@@ -117,18 +141,25 @@ public final class UltraDojoScreens {
             openDojo(player, notice);
         } else if (DojoFounding.owns(lower)) {
             DojoFounding.open(player, raw, notice);
+        } else if (lower.equals(PAGE_SETTINGS)) {
+            openSettings(player, notice);
         } else if (lower.equals("dojo_upgrades")) {
             openUpgrades(player, notice);
         } else if (lower.startsWith("dojo_up:")) {
             openUpgrade(player, p.substring("dojo_up:".length()), notice);
         } else if (lower.equals("dojo_style")) {
             openStyle(player, notice);
+        } else if (lower.equals(PAGE_STYLE_PICK)) {
+            openStylePick(player, notice);
         } else if (lower.startsWith("dojo_style_ask:")) {
             openStyleAsk(player, p.substring("dojo_style_ask:".length()));
         } else if (lower.startsWith("dojo_bonus_ask:")) {
             openBonusAsk(player, p.substring("dojo_bonus_ask:".length()));
-        } else if (lower.equals("dojo_elites")) {
-            openElites(player, notice);
+        } else if (base.equals(PAGE_MEMBERS) || lower.equals("dojo_elites") || lower.equals("dojo_roster")) {
+            // 4.7.84 (DJ-2): one Members page; the old elites and roster page ids open it too.
+            openMembers(player, UltraPickHelper.pageIndex(lower), notice);
+        } else if (lower.startsWith(PAGE_MEMBER)) {
+            openMember(player, p.substring(PAGE_MEMBER.length()), notice);
         } else if (lower.equals("dojo_wars") || lower.equals("wars") || lower.equals("dojo_war")) {
             openWars(player, notice);
         } else if (lower.startsWith("dojo_war_pick")) {
@@ -137,6 +168,10 @@ public final class UltraDojoScreens {
             openWarFormat(player, p.substring("dojo_war_fmt:".length()), notice);
         } else if (lower.startsWith("dojo_war_view:")) {
             openWarView(player, p.substring("dojo_war_view:".length()), notice);
+        } else if (lower.startsWith(PAGE_VIEW)) {
+            openDojoView(player, p.substring(PAGE_VIEW.length()), notice);
+        } else if (lower.startsWith(PAGE_JOIN_ASK)) {
+            openJoinAsk(player, p.substring(PAGE_JOIN_ASK.length()), notice);
         } else if (lower.startsWith("dojo_list_wars")) {
             openList(player, UltraPickHelper.pageIndex(lower), notice, true);
         } else if (lower.startsWith("dojo_list")) {
@@ -157,21 +192,35 @@ public final class UltraDojoScreens {
 
     // ------------------------------------------------------------------ Spar Board
 
+    /** 4.7.84 (P2-1c): the in-fight line, the same rule the wager pages state. */
+    static final String FORFEIT_LINE = "Forfeiting hands the win and any wager to your opponent.";
+    /** 4.7.84 (P2-1c): when stakes come back. */
+    static final String REFUND_LINE = "Stakes come back only on a disconnect, a dead-even draw or a server restart.";
+
     static void openBoard(ServerPlayer player, String notice) {
-        UltraScreenSpec spec = base(TAB_BOARD, TAB_BOARD, notice);
+        openBoard(player, 0, notice);
+    }
+
+    /**
+     * 4.7.84 (SP-2): the board is the listings. Your post (one line), the ranked progress, 4 posts a page (posts aimed
+     * at you first, then the ones you can accept), their Accept buttons in the same order, a pager, then Post a spar,
+     * Challenge a player, Watch spars and Last fight.
+     */
+    static void openBoard(ServerPlayer player, int page, String notice) {
         UUID me = player.m_20148_();
         Dojo mine = DojoService.dojoOf(player);
         BoardSpar.Bout bout = BoardSpar.boutOf(me);
         if (bout != null) {
+            UltraScreenSpec spec = base(TAB_BOARD, TAB_BOARD, notice);
             String opp = me.equals(bout.a) ? bout.nameB : bout.nameA;
             Dojo host = DojoService.byMaster(bout.host);
             spec.line(UltraStyle.header("You're fighting"))
                     .line(UltraStyle.labelValue("Opponent", opp))
-                    .line(UltraStyle.labelValue("Where", (host == null ? "a dojo" : host.name) + ", arena "
+                    .line(UltraStyle.labelValue("Where", (host == null ? "a dojo" : host.name) + ", ring "
                             + (bout.arena + 1)))
                     .line(UltraStyle.labelValue("Time left", BoardSpar.clock(DojoCatalog.BOUT_TIMEOUT_MS
                             - (System.currentTimeMillis() - bout.startAt))))
-                    .line(UltraStyle.LABEL + "Forfeiting gives the win away. Any wager is refunded to both.")
+                    .line(UltraStyle.LABEL + FORFEIT_LINE)
                     .buttonsAfterLines();
             spec.button("do:" + BoardSpar.ACT_FORFEIT, UltraStyle.danger("Forfeit this spar"), UltraStyle.STYLE_DANGER)
                     .rowGap();
@@ -180,9 +229,10 @@ public final class UltraDojoScreens {
             return;
         }
         if (mine == null) {
+            UltraScreenSpec spec = base(TAB_BOARD, TAB_BOARD, notice);
             spec.line(UltraStyle.header("Spar Board"))
-                    .line(UltraStyle.VALUE + "Join a dojo first. No dojo, no spar.")
-                    .line(UltraStyle.LABEL + "Spars happen in a dojo's arena. Join one, or found your own in the Dojo section.")
+                    .line(UltraStyle.VALUE + "You need a dojo to spar. Spars happen in a dojo's ring.")
+                    .line(UltraStyle.LABEL + "Ask to join one from the dojo list, or found your own (free).")
                     .buttonsAfterLines();
             // 4.7.80: founding lives only in the Dojo section; the board links there.
             spec.buttonLeft("page:dojo_list", "Find a dojo", UltraStyle.STYLE_NORMAL);
@@ -192,61 +242,39 @@ public final class UltraDojoScreens {
             spec.send(player);
             return;
         }
-        BoardSpar.Draft d = BoardSpar.draft(me);
         int unranked = BoardSpar.unranked(me);
         boolean unlocked = BoardSpar.rankedUnlocked(me);
         BoardSpar.Post mineUp = BoardSpar.postOf(me);
-        spec.line(UltraStyle.header("Your post"));
-        if (mineUp != null) {
-            spec.line(UltraStyle.VALUE + (mineUp.ranked() ? "Ranked" : "Friendly") + ", "
-                    + BoardSpar.wagerText(mineUp.wagerKind(), mineUp.wager()) + ", "
-                    + BoardSpar.rangeText(mineUp.range()) + ", looking for " + mineUp.want().label + (mineUp.target() != null
-                    ? ", for " + mineUp.targetName() : "") + ". "
-                    + BoardSpar.clock(BoardSpar.POST_MS - (System.currentTimeMillis() - mineUp.at())) + " left.");
-        } else {
-            spec.line(UltraStyle.LABEL + "Nothing posted. Fights happen in " + mine.name + "'s arena.");
-        }
-        spec.line(UltraStyle.LABEL + "Looking for Potential Unlock trains it in friendly spars. Ranked spars never do.");
-        spec.line(UltraStyle.labelValue("Ranked", unlocked ? "unlocked" : unranked + " of " + DojoCatalog.RANKED_GATE
-                + " friendly spars done, " + (DojoCatalog.RANKED_GATE - unranked) + " to go"));
         List<BoardSpar.Post> posts = BoardSpar.board(player);
         posts.removeIf(p -> p.poster().equals(me));
-        spec.line(UltraStyle.header("On the board (" + posts.size() + ")"));
-        if (posts.isEmpty()) {
-            spec.line(UltraStyle.LABEL + "No posts yet. Post one, or challenge a player.");
+        int pages = UltraPickHelper.pageCount(posts.size(), BOARD_SHOWN);
+        int pg = UltraPickHelper.clampPage(page, pages);
+        UltraScreenSpec spec = base(UltraPickHelper.pageArg(TAB_BOARD, pg), TAB_BOARD, notice);
+        if (mineUp != null) {
+            spec.line(UltraStyle.labelValue("Your post", (mineUp.ranked() ? "ranked" : "friendly") + ", "
+                    + BoardSpar.wagerText(mineUp.wagerKind(), mineUp.wager()) + ", wants " + mineUp.want().label
+                    + (mineUp.target() != null ? ", for " + mineUp.targetName() : "") + " - "
+                    + BoardSpar.clock(BoardSpar.POST_MS - (System.currentTimeMillis() - mineUp.at())) + " left"));
+        } else {
+            spec.line(UltraStyle.LABEL + "You have no post up. Your fights happen in " + mine.name + ".");
         }
-        int shown = Math.min(BOARD_SHOWN, posts.size());
-        for (int i = 0; i < shown; i++) {
-            BoardSpar.Post p = posts.get(i);
-            int lvl = BoardSpar.levelOf(p.poster(), player.m_20194_());
-            spec.line(UltraStyle.VALUE + p.name() + UltraStyle.LABEL + " Lv " + lvl + ", "
-                    + (p.ranked() ? "ranked" : "friendly") + ", Friendly Fist "
-                    + (BoardSpar.friendlyFist(p.poster(), player.m_20194_()) ? "on" : "off") + ", "
-                    + BoardSpar.wagerText(p.wagerKind(), p.wager()) + ", looking for " + p.want().label + ", waiting "
-                    + BoardSpar.clock(System.currentTimeMillis() - p.at())
-                    + (me.equals(p.target()) ? UltraStyle.GREEN + " - challenges you" : ""));
+        spec.line(UltraStyle.LABEL + (unlocked ? "Ranked spars are unlocked."
+                : "Ranked unlocks after " + DojoCatalog.RANKED_GATE + " friendly spars: " + unranked + " done, "
+                + (DojoCatalog.RANKED_GATE - unranked) + " to go."));
+        spec.line(UltraStyle.header("On the board (" + posts.size() + ")" + (pages > 1 ? " - page " + (pg + 1) + " of "
+                + pages : "")));
+        if (posts.isEmpty()) {
+            spec.line(UltraStyle.LABEL + "Nobody is looking for a spar right now. Post your own, or challenge someone"
+                    + " directly.");
+        }
+        List<BoardSpar.Post> shown = UltraPickHelper.pageSlice(posts, BOARD_SHOWN, pg);
+        int n = pg * BOARD_SHOWN;
+        for (BoardSpar.Post p : shown) {
+            spec.line(postLine(++n, p, me, player));
         }
         spec.buttonsAfterLines();
-        String mode = d.ranked() ? "Ranked" : "Friendly";
-        if (!unlocked && !d.ranked()) {
-            spec.lockedButton("Ranked: locked");
-        } else {
-            spec.buttonLeft("do:" + BoardSpar.ACT_MODE, "Kind - " + mode, UltraStyle.STYLE_NORMAL);
-        }
-        // 4.7.80: the wager is a sub-menu (kind, then amount).
-        spec.buttonRight("page:" + PAGE_WAGER, "Wager - " + shortWager(d), UltraStyle.STYLE_NORMAL).rowGap();
-        spec.buttonLeft("do:" + BoardSpar.ACT_RANGE, "Range - " + shortRange(d), UltraStyle.STYLE_NORMAL);
-        if (mineUp != null) {
-            spec.buttonRight("do:" + BoardSpar.ACT_UNPOST, "Take my post down", UltraStyle.STYLE_NORMAL).rowGap();
-        } else {
-            spec.buttonRight("do:" + BoardSpar.ACT_POST, UltraStyle.confirm("Post for 15 min"), UltraStyle.STYLE_CONFIRM)
-                    .rowGap();
-        }
-        spec.buttonLeft("do:" + BoardSpar.ACT_WANT, "Looking for - " + d.want().label, UltraStyle.STYLE_NORMAL)
-                .rowGap();
         int placed = 0;
-        for (int i = 0; i < shown; i++) {
-            BoardSpar.Post p = posts.get(i);
+        for (BoardSpar.Post p : shown) {
             String why = BoardSpar.whyNot(player, p);
             String label = "Accept " + p.name();
             boolean left = placed % 2 == 0;
@@ -274,13 +302,89 @@ public final class UltraDojoScreens {
         if (placed % 2 == 1) {
             spec.rowGap();
         }
-        spec.buttonLeft("page:pick_challenge", "Challenge a player", UltraStyle.STYLE_NORMAL);
-        spec.buttonRight("page:watch", "Watch spars", UltraStyle.STYLE_NORMAL).rowGap();
+        pager(spec, TAB_BOARD, pg, pages);
+        if (mineUp != null) {
+            spec.buttonLeft("do:" + BoardSpar.ACT_UNPOST, "Take my post down", UltraStyle.STYLE_NORMAL);
+        } else {
+            spec.buttonLeft("page:" + PAGE_POST, UltraStyle.confirm("Post a spar"), UltraStyle.STYLE_CONFIRM);
+        }
+        spec.buttonRight("page:pick_challenge", "Challenge a player", UltraStyle.STYLE_NORMAL).rowGap();
+        spec.buttonLeft("page:watch", "Watch spars", UltraStyle.STYLE_NORMAL);
         if (BoardSpar.result(me) != null) {
-            spec.buttonLeft("page:result", "Last fight", UltraStyle.STYLE_NORMAL).rowGap();
+            spec.buttonRight("page:result", "Last fight", UltraStyle.STYLE_NORMAL).rowGap();
+        } else {
+            spec.lockedButtonRight("Last fight - none yet").rowGap();
         }
         spec.back();
         spec.send(player);
+    }
+
+    /** 4.7.84 (SP-4): "1. Wager80 Lv 1 - friendly - 1 Emerald coin - wants TP - 3:12 ago". */
+    static String postLine(int n, BoardSpar.Post p, UUID me, ServerPlayer viewer) {
+        int lvl = BoardSpar.levelOf(p.poster(), viewer.m_20194_());
+        String stake = p.wager() > 0L && p.wagerKind() != null && !p.wagerKind().isBlank()
+                ? ("POINTS".equals(p.wagerKind()) ? p.wager() + " Dojo Points" : coinLabel(p.wager())) : "no wager";
+        return UltraStyle.VALUE + n + ". " + p.name() + UltraStyle.LABEL + " Lv " + lvl + " - "
+                + (p.ranked() ? "ranked" : "friendly") + " - " + stake + " - wants " + p.want().label + " - "
+                + BoardSpar.clock(System.currentTimeMillis() - p.at()) + " ago"
+                + (me.equals(p.target()) ? UltraStyle.GREEN + " - challenges you" : "");
+    }
+
+    /**
+     * 4.7.84 (SP-2, SP-3): Post a spar. Kind, wager, range and what you're looking for (each button says it changes
+     * on a tap), then "Post for 15 min". The ranked lock reads like the other toggles: dim "Kind - Friendly".
+     */
+    static void openBoardPost(ServerPlayer player, String notice) {
+        UltraScreenSpec spec = sub(PAGE_POST, notice);
+        UUID me = player.m_20148_();
+        if (DojoService.dojoOf(player) == null) {
+            spec.line(UltraStyle.LABEL + "You need a dojo to spar. Ask to join one from the dojo list, or found your own"
+                    + " (free).").buttonsAfterLines();
+            spec.button("page:dojo_list", "Find a dojo", UltraStyle.STYLE_NORMAL).rowGap();
+            spec.back();
+            spec.send(player);
+            return;
+        }
+        BoardSpar.Draft d = BoardSpar.draft(me);
+        boolean unlocked = BoardSpar.rankedUnlocked(me);
+        BoardSpar.Post mineUp = BoardSpar.postOf(me);
+        spec.line(UltraStyle.header("Post a spar"))
+                .line(UltraStyle.LABEL + "Tap a setting to change it. Your post stays on the board for 15 minutes.")
+                .line(UltraStyle.LABEL + "Potential Unlock trains only in friendly spars, never in ranked ones.");
+        if (!unlocked) {
+            int left = DojoCatalog.RANKED_GATE - BoardSpar.unranked(me);
+            spec.line(UltraStyle.LABEL + "Ranked unlocks after " + DojoCatalog.RANKED_GATE + " friendly spars: " + left
+                    + " to go.");
+        }
+        if (mineUp != null) {
+            spec.line(UltraStyle.LABEL + "You have a post up. Take it down to post a new one.");
+        }
+        spec.buttonsAfterLines();
+        String mode = d.ranked() ? "Ranked" : "Friendly";
+        if (!unlocked && !d.ranked()) {
+            spec.lockedButton("Kind - Friendly");
+        } else {
+            spec.buttonLeft("do:" + BoardSpar.ACT_MODE, "Kind - " + mode, UltraStyle.STYLE_NORMAL);
+        }
+        // 4.7.80: the wager is a sub-menu (kind, then amount).
+        spec.buttonRight("page:" + PAGE_WAGER, "Wager - " + shortWager(d), UltraStyle.STYLE_NORMAL).rowGap();
+        spec.buttonLeft("do:" + BoardSpar.ACT_RANGE, "Range - " + shortRange(d), UltraStyle.STYLE_NORMAL);
+        spec.buttonRight("do:" + BoardSpar.ACT_WANT, "Wants - " + shortWant(d.want()), UltraStyle.STYLE_NORMAL)
+                .rowGap();
+        if (mineUp != null) {
+            spec.buttonLeft("do:" + BoardSpar.ACT_UNPOST, "Take my post down", UltraStyle.STYLE_NORMAL);
+            spec.lockedButtonRight("Post for 15 min").rowGap();
+        } else {
+            spec.button("do:" + BoardSpar.ACT_POST, UltraStyle.confirm("Post for 15 min"), UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
+        }
+        spec.back();
+        spec.send(player);
+    }
+
+    /** "TP", "Potential Unlock" is cut on a half-width button: "PU training". */
+    static String shortWant(BoardSpar.Want w) {
+        return w == BoardSpar.Want.POTENTIAL ? "PU training" : w.label;
     }
 
     static final String PAGE_WAGER = "board_wager";
@@ -303,7 +407,8 @@ public final class UltraDojoScreens {
                         BoardSpar.wagerAmount(d.wager()))))
                 .line(UltraStyle.LABEL + "Pick what to stake, then how much.")
                 .line(UltraStyle.LABEL + "Whoever accepts stakes exactly the same. The winner takes both stakes.")
-                .line(UltraStyle.LABEL + "A forfeit or the clock running out refunds both.");
+                .line(UltraStyle.LABEL + "That includes a forfeit, and running out of time (more damage wins). "
+                        + REFUND_LINE);
         if (!points) {
             spec.line(UltraStyle.LABEL + "Only a master or an elite can wager Dojo Points.");
         }
@@ -341,7 +446,9 @@ public final class UltraDojoScreens {
                         + DojoCatalog.MAX_POINT_WAGER + "."
                         : "Taken from the coins on you when a fight starts, up to "
                         + com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy.format(DojoCatalog.MAX_COIN_WAGER) + "."))
-                .line(UltraStyle.LABEL + "The winner takes both stakes. A forfeit or the clock running out refunds both.");
+                .line(UltraStyle.LABEL + "The winner takes both stakes, even on a forfeit or when time runs out (more"
+                        + " damage wins).")
+                .line(UltraStyle.LABEL + REFUND_LINE);
         if (pts && !canWagerPoints(player)) {
             spec.line(UltraStyle.LABEL + "Only a master or an elite can wager Dojo Points.").buttonsAfterLines();
             spec.back();
@@ -397,7 +504,9 @@ public final class UltraDojoScreens {
                 .line(UltraStyle.labelValue("You stake", stake + " (the same as " + post.name() + ")"))
                 .line(UltraStyle.LABEL + ("POINTS".equals(post.wagerKind()) ? "Taken from your dojo's points"
                         : "Taken from the coins on you") + " when the fight starts.")
-                .line(UltraStyle.LABEL + "The winner takes both stakes. A forfeit or the clock running out refunds both.");
+                .line(UltraStyle.LABEL + "The winner takes both stakes, even on a forfeit or when time runs out (more"
+                        + " damage wins).")
+                .line(UltraStyle.LABEL + REFUND_LINE);
         if (why != null) {
             spec.line(UltraStyle.RED + why);
         }
@@ -447,9 +556,9 @@ public final class UltraDojoScreens {
     static void openChallengePick(ServerPlayer player, int page, String notice) {
         UltraScreenSpec spec = sub(UltraPickHelper.pageArg("pick_challenge", page), notice);
         BoardSpar.Draft d = BoardSpar.draft(player.m_20148_());
-        spec.line(UltraStyle.LABEL + "Challenge one player to a " + (d.ranked() ? "ranked" : "friendly") + " spar ("
-                + BoardSpar.wagerText(BoardSpar.wagerKind(d.wager()), BoardSpar.wagerAmount(d.wager())) + ").")
-                .line(UltraStyle.LABEL + "Change kind and wager on the Spar Board first.");
+        spec.line(UltraStyle.LABEL + "Challenge one player to a " + (d.ranked() ? "ranked" : "friendly") + " spar with "
+                + BoardSpar.wagerText(BoardSpar.wagerKind(d.wager()), BoardSpar.wagerAmount(d.wager())) + ". To change"
+                + " that, set it on Post a spar first.");
         List<ServerPlayer> others = new ArrayList<>();
         for (ServerPlayer o : player.m_20194_().m_6846_().m_11314_()) {
             if (o != player && DojoService.dojoOf(o) != null) {
@@ -484,7 +593,7 @@ public final class UltraDojoScreens {
 
     static void openWatch(ServerPlayer player, String notice) {
         UltraScreenSpec spec = sub("watch", notice);
-        spec.line(UltraStyle.LABEL + "Watch from a dojo's spectator room. Only dojos that built one can be watched.");
+        spec.line(UltraStyle.LABEL + "Watch a spar from a dojo's balcony. Dojos without a balcony can't be watched.");
         List<Dojo> withBouts = new ArrayList<>();
         for (BoardSpar.Bout b : BoardSpar.bouts()) {
             Dojo d = DojoService.byMaster(b.host);
@@ -496,11 +605,11 @@ public final class UltraDojoScreens {
             spec.line(UltraStyle.LABEL + "No spars are running right now.");
         }
         spec.buttonsAfterLines();
-        // Full-width rows: "Watch <24-character dojo> (no room)" is cut on a half-width button.
+        // Full-width rows: "Watch <24-character dojo> (no balcony)" is cut on a half-width button.
         for (Dojo d : withBouts) {
             String label = "Watch " + d.name;
             if (DojoService.tier(d, DojoCatalog.SPECTATOR) <= 0) {
-                spec.buttonWide(UltraGuiActions.NO_ACTION, UltraStyle.dim(label + " (no room)"), UltraStyle.STYLE_DIM,
+                spec.buttonWide(UltraGuiActions.NO_ACTION, UltraStyle.dim(label + " (no balcony)"), UltraStyle.STYLE_DIM,
                         null).rowGap();
             } else {
                 spec.buttonWide("do:dojo_spectate:" + d.masterUuid, label, UltraStyle.STYLE_NORMAL, null).rowGap();
@@ -513,7 +622,7 @@ public final class UltraDojoScreens {
         spec.send(player);
     }
 
-    // ------------------------------------------------------------------ Dojo tab
+    // ------------------------------------------------------------------ Dojo Home
 
     static void openDojo(ServerPlayer player, String notice) {
         UltraScreenSpec spec = dojoBase(TAB_DOJO_HOME, TAB_DOJO_HOME, notice);
@@ -528,10 +637,13 @@ public final class UltraDojoScreens {
                         .buttonsAfterLines();
                 spec.button("do:dojo_reopen", UltraStyle.confirm("Reopen " + own.name), UltraStyle.STYLE_CONFIRM).rowGap();
             } else {
-                spec.line(UltraStyle.VALUE + "A dojo is your home for spars, wars and training.")
-                        .line(UltraStyle.LABEL + "Found your own (free, you become its master), or join one.")
-                        .line(UltraStyle.LABEL + "Founding asks for a name, a style and a banner you made at a loom.")
-                        .buttonsAfterLines();
+                spec.line(UltraStyle.VALUE + "A dojo is your team's home: you spar in its rings, fight wars as a team, and"
+                                + " train with a master.")
+                        .line(UltraStyle.LABEL + "Join one from the dojo list, or found your own for free and become its"
+                                + " master.")
+                        .line(UltraStyle.LABEL + "To found one you need a name and a fighting style. A banner is optional.");
+                DojoFounding.grantLine(spec, player);
+                spec.buttonsAfterLines();
                 spec.button("page:" + DojoFounding.PAGE_NAME, UltraStyle.confirm("Found a dojo (free)"),
                         UltraStyle.STYLE_CONFIRM).rowGap();
             }
@@ -544,42 +656,66 @@ public final class UltraDojoScreens {
         boolean master = DojoService.isMaster(me, d);
         DojoCatalog.Style style = DojoCatalog.Style.of(d.style);
         DojoCatalog.Bonus bonus = DojoCatalog.bonus(d.bonus);
-        int members = 1 + DojoService.disciples(d).size();
-        spec.line(UltraStyle.header(d.name))
-                .line(UltraStyle.labelValue("Master", d.masterName + (master ? " (you)" : "")))
-                .line(UltraStyle.labelValue("Style", style == null ? "not picked yet" : style.label))
-                .line(UltraStyle.labelValue("Bonus", bonus == null ? "none" : bonus.name()))
-                .line(UltraStyle.labelValue("Dojo Points", String.valueOf(d.points)))
-                .line(UltraStyle.labelValue("Clout this season", String.valueOf(d.clout)))
-                .line(UltraStyle.labelValue("Members", members + " of "
-                        + (1 + DojoCatalog.disciplesAllowed(DojoService.tier(d, DojoCatalog.CAPACITY)))))
-                .line(UltraStyle.labelValue("Hall", hallLine(d)))
-                .line(UltraStyle.labelValue("Wars", d.warWins + " won, " + d.warLosses + " lost"));
-        if (!d.elites.isEmpty()) {
-            List<String> n = new ArrayList<>();
-            for (String e : d.elites) {
-                n.add(DojoService.nameOf(e));
-            }
-            spec.line(UltraStyle.labelValue("Elites", String.join(", ", n)));
+        boolean noStyle = style == null;
+        boolean noBanner = DojoService.defaultBanner(d);
+        // 4.7.84 (DJ-6): a war of this dojo in sign-up shows on Home, and the Spar Board slot becomes Join the war.
+        DojoStore.WarRecord signup = DojoWar.signupFor(d.masterUuid);
+        boolean canJoinWar = signup != null && !DojoWar.signedUp(signup.id, me);
+        if (signup != null) {
+            String vs = signup.fromDojo.equals(d.masterUuid) ? signup.toName : signup.fromName;
+            spec.line(UltraStyle.noticeLine("Your dojo's war vs " + vs + " is starting: "
+                    + BoardSpar.clock(DojoWar.signupLeftMs(signup.id)) + " left to join on the Wars tab."));
         }
-        DojoFounding.bannerLines(spec, d);
-        hallPlan(spec, player, d, List.of(UltraStyle.LABEL + "Upgrades build into your hall."));
+        // 4.7.84 (DJ-13): a master whose dojo has no style or banner of its own yet is told both first picks are free.
+        if (master && (noStyle || noBanner)) {
+            spec.line(UltraStyle.noticeLine(noStyle && noBanner ? "Your dojo needs a style and a banner. Both are free the"
+                    + " first time." : noStyle ? "Your dojo needs a style. The first pick is free."
+                    : "Your dojo flies a default banner. Choose your own for free."));
+        }
+        spec.line(UltraStyle.header(d.name));
+        // 4.7.84 (owner pick b): a disciple's dojo title, shown with their name (display only).
+        String title = DojoService.discipleTitle(me);
+        if (title != null) {
+            spec.line(UltraStyle.VALUE + player.m_7755_().getString() + UltraStyle.LABEL + " - " + title);
+        }
+        // 4.7.84 (DJ-1): short stat lines beside the floor plan (the plan's 7 rows), not above blank rows.
+        List<String> stats = new ArrayList<>();
+        stats.add(UltraStyle.labelValue("Master", d.masterName + (master ? " (you)" : "")));
+        stats.add(UltraStyle.labelValue("Style", noStyle ? "not picked yet" : style.label));
+        stats.add(UltraStyle.labelValue("Bonus", bonus == null ? "none" : bonus.name()));
+        stats.add(UltraStyle.labelValue("Dojo Points", String.valueOf(d.points)));
+        stats.add(UltraStyle.labelValue("Clout", d.clout + " this season"));
+        stats.add(UltraStyle.labelValue("Members", (1 + DojoService.disciples(d).size()) + " of "
+                + (1 + DojoCatalog.disciplesAllowed(DojoService.tier(d, DojoCatalog.CAPACITY)))));
+        stats.add(UltraStyle.labelValue("Hall", hallLine(d)));
+        if (!(master && noBanner)) {
+            stats.add(UltraStyle.labelValue("Banner", DojoFounding.bannerText(d)));
+        }
+        hallPlan(spec, player, d, stats);
         spec.buttonsAfterLines();
-        // 4.7.78: Upgrades (with style and bonus) and Wars are tabs now; Home keeps the dojo, its people and bonds.
-        DojoFounding.identityButtons(spec, player, d, master);
-        spec.buttonLeft("page:dojo_roster", "Roster and bonds", UltraStyle.STYLE_NORMAL);
-        spec.buttonRight("page:dojo_elites", "Members and elites", UltraStyle.STYLE_NORMAL).rowGap();
+        if (canJoinWar) {
+            spec.buttonLeft("do:" + DojoWar.ACT_JOIN + ":" + signup.id, UltraStyle.confirm("Join the war"),
+                    UltraStyle.STYLE_CONFIRM);
+        } else {
+            spec.buttonLeft("go:spar|" + TAB_BOARD, UltraStyle.confirm("Spar Board"), UltraStyle.STYLE_CONFIRM);
+        }
+        spec.buttonRight("page:" + PAGE_MEMBERS, "Members", UltraStyle.STYLE_NORMAL).rowGap();
         spec.buttonLeft("page:mentor", "Training bonds", UltraStyle.STYLE_NORMAL);
         if (DojoWorld.inDojoWorld(player) && DojoWorld.hasSpot(me)) {
             spec.buttonRight("do:dojo_leave", "Leave dojo", UltraStyle.STYLE_NORMAL).rowGap();
         } else {
             spec.buttonRight("do:dojo_visit:" + d.masterUuid, "Visit dojo", UltraStyle.STYLE_NORMAL).rowGap();
         }
-        spec.buttonLeft("page:dojo_list", "Dojo leaderboard", UltraStyle.STYLE_NORMAL);
         if (master) {
-            spec.buttonRight("page:dojo_close", UltraStyle.danger("Close dojo"), UltraStyle.STYLE_DANGER).rowGap();
-        } else {
-            spec.rowGap();
+            // 4.7.84 (DJ-1, DJ-13, owner pick d): the free first picks stay on Home until they're made.
+            if (noStyle) {
+                spec.buttonWide("page:" + PAGE_STYLE_PICK, UltraStyle.confirm("Choose a style (free)"),
+                        UltraStyle.STYLE_CONFIRM, null).rowGap();
+            } else if (noBanner) {
+                spec.buttonWide("page:" + DojoFounding.PAGE_PICK_BANNER, UltraStyle.confirm("Choose your dojo's banner"
+                        + " (free)"), UltraStyle.STYLE_CONFIRM, null).rowGap();
+            }
+            spec.button("page:" + PAGE_SETTINGS, "Dojo settings", UltraStyle.STYLE_NORMAL).rowGap();
         }
         spec.back();
         spec.send(player);
@@ -588,6 +724,33 @@ public final class UltraDojoScreens {
     /** The Dojo Home with a result line on top (founding, banner, rename). */
     static void openDojoNotice(ServerPlayer player, String notice) {
         openDojo(player, notice);
+    }
+
+    /** 4.7.84 (DJ-1): Dojo settings (master): rename, the banner, and, below a gap, Close dojo. */
+    static void openSettings(ServerPlayer player, String notice) {
+        Dojo d = DojoService.dojoOf(player);
+        UltraScreenSpec spec = dojoSub(PAGE_SETTINGS, notice);
+        if (d == null || !DojoService.isMaster(player.m_20148_(), d)) {
+            spec.line(UltraStyle.LABEL + "Only the master can rename the dojo, change its banner or close it.")
+                    .buttonsAfterLines();
+            spec.back();
+            spec.send(player);
+            return;
+        }
+        long cd = DojoService.identityCooldownLeft(d);
+        spec.line(UltraStyle.header("Dojo settings"))
+                .line(UltraStyle.labelValue("Name", d.name))
+                .line(UltraStyle.labelValue("Banner", DojoFounding.bannerText(d)))
+                .line(UltraStyle.labelValue("Dojo Points", String.valueOf(d.points)))
+                .line(UltraStyle.LABEL + (cd > 0L ? "The name, style and banner can change again in "
+                        + DojoService.cooldownText(cd) + "."
+                        : "A rename or a new banner locks the name, style and banner for 12 hours."))
+                .buttonsAfterLines();
+        DojoFounding.identityButtons(spec, player, d, true);
+        spec.setRow(spec.row() + 8);
+        spec.button("page:dojo_close", UltraStyle.danger("Close dojo"), UltraStyle.STYLE_DANGER).rowGap();
+        spec.back();
+        spec.send(player);
     }
 
     static void openCloseConfirm(ServerPlayer player) {
@@ -606,34 +769,62 @@ public final class UltraDojoScreens {
         spec.send(player);
     }
 
+    /** 4.7.84: a page that needs a dojo, for a player in none: what to do, with Browse dojos and Found a dojo. */
+    static void noDojo(UltraScreenSpec spec, ServerPlayer player, String line) {
+        spec.line(UltraStyle.LABEL + line).buttonsAfterLines();
+        spec.buttonLeft("page:dojo_list", "Browse dojos", UltraStyle.STYLE_NORMAL);
+        if (DojoService.foundProblem(player) == null) {
+            spec.buttonRight("page:" + DojoFounding.PAGE_NAME, "Found a dojo", UltraStyle.STYLE_NORMAL).rowGap();
+        } else {
+            spec.lockedButtonRight("Found a dojo").rowGap();
+        }
+        spec.back();
+        spec.send(player);
+    }
+
+    // ------------------------------------------------------------------ upgrades
+
     static void openUpgrades(ServerPlayer player, String notice) {
         Dojo d = DojoService.dojoOf(player);
         UltraScreenSpec spec = dojoBase(TAB_UPGRADES, TAB_UPGRADES, notice);
         if (d == null) {
-            spec.line(UltraStyle.LABEL + "Join or found a dojo first.").buttonsAfterLines();
-            spec.back();
-            spec.send(player);
+            noDojo(spec, player, "You're not in a dojo yet. Join one or found your own on the Dojo Home tab.");
             return;
         }
-        spec.line(UltraStyle.labelValue("Dojo Points", String.valueOf(d.points)));
+        spec.line(UltraStyle.labelValue("Dojo Points", d.points + " (upgrade costs are in Dojo Points)"));
+        // 4.7.84 (DJ-9): how points are earned, with the real numbers from DojoCatalog (display only).
+        DojoCatalog.Earn host = DojoCatalog.Earn.HOST;
+        DojoCatalog.Earn train = DojoCatalog.Earn.TRAINING;
         if (com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesPictures(player)) {
-            hallPlan(spec, player, d, List.of(UltraStyle.LABEL + "Earn points by hosting", UltraStyle.LABEL
-                    + "spars, winning war bouts", UltraStyle.LABEL + "and training disciples.", UltraStyle.LABEL
-                    + "Each upgrade builds into", UltraStyle.LABEL + "your hall. Tap one to see", UltraStyle.LABEL
-                    + "it before you buy."));
+            hallPlan(spec, player, d, List.of(UltraStyle.header("How to earn points"),
+                    UltraStyle.labelValue("Host a spar", "+" + host.points + " (" + host.dailyCap + " a day)"),
+                    UltraStyle.labelValue("Train a disciple", "+" + train.points + " (" + train.dailyCap + " a day)"),
+                    UltraStyle.labelValue("Disciple milestone", "+" + DojoCatalog.Earn.MILESTONE.points),
+                    UltraStyle.labelValue("War bout won", "+" + DojoCatalog.Earn.WAR_BOUT.points),
+                    UltraStyle.labelValue("War won", "+" + DojoCatalog.Earn.WAR_WIN.points),
+                    UltraStyle.LABEL + "Tap an upgrade to see it."));
         } else {
-            spec.line(UltraStyle.LABEL + "Earn points by hosting spars, winning war bouts and training disciples.")
-                    .line(UltraStyle.LABEL + "Each upgrade builds into your hall. Tap one to see it before you buy.");
+            spec.line(UltraStyle.LABEL + "Earn Dojo Points: host a spar +" + host.points + " (" + host.dailyCap
+                            + " a day), train a disciple +" + train.points + " (" + train.dailyCap + " a day), a disciple"
+                            + " milestone +" + DojoCatalog.Earn.MILESTONE.points + ", a war bout won +"
+                            + DojoCatalog.Earn.WAR_BOUT.points + ", a war won +" + DojoCatalog.Earn.WAR_WIN.points + ".")
+                    .line(UltraStyle.LABEL + "Tap an upgrade to see it before you buy.");
             for (String l : DojoWorld.mapLines(d, "", false)) {
                 spec.line(l);
             }
         }
         spec.buttonsAfterLines();
+        // One label shape for the whole list: "- N points" when every label fits its button, else "- N".
+        boolean words = true;
+        for (String up : DojoCatalog.UPGRADES) {
+            words &= upgradeLabel(up, DojoCatalog.cost(up, DojoService.tier(d, up)), true).equals(
+                    upgradeLabel(up, DojoCatalog.cost(up, DojoService.tier(d, up)), false));
+        }
         int placed = 0;
         for (String up : DojoCatalog.UPGRADES) {
             int t = DojoService.tier(d, up);
             int cost = DojoCatalog.cost(up, t);
-            String label = DojoCatalog.upgradeName(up) + (cost < 0 ? " (max)" : " - " + cost);
+            String label = upgradeLabel(up, cost, words);
             boolean left = placed % 2 == 0;
             if (left) {
                 spec.buttonLeft("page:dojo_up:" + up, label, UltraStyle.STYLE_NORMAL);
@@ -651,8 +842,22 @@ public final class UltraDojoScreens {
         spec.send(player);
     }
 
-    /** Body rows the upgrade pictures take (Now, After, Where side by side). */
-    static final int PICTURE_ROWS = 10;
+    /**
+     * 4.7.84 (DJ-4): "Training hall - 30 points" ({@code words}, when it fits the button), else "Training hall - 30";
+     * "(max)" at the top.
+     */
+    static String upgradeLabel(String up, int cost, boolean words) {
+        String name = DojoCatalog.upgradeName(up);
+        if (cost < 0) {
+            return name + " (max)";
+        }
+        String full = name + " - " + cost + " points";
+        return words && UltraStyle.textWidthPx(full) <= UltraStyle.labelMaxWidth(UltraStyle.BTN_W) ? full
+                : name + " - " + cost;
+    }
+
+    /** Body rows the upgrade pictures take (Now, After, Where side by side). 4.7.84 (DJ-4): 7, was 10. */
+    static final int PICTURE_ROWS = 7;
 
     static String rings(int n) {
         return n == 1 ? "1 ring" : n + " rings";
@@ -661,8 +866,8 @@ public final class UltraDojoScreens {
     /** The hall as it is now, in words: its look and its rings. */
     static String hallLine(Dojo d) {
         int rings = DojoService.arenas(d);
-        return DojoCatalog.lookName(DojoCatalog.lookTier(DojoCatalog.ARENA, rings)) + ", " + (rings == 1
-                ? "1 sparring mat" : rings + " of " + DojoCatalog.MAX_ARENAS + " rings");
+        return DojoCatalog.lookName(DojoCatalog.lookTier(DojoCatalog.ARENA, rings)) + ", " + rings + " of "
+                + DojoCatalog.MAX_ARENAS + " rings";
     }
 
     /**
@@ -682,7 +887,10 @@ public final class UltraDojoScreens {
         }
     }
 
-    /** One upgrade: what it builds (Now, After, Where on LM clients; the text map otherwise), the cost, buy, visit. */
+    /**
+     * One upgrade: what it builds (Now, After, Where on LM clients; the text map otherwise), the cost, buy, visit.
+     * 4.7.84 (DJ-4): LM picture clients get the pictures without the duplicate text map.
+     */
     static void openUpgrade(ServerPlayer player, String up, String notice) {
         Dojo d = DojoService.dojoOf(player);
         UltraScreenSpec spec = dojoSub("dojo_up:" + up, notice);
@@ -696,7 +904,7 @@ public final class UltraDojoScreens {
         int cost = DojoCatalog.cost(up, t);
         boolean maxed = cost < 0;
         spec.line(UltraStyle.header(DojoCatalog.upgradeName(up)))
-                .line(UltraStyle.VALUE + DojoCatalog.upgradeWhat(up));
+                .line(UltraStyle.VALUE + DojoCatalog.upgradeWhat(up, t));
         if (DojoCatalog.ARENA.equals(up)) {
             spec.line(UltraStyle.labelValue("Now", rings(t) + ", " + DojoCatalog.lookName(DojoCatalog.lookTier(up, t))
                     + " hall"));
@@ -724,27 +932,28 @@ public final class UltraDojoScreens {
                 ? new com.google.gson.JsonArray()
                 : com.dbzlegacy.adaptivedifficulty.dojo.DojoPictures.upgrade(com.dbzlegacy.adaptivedifficulty.dojo.DojoState.of(d), up);
         if (pics.size() > 0) {
-            // LM clients: what this builds before and after, and where it goes in the hall (green)
-            List<String> text = new ArrayList<>();
-            text.add(UltraStyle.LABEL + "Map: the starred part is the one this builds.");
-            text.addAll(DojoWorld.mapLines(d, up, true));
-            spec.pictures(text, PICTURE_ROWS, 0, pics);
+            // LM clients: what this builds before and after, and where it goes in the hall (green). No text map.
+            spec.pictures(List.of(), PICTURE_ROWS, 0, pics);
         } else if (!DojoCatalog.CAPACITY.equals(up)) {
             spec.line(UltraStyle.LABEL + "Map: the starred part is the one this builds.");
             for (String l : DojoWorld.mapLines(d, up, !maxed)) {
                 spec.line(l);
             }
         }
-        spec.line(UltraStyle.labelValue("Cost", maxed ? "already at its best" : cost + " Dojo Points (you have "
-                + d.points + ")"));
-        if (!maxed) {
-            spec.line(UltraStyle.LABEL + "Points are spent at once. An upgrade can't be undone.");
+        if (maxed) {
+            spec.line(UltraStyle.LABEL + "Fully built. Nothing more to buy here.");
+        } else {
+            spec.line(UltraStyle.labelValue("Cost", cost + " Dojo Points (you have " + d.points + ")"))
+                    .line(UltraStyle.LABEL + "Points are spent at once. An upgrade can't be undone.");
         }
         boolean canBuy = !maxed && DojoService.canManage(player.m_20148_(), d) && d.points >= cost;
         if (!maxed && !DojoService.canManage(player.m_20148_(), d)) {
             spec.line(UltraStyle.LABEL + "Only the master or an elite can buy upgrades.");
         } else if (!maxed && d.points < cost) {
-            spec.line(UltraStyle.LABEL + "Your dojo needs " + (cost - d.points) + " more points.");
+            int need = cost - d.points;
+            int spars = (need + DojoCatalog.Earn.HOST.points - 1) / DojoCatalog.Earn.HOST.points;
+            spec.line(UltraStyle.LABEL + "Your dojo needs " + need + " more points. That's about " + spars
+                    + (spars == 1 ? " hosted spar." : " hosted spars."));
         }
         spec.buttonsAfterLines();
         if (canBuy) {
@@ -758,71 +967,42 @@ public final class UltraDojoScreens {
         spec.send(player);
     }
 
+    // ------------------------------------------------------------------ style and bonus
+
+    /**
+     * 4.7.84 (DJ-5): the style and the bonus, then the bonus list only (under a "Bonuses for X" heading), then one
+     * "Change style" button that opens the style picker. The bonus lock says the real time left (7 days, not 8).
+     */
     static void openStyle(ServerPlayer player, String notice) {
         Dojo d = DojoService.dojoOf(player);
         UltraScreenSpec spec = dojoSub("dojo_style", notice);
         if (d == null) {
-            spec.line(UltraStyle.LABEL + "Join or found a dojo first.").buttonsAfterLines();
-            spec.back();
-            spec.send(player);
+            noDojo(spec, player, "You're not in a dojo yet. Join one or found your own on the Dojo Home tab.");
             return;
         }
         boolean master = DojoService.isMaster(player.m_20148_(), d);
         DojoCatalog.Style style = DojoCatalog.Style.of(d.style);
-        spec.line(UltraStyle.labelValue("Style", style == null ? "not picked yet" : style.label + " (" + style.covers
-                + ")"))
-                .line(UltraStyle.LABEL + "Members get the bonus when they fight in the dojo's style.")
-                .line(UltraStyle.LABEL + "Changing style ends the current bonus.");
         DojoCatalog.Bonus active = DojoCatalog.bonus(d.bonus);
-        spec.line(UltraStyle.labelValue("Bonus", active == null ? "none" : active.name() + ": " + active.description()));
         long cd = DojoService.bonusCooldownLeft(d);
+        spec.line(UltraStyle.labelValue("Style", style == null ? "not picked yet" : style.label + " (" + style.covers
+                        + ")"))
+                .line(UltraStyle.LABEL + "Your style decides which bonuses you can buy. Members get the bonus on spar TP"
+                        + " from that kind of hit.")
+                .line(UltraStyle.labelValue("Bonus", active == null ? "none" : active.name() + ": " + active.description()));
         if (cd > 0L) {
-            spec.line(UltraStyle.LABEL + "The bonus can change again in " + (cd / DojoService.DAY_MS + 1) + " days.");
+            spec.line(UltraStyle.LABEL + "You can change the bonus in " + DojoService.daysText(cd) + ".");
         }
-        spec.line(UltraStyle.labelValue("A bonus costs", DojoCatalog.BONUS_COST + " Dojo Points (you have " + d.points
-                + ")"));
         if (!master) {
             spec.line(UltraStyle.LABEL + "Only the master picks the style and the bonus.");
         }
-        spec.buttonsAfterLines();
-        int placed = 0;
-        for (DojoCatalog.Style s : DojoCatalog.Style.values()) {
-            boolean left = placed % 2 == 0;
-            String label = (s == style ? "Using " : "") + s.label;
-            if (!master || s == style) {
-                if (left) {
-                    spec.lockedButton(label);
-                } else {
-                    spec.lockedButtonRight(label);
-                }
-            } else {
-                // 4.7.78: the first pick (an older dojo with no style) is free; a change costs Dojo Points, shares
-                // the 12-hour identity cooldown and goes through the ask page (which also warns about the bonus).
-                boolean first = d.style == null || d.style.isBlank();
-                long idCd = DojoService.identityCooldownLeft(d);
-                String act = first ? "do:dojo_style:" + s.name() : "page:dojo_style_ask:" + s.name();
-                String lockedLabel = first ? null : idCd > 0L ? s.label + " - " + DojoService.cooldownText(idCd)
-                        : d.points < DojoCatalog.STYLE_CHANGE_COST
-                        ? s.label + " - needs " + DojoCatalog.STYLE_CHANGE_COST : null;
-                if (lockedLabel != null) {
-                    if (left) {
-                        spec.lockedButton(lockedLabel);
-                    } else {
-                        spec.lockedButtonRight(lockedLabel);
-                    }
-                } else if (left) {
-                    spec.buttonLeft(act, label, UltraStyle.STYLE_NORMAL);
-                } else {
-                    spec.buttonRight(act, label, UltraStyle.STYLE_NORMAL);
-                }
-            }
-            if (!left) {
-                spec.rowGap();
-            }
-            placed++;
-        }
         if (style != null) {
-            placed = 0;
+            spec.line(UltraStyle.header("Bonuses for " + style.label + " - " + DojoCatalog.BONUS_COST + " points each"));
+        } else {
+            spec.line(UltraStyle.LABEL + "Pick a style first (free); its bonuses show here.");
+        }
+        spec.buttonsAfterLines();
+        if (style != null) {
+            int placed = 0;
             for (DojoCatalog.Bonus b : DojoCatalog.bonuses(style)) {
                 boolean left = placed % 2 == 0;
                 boolean can = master && !b.id().equals(d.bonus) && cd <= 0L && d.points >= DojoCatalog.BONUS_COST;
@@ -847,11 +1027,83 @@ public final class UltraDojoScreens {
                 spec.rowGap();
             }
         }
+        String change = style == null ? "Choose a style (free)" : "Change style - " + DojoCatalog.STYLE_CHANGE_COST
+                + " points";
+        if (master) {
+            spec.button("page:" + PAGE_STYLE_PICK, style == null ? UltraStyle.confirm(change) : change,
+                    style == null ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL).rowGap();
+        } else {
+            spec.lockedButton(change).rowGap();
+        }
         spec.back();
         spec.send(player);
     }
 
-    /** 4.7.73: changing style ends the paid bonus; say what is lost before the click. */
+    /** 4.7.84 (DJ-5): the other styles; the first pick is free, a change goes through its ask page. */
+    static void openStylePick(ServerPlayer player, String notice) {
+        Dojo d = DojoService.dojoOf(player);
+        UltraScreenSpec spec = dojoSub(PAGE_STYLE_PICK, notice);
+        if (d == null || !DojoService.isMaster(player.m_20148_(), d)) {
+            spec.line(UltraStyle.LABEL + "Only your dojo's master can pick its style.").buttonsAfterLines();
+            spec.back();
+            spec.send(player);
+            return;
+        }
+        DojoCatalog.Style style = DojoCatalog.Style.of(d.style);
+        boolean first = style == null;
+        long idCd = DojoService.identityCooldownLeft(d);
+        spec.line(UltraStyle.header(first ? "Choose a style" : "Change style"));
+        if (first) {
+            spec.line(UltraStyle.LABEL + "Your first style is free. Members get the bonus you buy for it on spar TP.");
+        } else {
+            spec.line(UltraStyle.labelValue("Now", style.label + " (" + style.covers + ")"))
+                    .line(UltraStyle.LABEL + "Changing style costs " + DojoCatalog.STYLE_CHANGE_COST
+                            + " Dojo Points and ends the bonus you paid for.");
+            if (idCd > 0L) {
+                spec.line(UltraStyle.LABEL + "The name, style and banner can change again in "
+                        + DojoService.cooldownText(idCd) + ".");
+            }
+        }
+        for (DojoCatalog.Style s : DojoCatalog.Style.values()) {
+            if (s != style) {
+                spec.line(UltraStyle.labelValue(s.label, s.covers));
+            }
+        }
+        spec.buttonsAfterLines();
+        int placed = 0;
+        for (DojoCatalog.Style s : DojoCatalog.Style.values()) {
+            if (s == style) {
+                continue;
+            }
+            boolean left = placed % 2 == 0;
+            String act = first ? "do:dojo_style:" + s.name() : "page:dojo_style_ask:" + s.name();
+            String lockedLabel = first ? null : idCd > 0L ? s.label + " - " + DojoService.cooldownText(idCd)
+                    : d.points < DojoCatalog.STYLE_CHANGE_COST ? s.label + " - needs " + DojoCatalog.STYLE_CHANGE_COST
+                    : null;
+            if (lockedLabel != null) {
+                if (left) {
+                    spec.lockedButton(lockedLabel);
+                } else {
+                    spec.lockedButtonRight(lockedLabel);
+                }
+            } else if (left) {
+                spec.buttonLeft(act, s.label, UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.buttonRight(act, s.label, UltraStyle.STYLE_NORMAL);
+            }
+            if (!left) {
+                spec.rowGap();
+            }
+            placed++;
+        }
+        if (placed % 2 == 1) {
+            spec.rowGap();
+        }
+        spec.back();
+        spec.send(player);
+    }
+
+    /** 4.7.73: changing style ends the paid bonus; 4.7.84 (DJ-5) says the total to switch and get a bonus back. */
     static void openStyleAsk(ServerPlayer player, String styleId) {
         Dojo d = DojoService.dojoOf(player);
         DojoCatalog.Style to = DojoCatalog.Style.of(styleId);
@@ -863,33 +1115,36 @@ public final class UltraDojoScreens {
             return;
         }
         DojoCatalog.Bonus active = DojoCatalog.bonus(d.bonus);
+        boolean first = d.style == null || d.style.isBlank();
         spec.line(UltraStyle.header("Change style to " + to.label + "?"))
                 .line(UltraStyle.labelValue("New style", to.label + " (" + to.covers + ")"));
+        if (!first) {
+            spec.line(UltraStyle.LABEL + "Changing style costs " + DojoCatalog.STYLE_CHANGE_COST + " Dojo Points.");
+        }
         if (active != null) {
-            spec.line(UltraStyle.dangerLine("The " + active.name() + " bonus ends now."))
+            spec.line(UltraStyle.dangerLine("Your " + active.name() + " bonus ends now."))
                     .line(UltraStyle.LABEL + "Its " + DojoCatalog.BONUS_COST + " Dojo Points are not refunded.");
         }
-        boolean first = d.style == null || d.style.isBlank();
+        spec.line(UltraStyle.LABEL + "A new bonus costs " + DojoCatalog.BONUS_COST + " more, and you can buy it right"
+                + " away.");
         if (!first) {
-            // 4.7.78: the change itself costs points and starts the shared cooldown.
-            spec.line(UltraStyle.labelValue("This change costs", DojoCatalog.STYLE_CHANGE_COST + " Dojo Points (you have "
-                    + d.points + ")"))
-                    .line(UltraStyle.LABEL + "After it, the name, style and banner can't change for 12 hours.");
+            spec.line(UltraStyle.VALUE + "Total to switch and get a bonus back: " + (DojoCatalog.STYLE_CHANGE_COST
+                            + DojoCatalog.BONUS_COST) + " Dojo Points (you have " + d.points + ").")
+                    .line(UltraStyle.LABEL + "After this, the name, style and banner are locked for 12 hours.");
         }
-        spec.line(UltraStyle.labelValue("A new bonus costs", DojoCatalog.BONUS_COST + " Dojo Points"))
-                .line(UltraStyle.LABEL + "You can pick the new bonus right away.")
-                .buttonsAfterLines();
+        spec.buttonsAfterLines();
         String blocked = first ? null : DojoService.identityChangeProblem(d, DojoCatalog.STYLE_CHANGE_COST);
         if (blocked != null) {
             long cd = DojoService.identityCooldownLeft(d);
             spec.lockedButton(cd > 0L ? "Changes again in " + DojoService.cooldownText(cd)
                     : "Needs " + DojoCatalog.STYLE_CHANGE_COST + " points").rowGap();
-        } else if (active != null) {
-            spec.button("do:dojo_style:" + to.name(), UltraStyle.danger("Change style, end the bonus"),
-                    UltraStyle.STYLE_DANGER).rowGap();
+        } else if (first) {
+            spec.button("do:dojo_style:" + to.name(), UltraStyle.confirm("Use this style"), UltraStyle.STYLE_CONFIRM)
+                    .rowGap();
         } else {
-            spec.button("do:dojo_style:" + to.name(), UltraStyle.confirm(first ? "Use this style"
-                    : "Change style for " + DojoCatalog.STYLE_CHANGE_COST + " points"), UltraStyle.STYLE_CONFIRM).rowGap();
+            String label = "Change style for " + DojoCatalog.STYLE_CHANGE_COST + " points";
+            spec.button("do:dojo_style:" + to.name(), active != null ? UltraStyle.danger(label) : UltraStyle.confirm(label),
+                    active != null ? UltraStyle.STYLE_DANGER : UltraStyle.STYLE_CONFIRM).rowGap();
         }
         spec.back();
         spec.send(player);
@@ -926,44 +1181,111 @@ public final class UltraDojoScreens {
         spec.send(player);
     }
 
-    static void openElites(ServerPlayer player, String notice) {
+    // ------------------------------------------------------------------ members
+
+    /**
+     * 4.7.84 (DJ-2): one Members page for "Roster and bonds" and "Members and elites". 6 disciples a page with a pager.
+     * The master gets [Name] (opens that member's page, where war rights live) and Make elite / Step down; everyone
+     * else sees the names dim. Elites are marked; every disciple carries the title "Disciple of X" (owner pick b).
+     */
+    static void openMembers(ServerPlayer player, int page, String notice) {
         Dojo d = DojoService.dojoOf(player);
-        UltraScreenSpec spec = dojoSub("dojo_elites", notice);
         if (d == null) {
-            spec.line(UltraStyle.LABEL + "Join or found a dojo first.").buttonsAfterLines();
-            spec.back();
-            spec.send(player);
+            noDojo(dojoSub(PAGE_MEMBERS, notice), player, "You're not in a dojo yet. Join one or found your own on the"
+                    + " Dojo Home tab.");
             return;
         }
         boolean master = DojoService.isMaster(player.m_20148_(), d);
         List<String> disciples = DojoService.disciples(d);
-        spec.line(UltraStyle.labelValue("Members", (1 + disciples.size()) + " of "
-                + (1 + DojoCatalog.disciplesAllowed(DojoService.tier(d, DojoCatalog.CAPACITY)))))
-                .line(UltraStyle.LABEL + "Elites (2 at most) invite members, buy upgrades and declare wars.")
-                .line(UltraStyle.LABEL + "An elite's war needs your sign-off unless you give them war rights.")
-                .line(UltraStyle.LABEL + "An elite needs " + (DojoCatalog.ELITE_MIN_MS / DojoService.DAY_MS)
-                        + " days in the dojo first.");
+        int pages = UltraPickHelper.pageCount(disciples.size(), MEMBERS_SHOWN);
+        int pg = UltraPickHelper.clampPage(page, pages);
+        UltraScreenSpec spec = dojoSub(UltraPickHelper.pageArg(PAGE_MEMBERS, pg), notice);
+        int count = 1 + disciples.size();
+        spec.line(UltraStyle.labelValue("Members", count + " of " + (1 + DojoCatalog.disciplesAllowed(
+                        DojoService.tier(d, DojoCatalog.CAPACITY))) + " - master " + d.masterName + (master ? " (you)" : "")
+                        + (pages > 1 ? " - page " + (pg + 1) + " of " + pages : "")))
+                .line(UltraStyle.LABEL + "Elites (" + DojoCatalog.MAX_ELITES + " at most) can buy upgrades and declare"
+                        + " wars. Disciples carry the title Disciple of " + d.name + ".");
         if (disciples.isEmpty()) {
-            spec.line(UltraStyle.LABEL + "No disciples yet. Invite players from Roster and bonds.");
+            spec.line(UltraStyle.LABEL + "No disciples yet. Invite players from Training bonds > Recruit.");
         }
         spec.buttonsAfterLines();
-        for (String u : disciples) {
-            String name = DojoService.nameOf(u);
-            boolean elite = d.elites.contains(u);
-            if (!master) {
-                spec.lockedButton(name + (elite ? " (elite)" : "")).rowGap();
-                continue;
+        List<String> shown = UltraPickHelper.pageSlice(disciples, MEMBERS_SHOWN, pg);
+        if (master) {
+            for (String u : shown) {
+                String name = DojoService.nameOf(u);
+                boolean elite = d.elites.contains(u);
+                spec.buttonLeft("page:" + PAGE_MEMBER + u, UltraStyle.buttonText(name + (elite ? " (elite)" : "")),
+                        UltraStyle.STYLE_NORMAL);
+                if (elite) {
+                    // 4.7.73: a demote is drawn as danger.
+                    spec.buttonRight("do:dojo_demote:" + u, UltraStyle.danger("Step down"), UltraStyle.STYLE_DANGER);
+                } else if (d.elites.size() >= DojoCatalog.MAX_ELITES) {
+                    spec.lockedButtonRight("Make elite - 2 already");
+                } else {
+                    spec.buttonRight("do:dojo_promote:" + u, "Make elite", UltraStyle.STYLE_NORMAL);
+                }
+                spec.rowGap();
             }
-            if (elite) {
-                // 4.7.73: a demote is drawn as danger; the toggle reads "Label - ON/OFF" like every other toggle.
-                spec.buttonLeft("do:dojo_demote:" + u, UltraStyle.danger("Step down " + name), UltraStyle.STYLE_DANGER);
-                spec.buttonRight("do:dojo_warrights:" + u, UltraStyle.toggle("War rights", d.warRights.contains(u)),
-                        UltraStyle.STYLE_NORMAL).rowGap();
-            } else if (d.elites.size() >= DojoCatalog.MAX_ELITES) {
-                spec.lockedButton("Make " + name + " elite").rowGap();
-            } else {
-                spec.button("do:dojo_promote:" + u, "Make " + name + " elite", UltraStyle.STYLE_NORMAL).rowGap();
+        } else {
+            int placed = 0;
+            for (String u : shown) {
+                String label = UltraStyle.buttonText(DojoService.nameOf(u) + (d.elites.contains(u) ? " (elite)" : ""));
+                if (placed % 2 == 0) {
+                    spec.lockedButton(label);
+                } else {
+                    spec.lockedButtonRight(label).rowGap();
+                }
+                placed++;
             }
+            if (placed % 2 == 1) {
+                spec.rowGap();
+            }
+        }
+        pager(spec, PAGE_MEMBERS, pg, pages);
+        spec.buttonLeft("page:dojo_previous_members", "Previous members", UltraStyle.STYLE_NORMAL);
+        spec.buttonRight("page:mentor", "Training bonds", UltraStyle.STYLE_NORMAL).rowGap();
+        spec.back();
+        spec.send(player);
+    }
+
+    /** 4.7.84 (DJ-2): one disciple (master only): elite or not, war rights for an elite, time in the dojo. */
+    static void openMember(ServerPlayer player, String uuid, String notice) {
+        Dojo d = DojoService.dojoOf(player);
+        String u = uuid == null ? "" : uuid.trim();
+        UltraScreenSpec spec = dojoSub(PAGE_MEMBER + u, notice);
+        if (d == null || !DojoService.isMaster(player.m_20148_(), d) || !DojoService.disciples(d).contains(u)) {
+            spec.line(UltraStyle.LABEL + "Only the master manages members, and only their own disciples.")
+                    .buttonsAfterLines();
+            spec.back();
+            spec.send(player);
+            return;
+        }
+        String name = DojoService.nameOf(u);
+        boolean elite = d.elites.contains(u);
+        Long joined = d.joinedAt.get(u);
+        long inDojo = joined == null || joined <= 0L ? -1L : System.currentTimeMillis() - joined;
+        spec.line(UltraStyle.header(name + (elite ? " (elite)" : "")))
+                .line(UltraStyle.labelValue("Title", "Disciple of " + d.name))
+                .line(UltraStyle.labelValue("In the dojo", inDojo < 0L ? "since the dojo began"
+                        : DojoService.daysText(Math.max(60_000L, inDojo))));
+        if (elite) {
+            spec.line(UltraStyle.LABEL + "An elite's war needs your sign-off unless you give them war rights.");
+        } else {
+            spec.line(UltraStyle.LABEL + "An elite needs " + (DojoCatalog.ELITE_MIN_MS / DojoService.DAY_MS)
+                    + " days in the dojo first. Elites can buy upgrades and declare wars.");
+        }
+        spec.buttonsAfterLines();
+        if (elite) {
+            spec.buttonLeft("do:dojo_demote:" + u, UltraStyle.danger("Step down"), UltraStyle.STYLE_DANGER);
+            spec.buttonRight("do:dojo_warrights:" + u, UltraStyle.toggle("War rights", d.warRights.contains(u)),
+                    UltraStyle.STYLE_NORMAL).rowGap();
+        } else if (d.elites.size() >= DojoCatalog.MAX_ELITES) {
+            spec.lockedButton("Make elite - 2 already");
+            spec.lockedButtonRight("War rights - elites only").rowGap();
+        } else {
+            spec.buttonLeft("do:dojo_promote:" + u, "Make elite", UltraStyle.STYLE_NORMAL);
+            spec.lockedButtonRight("War rights - elites only").rowGap();
         }
         spec.back();
         spec.send(player);
@@ -976,52 +1298,74 @@ public final class UltraDojoScreens {
         Dojo d = DojoService.dojoOf(player);
         UltraScreenSpec spec = dojoBase(TAB_WARS, TAB_WARS, notice);
         if (d == null) {
-            spec.line(UltraStyle.LABEL + "Join or found a dojo to fight wars.").buttonsAfterLines();
-            spec.back();
-            spec.send(player);
+            noDojo(spec, player, "Wars are fought between dojos. Join or found one first.");
             return;
         }
-        boolean manage = DojoService.canManage(player.m_20148_(), d);
-        spec.line(UltraStyle.header("Dojo wars"))
-                .line(UltraStyle.LABEL + "A war is a knockout tournament: bracket or gauntlet, KO or ring-out wins.")
-                .line(UltraStyle.labelValue("Record", d.warWins + " won, " + d.warLosses + " lost"));
+        UUID me = player.m_20148_();
+        boolean manage = DojoService.canManage(me, d);
+        boolean master = DojoService.isMaster(me, d);
+        // 4.7.84 (DJ-6): a war in sign-up is a card at the top: the countdown, who signed up, Join and Refresh.
+        DojoStore.WarRecord signup = DojoWar.signupFor(d.masterUuid);
+        if (signup != null) {
+            boolean ours = signup.fromDojo.equals(d.masterUuid);
+            String vs = ours ? signup.toName : signup.fromName;
+            spec.line(UltraStyle.header("War starting!"))
+                    .line(UltraStyle.VALUE + d.name + " vs " + vs + UltraStyle.LABEL + " - "
+                            + ("GAUNTLET".equals(signup.format) ? "gauntlet" : "bracket") + ". Sign-up closes in "
+                            + BoardSpar.clock(DojoWar.signupLeftMs(signup.id)) + ".")
+                    .line(UltraStyle.LABEL + "Signed up: " + DojoWar.signedCount(signup.id, d.masterUuid)
+                            + " from your dojo, " + DojoWar.signedCount(signup.id, ours ? signup.toDojo : signup.fromDojo)
+                            + " from theirs. With one fighter each it's a single bout; with none it's called off.");
+        }
+        spec.line(UltraStyle.labelValue("Record", d.warWins + " won, " + d.warLosses + " lost") + UltraStyle.LABEL
+                + " - a war is a knockout tournament between two dojos, won bout by bout by KO or ring-out.");
         // GuiKit 4.7.81: the buttons carry short action labels (a 24-character dojo name cut "Accept vs ..."), so the
-        // "Now" block names each open war, in the same order as its button row. Past wars get their own block.
+        // open wars are named in lines, in the same order as their button rows. 4.7.84: at most 2 open wars and 3 past.
         List<DojoStore.WarRecord> wars = DojoWar.warsOf(d.masterUuid);
         List<DojoStore.WarRecord> open = new ArrayList<>();
         List<DojoStore.WarRecord> past = new ArrayList<>();
+        // With the sign-up card on top, one open war and two past wars, so the page stays within its height.
+        int openCap = signup == null ? 2 : 1;
+        int pastCap = signup == null ? 3 : 2;
         for (DojoStore.WarRecord w : wars) {
+            if (signup != null && w.id.equals(signup.id)) {
+                continue;                                   // the card above shows it
+            }
             if ("PENDING_SIGNOFF".equals(w.status) || "CHALLENGED".equals(w.status) || "RUNNING".equals(w.status)) {
-                open.add(w);
-            } else if (past.size() < 4) {
+                if (open.size() < openCap) {
+                    open.add(w);
+                }
+            } else if (past.size() < pastCap) {
                 past.add(w);
             }
         }
-        boolean master = DojoService.isMaster(player.m_20148_(), d);
-        if (!open.isEmpty()) {
-            spec.line(UltraStyle.header("Now"));
-            for (DojoStore.WarRecord w : open) {
-                spec.line(UltraStyle.VALUE + openWarLine(w, d, manage, master));
-            }
+        for (DojoStore.WarRecord w : open) {
+            spec.line(UltraStyle.VALUE + openWarLine(w, d, manage, master));
         }
         if (!past.isEmpty()) {
             spec.line(UltraStyle.header("Past wars"));
+            int i = 0;
             for (DojoStore.WarRecord w : past) {
-                spec.line(UltraStyle.VALUE + w.fromName + " vs " + w.toName + UltraStyle.LABEL + " - " + warStatus(w));
+                spec.line(UltraStyle.VALUE + (++i) + ". " + w.fromName + " vs " + w.toName + UltraStyle.LABEL + " - "
+                        + warStatus(w));
             }
         }
         if (!manage) {
             spec.line(UltraStyle.LABEL + "Only the master or an elite can declare or accept a war.");
         }
         spec.buttonsAfterLines();
+        if (signup != null) {
+            if (DojoWar.signedUp(signup.id, me)) {
+                spec.lockedButton("Signed up");
+            } else {
+                spec.buttonLeft("do:" + DojoWar.ACT_JOIN + ":" + signup.id, UltraStyle.confirm("Join the war"),
+                        UltraStyle.STYLE_CONFIRM);
+            }
+            spec.buttonRight("page:" + TAB_WARS, "Refresh", UltraStyle.STYLE_NORMAL).rowGap();
+        }
         for (DojoStore.WarRecord w : open) {
             if ("RUNNING".equals(w.status)) {
-                if (DojoWar.signupOpen(w.id) && !DojoWar.signedUp(w.id, player.m_20148_())) {
-                    spec.buttonLeft("do:" + DojoWar.ACT_JOIN + ":" + w.id, UltraStyle.confirm("Join the war"),
-                            UltraStyle.STYLE_CONFIRM);
-                } else {
-                    spec.lockedButton(DojoWar.signedUp(w.id, player.m_20148_()) ? "Signed up" : "Sign-up closed");
-                }
+                spec.lockedButton(DojoWar.signedUp(w.id, me) ? "Signed up" : "Sign-up has closed");
                 spec.buttonRight("page:dojo_war_view:" + w.id, "View the bracket", UltraStyle.STYLE_NORMAL).rowGap();
             } else if ("CHALLENGED".equals(w.status) && w.toDojo.equals(d.masterUuid) && manage) {
                 spec.buttonLeft("do:" + DojoWar.ACT_ACCEPT + ":" + w.id, UltraStyle.confirm("Accept the war"),
@@ -1041,18 +1385,32 @@ public final class UltraDojoScreens {
                 spec.rowGap();
             }
         }
+        // 4.7.84 (DJ-7): past wars open their own page (the bracket and the winner), in the same order as the lines.
+        int placed = 0;
+        for (DojoStore.WarRecord w : past) {
+            String action = "page:dojo_war_view:" + w.id;
+            if (placed % 2 == 0) {
+                spec.buttonLeft(action, "View war " + (placed + 1), UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.buttonRight(action, "View war " + (placed + 1), UltraStyle.STYLE_NORMAL).rowGap();
+            }
+            placed++;
+        }
+        if (placed % 2 == 1) {
+            spec.rowGap();
+        }
         if (manage) {
-            spec.button("page:dojo_war_pick", "Declare a war", UltraStyle.STYLE_NORMAL).rowGap();
+            spec.buttonLeft("page:dojo_war_pick", "Declare a war", UltraStyle.STYLE_NORMAL);
         } else {
-            spec.lockedButton("Declare a war").rowGap();
+            spec.lockedButton("Declare a war");
         }
         // 4.7.77: the dojo leaderboard by war wins, for every member.
-        spec.button("page:dojo_list_wars", "Dojo leaderboard", UltraStyle.STYLE_NORMAL).rowGap();
+        spec.buttonRight("page:dojo_list_wars", "Dojo leaderboard", UltraStyle.STYLE_NORMAL).rowGap();
         spec.back();
         spec.send(player);
     }
 
-    /** One "Now" line for an open war: who it is against and what its button row does (same branches as openWars). */
+    /** One line for an open war: who it is against and what its button row does (same branches as openWars). */
     static String openWarLine(DojoStore.WarRecord w, Dojo d, boolean manage, boolean master) {
         boolean ours = w.fromDojo.equals(d.masterUuid);
         String vs = ours ? w.toName : w.fromName;
@@ -1086,7 +1444,7 @@ public final class UltraDojoScreens {
         List<Dojo> all = DojoService.byClout();
         all.remove(mine);
         if (all.isEmpty()) {
-            spec.line(UltraStyle.LABEL + "There are no other open dojos yet.");
+            spec.line(UltraStyle.LABEL + "No other dojos are open right now, so there's nobody to fight yet.");
         }
         spec.buttonsAfterLines();
         int per = 8;
@@ -1097,9 +1455,9 @@ public final class UltraDojoScreens {
             Dojo d = all.get(i);
             String action = "page:dojo_war_fmt:" + d.masterUuid;
             if (placed % 2 == 0) {
-                spec.buttonLeft(action, d.name, UltraStyle.STYLE_NORMAL);
+                spec.buttonLeft(action, UltraStyle.buttonText(d.name), UltraStyle.STYLE_NORMAL);
             } else {
-                spec.buttonRight(action, d.name, UltraStyle.STYLE_NORMAL).rowGap();
+                spec.buttonRight(action, UltraStyle.buttonText(d.name), UltraStyle.STYLE_NORMAL).rowGap();
             }
             placed++;
         }
@@ -1117,7 +1475,8 @@ public final class UltraDojoScreens {
         spec.line(UltraStyle.header("War on " + (them == null ? "a dojo" : them.name)))
                 .line(UltraStyle.labelValue("Bracket", "single elimination; winners advance to the final"))
                 .line(UltraStyle.labelValue("Gauntlet", "the winner stays on and faces the next fighter"))
-                .line(UltraStyle.LABEL + "Members of both dojos sign up for one minute once they accept.")
+                .line(UltraStyle.LABEL + "Once they accept, members of both dojos have " + (DojoWar.SIGNUP_MS / 1000L)
+                        + " seconds to sign up on the Wars tab. With one fighter each, the war is a single bout.")
                 .buttonsAfterLines();
         spec.buttonLeft("do:" + DojoWar.ACT_DECLARE + ":" + target + ":BRACKET", UltraStyle.confirm("Declare: bracket"),
                 UltraStyle.STYLE_CONFIRM);
@@ -1143,30 +1502,48 @@ public final class UltraDojoScreens {
         spec.send(player);
     }
 
+    // ------------------------------------------------------------------ the dojo list and a dojo's profile
+
     static void openList(ServerPlayer player, int page, String notice) {
         openList(player, page, notice, false);
     }
 
-    /** The dojo leaderboard: by clout this season, or (4.7.77) by war wins. */
+    /**
+     * The dojo list: by clout this season, or (4.7.77) by war wins. 4.7.84 (DJ-3): each row names the master and says
+     * if they're online; the buttons are the dojos' names (2 a row, same order) and open the dojo's profile, where a
+     * player can ask to join.
+     */
     static void openList(ServerPlayer player, int page, String notice, boolean wars) {
         String base = wars ? "dojo_list_wars" : "dojo_list";
         UltraScreenSpec spec = dojoSub(UltraPickHelper.pageArg(base, page), notice);
         List<Dojo> all = wars ? DojoService.byWarWins() : DojoService.byClout();
-        spec.line(UltraStyle.header(wars ? "Dojo leaderboard (war wins)" : "Dojo leaderboard (clout this season)"));
-        if (all.isEmpty()) {
-            spec.line(UltraStyle.LABEL + "No dojos yet. Found the first one!");
-        }
         int per = 6;
         int pages = Math.max(1, (all.size() + per - 1) / per);
         int pg = Math.max(0, Math.min(page, pages - 1));
+        spec.line(UltraStyle.header((wars ? "Dojos by war wins" : "Dojos by clout this season")
+                + (pages > 1 ? " - page " + (pg + 1) + " of " + pages : "")));
+        if (all.isEmpty()) {
+            spec.line(UltraStyle.LABEL + "No dojos yet. Be the first: found one for free.");
+        } else {
+            spec.line(UltraStyle.LABEL + "Tap a dojo to see it and ask to join.");
+        }
         for (int i = pg * per; i < Math.min(all.size(), (pg + 1) * per); i++) {
             Dojo d = all.get(i);
-            DojoCatalog.Style s = DojoCatalog.Style.of(d.style);
             String score = wars ? d.warWins + (d.warWins == 1 ? " war win" : " war wins") : d.clout + " clout";
-            spec.line(UltraStyle.VALUE + (i + 1) + ". " + d.name + UltraStyle.LABEL + " - " + score + ", "
-                    + (1 + DojoService.disciples(d).size()) + " members" + (s == null ? "" : ", " + s.label));
+            int members = 1 + DojoService.disciples(d).size();
+            spec.line(UltraStyle.VALUE + (i + 1) + ". " + d.name + UltraStyle.LABEL + " - " + d.masterName
+                    + (masterOnline(player, d) ? " (online)" : "") + " - " + score + " - " + members
+                    + (members == 1 ? " member" : " members"));
         }
         spec.buttonsAfterLines();
+        if (all.isEmpty()) {
+            if (DojoService.foundProblem(player) == null) {
+                spec.button("page:" + DojoFounding.PAGE_NAME, UltraStyle.confirm("Found a dojo (free)"),
+                        UltraStyle.STYLE_CONFIRM).rowGap();
+            } else {
+                spec.lockedButton("Found a dojo (free)").rowGap();
+            }
+        }
         if (wars) {
             spec.buttonLeft("page:dojo_list", "By clout", UltraStyle.STYLE_NORMAL);
             spec.lockedButtonRight("By war wins");
@@ -1175,15 +1552,16 @@ public final class UltraDojoScreens {
             spec.buttonRight("page:dojo_list_wars", "By war wins", UltraStyle.STYLE_NORMAL);
         }
         spec.rowGap();
-        // Two Visit buttons a row (GuiKit 4.7.81), in leaderboard order.
+        // Two dojo buttons a row (GuiKit 4.7.81), in list order.
         int placed = 0;
         for (int i = pg * per; i < Math.min(all.size(), (pg + 1) * per); i++) {
             Dojo d = all.get(i);
-            String action = "do:dojo_visit:" + d.masterUuid;
+            String action = "page:" + PAGE_VIEW + d.masterUuid;
+            String label = UltraStyle.buttonText((i + 1) + ". " + d.name);
             if (placed % 2 == 0) {
-                spec.buttonLeft(action, "Visit " + d.name, UltraStyle.STYLE_NORMAL);
+                spec.buttonLeft(action, label, UltraStyle.STYLE_NORMAL);
             } else {
-                spec.buttonRight(action, "Visit " + d.name, UltraStyle.STYLE_NORMAL).rowGap();
+                spec.buttonRight(action, label, UltraStyle.STYLE_NORMAL).rowGap();
             }
             placed++;
         }
@@ -1191,6 +1569,106 @@ public final class UltraDojoScreens {
             spec.rowGap();
         }
         pager(spec, base, pg, pages);
+        spec.back();
+        spec.send(player);
+    }
+
+    static ServerPlayer masterPlayer(ServerPlayer viewer, Dojo d) {
+        if (d == null || viewer == null || viewer.m_20194_() == null) {
+            return null;
+        }
+        try {
+            return viewer.m_20194_().m_6846_().m_11259_(UUID.fromString(d.masterUuid));
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    static boolean masterOnline(ServerPlayer viewer, Dojo d) {
+        return masterPlayer(viewer, d) != null;
+    }
+
+    /**
+     * 4.7.84 (DJ-3): a dojo's profile: the master (online or offline), style, members, clout and war record, then Ask to
+     * join (dim with the reason when you can't), Visit dojo, and Declare war for a master or elite of another dojo.
+     */
+    static void openDojoView(ServerPlayer player, String master, String notice) {
+        String m = master == null ? "" : master.trim();
+        UltraScreenSpec spec = dojoSub(PAGE_VIEW + m, notice);
+        Dojo d = DojoService.byMaster(m);
+        if (d == null || !d.open) {
+            spec.line(UltraStyle.LABEL + "That dojo is closed. Pick another one from the dojo list.").buttonsAfterLines();
+            spec.button("page:dojo_list", "Browse dojos", UltraStyle.STYLE_NORMAL).rowGap();
+            spec.back();
+            spec.send(player);
+            return;
+        }
+        boolean online = masterOnline(player, d);
+        DojoCatalog.Style style = DojoCatalog.Style.of(d.style);
+        DojoCatalog.Bonus bonus = DojoCatalog.bonus(d.bonus);
+        int members = 1 + DojoService.disciples(d).size();
+        spec.line(UltraStyle.header(d.name))
+                .line(UltraStyle.labelValue("Master", d.masterName + (online ? " - online" : " - offline")))
+                .line(UltraStyle.labelValue("Style", (style == null ? "not picked yet" : style.label)
+                        + (bonus == null ? "" : " - bonus " + bonus.name())))
+                .line(UltraStyle.labelValue("Members", members + " of " + (1 + DojoCatalog.disciplesAllowed(
+                        DojoService.tier(d, DojoCatalog.CAPACITY)))))
+                .line(UltraStyle.labelValue("Clout", d.clout + " this season"))
+                .line(UltraStyle.labelValue("Wars", d.warWins + " won, " + d.warLosses + " lost"));
+        String why = DojoService.joinProblem(player, d, online);
+        Dojo mine = DojoService.dojoOf(player);
+        if (why == null) {
+            spec.line(UltraStyle.LABEL + "Ask to join sends " + d.masterName + " a bond invite. If they accept, you"
+                    + " become their apprentice and this dojo is yours.");
+        } else if ("master offline".equals(why)) {
+            spec.line(UltraStyle.LABEL + d.masterName + " is offline. Ask to join works while they're online.");
+        }
+        spec.buttonsAfterLines();
+        if (why == null) {
+            spec.buttonWide("page:" + PAGE_JOIN_ASK + d.masterUuid, UltraStyle.confirm("Ask to join"),
+                    UltraStyle.STYLE_CONFIRM, null).rowGap();
+        } else if (mine != d) {
+            spec.buttonWide(UltraGuiActions.NO_ACTION, UltraStyle.dim("Ask to join - " + why), UltraStyle.STYLE_DIM,
+                    null).rowGap();
+        }
+        spec.buttonLeft("do:dojo_visit:" + d.masterUuid, "Visit dojo", UltraStyle.STYLE_NORMAL);
+        if (mine != null && mine != d) {
+            if (DojoService.canManage(player.m_20148_(), mine)) {
+                spec.buttonRight("page:dojo_war_fmt:" + d.masterUuid, "Declare war", UltraStyle.STYLE_NORMAL);
+            } else {
+                spec.lockedButtonRight("Declare war");
+            }
+        }
+        spec.rowGap();
+        spec.back();
+        spec.send(player);
+    }
+
+    /** 4.7.84 (DJ-3): the ask before "Ask to join" sends the bond invite (the existing apprentice invite). */
+    static void openJoinAsk(ServerPlayer player, String master, String notice) {
+        String m = master == null ? "" : master.trim();
+        UltraScreenSpec spec = dojoSub(PAGE_JOIN_ASK + m, notice);
+        Dojo d = DojoService.byMaster(m);
+        String why = d == null ? "dojo closed" : DojoService.joinProblem(player, d, masterOnline(player, d));
+        if (d == null) {
+            spec.line(UltraStyle.LABEL + "That dojo is closed. Pick another one from the dojo list.").buttonsAfterLines();
+            spec.back();
+            spec.send(player);
+            return;
+        }
+        spec.line(UltraStyle.header("Ask to join " + d.name + "?"))
+                .line(UltraStyle.VALUE + "Ask " + d.masterName + " to take you as an apprentice? Their dojo becomes"
+                        + " yours.")
+                .line(UltraStyle.LABEL + "The invite lasts 1 hour. They answer on Training bonds > Bond invites.")
+                .line(UltraStyle.LABEL + "Leaving a master later starts a 12-hour wait before you can ask another.")
+                .buttonsAfterLines();
+        if (why == null) {
+            spec.button("do:" + ACT_JOIN + ":" + d.masterUuid, UltraStyle.confirm("Ask " + d.masterName),
+                    UltraStyle.STYLE_CONFIRM).rowGap();
+        } else {
+            spec.buttonWide(UltraGuiActions.NO_ACTION, UltraStyle.dim("Ask to join - " + why), UltraStyle.STYLE_DIM,
+                    null).rowGap();
+        }
         spec.back();
         spec.send(player);
     }
@@ -1230,7 +1708,16 @@ public final class UltraDojoScreens {
         }
         String board = BoardSpar.apply(p, action, a);
         if (board != null) {
-            openBoard(p, board);
+            // 4.7.84 (SP-2): the post settings and the wager reopen Post a spar; a post that failed stays there with
+            // the reason; everything else (posted, accepted, a challenge, a forfeit) goes to the board's first page.
+            boolean compose = BoardSpar.ACT_MODE.equals(action) || BoardSpar.ACT_RANGE.equals(action)
+                    || BoardSpar.ACT_WANT.equals(action) || BoardSpar.ACT_WAGER_SET.equals(action)
+                    || (BoardSpar.ACT_POST.equals(action) && BoardSpar.postOf(p.m_20148_()) == null);
+            if (compose) {
+                openBoardPost(p, board);
+            } else {
+                openBoard(p, 0, board);
+            }
             return true;
         }
         String war = DojoWar.apply(p, action, a);
@@ -1268,15 +1755,24 @@ public final class UltraDojoScreens {
             }
             case "dojo_promote" -> {
                 msg = DojoService.promote(p, a);
-                page = "dojo_elites";
+                page = PAGE_MEMBER + a;
             }
             case "dojo_demote" -> {
                 msg = DojoService.demote(p, a);
-                page = "dojo_elites";
+                page = PAGE_MEMBER + a;
             }
             case "dojo_warrights" -> {
                 msg = DojoService.toggleWarRights(p, a);
-                page = "dojo_elites";
+                page = PAGE_MEMBER + a;
+            }
+            case ACT_JOIN -> {
+                // 4.7.84 (DJ-3): the existing apprentice invite to the dojo's master (online only).
+                Dojo d = DojoService.byMaster(a);
+                ServerPlayer m = masterPlayer(p, d);
+                String why = d == null ? "dojo closed" : DojoService.joinProblem(p, d, m != null);
+                msg = why != null ? "You can't ask to join right now: " + why + "."
+                        : UltraStyle.plain(SparringSystem.apprenticeInvite(p, m));
+                page = PAGE_VIEW + a;
             }
             case "dojo_visit" -> {
                 msg = DojoWorld.visit(p, DojoService.byMaster(a));

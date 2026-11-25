@@ -136,7 +136,7 @@ public final class UltraScreenSelfTest {
                             .title("Rival")
                             .page("home")
                             .activeTab("home")
-                            .tabs("home|Home", "actions|Rival", "challenge|Challenge")
+                            .tabs("home|Home", "actions|My rivals", "challenge|Challenge")
                             .line("self-test")
                             .back();
                     case "spar" -> UltraScreenSpec.of("spar")
@@ -161,9 +161,9 @@ public final class UltraScreenSelfTest {
                             .title("Prestige")
                             .page("shop")
                             .activeTab("shop")
-                            .tabs("home|Home", "prestige|Prestige", "shop|Shop")
+                            .tabs("home|Home", "shop|Shop", "exchange|Trade")
                             .button("page:skills", "Skill shop", "confirm")
-                            .button("page:tiers", "Difficulty tiers", "confirm")
+                            .button("page:tiers", "Own tiers for good", "confirm")
                             .button("page:effects", "Effects", "confirm")
                             .line("self-test")
                             .back();
@@ -172,7 +172,7 @@ public final class UltraScreenSelfTest {
                             .title("Character Services")
                             .page("main")
                             .activeTab("home")
-                            .tabs("home|Home", "saga|Saga", "android|Android")
+                            .tabs("home|Home", "looks|Looks", "story|Story")
                             .line("self-test")
                             .playerModel(248, 60, 86, 120, 0.9f, true)
                             .back();
@@ -781,10 +781,11 @@ public final class UltraScreenSelfTest {
                 broken.add("character: playerModel scale must be 0.9 (1.0 still clipped the head)");
             }
             String buttons = charPkt.buttonsJson() == null ? "" : charPkt.buttonsJson();
-            if (!buttons.contains("\"label\":\"Android\"")
-                    || !buttons.contains("\"label\":\"Saga\"")
+            // 4.7.84 (C-2): Home / Looks / Story.
+            if (!buttons.contains("\"label\":\"Looks\"")
+                    || !buttons.contains("\"label\":\"Story\"")
                     || !buttons.contains("\"label\":\"Home\"")) {
-                broken.add("character: tab buttons must be Home/Saga/Android (short labels)");
+                broken.add("character: tab buttons must be Home/Looks/Story (short labels)");
             }
             if (buttons.contains("Android Removal") || buttons.contains("Saga Reset")) {
                 broken.add("character: long tab labels overflow and mojibake on KaiPath");
@@ -945,6 +946,162 @@ public final class UltraScreenSelfTest {
         verifyPickerPaging();
         verifyTitlesSurvivePrestige();
         verifyMenuFit();
+        verifyHeightBudget();
+    }
+
+    // ------------------------------------------------------------------ 4.7.84 (X5) height budget
+
+    /**
+     * Tallest native panel (GUI px) a player page may ask for: at that height the menu stays at 0.75x or more on an
+     * 854x480 window at GUI 2 and on 1366x768 at GUI 3, so no button drops under 12 px.
+     */
+    public static final int HEIGHT_BUDGET_PX = 300;
+
+    /**
+     * WARN only for now (4.7.84): over-budget pages are logged, never fail the boot. Flip to true once every system's
+     * pages are within budget; {@link #verifyHeightBudget} then throws like the other menu checks.
+     */
+    public static final boolean HEIGHT_BUDGET_STRICT = false;
+
+    /**
+     * Pages allowed over the budget: staff and config pages (staff use large windows and these pages are tools,
+     * not play). Matched against the page's registry entry ({@code screen|pattern}), or the screen alone.
+     */
+    public static final Set<String> HEIGHT_BUDGET_ALLOW = Set.of("admin", "config", "skills", "progression",
+            "difficulty|admin", "difficulty|eventlog", "difficulty|stats", "rival|admin", "spar|admin",
+            "character|form_preview:0", "character|form_preview:*", "character|android_staff",
+            "character|android_staff:*", "character|android_target:**");
+
+    /** Tallest height seen per page ({@code screen|pattern}) since boot, with the concrete page id that had it. */
+    private static final Map<String, int[]> SEEN_HEIGHT = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, String> SEEN_PAGE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Set<String> WARNED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /**
+     * The native panel height a menu packet asks for ({@code layoutJson.panelHeight}, the same number the LM client
+     * scales to the window), or -1 for a packet that is not a centered menu (the config editor's full screen).
+     */
+    public static int nativePanelHeight(GuiOpenPacket pkt) {
+        if (pkt == null) {
+            return -1;
+        }
+        try {
+            JsonObject lay = JsonParser.parseString(pkt.layoutJson()).getAsJsonObject();
+            if (lay.has("fillScreen") || !lay.has("center") || !lay.get("center").getAsBoolean()) {
+                return -1;
+            }
+            return lay.has("panelHeight") ? lay.get("panelHeight").getAsInt() : pkt.panelHeight();
+        } catch (RuntimeException e) {
+            return pkt.panelHeight();
+        }
+    }
+
+    /** The registry key of a page ({@code screen|pattern}), or {@code screen|page} when it has no entry. */
+    static String budgetKey(String screen, String page) {
+        PageRegistry.Page e = PageRegistry.find(screen, page);
+        return e == null ? screen + "|" + page : e.screen() + "|" + e.pattern();
+    }
+
+    /** True for a staff or config page, which may be taller than {@link #HEIGHT_BUDGET_PX}. */
+    public static boolean heightBudgetAllowed(String screen, String page) {
+        String key = budgetKey(screen, page);
+        PageRegistry.Page e = PageRegistry.find(screen, page);
+        return HEIGHT_BUDGET_ALLOW.contains(screen) || HEIGHT_BUDGET_ALLOW.contains(key)
+                || (e != null && e.staff()) || UltraGuiActions.isStaffOnlySystem(screen);
+    }
+
+    /** "screen|page 342px (budget 300)" for every packet over budget and not allowed; empty when all fit. */
+    public static List<String> overBudgetPages(java.util.Collection<GuiOpenPacket> packets) {
+        List<String> out = new ArrayList<>();
+        if (packets == null) {
+            return out;
+        }
+        for (GuiOpenPacket pkt : packets) {
+            int h = nativePanelHeight(pkt);
+            if (h > HEIGHT_BUDGET_PX && !heightBudgetAllowed(pkt.screenId(), pkt.pageId())) {
+                out.add(pkt.screenId() + "|" + pkt.pageId() + " " + h + "px (budget " + HEIGHT_BUDGET_PX + ")");
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Every page sent (or captured by the UI probe) since boot that was over budget, tallest first:
+     * "registry key 342px (budget 300), e.g. screen|page". The probe calls this after its crawl.
+     */
+    public static List<String> overBudgetPages() {
+        List<Map.Entry<String, int[]>> rows = new ArrayList<>(SEEN_HEIGHT.entrySet());
+        rows.sort((a, b) -> Integer.compare(b.getValue()[0], a.getValue()[0]));
+        List<String> out = new ArrayList<>();
+        for (Map.Entry<String, int[]> r : rows) {
+            if (r.getValue()[0] > HEIGHT_BUDGET_PX) {
+                out.add(r.getKey() + " " + r.getValue()[0] + "px (budget " + HEIGHT_BUDGET_PX + "), e.g. "
+                        + SEEN_PAGE.getOrDefault(r.getKey(), r.getKey()));
+            }
+        }
+        return out;
+    }
+
+    /** Forget what {@link #overBudgetPages()} has seen (the probe, before a crawl). */
+    public static void resetHeightBudget() {
+        SEEN_HEIGHT.clear();
+        SEEN_PAGE.clear();
+    }
+
+    /**
+     * {@link UltraScreenSpec#send} reports each menu page here. A player page over budget is remembered for
+     * {@link #overBudgetPages()} and logged once per page as a WARN.
+     */
+    static void observeHeight(GuiOpenPacket pkt) {
+        int h = nativePanelHeight(pkt);
+        if (h <= 0 || pkt.screenId() == null || heightBudgetAllowed(pkt.screenId(), pkt.pageId())) {
+            return;
+        }
+        String key = budgetKey(pkt.screenId(), pkt.pageId());
+        int[] prev = SEEN_HEIGHT.computeIfAbsent(key, k -> new int[] {0});
+        synchronized (prev) {
+            if (h > prev[0]) {
+                prev[0] = h;
+                SEEN_PAGE.put(key, pkt.screenId() + "|" + pkt.pageId());
+            }
+        }
+        if (h > HEIGHT_BUDGET_PX && WARNED.add(key)) {
+            AdaptiveDifficultyMod.LOGGER.warn("[{}] height budget: {} is {}px tall (budget {}px); it shrinks below"
+                    + " 0.75x on small windows", AdaptiveDifficultyMod.MOD_ID, pkt.screenId() + "|" + pkt.pageId(), h,
+                    HEIGHT_BUDGET_PX);
+        }
+    }
+
+    /**
+     * X5 at boot: every builder's probe page is measured against {@link #HEIGHT_BUDGET_PX} (staff and config pages
+     * allowed). A WARN list for now ({@link #HEIGHT_BUDGET_STRICT} false); real pages are measured as they are sent
+     * ({@link #overBudgetPages()}).
+     */
+    public static void verifyHeightBudget() {
+        List<GuiOpenPacket> all = new ArrayList<>();
+        for (String id : UltraScreenIds.BUILDER_IDS) {
+            if (id == null || id.isBlank()) {
+                continue;
+            }
+            try {
+                all.addAll(UltraScreenSpec.captureSends(() -> probeBuilder(id)));
+            } catch (Throwable t) {
+                // runAtStartup reports builder failures; the budget only measures what was built.
+            }
+        }
+        List<String> over = overBudgetPages(all);
+        if (over.isEmpty()) {
+            LmLog.event("[{}] Ultra height budget self-check OK ({} pages, budget {}px)", AdaptiveDifficultyMod.MOD_ID,
+                    all.size(), HEIGHT_BUDGET_PX);
+            return;
+        }
+        if (HEIGHT_BUDGET_STRICT) {
+            AdaptiveDifficultyMod.LOGGER.error("[{}] Ultra height budget self-check FAILED: {}",
+                    AdaptiveDifficultyMod.MOD_ID, over);
+            throw new IllegalStateException("LegacyMechanics Ultra height budget self-check failed: " + over);
+        }
+        AdaptiveDifficultyMod.LOGGER.warn("[{}] Ultra height budget WARN ({} over {}px): {}",
+                AdaptiveDifficultyMod.MOD_ID, over.size(), HEIGHT_BUDGET_PX, over);
     }
 
     /**
@@ -1166,7 +1323,7 @@ public final class UltraScreenSelfTest {
                         .title("Rivals")
                         .page("actions")
                         .activeTab("actions")
-                        .tabs("home|Home", "actions|Rival", "challenge|Challenge")
+                        .tabs("home|Home", "actions|My rivals", "challenge|Challenge")
                         .line("Your rivals.")
                         .line("Pending invites: 1")
                         .setRow(UltraStyle.CONTENT_ROW_TABS + 70)
@@ -1243,6 +1400,7 @@ public final class UltraScreenSelfTest {
         com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.selfTest(broken);
         com.dbzlegacy.adaptivedifficulty.character.SaiyanTailWipeHelper.selfTest(broken);
         UltraCharacterScreens.selfTest(broken);
+        UltraDifficultyScreens.selfTest(broken);
         UltraPrestigeScreens.exchangeSelfTest(broken);
         // 4.7.71: the page registry (titles, parents, chains to the main menu, search) and the page history.
         for (String problem : PageRegistry.problems()) {
@@ -1541,8 +1699,8 @@ public final class UltraScreenSelfTest {
         GuiOpenPacket ask = UltraPrestigeScreens.turnInAskSpec(3, 5, 10, 4, true).toPacket();
         String err = validatePacket(ask, "prestige");
         Map<String, String> ids = buttonIds(ask);
-        if (err != null || !"Exchange 3: +4 favor".equals(ids.get("do:turnin:3"))
-                || !"Back to Exchange shop".equals(ids.get("page:exchange"))
+        if (err != null || !"Trade 3 for 4 favor".equals(ids.get("do:turnin:3"))
+                || !"Back to Trade".equals(ids.get("page:exchange"))
                 || !shownLines(ask).contains("3 prestiges") || !shownLines(ask).contains("10 -> 14")) {
             broken.add("prestige exchange: confirm page should show prestiges in, favor out, Confirm and Back"
                     + (err == null ? "" : " (" + err + ")") + ", got " + ids);

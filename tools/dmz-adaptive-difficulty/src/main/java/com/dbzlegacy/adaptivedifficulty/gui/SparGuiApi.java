@@ -66,7 +66,7 @@ public final class SparGuiApi {
         out.put("has_mentor", hasMentor ? "true" : "false");
         out.put("has_apprentice", hasApprentice ? "true" : "false");
         out.put("apprentice_count", String.valueOf(appCount));
-        out.put("apprentice_max", String.valueOf(SparringSystem.MAX_APPRENTICES));
+        out.put("apprentice_max", String.valueOf(SparringSystem.apprenticeCap(player.m_20148_().toString())));
         out.put("mentor_bonded", bonded ? "true" : "false");
         String mentorDisplay = "";
         if (hasMentor) {
@@ -302,11 +302,14 @@ public final class SparGuiApi {
                 lines.add(UltraStyle.LABEL + "Your mentor " + UltraStyle.VALUE + blank(bond.mentorName, "-"));
             }
             if (hasApprentice) {
-                lines.add(UltraStyle.LABEL + "Your apprentices " + UltraStyle.VALUE + appCount + UltraStyle.DIM + "/" + UltraStyle.VALUE + SparringSystem.MAX_APPRENTICES);
+                // 4.7.84 (DJ-7): the cap is the dojo's real disciple capacity (5 to 29), not the old 8.
+                lines.add(UltraStyle.LABEL + "Your apprentices " + UltraStyle.VALUE + appCount + UltraStyle.DIM + "/"
+                        + UltraStyle.VALUE + SparringSystem.apprenticeCap(player.m_20148_().toString()));
                 lines.add(UltraStyle.DIM + "  " + UltraStyle.VALUE + bond.apprenticeNamesSummary());
                 float sharePct = SparCombat.MENTOR_SHARE_PCT * 100.0f / Math.max(1, appCount);
-                lines.add(UltraStyle.LABEL + "Mentor share " + UltraStyle.VALUE + String.format(java.util.Locale.ROOT, "%.1f", sharePct)
-                        + "% " + UltraStyle.DIM + "each (dojo split)");
+                lines.add(UltraStyle.LABEL + "You get " + UltraStyle.VALUE
+                        + String.format(java.util.Locale.ROOT, "%.1f", sharePct) + "%" + UltraStyle.LABEL
+                        + " of each apprentice's spar TP.");
                 lines.add(UltraStyle.LABEL + "Dojo peers spar " + UltraStyle.GREEN + "+"
                         + Math.round(SparCombat.DOJO_PEER_SPAR_BONUS_PCT * 100) + "% TP");
             }
@@ -318,8 +321,10 @@ public final class SparGuiApi {
             }
             lines.add(UltraStyle.LABEL + "Streak " + UltraStyle.VALUE + bond.streakCurrent + " " + UltraStyle.DIM + "best " + UltraStyle.VALUE + bond.streakBest);
         } else {
-            lines.add(UltraStyle.LABEL + "Recruit apprentices or ask a master from Training bonds.");
-            lines.add(UltraStyle.DIM + "Dojo: up to " + UltraStyle.VALUE + SparringSystem.MAX_APPRENTICES + " " + UltraStyle.DIM + "apprentices - one master");
+            lines.add(UltraStyle.LABEL + "Train with a master, or take on apprentices of your own.");
+            lines.add(UltraStyle.DIM + "Your dojo can hold up to " + UltraStyle.VALUE
+                    + SparringSystem.apprenticeCap(player.m_20148_().toString()) + UltraStyle.DIM
+                    + " apprentices. You can have one master.");
             lines.add(UltraStyle.DIM + "Invite lasts " + UltraStyle.VALUE + "1 hour " + UltraStyle.DIM + "- peers spar +"
                     + Math.round(SparCombat.DOJO_PEER_SPAR_BONUS_PCT * 100) + "% TP");
             lines.add(SparringSystem.bondStatus(player));
@@ -327,8 +332,6 @@ public final class SparGuiApi {
         int pending = SparringSystem.pendingMentorInviteCount(player);
         if (pending > 0) {
             lines.add(UltraStyle.YELLOW + "Pending invites " + UltraStyle.VALUE + pending + " " + UltraStyle.DIM + "- open Bond invites (" + UltraStyle.VALUE + "1h" + UltraStyle.DIM + ")");
-        } else {
-            lines.add(UltraStyle.DIM + "Training bonds has Recruit, Request master and Release.");
         }
         return lines;
     }
@@ -655,52 +658,32 @@ public final class SparGuiApi {
             }
             return SparringSystem.apprenticeInvite(player, target);
         }
+        // 4.7.84 (owner pick a): the legacy dojo war actions declare and answer the same wars as Dojo > Wars.
         if ("dojo".equals(act)) {
             String sub = a.toLowerCase(Locale.ROOT).trim();
             if (sub.equals("accept") || sub.equals("accept_war") || sub.equals("war_accept")) {
-                return SparringSystem.dojoAcceptWar(player);
+                return com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.legacyAnswer(player, true);
             }
             if (sub.equals("decline") || sub.equals("decline_war") || sub.equals("war_decline")) {
-                return SparringSystem.dojoDeclineWar(player);
+                return com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.legacyAnswer(player, false);
             }
             if (sub.startsWith("challenge ") || sub.startsWith("challenge:")) {
                 String who = a.length() > 9 ? a.substring(9).trim() : "";
                 if (who.startsWith(":")) {
                     who = who.substring(1).trim();
                 }
-                if (who.isBlank()) {
-                    return UltraStyle.DANGER + "Select a rival dojo master below.";
-                }
-                ServerPlayer target = resolveOnline(player, who);
-                if (target == null) {
-                    return UltraStyle.DANGER + "Player not online: " + who;
-                }
-                return SparringSystem.dojoChallenge(player, target);
+                return com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.legacyChallenge(player, who);
             }
-            return UltraStyle.DANGER + "Usage: spar do dojo accept|decline|challenge <master>";
+            return "Open Dojo > Wars to declare, accept or turn down a war.";
         }
         if ("dojo_challenge".equals(act) || "dojo_war".equals(act)) {
-            if (a.isBlank()) {
-                return UltraStyle.DANGER + "Select a rival dojo master below.";
-            }
-            String who = a.trim();
-            if (who.regionMatches(true, 0, "uuid:", 0, 5)) {
-                return SparringSystem.dojoChallengeByMasterUuid(player, who.substring(5).trim());
-            }
-            if (who.matches("[0-9a-fA-F\\-]{32,36}")) {
-                return SparringSystem.dojoChallengeByMasterUuid(player, who);
-            }
-            ServerPlayer target = resolveOnline(player, who);
-            if (target != null) {
-                return SparringSystem.dojoChallenge(player, target);
-            }
-            return UltraStyle.DANGER + "Player not online: " + who;
+            return com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.legacyChallenge(player, a);
         }
         if ("dojo_accept".equals(act) || "dojo_war_accept".equals(act)) {
-            return SparringSystem.dojoAcceptWar(player);
+            return com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.legacyAnswer(player, true);
         }
         if ("dojo_decline".equals(act) || "dojo_war_decline".equals(act)) {
-            return SparringSystem.dojoDeclineWar(player);
+            return com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.legacyAnswer(player, false);
         }
         if ("dojo_war_cancel".equals(act) || "dojo_war_revoke".equals(act) || "dojo_cancel".equals(act)) {
             return SparringSystem.dojoRevokeWar(player, a);

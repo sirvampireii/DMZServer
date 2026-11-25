@@ -89,9 +89,9 @@ public final class DojoStore {
         /** Upgrade tiers the plot was last built at, so a change rebuilds it. */
         public String builtSignature = "";
         /**
-         * 4.7.78: the dojo's banner, copied from a loom-made banner the master picked (the item is never taken):
-         * the base colour id ({@code red}, {@code light_blue}, ...) and the patterns as {@code code:colour id}, in order.
-         * Blank base: no banner picked yet.
+         * 4.7.78: the dojo's banner, copied from a banner the master picked (any crafted banner; the item is never
+         * taken): the base colour id ({@code red}, {@code light_blue}, ...) and the patterns as {@code code:colour id},
+         * in order. Blank base: no banner picked yet; 4.7.84 shows the style's default banner until one is picked.
          */
         public String bannerBase = "";
         public List<String> bannerPatterns = new ArrayList<>();
@@ -108,6 +108,8 @@ public final class DojoStore {
         public int rankedWins;
         public boolean firstWarFightPaid;
         public boolean firstRankedWinPaid;
+        /** 4.7.84: this player's first founding paid {@link DojoCatalog#FOUNDING_GRANT}; later foundings pay nothing. */
+        public boolean foundingGrantPaid;
     }
 
     /** A dojo war: two dojos, a format, the bouts, and how it ended. */

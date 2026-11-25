@@ -83,7 +83,7 @@ public final class UltraConfigScreens {
     /** Categories always shown in the left rail (user-facing order). */
     private static final String[][] CATEGORIES = {
         {"difficulty", "Difficulty"},
-        {"progression", "Progress"},
+        {"progression", "Progression"},
         {"prestige-shop", "Prestige shop"},
         {"character-services", "Character"},
         {"saga", "Saga"},
@@ -494,8 +494,13 @@ public final class UltraConfigScreens {
         String now = value == null ? "" : value;
         String def = ConfigEditor.defaultShown(module, path);
         String indicator = valueIndicator(now, def);
+        // 4.7.84 (P-A1): an on/off setting at its default needs no "Now ON - default" chip: the toggle shows the state.
+        boolean onOff = entry.kind() == ConfigEditor.Kind.BOOLEAN;
+        boolean noChip = onOff && !dirty && def != null && !def.isBlank()
+                && UltraStyle.plain(now).trim().equalsIgnoreCase(UltraStyle.plain(def).trim())
+                && !(ConfigEditor.tab(module) != null && ConfigEditor.isCollectionEntry(module, path));
         int indicatorW = 116;
-        int nameW = MAIN_W - indicatorW - CTRL_GAP;
+        int nameW = noChip ? MAIN_W : MAIN_W - indicatorW - CTRL_GAP;
         if (nameW < UltraStyle.BTN_MIN_W) {
             nameW = UltraStyle.BTN_MIN_W;
             indicatorW = Math.max(UltraStyle.BTN_MIN_W, MAIN_W - nameW - CTRL_GAP);
@@ -524,7 +529,7 @@ public final class UltraConfigScreens {
                     MAIN_X + nameW + CTRL_GAP,
                     y,
                     indicatorW);
-        } else {
+        } else if (!noChip) {
             // 4.7.81 (GuiKit): a changed value reads normal (the "*" on the name marks it), not green.
             putButton(
                     spec,
@@ -629,7 +634,8 @@ public final class UltraConfigScreens {
                     MAIN_W);
             y += ROW_STEP;
         } else {
-            String accepts = ConfigEditor.acceptedValues(module, path);
+            // 4.7.84 (P-A1): "Accepts: true / false" says nothing an ON/OFF toggle doesn't; on/off settings skip it.
+            String accepts = toggleRow ? "" : ConfigEditor.acceptedValues(module, path);
             if (!accepts.isBlank()) {
                 putButton(
                         spec,

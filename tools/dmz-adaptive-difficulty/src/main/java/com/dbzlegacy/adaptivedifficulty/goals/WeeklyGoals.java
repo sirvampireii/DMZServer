@@ -40,6 +40,12 @@ public final class WeeklyGoals {
             new Goal(TRY_TIER, "Try a tier for free", 1, "difficulty", "Tiers", "go:difficulty|tiers", false),
             new Goal(MEDITATE, "Meditate 20 minutes near another player", 20L * 60_000L, "meditation", "More", "go:hub|more", true));
 
+    /**
+     * 4.7.84 (H5): the line under "Resets in" on the Goals tab, so nobody expects a payout.
+     * OWNER: placeholder wording from the proposal; the owner picks the final text (proposal pick m, H5).
+     */
+    public static final String NO_PAYOUT_NOTE = "No rewards yet: goals track your week.";
+
     private WeeklyGoals() {}
 
     public static long week(long now) {

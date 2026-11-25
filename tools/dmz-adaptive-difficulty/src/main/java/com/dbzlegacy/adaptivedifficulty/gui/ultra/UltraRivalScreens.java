@@ -14,11 +14,15 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Rival system - CNPC parity via page: navigation and arg-bearing do: buttons.
- * Tabs: Home / Rival (list + picker) / Challenge (W/L + duels) / Info (RP, tier, nemesis).
+ * Tabs: Home / My rivals (list + picker) / Challenge (W/L + duels). Home opens My rival stats (RP, tier, perk,
+ * TP bonus, record, nemesis), the Leaderboard, Records and Rival TP chat.
  */
 public final class UltraRivalScreens {
-    /** Online player pickers: two-up rows; page so large servers never truncate. */
-    private static final int PICK_PER_PAGE = 20;
+    /**
+     * Online player pickers: two-up rows; page so large servers never truncate. 4.7.84 (X5): 10 a page (was 20), so a
+     * full page is five name rows and stays under 300 px with its heading, pager and footer.
+     */
+    private static final int PICK_PER_PAGE = 10;
     // GuiKit 4.7.81 page sizes: one row per request / challenge, so a page stays short.
     private static final int RIVALS_PER_PAGE = 6;
     private static final int DECLARES_PER_PAGE = 4;
@@ -46,7 +50,13 @@ public final class UltraRivalScreens {
             return;
         }
         if (p.startsWith("records:")) {
-            openRecords(player, p.substring("records:".length()).trim());
+            String section = p.substring("records:".length()).trim();
+            // 4.7.84: Records - Stats and Records - Title merged into My rival stats; old links land there.
+            if ("stats".equals(section) || "title".equals(section)) {
+                openInfo(player);
+            } else {
+                openRecords(player, section);
+            }
             return;
         }
         if (p.startsWith("replace_confirm:")) {
@@ -106,7 +116,8 @@ public final class UltraRivalScreens {
                 .title("Rivals")
                 .page(page)
                 .activeTab(tab)
-                .tabs("home|Home", "actions|Rival", "challenge|Challenge");
+                // 4.7.84 (R-4): the second tab is "My rivals" so it no longer repeats the system name. Id unchanged.
+                .tabs("home|Home", "actions|My rivals", "challenge|Challenge");
     }
 
     /** Subpage: no tab row — dual footer (Back + Main menu). */
@@ -119,12 +130,14 @@ public final class UltraRivalScreens {
 
 
     private static void openHome(ServerPlayer player) {
+        // 4.7.84 (R-1): Home says what Rival is and where to start.
         UltraScreenSpec spec = base("home", "home")
-                .line(UltraStyle.LABEL + "Your stats, leaderboard, records, and TP chat.")
+                .line(UltraStyle.LABEL + "Pick a rival, beat them in timed challenges, and earn bonus TP for it.")
+                .line(UltraStyle.LABEL + "Add one on My rivals, then challenge them on the Challenge tab.")
                 .buttonsAfterLines();
-        // Rivals, their profiles, and Requests live on the Rival tab.
+        // Rivals, their profiles, and Requests live on the My rivals tab.
         UltraPickHelper.placePageButtons(
-                spec, "info|My rival stats", "top|Leaderboard", "records|Records", "settings|TP Chat");
+                spec, "info|My rival stats", "top|Leaderboard", "records|Records", "settings|Rival TP chat");
         if (StaffAccess.isStaff(player)) {
             spec.buttonLeft("page:admin", UltraStyle.danger("Staff Admin"), UltraStyle.STYLE_DANGER).rowGap();
         }
@@ -132,18 +145,23 @@ public final class UltraRivalScreens {
         spec.send(player);
     }
 
-    /** Standing (RP, tier, nemesis, mutual) lives on Info, not Home. */
+    /**
+     * 4.7.84 (R-2): the one stats page. It took in Records - Stats and Records - Title: tier and RP, perk, the real
+     * TP bonus, record, streak, challenges, then Nemesis and Mutual rivals with the slots. About 9 lines, no buttons.
+     */
     private static void openInfo(ServerPlayer player) {
         Map<String, String> ph = RivalGuiApi.placeholders(player);
-        UltraScreenSpec spec = sub("info")
-                .line(UltraStyle.header("My rival stats"))
-                .labelValue("Current RP", ph.getOrDefault("rp", "0"))
-                .labelValue("Rival tier", ph.getOrDefault("tier", "-"))
-                .labelValue("Nemesis", RivalGuiApi.nemesisNames(player))
-                .labelValue("Mutual rivals", RivalGuiApi.mutualNames(player))
+        UltraScreenSpec spec = sub("info").line(UltraStyle.header("My rival stats"));
+        for (String line : RivalGuiApi.myStatsLines(player)) {
+            if (line != null && !line.isBlank()) {
+                spec.line(line);
+            }
+        }
+        spec.labelValue("Nemesis", RivalGuiApi.nemesisNames(player))
                 .labelValue(
-                        "Mutual slots",
-                        ph.getOrDefault("mutual", "0") + "/" + ph.getOrDefault("mutual_max", "0"))
+                        "Mutual rivals",
+                        RivalGuiApi.mutualNames(player) + " (" + ph.getOrDefault("mutual", "0") + " of "
+                                + ph.getOrDefault("mutual_max", "0") + " slots)")
                 .buttonsAfterLines();
         spec.back();
         spec.send(player);
@@ -158,7 +176,7 @@ public final class UltraRivalScreens {
         int pages = UltraPickHelper.pageCount(rivals.size(), RIVALS_PER_PAGE);
         int pg = UltraPickHelper.clampPage(page, pages);
         UltraScreenSpec spec = base(UltraPickHelper.pageArg("actions", pg), "actions")
-                .line(UltraStyle.LABEL + "Your rivals. Tap one for their profile, or Pick a player to add one.")
+                .line(UltraStyle.LABEL + "Your rivals. Tap a name to see how you stack up, or tap Pick a player to add one.")
                 .line(UltraStyle.LABEL + "Requests " + UltraStyle.VALUE + incoming + " incoming"
                         + UltraStyle.LABEL + ", " + UltraStyle.VALUE + awaiting + UltraStyle.LABEL
                         + " waiting on a reply");
@@ -336,8 +354,21 @@ public final class UltraRivalScreens {
         spec.buttonsAfterLines();
         placePerChallengeButtons(spec, player, pageChallenges);
         UltraPickHelper.placePrevNext(spec, "challenge", pg, pages);
-        // 3) Challenge actions. Records (Home) is the history page.
-        UltraPickHelper.placePageButtons(spec, "pick_challenge|Send a challenge", "pick_spectate|Spectate");
+        // 3) Challenge actions. Records (Home) is the history page. 4.7.84 (X6): dim, never hidden, when there is
+        // nobody to pick; the label says why.
+        List<String> online = RivalGuiApi.onlinePlayerArgs(player);
+        if (online == null || online.isEmpty()) {
+            spec.lockedButton("Challenge - nobody on");
+        } else {
+            spec.buttonLeft("page:pick_challenge", "Send a challenge", UltraStyle.STYLE_NORMAL);
+        }
+        List<String> fights = RivalGuiApi.activeChallengeArgs(player);
+        if (fights == null || fights.isEmpty()) {
+            spec.lockedButtonRight("Spectate - no fights");
+        } else {
+            spec.buttonRight("page:pick_spectate", "Spectate", UltraStyle.STYLE_NORMAL);
+        }
+        spec.rowGap();
         // Normal style: it is a plain action, not the page's primary one.
         if (com.dbzlegacy.adaptivedifficulty.rival.RivalSpectator.isSpectating(player.m_20148_())) {
             spec.button("do:spectate_stop", "Stop spectate", UltraStyle.STYLE_NORMAL).rowGap();
@@ -544,39 +575,68 @@ public final class UltraRivalScreens {
         spec.send(player);
     }
 
+    /**
+     * 4.7.84 (R-2): wrapped body lines a Records section shows under its heading. 300 px less 76 chrome, three button
+     * rows and the footer (88) leaves 136 px: the heading plus 9 lines of 13 px.
+     */
+    private static final int RECORD_LINES = 9;
+
+    /**
+     * Records (4.7.84, R-2): six sections, three button rows. Stats and Title merged into My rival stats. A section's
+     * own heading ("Rival Journal", "Weekly Rival Quests") is dropped under the page's "Records - X" heading; the
+     * season heading carries the season name, so it stands in for the page heading.
+     */
     private static void openRecords(ServerPlayer player, String sub) {
         String tab = sub == null || sub.isBlank() ? "history" : sub.toLowerCase(Locale.ROOT);
-        UltraScreenSpec spec = sub("records:" + tab)
-                .line(UltraStyle.header("Records - " + recordsTitle(tab)));
+        UltraScreenSpec spec = sub("records:" + tab);
         List<String> lines = switch (tab) {
             case "history" -> RivalGuiApi.recordsHistoryLines(player);
-            case "stats" -> RivalGuiApi.statsLines(player);
             case "season" -> RivalGuiApi.seasonLines(player);
             case "quests" -> RivalGuiApi.questLines(player);
             case "achievements" -> RivalGuiApi.achievementLines(player);
             case "hof" -> RivalGuiApi.hofLines(player);
             case "journal" -> RivalGuiApi.journalLines(player);
-            case "title" -> RivalGuiApi.titleLines(player);
             default -> RivalGuiApi.linesForPage(player, "records:" + tab);
         };
-        if (lines != null) {
-            for (String line : lines) {
-                if (line != null && !line.isBlank()) {
-                    spec.line(line);
-                }
+        List<String> body = new ArrayList<>(nonBlank(lines));
+        boolean sourceHeading = "season".equals(tab) || "quests".equals(tab) || "achievements".equals(tab)
+                || "journal".equals(tab);
+        // A real section always has its heading plus at least one line; the "disabled" notice is one line alone.
+        if (sourceHeading && body.size() > 1) {
+            String heading = body.remove(0);
+            spec.line("season".equals(tab)
+                    ? UltraStyle.header("Records - " + UltraStyle.plain(heading).replace("Rival Season", "Season"))
+                    : UltraStyle.header("Records - " + recordsTitle(tab)));
+        } else {
+            spec.line(UltraStyle.header("Records - " + recordsTitle(tab)));
+        }
+        // Count wrapped lines, not entries: a long history row takes two. Keep one line free for "And N more".
+        int fitPx = UltraStyle.bodyTextFitPx(UltraStyle.MENU_W, -1);
+        int used = 0;
+        int shown = 0;
+        for (String line : body) {
+            int h = Math.max(1, UltraStyle.wrapBody(UltraStyle.wireText(line), fitPx).size());
+            boolean last = shown == body.size() - 1;
+            if (used + h > (last ? RECORD_LINES : RECORD_LINES - 1)) {
+                break;
             }
+            spec.line(line);
+            used += h;
+            shown++;
+        }
+        if (shown < body.size()) {
+            int more = body.size() - shown;
+            spec.line(UltraStyle.dim("And " + more + " more, left out so the page fits."));
         }
         spec.buttonsAfterLines();
         UltraPickHelper.placePageButtons(
                 spec,
                 "records:history|History",
-                "records:stats|Stats",
                 "records:season|Season",
                 "records:quests|Quests",
                 "records:achievements|Achievements",
                 "records:hof|Hall of fame",
-                "records:journal|Journal",
-                "records:title|Title");
+                "records:journal|Journal");
         spec.back();
         spec.send(player);
     }
@@ -584,13 +644,11 @@ public final class UltraRivalScreens {
     /** Records sub-page title, worded like its button (never the page id). */
     private static String recordsTitle(String tab) {
         return switch (tab == null ? "" : tab) {
-            case "stats" -> "Stats";
             case "season" -> "Season";
             case "quests" -> "Quests";
             case "achievements" -> "Achievements";
             case "hof" -> "Hall of fame";
             case "journal" -> "Journal";
-            case "title" -> "Title";
             default -> "History";
         };
     }
@@ -621,7 +679,7 @@ public final class UltraRivalScreens {
         int pages = UltraPickHelper.pageCount(rows.size(), DECLARES_PER_PAGE);
         int pg = UltraPickHelper.clampPage(page, pages);
         UltraScreenSpec spec = sub(UltraPickHelper.pageArg("requests", pg))
-                .line(UltraStyle.LABEL + "Accept a declare to become Mutual. Decline leaves them Declared only.");
+                .line(UltraStyle.LABEL + "Accept to become rivals both ways. Decline and they stay your one-way rival.");
         if (rows.isEmpty()) {
             spec.line(UltraStyle.dim("No rival requests right now. Wait for an invite, or declare someone yourself."));
         }
@@ -653,12 +711,16 @@ public final class UltraRivalScreens {
         UltraScreenSpec spec = sub("settings")
                 // 4.7.77: each state shows once, on its toggle; the lines say what the toggles do. An OFF toggle is drawn
                 // normal (dim is the disabled look, and the button still works).
-                .line(UltraStyle.LABEL + "TP Chat: a chat line for each rival TP award.")
-                .line(UltraStyle.LABEL + "Instinct: alerts when a mutual rival or nemesis is near.")
+                // 4.7.84 (X7): one name per system for its TP chat setting: "Rival TP chat" here, "Spar TP chat" on
+                // Sparring. Each line says what its toggle does.
+                .line(UltraStyle.header("Rival TP chat"))
+                .line(UltraStyle.LABEL + "Rival TP chat: a chat line when being near or fighting a rival in the world pays you TP."
+                        + " Challenge pay always shows.")
+                .line(UltraStyle.LABEL + "Instinct: an alert when a mutual rival or your Nemesis is near.")
                 .buttonsAfterLines();
         spec.buttonLeft(
                         "do:tpmsg:toggle",
-                        tpOn ? UltraStyle.confirm("TP Chat - ON") : "TP Chat - OFF",
+                        tpOn ? UltraStyle.confirm("Rival TP chat - ON") : "Rival TP chat - OFF",
                         tpOn ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_NORMAL)
                 .buttonRight(
                         "do:instinct",
@@ -948,7 +1010,7 @@ public final class UltraRivalScreens {
     private static String pickExplainer(String doAction) {
         return switch (doAction == null ? "" : doAction) {
             case "rival_pick", "declare", "silent" ->
-                    "Next you choose Silent, Declare, or Accept a mutual request.";
+                    "Next you choose: keep it private, or ask them to be rivals back.";
             case "challenge_pick" -> "Pick who to challenge. Next step chooses length.";
             case "spectate" -> "Only fights that are in progress.";
             default -> "Choose an online player.";

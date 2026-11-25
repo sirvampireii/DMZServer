@@ -283,11 +283,12 @@ def main() -> int:
     char_tabs = (ULTRA / "UltraCharacterScreens.java").read_text(encoding="utf-8")
     if "android|Android Removal" in char_tabs or "saga|Saga Reset" in char_tabs:
         errors.append(
-            "UltraCharacterScreens tabs must stay short (Home/Saga/Android) — long labels mojibake on KaiPath"
+            "UltraCharacterScreens tabs must stay short (Home/Looks/Story) — long labels mojibake on KaiPath"
         )
-    if '.tabs("home|Home", "saga|Saga", "android|Android")' not in char_tabs:
+    # 4.7.84 (C-2): the tabs are Home / Looks / Story; Android folded into Home.
+    if '.tabs("home|Home", PAGE_LOOKS + "|Looks", "story|Story")' not in char_tabs:
         errors.append(
-            'UltraCharacterScreens must define tabs as exact home|Home, saga|Saga, android|Android'
+            'UltraCharacterScreens must define tabs as exact home|Home, looks|Looks, story|Story'
         )
     for const in ("STYLE_NORMAL", "STYLE_CONFIRM", "STYLE_DANGER", "STYLE_DIM"):
         if f"{const} =" not in style:
@@ -354,14 +355,16 @@ def main() -> int:
             "UltraCharacterScreens.openBodyParts must not hard-drop cards after placed >= N "
             "(the page slice is the render capacity — every catalog piece stays reachable)"
         )
-    if 'base(player, UltraStyle.PAGE_ANDROID_REMOVE, "android", false)' not in char_screens:
-        errors.append("UltraCharacterScreens must omit playerModel on Android Removal")
+    # 4.7.84 (C-2): the Android tab is gone (Android lives on Home); the Story tab still has no model preview.
+    if 'base(player, "reset:" + pg, "story", false)' not in char_screens:
+        errors.append("UltraCharacterScreens must omit playerModel on the Story (saga reset) tab")
     diff_screens = (ULTRA / "UltraDifficultyScreens.java").read_text(encoding="utf-8")
     if "Coin settings" in diff_screens or "openSettings" in diff_screens:
         errors.append("Difficulty must not keep a Coin settings submenu")
-    if '"Coin messages - ON"' not in diff_screens or '"Coin messages - OFF"' not in diff_screens:
-        errors.append("Difficulty home must toggle Coin messages - ON/OFF directly")
-    if '"Coin messages: ' in diff_screens:
+    # 4.7.84: the toggle is named for what it sets, "Coin drop chat".
+    if '"Coin drop chat - ON"' not in diff_screens or '"Coin drop chat - OFF"' not in diff_screens:
+        errors.append("Difficulty home must toggle Coin drop chat - ON/OFF directly")
+    if '"Coin messages: ' in diff_screens or '"Coin drop chat: ' in diff_screens:
         errors.append("Difficulty home Coin messages toggle must use the dash pattern, not a colon")
     if 'case "toggle_coin_chat" -> "settings"' in (
         ULTRA / "UltraGuiActions.java"
@@ -554,8 +557,10 @@ def main() -> int:
         errors.append("UltraWeightShopScreens.buy must stash purchase results via UltraGuiFeedback")
 
     character = (ULTRA / "UltraCharacterScreens.java").read_text(encoding="utf-8")
-    if "Keeping everything costs " not in character or "exact cost shown on the next page." not in character:
-        errors.append("race select must pin a dim keep-100 cost line outside appendCompactLines")
+    # 4.7.84 (C-3): one keep-cost line ("Keeping none is free; keeping all costs ...") from the race page's lines.
+    char_api = (ULTRA.parent / "CharacterServicesGuiApi.java").read_text(encoding="utf-8")
+    if "public static String raceKeepCostLine" not in char_api or "lines.add(raceKeepCostLine(player));" not in char_api             or '"Keeping none "' not in char_api:
+        errors.append("race select must show the one keep-cost line (raceKeepCostLine)")
     if character.count('UltraStyle.labelValue("Cost"') < 2:
         errors.append("race confirm and class pages must pin Cost via UltraStyle.labelValue")
     if "classAmountDue" not in character or "raceAmountDue" not in character:
@@ -1102,13 +1107,14 @@ def main() -> int:
         )
     if "do:tier:" not in prestige or "do:majin" not in prestige or "do:mutant" not in prestige:
         errors.append("UltraPrestigeScreens must wire do:tier / do:majin / do:mutant favor buys")
-    if 'labelValue("Lifetime prestiges"' not in prestige and "Lifetime prestiges" not in prestige:
-        errors.append('UltraPrestigeScreens must label wallet "Lifetime prestiges" (not Completed)')
+    # 4.7.84 (P-1): plain questions-and-answers wording on the wallet.
+    if 'labelValue("Prestiges earned (all time):"' not in prestige:
+        errors.append('UltraPrestigeScreens must label wallet "Prestiges earned (all time):" (not Completed)')
     if "Completed prestiges" in prestige:
         errors.append('UltraPrestigeScreens must not use "Completed prestiges"')
-    if "Current prestige amount" not in prestige or "Prestige favor" not in prestige:
+    if 'labelValue("Prestiges you hold:"' not in prestige or 'labelValue("Favor:"' not in prestige:
         errors.append(
-            "UltraPrestigeScreens must use Current prestige amount / Prestige favor wording"
+            "UltraPrestigeScreens must use Prestiges you hold: / Favor: wording"
         )
     if "paintFavorBalance" not in prestige:
         errors.append("UltraPrestigeScreens shops must use favor-only header (paintFavorBalance)")
@@ -1225,7 +1231,8 @@ def main() -> int:
         errors.append("Server tools must keep the Event log submenu")
     if "Personal ON" in diff_screens or "Personal OFF" in diff_screens:
         errors.append("Difficulty toggle must say Difficulty - ON/OFF, not Personal")
-    if '"Difficulty: ' in diff_screens:
+    # (the self-test's own "Difficulty: <problem>" messages are not toggle labels)
+    if re.search(r'"Difficulty: (ON|OFF)', diff_screens):
         errors.append("Difficulty toggle must use the dash pattern (Difficulty - ON/OFF), not a colon")
     if 'UltraStyle.confirm("Difficulty - OFF")' in diff_screens or 'UltraStyle.confirm("Turn personal ON")' in diff_screens:
         errors.append("Difficulty OFF must use dim, not confirm/gold")
@@ -1248,7 +1255,7 @@ def main() -> int:
     spec_src = (ULTRA / "UltraScreenSpec.java").read_text(encoding="utf-8")
     if 'STYLE_DIM.equals(resolvedStyle)' not in spec_src or 'accentCode = "8"' not in spec_src:
         errors.append("Dim button labels must stay dark gray (not the system accent)")
-    if "weights|Weights" not in spar_home_body:
+    if "weights|Training weights" not in spar_home_body:
         errors.append("UltraSparScreens.openHome must offer Weights")
     if "labelValue(\"Session\"" in spar_home_body or "labelValue(\"Partner\"" in spar_home_body:
         errors.append("UltraSparScreens.openHome must not show Session/Partner (staff Admin only)")
@@ -1257,8 +1264,9 @@ def main() -> int:
     # 4.7.78: Hall of Infamy and Your stats live on the Leaderboard tab, not Home.
     spar_lb_m = re.search(r"private static void openLeaderboard\b.*?^\s*private static void ", spar_home, re.S | re.M)
     spar_lb_body = spar_lb_m.group(0) if spar_lb_m else ""
-    if "infamy|Hall of Infamy" not in spar_lb_body:
-        errors.append("UltraSparScreens Leaderboard tab must label the board Hall of Infamy")
+    # 4.7.84 (SP-6): the tab shows the Hall of Infamy itself; its button opens More rankings.
+    if "Hall of Infamy" not in spar_lb_body or "infamy|More rankings" not in spar_lb_body:
+        errors.append("UltraSparScreens Leaderboard tab must show the Hall of Infamy and More rankings")
     if "stats|Your stats" not in spar_lb_body:
         errors.append("UltraSparScreens Leaderboard tab must offer Your stats")
     if "infamy|Hall of Infamy" in spar_home_body or "stats|Your stats" in spar_home_body:
@@ -1267,12 +1275,13 @@ def main() -> int:
         errors.append("UltraSparScreens.openHome Staff Admin must be danger/red")
     if "admin|Staff Admin" in spar_home_body:
         errors.append("UltraSparScreens.openHome must not use the default Staff Admin button")
-    if "settings|TP Chat" not in spar_home_body:
-        errors.append("UltraSparScreens.openHome must offer TP Chat")
+    # 4.7.84 (X7): one TP chat setting per system, named for what it sets.
+    if "settings|Spar TP chat" not in spar_home_body:
+        errors.append("UltraSparScreens.openHome must offer Spar TP chat")
     if "settings|Chat settings" in spar_home_body:
         errors.append("UltraSparScreens.openHome must not label TP Chat as Chat settings")
-    if "TP Chat - ON" not in spar_home or "TP Chat - OFF" not in spar_home:
-        errors.append("UltraSparScreens settings toggle must read TP Chat - ON/OFF")
+    if "Spar TP chat - ON" not in spar_home or "Spar TP chat - OFF" not in spar_home:
+        errors.append("UltraSparScreens settings toggle must read Spar TP chat - ON/OFF")
     if '"TP - ON"' in spar_home or '"TP - OFF"' in spar_home:
         errors.append("UltraSparScreens must not keep the TP - ON/OFF toggle label")
     if "fight_report:" not in spar_home and "recentFightCards" not in spar_home:
@@ -1420,13 +1429,14 @@ def main() -> int:
         errors.append("UltraRivalScreens.openInfo must show Nemesis and Mutual names")
     if "nemesisNames" in home_body or "mutualNames" in home_body:
         errors.append("UltraRivalScreens.openHome must not keep rival info (Info tab)")
-    if "settings|TP Chat" not in home_body:
-        errors.append("UltraRivalScreens.openHome settings button must read TP Chat")
+    if "settings|Rival TP chat" not in home_body:
+        errors.append("UltraRivalScreens.openHome settings button must read Rival TP chat")
     if "settings|Settings" in home_body:
         errors.append("UltraRivalScreens.openHome must not label TP Chat as Settings")
     # 4.6.248: every system has exactly three tabs; Rival stats open from a Home button.
-    if '.tabs("home|Home", "actions|Rival", "challenge|Challenge");' not in rival or '"info|Info"' in rival:
-        errors.append("UltraRivalScreens tabs must be Home, Rival, and Challenge (stats are a Home button)")
+    # 4.7.84 (R-4): the Rival tab reads "My rivals".
+    if '.tabs("home|Home", "actions|My rivals", "challenge|Challenge");' not in rival or '"info|Info"' in rival:
+        errors.append("UltraRivalScreens tabs must be Home, My rivals, and Challenge (stats are a Home button)")
     if '"info|My rival stats"' not in home_body:
         errors.append("UltraRivalScreens.openHome must link page:info (My rival stats)")
     if '"actions|Actions"' in rival:
@@ -1607,7 +1617,9 @@ def main() -> int:
     chal_body = chal_m.group(0) if chal_m else ""
     # 4.7.81 (GuiKit): Spectate beside Send a challenge; Stop spectate only while spectating.
     if (
-        '"pick_spectate|Spectate"' not in chal_body
+        # 4.7.84 (X6): Spectate is dim with no fights to watch.
+        'spec.buttonRight("page:pick_spectate", "Spectate", UltraStyle.STYLE_NORMAL)' not in chal_body
+        or 'spec.lockedButtonRight("Spectate - no fights")' not in chal_body
         or "RivalSpectator.isSpectating(player.m_20148_())" not in chal_body
         or '"do:spectate_stop", "Stop spectate", UltraStyle.STYLE_NORMAL' not in chal_body
     ):

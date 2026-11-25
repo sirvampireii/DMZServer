@@ -1,5 +1,7 @@
 package com.dbzlegacy.adaptivedifficulty.character;
 
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
+
 import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
 import com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy;
 import com.dragonminez.common.stats.character.Character;
@@ -48,7 +50,7 @@ public final class CosmeticHeadBoneService {
      */
     public static String previewBone(ServerPlayer player, String boneId) {
         if (!canUse(player)) {
-            return "§cModel customization is unavailable right now. Try again later or ask staff.";
+            return UltraStyle.DANGER + "Model and colors is unavailable right now. Try again later or ask staff.";
         }
         if (boneId == null || boneId.isBlank()) {
             return "§cPick a look from the list.";
@@ -506,7 +508,7 @@ public final class CosmeticHeadBoneService {
 
     public static String executeUnlock(ServerPlayer player, String boneId) {
         if (!canUse(player)) {
-            return "§cModel customization is unavailable right now. Try again later or ask staff.";
+            return UltraStyle.DANGER + "Model and colors is unavailable right now. Try again later or ask staff.";
         }
         if (boneId == null || boneId.isBlank()) {
             return "§cPick a look from the list.";
@@ -644,7 +646,7 @@ public final class CosmeticHeadBoneService {
 
     public static String executeRaceDefaultHeadBone(ServerPlayer player) {
         if (!canUse(player)) {
-            return "§cModel customization is unavailable right now. Try again later or ask staff.";
+            return UltraStyle.DANGER + "Model and colors is unavailable right now. Try again later or ask staff.";
         }
         String bone = raceDefaultHeadBoneId(player);
         return applyHeadBoneDirect(player, bone, "§aSet race default look: §f");
@@ -652,7 +654,7 @@ public final class CosmeticHeadBoneService {
 
     public static String executeUnequipHeadBone(ServerPlayer player) {
         if (!canUse(player)) {
-            return "§cModel customization is unavailable right now. Try again later or ask staff.";
+            return UltraStyle.DANGER + "Model and colors is unavailable right now. Try again later or ask staff.";
         }
         String bone = unequipHeadBoneId(player);
         if (bone.isEmpty()) {
@@ -687,7 +689,7 @@ public final class CosmeticHeadBoneService {
 
     public static String executeEquip(ServerPlayer player, String boneId) {
         if (!canUse(player)) {
-            return "§cModel customization is unavailable right now. Try again later or ask staff.";
+            return UltraStyle.DANGER + "Model and colors is unavailable right now. Try again later or ask staff.";
         }
         if (boneId == null || boneId.isBlank()) {
             return "§cPick a look from the list.";
@@ -736,7 +738,7 @@ public final class CosmeticHeadBoneService {
     /** Turn one atomic part on (paying if it is locked) or off. Other worn parts stay. */
     public static String executeToggle(ServerPlayer player, String boneId) {
         if (!canUse(player)) {
-            return "§cModel customization is unavailable right now. Try again later or ask staff.";
+            return UltraStyle.DANGER + "Model and colors is unavailable right now. Try again later or ask staff.";
         }
         if (boneId == null || boneId.isBlank()) {
             return "§cPick a look from the list.";

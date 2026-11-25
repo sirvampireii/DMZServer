@@ -492,11 +492,32 @@ public final class DojoRankings {
 
     /**
      * Online members of the dojo this player is actively at war with, in the same world.
-     * Empty when there is no active war.
+     * Empty when there is no active war. 4.7.84 (P2-2): a war running in {@code DojoStore} (every war declared from the
+     * menu, and since 4.7.84 from the old commands too) counts first; an old challenge record still counts while it
+     * lasts.
      */
     public static List<ServerPlayer> onlineWarOpponents(ServerPlayer viewer) {
         List<ServerPlayer> out = new ArrayList<>();
         if (viewer == null) {
+            return out;
+        }
+        MinecraftServer server = viewer.m_20194_();
+        if (server == null) {
+            return out;
+        }
+        String enemyDojo = runningWarEnemy(com.dbzlegacy.adaptivedifficulty.dojo.DojoService.dojoOf(viewer));
+        if (enemyDojo != null) {
+            for (ServerPlayer other : server.m_6846_().m_11314_()) {
+                if (other == null || other == viewer || !other.m_6084_() || other.m_5833_()
+                        || other.m_9236_() != viewer.m_9236_()) {
+                    continue;
+                }
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo theirs =
+                        com.dbzlegacy.adaptivedifficulty.dojo.DojoService.dojoOf(other);
+                if (theirs != null && enemyDojo.equals(theirs.masterUuid)) {
+                    out.add(other);
+                }
+            }
             return out;
         }
         String key = homeDojoKey(viewer);
@@ -511,10 +532,6 @@ public final class DojoRankings {
                 ? active.toDojoUuid
                 : active.fromDojoUuid;
         if (enemy == null || enemy.isBlank()) {
-            return out;
-        }
-        MinecraftServer server = viewer.m_20194_();
-        if (server == null) {
             return out;
         }
         for (ServerPlayer other : server.m_6846_().m_11314_()) {
@@ -533,6 +550,29 @@ public final class DojoRankings {
             }
         }
         return out;
+    }
+
+    /** 4.7.84 (P2-2): the master UUID of the dojo {@code mine} is fighting a running war with, or null. */
+    public static String runningWarEnemy(com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo mine) {
+        if (mine == null) {
+            return null;
+        }
+        List<com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.WarRecord> wars;
+        synchronized (com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get()) {
+            wars = new ArrayList<>(com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.get().wars);
+        }
+        for (com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.WarRecord w : wars) {
+            if (w == null || !"RUNNING".equals(w.status)) {
+                continue;
+            }
+            if (mine.masterUuid.equals(w.fromDojo)) {
+                return w.toDojo;
+            }
+            if (mine.masterUuid.equals(w.toDojo)) {
+                return w.fromDojo;
+            }
+        }
+        return null;
     }
 
     private static boolean isActiveChallenge(String keyA, String keyB) {

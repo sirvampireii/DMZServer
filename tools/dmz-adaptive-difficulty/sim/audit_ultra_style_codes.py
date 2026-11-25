@@ -53,7 +53,8 @@ def audit_sources() -> list[str]:
 def audit_class_bytes(name: str, data: bytes) -> list[str]:
     short = name.rsplit("/", 1)[-1]
     if short.startswith("UltraStyle"):
-        if MARK not in data:
+        # UltraStyle.class owns the mark. Its inner classes (the 4.7.84 Shortfall enum, a switch map) may hold none.
+        if short == "UltraStyle.class" and MARK not in data:
             return [f"{short}: expected section-sign mark bytes in UltraStyle"]
         return []
     n = data.count(MARK)

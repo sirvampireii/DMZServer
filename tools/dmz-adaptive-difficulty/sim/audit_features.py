@@ -217,7 +217,8 @@ def main() -> int:
         "Character playerModel only on Home + model customize",
         'base(player, "main", "home", true)' in char_ultra
         and ("sub(player, \"bones:\" + pg, true)" in char_ultra or 'sub(player, "bones:0", true)' in char_ultra)
-        and 'base(player, UltraStyle.PAGE_ANDROID_REMOVE, "android", false)' in char_ultra
+        # 4.7.84 (C-2): no Android tab any more; the Looks tab has the preview.
+        and 'base(player, PAGE_LOOKS, PAGE_LOOKS, true)' in char_ultra
         and "sub(player, \"race:\" + pg, false)" in char_ultra
         and 'sub(player, "reskin", false)' in char_ultra,
     )
@@ -1323,7 +1324,7 @@ def main() -> int:
     check("RpTier has tpMult + perk", "tpMult" in rival_const and "perk" in rival_const)
     check("Mythic Rival 2.00 title mult", '2.00' in rival_const and "Mythic Rival" in rival_const)
     check("titleLines shows Perk", "Perk:" in rival_prog)
-    check("titleLines shows TP Gain", "TP Gain:" in rival_prog)
+    check("titleLines shows TP gain", "TP gain: " in rival_prog)  # 4.7.84: plain case
     check("RivalTpCurve applies title mult", "tpMult()" in rival_tp)
 
     print("\n=== Spar individual reports (2.3.54) ===")
@@ -1661,13 +1662,14 @@ def main() -> int:
             SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraDifficultyScreens.java")
     rival_ultra = read(
             SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraRivalScreens.java")
+    # 4.7.84: "Coin messages" is "Coin drop chat"; the self-test's "Difficulty: <problem>" messages are not labels.
     check("difficulty toggles use the dash pattern (4.6.222)",
-          '"Coin messages - ON"' in diff_ultra
-          and '"Coin messages - OFF"' in diff_ultra
+          '"Coin drop chat - ON"' in diff_ultra
+          and '"Coin drop chat - OFF"' in diff_ultra
           and '"Difficulty - ON"' in diff_ultra
           and '"Difficulty - OFF"' in diff_ultra
-          and '"Coin messages: ' not in diff_ultra
-          and '"Difficulty: ' not in diff_ultra)
+          and '"Coin drop chat: ' not in diff_ultra
+          and re.search(r'"Difficulty: (ON|OFF)', diff_ultra) is None)
     check("event log toggles show feature + state, no verbs (4.6.222)",
           '"Event log - ON"' in diff_ultra
           and '"Event log - OFF"' in diff_ultra
@@ -1675,9 +1677,10 @@ def main() -> int:
           and '"Turn ON"' not in diff_ultra
           and '"Turn OFF"' not in diff_ultra
           and '"Log OFF"' not in diff_ultra)
-    check("rival TP Chat capitalization matches spar (4.6.222)",
-          '"TP Chat - ON"' in rival_ultra
-          and '"TP Chat - OFF"' in rival_ultra
+    # 4.7.84 (X7): "Rival TP chat" / "Spar TP chat", one name per system.
+    check("rival TP chat naming matches spar (4.6.222, 4.7.84)",
+          '"Rival TP chat - ON"' in rival_ultra
+          and '"Rival TP chat - OFF"' in rival_ultra
           and '"TP chat - ' not in rival_ultra
           and '.labelValue("TP chat"' not in rival_ultra)
     check("empty states are full sentences with a next step (4.6.222)",
@@ -2957,7 +2960,7 @@ def main() -> int:
     check("config fields keep one guidance row so height never outgrows the page",
           "acceptedValues" in ultra_config
           and re.search(r"if \(bad\) \{[^}]*invalidHint", ultra_config, re.S) is not None
-          and re.search(r"\} else \{\s*String accepts", ultra_config, re.S) is not None)
+          and re.search(r"\} else \{\s*(?://[^\n]*\n\s*)*String accepts", ultra_config, re.S) is not None)
 
     # Apply / - / + share one control row. Three min-width buttons plus two 8px gaps need 264px
     # and the column is 254px, so only the gaps may give way - four stacked rows here is what

@@ -89,15 +89,10 @@ public final class CharacterServicesGuiApi {
                 lines.add(UltraStyle.DANGER + "You do not have permission for race change.");
                 return lines;
             }
-            lines.add(UltraStyle.LABEL + "Choose the race you want to become.");
-            lines.add(costLine(player, CharacterServicesSystem.raceAmountDue(player, 100)));
-            lines.add(UltraStyle.DIM + "Listed cost is for keeping " + UltraStyle.VALUE + "100%" + UltraStyle.DIM + ". " + UltraStyle.VALUE + "0%" + UltraStyle.DIM + " keep is free - pick keep % on the next screen.");
-            if (CharacterServicesConfig.get().raceChange.keepSkillsOnRaceChange) {
-                lines.add(UltraStyle.LABEL + "You keep ki skills, techniques, and shared form progress.");
-            } else {
-                lines.add(UltraStyle.LABEL + "Ki skills, techniques, and shared form progress reset with this race.");
-            }
-            lines.add(UltraStyle.DIM + "Forms that only belong to your old race reset if the new race cannot use them.");
+            // 4.7.84 (C-3): one line about the keep cost; "Listed cost" is gone (no cost is listed on the races).
+            // What carries over moved to the confirm page, where the player decides.
+            lines.add(UltraStyle.LABEL + "Pick a race, then choose how much of your stats to keep.");
+            lines.add(raceKeepCostLine(player));
             lines.add(CharacterServicesSystem.cooldownLine(player, "race"));
             return lines;
         }
@@ -111,25 +106,24 @@ public final class CharacterServicesGuiApi {
                 return lines;
             }
             lines.add(UltraStyle.LABEL + "Pick a new fighting class for your " + UltraStyle.VALUE + "current race" + UltraStyle.LABEL + ".");
-            lines.add(UltraStyle.LABEL + "Only classes that fit your current race are listed.");
             lines.add(CharacterServicesConfig.get().classChange.preserveBaseStats
-                    ? UltraStyle.LABEL + "Your base combat stats stay - class skills and progression reset."
-                    : UltraStyle.LABEL + "Class skills and progression reset.");
+                    ? UltraStyle.LABEL + "Only classes your race can use are listed. Your base stats stay; class skills and progression reset."
+                    : UltraStyle.LABEL + "Only classes your race can use are listed. Class skills and progression reset.");
             lines.add(costLine(player, CharacterServicesSystem.classAmountDue(player)));
             lines.add(CharacterServicesSystem.cooldownLine(player, "class"));
             return lines;
         }
         if (p.startsWith("bones:") || "bones".equals(p)) {
             if (!CharacterServicesConfig.get().headBoneShop.enabled) {
-                lines.add(UltraStyle.DANGER + "Model customization is turned off on this server.");
+                lines.add(UltraStyle.DANGER + "Model and colors is turned off on this server.");
                 return lines;
             }
             if (!CharacterServicesAccess.canHeadBoneShop(player)) {
-                lines.add(UltraStyle.DANGER + "You do not have permission for model customization.");
+                lines.add(UltraStyle.DANGER + "Your rank can't use Model and colors yet. Ask staff which rank unlocks it.");
                 return lines;
             }
             lines.add(UltraStyle.LABEL + "One piece from each group. Demon horns can be worn together.");
-            lines.add(UltraStyle.LABEL + "A locked part charges Ancient Coins when you turn it on.");
+            lines.add(UltraStyle.LABEL + "A part you don't own shows its price first. Nothing is charged until you confirm.");
             return lines;
         }
         if (p.startsWith("bodyparts:") || "bodyparts".equals(p)) {
@@ -141,9 +135,8 @@ public final class CharacterServicesGuiApi {
                 lines.add(UltraStyle.DANGER + "You do not have permission for body parts.");
                 return lines;
             }
-            lines.add(UltraStyle.LABEL + "Extra pieces for your KaiPath model preview - wings, horns, tails.");
-            lines.add(UltraStyle.LABEL + "A locked piece charges Ancient Coins when you turn it on.");
-            lines.add(UltraStyle.LABEL + "Shown on model previews; unlocked pieces stay in your collection.");
+            lines.add(UltraStyle.LABEL + "Wear extra pieces like wings, horns and tails.");
+            lines.add(UltraStyle.LABEL + "Pieces you unlock stay yours, even after you take them off.");
             return lines;
         }
         if (p.startsWith("bodycolors") || "bodycolors".equals(p)) {
@@ -155,49 +148,33 @@ public final class CharacterServicesGuiApi {
                 lines.add(UltraStyle.DANGER + "You do not have permission for body parts.");
                 return lines;
             }
-            lines.add(UltraStyle.LABEL + "Pick a color for each part channel - own, trim, horn, glow.");
+            lines.add(UltraStyle.LABEL + "Color your body parts: main color, trim, horns and glow.");
             lines.add(UltraStyle.LABEL + "Your choice follows you in every form.");
-            lines.add(UltraStyle.LABEL + "Reset returns a channel to your form's default colors.");
+            lines.add(UltraStyle.LABEL + "Reset puts a color back to your form's own color.");
             return lines;
         }
-        if ("reskin".equals(p)) {
+        // 4.7.84 (C-4): Change skin is one page - what changes, the price, the warning and the pay button. The old
+        // reskin_confirm page id reads the same lines.
+        if ("reskin".equals(p) || "reskin_confirm".equals(p)) {
             if (!CharacterServicesConfig.get().reskin.enabled) {
-                lines.add(UltraStyle.DANGER + "Reskin is turned off on this server.");
+                lines.add(UltraStyle.DANGER + "Changing your skin is turned off on this server.");
                 return lines;
             }
             if (!CharacterServicesAccess.canReskin(player)) {
-                lines.add(UltraStyle.DANGER + "You do not have permission for reskin.");
+                lines.add(UltraStyle.DANGER + "Your rank can't change skin yet. Ask staff which rank unlocks it.");
                 return lines;
             }
-            lines.add(UltraStyle.LABEL + "Change hair, colors, and other cosmetics.");
-            lines.add(UltraStyle.LABEL + "Use " + UltraStyle.VALUE + "Model customization " + UltraStyle.LABEL + "for cross-race ears, horns, and more.");
-            lines.add(UltraStyle.LABEL + "Reskin only changes how you look. To change your fighting class, use " + UltraStyle.VALUE + "Change class " + UltraStyle.LABEL + "instead.");
-            lines.add(UltraStyle.LABEL + "Level, stats, and race are unchanged.");
-            lines.add(costLine(player, CharacterServicesSystem.reskinAmountDue(player)));
+            long due = CharacterServicesSystem.reskinAmountDue(player);
+            lines.add(UltraStyle.LABEL + "Change your hair, eyes, colors and body in the look editor.");
+            lines.add(UltraStyle.LABEL + "Only your look changes. Level, stats, race and class stay the same.");
+            lines.add(UltraStyle.LABEL + "For ears, horns or tails from other races, use " + UltraStyle.VALUE
+                    + "Model and colors" + UltraStyle.LABEL + " or " + UltraStyle.VALUE + "Body parts" + UltraStyle.LABEL + ".");
+            lines.add(costLine(player, due));
             lines.add(CharacterServicesSystem.reskinCostExplanation(player));
-            lines.add(UltraStyle.DIM + "You'll be charged Ancient Coins when you confirm on the next screen.");
+            if (due > 0L) {
+                lines.add(UltraStyle.DIM + "Coins are taken when the editor opens. Closing it does not refund them.");
+            }
             lines.add(CharacterServicesSystem.cooldownLine(player, "reskin"));
-            return lines;
-        }
-        if ("reskin_confirm".equals(p)) {
-            if (!CharacterServicesConfig.get().reskin.enabled) {
-                lines.add(UltraStyle.DANGER + "Reskin is turned off on this server.");
-                return lines;
-            }
-            if (!CharacterServicesAccess.canReskin(player)) {
-                lines.add(UltraStyle.DANGER + "You do not have permission for reskin.");
-                return lines;
-            }
-            lines.add(UltraStyle.LABEL + "Opens the appearance editor (hair, colors, body, gender).");
-            lines.add(UltraStyle.LABEL + "Level, stats, race, and class stay locked during the session.");
-            lines.add(costLine(player, CharacterServicesSystem.reskinAmountDue(player)));
-            lines.add(CharacterServicesSystem.reskinCostExplanation(player));
-            lines.add(UltraStyle.DIM + "Coins are charged when you confirm. Closing the editor does not refund them.");
-            lines.add(CharacterServicesSystem.cooldownLine(player, "reskin"));
-            String block = CharacterServicesSystem.reskinPrecheck(player);
-            if (block != null && !block.isBlank()) {
-                lines.add(block);
-            }
             return lines;
         }
         if (p.startsWith("race_pct:")) {
@@ -210,7 +187,7 @@ public final class CharacterServicesGuiApi {
                         ? UltraStyle.DIM + "Price scales with your level"
                         : UltraStyle.DIM + "Fixed price for everyone");
             } else {
-                lines.add(UltraStyle.DIM + "Free - wipe stats, then pick class and look");
+                lines.add(UltraStyle.DIM + "Free: your stats start over, then you pick a class and look.");
             }
             return lines;
         }
@@ -218,34 +195,49 @@ public final class CharacterServicesGuiApi {
             String[] bits = p.split(":", 3);
             int pct = parsePct(bits.length > 2 ? bits[2] : "0");
             String race = bits.length > 1 ? bits[1] : "?";
-            // Cost stays near the top. Ultra also pins it; the chest GUI reads this list as-is.
-            lines.add(UltraStyle.LABEL + "You are becoming " + UltraStyle.VALUE + title(race) + UltraStyle.LABEL + ".");
-            lines.add(UltraStyle.LABEL + "Keeping " + UltraStyle.VALUE + pct + "% " + UltraStyle.LABEL + "of eligible stats.");
-            lines.add(costLine(player, CharacterServicesSystem.raceAmountDue(player, pct)));
-            if (pct > 0) {
-                lines.add(CharacterServicesConfig.get().raceChange.levelCostMultiplier
-                        ? UltraStyle.DIM + "Price scales with your level"
-                        : UltraStyle.DIM + "Fixed price for everyone");
-            } else {
-                lines.add(UltraStyle.DIM + "Free - wipe stats, then pick class and look");
-            }
-            lines.add(UltraStyle.LABEL + "Purchased looks carry over. Your class stays if the new race has it.");
-            lines.add(UltraStyle.LABEL + "If not, the editor opens so you can pick a class at no extra cost.");
+            // 4.7.84 (C-5): about ten lines - who you become, what you keep, the stats after, the cost, then what
+            // carries over and the warning. The chest GUI reads this list as-is.
+            lines.add(UltraStyle.LABEL + "You become: " + UltraStyle.VALUE + title(race));
+            lines.add(UltraStyle.LABEL + "You keep: " + UltraStyle.VALUE + pct + "%" + UltraStyle.LABEL + " of your stats");
             lines.addAll(CharacterServicesSystem.statPreviewLines(player, pct));
-            lines.add(UltraStyle.DIM + "If the change fails, your coins are returned when possible.");
-            lines.add(UltraStyle.DANGER + "Staff cannot undo this for you.");
+            long due = CharacterServicesSystem.raceAmountDue(player, pct);
+            if (pct <= 0) {
+                lines.add(costLine(player, due) + UltraStyle.DIM + " - your stats start over.");
+            } else {
+                lines.add(costLine(player, due) + (due > 0L && CharacterServicesConfig.get().raceChange.levelCostMultiplier
+                        ? UltraStyle.DIM + " (grows with your level)" : ""));
+            }
+            lines.add(UltraStyle.LABEL + "Purchased looks carry over. Your class stays, or you pick one free.");
+            lines.add(CharacterServicesConfig.get().raceChange.keepSkillsOnRaceChange
+                    ? UltraStyle.LABEL + "Skills stay. Forms your new race can't use reset."
+                    : UltraStyle.LABEL + "Skills, techniques and form progress reset.");
+            lines.add(UltraStyle.DANGER + "Staff can't undo this. If it fails, coins are refunded.");
             return lines;
         }
         if (p.startsWith("class_confirm:")) {
             String cls = p.substring("class_confirm:".length());
             lines.add(UltraStyle.LABEL + "New class: " + UltraStyle.VALUE + FightingClassLabels.display(cls));
             lines.add(costLine(player, CharacterServicesSystem.classAmountDue(player)));
-            lines.add(UltraStyle.DIM + "If the change fails, your coins are returned when possible.");
-            lines.add(UltraStyle.DIM + "Class skills and progression will reset.");
+            lines.add(UltraStyle.DIM + "Class skills and progression reset. If the change fails, your coins are refunded.");
             return lines;
         }
         lines.add(UltraStyle.LABEL + "Change race, class, look, or model pieces without starting over.");
         return lines;
+    }
+
+    /**
+     * 4.7.84 (C-3): the one keep-cost line on the race list - "Keeping none is free; keeping all costs 4 Gold."
+     * Same prices as the confirm page's keep buttons.
+     */
+    public static String raceKeepCostLine(ServerPlayer player) {
+        long none = CharacterServicesSystem.raceAmountDue(player, 0);
+        long all = CharacterServicesSystem.raceAmountDue(player, 100);
+        String noneText = none <= 0L ? "is " + UltraStyle.VALUE + "free"
+                : "costs " + UltraStyle.VALUE + AncientCoinEconomy.compactCost(none);
+        String allText = all <= 0L ? "is " + UltraStyle.VALUE + "free too"
+                : "costs " + UltraStyle.VALUE + AncientCoinEconomy.compactCost(all);
+        return UltraStyle.LABEL + "Keeping none " + noneText + UltraStyle.LABEL + "; keeping all " + allText
+                + UltraStyle.LABEL + ".";
     }
 
     public static List<String> raceCards(ServerPlayer player) {

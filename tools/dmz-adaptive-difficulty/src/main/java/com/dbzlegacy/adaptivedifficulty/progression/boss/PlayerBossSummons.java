@@ -212,10 +212,8 @@ public final class PlayerBossSummons {
             return lines;
         }
         lines.add(UltraStyle.LABEL + "The " + boss.display + " matches your difficulty. Only you can damage it.");
-        lines.add(UltraStyle.LABEL + "You need a tier from " + UltraStyle.VALUE + "T" + boss.minTier
-                + UltraStyle.LABEL + " through " + UltraStyle.VALUE + "T" + boss.maxTier
-                + UltraStyle.LABEL + ", personal difficulty ON, and you must be in " + boss.dimensionName + ".");
-        lines.add(UltraStyle.LABEL + "One living " + boss.display + " at a time per player.");
+        // 4.7.84 (D-3 fit): the page's Tiers and Where rows already give the range and the place.
+        lines.add(UltraStyle.LABEL + "Difficulty must be on. One living " + boss.display + " at a time per player.");
         int myTier = DifficultyCache.data(player).getActiveTier();
         if (myTier >= boss.minTier && myTier <= boss.maxTier) {
             lines.add(UltraStyle.VALUE + SummonLootBonus.describe(myTier, boss.minTier));
@@ -226,7 +224,7 @@ public final class PlayerBossSummons {
         }
         if (!ready) {
             if (!SystemGate.participates(player)) {
-                lines.add(UltraStyle.LABEL + "Turn on difficulty from Difficulty Home first.");
+                lines.add(UltraStyle.LABEL + "Turn difficulty on (Difficulty Home or Tiers) first.");
             } else {
                 lines.add(UltraStyle.LABEL + "Activate a tier in that range on the Tiers tab first.");
             }

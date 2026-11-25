@@ -2,6 +2,7 @@ package com.dbzlegacy.adaptivedifficulty.rival;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.config.ConfigPaths;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.LmChat;
 import com.google.gson.Gson;
@@ -138,16 +139,16 @@ public final class RivalProgression {
     public List<String> seasonLines(ServerPlayer player) {
         ensureSeason();
         if (player == null) {
-            return List.of("§cPlayers only.");
+            return List.of(UltraStyle.RED + "Players only.");
         }
         List<String> lines = new ArrayList<>();
         Season s = data.season;
-        lines.add("§6§lRival Season §8— §f" + s.name + " §8(#" + s.id + ")");
+        lines.add(UltraStyle.GOLD + UltraStyle.BOLD + "Rival Season " + UltraStyle.DARK_GRAY + "— " + UltraStyle.WHITE + s.name + " " + UltraStyle.DARK_GRAY + "(#" + s.id + ")");
         long left = Math.max(0L, s.endsAt - System.currentTimeMillis());
-        lines.add("§7Ends in §f" + formatMs(left));
+        lines.add(UltraStyle.GRAY + "Ends in " + UltraStyle.WHITE + formatMs(left));
         String id = player.m_20148_().toString();
         double myRp = s.leaderboard.getOrDefault(id, 0.0);
-        lines.add("§7Your season RP §f" + (int) myRp);
+        lines.add(UltraStyle.GRAY + "Your season RP " + UltraStyle.WHITE + (int) myRp);
         List<Map.Entry<String, Double>> top = new ArrayList<>(s.leaderboard.entrySet());
         top.sort(Comparator.comparingDouble((Map.Entry<String, Double> e) -> e.getValue()).reversed());
         int rank = 1;
@@ -157,7 +158,7 @@ public final class RivalProgression {
             }
             RivalPlayerRecord rec = RivalStore.get().get(e.getKey());
             String name = rec == null ? e.getKey().substring(0, 8) : rec.name;
-            lines.add("§e#" + rank + " §f" + name + " §7" + (int) e.getValue().doubleValue() + " RP");
+            lines.add(UltraStyle.YELLOW + "#" + rank + " " + UltraStyle.WHITE + name + " " + UltraStyle.GRAY + (int) e.getValue().doubleValue() + " RP");
             rank++;
         }
         return lines;
@@ -165,7 +166,7 @@ public final class RivalProgression {
 
     public List<String> questLines(ServerPlayer player) {
         if (player == null) {
-            return List.of("§cPlayers only.");
+            return List.of(UltraStyle.RED + "Players only.");
         }
         PlayerQuests q = ensureQuests(player.m_20148_().toString());
         if (q.list == null || q.list.isEmpty()) {
@@ -173,33 +174,42 @@ public final class RivalProgression {
             markDirty();
         }
         List<String> lines = new ArrayList<>();
-        lines.add("§6§lWeekly Rival Quests");
+        lines.add(UltraStyle.GOLD + UltraStyle.BOLD + "Weekly Rival Quests");
         for (QuestItem item : q.list) {
             int prog = Math.min(item.goal, item.progress);
-            String done = prog >= item.goal ? "§a✔" : "§7";
-            lines.add(done + " §f" + item.name + " §8(" + prog + "/" + item.goal + ") §e+" + item.rp + " RP");
+            String done = prog >= item.goal ? UltraStyle.GREEN + "✔" : UltraStyle.GRAY;
+            lines.add(done + " " + UltraStyle.WHITE + item.name + " " + UltraStyle.DARK_GRAY + "(" + prog + "/" + item.goal + ") " + UltraStyle.YELLOW + "+" + item.rp + " RP");
         }
         return lines;
+    }
+
+    /** 4.7.84: a stored id ("first_blood") as plain words ("First blood") for a player-facing line. */
+    static String plainWords(String id) {
+        if (id == null || id.isBlank()) {
+            return "";
+        }
+        String w = id.trim().replace('_', ' ').replace('-', ' ').replaceAll("\\s+", " ").toLowerCase(java.util.Locale.ROOT);
+        return Character.toUpperCase(w.charAt(0)) + w.substring(1);
     }
 
     public List<String> achievementLines(ServerPlayer player) {
         String id = player.m_20148_().toString();
         Map<String, Boolean> map = data.achievements.computeIfAbsent(id, k -> new ConcurrentHashMap<>());
         List<String> lines = new ArrayList<>();
-        lines.add("§6§lRival Achievements");
+        lines.add(UltraStyle.GOLD + UltraStyle.BOLD + "Rival Achievements");
         if (map.isEmpty()) {
-            lines.add("§7None unlocked yet.");
+            lines.add(UltraStyle.GRAY + "None unlocked yet.");
             return lines;
         }
         for (Map.Entry<String, Boolean> e : map.entrySet()) {
             if (Boolean.TRUE.equals(e.getValue())) {
-                String label = "nemesis".equals(e.getKey()) ? "Vendetta Rank" : e.getKey().replace('_', ' ');
-                lines.add("§a✔ §e" + label);
+                String label = "nemesis".equals(e.getKey()) ? "Vendetta Rank" : plainWords(e.getKey());
+                lines.add(UltraStyle.GREEN + "✔ " + UltraStyle.YELLOW + label);
             }
         }
         String title = data.specialTitles.get(id);
         if (title != null && !title.isBlank()) {
-            lines.add("§7Title §e" + title.replace('_', ' '));
+            lines.add(UltraStyle.GRAY + "Title " + UltraStyle.YELLOW + plainWords(title));
         }
         return lines;
     }
@@ -207,13 +217,13 @@ public final class RivalProgression {
     public List<String> hofLines() {
         recomputeHof();
         List<String> lines = new ArrayList<>();
-        lines.add("§6§lHall of Fame");
+        lines.add(UltraStyle.GOLD + UltraStyle.BOLD + "Hall of Fame");
         if (data.hallOfFame.isEmpty()) {
-            lines.add("§7No entries yet.");
+            lines.add(UltraStyle.GRAY + "No entries yet.");
             return lines;
         }
         for (Map.Entry<String, String> e : data.hallOfFame.entrySet()) {
-            lines.add("§e" + e.getKey().replace('_', ' ') + " §8— §f" + e.getValue());
+            lines.add(UltraStyle.YELLOW + plainWords(e.getKey()) + " " + UltraStyle.DARK_GRAY + "— " + UltraStyle.WHITE + e.getValue());
         }
         return lines;
     }
@@ -222,15 +232,15 @@ public final class RivalProgression {
         String id = player.m_20148_().toString();
         List<JournalEntry> entries = data.journal.computeIfAbsent(id, k -> new ArrayList<>());
         List<String> lines = new ArrayList<>();
-        lines.add("§6§lRival Journal");
+        lines.add(UltraStyle.GOLD + UltraStyle.BOLD + "Rival Journal");
         if (entries.isEmpty()) {
-            lines.add("§7No battles logged yet.");
+            lines.add(UltraStyle.GRAY + "No battles logged yet.");
             return lines;
         }
         int from = Math.max(0, entries.size() - 8);
         for (int i = entries.size() - 1; i >= from; i--) {
             JournalEntry e = entries.get(i);
-            lines.add("§8" + e.when + " §f" + e.summary);
+            lines.add(UltraStyle.DARK_GRAY + e.when + " " + UltraStyle.WHITE + e.summary);
         }
         return lines;
     }
@@ -241,17 +251,17 @@ public final class RivalProgression {
         RivalConstants.RpTier tier = RivalConstants.tierFor(rec.totalRp);
         String special = data.specialTitles.getOrDefault(id, "");
         List<String> lines = new ArrayList<>();
-        lines.add("§6§lRival Title");
-        lines.add("§7Title: §" + tier.color() + "§l" + tier.name());
-        lines.add("§7Perk: §e" + (tier.perk() == null || tier.perk().isBlank() ? "None" : tier.perk()));
-        lines.add("§7TP Gain: §a" + Math.round(tier.tpMult() * 100.0) + "%");
-        lines.add("§7RP: §f" + (int) Math.floor(Math.max(0.0, rec.totalRp)));
+        lines.add(UltraStyle.GOLD + UltraStyle.BOLD + "Rival Title");
+        lines.add(UltraStyle.GRAY + "Title: " + UltraStyle.MARK + tier.color() + UltraStyle.BOLD + tier.name());
+        lines.add(UltraStyle.GRAY + "Perk: " + UltraStyle.YELLOW + (tier.perk() == null || tier.perk().isBlank() ? "None" : tier.perk()));
+        lines.add(UltraStyle.GRAY + "TP gain: " + UltraStyle.GREEN + Math.round(tier.tpMult() * 100.0) + "%");
+        lines.add(UltraStyle.GRAY + "RP: " + UltraStyle.WHITE + (int) Math.floor(Math.max(0.0, rec.totalRp)));
         if (special != null && !special.isBlank()) {
-            lines.add("§7Special: §e" + special.replace('_', ' '));
+            lines.add(UltraStyle.GRAY + "Special: " + UltraStyle.YELLOW + plainWords(special));
         } else {
-            lines.add("§7Special: §8none");
+            lines.add(UltraStyle.GRAY + "Special: " + UltraStyle.DARK_GRAY + "none");
         }
-        lines.add("§8Rival TP awards use your title multiplier.");
+        lines.add(UltraStyle.DARK_GRAY + "Rival TP awards use your title multiplier.");
         return lines;
     }
 
@@ -385,7 +395,7 @@ public final class RivalProgression {
             if (item.progress >= item.goal && !item.claimed) {
                 item.claimed = true;
                 data.season.leaderboard.merge(player.m_20148_().toString(), (double) item.rp, Double::sum);
-                DmzRewards.msg(player, LmChat.ok("Rival", "§e" + item.name + " §7complete §a+" + item.rp + " season RP"));
+                DmzRewards.msg(player, LmChat.ok("Rival", UltraStyle.YELLOW + item.name + " " + UltraStyle.GRAY + "complete " + UltraStyle.GREEN + "+" + item.rp + " season RP"));
             }
         }
     }
@@ -415,7 +425,7 @@ public final class RivalProgression {
         }
         map.put(ach, true);
         String label = "nemesis".equals(ach) ? "Vendetta Rank" : ach.replace('_', ' ');
-        DmzRewards.msg(player, LmChat.note("Rival", "§eAchievement: " + label));
+        DmzRewards.msg(player, LmChat.note("Rival", UltraStyle.YELLOW + "Achievement: " + label));
         if ("legend_killer".equals(ach)) {
             data.specialTitles.put(id, "legend_killer");
         }

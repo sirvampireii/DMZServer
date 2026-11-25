@@ -56,7 +56,7 @@ public final class HubDashboard {
         }
         long left = Math.max(0L, required - level);
         if (left == 0L) {
-            return "Prestige slots full. Turn some in.";
+            return "You hold the most prestiges allowed. Trade some for favor in Prestige.";
         }
         return DmzRewards.formatWhole(left) + (left == 1L ? " level" : " levels") + " to your next prestige";
     }
@@ -96,10 +96,42 @@ public final class HubDashboard {
         if (looking > 0) {
             return "Fastest now: " + looking + (looking == 1 ? " player wants" : " players want") + " a spar.";
         }
-        return "Fastest now: a close-power spar, up to " + SparBoard.mult(SparCombat.MAX_RIVAL_MULTIPLIER) + " TP.";
+        // 4.7.84 (H4): one body line (the walk's "spar someone close to your power" wrapped to two).
+        return "Fastest now: spar near your power for up to "
+                + SparBoard.mult(SparCombat.MAX_RIVAL_MULTIPLIER).substring(1) + "x TP.";
     }
 
+    /**
+     * 4.7.84 (H3): where the "Fastest now" line points, as the button that opens it: {action, label}. Same order as
+     * {@link #fastest}: prestige; the next difficulty tier; the spar board (players looking, or a close-power spar).
+     */
+    public static String[] fastestGo(boolean ready, boolean difficultyOn, int nextTier) {
+        if (ready) {
+            return new String[] {"go:prestige|main", "Go: Prestige"};
+        }
+        if (difficultyOn && nextTier > 0) {
+            return new String[] {"go:difficulty|tiers", "Go: Difficulty Tiers"};
+        }
+        return new String[] {"go:spar|sparboard", "Go: Spar Board"};
+    }
+
+    /** The "Fastest now" line and its button for {@code player}: {line, action, label}. */
+    public static String[] fastestNowWithGo(ServerPlayer player) {
+        Fastest f = fastestFor(player);
+        String[] go = fastestGo(f.ready(), f.on(), f.next());
+        return new String[] {fastest(f.ready(), f.on(), f.next(), f.nextName(), f.before(), f.after(), f.looking()),
+                go[0], go[1]};
+    }
+
+    private record Fastest(boolean ready, boolean on, int next, String nextName, double before, double after,
+            int looking) {}
+
     public static String fastestNow(ServerPlayer player) {
+        Fastest f = fastestFor(player);
+        return fastest(f.ready(), f.on(), f.next(), f.nextName(), f.before(), f.after(), f.looking());
+    }
+
+    private static Fastest fastestFor(ServerPlayer player) {
         Prestige p = prestige(player);
         PlayerDifficultyData data = DifficultyCache.data(player);
         boolean on = DifficultyConfig.isEnabled() && data != null && data.isPersonalEnabled();
@@ -118,7 +150,7 @@ public final class HubDashboard {
                 after = ut.enemyScalingMultiplier();
             }
         }
-        return fastest(p.enabled() && p.ready(), on, next, nextName, before, after,
+        return new Fastest(p.enabled() && p.ready(), on, next, nextName, before, after,
                 SparBoard.looking(player).size());
     }
 
@@ -148,7 +180,7 @@ public final class HubDashboard {
         RivalPlayerRecord rec = RivalStore.get().get(player.m_20148_());
         double rp = rec == null ? 0.0 : rec.totalRp;
         if (!(rp > 0.0)) {
-            return "Rival: no RP yet. Challenge someone.";
+            return "Rival: no rank points yet. Challenge someone to start.";
         }
         return rivalText(RivalConstants.tierFor(rp).name(), Math.round(rp), rivalRank(player));
     }
@@ -172,7 +204,7 @@ public final class HubDashboard {
     public static String dojoLine(ServerPlayer player) {
         String key = DojoRankings.homeDojoKey(player);
         if (key == null) {
-            return "Dojo: none yet. Find a master on Sparring.";
+            return "Dojo: none yet. Find a master in Dojo > Training bonds.";
         }
         SparStore.DojoSeason season = SparStore.get().dojoSeason;
         if (season == null || season.leaderboard == null || season.leaderboard.isEmpty()) {
@@ -212,10 +244,15 @@ public final class HubDashboard {
             long required = next * 100L;
             long progress = Math.min(required,
                     ProgressionData.storedGetLong(player, "potentialunlock_points_to_level_" + next, 0L));
-            return "Potential Unlock " + level + " of 30: " + progress + " / " + required + " points";
+            return potentialText(level, progress, required);
         } catch (Throwable t) {
             return null;
         }
+    }
+
+    /** {@code Potential Unlock: level 4 of 30 (340 of 500 points to next)} (4.7.84, H4). */
+    static String potentialText(int level, long progress, long required) {
+        return "Potential Unlock: level " + level + " of 30 (" + progress + " of " + required + " points to next)";
     }
 
     /** One meditation line (LM's own progress layer), or null when meditation is off. */
@@ -268,8 +305,17 @@ public final class HubDashboard {
         }
         if (!fastest(true, true, 4, "Veteran", 0.65, 0.90, 3).contains("prestige")
                 || !fastest(false, false, 0, "", 0, 0, 2).contains("2 players want a spar")
-                || !fastest(false, true, 0, "", 0, 0, 0).contains("up to x3 TP")) {
+                || !fastest(false, true, 0, "", 0, 0, 0).contains("for up to 3x TP")) {
             bad.add("fastest now order");
+        }
+        // 4.7.84 (H3): the Fastest now button opens the system the line names.
+        if (!fastestGo(true, true, 4)[0].equals("go:prestige|main")
+                || !fastestGo(false, true, 4)[0].equals("go:difficulty|tiers")
+                || !fastestGo(false, false, 0)[0].equals("go:spar|sparboard")) {
+            bad.add("fastest now button");
+        }
+        if (!"Potential Unlock: level 0 of 30 (0 of 100 points to next)".equals(potentialText(0, 0L, 100L))) {
+            bad.add("potential unlock line");
         }
         if (!"Rival: Adversary, 420 RP, #37".equals(rivalText("Adversary", 420L, 37))) {
             bad.add("rival line");

@@ -661,3 +661,10 @@ were removed (the startup log no longer reports FTB Teams; the team settings' he
 buttons in two columns and normal style, mastery pager row, headings on confirm pages, the irreversible exchange in
 danger style, "Reach level ... first" on a wide row). No price, wallet or purchase logic changed. The other 24 are
 unchanged.
+
+## Re-baseline (2026-11-24, 4.7.84 navigation and copy)
+
+`UltraPrestigeScreens` (tabs Home / Shop / Trade, Prestige now on Home, unaffordable buys dim, Trade copy, effect
+lines), `ConfigFieldHelp` (help text without the `V3:` prefix) and `ProgressionGuiApi` (Coins lore copy) re-baselined
+for `LegacyMechanics-4.7.84.jar`. Menu and copy changes only: no price, wallet, favor or purchase logic changed. The
+other 22 are unchanged.

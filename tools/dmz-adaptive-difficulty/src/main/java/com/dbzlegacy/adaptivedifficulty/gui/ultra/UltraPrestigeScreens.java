@@ -15,10 +15,11 @@ import java.util.Map;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Prestige Ultra UI - Home / Prestige / Shop.
+ * Prestige Ultra UI - Home / Shop / Trade (4.7.84, P-1).
  *
- * <p>Prestige tab: prestige now (GUI confirm) + favor wording. Exchange shop lives under Shop.
- * Shop catalogs show Prestige favor balance only (no full wallet dump).
+ * <p>Home: the wallet, the next prestige and "Prestige now" (GUI confirm). Shop: spend favor. Trade: trade
+ * held prestiges for favor (the old Exchange shop, now a tab). The old Prestige tab ids ({@code turnin},
+ * {@code points}, {@code prestige}) open Home. Shop catalogs show the favor balance only (no full wallet dump).
  *
  * <p>Every button that spends favor, points or prestige opens a confirm page ({@code ask:<action>:<arg>},
  * 4.7.21): what happens, the exact cost, what the player gets, Confirm and Back. Only Confirm runs the
@@ -65,10 +66,11 @@ public final class UltraPrestigeScreens {
             return;
         }
         switch (p) {
-            case "turnin", "points", "prestige" -> openTurnIn(player);
+            // 4.7.84 (P-1): the Prestige tab folded into Home; its old ids open Home.
+            case "turnin", "points", "prestige" -> openHome(player);
             case "confirm", "prestige_confirm" -> openConfirm(player);
             case "shop", "shop_hub", "catalog" -> openShopHub(player);
-            case "exchange", "turnin_shop", "favor_shop" -> openExchange(player);
+            case "exchange", "trade", "turnin_shop", "favor_shop" -> openExchange(player);
             case "skills", "skill", "skills_p0" -> openSkillsShop(player);
             case "tiers", "tier", "difficulty" -> openTiers(player);
             case "effects", "effect", "forms", "form" -> openEffects(player);
@@ -125,7 +127,8 @@ public final class UltraPrestigeScreens {
                 .title("Prestige")
                 .page(page)
                 .activeTab(tab)
-                .tabs("home|Home", "prestige|Prestige", "shop|Shop");
+                // 4.7.84 (P-1): Home / Shop / Trade. Tab ids: home -> main, shop -> shop, trade -> exchange.
+                .tabs("home|Home", "shop|Shop", "trade|Trade");
     }
 
     /** Subpage: no tab row - dual footer (Back + Main menu). */
@@ -136,69 +139,59 @@ public final class UltraPrestigeScreens {
                 .page(page);
     }
 
-    /** Full wallet for Home / Prestige tabs. */
-    private static void paintWallet(UltraScreenSpec spec, Map<String, String> ph) {
-        spec.labelValue("Lifetime prestiges", ph.getOrDefault("completed", "0"));
-        spec.labelValue(
-                "Current prestige amount",
-                ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", String.valueOf(com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE)));
-        spec.labelValue("Prestige favor", ph.getOrDefault("points", "0"));
+    /** "0 of 20": prestiges held of the most allowed. */
+    private static String heldText(Map<String, String> ph) {
+        return ph.getOrDefault("held", "0") + " of " + ph.getOrDefault("held_max", String.valueOf(
+                com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE));
     }
 
-    /** Shop pages: favor balance only (no player info dump). */
+    /** True when the player holds the most prestiges allowed (so Prestige now waits on a trade). */
+    private static boolean heldFull(Map<String, String> ph) {
+        return parseInt(ph.get("held"), 0) >= parseInt(ph.get("held_max"), Integer.MAX_VALUE);
+    }
+
+    /** Shop and Trade pages: favor balance only (no player info dump). */
     private static void paintFavorBalance(UltraScreenSpec spec, Map<String, String> ph) {
-        spec.labelValue("Prestige favor", ph.getOrDefault("points", "0"));
+        spec.labelValue("Favor:", ph.getOrDefault("points", "0"));
     }
 
+    /**
+     * Home (4.7.84, P-1): the wallet once, the next prestige in one line, Fastest now, and the one action:
+     * {@code Prestige now} (danger) when ready, else a dim {@code Prestige - Locked} that still opens the confirm
+     * page, which says why.
+     */
     private static void openHome(ServerPlayer player) {
         Map<String, String> ph = ProgressionGuiApi.prestigePlaceholders(player);
         UltraScreenSpec spec = base("main", "home")
                 .lineGap(2)
                 .bodyPad(4);
-        paintWallet(spec, ph);
-        if (!"true".equalsIgnoreCase(ph.get("system_enabled"))) {
+        spec.labelValue("Prestiges you hold:", heldText(ph));
+        spec.labelValue("Prestiges earned (all time):", ph.getOrDefault("completed", "0"));
+        spec.labelValue("Favor:", ph.getOrDefault("points", "0") + " - spend it in the Shop, get it by trading prestiges");
+        boolean enabled = "true".equalsIgnoreCase(ph.get("system_enabled"));
+        boolean ready = enabled && "true".equalsIgnoreCase(ph.get("ready"));
+        if (!enabled) {
             spec.line(UltraStyle.danger("Prestige system is disabled. Ask staff to turn it on."));
         } else {
-            // The level cap is the next-prestige target from the held-count ladder
+            // The next-prestige target comes from the held-count ladder
             // (LmOverhaulCapMath.prestigeRequirement: 50k at 0 held, +15k per held, 150k from 7).
-            spec.labelValue("Level cap", ph.getOrDefault("required_fmt", "0"));
-            spec.line(UltraStyle.dim("Reach your level cap to earn your next prestige."));
-            if ("true".equalsIgnoreCase(ph.get("ready"))) {
+            spec.labelValue("Next prestige at level", ph.getOrDefault("required_fmt", "0")
+                    + " (you: " + ph.getOrDefault("level_fmt", ph.getOrDefault("level", "1")) + ")");
+            if (ready) {
                 spec.line(UltraStyle.confirm("Ready to prestige."));
-            } else {
-                spec.line(UltraStyle.dim("Reach level " + ph.getOrDefault("required_fmt", "0") + " first."));
+            } else if (heldFull(ph)) {
+                spec.line(UltraStyle.dim("You hold the most prestiges allowed. Trade some for favor on the Trade tab."));
             }
             // 4.7.64: the nearest way to earn toward it, from the systems that feed leveling.
             spec.line(UltraStyle.VALUE + HubDashboard.fastestNow(player));
         }
         spec.buttonsAfterLines();
-        spec.back();
-        spec.send(player);
-    }
-
-    /** Prestige tab: status + Prestige now (confirm is a GUI subpage). Exchange is under Shop. */
-    private static void openTurnIn(ServerPlayer player) {
-        Map<String, String> ph = ProgressionGuiApi.prestigePlaceholders(player);
-        UltraScreenSpec spec = base("turnin", "prestige")
-                .lineGap(2)
-                .bodyPad(4);
-        paintWallet(spec, ph);
-        if (PrestigeShopConfig.get().exchange.enabled) {
-            spec.line(UltraStyle.LABEL
-                    + "Prestige favor - exchange current prestige on the Shop tab (loses the stat bonus).");
-        }
-        spec.buttonsAfterLines();
-        boolean ready = "true".equalsIgnoreCase(ph.get("ready"));
         if (ready) {
-            spec.button("page:confirm", UltraStyle.danger("Prestige now"), UltraStyle.STYLE_DANGER)
+            spec.buttonWide("page:confirm", UltraStyle.danger("Prestige now"), UltraStyle.STYLE_DANGER, null)
                     .rowGap();
         } else {
-            // 4.7.81 (GuiKit): both columns wide, so "Reach level 150,000 first" is never cut.
-            spec.buttonWide(
-                            "page:confirm",
-                            UltraStyle.dim("Reach level " + ph.getOrDefault("required_fmt", "0") + " first"),
-                            UltraStyle.STYLE_DIM,
-                            null)
+            // Dim, never hidden; the confirm page it opens says what is missing.
+            spec.buttonWide("page:confirm", UltraStyle.dim("Prestige - Locked"), UltraStyle.STYLE_DIM, null)
                     .rowGap();
         }
         spec.back();
@@ -214,10 +207,10 @@ public final class UltraPrestigeScreens {
                 .lineGap(2)
                 .bodyPad(4)
                 .line(UltraStyle.header("Confirm prestige"))
-                .labelValue("Current prestige amount",
-                        ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", String.valueOf(com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE)))
-                .labelValue("Level cap", ph.getOrDefault("required_fmt", "0"))
-                .notice("This resets your stats, skills, techniques and quest progress, and adds one to your current prestige amount. Kept skill levels and permanent shop purchases survive.");
+                .labelValue("Prestiges you hold:", heldText(ph))
+                .labelValue("Next prestige at level", ph.getOrDefault("required_fmt", "0"))
+                .notice("Prestiging resets your stats, skills, techniques and quest progress. You gain 1 prestige."
+                        + " Kept skill levels and shop purchases stay.");
         if (PrestigeUniverseRoleWarn.isGodOfDestruction(player)) {
             spec.line(UltraStyle.danger(PrestigeUniverseRoleWarn.GOD_OF_DESTRUCTION));
         }
@@ -226,7 +219,9 @@ public final class UltraPrestigeScreens {
         }
         boolean ready = "true".equalsIgnoreCase(ph.get("ready"));
         if (!ready) {
-            spec.line(UltraStyle.danger("Reach your level cap before you can prestige."));
+            spec.line(UltraStyle.danger(heldFull(ph)
+                    ? "You hold the most prestiges allowed. Trade some for favor on the Trade tab first."
+                    : "Reach level " + ph.getOrDefault("required_fmt", "0") + " before you can prestige."));
         }
         spec.buttonsAfterLines();
         if (ready) {
@@ -240,7 +235,10 @@ public final class UltraPrestigeScreens {
         spec.send(player);
     }
 
-    /** Shop hub - favor catalogs + exchange submenu; sections switched off in config are hidden. */
+    /**
+     * Shop hub - favor catalogs; sections switched off in config are hidden. 4.7.84 (P-1): trading prestiges for
+     * favor moved to the Trade tab, so this picker holds only ways to spend.
+     */
     private static void openShopHub(ServerPlayer player) {
         Map<String, String> ph = ProgressionGuiApi.prestigePlaceholders(player);
         PrestigeShopConfig cfg = PrestigeShopConfig.get();
@@ -248,18 +246,18 @@ public final class UltraPrestigeScreens {
                 .lineGap(2)
                 .bodyPad(4);
         paintFavorBalance(spec, ph);
-        spec.line(UltraStyle.LABEL + "Spend Prestige favor. Purchases survive prestige.")
-                .buttonsAfterLines();
+        spec.line(UltraStyle.LABEL + "Spend favor here. Everything you buy stays when you prestige.");
+        if (cfg.exchange.enabled) {
+            spec.line(UltraStyle.dim("Need favor? Trade a prestige for favor on the Trade tab."));
+        }
+        spec.buttonsAfterLines();
         // 4.7.81 (GuiKit): the sections are a picker - normal style, two columns.
         List<String[]> sections = new ArrayList<>();
-        if (cfg.exchange.enabled) {
-            sections.add(new String[] {"page:exchange", "Exchange shop"});
-        }
         if (cfg.skillShop.enabled) {
             sections.add(new String[] {"page:skills", "Skill shop"});
         }
         if (cfg.tierShop.enabled) {
-            sections.add(new String[] {"page:tiers", "Difficulty tiers"});
+            sections.add(new String[] {"page:tiers", "Own tiers for good"});
         }
         sections.add(new String[] {"page:effects", "Effects"});
         // Shown while selling, or while the player still has points to apply.
@@ -385,7 +383,7 @@ public final class UltraPrestigeScreens {
                 .lineGap(2)
                 .bodyPad(4);
         spec.labelValue("Mastery points", String.valueOf(balance));
-        spec.labelValue("Prestige favor", String.valueOf(favor));
+        spec.labelValue("Favor", String.valueOf(favor));
         spec.line(UltraStyle.LABEL + "1 favor buys " + MasteryWallet.POINTS_PER_FAVOR + " points. 1 point adds "
                 + MasteryWallet.MASTERY_PER_POINT + " mastery to a form you have unlocked.");
         spec.line(UltraStyle.LABEL + "God Ki Mastery: " + MasteryWallet.GODKI_POINTS_PER_LEVEL
@@ -593,19 +591,19 @@ public final class UltraPrestigeScreens {
         return spec;
     }
 
-    /** Exchange current prestige for favor (was on Prestige tab). */
+    /**
+     * Trade tab (4.7.84, P-1; the old Shop > Exchange shop page, same id {@code exchange}): trade held prestiges
+     * for favor. Each pack opens its confirm page.
+     */
     private static void openExchange(ServerPlayer player) {
         Map<String, String> ph = ProgressionGuiApi.prestigePlaceholders(player);
         int held = parseInt(ph.get("held"), 0);
-        UltraScreenSpec spec = sub("exchange")
+        UltraScreenSpec spec = base("exchange", "trade")
                 .lineGap(2)
                 .bodyPad(4);
         paintFavorBalance(spec, ph);
-        spec.labelValue(
-                "Current prestige amount",
-                ph.getOrDefault("held", "0") + "/" + ph.getOrDefault("held_max", String.valueOf(com.dbzlegacy.adaptivedifficulty.progression.LmOverhaulPrestigeIntegration.OVERHAUL_MAX_PRESTIGE)));
-        spec.line(UltraStyle.danger(
-                "Exchanging prestige for Prestige favor removes the stat bonus."));
+        spec.labelValue("Prestiges you hold:", heldText(ph));
+        spec.line(UltraStyle.danger("Each prestige you trade loses its stat bonus. This can't be undone."));
         // Bulk line lists only the amounts that pay a bonus, from the configured payouts.
         int[] amounts = PrestigePointsSystem.turnInAmounts();
         String bulk = bulkLine(amounts, PrestigePointsSystem::pointsForTurnIn);
@@ -614,7 +612,7 @@ public final class UltraPrestigeScreens {
         }
         spec.buttonsAfterLines();
         if (!PrestigeShopConfig.get().exchange.enabled) {
-            spec.line(UltraStyle.dim("The exchange is closed right now."));
+            spec.line(UltraStyle.dim("Trading is closed right now."));
         } else {
             for (int i = 0; i < amounts.length; i += 2) {
                 exchangeButton(spec, amounts[i], held, true);
@@ -628,22 +626,22 @@ public final class UltraPrestigeScreens {
         spec.send(player);
     }
 
-    /** "Bulk: 3 for 4 favor, 6 for 8 favor, or 9 for 13 favor." from the bonus packs; empty if none. */
+    /**
+     * "Trade more at once for a bonus: 3 for 4 favor, 6 for 8, 9 for 13." from the bonus packs; empty if none.
+     * 4.7.84 (P-3): "favor" is said once.
+     */
     static String bulkLine(int[] amounts, java.util.function.IntUnaryOperator payout) {
         List<String> parts = new ArrayList<>();
         for (int a : amounts) {
             int gain = payout.applyAsInt(a);
             if (gain > a) {
-                parts.add(a + " for " + gain + " favor");
+                parts.add(a + " for " + gain + (parts.isEmpty() ? " favor" : ""));
             }
         }
         if (parts.isEmpty()) {
             return "";
         }
-        if (parts.size() > 1) {
-            parts.set(parts.size() - 1, "or " + parts.get(parts.size() - 1));
-        }
-        return "Bulk: " + String.join(", ", parts) + ".";
+        return "Trade more at once for a bonus: " + String.join(", ", parts) + ".";
     }
 
     /** Startup self-test: exchange pack payouts, Bulk line, and button labels that fit. */
@@ -676,25 +674,26 @@ public final class UltraPrestigeScreens {
             broken.add("Prestige exchange: only an untouched 1, 2, 3, 6, 9 list should gain 12, 15, 18, once");
         }
         String bulk = bulkLine(packs, fresh::payout);
-        if (!bulk.equals("Bulk: 3 for 4 favor, 6 for 8 favor, 9 for 13 favor, 12 for 18 favor, 15 for 23 favor,"
-                + " or 18 for 28 favor.")) {
-            broken.add("Prestige exchange: Bulk line reads '" + bulk + "'");
+        if (!bulk.equals("Trade more at once for a bonus: 3 for 4 favor, 6 for 8, 9 for 13, 12 for 18, 15 for 23,"
+                + " 18 for 28.")) {
+            broken.add("Prestige trade: bonus line reads '" + bulk + "'");
         }
     }
 
-    /** "Exchange 18: +28 favor" - fits a standard button for two-digit packs too. */
+    /** "Trade 18 for 28 favor" (4.7.84, P-3) - fits a standard button for two-digit packs too. */
     static String exchangeLabel(int amount, int gain) {
-        return "Exchange " + amount + ": +" + gain + " favor";
+        return "Trade " + amount + " for " + gain + " favor";
     }
 
-    /** One exchange button (left or right half of a row); dim when not enough held. */
+    /**
+     * One trade button (left or right half of a row); dim {@code Trade 6 - Locked} when not enough held (the confirm
+     * page it still opens says how many you hold).
+     */
     private static void exchangeButton(UltraScreenSpec spec, int amount, int held, boolean left) {
         int gain = PrestigePointsSystem.pointsForTurnIn(amount);
-        String raw = held >= amount
-                ? exchangeLabel(amount, gain)
-                : "Exchange " + amount + " - hold " + amount + " first";
+        String raw = held >= amount ? exchangeLabel(amount, gain) : "Trade " + amount + " - Locked";
         if (!UltraStyle.fitsButton(raw)) {
-            raw = "Exchange " + amount;
+            raw = "Trade " + amount;
         }
         // 4.7.81: a pack is an option (its confirm page asks before the exchange) - normal, not green.
         String label = held >= amount ? UltraStyle.plain(raw) : UltraStyle.dim(raw);
@@ -715,24 +714,26 @@ public final class UltraPrestigeScreens {
                 .lineGap(2)
                 .bodyPad(4);
         paintFavorBalance(spec, ph);
-        // Header from config, e.g. "Skill levels - 1 favor each (Potential Unlock +2)".
-        StringBuilder header = new StringBuilder(
-                "Skill levels - " + shop.costPerPurchase + " favor each");
-        if (shop.levelsPerPurchase > 1) {
-            header.append(" (+").append(shop.levelsPerPurchase).append(" levels)");
-        }
+        // Header from config (4.7.84 copy), e.g. "Each buy adds 1 kept level for 1 favor (Potential Unlock gets 2).
+        // Kept levels stay when you prestige."
+        StringBuilder header = new StringBuilder("Each buy adds " + shop.levelsPerPurchase + " kept level"
+                + (shop.levelsPerPurchase == 1 ? "" : "s") + " for " + shop.costPerPurchase + " favor");
+        boolean opened = false;
         for (Map.Entry<String, Integer> o : shop.levelsPerPurchaseOverrides.entrySet()) {
             if (o.getValue() == shop.levelsPerPurchase || !List.of(ids).contains(o.getKey())) {
                 continue;
             }
-            header.append(header.indexOf("(") < 0 ? " (" : ", ")
+            header.append(opened ? ", " : " (")
                     .append(ph.getOrDefault("skill_" + o.getKey() + "_label", o.getKey()))
-                    .append(" +").append(o.getValue());
+                    .append(" gets ").append(o.getValue());
+            opened = true;
         }
-        if (header.indexOf("(") >= 0 && header.charAt(header.length() - 1) != ')') {
+        if (opened) {
             header.append(')');
         }
+        header.append(". Kept levels stay when you prestige.");
         spec.line(UltraStyle.LABEL + header).buttonsAfterLines();
+        int favor = parseInt(ph.get("points"), 0);
         if (!shop.enabled) {
             spec.line(UltraStyle.dim("The skill shop is closed right now."));
             spec.back();
@@ -754,9 +755,14 @@ public final class UltraPrestigeScreens {
                     cost != shop.costPerPurchase ? cost : -1);
             String action = "page:ask:skill:" + id;
             // 4.7.81: a skill is an option (its confirm page asks before buying) - normal, not green.
+            // 4.7.84 (P-2): dim when favor is short, with the shortfall when it fits; it still opens the confirm page.
+            boolean shortFavor = !maxed && favor < cost;
+            if (shortFavor) {
+                caption = shortfallCaption(caption, cost - favor);
+            }
             pairButton(spec, placed, action,
-                    maxed ? UltraStyle.dim(caption) : UltraStyle.plain(caption),
-                    maxed ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_NORMAL);
+                    maxed || shortFavor ? UltraStyle.dim(caption) : UltraStyle.plain(caption),
+                    maxed || shortFavor ? UltraStyle.STYLE_DIM : UltraStyle.STYLE_NORMAL);
             placed++;
         }
         if (placed % 2 == 1) {
@@ -776,11 +782,12 @@ public final class UltraPrestigeScreens {
                 .lineGap(2)
                 .bodyPad(4);
         paintFavorBalance(spec, ph);
-        spec.line(UltraStyle.LABEL + (shop.requireInOrder
-                        ? "Difficulty tiers - buy in order, activate with coins."
-                        : "Difficulty tiers - activate with coins."))
-                .line(UltraStyle.dim("Pick a tier to see its price before you buy."))
-                .labelValue("Highest owned", "T" + ph.getOrDefault("tier_highest_purchased", "0"))
+        // 4.7.84 (P-3): "Own tiers for good" - what it is, how it differs from Difficulty > Tiers.
+        int highest = parseInt(ph.get("tier_highest_purchased"), 0);
+        int favor = parseInt(ph.get("points"), 0);
+        spec.line(UltraStyle.LABEL + (shop.requireInOrder ? "Own a tier for good, in order." : "Own a tier for good.")
+                        + " You still switch it on with Ancient Coins in Difficulty > Tiers.")
+                .labelValue("Tiers you own for good:", highest <= 0 ? "none yet" : "up to T" + highest)
                 .buttonsAfterLines();
         for (int t = 1; t <= 7; t++) {
             String label = ph.getOrDefault("tier_" + t + "_label", "T" + t);
@@ -788,11 +795,18 @@ public final class UltraPrestigeScreens {
             boolean owned = "true".equalsIgnoreCase(ph.get("tier_" + t + "_owned"));
             boolean canBuy = "true".equalsIgnoreCase(ph.get("tier_" + t + "_can_buy"));
             String action = "page:ask:tier:" + t;
-            String tail = owned ? "Owned" : (!shop.forSale(t) ? "Not for sale" : (canBuy ? cost + " favor" : "Locked"));
+            int price = parseInt(cost, 0);
+            // 4.7.84 (P-2): next in order but favor is short - dim, with the shortfall.
+            boolean shortFavor = !owned && canBuy && shop.forSale(t) && favor < price;
+            String tail = owned ? "Owned" : (!shop.forSale(t) ? "Not for sale"
+                    : (!canBuy ? "Locked" : shortFavor ? "need " + (price - favor) + " more favor" : cost + " favor"));
             String withName = "T" + t + " " + label + " - " + tail;
             String caption = UltraStyle.fitsButton(withName) ? withName : ("T" + t + " - " + tail);
+            if (!UltraStyle.fitsButton(caption)) {
+                caption = "T" + t + " - need " + (price - favor);
+            }
             // 4.7.81 (GuiKit): two columns, like Difficulty > Tiers.
-            if (owned || !canBuy) {
+            if (owned || !canBuy || shortFavor) {
                 pairButton(spec, t - 1, action, UltraStyle.dim(caption), UltraStyle.STYLE_DIM);
             } else {
                 pairButton(spec, t - 1, action, UltraStyle.confirm(caption), UltraStyle.STYLE_CONFIRM);
@@ -803,10 +817,25 @@ public final class UltraPrestigeScreens {
         spec.send(player);
     }
 
+    // 4.7.84 (P-4): one plain line on what each effect does, from what the shop actually grants
+    // (PrestigePointsSystem.runDmzEffect / grantUltimate). Wording only; the effects are DMZ's own.
+    // OWNER may edit this effect line
+    static final String MAJIN_EFFECT = "Majin: gives you DragonMineZ's Majin mark, a stat boost.";
+    // OWNER may edit this effect line
+    static final String MUTANT_EFFECT = "Mutant: makes you a DragonMineZ Mutant - more TP and form mastery.";
+    // OWNER may edit this effect line
+    static final String ULTIMATE_EFFECT = "Ultimate: unlocks the Ultimate form, the one Old Kai can grant.";
+
+    /**
+     * Effects (4.7.84): every line first (prices, then one line on what each effect does), then the buttons: Majin
+     * and Mutant on one row, Ultimate on the next. A buy the player can't afford is dim with the shortfall (P-2) and
+     * still opens its confirm page.
+     */
     private static void openEffects(ServerPlayer player) {
         Map<String, String> ph = ProgressionGuiApi.prestigePlaceholders(player);
         PrestigeShopConfig cfg = PrestigeShopConfig.get();
         PrestigeShopConfig.Forms forms = cfg.forms;
+        int favor = parseInt(ph.get("points"), 0);
         boolean majin = "true".equalsIgnoreCase(ph.get("majin"));
         boolean mutant = "true".equalsIgnoreCase(ph.get("mutant"));
         boolean majinCan = "true".equalsIgnoreCase(ph.get("majin_can_buy"));
@@ -824,98 +853,106 @@ public final class UltraPrestigeScreens {
         // A form switched off in config still shows for owners, so they can remove it.
         boolean showMajin = forms.majin.enabled || majin;
         boolean showMutant = forms.mutant.enabled || mutant;
+        boolean showUltimate = forms.ultimate.enabled || ultimate;
         if (showMajin || showMutant) {
             String price;
             if (showMajin && showMutant && forms.majin.cost != forms.mutant.cost) {
-                price = "Majin " + forms.majin.cost + " / Mutant " + forms.mutant.cost + " favor";
+                price = "Majin " + forms.majin.cost + " favor, Mutant " + forms.mutant.cost + " favor";
             } else {
                 String name = showMajin && showMutant
-                        ? "Majin / Mutant - " : (showMajin ? "Majin - " : "Mutant - ");
+                        ? "Majin or Mutant - " : (showMajin ? "Majin - " : "Mutant - ");
                 price = name + (showMajin ? forms.majin.cost : forms.mutant.cost) + " favor";
             }
             spec.line(UltraStyle.LABEL + price
-                            + (forms.majinMutantExclusive && showMajin && showMutant
-                                    ? ". One at a time." : "."))
-                    .buttonsAfterLines();
-            if (majin) {
-                spec.button(
-                                "page:ask:unmajin",
-                                UltraStyle.danger("Remove Majin"),
-                                UltraStyle.STYLE_DANGER)
-                        .rowGap();
-            } else if (forms.majin.enabled) {
-                if (majinCan) {
-                    spec.button(
-                                    "page:ask:majin",
-                                    UltraStyle.confirm("Buy Majin"),
-                                    UltraStyle.STYLE_CONFIRM)
-                            .rowGap();
-                } else {
-                    spec.button(
-                                    "page:ask:majin",
-                                    UltraStyle.dim("Remove Mutant first"),
-                                    UltraStyle.STYLE_DIM)
-                            .rowGap();
-                }
+                    + (forms.majinMutantExclusive && showMajin && showMutant
+                            ? ". You can own one at a time." : "."));
+            if (showMajin) {
+                spec.line(UltraStyle.VALUE + MAJIN_EFFECT);
             }
-            if (mutant) {
-                spec.button(
-                                "page:ask:unmutant",
-                                UltraStyle.danger("Remove Mutant"),
-                                UltraStyle.STYLE_DANGER)
-                        .rowGap();
-            } else if (forms.mutant.enabled) {
-                if (mutantCan) {
-                    spec.button(
-                                    "page:ask:mutant",
-                                    UltraStyle.confirm("Buy Mutant"),
-                                    UltraStyle.STYLE_CONFIRM)
-                            .rowGap();
-                } else {
-                    spec.button(
-                                    "page:ask:mutant",
-                                    UltraStyle.dim("Remove Majin first"),
-                                    UltraStyle.STYLE_DIM)
-                            .rowGap();
-                }
+            if (showMutant) {
+                spec.line(UltraStyle.VALUE + MUTANT_EFFECT);
             }
-        } else {
-            spec.buttonsAfterLines();
         }
-        // Ultimate is independent of Majin/Mutant: own label line, own row. No
-        // buttonsAfterLines() here - the row cursor already sits below the Mutant button, and
-        // re-deriving it from the line count would drop this button on top of the pair above.
-        // Off in config and not owned: no Ultimate row at all.
-        boolean showUltimate = forms.ultimate.enabled || ultimate;
         if (showUltimate) {
             spec.line(UltraStyle.LABEL + "Ultimate - " + forms.ultimate.cost
                     + " favor. Permanent, stacks with Majin and Mutant.");
+            spec.line(UltraStyle.VALUE + ULTIMATE_EFFECT);
+        }
+        spec.buttonsAfterLines();
+        boolean left = true;
+        if (majin) {
+            effectButton(spec, left, "page:ask:unmajin", UltraStyle.danger("Remove Majin"), UltraStyle.STYLE_DANGER);
+            left = false;
+        } else if (forms.majin.enabled) {
+            effectButton(spec, left, "page:ask:majin", formBuyLabel("Majin", majinCan, "Remove Mutant first",
+                    forms.majin.cost, favor), formBuyStyle(majinCan, forms.majin.cost, favor));
+            left = false;
+        }
+        if (mutant) {
+            effectButton(spec, left, "page:ask:unmutant", UltraStyle.danger("Remove Mutant"), UltraStyle.STYLE_DANGER);
+            left = false;
+        } else if (forms.mutant.enabled) {
+            effectButton(spec, left, "page:ask:mutant", formBuyLabel("Mutant", mutantCan, "Remove Majin first",
+                    forms.mutant.cost, favor), formBuyStyle(mutantCan, forms.mutant.cost, favor));
+            left = false;
+        }
+        if (!left) {
+            spec.rowGap();
+        }
+        // Ultimate is independent of Majin/Mutant: its own row. Off in config and not owned: no row at all.
+        if (showUltimate) {
             if (ultimate) {
                 // Permanent Ultimate can't be removed or refunded (4.7.21): a dim owned row.
-                spec.button(
-                                "page:effects",
-                                UltraStyle.dim("Ultimate owned"),
-                                UltraStyle.STYLE_DIM)
-                        .rowGap();
+                spec.button("page:effects", UltraStyle.dim("Ultimate owned"), UltraStyle.STYLE_DIM).rowGap();
             } else if (ultimateEarned) {
-                // Already unlocked via the DMZ ultimate skill (Old Kai) — nothing to buy. Dim
-                // no-op row keeps the button-row cursor on the same slot the other states occupy.
-                spec.button(
-                                "page:effects",
-                                UltraStyle.dim("Already unlocked"),
-                                UltraStyle.STYLE_DIM)
-                        .rowGap();
+                // Already unlocked via the DMZ ultimate skill (Old Kai) - nothing to buy.
+                spec.button("page:effects", UltraStyle.dim("Already unlocked"), UltraStyle.STYLE_DIM).rowGap();
             } else if (ultimateCan) {
-                spec.button(
-                                "page:ask:ultimate",
-                                UltraStyle.confirm("Buy Ultimate"),
-                                UltraStyle.STYLE_CONFIRM)
+                spec.button("page:ask:ultimate", formBuyLabel("Ultimate", true, "", forms.ultimate.cost, favor),
+                                formBuyStyle(true, forms.ultimate.cost, favor))
                         .rowGap();
             }
         }
         // God Ki moved to the Mastery wallet (4.7.21); the Effects row is gone.
         spec.back();
         spec.send(player);
+    }
+
+    private static void effectButton(UltraScreenSpec spec, boolean left, String action, String label, String style) {
+        if (left) {
+            spec.buttonLeft(action, label, style);
+        } else {
+            spec.buttonRight(action, label, style);
+        }
+    }
+
+    /** Buy Majin / Mutant / Ultimate: green when it can be bought now, dim with the reason or the favor shortfall. */
+    private static String formBuyLabel(String name, boolean can, String blockedLabel, int cost, int favor) {
+        if (!can) {
+            return UltraStyle.dim(blockedLabel);
+        }
+        if (favor < cost) {
+            return UltraStyle.dim(shortfallCaption("Buy " + name, cost - favor));
+        }
+        return UltraStyle.confirm("Buy " + name);
+    }
+
+    private static String formBuyStyle(boolean can, int cost, int favor) {
+        return can && favor >= cost ? UltraStyle.STYLE_CONFIRM : UltraStyle.STYLE_DIM;
+    }
+
+    /**
+     * 4.7.84 (P-2): a buy the player can't afford reads {@code <caption> - need N more favor}, or a shorter form
+     * that fits a button, or the caption alone (the confirm page states the exact shortfall).
+     */
+    static String shortfallCaption(String caption, int need) {
+        for (String c : new String[] {caption + " - need " + need + " more favor", caption + " - need " + need + " more",
+                caption + " - need " + need}) {
+            if (UltraStyle.fitsButton(c)) {
+                return c;
+            }
+        }
+        return caption;
     }
 
     /** Custom Shop rows: entries on sale, plus switched-off ones the player still owns. */
@@ -1146,8 +1183,12 @@ public final class UltraPrestigeScreens {
      */
     private static UltraScreenSpec askFinish(UltraScreenSpec spec, String block, String doAction, String confirmLabel,
             boolean danger, String backPage, String backLabel) {
+        boolean favorShort = isFavorShortfall(block);
         if (block != null) {
             spec.line(UltraStyle.danger(block));
+        }
+        if (favorShort) {
+            spec.line(UltraStyle.LABEL + GET_FAVOR_LINE);
         }
         spec.buttonsAfterLines();
         if (block == null) {
@@ -1156,9 +1197,27 @@ public final class UltraPrestigeScreens {
                             danger ? UltraStyle.danger(raw) : UltraStyle.confirm(raw),
                             danger ? UltraStyle.STYLE_DANGER : UltraStyle.STYLE_CONFIRM)
                     .rowGap();
+        } else if (favorShort) {
+            placeGetFavorButton(spec);
         }
         spec.back();
         return spec;
+    }
+
+    // ── N6 / P-N4 (4.7.84): "not enough favor" offers the way to get more ──────────
+    // The one swap point: replace GET_FAVOR_LINE / placeGetFavorButton with the shared N6 helper when it lands.
+
+    /** The line under a "Not enough favor" reason on a confirm page. */
+    static final String GET_FAVOR_LINE = "Get favor by trading a prestige on the Trade tab.";
+
+    /** The way to more favor under a "Not enough favor" reason: a normal button to the Trade tab (navigation only). */
+    static void placeGetFavorButton(UltraScreenSpec spec) {
+        spec.button("page:exchange", UltraStyle.plain("Trade for favor"), UltraStyle.STYLE_NORMAL).rowGap();
+    }
+
+    /** True for {@link PrestigePointsSystem#notEnoughFavor}'s text (every favor shortfall on these pages). */
+    static boolean isFavorShortfall(String block) {
+        return block != null && block.startsWith("Not enough favor");
     }
 
     private static String plural(int n, String one, String many) {
@@ -1167,21 +1226,22 @@ public final class UltraPrestigeScreens {
 
     /** Exchange confirm: prestiges in, favor out, both balances before and after. */
     static UltraScreenSpec turnInAskSpec(int amount, int held, int favor, int gain, boolean open) {
-        UltraScreenSpec spec = askSpec("turnin:" + amount, "Confirm prestige exchange")
+        UltraScreenSpec spec = askSpec("turnin:" + amount, "Trade prestige for favor")
                 .labelValue("You give", plural(amount, "prestige", "prestiges"))
                 .labelValue("You get", gain + " favor")
-                .labelValue("Current prestige amount", held + " -> " + Math.max(0, held - amount))
-                .labelValue("Prestige favor", favor + " -> " + (favor + gain))
-                .line(UltraStyle.danger("Exchanged prestiges lose their stat bonus. This can't be undone."));
+                .labelValue("Prestiges you hold", held + " -> " + Math.max(0, held - amount))
+                .labelValue("Favor", favor + " -> " + (favor + gain))
+                .line(UltraStyle.danger("Traded prestiges lose their stat bonus. This can't be undone."));
         String block = null;
         if (!open) {
-            block = "The exchange is closed for this amount right now.";
+            block = "Trading is closed for this amount right now.";
         } else if (held < amount) {
-            block = "You hold " + held + " - this pack needs " + amount + ".";
+            block = "You hold " + plural(held, "prestige", "prestiges") + " and this trade needs " + amount
+                    + ". Reach your next prestige first.";
         }
         // 4.7.81: the exchange cannot be undone, so its button is the danger style.
         return askFinish(spec, block, "do:turnin:" + amount, exchangeLabel(amount, gain), true,
-                "exchange", "Exchange shop");
+                "exchange", "Trade");
     }
 
     private static void askSkill(ServerPlayer player, String id, Map<String, String> ph, int favor) {
@@ -1197,7 +1257,7 @@ public final class UltraPrestigeScreens {
                 .labelValue("Skill", label)
                 .labelValue("Kept level", bought + " -> " + (bought + gain) + " of " + max)
                 .labelValue("Cost", cost + " favor")
-                .labelValue("Prestige favor", favor + " -> " + Math.max(0, favor - cost))
+                .labelValue("Favor", favor + " -> " + Math.max(0, favor - cost))
                 .line(UltraStyle.dim("Kept levels survive prestige. Favor spent is not refunded."));
         String block = null;
         if (!shop.enabled) {
@@ -1220,12 +1280,12 @@ public final class UltraPrestigeScreens {
         UltraScreenSpec spec = askSpec("tier:" + tierId, "Confirm permanent tier")
                 .labelValue("Tier", tier == null ? "Unknown" : "T" + tierId + " " + tier.display)
                 .labelValue("Cost", cost + " favor")
-                .labelValue("Prestige favor", favor + " -> " + Math.max(0, favor - cost))
+                .labelValue("Favor", favor + " -> " + Math.max(0, favor - cost))
                 .line(UltraStyle.dim("Unlocks the tier for good - it survives prestige. You still activate it"
                         + " with Ancient Coins on the Difficulty Tiers page."));
         String block = null;
         if (tier == null) {
-            block = "That tier does not exist. Pick one from Difficulty tiers.";
+            block = "That tier does not exist. Pick one from Own tiers for good.";
         } else if (PrestigePointsSystem.hasPurchasedTier(player, tierId)) {
             block = "You already own permanent T" + tierId + ".";
         } else if (!shop.forSale(tierId)) {
@@ -1239,7 +1299,7 @@ public final class UltraPrestigeScreens {
                 }
             }
         }
-        askFinish(spec, block, "do:tier:" + tierId, "Buy for " + cost + " favor", false, "tiers", "Difficulty tiers")
+        askFinish(spec, block, "do:tier:" + tierId, "Buy for " + cost + " favor", false, "tiers", "Own tiers for good")
                 .send(player);
     }
 
@@ -1251,7 +1311,7 @@ public final class UltraPrestigeScreens {
         UltraScreenSpec spec = askSpec(majin ? "majin" : "mutant", "Confirm Permanent " + name)
                 .labelValue("You get", "Permanent " + name)
                 .labelValue("Cost", offer.cost + " favor")
-                .labelValue("Prestige favor", favor + " -> " + Math.max(0, favor - offer.cost))
+                .labelValue("Favor", favor + " -> " + Math.max(0, favor - offer.cost))
                 .line(UltraStyle.dim("Survives prestige. Removing it later gives back "
                         + (offer.refund() > 0 ? offer.refund() + " favor." : "no favor.")));
         String block = null;
@@ -1277,7 +1337,7 @@ public final class UltraPrestigeScreens {
         UltraScreenSpec spec = askSpec(majin ? "unmajin" : "unmutant", "Remove Permanent " + name)
                 .labelValue("You lose", "Permanent " + name)
                 .labelValue("Favor back", refund > 0 ? refund + " favor" : "none")
-                .labelValue("Prestige favor", favor + " -> " + (favor + Math.max(0, refund)))
+                .labelValue("Favor", favor + " -> " + (favor + Math.max(0, refund)))
                 .line(UltraStyle.danger(refund > 0
                         ? "Buying it again later costs the full " + offer.cost + " favor."
                         : "The favor you paid is not refunded."));
@@ -1292,7 +1352,7 @@ public final class UltraPrestigeScreens {
         UltraScreenSpec spec = askSpec("ultimate", "Confirm Permanent Ultimate")
                 .labelValue("You get", "Permanent Ultimate")
                 .labelValue("Cost", offer.cost + " favor")
-                .labelValue("Prestige favor", favor + " -> " + Math.max(0, favor - offer.cost))
+                .labelValue("Favor", favor + " -> " + Math.max(0, favor - offer.cost))
                 .line(UltraStyle.danger("Permanent: Ultimate can't be removed and the favor is not refunded."));
         String block = null;
         if (PrestigePointsSystem.hasUltimate(player)) {
@@ -1323,7 +1383,7 @@ public final class UltraPrestigeScreens {
             UltraScreenSpec spec = askSpec("custom_buy:" + id, "Confirm purchase")
                     .labelValue("You get", entry.name + PrestigeCustomShop.levelSuffix(entry, owned + 1))
                     .labelValue("Cost", cost + " favor")
-                    .labelValue("Prestige favor", favor + " -> " + Math.max(0, favor - cost));
+                    .labelValue("Favor", favor + " -> " + Math.max(0, favor - cost));
             for (String line : PrestigeCustomShop.rewardLines(entry)) {
                 spec.line(UltraStyle.dim(line));
             }
@@ -1344,7 +1404,7 @@ public final class UltraPrestigeScreens {
         UltraScreenSpec spec = askSpec("custom_remove:" + id, "Remove perk")
                 .labelValue("You lose", entry.name + PrestigeCustomShop.levelSuffix(entry, owned))
                 .labelValue("Favor back", refund > 0 ? refund + " favor" : "none")
-                .labelValue("Prestige favor", favor + " -> " + (favor + refund))
+                .labelValue("Favor", favor + " -> " + (favor + refund))
                 .line(UltraStyle.danger(refund > 0
                         ? "Buying it again later costs the full price."
                         : "The favor you paid is not refunded."));
@@ -1360,7 +1420,7 @@ public final class UltraPrestigeScreens {
                 .labelValue("You pay", pack + " favor")
                 .labelValue("You get", points + " mastery points")
                 .labelValue("Mastery points", balance + " -> " + (balance + points))
-                .labelValue("Prestige favor", favor + " -> " + Math.max(0, favor - pack))
+                .labelValue("Favor", favor + " -> " + Math.max(0, favor - pack))
                 .line(UltraStyle.dim("Favor spent on points is not refunded."));
         String block = null;
         if (!isPack) {

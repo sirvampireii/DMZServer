@@ -265,13 +265,17 @@ public final class SparCommands {
         return 1;
     }
 
+    /**
+     * 4.7.84 (owner pick a): the old war commands declare and answer the same wars as Dojo > Wars
+     * ({@code DojoWar}); the old 2x-ranking-point challenge is gone.
+     */
     private static int dojoChallenge(CommandSourceStack source, String name) {
         ServerPlayer player = playerOrNull(source);
         if (player == null || !enabled(player)) {
             return 0;
         }
-        ServerPlayer target = RivalSystem.findOnline(source.m_81377_(), name);
-        DmzRewards.msg(player, SparringSystem.dojoChallenge(player, target));
+        DmzRewards.msg(player, com.dbzlegacy.adaptivedifficulty.util.LmChat.info("Dojo",
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.legacyChallenge(player, name)));
         return 1;
     }
 
@@ -280,7 +284,8 @@ public final class SparCommands {
         if (player == null || !enabled(player)) {
             return 0;
         }
-        DmzRewards.msg(player, SparringSystem.dojoAcceptWar(player));
+        DmzRewards.msg(player, com.dbzlegacy.adaptivedifficulty.util.LmChat.info("Dojo",
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.legacyAnswer(player, true)));
         return 1;
     }
 
@@ -289,7 +294,8 @@ public final class SparCommands {
         if (player == null || !enabled(player)) {
             return 0;
         }
-        DmzRewards.msg(player, SparringSystem.dojoDeclineWar(player));
+        DmzRewards.msg(player, com.dbzlegacy.adaptivedifficulty.util.LmChat.info("Dojo",
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoWar.legacyAnswer(player, false)));
         return 1;
     }
 

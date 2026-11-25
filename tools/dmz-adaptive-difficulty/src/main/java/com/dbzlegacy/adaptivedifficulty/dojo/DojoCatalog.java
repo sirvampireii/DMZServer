@@ -39,7 +39,7 @@ public final class DojoCatalog {
     public static String upgradeName(String id) {
         return switch (id == null ? "" : id) {
             case TRAINING -> "Training hall";
-            case ARENA -> "Sparring arenas";
+            case ARENA -> "Sparring rings";
             case MEDITATION -> "Meditation room";
             case TROPHY -> "Trophy hall";
             case QUARTERS -> "Master quarters";
@@ -54,14 +54,26 @@ public final class DojoCatalog {
         return switch (id == null ? "" : id) {
             case TRAINING -> "A room in your hall with training dummies and drill posts.";
             case ARENA -> "Another ring on the hall floor, so more board spars can run at once.";
-            case MEDITATION -> "A quiet room with tatami, cushions and a stone garden.";
-            case TROPHY -> "Pedestals that show off your war wins.";
-            case QUARTERS -> "The master's own room in the hall.";
+            case MEDITATION -> "A quiet room with tatami, cushions and a stone garden (decoration).";
+            case TROPHY -> "A trophy room with pedestals for your hall (decoration).";
+            case QUARTERS -> "The master's own room in the hall (decoration).";
             case SPECTATOR -> "A balcony over the rings. Lets players watch your spars.";
             case GARDEN -> "Lanterns, trees and a torii on the grounds round your hall.";
-            case CAPACITY -> "Room for 5 more disciples.";
+            case CAPACITY -> "Room for more disciples.";
             default -> "";
         };
+    }
+
+    /**
+     * 4.7.84: what the next level of {@code id} from {@code tier} does, with the real numbers (the last capacity step
+     * adds 4, not 5, because a dojo holds 30 members at most).
+     */
+    public static String upgradeWhat(String id, int tier) {
+        if (CAPACITY.equals(id) && tier < MAX_CAPACITY_LEVEL) {
+            int more = disciplesAllowed(tier + 1) - disciplesAllowed(tier);
+            return "Room for " + more + " more " + (more == 1 ? "disciple" : "disciples") + ".";
+        }
+        return upgradeWhat(id);
     }
 
     public static int maxTier(String id) {
@@ -124,17 +136,23 @@ public final class DojoCatalog {
 
     // ------------------------------------------------------------------ styles and bonuses
     public enum Style {
-        KI("Ki Masters", "ki attacks and beams"),
-        MELEE("Melee", "punches and kicks"),
-        STRIKE("Strike Moves", "strike clashes and heavy blows"),
-        EVASION("Evasion", "blocking and guarding");
+        KI("Ki Masters", "ki attacks and beams", "light_blue"),
+        MELEE("Melee", "punches and kicks", "red"),
+        STRIKE("Strike Moves", "strike clashes and heavy blows", "orange"),
+        EVASION("Evasion", "blocking and guarding", "green");
 
         public final String label;
         public final String covers;
+        /**
+         * 4.7.84 (owner pick d): the banner colour id a dojo of this style flies until its master picks a banner of
+         * their own (display only; the first pick stays free).
+         */
+        public final String bannerColour;
 
-        Style(String label, String covers) {
+        Style(String label, String covers, String bannerColour) {
             this.label = label;
             this.covers = covers;
+            this.bannerColour = bannerColour;
         }
 
         public static Style of(String id) {
@@ -179,6 +197,11 @@ public final class DojoCatalog {
     public static final long IDENTITY_COOLDOWN_MS = 12L * 60L * 60L * 1000L;
     public static final long BONUS_COOLDOWN_MS = 7L * 24L * 60L * 60L * 1000L;
     public static final int STYLE_COST = 0;
+    /**
+     * 4.7.84 (owner pick c): Dojo Points a player's first founding starts with. Paid once per player; reopening a
+     * closed dojo or founding again later pays nothing.
+     */
+    public static final int FOUNDING_GRANT = 15;
 
     /** One catalog bonus, like a DUK benefit: id, name, description, cost and an optional required race. */
     public record Bonus(String id, Style style, String name, String description, double pct, String requiredRace) {}
@@ -292,6 +315,12 @@ public final class DojoCatalog {
         }
         if (FOCUS_PCT > 0.10 || RACE_PCT > 0.10) {
             bad.add("style bonuses stay modest (10% or less)");
+        }
+        if (!upgradeWhat(CAPACITY, 0).contains("5 more") || !upgradeWhat(CAPACITY, 4).contains("4 more")) {
+            bad.add("capacity: +5 a step, +4 at the last step (30 members at most)");
+        }
+        if (FOUNDING_GRANT != 15) {
+            bad.add("founding grant: 15 Dojo Points on a first founding");
         }
         if (MAX_COIN_WAGER != 500_000L || MAX_POINT_WAGER != 20 || COIN_STEPS[COIN_STEPS.length - 1] != MAX_COIN_WAGER) {
             bad.add("wager caps: 5 netherite coins or 20 Dojo Points");

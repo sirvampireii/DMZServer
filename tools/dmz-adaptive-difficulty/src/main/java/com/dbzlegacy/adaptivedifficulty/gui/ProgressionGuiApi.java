@@ -790,9 +790,9 @@ public final class ProgressionGuiApi {
                 lore.add("§7Staff free costs §f" + (staffFree ? "ON" : "OFF"));
                 lore.add("");
                 lore.add("§8These features charge Ancient Coins:");
-                lore.add("§8Difficulty tiers - Character Services - End dragon summon - Model customization");
-                lore.add("");
-                lore.add("§8/lm §7-> Staff Admin -> Progression panel -> Ancient Coins");
+                // 4.7.84 (P-A2): the "/lm -> Staff Admin -> Progression panel -> Ancient Coins" path is gone (staff
+                // are already on that page).
+                lore.add(UltraStyle.DIM + "Difficulty tiers - Character Services - End dragon summon - Model and colors");
                 yield lore;
             }
             case "admin", "flags", "disable" -> {

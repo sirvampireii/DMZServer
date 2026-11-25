@@ -186,7 +186,7 @@ public final class DojoWar {
         store().markDirty();
         if (needsSignoff) {
             tell(p.m_20194_(), mine.masterUuid, p.m_7755_().getString() + " wants to declare a " + fmt.toLowerCase()
-                    + " war on " + them.name + ". Sign it off in the Dojo tab.");
+                    + " war on " + them.name + ". Sign it off on Dojo > Wars.");
             return "Sent to your master for sign-off. The war goes out once they approve.";
         }
         notifyChallenged(p.m_20194_(), w);
@@ -198,7 +198,8 @@ public final class DojoWar {
         if (them == null) {
             return;
         }
-        String msg = w.fromName + " declared a " + w.format.toLowerCase() + " war on your dojo. Accept it in the Dojo tab.";
+        String msg = w.fromName + " declared a " + w.format.toLowerCase() + " war on your dojo. Accept it or turn it down"
+                + " on Dojo > Wars.";
         tell(server, them.masterUuid, msg);
         for (String e : them.elites) {
             tell(server, e, msg);
@@ -270,8 +271,9 @@ public final class DojoWar {
         store().markDirty();
         DojoBuilder.warRing(level, o);
         RUNS.put(w.id, r);
-        String msg = "The war " + w.fromName + " vs " + w.toName + " (" + w.format.toLowerCase()
-                + ") starts in a minute. Join it in the Dojo tab to fight.";
+        // 4.7.84 (DJ-6): the chat line says where to join; the Wars tab shows the sign-up card with the countdown.
+        String msg = "War! " + w.fromName + " vs " + w.toName + " (" + w.format.toLowerCase() + "). Sign-up is open for "
+                + (SIGNUP_MS / 1000L) + " seconds: open Dojo > Wars and tap Join the war.";
         for (String dojo : new String[] {w.fromDojo, w.toDojo}) {
             Dojo d = DojoService.byMaster(dojo);
             tell(p.m_20194_(), dojo, msg);
@@ -729,7 +731,7 @@ public final class DojoWar {
             long left = Math.max(0L, ("SIGNUP".equals(r.phase) ? r.signupUntil : r.phaseUntil)
                     - System.currentTimeMillis());
             String phase = switch (r.phase) {
-                case "SIGNUP" -> "Sign-up (" + r.signed.size() + " in)";
+                case "SIGNUP" -> "Sign-up open (" + r.signed.size() + " signed up)";
                 case "RULES" -> "Rules";
                 case "INTERMISSION" -> "Intermission";
                 case "PREVIEW" -> "Preview: " + name(r, r.x) + " vs " + name(r, r.y);
@@ -738,8 +740,14 @@ public final class DojoWar {
             };
             out.add(UltraStyle.labelValue("Now", phase + ", " + BoardSpar.clock(left) + " left"));
         }
+        // 4.7.84 (DJ-7): the last 4 results (with their round headings), so a long war fits the page.
+        int shown = 4;
+        int skip = Math.max(0, w.fights.size() - shown);
+        if (skip > 0) {
+            out.add(UltraStyle.LABEL + skip + (skip == 1 ? " earlier bout" : " earlier bouts") + " not shown.");
+        }
         int lastRound = -1;
-        for (WarFight f : w.fights) {
+        for (WarFight f : w.fights.subList(skip, w.fights.size())) {
             if (f.round != lastRound) {
                 lastRound = f.round;
                 out.add(UltraStyle.header(("GAUNTLET".equals(w.format) ? "Challenger " : "Round ") + f.round));
@@ -761,6 +769,112 @@ public final class DojoWar {
     public static boolean signedUp(String warId, UUID id) {
         Run r = RUNS.get(warId);
         return r != null && r.signed.contains(id);
+    }
+
+    /** 4.7.84 (DJ-6): milliseconds left to sign up for a war, 0 when sign-up is not open. */
+    public static long signupLeftMs(String warId) {
+        Run r = RUNS.get(warId);
+        return r == null || !"SIGNUP".equals(r.phase) ? 0L : Math.max(0L, r.signupUntil - System.currentTimeMillis());
+    }
+
+    /** 4.7.84 (DJ-6): fighters from {@code dojo} signed up for a war so far. */
+    public static int signedCount(String warId, String dojo) {
+        Run r = RUNS.get(warId);
+        if (r == null || dojo == null) {
+            return 0;
+        }
+        int n = 0;
+        for (String d : r.dojoOf.values()) {
+            if (dojo.equals(d)) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** 4.7.84 (DJ-6): the war of {@code dojo} whose sign-up is open now, or null. */
+    public static WarRecord signupFor(String dojo) {
+        for (Run r : RUNS.values()) {
+            if ("SIGNUP".equals(r.phase) && (r.rec.fromDojo.equals(dojo) || r.rec.toDojo.equals(dojo))) {
+                return r.rec;
+            }
+        }
+        return null;
+    }
+
+    // ------------------------------------------------------------------ the old war commands (owner pick a)
+
+    /**
+     * 4.7.84 (owner pick a): {@code /spar dojo challenge <player>} and the legacy GUI "dojo challenge" actions declare
+     * the same war as the menu ({@code war_declare:<master>:BRACKET}). {@code who} names the other dojo by any of its
+     * members online, its master's name or UUID ({@code uuid:} allowed), or its dojo name. Nothing writes the old
+     * 2x-ranking-point challenge records any more.
+     */
+    public static String legacyChallenge(ServerPlayer p, String who) {
+        String raw = who == null ? "" : who.trim();
+        if (raw.regionMatches(true, 0, "uuid:", 0, 5)) {
+            raw = raw.substring(5).trim();
+        }
+        if (raw.isBlank()) {
+            return "Name the dojo to declare war on: a member's name or the dojo's name. Or open Dojo > Wars and tap"
+                    + " Declare a war.";
+        }
+        Dojo them = null;
+        try {
+            UUID u = UUID.fromString(raw);
+            them = DojoService.byMaster(u.toString());
+            if (them == null) {
+                them = DojoService.dojoOf(u);
+            }
+        } catch (IllegalArgumentException ignored) {
+            // a name, not a UUID
+        }
+        if (them == null && p.m_20194_() != null) {
+            for (ServerPlayer o : p.m_20194_().m_6846_().m_11314_()) {
+                if (o.m_7755_().getString().equalsIgnoreCase(raw)) {
+                    them = DojoService.dojoOf(o);
+                    if (them == null) {
+                        return o.m_7755_().getString() + " isn't in a dojo, so there's no dojo to fight.";
+                    }
+                    break;
+                }
+            }
+        }
+        if (them == null) {
+            for (Dojo d : store().dojos.values()) {
+                if (d.open && (d.name.equalsIgnoreCase(raw) || d.masterName.equalsIgnoreCase(raw))) {
+                    them = d;
+                    break;
+                }
+            }
+        }
+        if (them == null) {
+            return "No open dojo goes by " + raw + ". Check the dojo list on Dojo > Wars > Declare a war.";
+        }
+        return declare(p, them.masterUuid, "BRACKET");
+    }
+
+    /**
+     * 4.7.84 (owner pick a): {@code /spar dojo accept|decline} and the legacy GUI actions answer the newest war
+     * challenge waiting on the player's dojo, the same as Accept / Turn it down on Dojo > Wars.
+     */
+    public static String legacyAnswer(ServerPlayer p, boolean accept) {
+        prune();
+        Dojo mine = DojoService.dojoOf(p);
+        if (mine == null) {
+            return "You're not in a dojo yet, so there's no war to answer.";
+        }
+        WarRecord newest = null;
+        for (WarRecord w : store().wars) {
+            if ("CHALLENGED".equals(w.status) && w.toDojo.equals(mine.masterUuid)
+                    && (newest == null || w.createdAt >= newest.createdAt)) {
+                newest = w;
+            }
+        }
+        if (newest == null) {
+            return "No war challenge is waiting for your dojo. Open Dojo > Wars to see your wars.";
+        }
+        return accept ? accept(p, newest.id) : decline(p, newest.id);
     }
 
     public static String apply(ServerPlayer p, String action, String arg) {
