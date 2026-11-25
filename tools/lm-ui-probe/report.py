@@ -211,7 +211,7 @@ def main(out, base=None):
             # Preview forms names what the figure wears, which differs by client (the LM client draws the player's
             # own look, KaiPath race colors) - the line, wherever it wraps, is set aside too.
             lines = [x for x in (r["lines"] or [])
-                     if not re.search(r"The model (uses|wears)|colors, not your own|hair and skin, in this form",
+                     if not re.search(r"The model (uses|wears)|colors, not your own|hair and skin, in this form|^skin, in this form.|^not your own.",
                                       plain(x))
                      # 4.7.80 Goals: the reset clock and the week's progress move between the two runs.
                      and not (r["screen"] == "hub" and r["page"] == "goals"
