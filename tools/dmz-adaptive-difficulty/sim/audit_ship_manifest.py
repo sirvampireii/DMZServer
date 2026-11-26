@@ -2039,6 +2039,28 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.8.1 ---")
+    # The 4.7.88 string check reads Java only. CNPC scripts split a message into color pieces
+    # (COLOR + "f/progression boost"), so a literal may start with the color code letter before the slash.
+    _cnpc = ROOT / "customnpcs/scripts"
+    check("manifest row for lm 4.8.1", "lm-481-cnpc-strings" in manifest)
+    check("CNPC TP boost / android messages name /lm admin progression",
+          (_cnpc / "Global TP Boost.js").read_text(encoding="utf-8").count('"f/lm admin progression boost"') == 2
+          and '"f/lm admin progression android"' in (_cnpc / "AndrioidConversion.js").read_text(encoding="utf-8")
+          and '"f/lm admin progression boost end"' in (_cnpc / "TP boost end.js").read_text(encoding="utf-8"))
+    _js_old = re.compile(r'(?:^[0-9a-fk-or]?|§.|\\u00a7.|[^\w/.:\-])/(difficulty|diff|rival|spar|progression|prog|'
+                         r'prestige|padmin|character|skillcheck|skills|enddragon|androidify|terminal)(?![\w\-])')
+    _js_hits = []
+    for _f in sorted(_cnpc.glob("*.js")):
+        _src = re.sub(r"/\*.*?\*/", lambda m: "\n" * m.group(0).count("\n"),
+                      _f.read_text(encoding="utf-8", errors="replace"), flags=re.S)
+        for _n, _line in enumerate(_src.splitlines(), 1):
+            _code = re.sub(r"^\s*//.*", "", _line)
+            for _lit in re.findall(r'"((?:[^"\\\n]|\\.)*)"|\'((?:[^\'\\\n]|\\.)*)\'', _code):
+                if _js_old.search(_lit[0] or _lit[1]):
+                    _js_hits.append(_f.name + ":" + str(_n))
+    check("no CNPC script string prints a deleted command (comments not scanned)",
+          not _js_hits, ", ".join(_js_hits[:8]))
     print("\n--- § lm 4.7.88 ---")
     p88_acc = read(SRC / "command/CommandAccess.java")
     p88_staff = read(SRC / "util/StaffAccess.java")

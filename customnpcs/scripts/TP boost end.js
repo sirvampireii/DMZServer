@@ -33,7 +33,7 @@ function trigger(event) {
         try {
             if (event.player != null) {
                 event.player.message(
-                    COLOR + "e[TP Boost] " + COLOR + "7Use " + COLOR + "f/progression boost end"
+                    COLOR + "e[TP Boost] " + COLOR + "7Use " + COLOR + "f/lm admin progression boost end"
                     + COLOR + "7 (LegacyMechanics)."
                 );
             }

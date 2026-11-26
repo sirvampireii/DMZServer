@@ -43,7 +43,7 @@ function trigger(event) {
         try {
             if (event.player != null) {
                 event.player.message(
-                    COLOR + "e[Android] " + COLOR + "7Use " + COLOR + "f/progression android"
+                    COLOR + "e[Android] " + COLOR + "7Use " + COLOR + "f/lm admin progression android"
                     + COLOR + "7 (LegacyMechanics)."
                 );
             }

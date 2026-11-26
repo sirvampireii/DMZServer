@@ -36,7 +36,7 @@ function trigger(event) {
             if (event.player != null) {
                 event.player.message(
                     COLOR + "c[TP Boost] " + COLOR + "7Need encoded value. Use "
-                    + COLOR + "f/progression boost"
+                    + COLOR + "f/lm admin progression boost"
                 );
             }
             return;
@@ -61,7 +61,7 @@ function trigger(event) {
         try {
             if (event.player != null) {
                 event.player.message(
-                    COLOR + "e[TP Boost] " + COLOR + "7Use " + COLOR + "f/progression boost"
+                    COLOR + "e[TP Boost] " + COLOR + "7Use " + COLOR + "f/lm admin progression boost"
                     + COLOR + "7 (LegacyMechanics)."
                 );
             }
