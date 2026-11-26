@@ -170,6 +170,9 @@ public final class DojoPlacer {
         final Runnable done;
         /** 4.8.2: the dojo's picked banner, put up in every banner spot this job places; null: the style's own. */
         BannerDesign banner;
+        /** 4.8.3: a clear job (a staff disband): every block of this box (x, y, z sizes from the origin) goes to air. */
+        int[] clearSize;
+        long clearIndex;
         Template cur;
         Step step;
         int index;
@@ -265,6 +268,10 @@ public final class DojoPlacer {
     private static void work(Job j, long end) {
         try {
             BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+            if (j.clearSize != null) {
+                clearWork(j, end, pos);
+                return;
+            }
             while (System.nanoTime() < end) {
                 if (j.cur == null) {
                     j.step = j.steps.pollFirst();
@@ -309,6 +316,42 @@ public final class DojoPlacer {
                 active = null;
             }
         }
+    }
+
+    /** 4.8.3: a clear job's slice: blocks to air (x fastest, then z, then y) until {@code end} or the box is done. */
+    private static void clearWork(Job j, long end, BlockPos.MutableBlockPos pos) {
+        int sx = j.clearSize[0], sy = j.clearSize[1], sz = j.clearSize[2];
+        long total = (long) sx * sy * sz;
+        BlockState air = net.minecraft.world.level.block.Blocks.f_50016_.m_49966_();
+        while (System.nanoTime() < end) {
+            long stop = Math.min(total, j.clearIndex + 4096);
+            for (long i = j.clearIndex; i < stop; i++) {
+                int x = (int) (i % sx);
+                int z = (int) ((i / sx) % sz);
+                int y = (int) (i / ((long) sx * sz));
+                pos.m_122178_(j.origin.m_123341_() + x, j.origin.m_123342_() + y, j.origin.m_123343_() + z);
+                if (!j.level.m_8055_(pos).m_60795_()) {
+                    j.level.m_7731_(pos, air, FLAGS);
+                    j.placed++;
+                }
+            }
+            j.clearIndex = stop;
+            if (j.clearIndex >= total) {
+                finish(j);
+                return;
+            }
+        }
+    }
+
+    /**
+     * 4.8.3: queue a clear of a whole plot box (the plot structure's size, from {@code origin}) under the same time
+     * budget and chunk tickets as a build; a queued build for {@code dojo} is dropped. {@code done} runs when it ends.
+     */
+    public static void submitClear(String dojo, String label, ServerLevel level, BlockPos origin, Runnable done) {
+        DojoLayout l = DojoLayout.get();
+        Job job = new Job(dojo, label, level, origin, List.of(), done);
+        job.clearSize = new int[] {l.sx, l.sy, l.sz};
+        submit(job);
     }
 
     static boolean inside(List<int[]> boxes, int x, int y, int z) {

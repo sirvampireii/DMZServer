@@ -8,7 +8,7 @@ import java.util.Set;
 /** Join Bukkit-split tokens for {@code /lm admin …} before Forge Brigadier parse (Mohist). */
 public final class LmAdminArgCoalesce {
     private static final Set<String> CLEAR_SCOPES = Set.of(
-            "all", "rival", "spar", "difficulty", "progression", "lm", "*");
+            "all", "rival", "spar", "dojo", "dojos", "difficulty", "progression", "lm", "*");
     private static final Set<String> COOLDOWN_KINDS = Set.of(
             "all", "race", "racechange", "class", "classchange", "reskin", "skin");
 
