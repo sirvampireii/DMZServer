@@ -2,15 +2,21 @@ package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.gui.AdminInspectSessions;
-import com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork;
+import com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork;
 import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import java.util.Locale;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Ultra / KaiPath entry. Every system opens via {@code Ultra*Screens} -> {@code GuiOpenPacket}.
- * Players without KaiPath get an install message - there is no CNPC fallback.
+ * Menu entry. Every system opens via {@code Ultra*Screens} -> {@code GuiOpenPacket}, drawn by the
+ * Legacy Mechanics client. LM 4.8.2: the client is mandatory and the KaiPath bridge is gone; a player
+ * without the LM client gets the install message - there is no CNPC or KaiPath fallback.
+ *
+ * <p>The client gate never blocks building: while {@link UltraScreenSpec#captureSends} runs (boot
+ * self-tests, the UI probe's crawls and its Forge fake-player stand-ins, which never have a client), the
+ * page is built and captured whatever the viewer's client. Real sends are gated again at the network
+ * ({@code LmGuiNetwork.sendOpen}).
  *
  * <p>Staff inspect ({@link AdminInspectSessions}): menu data is built from the subject; the
  * GuiOpenPacket is always delivered to the clicking viewer.
@@ -41,16 +47,14 @@ public final class UltraGui {
         return MENU_CLICK.get()[0] > 0;
     }
 
+    /** 4.8.2: true when this player can see LM menus: their client has the Legacy Mechanics client mod. */
     public static boolean preferUltra(ServerPlayer player) {
-        // 4.7.58: the LM client draws menus itself; KaiPath stays the bridge for everyone else.
-        return player != null
-                && (com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.hasNativeClient(player)
-                        || LmGuiNetwork.clientHasKaiPath(player));
+        return player != null && LmNativeNetwork.hasNativeClient(player);
     }
 
     /**
-     * Open a system page on Ultra ({@code GuiOpenPacket}). If KaiPath is missing, tell the
-     * player to install it and return without opening another GUI backend.
+     * Open a system page ({@code GuiOpenPacket}). If the viewer has no Legacy Mechanics client, tell them
+     * to install it and return without opening anything (unless a capture is running: then the page builds).
      */
     public static void open(ServerPlayer player, String system, String page) {
         if (player == null) {
@@ -59,18 +63,15 @@ public final class UltraGui {
         String logical = UltraScreenIds.normalizeLogical(system);
         String pg = normalizePage(page);
 
-        // KaiPath must be on the viewer (staff), not the inspect subject.
-        if (!preferUltra(player)) {
+        // The LM client must be on the viewer (staff), not the inspect subject. A capture builds regardless.
+        if (!UltraScreenSpec.capturing() && !preferUltra(player)) {
             LmLog.event(
-                    "[{}] Ultra refused (KaiPath missing) player={} system={} page={}",
+                    "[{}] menu refused (no Legacy Mechanics client) player={} system={} page={}",
                     AdaptiveDifficultyMod.MOD_ID,
                     safeName(player),
                     logical,
                     pg);
-            DmzRewards.msg(
-                    player,
-                    UltraStyle.dangerLine(
-                            "Install KaiPath (DMZ Legacy client mod) to open Legacy Mechanics menus."));
+            DmzRewards.msg(player, UltraStyle.dangerLine(LmNativeNetwork.requiredClientMessage()));
             return;
         }
 

@@ -54,7 +54,7 @@ public final class AdaptiveDifficultyMod {
             }
             Class.forName(CLIENT_BOOT_CLASS).getMethod("init").invoke(null);
         } catch (Throwable t) {
-            LOGGER.error("[{}] LM client renderer did not start; menus fall back to KaiPath", MOD_ID, t);
+            LOGGER.error("[{}] LM client renderer did not start; LM menus will not open on this client (there is no KaiPath fallback)", MOD_ID, t);
         }
     }
 

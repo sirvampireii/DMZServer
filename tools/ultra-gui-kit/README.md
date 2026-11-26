@@ -1,5 +1,9 @@
 # Ultra GUI — implement-yourself kit (any Forge mod + KaiPath / JLDK)
 
+> **LM 4.8.2:** Legacy Mechanics itself no longer uses this bridge (the LM client is mandatory and draws LM menus
+> on `legacymechanics:native_ui`). The kit stays the reference for other mods that speak the Ultra GUI protocol
+> to KaiPath, and its LM corpus is now taken from the rig's full stage (LM's real wire).
+
 Protocol + conformance: [`docs/KAIPATH_GUI_PROTOCOL.md`](../../docs/KAIPATH_GUI_PROTOCOL.md).
 Gap matrix / pitfalls: [`docs/KAIPATH_BRIDGE_GAPS.md`](../../docs/KAIPATH_BRIDGE_GAPS.md).
 DMZUltra asset reuse: [`docs/DMZULTRA_ASSET_REUSE.md`](../../docs/DMZULTRA_ASSET_REUSE.md).

@@ -14,15 +14,15 @@ import java.util.function.Predicate;
 /**
  * LM 4.7.58 native client protocol: the menu spec the LM client renders itself, on its own channel.
  *
- * <p>The open and click payloads are byte-identical to the KaiPath bridge ({@link GuiOpenPacket},
- * {@link GuiActionPacket}); only the channel differs. Pure Java (Gson only), so the server
- * self-test and the client share it.
+ * <p>The open and click payloads keep the KaiPath-era wire shape ({@link GuiOpenPacket},
+ * {@link GuiActionPacket}). Pure Java (Gson only), so the server self-test and the client share it.
+ * 4.8.2: the KaiPath bridge is gone; this is the only menu protocol.
  *
  * <p>A menu goes native only when the client renders every feature it uses. {@link #analyze} lists
  * what a packet needs: <b>hard</b> features (a widget the client must draw, or the menu would be
  * half-rendered) and <b>soft</b> ones (a preview hint the protocol lets a client skip: the base
- * entity still draws). {@link LmNativeNetwork} sends a menu the client cannot fully draw over the
- * KaiPath bridge when the player has KaiPath.
+ * entity still draws). {@link LmNativeNetwork} draws a menu missing only a soft feature natively and
+ * refuses one missing a hard feature with an "update the mod" message.
  */
 public final class LmNativeProtocol {
     private LmNativeProtocol() {}
@@ -67,7 +67,18 @@ public final class LmNativeProtocol {
      */
     public static final String FEATURE_HUD = "hud";
 
-    /** Feature ids (bridge spelling) the protocol-1 LM client draws natively. */
+    /**
+     * LM 4.8.2: server to client, the equipped body-parts world sync ({@link GuiModelSyncPacket}, the payload the
+     * KaiPath bridge carried as its message 3).
+     */
+    public static final int MSG_MODEL_SYNC = 5;
+    /**
+     * LM 4.8.2: the client draws equipped body parts on players in the world from message 5. Hello-only (never in
+     * {@link #CLIENT_FEATURES}); the client lists it when DMZUltra's FormParts is installed.
+     */
+    public static final String FEATURE_BODY_PARTS_SYNC = "bodyPartsSync";
+
+    /** Feature ids (KaiPath-era spelling) the protocol-1 LM client draws natively. */
     public static final List<String> CLIENT_FEATURES = List.of(
             "style", "activeTab", "titleAlign", "playerModel", "textInput", "headerBottom", "accent",
             "palette", "sound", "buttonSkin", "frame", "pagedBook", "portraitFrame", "fixedFooter", "icon",
@@ -227,7 +238,8 @@ public final class LmNativeProtocol {
      * LM 4.7.61: {@link #CLIENT_FEATURES} plus what the installed mods let the LM client draw on a made-up
      * preview figure: {@link #FEATURE_FORMS} with DragonMineZ (race and form on the stand-in) and
      * {@link #FEATURE_BODY_PARTS} with DMZUltra (bodyParts merged into its FormParts look). With both,
-     * Character Services Preview forms opens natively instead of falling back to KaiPath.
+     * Character Services Preview forms opens natively. 4.8.2: with DMZUltra the client also lists
+     * {@link #FEATURE_BODY_PARTS_SYNC} (it draws the world sync, message 5).
      */
     public static String clientFeaturesJson(boolean forms, boolean bodyParts) {
         JsonArray a = new JsonArray();
@@ -239,6 +251,7 @@ public final class LmNativeProtocol {
         }
         if (bodyParts) {
             a.add(FEATURE_BODY_PARTS);
+            a.add(FEATURE_BODY_PARTS_SYNC);
         }
         a.add(FEATURE_MENU_SKINS);
         a.add(FEATURE_CUSTOM_SKIN);

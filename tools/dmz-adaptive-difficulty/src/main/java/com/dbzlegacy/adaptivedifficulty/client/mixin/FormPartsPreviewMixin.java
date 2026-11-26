@@ -11,7 +11,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * LM 4.7.61 (client only): while an LM native menu draws its model preview, union the preview's
  * {@code bodyParts} meshes into DMZUltra 0.5.7's FormParts look (Character Services, Preview forms).
- * Outside an LM preview nothing changes. Applied only when DMZUltra is installed
+ * LM 4.8.2: outside a preview, union the server's body-parts world sync (native message 5, which the
+ * KaiPath bridge used to carry) for that player, so equipped pieces draw in the world on the LM client
+ * alone. A player with no synced pieces is left as DMZUltra drew them. Applied only when DMZUltra is installed
  * ({@code LegacyMechanicsMixinPlugin}); both injections are optional, so a renamed method degrades to the
  * plain form look instead of a broken client.
  */
@@ -39,10 +41,14 @@ public abstract class FormPartsPreviewMixin {
 
     private static void lm$merge(AbstractClientPlayer player, CallbackInfoReturnable<Object> cir) {
         try {
-            if (!BodyPartPreview.previewActive()) {
+            // 4.8.2: the preview's pieces in a menu, the server-synced world pieces everywhere else.
+            boolean preview = BodyPartPreview.previewActive();
+            if (!preview && !BodyPartPreview.hasWorldSync(player)) {
                 return;
             }
-            Set<String> extra = BodyPartPreview.previewMeshesFor(player);
+            Set<String> extra = preview
+                    ? BodyPartPreview.previewMeshesFor(player)
+                    : BodyPartPreview.meshesFor(player);
             if (extra.isEmpty()) {
                 return;
             }

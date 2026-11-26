@@ -348,8 +348,7 @@ public final class UiProbe {
     /** Per-session client state the logout handler clears (class#field -> this player's value). */
     private static final String[] SESSION = {
         "com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork#FEATURES",
-        "com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork#CLIENT_VERSION",
-        "com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures#BY_PLAYER"};
+        "com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork#CLIENT_VERSION"};
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> sessionSnapshot() {
@@ -2038,10 +2037,7 @@ public final class UiProbe {
         sk = com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.get(player).skinOrDefault();
         note("CUSTOM LIGHT text adjusted to read 4.5:1, note shown: " + pf(!sk.dark() && has(p, "Text color adjusted")
                 && com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.contrast(sk.text(), sk.panel()) >= 4.5));
-        note("CUSTOM BRIDGE letters readable on the dark bridge panel: " + sk.bridgePrimary() + sk.bridgeText() + " "
-                + pf(com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.contrast(
-                        com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.vanillaRgb(sk.bridgeText()),
-                        com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.BRIDGE_PANEL) >= 4.5));
+        // 4.8.2: the KaiPath bridge letters (CUSTOM BRIDGE) are gone with the bridge; skins are native only.
         // Scene cycles; From fills a preset's colors; Reset fills the defaults; neither saves.
         got = skinClick("custom scene", "do:menu_custom:motif", CUSTOM);
         p = got.isEmpty() ? p : got.get(got.size() - 1);
@@ -2115,7 +2111,7 @@ public final class UiProbe {
             note("PARTCOLOR model customization unavailable on this server: SKIP");
             return;
         }
-        boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player);
+        boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesTextInput(player);
         boolean wheels = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesColorWheel(player);
         Integer trimBefore = partColor(player, "trim");
         colorApply("partcolor reset own", "own", "");
@@ -2127,7 +2123,7 @@ public final class UiProbe {
                             && has(p, "Reset to natural look")
                             && (typing ? countInputs(p, "text") == 1 && has(p, "Apply this color")
                                     && p.buttonsJson().contains("input:bodycolor_hex")
-                                    : has(p, "Typed fields need KaiPath 1.3.9 or newer"))
+                                    : has(p, "Typed fields need the Legacy Mechanics client"))
                             && countInputs(p, "color_wheel") == (wheels ? 1 : 0)
                             && p.buttonsJson().contains("do:bodypart_color:own:ffffff") && p.buttonsJson().contains("do:bodypart_color:own:111111")) + " | " + labels(p));
         }
@@ -3352,7 +3348,7 @@ public final class UiProbe {
         UltraHubScreens.searchFor(player, "");
         for (GuiOpenPacket p : keep("v80 more recents", () -> UltraGui.open(player, "hub", "more"))) {
             note("V80 More shows the 5 recents under an empty search: " + pf(p.buttonsJson().contains("do:hub_search_recent:0")
-                    || !com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player)));
+                    || !com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesTextInput(player)));
         }
         // 1: Goals: this week's three goals, from three systems, with progress; a hook counts toward one.
         var goals = com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.thisWeek();

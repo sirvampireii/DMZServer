@@ -10,8 +10,8 @@ authors = "DBZ Legacy Reborn"
 displayTest = "IGNORE_SERVER_VERSION"
 description = '''
 LegacyMechanics for DragonMineZ 2.2 — difficulty, rival, sparring, progression.
-Server mod; since 4.7.58 also an optional client mod that draws LM menus natively
-(players without it keep the KaiPath menus).
+Server mod and, since 4.8.2, a required client mod: it draws every LM menu natively
+(the KaiPath bridge is gone; servers turn away players without it by default).
 Unlock tiers bought with Lightman's Ancient Coins, nearby mobs scale to
 player fight stats × tier %, titles, gated elites/mutations/AI/boss.
 Includes Rival System 4.7.10 + Sparring TP 3.2.11 ports (/lm rival, /lm spar).
@@ -53,13 +53,7 @@ versionRange = "[0,)"
 ordering = "AFTER"
 side = "SERVER"
 
-[[dependencies.legacymechanics]]
-modId = "kaipath"
-mandatory = false
-# Handshake accepts 1.2.5+; recommended released client is 1.3.7 (style/playerModel/titleAlign/activeTab).
-versionRange = "[1.2.5,)"
-ordering = "AFTER"
-side = "BOTH"
+# 4.8.2: no kaipath dependency; LM menus no longer go through the KaiPath bridge.
 
 # 4.7.49 (M-P2-23): every mod LM hooks hard (mixin targets, imports, reflection) is declared,
 # optional, with the oldest version LM was built and tested against. Forge then rejects an

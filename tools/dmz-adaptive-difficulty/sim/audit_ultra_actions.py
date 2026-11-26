@@ -628,128 +628,33 @@ def main() -> int:
             errors.append("UltraGuiProtocol must expose channel(modId) helper")
         if "MSG_FEATURES" not in proto_text:
             errors.append("UltraGuiProtocol must define MSG_FEATURES for GuiFeaturesPacket")
-    features_pkt = ROOT / "src/main/java/com/dbzlegacy/adaptivedifficulty/net/gui/GuiFeaturesPacket.java"
-    if not features_pkt.is_file():
-        errors.append("Missing GuiFeaturesPacket (client capability advertisement)")
-    client_feat = ROOT / "src/main/java/com/dbzlegacy/adaptivedifficulty/net/gui/UltraClientFeatures.java"
-    if not client_feat.is_file():
-        errors.append("Missing UltraClientFeatures (server-side feature gap diagnostics)")
-    else:
-        feat_text = client_feat.read_text(encoding="utf-8")
-        for needle in (
-            "FEATURE_STYLE",
-            "FEATURE_ACTIVE_TAB",
-            "FEATURE_TITLE_ALIGN",
-            "FEATURE_PLAYER_MODEL",
-            "FEATURE_TEXT_INPUT",
-            "FEATURE_HEADER_BOTTOM",
-            "FEATURE_ACCENT",
-            "FEATURE_FIXED_FOOTER",
-            "FEATURE_PALETTE",
-            "FEATURE_SOUND",
-            "FEATURE_BUTTON_SKIN",
-            "FEATURE_FRAME",
-            "FEATURE_PAGED_BOOK",
-            "FEATURE_PORTRAIT_FRAME",
-            "FEATURE_COMBINED_FORMS",
-            "FEATURE_ICON",
-        ):
-            if needle not in feat_text:
-                errors.append(f"UltraClientFeatures must define {needle}")
-        if "titleAlign" not in feat_text or "playerModel" not in feat_text:
-            errors.append(
-                "UltraClientFeatures impact/missing lists must cover titleAlign + playerModel"
-            )
-        if "textInput" not in feat_text:
-            errors.append("UltraClientFeatures must cover textInput (inputsJson)")
-        if "FEATURE_HEADER_BOTTOM" not in feat_text or "FEATURE_ACCENT" not in feat_text:
-            errors.append("UltraClientFeatures must define headerBottom + accent shipped features")
-        if "SHIPPED_ON_RECOMMENDED" not in feat_text:
-            errors.append("UltraClientFeatures must define SHIPPED_ON_RECOMMENDED")
-        shipped_block = feat_text.split("SHIPPED_ON_RECOMMENDED", 1)[-1].split(
-            "PENDING_NEXT", 1
-        )[0]
-        if "FEATURE_HEADER_BOTTOM" not in shipped_block or "FEATURE_ACCENT" not in shipped_block:
-            errors.append(
-                "SHIPPED_ON_RECOMMENDED must include FEATURE_HEADER_BOTTOM + FEATURE_ACCENT "
-                "(KaiPath 1.3.13+)"
-            )
-        # KaiPath 1.3.17 ships fixedFooter — must be in SHIPPED_ON_RECOMMENDED, not PENDING_NEXT.
-        if "FEATURE_FIXED_FOOTER" not in shipped_block:
-            errors.append(
-                "SHIPPED_ON_RECOMMENDED must include FEATURE_FIXED_FOOTER (KaiPath 1.3.17)"
-            )
-        for shipped_name in (
-            "FEATURE_PALETTE",
-            "FEATURE_SOUND",
-            "FEATURE_BUTTON_SKIN",
-            "FEATURE_FRAME",
-            "FEATURE_PAGED_BOOK",
-            "FEATURE_PORTRAIT_FRAME",
-            "FEATURE_COMBINED_FORMS",
-        ):
-            if shipped_name not in shipped_block:
-                errors.append(
-                    f"SHIPPED_ON_RECOMMENDED must include {shipped_name} (KaiPath 1.3.17)"
-                )
-        if "FEATURE_ICON" not in shipped_block:
-            errors.append(
-                "SHIPPED_ON_RECOMMENDED must include FEATURE_ICON "
-                "(advertised by KaiPath 1.3.22)"
-            )
-        if "FEATURE_BODY_PARTS" not in shipped_block:
-            errors.append(
-                "SHIPPED_ON_RECOMMENDED must include FEATURE_BODY_PARTS "
-                "(advertised by KaiPath 1.3.29)"
-            )
-        if "FEATURE_BODY_PARTS_SYNC" not in shipped_block:
-            errors.append(
-                "SHIPPED_ON_RECOMMENDED must include FEATURE_BODY_PARTS_SYNC "
-                "(message 3, advertised by KaiPath 1.3.31+)"
-            )
-        pending_decl = "public static final Set<String> PENDING_NEXT"
-        if pending_decl not in feat_text:
-            errors.append("UltraClientFeatures must declare public PENDING_NEXT set")
-            pending_block = ""
-        else:
-            pending_block = feat_text.split(pending_decl, 1)[-1].split(
-                "private static final Map", 1
-            )[0]
-        if pending_block and (
-            "FEATURE_HEADER_BOTTOM" in pending_block
-            or "FEATURE_ACCENT" in pending_block
-            or "FEATURE_FIXED_FOOTER" in pending_block
-            or "FEATURE_PALETTE" in pending_block
-            or "FEATURE_COMBINED_FORMS" in pending_block
-        ):
-            errors.append(
-                "PENDING_NEXT must not include headerBottom/accent/fixedFooter/"
-                "palette/combined.forms.v1 (shipped on KaiPath 1.3.17)"
-            )
-        if pending_block and "FEATURE_ICON" in pending_block:
-            errors.append(
-                "PENDING_NEXT must not include FEATURE_ICON (shipped on KaiPath 1.3.22)"
-            )
-        if pending_block and "FEATURE_BODY_PARTS" in pending_block:
-            errors.append(
-                "PENDING_NEXT must not include FEATURE_BODY_PARTS or FEATURE_BODY_PARTS_SYNC "
-                "(shipped on KaiPath 1.3.29 / 1.3.31+)"
-            )
-        if "headerBottom" not in feat_text or 'FEATURE_ACCENT_DOC = "accent"' not in feat_text:
-            errors.append("UltraClientFeatures must expose headerBottom/accent doc spellings")
-        if "fixedFooter" not in feat_text:
-            errors.append("UltraClientFeatures must expose fixedFooter doc spelling")
-        if 'FEATURE_FIXED_FOOTER_DOC = "fixedFooter"' not in feat_text:
-            errors.append("UltraClientFeatures must define FEATURE_FIXED_FOOTER_DOC = \"fixedFooter\"")
-    lm_net = ROOT / "src/main/java/com/dbzlegacy/adaptivedifficulty/net/gui/LmGuiNetwork.java"
+    # LM 4.8.2 (Part E): the KaiPath bridge is gone. The KaiPath feature advertisement (GuiFeaturesPacket,
+    # UltraClientFeatures and its SHIPPED_ON_RECOMMENDED / PENDING_NEXT lists) and the KaiPath version pin are
+    # deleted; these checks assert that, and pin the same shipped features on the LM client's protocol-1 list
+    # (LmNativeProtocol.CLIENT_FEATURES) and bodyPartsSync as a hello-only feature (native message 5).
+    gui_dir = ROOT / "src/main/java/com/dbzlegacy/adaptivedifficulty/net/gui"
+    for gone in ("GuiFeaturesPacket.java", "UltraClientFeatures.java"):
+        if (gui_dir / gone).is_file():
+            errors.append(f"{gone} must stay deleted (4.8.2: no KaiPath bridge feature advertisement)")
+    native_proto = (gui_dir / "LmNativeProtocol.java").read_text(encoding="utf-8")
+    client_list = native_proto.split("CLIENT_FEATURES = List.of(", 1)[-1].split(");", 1)[0]
+    for feat in ("style", "activeTab", "titleAlign", "playerModel", "textInput", "headerBottom", "accent",
+                 "palette", "sound", "buttonSkin", "frame", "pagedBook", "portraitFrame", "fixedFooter", "icon"):
+        if f'"{feat}"' not in client_list:
+            errors.append(f"LmNativeProtocol.CLIENT_FEATURES must list {feat} (the LM client draws it)")
+    if ('FEATURE_BODY_PARTS_SYNC = "bodyPartsSync"' not in native_proto
+            or "MSG_MODEL_SYNC = 5" not in native_proto
+            or "bodyPartsSync" in client_list):
+        errors.append("LmNativeProtocol must define bodyPartsSync as a hello-only feature on message 5")
+    lm_net = gui_dir / "LmGuiNetwork.java"
     if lm_net.is_file():
         lm_net_text = lm_net.read_text(encoding="utf-8")
-        if 'KAIPATH_RECOMMENDED_VERSION = "1.5.1"' not in lm_net_text:
-            errors.append('LmGuiNetwork.KAIPATH_RECOMMENDED_VERSION must be "1.5.1" (live KaiPath)')
+        if "KAIPATH_RECOMMENDED_VERSION" in lm_net_text or "clientHasKaiPath" in lm_net_text:
+            errors.append("LmGuiNetwork must not pin or probe KaiPath any more (4.8.2: the bridge is gone)")
+        if "CHANNEL.messageBuilder" in lm_net_text or "NetworkRegistry.newSimpleChannel" in lm_net_text:
+            errors.append("LmGuiNetwork must not register the legacymechanics:gui bridge channel (4.8.2)")
     if "roundTripStyleAndActiveTab" not in net:
         errors.append("LmGuiNetwork must round-trip style + activeTab in self-test")
-    if "GuiFeaturesPacket" not in net:
-        errors.append("LmGuiNetwork must register GuiFeaturesPacket")
 
     ids = (ROOT / "src/main/java/com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraScreenIds.java").read_text(
         encoding="utf-8"
@@ -805,9 +710,10 @@ def main() -> int:
     readme = ROOT.parents[1] / "tools" / "ultra-gui-kit" / "README.md"
     if not readme.is_file() or "kaipath-ultra.txt" not in readme.read_text(encoding="utf-8"):
         errors.append("ultra-gui-kit README must document META-INF/kaipath-ultra.txt discovery")
+    # 4.8.2: LM no longer asks KaiPath to adopt it (no bridge); the kit README still documents the marker for other mods.
     marker = ROOT / "src/main/resources/META-INF/kaipath-ultra.txt"
-    if not marker.is_file() or marker.read_text(encoding="utf-8").strip() != "legacymechanics":
-        errors.append("LM jar must ship META-INF/kaipath-ultra.txt containing legacymechanics")
+    if marker.is_file():
+        errors.append("LM jar must not ship META-INF/kaipath-ultra.txt (4.8.2: the KaiPath bridge is gone)")
 
     # Collect actions from every Ultra*Screens builder.
     for path in sorted(ULTRA.glob("Ultra*Screens.java")):

@@ -126,6 +126,14 @@ public final class UltraScreenSpec {
     }
 
     /**
+     * 4.8.2: true while {@link #captureSends} runs on this thread. Menus then build for any viewer, with or
+     * without the LM client ({@code UltraGui.open} skips its client gate), because nothing goes on the wire.
+     */
+    public static boolean capturing() {
+        return PROBE.get() != null;
+    }
+
+    /**
      * Push the staff viewer for the duration of an Ultra open / action built from an inspect
      * subject. Always pair with {@link #clearInspectViewer()} in {@code finally}.
      */
@@ -857,7 +865,7 @@ public final class UltraScreenSpec {
     /**
      * Editable text field (GuiOpenPacket field 11 {@code inputsJson}). KaiPath <b>1.3.9+</b>
      * advertises {@code textInput} and renders EditBox widgets. Older clients ignore trailing
-     * field 11 - pair shop pages with {@link UltraClientFeatures#hasTextInput}.
+     * field 11 - pair shop pages with {@code LmNativeNetwork.takesTextInput} (4.8.2; was the KaiPath-era UltraClientFeatures).
      *
      * <p>Pair with a button whose {@code args.bindInput} matches {@code inputId} so the client
      * copies the typed value into {@code args.value} on click / Enter.

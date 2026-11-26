@@ -1,5 +1,12 @@
 # JLDK brief — KaiPath Ultra GUI client conformance
 
+> **LM 4.8.2: the KaiPath bridge is gone.** Legacy Mechanics no longer registers `legacymechanics:gui`, sends no
+> menu, model sync or anything else to KaiPath, and no longer reads KaiPath's feature advertisement. The
+> Legacy Mechanics client is mandatory (`requireLmClient` defaults to true) and draws every LM menu on its own
+> channel, `legacymechanics:native_ui` (the body-parts world sync is native message 5). What follows describes
+> the KaiPath-era protocol: still the reference for other mods and for the Ultra GUI kit, but not what LM's
+> server does today.
+
 **Status (LM 4.6.216 live + KaiPath 1.3.31):** Client honors style / activeTab / titleAlign /
 playerModel / textInput / headerBottom / accent / palette / sound / buttonSkin / frame /
 paged_book / **fixedFooter** / **portraitFrame** / **icon** / **bodyParts**. KaiPath **1.3.31**

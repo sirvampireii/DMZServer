@@ -3163,8 +3163,15 @@ def main() -> int:
     catalog_bp = read(
         SRC / "com/dbzlegacy/adaptivedifficulty/gui/ultra/BodyPartCatalog.java"
     )
-    feat_bp = read(
-        SRC / "com/dbzlegacy/adaptivedifficulty/net/gui/UltraClientFeatures.java"
+    # 4.8.2 (Part E): UltraClientFeatures is gone with the KaiPath bridge; the LM client's hello carries features.
+    native_proto_bp = read(
+        SRC / "com/dbzlegacy/adaptivedifficulty/net/gui/LmNativeProtocol.java"
+    )
+    native_net_bp = read(
+        SRC / "com/dbzlegacy/adaptivedifficulty/net/gui/LmNativeNetwork.java"
+    )
+    lm_client_bp = read(
+        SRC / "com/dbzlegacy/adaptivedifficulty/client/LmClient.java"
     )
     net_bp = read(
         SRC / "com/dbzlegacy/adaptivedifficulty/net/gui/LmGuiNetwork.java"
@@ -3234,11 +3241,12 @@ def main() -> int:
         '"pieces"' in json_bp,
     )
     check(
-        "KaiPath bodyParts (1.3.29) and bodyPartsSync (1.3.31+) shipped; recommended 1.5.1",
-        "FEATURE_BODY_PARTS" in feat_bp
-        and "PENDING_NEXT = Set.of();" in feat_bp
-        and "FEATURE_BODY_PARTS,\n                    FEATURE_BODY_PARTS_SYNC);" in feat_bp.replace("\r\n", "\n")
-        and 'KAIPATH_RECOMMENDED_VERSION = "1.5.1"' in net_bp,
+        "LM client lists bodyParts and bodyPartsSync with DMZUltra (4.8.2; was KaiPath 1.3.29 / 1.3.31+)",
+        not (SRC / "com/dbzlegacy/adaptivedifficulty/net/gui/UltraClientFeatures.java").is_file()
+        and 'FEATURE_BODY_PARTS_SYNC = "bodyPartsSync"' in native_proto_bp
+        and "a.add(FEATURE_BODY_PARTS);\n            a.add(FEATURE_BODY_PARTS_SYNC);"
+        in native_proto_bp.replace("\r\n", "\n")
+        and "KAIPATH_RECOMMENDED_VERSION" not in net_bp,
     )
     sync_pkt_bp = read(
         SRC / "com/dbzlegacy/adaptivedifficulty/net/gui/GuiModelSyncPacket.java"
@@ -3250,12 +3258,15 @@ def main() -> int:
         SRC / "com/dbzlegacy/adaptivedifficulty/character/CosmeticHeadBoneService.java"
     )
     check(
-        "GuiModelSyncPacket message 3 registered + bodyPartsSync-gated send",
-        "MSG_MODEL_SYNC = 3" in proto_bp
-        and "GuiModelSyncPacket.class, UltraGuiProtocol.MSG_MODEL_SYNC" in net_bp
-        and "supportsModelSync" in net_bp
-        and "FEATURE_BODY_PARTS_SYNC" in net_bp
-        and "onClientAdvertisement" in net_bp,
+        "GuiModelSyncPacket on native message 5 + bodyPartsSync-gated send, drawn by the LM client (4.8.2)",
+        "MSG_MODEL_SYNC = 5" in native_proto_bp
+        and "GuiModelSyncPacket.class, LmNativeProtocol.MSG_MODEL_SYNC" in native_net_bp
+        and "GuiModelSyncPacket.class, UltraGuiProtocol.MSG_MODEL_SYNC" not in net_bp
+        and "return player != null && LmNativeNetwork.takesModelSync(player);" in net_bp
+        and "LmNativeNetwork.sendModelSync(viewer, packet);" in net_bp
+        and "LmGuiNetwork.onClientAdvertisement(sender)" in native_net_bp
+        and "LmNativeNetwork.onModelSync(" in lm_client_bp
+        and "BodyPartPreview.applySync(" in lm_client_bp,
     )
     check(
         "GuiModelSyncPacket reuses the playerModel parts schema (syncSnapshot)",

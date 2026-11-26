@@ -336,7 +336,7 @@ public final class NativeMenuScreen extends Screen {
                 int h = Math.max(ColorWheel.MIN_SIZE, num(in, "h", ColorWheel.MIN_SIZE));
                 wheels.add(new Wheel(id, x, y, w, h, str(in, "target", "")));
             }
-            // Other input types never reach this client: the server routes such menus to KaiPath.
+            // Other input types never reach this client: the server refuses such menus (4.8.2: no KaiPath bridge).
         }
     }
 

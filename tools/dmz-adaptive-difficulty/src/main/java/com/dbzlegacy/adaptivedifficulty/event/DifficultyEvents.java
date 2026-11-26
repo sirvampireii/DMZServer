@@ -264,7 +264,7 @@ public final class DifficultyEvents {
     @SubscribeEvent
     public void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            // 4.7.58 requireLmClient (off by default): turn away a join without the LM client.
+            // 4.7.58 requireLmClient (4.8.2: on by default, the LM client is mandatory): turn away a join without it.
             if (com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.rejectWithoutClient(
                     player, DifficultyConfig.get().requireLmClient)) {
                 return;
@@ -563,7 +563,8 @@ public final class DifficultyEvents {
      * range, respawn, dimension change, and walking back into range after an equip change
      * that broadcast while they were apart. The packet itself is feature-gated inside
      * {@link com.dbzlegacy.adaptivedifficulty.net.gui.LmGuiNetwork#sendModelSyncTo} —
-     * clients that never registered message 3 must not receive it.
+     * 4.8.2: it goes on the native channel (message 5), only to LM clients whose hello listed
+     * {@code bodyPartsSync}.
      */
     @SubscribeEvent
     public void onStartTracking(PlayerEvent.StartTracking event) {
@@ -796,8 +797,7 @@ public final class DifficultyEvents {
             });
         }
         if (tick % 20 == 0) {
-            safePulse("gui-login-check",
-                    () -> com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.pulseLoginChecks(server));
+            // 4.8.2: the KaiPath feature-advertisement login check ("gui-login-check") is gone with the bridge.
             safePulse("dragon-ball-respawn", () -> DragonBallRespawn.pulse(server, tick));
             // 4.7.59: a free tier trial reverts once its 5 minutes are up.
             safePulse("difficulty-trial", () -> com.dbzlegacy.adaptivedifficulty.service.DifficultyTrial.pulse(server));

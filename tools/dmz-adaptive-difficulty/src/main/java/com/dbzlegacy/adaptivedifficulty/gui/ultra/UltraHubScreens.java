@@ -322,7 +322,7 @@ public final class UltraHubScreens {
     }
 
     private static SearchState searchLines(UltraScreenSpec spec, ServerPlayer player) {
-        boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player);
+        boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesTextInput(player);
         boolean staff = StaffAccess.isStaff(player);
         String query = typing ? QUERY.getOrDefault(player.m_20148_(), "") : "";
         if (!typing) {
@@ -826,7 +826,7 @@ public final class UltraHubScreens {
 
     /** The editor needs a client that types and sends all five fields with a click (the 4.7.66 LM client). */
     public static boolean canEditColors(ServerPlayer player) {
-        return com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player)
+        return com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesTextInput(player)
                 && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesCustomSkin(player);
     }
 
