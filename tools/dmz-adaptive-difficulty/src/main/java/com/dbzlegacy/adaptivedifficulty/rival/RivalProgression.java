@@ -536,6 +536,30 @@ public final class RivalProgression {
         data.hallOfFame = hof;
     }
 
+    /** 4.8.3: the current rival season number (starts the first season when there is none). */
+    public synchronized int currentSeasonId() {
+        ensureSeason();
+        return data.season.id;
+    }
+
+    /**
+     * 4.8.3: staff season end: start the next season now (number + 1, a fresh season RP board, the usual length) and
+     * save. Returns the number of the season that ended.
+     */
+    public synchronized int advanceSeasonNow() {
+        ensureSeason();
+        int ended = data.season.id;
+        long now = System.currentTimeMillis();
+        data.season.id = ended + 1;
+        data.season.name = "Season " + data.season.id;
+        data.season.startedAt = now;
+        data.season.endsAt = now + SEASON_MS;
+        data.season.leaderboard = new ConcurrentHashMap<>();
+        markDirty();
+        save();
+        return ended;
+    }
+
     private void ensureSeason() {
         long now = System.currentTimeMillis();
         if (data.season == null) {

@@ -542,6 +542,62 @@ public final class BoardSpar {
         server.m_6937_(new net.minecraft.server.TickTask(server.m_129921_(), () -> end(b, winner, "KO")));
     }
 
+    /** 4.8.3: staff removes {@code id}'s Spar Board post; true when there was one. */
+    public static boolean staffRemovePost(UUID id) {
+        return id != null && POSTS.remove(id) != null;
+    }
+
+    /**
+     * 4.8.3: staff cancel of a stuck bout {@code id} fights in. Nobody wins and nothing counts (no ranked credit, no
+     * host points, no spar counts), both stakes go back, the spar session closes and both fighters go back to their
+     * spots the way a forfeit sends them. Returns the wager line ("none" or "refunded to both ..."), or null when
+     * {@code id} is in no bout.
+     */
+    public static String staffCancelBout(UUID id) {
+        Bout b = boutOf(id);
+        if (b == null) {
+            return null;
+        }
+        String wagerLine;
+        synchronized (BoardSpar.class) {
+            boolean already = b.settled;
+            b.settled = true;
+            SparPlayerRuntime ra = SparringSystem.runtime(b.a);
+            SparPlayerRuntime rb = SparringSystem.runtime(b.b);
+            if (ra != null) {
+                ra.boardCredit = false;
+            }
+            if (rb != null) {
+                rb.boardCredit = false;
+            }
+            wagerLine = already ? "none" : settleWager(b, null, null, null, null);
+            DojoStore.get().markDirty();
+            for (UUID me : new UUID[] {b.a, b.b}) {
+                boolean isA = me.equals(b.a);
+                List<String> lines = new ArrayList<>();
+                lines.add(UltraStyle.header("Cancelled by staff"));
+                lines.add(UltraStyle.labelValue("Opponent", isA ? b.nameB : b.nameA));
+                lines.add(UltraStyle.labelValue("Kind", b.ranked ? "Ranked" : "Friendly"));
+                lines.add(UltraStyle.labelValue("Wager", wagerLine));
+                lines.add(UltraStyle.LABEL + "Didn't count: staff cancelled this spar, so nobody won or lost.");
+                RESULTS.put(me, new Result(isA ? b.b : b.a, isA ? b.nameB : b.nameA, b.ranked, b.wagerKind, b.wager,
+                        lines));
+            }
+        }
+        MinecraftServer server = net.minecraftforge.server.ServerLifecycleHooks.getCurrentServer();
+        ServerPlayer pa = server == null ? null : server.m_6846_().m_11259_(b.a);
+        ServerPlayer pb = server == null ? null : server.m_6846_().m_11259_(b.b);
+        if (pa != null) {
+            SparringSystem.endSession(pa, pb, "staff");
+        } else if (pb != null) {
+            SparringSystem.endSession(pb, null, "staff");
+        }
+        sendBack(server, b);
+        AdaptiveDifficultyMod.LOGGER.info("[{}] board bout {} {} vs {} cancelled by staff (wager {})",
+                AdaptiveDifficultyMod.MOD_ID, b.id, b.nameA, b.nameB, wagerLine);
+        return wagerLine;
+    }
+
     /** Forfeit from the menu: the other fighter wins and takes any wager (4.7.84, P2-1). */
     static String forfeit(ServerPlayer p) {
         Bout b = boutOf(p.m_20148_());
