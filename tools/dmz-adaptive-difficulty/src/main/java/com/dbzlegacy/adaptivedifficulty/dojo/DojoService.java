@@ -520,6 +520,7 @@ public final class DojoService {
         d.bannerBase = bannerBase;
         d.bannerPatterns = new ArrayList<>(patterns == null ? List.of() : patterns);
         store().markDirty();
+        DojoWorld.ensureBuilt(p.m_20194_(), d);                 // 4.8.2: the hall's banner spots fly the new banner
         return first ? "Your dojo flies its new banner." : "Your dojo's banner changed (" + DojoCatalog.BANNER_CHANGE_COST
                 + " Dojo Points).";
     }
