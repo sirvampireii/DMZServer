@@ -4,6 +4,9 @@ import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.character.CharacterServicesStore;
 import com.dbzlegacy.adaptivedifficulty.cache.DifficultyCache;
 import com.dbzlegacy.adaptivedifficulty.calc.DmzProgression;
+import com.dbzlegacy.adaptivedifficulty.dojo.DojoService;
+import com.dbzlegacy.adaptivedifficulty.dojo.DojoStore;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.progression.ProgressionData;
 import com.dbzlegacy.adaptivedifficulty.rival.RivalPlayerRecord;
 import com.dbzlegacy.adaptivedifficulty.rival.RivalProgression;
@@ -13,6 +16,8 @@ import com.dbzlegacy.adaptivedifficulty.sparring.SparStore;
 import com.dbzlegacy.adaptivedifficulty.tick.NearbyMobScaler;
 import com.dbzlegacy.adaptivedifficulty.tick.ScaledMobTracker;
 import com.dbzlegacy.adaptivedifficulty.title.TitleSystem;
+import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
+import com.dbzlegacy.adaptivedifficulty.util.LmChat;
 import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import java.io.File;
 import java.nio.file.Files;
@@ -33,7 +38,7 @@ import net.minecraft.world.level.storage.LevelResource;
 
 /**
  * Staff wipe of one player's LegacyMechanics data
- * ({@code /lm admin clear <player> [all|rival|spar|difficulty|progression]}).
+ * ({@code /lm admin clear <player> [all|rival|spar|dojo|difficulty|progression]}).
  * The player may be offline. A name is resolved from who is online, the rival
  * store, sparring records, or the server player cache. A UUID always works.
  */
@@ -67,12 +72,12 @@ public final class PlayerDataClear {
 
     /**
      * @param playerArg in-game name or UUID. Offline names match sparring, rivals, or the player cache.
-     * @param scope     {@code all} (default), {@code rival}, {@code spar}, {@code difficulty},
+     * @param scope     {@code all} (default), {@code rival}, {@code spar}, {@code dojo} (4.8.3), {@code difficulty},
      *                  {@code progression}
      */
     public static String clear(MinecraftServer server, String playerArg, String scope) {
         if (playerArg == null || playerArg.isBlank()) {
-            return "§cUsage: /lm admin clear <player> [all|rival|spar|difficulty|progression]";
+            return "§cUsage: /lm admin clear <player> [all|rival|spar|dojo|difficulty|progression]";
         }
         String sc = scope == null || scope.isBlank() ? "all" : scope.toLowerCase(Locale.ROOT).trim();
         Lookup found = lookup(server, playerArg.trim());
@@ -89,6 +94,10 @@ public final class PlayerDataClear {
         try {
             if (all || "rival".equals(sc) || "rivals".equals(sc) || "rivalry".equals(sc)) {
                 done.add(clearRival(target.uuid, target.name));
+            }
+            // 4.8.3: dojo before spar, so the dojo side (elites, war rights) is cleaned while the bond still names it.
+            if (all || "dojo".equals(sc) || "dojos".equals(sc)) {
+                done.add(clearDojo(target.uuid, target.name, target.online));
             }
             if (all || "spar".equals(sc) || "sparring".equals(sc)) {
                 done.add(clearSpar(target.uuid, target.name));
@@ -172,6 +181,32 @@ public final class PlayerDataClear {
                 + " §8· links scrubbed §f" + linkScrubs
                 + " §8· requests §f" + reqs
                 + (name != null && !name.isBlank() ? " §8(" + name + ")" : "");
+    }
+
+    /**
+     * 4.8.3: take the player out of their dojo (the bond to its master, elite, war rights). A dojo they lead is never
+     * disbanded here: the line says so and names the disband command.
+     */
+    private static String clearDojo(String uuid, String name, ServerPlayer online) {
+        List<String> left = DojoService.removeFromDojos(uuid);
+        DojoStore.Dojo own = DojoStore.get().dojos.get(uuid);
+        String who = name == null || name.isBlank() ? "This player" : name;
+        StringBuilder sb = new StringBuilder(UltraStyle.GRAY + "Dojo: ");
+        sb.append(left.isEmpty() ? UltraStyle.YELLOW + "not a disciple of any dojo"
+                : UltraStyle.GREEN + "left " + UltraStyle.WHITE + String.join(", ", left));
+        if (own != null) {
+            sb.append('\n').append(UltraStyle.YELLOW).append(who).append(" still leads ").append(UltraStyle.WHITE)
+                    .append(own.name).append(UltraStyle.YELLOW).append(". To remove it, run ").append(UltraStyle.WHITE)
+                    .append("/lm admin dojo disband ").append(own.name).append(UltraStyle.YELLOW).append(" first.");
+        }
+        if (!left.isEmpty()) {
+            DojoStore.get().save();
+            SparStore.get().save();
+            if (online != null) {
+                DmzRewards.msg(online, LmChat.info("Dojo", "Staff took you out of " + String.join(", ", left) + "."));
+            }
+        }
+        return sb.toString();
     }
 
     private static String clearSpar(String uuid, String name) {

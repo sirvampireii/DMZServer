@@ -508,7 +508,9 @@ public final class LmCommandSuggestions {
             "prestige", "progression", "skills"
     );
 
+    /** 4.8.3: {@code dojo} joins the clear scopes (leaves the player's dojo; a dojo they lead is kept). */
     public static final SuggestionProvider<CommandSourceStack> LM_CLEAR_SCOPES = literals(
+            "dojo",
             "all", "rival", "spar", "difficulty", "progression"
     );
 

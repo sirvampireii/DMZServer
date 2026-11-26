@@ -28,6 +28,7 @@ public final class SparCommands {
 
     public static void register() {
         MinecraftForge.EVENT_BUS.register(new SparCommands());
+        DojoAdminCommands.register();                   // 4.8.3: /lm admin dojo (AdaptiveDifficultyMod is audited)
     }
 
     @SubscribeEvent

@@ -612,6 +612,83 @@ public final class DojoWar {
         RUNS.remove(w.id);
     }
 
+    /**
+     * 4.8.3 (staff {@code /lm admin dojo war cancel}): call off every open war between the dojos of {@code dojoA} and
+     * {@code dojoB} (master UUIDs, either order): a running one (sign-up or bracket) or a stuck one (RUNNING with no
+     * live run after a restart), and any pending challenge. Fighters are healed and put back where they stood, the
+     * way a war end does, and the HUD pills go; the war is marked CANCELLED with no winner, no points, no clout and
+     * no win or loss. Returns how many wars were called off.
+     */
+    public static int staffCancel(MinecraftServer server, String dojoA, String dojoB) {
+        if (dojoA == null || dojoB == null) {
+            return 0;
+        }
+        int n = 0;
+        long now = System.currentTimeMillis();
+        for (WarRecord w : new ArrayList<>(store().wars)) {
+            boolean pair = (w.fromDojo.equals(dojoA) && w.toDojo.equals(dojoB))
+                    || (w.fromDojo.equals(dojoB) && w.toDojo.equals(dojoA));
+            if (!pair || !open(w)) {
+                continue;
+            }
+            Run r = RUNS.remove(w.id);
+            if (r != null) {
+                stopRun(server, r, "Staff called off the war between " + w.fromName + " and " + w.toName
+                        + ". No result is recorded.");
+            }
+            w.status = "CANCELLED";
+            w.endedAt = now;
+            n++;
+        }
+        if (n > 0) {
+            store().markDirty();
+        }
+        return n;
+    }
+
+    /**
+     * 4.8.3 (staff disband): call off every open war {@code dojo} (master UUID) is part of, running or pending, the
+     * same way as {@link #staffCancel}. Returns how many.
+     */
+    public static int staffCancelAll(MinecraftServer server, String dojo) {
+        int n = 0;
+        for (WarRecord w : new ArrayList<>(store().wars)) {
+            if (open(w) && (w.fromDojo.equals(dojo) || w.toDojo.equals(dojo))) {
+                n += staffCancel(server, w.fromDojo, w.toDojo);
+            }
+        }
+        return n;
+    }
+
+    /** 4.8.3: stop a live run with no result: pills off, a last line to the signed-up, fighters healed and home. */
+    private static void stopRun(MinecraftServer server, Run r, String text) {
+        if (server == null) {
+            for (UUID u : r.seeds) {
+                FIGHTER.remove(u);
+            }
+            FIGHTER.values().removeIf(id -> id.equals(r.rec.id));
+            return;
+        }
+        signupHudHide(server, r);
+        for (UUID u : new UUID[] {r.x, r.y}) {
+            if (u != null) {
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(server.m_6846_().m_11259_(u),
+                        com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT);
+            }
+        }
+        announce(server, r, text);
+        r.boutDone = true;
+        for (UUID u : new ArrayList<>(r.seeds)) {
+            boolean fighting = r.rec.id.equals(FIGHTER.remove(u));
+            ServerPlayer p = server.m_6846_().m_11259_(u);
+            if (p != null && fighting) {
+                p.m_21153_(p.m_21233_());
+                DojoWorld.returnPlayer(p);
+            }
+        }
+        FIGHTER.values().removeIf(id -> id.equals(r.rec.id));
+    }
+
     static void toStands(ServerPlayer p, Run r, ServerLevel level) {
         double x = r.cx - 15 + RNG.nextInt(30);
         DojoWorld.teleport(p, level, x, DojoWorld.FLOOR_Y + 5, r.cz + 26, 180.0f);

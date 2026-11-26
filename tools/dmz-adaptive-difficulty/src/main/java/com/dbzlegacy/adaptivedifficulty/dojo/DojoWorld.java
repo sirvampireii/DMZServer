@@ -138,6 +138,60 @@ public final class DojoWorld {
         }
     }
 
+    /**
+     * 4.8.3 (staff {@code /lm admin dojo rebuild}): build {@code d}'s whole plot again even when it is up to date (a
+     * damaged or half-built hall). False when the dojo world or its layout is not loaded.
+     */
+    public static boolean rebuild(MinecraftServer server, Dojo d) {
+        if (d == null || level(server) == null || DojoLayout.get() == null) {
+            return false;
+        }
+        PENDING.remove(d.masterUuid);
+        d.builtSignature = "";
+        DojoStore.get().markDirty();
+        ensureBuilt(server, d);
+        return true;
+    }
+
+    /**
+     * 4.8.3 (staff disband): send everyone standing on plot {@code plot} back where they came from (or to the world
+     * spawn), then clear the whole plot box to air over a few seconds; when it is done, loose items and other
+     * non-player entities in the box are removed. The plot is left empty void with no dojo on it; the allocator still
+     * hands every new dojo a new plot ({@link DojoStore#nextPlot}, plots are never reused, 4.7.68). False when the
+     * dojo world or its layout is not loaded (nothing is cleared).
+     */
+    public static boolean clearPlot(MinecraftServer server, String master, int plot) {
+        ServerLevel level = level(server);
+        DojoLayout l = DojoLayout.get();
+        if (level == null || l == null || plot < 0) {
+            return false;
+        }
+        PENDING.remove(master);
+        LAST_CHECK.remove(master);
+        BlockPos c = plotCorner(plot);
+        for (ServerPlayer p : new ArrayList<>(level.m_6907_())) {
+            if (plotIndexAt(p.m_20183_()) != plot) {
+                continue;
+            }
+            SPECTATING.remove(p.m_20148_());
+            if (!returnPlayer(p)) {
+                ServerLevel home = server.m_129783_();
+                BlockPos spawn = home.m_220360_();
+                teleport(p, home, spawn.m_123341_() + 0.5, spawn.m_123342_(), spawn.m_123343_() + 0.5, 0.0f);
+            }
+        }
+        DojoPlacer.submitClear(master, "clear plot " + plot, level, c, () -> {
+            net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(c.m_123341_(), c.m_123342_(),
+                    c.m_123343_(), c.m_123341_() + l.sx, c.m_123342_() + l.sy, c.m_123343_() + l.sz);
+            for (net.minecraft.world.entity.Entity e : level.m_6249_(null, box, x -> !(x instanceof ServerPlayer))) {
+                e.m_146870_();
+            }
+            AdaptiveDifficultyMod.LOGGER.info("[{}] dojo plot {} cleared (no dojo on it now)",
+                    AdaptiveDifficultyMod.MOD_ID, plot);
+        });
+        return true;
+    }
+
     // ------------------------------------------------------------------ teleport and return
 
     public static void teleport(ServerPlayer p, ServerLevel level, double x, double y, double z, float yaw) {

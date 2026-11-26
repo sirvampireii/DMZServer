@@ -1191,6 +1191,33 @@ public final class DojoRankings {
         }
     }
 
+    /**
+     * 4.8.3 (staff disband): drop the dojo led by {@code masterUuid} from the ladder: its entry on this season's
+     * board, its ladder profile and every old-style challenge naming it. The Hall of Chosen keeps past seasons.
+     * Returns how many records went.
+     */
+    public static int forgetDojo(String masterUuid) {
+        if (masterUuid == null || masterUuid.isBlank()) {
+            return 0;
+        }
+        SparStore store = SparStore.get();
+        String key = masterUuid.trim().toLowerCase(Locale.ROOT);
+        int n = 0;
+        if (store.dojoProfiles.remove(key) != null) {
+            n++;
+        }
+        if (store.dojoSeason != null && store.dojoSeason.leaderboard != null) {
+            n += store.dojoSeason.leaderboard.keySet().removeIf(k -> k != null && k.equalsIgnoreCase(key)) ? 1 : 0;
+        }
+        int before = store.dojoChallenges.size();
+        store.dojoChallenges.entrySet().removeIf(e -> e.getKey().equalsIgnoreCase(key) || (e.getValue() != null
+                && (key.equalsIgnoreCase(e.getValue().fromDojoUuid) || key.equalsIgnoreCase(e.getValue().toDojoUuid)
+                || key.equalsIgnoreCase(e.getValue().fromMentorUuid))));
+        n += before - store.dojoChallenges.size();
+        store.markDirty();
+        return n;
+    }
+
     public static String setDojoBanner(ServerPlayer master, String material) {
         if (master == null) {
             return UltraStyle.DANGER + "Players only.";
