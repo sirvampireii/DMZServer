@@ -2050,6 +2050,117 @@ def main() -> int:
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 2
           and 'modId = "kaipath"' not in p58_toml
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.8.2 ---")
+    q_ds = read(SRC / "dojo/DojoService.java")
+    q_store = read(SRC / "dojo/DojoStore.java")
+    q_state = read(SRC / "dojo/DojoState.java")
+    q_placer = read(SRC / "dojo/DojoPlacer.java")
+    q_world = read(SRC / "dojo/DojoWorld.java")
+    q_found = read(SRC / "gui/ultra/DojoFounding.java")
+    q_edit = read(SRC / "gui/ultra/DojoBannerEditor.java")
+    q_bd = read(SRC / "gui/ultra/BannerDesign.java")
+    q_scr = read(SRC / "gui/ultra/UltraDojoScreens.java")
+    q_rank = read(SRC / "sparring/DojoRankings.java")
+    q_nms = read(SRC / "client/NativeMenuScreen.java")
+    q_cfg = read(SRC / "config/DifficultyConfig.java")
+    q_nn = read(SRC / "net/gui/LmNativeNetwork.java")
+    q_gn = read(SRC / "net/gui/LmGuiNetwork.java")
+    q_np = read(SRC / "net/gui/LmNativeProtocol.java")
+    q_ug = read(SRC / "gui/ultra/UltraGui.java")
+    q_hud = read(SRC / "gui/ultra/LmHud.java")
+    q_skins = read(SRC / "gui/ultra/MenuSkins.java")
+    q_selft = read(SRC / "net/gui/LmNativeSelfTest.java")
+    q_res = MOD / "src/main/resources"
+    q_probe = ROOT / "tools/lm-ui-probe"
+    check("manifest row for lm 4.8.2", "lm-482-banners-mandatory" in manifest)
+    # A: the editor builds a vanilla banner (registry patterns, up to 6 layers) and saves through setBanner.
+    check("A: banner editor page saves base + ordered layers through DojoService.setBanner",
+          'PAGE_EDIT = "dojo_banner_edit"' in q_edit
+          and "DojoService.setBanner(p, e.base(), new ArrayList<>(e.layers()))" in q_edit
+          and "DojoBannerEditor.owns(lower)" in q_found and '"Design a banner here' in q_found)
+    check("A: pattern choices come from the vanilla banner pattern registry (no plain base), 6 layers max",
+          "BuiltInRegistries.f_256878_" in q_bd and '"b".equals(hash)' in q_bd and "MAX_LAYERS = 6" in q_bd)
+    check("A: the preview is the saved design drawn with its layers (lmbanner icon, banner cloth on the client)",
+          "spec.icon(icon)" in q_edit and "BannerIcons.drawCloth(g, banner" in q_nms
+          and "BannerIcons.isBanner(b.icon())" in q_nms
+          and "BannerDesign.isIcon(trimmed)" in read(SRC / "gui/ultra/UltraStyle.java"))
+    check("A: banner cost rule unchanged (first free, then 20 points + the 12h cooldown)",
+          '"Save this banner (free)"' in q_edit and '"Save - needs "' in q_edit
+          and "DojoService.identityChangeProblem(d, DojoCatalog.BANNER_CHANGE_COST)" in q_edit)
+    # B: the built hall flies the picked banner.
+    check("B: the build signature has a banner part; a banner change rebuilds the hall",
+          '"|b=" + banner;' in q_state and 's.banner = p.length > 10 && p[10].startsWith("b=")' in q_state
+          and "if (was != null && !was.banner.equals(now.banner)) {" in q_placer
+          and "job.banner = DojoPlacer.design(d);" in q_world
+          and "DojoWorld.ensureBuilt(p.m_20194_(), d);" in q_ds)
+    check("B: every structure banner spot gets the picked base and pattern layers in order",
+          "t.banner[i] = t.palette[i].m_60734_() instanceof AbstractBannerBlock;" in q_placer
+          and "putBanner(j.level, pos.m_7949_(), t.palette[si], j.banner);" in q_placer
+          and 'p.m_128405_("Color", l.colour().m_41060_());' in q_placer and "banner.m_142466_(tag);" in q_placer
+          and "public static List<BannerSpot> bannersOn(ServerLevel level, int plot)" in q_world)
+    check("B: an older hall without a pick is not rebuilt on upgrade (signature normalized)",
+          "sig.equals(DojoState.normalize(d.builtSignature))" in q_world)
+    # C: other players see the picked banner; the legacy colour is not read for display.
+    check("C: dojo view, list, war pick/format/view show the dojo's banner",
+          'UltraStyle.labelValue("Banner", DojoFounding.bannerText(d, 40))' in q_scr
+          and ".icon(DojoFounding.bannerIcon(d))" in q_scr and '"Their banner' in q_scr
+          and "warSide(spec, 0, w.fromDojo" in q_scr)
+    check("C: dojos.json design wins; legacy bannerMaterial kept but not read for display",
+          "DojoFounding.bannerIcon(" in q_rank
+          and "profile.bannerMaterial" not in q_rank.split("dojoBannerMaterial", 1)[1].split("\n    }", 1)[0]
+          and "public String bannerMaterial" in read(SRC / "sparring/SparStore.java"))
+    # D: one free rename, any time, no cooldown; the command path follows the same rule; one name everywhere.
+    check("D: free rename flag (no migration), skips cost and cooldown, then the 20-point rule",
+          "public boolean freeRenameUsed;" in q_store and "public static boolean freeRenameLeft(Dojo d)" in q_ds
+          and "d.freeRenameUsed = true;" in q_ds
+          and q_ds.index("if (freeRenameLeft(d)) {") < q_ds.index(
+              "String bad = identityChangeProblem(d, DojoCatalog.NAME_CHANGE_COST);"))
+    check("D: rename copy shows Free and the free-rename lock line",
+          'UltraStyle.labelValue("This rename", "Free")' in q_found and '"Rename (free)"' in q_found
+          and ". Your free rename works now." in q_scr and "Your first rename is free and locks nothing." in q_scr)
+    check("D: /lm dojo name goes through DojoService.rename; the ladder shows the dojo's name",
+          "DojoService.rename(master, rawName)" in q_rank and "DojoService.byMaster(dojoKey)" in q_rank
+          and "DojoRankings.syncDisplayName(d.masterUuid, n);" in q_ds)
+    # E: the LM client is mandatory; the KaiPath bridge is gone.
+    check("E: requireLmClient defaults to true", "public boolean requireLmClient = true;" in q_cfg)
+    check("E: no bridge route; no client is turned away with the install message",
+          "return Route.NO_CLIENT;" in q_nn and "BRIDGE," not in q_nn and "clientHasKaiPath" not in q_nn
+          and "case NATIVE -> LmNativeNetwork.sendOpen(player, wire);" in q_gn
+          and "LmNativeNetwork.requiredClientMessage()" in q_gn
+          and "bridgeSkin" not in q_gn and "static final String KAIPATH_" not in q_gn and "NetworkRegistry.newSimpleChannel" not in q_gn)
+    check("E: bridge-only files deleted (features model, features packet, KaiPath mixin, kaipath-ultra.txt)",
+          not (SRC / "net/gui/UltraClientFeatures.java").exists()
+          and not (SRC / "net/gui/GuiFeaturesPacket.java").exists()
+          and not (SRC / "mixin/KaiPathLmConsumerBootstrapMixin.java").exists()
+          and not (q_res / "META-INF/kaipath-ultra.txt").exists()
+          and "KaiPath" not in (q_res / "legacymechanics.mixins.json").read_text(encoding="utf-8")
+          and 'modId = "kaipath"' not in (q_res / "META-INF/mods.toml").read_text(encoding="utf-8"))
+    check("E: menus open only with the LM client (captured probe sends excepted); no KaiPath install text",
+          "!UltraScreenSpec.capturing() && !preferUltra(player)" in q_ug
+          and "return player != null && LmNativeNetwork.hasNativeClient(player);" in q_ug
+          and "Install KaiPath" not in q_ug)
+    check("E: body-parts model sync is native (message 5, hello-only feature)",
+          "MSG_MODEL_SYNC = 5;" in q_np and 'FEATURE_BODY_PARTS_SYNC = "bodyPartsSync";' in q_np
+          and "return player != null && LmNativeNetwork.takesModelSync(player);" in q_gn)
+    check("E: HUD keeps bars and chat only for HUD off and the hello wait",
+          "Who still gets boss bars and chat (LM 4.8.2)" in q_hud
+          and "return player != null && LmNativeNetwork.takesHud(player) && enabled(player);" in q_hud)
+    check("E: bridge skin rewrite gone", "nearestBridgeLetter" not in q_skins and "BRIDGE_PANEL" not in q_skins
+          and "bridgePrimary" not in q_skins)
+    check("E: self-tests pin rejection, the true default and message 5",
+          "no LM client must be rejected with the install message (there is no bridge)" in q_selft
+          and "requireLmClient must default to true (the LM client is mandatory)" in q_selft
+          and "LmNativeProtocol.MSG_MODEL_SYNC == 5" in q_selft)
+    check("E: rig turns a KaiPath-only client away by default",
+          "REQUIRE= REJECT=1" in (q_probe / "matrix.sh").read_text(encoding="utf-8")
+          and "run.sh kai" not in (q_probe / "matrix.sh").read_text(encoding="utf-8")
+          and "a KaiPath-only client (no LM client) is turned away by default"
+          in (q_probe / "report.py").read_text(encoding="utf-8"))
+    check("probes: V482BannerWorld and V482BannerUi run in the scripted checks",
+          "V482BannerWorld.run(player, this::note);" in (q_probe / "src/com/dbzlegacy/uiprobe/UiProbe.java")
+          .read_text(encoding="utf-8")
+          and "V482BannerUi.all(player, this::note);" in (q_probe / "src/com/dbzlegacy/uiprobe/UiProbe.java")
+          .read_text(encoding="utf-8"))
     print("\n--- § lm 4.8.1 ---")
     # The 4.7.88 string check reads Java only. CNPC scripts split a message into color pieces
     # (COLOR + "f/progression boost"), so a literal may start with the color code letter before the slash.
