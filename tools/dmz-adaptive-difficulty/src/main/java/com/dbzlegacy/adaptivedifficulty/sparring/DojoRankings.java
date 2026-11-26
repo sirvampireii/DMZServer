@@ -107,6 +107,12 @@ public final class DojoRankings {
         if (dojoKey == null || dojoKey.isBlank()) {
             return "?";
         }
+        // 4.8.2: one name everywhere: an open dojo's own name (the Dojo settings rename) wins over the ladder profile.
+        com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo open =
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoService.byMaster(dojoKey);
+        if (open != null && open.name != null && !open.name.isBlank()) {
+            return open.name;
+        }
         SparStore.DojoProfile profile = profile(dojoKey);
         if (profile != null && profile.displayName != null && !profile.displayName.isBlank()) {
             return profile.displayName;
@@ -118,12 +124,18 @@ public final class DojoRankings {
         return resolveMentorName(dojoKey, null);
     }
 
+    /**
+     * The dojo's banner as a plain banner item name ({@code RED_BANNER}). 4.8.2: read from the picked design in
+     * dojos.json (its base colour, or the style's default while none is picked), the same source as every menu; the
+     * old ladder field {@code DojoProfile.bannerMaterial} is kept but no longer read for display.
+     */
     public static String dojoBannerMaterial(String dojoKey) {
-        SparStore.DojoProfile profile = profile(dojoKey);
-        if (profile != null && profile.bannerMaterial != null && !profile.bannerMaterial.isBlank()) {
-            return profile.bannerMaterial.toUpperCase(Locale.ROOT);
+        com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo d =
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoService.byMaster(dojoKey);
+        if (d == null) {
+            return "WHITE_BANNER";
         }
-        return "WHITE_BANNER";
+        return com.dbzlegacy.adaptivedifficulty.dojo.DojoService.bannerColour(d).toUpperCase(Locale.ROOT) + "_BANNER";
     }
 
     private static SparStore.DojoProfile profile(String dojoKey) {
@@ -718,7 +730,8 @@ public final class DojoRankings {
     }
 
     /**
-     * GUI leaderboard cards: {@code rank\tdojoKey\tdisplayName\tbannerMaterial\tvalue\trosterSize}.
+     * GUI leaderboard cards: {@code rank\tdojoKey\tdisplayName\tbannerIcon\tvalue\trosterSize}. 4.8.2: the banner is
+     * the dojo's banner icon ({@code lmbanner:...}, the picked design from dojos.json or the style default).
      */
     public static List<String> topCards(String category, int limit) {
         ensureSeason();
@@ -737,7 +750,9 @@ public final class DojoRankings {
             }
             String name = dojoDisplayName(e.getKey()).replace('\t', ' ').replace('\n', ' ');
             String value = formatValue(d, cat);
-            out.add(i + "\t" + e.getKey() + "\t" + name + "\t" + dojoBannerMaterial(e.getKey())
+            out.add(i + "\t" + e.getKey() + "\t" + name + "\t"
+                    + com.dbzlegacy.adaptivedifficulty.gui.ultra.DojoFounding.bannerIcon(
+                            com.dbzlegacy.adaptivedifficulty.dojo.DojoService.byMaster(e.getKey()))
                     + "\t" + value + "\t" + d.rosterSize);
             i++;
         }
@@ -1142,24 +1157,38 @@ public final class DojoRankings {
         return blank(pending.fromDojoName, "?");
     }
 
+    /**
+     * {@code /lm dojo name <name>} and the legacy "dojo_name" action. 4.8.2: the same rule as Dojo settings (one free
+     * rename, then Dojo Points and the shared 12-hour cooldown), through {@link
+     * com.dbzlegacy.adaptivedifficulty.dojo.DojoService#rename}, so it is no longer an unlimited free rename around it;
+     * the ladder name follows the dojo's name.
+     */
     public static String setDojoName(ServerPlayer master, String rawName) {
         if (master == null) {
             return UltraStyle.DANGER + "Players only.";
         }
-        if (!isDojoMaster(master)) {
-            return UltraStyle.DANGER + "Only dojo masters can rename their dojo.";
+        com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo d =
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoService.viewedDojo(master);
+        String before = d == null ? null : d.name;
+        String msg = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.rename(master, rawName);
+        boolean renamed = d != null && !java.util.Objects.equals(before, d.name);
+        return (renamed ? UltraStyle.GREEN : UltraStyle.DANGER) + msg;
+    }
+
+    /**
+     * 4.8.2: keep the ladder profile's name equal to the dojo's name after a rename (only a profile that already
+     * exists; {@link #dojoDisplayName} reads the dojo's name first anyway).
+     */
+    public static void syncDisplayName(String masterUuid, String name) {
+        if (masterUuid == null || masterUuid.isBlank() || name == null) {
+            return;
         }
-        String name = sanitizeName(rawName);
-        if (name == null) {
-            return UltraStyle.DANGER + "Name must be " + MIN_NAME_LEN + "–" + MAX_NAME_LEN
-                    + " letters, numbers, or spaces.";
+        SparStore.DojoProfile prof = profile(masterUuid.toLowerCase(Locale.ROOT));
+        if (prof != null) {
+            prof.displayName = name;
+            prof.updatedAt = System.currentTimeMillis();
+            SparStore.get().markDirty();
         }
-        String key = master.m_20148_().toString().toLowerCase(Locale.ROOT);
-        SparStore.DojoProfile prof = profileOrCreate(key);
-        prof.displayName = name;
-        prof.updatedAt = System.currentTimeMillis();
-        SparStore.get().markDirty();
-        return UltraStyle.GREEN + "Dojo renamed to " + UltraStyle.VALUE + name + UltraStyle.GREEN + ".";
     }
 
     public static String setDojoBanner(ServerPlayer master, String material) {

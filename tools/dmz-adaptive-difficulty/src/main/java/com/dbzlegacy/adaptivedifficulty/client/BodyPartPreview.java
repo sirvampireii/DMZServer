@@ -21,8 +21,9 @@ import net.minecraft.world.entity.LivingEntity;
 
 /**
  * LM 4.7.61: copied from the Ultra GUI kit's reference ({@code tools/ultra-gui-kit}, same owner) so the LM
- * client draws Preview forms natively. Only the menu-preview half is used here ({@link #begin} /
- * {@link #end}); LM never feeds the world-sync state, which stays KaiPath's. {@link #mergeLook} rebuilds
+ * client draws Preview forms natively. 4.8.2: both halves are used: the menu preview ({@link #begin} /
+ * {@link #end}) and the world sync ({@link #applySync}, fed by native message 5 now that the KaiPath
+ * bridge is gone). {@link #mergeLook} rebuilds
  * DMZUltra 0.5.7's FormParts records from their own components.
  *
  * <p>Kit notes:
@@ -308,6 +309,34 @@ public final class BodyPartPreview {
             LOCAL_BY_CHANNEL.clear();
             localState = WorldState.EMPTY;
             localId = null;
+        }
+    }
+
+    /**
+     * 4.8.2: true when the server's world sync gave {@code player} pieces to draw or asked to hide their race tail.
+     * Cheap (no DragonMineZ reflection), so the world-render mixins call it every frame before the full lookup;
+     * false at once while nothing is synced.
+     */
+    public static boolean hasWorldSync(Object player) {
+        if (WORLD.isEmpty() && localState == WorldState.EMPTY) {
+            return false;
+        }
+        try {
+            UUID id = entityUuid(player);
+            if (id == null) {
+                return false;
+            }
+            UUID local = localId;
+            if (local == null) {
+                local = resolveLocalId();
+                if (local != null) {
+                    localId = local;
+                }
+            }
+            WorldState state = local != null && local.equals(id) ? localState : WORLD.get(id);
+            return state != null && (!state.meshes().isEmpty() || state.suppressNaturalTail());
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 

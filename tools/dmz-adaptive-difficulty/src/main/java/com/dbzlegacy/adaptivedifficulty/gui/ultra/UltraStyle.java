@@ -241,13 +241,13 @@ public final class UltraStyle {
         NOTICE_BODY = YELLOW;
         // 4.7.60: system accents come from the skin's table (same bytes as 4.7.57; Difficulty's red is the
         // crimson). SaiyanRoyal.selfTest pins every letter.
-        ACCENT_DIFFICULTY = MARK + SaiyanRoyal.bridgeAccent("difficulty");
-        ACCENT_RIVAL = MARK + SaiyanRoyal.bridgeAccent("rival");
-        ACCENT_SPAR = MARK + SaiyanRoyal.bridgeAccent("spar");
-        ACCENT_PRESTIGE = MARK + SaiyanRoyal.bridgeAccent("prestige");
-        ACCENT_CHARACTER = MARK + SaiyanRoyal.bridgeAccent("character");
-        ACCENT_SKILLCHECK = MARK + SaiyanRoyal.bridgeAccent("skillcheck");
-        ACCENT_ADMIN = MARK + SaiyanRoyal.bridgeAccent("admin");
+        ACCENT_DIFFICULTY = MARK + SaiyanRoyal.wireAccent("difficulty");
+        ACCENT_RIVAL = MARK + SaiyanRoyal.wireAccent("rival");
+        ACCENT_SPAR = MARK + SaiyanRoyal.wireAccent("spar");
+        ACCENT_PRESTIGE = MARK + SaiyanRoyal.wireAccent("prestige");
+        ACCENT_CHARACTER = MARK + SaiyanRoyal.wireAccent("character");
+        ACCENT_SKILLCHECK = MARK + SaiyanRoyal.wireAccent("skillcheck");
+        ACCENT_ADMIN = MARK + SaiyanRoyal.wireAccent("admin");
         // ASCII-only separators: KaiPath/JLDK still mojibakes multi-byte punctuation.
         SEP = "|";
         TIMES = "x";
@@ -760,7 +760,7 @@ public final class UltraStyle {
      */
     public static String systemAccentCode(String screenId) {
         // 4.7.60: the per-system table lives with the skin (SaiyanRoyal), same letters as 4.7.57.
-        return SaiyanRoyal.bridgeAccent(screenId);
+        return SaiyanRoyal.wireAccent(screenId);
     }
 
     /** Accent ink for body lines (section-sign OK). Empty string when none. */
@@ -801,6 +801,10 @@ public final class UltraStyle {
             return "";
         }
         String trimmed = raw.trim();
+        // 4.8.2: a patterned banner (lmbanner:<base>/<code>:<dye id>,...), drawn by the LM client with its layers.
+        if (BannerDesign.isIcon(trimmed)) {
+            return BannerDesign.normalizeIcon(trimmed);
+        }
         int colon = trimmed.indexOf(':');
         if (colon <= 0 || colon >= trimmed.length() - 1 || colon != trimmed.lastIndexOf(':')) {
             return "";

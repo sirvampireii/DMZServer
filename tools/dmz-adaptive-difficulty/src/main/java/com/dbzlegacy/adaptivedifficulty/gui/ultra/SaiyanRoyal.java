@@ -7,7 +7,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * LM 4.7.60 "Saiyan Royal" menu skin, on every LM menu. Defined once here; both render paths read it.
+ * LM 4.7.60 "Saiyan Royal" menu skin, on every LM menu. Defined once here; the LM client reads it.
  *
  * <ul>
  *   <li><b>Native LM client:</b> every menu draws the shared chrome in the exact hex palette below (panel,
@@ -15,10 +15,11 @@ import java.util.regex.Pattern;
  *       bars and a soft panel shadow. Each system keeps its own accent ({@link #accentHex}) on button edges,
  *       the active tab and frames. Shapes are renderer-owned, never spec fields, and the clickable bounds stay
  *       the full rectangles from the spec layout.</li>
- *   <li><b>KaiPath bridge:</b> cannot draw a panel tint or round corners, so the palette maps onto the color
- *       letters the bridge already understands: headers gold + bold (the gold trim), labels gray, values white
- *       (the near-white text), Difficulty accent red (the crimson); the other accents are unchanged. These are
- *       the 4.7.57 bytes.</li>
+ *   <li><b>Wire letters:</b> menu specs carry Minecraft color letters (headers gold + bold, labels gray,
+ *       values white, one accent letter per system); the native renderer maps each letter to the palette
+ *       ({@link #nativeInk}, {@link #accentHex}). LM 4.8.2: the KaiPath bridge that drew these letters as plain
+ *       Minecraft colors is gone, so the letters are now only the wire format. The {@code BRIDGE_*} constant
+ *       names are historical.</li>
  * </ul>
  */
 public final class SaiyanRoyal {
@@ -28,7 +29,7 @@ public final class SaiyanRoyal {
 
     /**
      * 4.7.62: the palette lives in the skin registry ({@link MenuSkins#SAIYAN_ROYAL}, the owner's hex values from
-     * 2026-11-20); these names stay for the bridge chrome and the 4.7.60 checks.
+     * 2026-11-20); these names stay for the 4.7.60 checks.
      */
     public static final int PANEL = MenuSkins.SAIYAN_ROYAL.panel();
     public static final int CRIMSON = MenuSkins.SAIYAN_ROYAL.primary();
@@ -36,8 +37,9 @@ public final class SaiyanRoyal {
     public static final int TEXT = MenuSkins.SAIYAN_ROYAL.text();
 
     /**
-     * Bridge mapping onto UltraStyle's existing color letters (no new wire values). Every menu builder takes
-     * its header, label, value and system accent letters from here through UltraStyle.
+     * The wire's color letters (no new wire values). Every menu builder takes its header, label, value and
+     * system accent letters from here through UltraStyle. 4.8.2: the names keep their KaiPath-era prefix; the
+     * native renderer maps each letter to the skin ({@link #nativeInk}, {@code MenuSkins.ink}).
      */
     public static final char BRIDGE_ACCENT = 'c';
     public static final char BRIDGE_HEADER = '6';
@@ -123,11 +125,12 @@ public final class SaiyanRoyal {
     private static final Pattern DOTS = Pattern.compile("(\\[[x ]\\])(\\s\\[[x ]\\])+\\s*$");
 
     /**
-     * Bridge accent letter of a system's menus, the same letters as 4.7.57: Difficulty red (the crimson), Rival
+     * Wire accent letter of a system's menus, the same letters as 4.7.57: Difficulty red (the crimson), Rival
      * white, Sparring dark aqua, Prestige aqua, Character green, SkillCheck yellow, Admin and config dark red.
-     * The main menu and unknown ids have none (they use the shared gold chrome).
+     * The main menu and unknown ids have none (they use the shared gold chrome). 4.8.2: renamed from
+     * {@code bridgeAccent}; the native renderer turns each letter into its accent hex ({@link #accentHex}).
      */
-    public static String bridgeAccent(String screenId) {
+    public static String wireAccent(String screenId) {
         if (screenId == null || screenId.isBlank()) {
             return "";
         }
@@ -159,7 +162,7 @@ public final class SaiyanRoyal {
         return MenuSkins.systemAccentHex(code);
     }
 
-    /** Accent hex for a bridge accent string ({@code c} or a section sign and {@code c}); -1 when blank. */
+    /** Accent hex for a wire accent string ({@code c} or a section sign and {@code c}); -1 when blank. */
     public static int accentHex(String code) {
         if (code == null || code.isBlank()) {
             return -1;
@@ -247,7 +250,7 @@ public final class SaiyanRoyal {
     }
 
     /**
-     * Pins the palette, the bridge mapping and the shape math. If a constant moves on purpose, update these
+     * Pins the palette, the wire letters and the shape math. If a constant moves on purpose, update these
      * pins and the 4.7.60 ship-manifest check in the same change.
      */
     public static List<String> selfTest() {
@@ -258,14 +261,14 @@ public final class SaiyanRoyal {
         String m = UltraStyle.MARK;
         if (!UltraStyle.systemAccentCode("difficulty").equals("c") || !UltraStyle.ACCENT_DIFFICULTY.equals(m + "c")
                 || !"red".equals(UltraStyle.systemPaletteName("difficulty"))) {
-            bad.add("Difficulty accent over the bridge must stay red (the crimson)");
+            bad.add("Difficulty accent letter must stay red (the crimson)");
         }
         if (!UltraStyle.HEADER.equals(m + "6" + m + "l") || !UltraStyle.LABEL.equals(m + "7")
                 || !UltraStyle.VALUE.equals(m + "f") || !UltraStyle.ACCENT_RIVAL.equals(m + "f")
                 || !UltraStyle.ACCENT_SPAR.equals(m + "3") || !UltraStyle.ACCENT_PRESTIGE.equals(m + "b")
                 || !UltraStyle.ACCENT_CHARACTER.equals(m + "a") || !UltraStyle.ACCENT_SKILLCHECK.equals(m + "e")
                 || !UltraStyle.ACCENT_ADMIN.equals(m + "4")) {
-            bad.add("bridge bytes as 4.7.57: headers gold + bold, labels gray, values white, system accents");
+            bad.add("wire letters as 4.7.57: headers gold + bold, labels gray, values white, system accents");
         }
         if (!UltraStyle.systemAccentCode("rival").equals("f") || !UltraStyle.systemAccentCode("spar").equals("3")
                 || !UltraStyle.systemAccentCode("prestige").equals("b")
@@ -275,7 +278,7 @@ public final class SaiyanRoyal {
                 || !UltraStyle.systemAccentCode("config").equals("4")
                 || !UltraStyle.systemAccentCode("skills").equals("e")
                 || !UltraStyle.systemAccentCode("hub").isEmpty()) {
-            bad.add("other systems keep their bridge accents (rival white, sparring dark aqua, prestige aqua,"
+            bad.add("other systems keep their accent letters (rival white, sparring dark aqua, prestige aqua,"
                     + " character green, skillcheck yellow, admin dark red)");
         }
         for (String id : List.of("hub", "difficulty", "rival", "spar", "prestige", "character", "skillcheck",

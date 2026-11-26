@@ -1,9 +1,5 @@
 package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -20,9 +16,8 @@ import java.util.Locale;
  *       SkillCheck yellow and Admin dark red look the same in every skin ({@link #systemAccentHex}).</li>
  *   <li>Each skin is dark or light. A light skin (Zeno Omni) draws dark text on a light panel; its inks are
  *       darkened until they read at 4.5:1 on their surface ({@link #readable}).</li>
- *   <li>KaiPath bridge: no panel tint and no background. Saiyan Royal keeps the 4.7.57 bytes exactly; another
- *       skin rewrites a few color letters at send time ({@link #bridgeRewrite}): its primary on menus without a
- *       system accent, and Zeno Omni's text letter on body lines.</li>
+ *   <li>LM 4.8.2: the KaiPath bridge is gone, and with it the per-skin bridge letters and the send-time letter
+ *       rewrite ({@code bridgeRewrite}). Skins exist only in the LM client's native renderer.</li>
  * </ul>
  */
 public final class MenuSkins {
@@ -42,7 +37,7 @@ public final class MenuSkins {
         CLOUDS
     }
 
-    /** One skin's palette, exact hex from the UI Skin Concepts mock, plus its background and bridge letters. */
+    /** One skin's palette, exact hex from the UI Skin Concepts mock, plus its background. */
     public record Skin(
             String id,
             String name,
@@ -56,9 +51,7 @@ public final class MenuSkins {
             int bgBottom,
             int motifA,
             int motifB,
-            Motif motif,
-            char bridgePrimary,
-            char bridgeText) {
+            Motif motif) {
 
         /** Button and row face. */
         public int face() {
@@ -253,30 +246,24 @@ public final class MenuSkins {
     public static final int GLOSS_LINE = 0x60FFFFFF;
     /** Shimmer band over an active Momentum fill (ARGB). */
     public static final int SHIMMER = 0x38FFFFFF;
-    /** KaiPath's bridge panel, sampled from a 4.7.60 KaiPath screenshot (DMZUltra panel tile). */
-    public static final int BRIDGE_PANEL = 0x191516;
-
     public static final Skin SAIYAN_ROYAL = new Skin("saiyan_royal", "Saiyan Royal", true,
             0x160B0D, 0xE23B3B, 0xF0B429, 0xF6E8E4, 0x3FAF55,
-            0x2A0A0E, 0x050102, 0x8A1C22, 0xF0B429, Motif.BANNER, 'c', 'f');
+            0x2A0A0E, 0x050102, 0x8A1C22, 0xF0B429, Motif.BANNER);
     public static final Skin NAMEK_SERENITY = new Skin("namek_serenity", "Namek Serenity", true,
             0x0D201B, 0x57D9A3, 0xFFD166, 0xE6F4EC, 0x3FAF55,
-            0x2B6E62, 0x041612, 0x3AA58A, 0xFFE9A8, Motif.NAMEK, 'a', 'f');
+            0x2B6E62, 0x041612, 0x3AA58A, 0xFFE9A8, Motif.NAMEK);
     /** No distinct trim in the mock: trim is the same gold. Confirm is the mock's green #4caf6d. */
     public static final Skin OBSIDIAN_GOLD = new Skin("obsidian_gold", "Obsidian & Gold", true,
             0x17140F, 0xE8B33C, 0xE8B33C, 0xF3EAD8, 0x4CAF6D,
-            0x16120D, 0x030202, 0xE8B33C, 0x6B4A12, Motif.VEINS, '6', 'f');
+            0x16120D, 0x030202, 0xE8B33C, 0x6B4A12, Motif.VEINS);
     /** Primary is the gold, trim the mock's pink accent. */
     public static final Skin BEERUS_DESTRUCTION = new Skin("beerus_destruction", "Beerus Destruction", true,
             0x281840, 0xF0B429, 0xE86A9A, 0xF3EAFF, 0x3FAF55,
-            0x2C1452, 0x08031A, 0xE86A9A, 0xF0B429, Motif.WISPS, '6', 'f');
-    /**
-     * The light skin. Bridge text: KaiPath's panel is dark, so Zeno's navy text maps to the readable letter
-     * nearest its hue: dark aqua (6.3:1 on the bridge panel; dark blue and blue fail 4.5:1).
-     */
+            0x2C1452, 0x08031A, 0xE86A9A, 0xF0B429, Motif.WISPS);
+    /** The light skin. */
     public static final Skin ZENO_OMNI = new Skin("zeno_omni", "Zeno Omni", false,
             0xF6F9FF, 0x2563EB, 0xF59E0B, 0x1E2A4A, 0x16A34A,
-            0xB9D6FF, 0xF4F8FF, 0xFFFFFF, 0xF59E0B, Motif.CLOUDS, '9', '3');
+            0xB9D6FF, 0xF4F8FF, 0xFFFFFF, 0xF59E0B, Motif.CLOUDS);
 
     /**
      * 4.7.78: the skin's gold, for currency (the HUD coin toast): of the skin's trim and primary, the one whose hue is
@@ -483,7 +470,7 @@ public final class MenuSkins {
      * The custom skin: the five base tones (text made readable), the background derived the way the presets
      * darken theirs (a dark skin: panel tinted 10% toward primary on top, panel 75% toward black at the bottom,
      * motif in primary darkened 40% and trim; a light skin: panel 30% toward primary on top, panel 30% toward
-     * white below, motif in near-white and trim), and the bridge letters nearest the primary and the text.
+     * white below, motif in near-white and trim).
      */
     public static Skin custom(Custom c) {
         Custom x = c == null ? Custom.DEFAULT : c;
@@ -501,37 +488,7 @@ public final class MenuSkins {
             motifA = blend(x.panel(), WHITE, 0.80);
         }
         return new Skin(customToken(x), CUSTOM_NAME, x.dark(), x.panel(), x.primary(), x.trim(), text, x.confirm(),
-                bgTop, bgBottom, motifA, x.trim(), x.motif(), nearestBridgeLetter(x.primary(), true),
-                nearestBridgeLetter(text, false));
-    }
-
-    /**
-     * The Minecraft color letter nearest {@code rgb} by RGB distance ({@link #vanillaRgb}), among the letters that
-     * read on KaiPath's dark bridge panel: 3:1 for the primary (accent) letter, 4.5:1 for the text letter. A light
-     * custom skin's dark text so maps to a darker readable letter, as Zeno Omni's does.
-     */
-    public static char nearestBridgeLetter(int rgb, boolean primary) {
-        char best = primary ? SaiyanRoyal.BRIDGE_ACCENT : 'f';
-        long bestD = Long.MAX_VALUE;
-        for (char c : "0123456789abcdef".toCharArray()) {
-            int v = vanillaRgb(c);
-            boolean reads = primary
-                    ? systemAccentHex(c) >= 0 && contrast(systemAccentHex(c), BRIDGE_PANEL) >= 3
-                            && contrast(v, BRIDGE_PANEL) >= 3
-                    : contrast(v, BRIDGE_PANEL) >= 4.5;
-            if (!reads) {
-                continue;
-            }
-            long dr = ((rgb >> 16) & 0xFF) - ((v >> 16) & 0xFF);
-            long dg = ((rgb >> 8) & 0xFF) - ((v >> 8) & 0xFF);
-            long db = (rgb & 0xFF) - (v & 0xFF);
-            long d = dr * dr + dg * dg + db * db;
-            if (d < bestD) {
-                bestD = d;
-                best = c;
-            }
-        }
-        return best;
+                bgTop, bgBottom, motifA, x.trim(), x.motif());
     }
 
     // ------------------------------------------------------------------ system accents and named colors
@@ -759,60 +716,6 @@ public final class MenuSkins {
         return (h & 0xFFFFFF) / (double) 0xFFFFFF;
     }
 
-    // ------------------------------------------------------------------ KaiPath bridge
-
-    /**
-     * Rewrite a bridge packet's JSON for {@code skin}. Saiyan Royal returns {@code null} (send the packet as
-     * built, the 4.7.57 bytes). Another skin changes only color letters the spec already carries: a menu with
-     * no system accent takes the skin's primary letter as its layout accent, and a skin whose bridge text
-     * letter is not white (Zeno Omni) puts it on body lines in place of the value letter. Anything it cannot
-     * read comes back unchanged, never blank.
-     *
-     * @return {layoutJson, linesJson}, or null for no change
-     */
-    public static String[] bridgeRewrite(Skin skin, String layoutJson, String linesJson) {
-        if (skin == null || skin == SAIYAN_ROYAL) {
-            return null;
-        }
-        if (skin.bridgePrimary() == SAIYAN_ROYAL.bridgePrimary() && skin.bridgeText() == SAIYAN_ROYAL.bridgeText()) {
-            // 4.7.66: a custom skin whose letters are Saiyan Royal's (its starting tones) keeps the same bytes.
-            return null;
-        }
-        String layoutOut = layoutJson;
-        String linesOut = linesJson;
-        try {
-            JsonElement le = layoutJson == null || layoutJson.isBlank() ? null : JsonParser.parseString(layoutJson);
-            if (le != null && le.isJsonObject()) {
-                JsonObject layout = le.getAsJsonObject();
-                String acc = layout.has("accent") && !layout.get("accent").isJsonNull()
-                        ? layout.get("accent").getAsString() : "";
-                if (acc.isBlank()) {
-                    layout.addProperty("accent", String.valueOf(skin.bridgePrimary()));
-                    layoutOut = layout.toString();
-                }
-            }
-        } catch (RuntimeException ignored) {
-            layoutOut = layoutJson;
-        }
-        if (skin.bridgeText() != SaiyanRoyal.BRIDGE_VALUE) {
-            try {
-                JsonElement ae = linesJson == null || linesJson.isBlank() ? null : JsonParser.parseString(linesJson);
-                if (ae != null && ae.isJsonArray()) {
-                    String from = UltraStyle.MARK + SaiyanRoyal.BRIDGE_VALUE;
-                    String to = UltraStyle.MARK + skin.bridgeText();
-                    JsonArray out = new JsonArray();
-                    for (JsonElement el : ae.getAsJsonArray()) {
-                        out.add(el.isJsonPrimitive() ? el.getAsString().replace(from, to) : el.getAsString());
-                    }
-                    linesOut = out.toString();
-                }
-            } catch (RuntimeException ignored) {
-                linesOut = linesJson;
-            }
-        }
-        return new String[] {layoutOut, linesOut};
-    }
-
     // ------------------------------------------------------------------ self-test
 
     /** Pins the registry. Update with the 4.7.62 ship-manifest check if a value moves on purpose. */
@@ -867,40 +770,12 @@ public final class MenuSkins {
                     bad.add(s.id() + ": ink " + c + " unreadable on the info box");
                 }
             }
-            if (contrast(systemAccentHex(s.bridgePrimary()), BRIDGE_PANEL) < 3) {
-                bad.add(s.id() + ": bridge primary letter unreadable on the KaiPath panel");
-            }
-            if (contrast(vanillaRgb(s.bridgeText()), BRIDGE_PANEL) < 4.5) {
-                bad.add(s.id() + ": bridge text letter unreadable on the KaiPath panel");
-            }
             if (byId(s.id()) != s || !known(s.id())) {
                 bad.add(s.id() + ": id lookup");
             }
         }
         if (byId("nope") != DEFAULT || byId(null) != SAIYAN_ROYAL || known("nope")) {
             bad.add("unknown skin ids fall back to Saiyan Royal");
-        }
-        if (SAIYAN_ROYAL.bridgePrimary() != SaiyanRoyal.BRIDGE_ACCENT || SAIYAN_ROYAL.bridgeText() != 'f'
-                || NAMEK_SERENITY.bridgePrimary() != 'a' || OBSIDIAN_GOLD.bridgePrimary() != '6'
-                || BEERUS_DESTRUCTION.bridgePrimary() != '6' || ZENO_OMNI.bridgePrimary() != '9'
-                || ZENO_OMNI.bridgeText() != '3') {
-            bad.add("bridge letters: primary c/a/6/6/9, text f except Zeno Omni dark aqua");
-        }
-        if (bridgeRewrite(SAIYAN_ROYAL, "{\"accent\":\"\"}", "[\"x\"]") != null) {
-            bad.add("Saiyan Royal must keep the 4.7.57 bridge bytes (no rewrite)");
-        }
-        String v = UltraStyle.MARK + "f";
-        String[] z = bridgeRewrite(ZENO_OMNI, "{\"accent\":\"\"}", "[\"" + v + "hi\"]");
-        if (z == null || !z[0].contains("\"accent\":\"9\"") || !z[1].contains(UltraStyle.MARK + "3hi")) {
-            bad.add("Zeno Omni bridge: primary accent on accent-less menus, dark aqua body text");
-        }
-        String[] n = bridgeRewrite(NAMEK_SERENITY, "{\"accent\":\"c\"}", "[\"" + v + "hi\"]");
-        if (n == null || !n[0].contains("\"accent\":\"c\"") || !n[1].contains(v + "hi")) {
-            bad.add("a system accent and white text stay as sent");
-        }
-        String[] broken = bridgeRewrite(ZENO_OMNI, "{not json", "[oops");
-        if (broken == null || !"{not json".equals(broken[0]) || !"[oops".equals(broken[1])) {
-            bad.add("an unreadable spec goes out unchanged, never blank");
         }
         if (systemAccentHex('c') != SaiyanRoyal.CRIMSON || systemAccentHex('3') != 0x00AAAA || systemAccentHex('x') != -1) {
             bad.add("system accents are the same in every skin");
@@ -911,9 +786,8 @@ public final class MenuSkins {
         }
         Skin start = byId(CUSTOM_ID);
         if (!CUSTOM_NAME.equals(start.name()) || start.panel() != SAIYAN_ROYAL.panel()
-                || start.primary() != SAIYAN_ROYAL.primary() || start.text() != SAIYAN_ROYAL.text()
-                || bridgeRewrite(start, "{\"accent\":\"\"}", "[\"x\"]") != null) {
-            bad.add("custom: picking Custom without editing gives Saiyan Royal's tones and bridge bytes");
+                || start.primary() != SAIYAN_ROYAL.primary() || start.text() != SAIYAN_ROYAL.text()) {
+            bad.add("custom: picking Custom without editing gives Saiyan Royal's tones");
         }
         for (Skin s : ALL) {
             Custom c = Custom.from(s);
@@ -938,19 +812,12 @@ public final class MenuSkins {
                         bad.add(String.format(Locale.ROOT, "custom %s: text %06x on panel %06x unreadable",
                                 dark ? "dark" : "light", text, panel));
                     }
-                    if (contrast(systemAccentHex(s.bridgePrimary()), BRIDGE_PANEL) < 3
-                            || contrast(vanillaRgb(s.bridgeText()), BRIDGE_PANEL) < 4.5) {
-                        bad.add(String.format(Locale.ROOT, "custom: bridge letters for %06x/%06x unreadable", panel, text));
-                    }
                 }
             }
         }
         if (customTextAdjusted(Custom.DEFAULT)
                 || !customTextAdjusted(new Custom(true, Motif.BANNER, 0x160B0D, 0xE23B3B, 0xF0B429, 0x160B0D, 0x3FAF55))) {
             bad.add("custom: the readability note shows only when the text color had to change");
-        }
-        if (nearestBridgeLetter(0xFFFFFF, false) != 'f' || nearestBridgeLetter(0xE23B3B, true) != 'c') {
-            bad.add("custom: bridge letters are the nearest readable Minecraft colors");
         }
         for (Skin s : ALL) {
             // Lite flattens the motif: somewhere on a coarse grid the two bakes must differ.

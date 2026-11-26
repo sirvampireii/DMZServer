@@ -1,6 +1,7 @@
 """report.py <results dir> [<baseline full dir>]: one pass/fail summary for a matrix run, plus a contact sheet.
 
-Reads the stages matrix.sh leaves in <results dir> (full/, kai/, reject/ and the srv-*.log files), runs the
+Reads the stages matrix.sh leaves in <results dir> (full/, reject/ and the srv-*.log files; 4.8.2 retired kai/ with
+the KaiPath bridge), runs the
 analyzers, and writes:
   REPORT.md    one line per check, PASS / FAIL / SKIP, with the evidence;
   review.html  GUI scale 3 and 4 screenshots of every Difficulty page and the main page of every other menu,
@@ -141,12 +142,12 @@ def main(out, base=None):
         expected = [e for e in os.environ.get("RIG_EXPECTED_DIFF", "").split() if "|" in e]
         allowed = [d for d in real if any(f"('{e.split('|')[0]}', '{e.split('|')[1]}'," in d for e in expected)]
         real = [d for d in real if d not in allowed]
-        row("bridge sends the same specs as the baseline", not real,
+        row("menus send the same specs as the baseline", not real,
             f"{common - differ} of {common} identical" + (f"; {len(diffs) - len(real)} volatile" if len(diffs) > len(real) else "")
             + (f"; {len(allowed)} expected ({' '.join(expected)})" if allowed else "")
             + (f"; differ: {real[:3]}" if real else ""))
     else:
-        row("bridge sends the same specs as the baseline", None, "no baseline given")
+        row("menus send the same specs as the baseline", None, "no baseline given")
 
     rc, txt = analyzer("analyze_layout.py", full)
     probs = [l for l in txt.splitlines() if l.startswith("PROBLEM")]
@@ -166,96 +167,16 @@ def main(out, base=None):
     row("look: label/text contrast >= 3:1, no cut labels, nothing on the panel edge", rc == 0,
         " ".join(txt.split())[:400])
 
-    kai = os.path.join(out, "kai")
-    kscript = read(os.path.join(kai, "uiprobe-script.txt")) or ""
-    khud = [l for l in kscript.splitlines() if l.startswith("HUD ") and re.search(r"\b(PASS|FAIL)\b", l)]
-    if khud:
-        row("KaiPath keeps the boss bars and chat lines (no HUD over the bridge)",
-            "client takes hud=false" in kscript and all("PASS" in l for l in khud),
-            f"{sum('PASS' in l for l in khud)}/{len(khud)} bridge HUD checks")
-    kc = read(os.path.join(kai, "uiprobe-client.txt"))
-    if kc is None:
-        row("KaiPath only: every menu through the bridge", None, "kai stage not run")
-    else:
-        classes = set(re.findall(r"^SCREEN .* class=(\S+)", kc, re.M))
-        row("KaiPath only: every menu through the bridge", classes == {"class=LmDynamicScreen"} or classes == {"LmDynamicScreen"},
-            f"classes {sorted(classes)}")
-        a, b = packets(kai), packets(full)
-        # Crawled menus only: scripted pages carry live timers and test state that differ between runs.
-        crawled = lambda d: [r for r in d.values() if not r.get("from", "").startswith("script")]
-        idx = {}
-        for r in crawled(b):
-            idx.setdefault((r["screen"], r["page"], r["title"], r["tab"]), r)
-        same = differ = wheel = 0
-        # 4.7.67: a page with a color wheel differs on purpose. The wheel (and its row and hint) goes only to LM
-        # clients that draw it; KaiPath gets the hex field alone. Such a page counts as "by design" when the native
-        # packet has a color_wheel input and the KaiPath packet has none; any other difference still fails.
-        has_wheel = lambda r: any(i.get("type") == "color_wheel" for i in (r.get("inputs") or []))
-        # 4.7.71: navigation differs on purpose. LM clients get Back from their page history (nav:back, named after
-        # the page they came from), a breadcrumb and the hub search row; KaiPath gets Back to the page's registry
-        # parent and no breadcrumb or search field. A page counts as "by design" when it matches once the footer
-        # Back / Main menu buttons and the breadcrumb are set aside, or (hub Home and Search) when only the LM packet
-        # has the search field. Any other difference still fails.
-        def plain(t):
-            return re.sub("§.", "", t or "")
-
-        def footer(b):
-            lab = plain(b.get("label", ""))
-            return lab.startswith("Back to") or lab == "Main menu"
-
-        def nav_norm(r):
-            lay = dict(r["layout"]) if isinstance(r["layout"], dict) else r["layout"]
-            if isinstance(lay, dict):
-                lay.pop("breadcrumb", None)
-            btns = [b for b in (r["buttons"] or []) if not footer(b)]
-            # Preview forms names what the figure wears, which differs by client (the LM client draws the player's
-            # own look, KaiPath race colors) - the line, wherever it wraps, is set aside too.
-            lines = [x for x in (r["lines"] or [])
-                     if not re.search(r"The model (uses|wears)|colors, not your own|hair and skin, in this form|^skin, in this form.|^not your own.",
-                                      plain(x))
-                     # 4.7.84: More tells only players without the LM client that the HUD needs it.
-                     and plain(x) != "The HUD needs the Legacy Mechanics client."
-                     # 4.7.86: Menu skins says one client-specific line (same line count, so the layout matches).
-                     and plain(x) not in ("Tap a name to use it. It's free, and you can switch back.",
-                                          "Full skins need the Legacy Mechanics client.")
-                     # 4.7.80 Goals: the reset clock and the week's progress move between the two runs.
-                     and not (r["screen"] == "hub" and r["page"] == "goals"
-                              and re.search(r"Resets in|\[[#-]+\]|^Done", plain(x)))]
-            return json.dumps([lay, btns, lines], sort_keys=True)
-
-        has_search = lambda r: any(i.get("id") == "hub_search" or "hub_search" in json.dumps(i)
-                                   for i in (r.get("inputs") or []))
-        nav = 0
-        differ_pages = []
-        seen_keys = set()
-        for r in crawled(a):
-            k = (r["screen"], r["page"], r["title"], r["tab"])
-            if k in seen_keys:
-                continue
-            seen_keys.add(k)
-            o = idx.get(k)
-            if o is None:
-                continue
-            if json.dumps([r["layout"], r["buttons"], r["lines"]], sort_keys=True) == json.dumps(
-                    [o["layout"], o["buttons"], o["lines"]], sort_keys=True):
-                same += 1
-            elif has_wheel(o) and not has_wheel(r):
-                wheel += 1
-            elif nav_norm(r) == nav_norm(o) or (r["screen"] == "hub" and has_search(o) and not has_search(r)):
-                nav += 1
-            elif not re.search(r"\[I@[0-9a-f]+", json.dumps(r["buttons"])):
-                differ += 1
-                differ_pages.append(f"{r['screen']}|{r['page']}")
-        row("one spec for both render paths (KaiPath run == native run)", differ == 0,
-            f"{same} identical, {differ} differ" + (f" ({', '.join(differ_pages[:5])})" if differ_pages else "") + (f", {wheel} differ only by the LM-client color wheel" if wheel else "")
-            + (f", {nav} differ only by LM-client navigation (history Back, breadcrumb, search row, preview look line)" if nav else ""))
+    # 4.8.2: the KaiPath bridge is gone, and with it the kai stage (bridge HUD, LmDynamicScreen, KaiPath == native
+    # spec rows). The reject stage below now proves a KaiPath-only client is turned away.
 
     rj = read(os.path.join(out, "srv-reject.log"))
     if rj is None:
-        row("requireLmClient turns a no-client login away", None, "reject stage not run")
+        row("a KaiPath-only client (no LM client) is turned away by default", None, "reject stage not run")
     else:
         msg = re.search(r"lost connection: (This server needs the Legacy Mechanics client mod\.[^\n]*)", rj)
-        row("requireLmClient turns a no-client login away", "turning away" in rj and bool(msg),
+        # 4.8.2: the reject stage leaves requireLmClient at its shipped default (true) and its client has KaiPath only.
+        row("a KaiPath-only client (no LM client) is turned away by default", "turning away" in rj and bool(msg),
             msg.group(1) if msg else "no install message seen")
 
     gallery(out, pk, client)

@@ -233,7 +233,8 @@ public final class UltraScreenSelfTest {
             return "empty title";
         }
         // Tabs render as hub-style buttons under the title line; tabsJson stays empty for all
-        // screens so stock KaiPath does not draw its title-chrome tab strip.
+        // screens. 4.8.2: pinned to the native panel (NativeMenuScreen draws tabs from the buttons and
+        // has no title-chrome tab strip); before that it kept stock KaiPath from drawing a second strip.
         String tabsErr = requireJsonArray("tabsJson", pkt.tabsJson(), true);
         if (tabsErr != null) {
             return tabsErr;
@@ -647,6 +648,12 @@ public final class UltraScreenSelfTest {
                 || !"".equals(UltraStyle.normalizeIcon("mine/craft:iron_sword"))) {
             broken.add("normalizeIcon must drop ids that are not namespace:path");
         }
+        // 4.8.2: banner icons keep their layers in order; a malformed one is dropped.
+        if (!"lmbanner:red/sc:0,bo:15".equals(UltraStyle.normalizeIcon("lmbanner:Red/sc:0,bo:black"))
+                || !"".equals(UltraStyle.normalizeIcon("lmbanner:nocolour/sc:0"))
+                || !"".equals(UltraStyle.normalizeIcon("lmbanner:red/sc:99"))) {
+            broken.add("normalizeIcon must keep a valid banner icon and drop a malformed one");
+        }
         String tabJson = UltraScreenSpec.tabEntryJson("home", "Home", "minecraft:emerald");
         if (tabJson == null
                 || !tabJson.contains("\"icon\":\"minecraft:emerald\"")
@@ -787,7 +794,7 @@ public final class UltraScreenSelfTest {
                 broken.add("character: tab buttons must be Home/Looks/Story (short labels)");
             }
             if (buttons.contains("Android Removal") || buttons.contains("Saga Reset")) {
-                broken.add("character: long tab labels overflow and mojibake on KaiPath");
+                broken.add("character: long tab labels overflow the native tab buttons");
             }
             // No section-sign / mojibake leftovers in any button label.
             if (buttons.indexOf('\u00A7') >= 0 || buttons.indexOf('\u00C2') >= 0) {
@@ -867,7 +874,7 @@ public final class UltraScreenSelfTest {
             }
             if (issues.isEmpty()) {
                 LmLog.event(
-                        "[{}] Ultra hub shim self-check OK (KaiPath dynamic-any - no tunneling)",
+                        "[{}] Ultra hub shim self-check OK (dynamic screen ids - no tunneling)",
                         AdaptiveDifficultyMod.MOD_ID);
             } else {
                 AdaptiveDifficultyMod.LOGGER.warn(
@@ -1106,10 +1113,12 @@ public final class UltraScreenSelfTest {
     /**
      * Every player menu is a centered panel sized to its page (4.7.55): no fillScreen and no design
      * box, centered with the standard margin, as wide as the menu needs (never over
-     * {@link UltraStyle#MENU_MAX_W}) and exactly as tall as its content plus KaiPath's Close band.
-     * Nothing is pinned with {@code footer:true}: when KaiPath caps the panel at the window, the
-     * whole page scrolls (body, rows and footer together), so the footer is always reachable at
-     * GUI scale 3 and 4. The numbers come from {@link UltraStyle}, not from this test.
+     * {@link UltraStyle#MENU_MAX_W}) and exactly as tall as its content plus the Close band.
+     * Nothing is pinned with {@code footer:true}: when the panel is taller than the window, the LM
+     * client scales it to fit and past the 0.5x floor the whole page scrolls (body, rows and footer
+     * together; {@code NativeMenuFit}), so the footer is always reachable at GUI scale 3 and 4.
+     * 4.8.2: pinned to the native panel (these were KaiPath's panel rules before the bridge went).
+     * The numbers come from {@link UltraStyle}, not from this test.
      */
     public static void verifyMenuFit() {
         List<String> broken = new ArrayList<>();
@@ -1271,14 +1280,14 @@ public final class UltraScreenSelfTest {
             int h = pm.get("height").getAsInt();
             if (x < 0 || y < 0 || x + w > panelW - UltraStyle.MENU_EDGE || y + h > UltraStyle.MENU_MODEL_BOTTOM) {
                 broken.add(tag + ": model preview " + x + "," + y + " " + w + "x" + h + " must sit inside the panel and end by "
-                        + UltraStyle.MENU_MODEL_BOTTOM + " (KaiPath pins it while the page scrolls)");
+                        + UltraStyle.MENU_MODEL_BOTTOM + " (the model stays put while the page scrolls)");
             }
             lowest = Math.max(lowest, y + h);
             rects.add(new int[] {x, y, w, h});
             names.add("model preview");
         }
         if (lay.has("playerModel") && panelH > UltraStyle.MENU_SMALL_H) {
-            // The page scrolls at GUI scale 4 while KaiPath pins the model: only the footer row
+            // The page may scroll at GUI scale 4 while the model stays put: only the footer row
             // (below the model column at any scroll) may sit in the model's columns.
             int modelX = lay.getAsJsonObject("playerModel").get("x").getAsInt();
             for (int k = 0; k < rects.size(); k++) {
@@ -1313,6 +1322,11 @@ public final class UltraScreenSelfTest {
         }
     }
 
+    /**
+     * The scrolling body ({@code bodyTop} + {@code bodyMaxHeight}) ends above the first body button. 4.8.2: pinned to
+     * the native panel, which reads the same layout keys ({@code NativeMenuScreen}: bodyTop, bodyMaxHeight,
+     * scrollBody); this was a KaiPath body-box rule before the bridge went.
+     */
     public static void verifyBodyCap() {
         List<String> broken = new ArrayList<>();
         checkBodyCap(
@@ -1396,7 +1410,7 @@ public final class UltraScreenSelfTest {
         checkBoostStartReplies(broken);
         checkPrestigeFollowsOverhaul(broken);
         com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeCharacter.selfTest(broken);
-        com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.selfTest(broken);
+        // 4.8.2: UltraClientFeatures (KaiPath feature advertisement) is gone; LmNativeSelfTest pins the native hello.
         com.dbzlegacy.adaptivedifficulty.character.SaiyanTailWipeHelper.selfTest(broken);
         UltraCharacterScreens.selfTest(broken);
         UltraDifficultyScreens.selfTest(broken);
@@ -1426,12 +1440,13 @@ public final class UltraScreenSelfTest {
     }
 
     /**
-     * Config editor requests a panel larger than the GUI (so KaiPath 1.3.20 clamps the
-     * chrome to the window) and lays controls out in its design box (426x240 today, read from
-     * {@code UltraConfigScreens}) — the grid the
-     * widget coordinates use. KaiPath 1.3.31 scales {@code panel / design}, so a design
-     * box equal to the panel request would render the 426-grid widgets tiny in the
-     * top-left. A stack of rows must not grow the request toward the compact menu cap.
+     * Config editor requests a panel larger than the GUI (so the client clamps the chrome to the
+     * window) and lays controls out in its design box (426x240 today, read from
+     * {@code UltraConfigScreens}) — the grid the widget coordinates use. The LM client's
+     * {@code fillScreen} box ({@code NativeMenuFit}, 4.8.2: the only renderer) scales
+     * {@code window / design}, as KaiPath 1.3.31 scaled {@code panel / design}, so a design box
+     * equal to the panel request would render the 426-grid widgets tiny in the top-left. A stack
+     * of rows must not grow the request toward the compact menu cap.
      */
     /**
      * Boosts tab: the selector shows both status lines and opens each control view; each view
@@ -2040,7 +2055,7 @@ public final class UltraScreenSelfTest {
                 || lay.get("designHeight").getAsInt() != wantH) {
             broken.add(
                     "config fillScreen design size must be " + wantW + "x" + wantH + " (the widget grid;"
-                            + " scale = panel / design on KaiPath 1.3.31), got "
+                            + " scale = window / design in the LM client's fillScreen box), got "
                             + lay.get("designWidth")
                             + "x"
                             + lay.get("designHeight"));

@@ -8,25 +8,22 @@ import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.Set;
 import net.minecraft.network.Connection;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
-import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
 
 /**
- * Server half of this mod's Ultra GUI channel ({@code <modid>:gui}).
+ * Server side of LM menus: the single send point ({@link #sendOpen}), click dispatch, the
+ * body-parts world sync and the boot self-tests.
  *
- * <p>Channel namespace comes from {@link AdaptiveDifficultyMod#MOD_ID} via
- * {@link UltraGuiProtocol#channel(String)} — other mods should register the same packet
- * shape on <em>their</em> {@code modid:gui}. KaiPath keys client consumers by channel.
+ * <p>LM 4.8.2: the Legacy Mechanics client is mandatory and the KaiPath bridge channel
+ * ({@code legacymechanics:gui}) is gone; it is no longer registered. Every menu, click and
+ * world sync goes over the LM client's own channel ({@link LmNativeNetwork},
+ * {@code legacymechanics:native_ui}). The packet shapes ({@link GuiOpenPacket},
+ * {@link GuiActionPacket}, {@link GuiModelSyncPacket}) keep the KaiPath-era wire format.
  * No client screen classes are referenced here.
  */
 public final class LmGuiNetwork {
@@ -35,46 +32,17 @@ public final class LmGuiNetwork {
     /** @see UltraGuiProtocol#CHANNEL_PATH */
     public static final String CHANNEL_PATH = UltraGuiProtocol.CHANNEL_PATH;
     /**
-     * Forge SimpleChannel protocol string shared with KaiPath.
-     * Bumping this requires coordinated KaiPath release — mismatched clients drop the channel.
-     * Must stay equal to {@link UltraGuiProtocol#PROTOCOL_VERSION}.
+     * Wire-format version of the KaiPath-era packet shapes. Must stay equal to
+     * {@link UltraGuiProtocol#PROTOCOL_VERSION}. 4.8.2: no channel is registered with it any more
+     * (the native channel has its own protocol string, {@link LmNativeProtocol#PROTOCOL_VERSION}).
      */
     public static final String PROTOCOL_VERSION = "1";
 
-    /** Forge mod id for KaiPath. */
-    public static final String KAIPATH_MOD_ID = "kaipath";
-    /**
-     * Minimum KaiPath version that speaks the Ultra GUI protocol on {@code <modid>:gui}.
-     * Full dynamic menus (10-field decode + buttonsJson) require <b>1.3.1+</b>; channel
-     * handshake still accepts {@code >= 1.2.5}.
-     */
-    public static final String KAIPATH_MIN_VERSION = "1.2.5";
-
-    /** First KaiPath release with dynamic Ultra GUI (10 fields + multi-mod registry). */
-    public static final String KAIPATH_DYNAMIC_UI_VERSION = "1.3.1";
-
-    /**
-     * Current recommended/released KaiPath for Ultra (live). 1.3.17 chrome, 1.3.22
-     * {@code icon}, 1.3.29 {@code bodyParts} (custom pieces on the model preview), 1.3.31+
-     * {@code bodyPartsSync} (message 3 world sync).
-     */
-    public static final String KAIPATH_RECOMMENDED_VERSION = "1.5.1";
-
-    /**
-     * Optional channel: clients without KaiPath omit it. Accept missing so those players
-     * still join; UltraGui then falls back to CustomNPCs for them.
-     */
-    private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            UltraGuiProtocol.channel(CHANNEL_NAMESPACE),
-            () -> PROTOCOL_VERSION,
-            NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION),
-            NetworkRegistry.acceptMissingOr(PROTOCOL_VERSION));
+    // 4.8.2: the KaiPath bridge channel (legacymechanics:gui), the KaiPath mod-list version probe
+    // with its version constants, and the client feature advertisement packet are gone with the bridge.
 
     private static boolean registered;
     private static Field connectionField;
-    /** Players already warned this session for missing style/activeTab on GuiOpen. */
-    private static final java.util.Set<java.util.UUID> FEATURE_GAP_WARNED =
-            java.util.concurrent.ConcurrentHashMap.newKeySet();
     /**
      * Players that already received this session's initial {@link GuiModelSyncPacket}
      * (login trigger fires once per session; equip changes always send).
@@ -180,13 +148,12 @@ public final class LmGuiNetwork {
         if (player == null) {
             return;
         }
-        String featureSummary = UltraClientFeatures.summarizeForStaff(player);
+        String featureSummary = clientSummary(player);
         LmLog.event(
                 "[{}] guitest → player={} {} — sending GuiOpenPacket with style=confirm + activeTab=home",
                 AdaptiveDifficultyMod.MOD_ID,
                 safeName(player),
                 featureSummary);
-        UltraClientFeatures.warnMissingOptionalFeatures(player, "guitest");
         com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraScreenSpec.of("hub")
                 .title("Ultra GUI Test")
                 .page("guitest")
@@ -214,38 +181,40 @@ public final class LmGuiNetwork {
     }
 
     /**
-     * Login probe: whether this connection advertised KaiPath (Ultra path eligibility).
+     * Login probe (runs after {@code requireLmClient} let the player in): whether this connection has
+     * the Legacy Mechanics client. 4.8.2: there is no KaiPath bridge, so a player without the LM client
+     * (only possible with {@code requireLmClient} off) gets no menus, just the install message.
      */
     public static void logClientGuiCapability(ServerPlayer player) {
         if (player == null) {
             return;
         }
-        boolean kaipath = clientHasKaiPath(player);
         boolean lmClient = LmNativeNetwork.hasNativeClient(player);
         LmLog.event(
-                "[{}] login GUI probe player={} kaipath={} lmClient={} channel={}:{} protocol={} guiBackend={}",
+                "[{}] login GUI probe player={} lmClient={} channel={} protocol={} guiBackend={}",
                 AdaptiveDifficultyMod.MOD_ID,
                 safeName(player),
-                kaipath,
                 lmClient,
-                CHANNEL_NAMESPACE,
-                CHANNEL_PATH,
-                PROTOCOL_VERSION,
+                LmNativeNetwork.CHANNEL_ID,
+                LmNativeProtocol.PROTOCOL_VERSION,
                 com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig.get().guiBackend);
-        if (!kaipath
-                && !lmClient
-                && com.dbzlegacy.adaptivedifficulty.gui.GuiBackend.fromConfig()
-                        == com.dbzlegacy.adaptivedifficulty.gui.GuiBackend.ULTRA) {
+        if (!lmClient) {
             AdaptiveDifficultyMod.LOGGER.warn(
-                    "[{}] player={} has no KaiPath ≥ {} — Ultra menus require KaiPath "
-                            + "(no CNPC fallback)",
+                    "[{}] player={} joined without the Legacy Mechanics client (requireLmClient is off): "
+                            + "menus will not open for them, each one answers with the install message",
                     AdaptiveDifficultyMod.MOD_ID,
-                    safeName(player),
-                    KAIPATH_MIN_VERSION);
-        } else if (kaipath) {
-            // The client advertises just after this login event; check once it has had time to.
-            UltraClientFeatures.scheduleLoginCheck(player);
+                    safeName(player));
         }
+    }
+
+    /** One-line client summary for guitest and the send log: LM client version and its hello features. */
+    static String clientSummary(ServerPlayer player) {
+        if (!LmNativeNetwork.hasNativeClient(player)) {
+            return "lmClient=none";
+        }
+        String v = LmNativeNetwork.clientVersion(player);
+        return "lmClient=" + (v.isBlank() ? "?" : v) + " hello=" + LmNativeNetwork.helloArrived(player)
+                + " features=" + LmNativeNetwork.features(player);
     }
 
     public static void register() {
@@ -261,42 +230,8 @@ public final class LmGuiNetwork {
                             + UltraGuiProtocol.PROTOCOL_VERSION
                             + ")");
         }
-        AdaptiveDifficultyMod.LOGGER.info(
-                "[{}] registering channel {}:{} protocol={} "
-                        + "msg0=GuiOpenPacket(S→C) msg1=GuiActionPacket(C→S) msg2=GuiFeaturesPacket(C→S) "
-                        + "msg3=GuiModelSyncPacket(S→C, bodyPartsSync-gated)",
-                AdaptiveDifficultyMod.MOD_ID,
-                CHANNEL_NAMESPACE,
-                CHANNEL_PATH,
-                PROTOCOL_VERSION);
-        CHANNEL.messageBuilder(GuiOpenPacket.class, UltraGuiProtocol.MSG_OPEN, NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(GuiOpenPacket::encode)
-                .decoder(buf -> decodeOpenLogged(buf))
-                .consumerMainThread(GuiOpenPacket::handle)
-                .add();
-        // Network-thread receive → enqueueWork (main thread) for all ServerPlayer access.
-        CHANNEL.messageBuilder(
-                        GuiActionPacket.class, UltraGuiProtocol.MSG_ACTION, NetworkDirection.PLAY_TO_SERVER)
-                .encoder(GuiActionPacket::encode)
-                .decoder(buf -> decodeActionLogged(buf))
-                .consumerNetworkThread(LmGuiNetwork::handleGuiAction)
-                .add();
-        CHANNEL.messageBuilder(
-                        GuiFeaturesPacket.class, UltraGuiProtocol.MSG_FEATURES, NetworkDirection.PLAY_TO_SERVER)
-                .encoder(GuiFeaturesPacket::encode)
-                .decoder(GuiFeaturesPacket::decode)
-                .consumerNetworkThread(GuiFeaturesPacket::handle)
-                .add();
-        // Message 3 is registered but NEVER sent to clients that did not advertise
-        // bodyPartsSync — KaiPath before 1.3.31 has no handler for it (unregistered id =
-        // dropped connection). sendModelSync enforces the gate.
-        CHANNEL.messageBuilder(
-                        GuiModelSyncPacket.class, UltraGuiProtocol.MSG_MODEL_SYNC, NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(GuiModelSyncPacket::encode)
-                .decoder(GuiModelSyncPacket::decode)
-                .consumerMainThread(GuiModelSyncPacket::handle)
-                .add();
-        // 4.7.58: the LM client's own menu channel (legacymechanics:native_ui), next to the bridge.
+        // 4.8.2: the KaiPath bridge channel (legacymechanics:gui) is no longer registered. The LM client's own
+        // channel (legacymechanics:native_ui) carries every menu, click and body-parts world sync.
         LmNativeNetwork.register();
         validateBuilderScreenIdsAtStartup();
         // 4.7.46: detect the installed DMZ Ultra and pick the body-parts catalog before any
@@ -337,9 +272,9 @@ public final class LmGuiNetwork {
         // 4.7.64: hub dashboard text and the spar board.
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.HubDashboard.selfTest());
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.sparring.SparBoard.selfTest());
-        // 4.7.60: Saiyan Royal skin constants, bridge accent mapping and the native shape math.
+        // 4.7.60: Saiyan Royal skin constants, the wire accent letters and the native shape math.
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.SaiyanRoyal.selfTest());
-        // 4.7.62: the five menu skins, their readable tones and the bridge letter rewrite.
+        // 4.7.62: the five menu skins and their readable tones (4.8.2: no bridge letter rewrite).
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.selfTest());
         // 4.7.66: the custom skin's color wheel geometry and conversions.
         guideBroken.addAll(com.dbzlegacy.adaptivedifficulty.gui.ultra.ColorWheel.selfTest());
@@ -355,53 +290,12 @@ public final class LmGuiNetwork {
                     AdaptiveDifficultyMod.MOD_ID);
         }
         AdaptiveDifficultyMod.LOGGER.info(
-                "[{}] Ultra GUI bridge ready channel={} protocol={} — KaiPath {}+ dynamic UI "
-                        + "(any screenId; no hub shim). Recommended KaiPath {}; "
-                        + "optional features via GuiFeaturesPacket "
-                        + "(style/activeTab/titleAlign/playerModel/textInput; bodyParts, bodyPartsSync).",
+                "[{}] LM menus ready on {} protocol={}: the Legacy Mechanics client is required "
+                        + "(requireLmClient={}); the KaiPath bridge is gone.",
                 AdaptiveDifficultyMod.MOD_ID,
-                UltraGuiProtocol.channelId(CHANNEL_NAMESPACE),
-                PROTOCOL_VERSION,
-                KAIPATH_DYNAMIC_UI_VERSION,
-                KAIPATH_RECOMMENDED_VERSION);
-    }
-
-    private static GuiOpenPacket decodeOpenLogged(net.minecraft.network.FriendlyByteBuf buf) {
-        try {
-            return GuiOpenPacket.decode(buf);
-        } catch (Throwable t) {
-            AdaptiveDifficultyMod.LOGGER.error(
-                    "[{}] GuiOpenPacket decode failed protocol={} channel={}:{}",
-                    AdaptiveDifficultyMod.MOD_ID,
-                    PROTOCOL_VERSION,
-                    CHANNEL_NAMESPACE,
-                    CHANNEL_PATH,
-                    t);
-            throw t;
-        }
-    }
-
-    private static GuiActionPacket decodeActionLogged(net.minecraft.network.FriendlyByteBuf buf) {
-        try {
-            GuiActionPacket pkt = GuiActionPacket.decode(buf);
-            LmLog.event(
-                    "[{}] GuiActionPacket decoded protocol={} screenId={} actionId={} argsJson={}",
-                    AdaptiveDifficultyMod.MOD_ID,
-                    PROTOCOL_VERSION,
-                    pkt == null ? "<null>" : pkt.screenId(),
-                    pkt == null ? "<null>" : pkt.actionId(),
-                    pkt == null ? "<null>" : pkt.argsJson());
-            return pkt;
-        } catch (Throwable t) {
-            AdaptiveDifficultyMod.LOGGER.error(
-                    "[{}] GuiActionPacket decode failed protocol={} channel={}:{} — handler will not run",
-                    AdaptiveDifficultyMod.MOD_ID,
-                    PROTOCOL_VERSION,
-                    CHANNEL_NAMESPACE,
-                    CHANNEL_PATH,
-                    t);
-            throw t;
-        }
+                LmNativeNetwork.CHANNEL_ID,
+                LmNativeProtocol.PROTOCOL_VERSION,
+                com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig.get().requireLmClient);
     }
 
     /**
@@ -466,22 +360,6 @@ public final class LmGuiNetwork {
                 failures.add(styleFail);
             }
 
-            GuiFeaturesPacket features =
-                    new GuiFeaturesPacket("[\"style\",\"activeTab\"]");
-            net.minecraft.network.FriendlyByteBuf featBuf =
-                    new net.minecraft.network.FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
-            GuiFeaturesPacket.encode(features, featBuf);
-            GuiFeaturesPacket featuresBack = GuiFeaturesPacket.decode(featBuf);
-            java.util.Set<String> parsed = GuiFeaturesPacket.parseFeatures(featuresBack.featuresJson());
-            if (!parsed.contains(UltraClientFeatures.FEATURE_STYLE)
-                    || !parsed.contains(UltraClientFeatures.FEATURE_ACTIVE_TAB)) {
-                failures.add(
-                        "GuiFeaturesPacket round-trip failed featuresJson="
-                                + featuresBack.featuresJson()
-                                + " parsed="
-                                + parsed);
-            }
-
             // bodyPartsSync world sync: partsJson + reason survive encode→decode verbatim.
             String syncFail = roundTripModelSync();
             if (syncFail != null) {
@@ -519,8 +397,7 @@ public final class LmGuiNetwork {
         }
         LmLog.event(
                 "[{}] packet round-trip self-test OK screensTested={} protocol={} "
-                        + "(BUILDER_IDS 10-field + style/activeTab + GuiActionPacket + "
-                        + "GuiFeaturesPacket + GuiModelSyncPacket)",
+                        + "(BUILDER_IDS 10-field + style/activeTab + GuiActionPacket + GuiModelSyncPacket)",
                 AdaptiveDifficultyMod.MOD_ID,
                 screensTested,
                 PROTOCOL_VERSION);
@@ -762,48 +639,24 @@ public final class LmGuiNetwork {
                 wire.panelWidth(),
                 wire.panelHeight(),
                 wire.activeTab(),
-                UltraClientFeatures.summarizeForStaff(player));
+                clientSummary(player));
         validatePanelBounds(wire);
-        // 4.7.58: the LM client draws the menu itself when it can; one channel per menu, never both.
+        // 4.7.58: the LM client draws the menu itself. 4.8.2: there is no KaiPath bridge, so a menu goes native
+        // or not at all; a player without the LM client (requireLmClient off) gets the install message.
         switch (LmNativeNetwork.route(player, wire)) {
-            case NATIVE -> {
-                LmNativeNetwork.sendOpen(player, wire);
-                return;
-            }
-            case REFUSE -> {
+            case NATIVE -> LmNativeNetwork.sendOpen(player, wire);
+            case REFUSE -> com.dbzlegacy.adaptivedifficulty.util.DmzRewards.msg(
+                    player,
+                    com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.dangerLine(
+                            "This menu needs a newer Legacy Mechanics client. Update the mod, then join again."));
+            default -> {
+                LmLog.event("[{}] menu not sent (no Legacy Mechanics client) player={} screenId={}",
+                        AdaptiveDifficultyMod.MOD_ID, safeName(player), wire.screenId());
                 com.dbzlegacy.adaptivedifficulty.util.DmzRewards.msg(
                         player,
                         com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.dangerLine(
-                                "This menu needs a newer Legacy Mechanics client. Update the mod, or install KaiPath."));
-                return;
+                                LmNativeNetwork.requiredClientMessage()));
             }
-            default -> {
-                // KaiPath bridge, byte-identical to 4.7.57 in Saiyan Royal. 4.7.62: another skin changes only a few
-                // color letters (MenuSkins.bridgeRewrite); no background and no new field ever go over the bridge.
-                wire = bridgeSkin(player, wire);
-            }
-        }
-        if (FEATURE_GAP_WARNED.add(player.m_20148_())) {
-            UltraClientFeatures.warnMissingOptionalFeatures(player, "GuiOpenPacket");
-        }
-        CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), wire);
-    }
-
-    /** The player's skin on the bridge: unchanged for Saiyan Royal, letters rewritten otherwise. */
-    static GuiOpenPacket bridgeSkin(ServerPlayer player, GuiOpenPacket wire) {
-        try {
-            com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.Skin skin =
-                    com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuPrefs.get(player).skinOrDefault();
-            String[] out = com.dbzlegacy.adaptivedifficulty.gui.ultra.MenuSkins.bridgeRewrite(
-                    skin, wire.layoutJson(), wire.linesJson());
-            if (out == null) {
-                return wire;
-            }
-            return new GuiOpenPacket(wire.screenId(), wire.title(), wire.pageId(), wire.tabsJson(), wire.activeTab(),
-                    out[1], wire.buttonsJson(), wire.panelWidth(), wire.panelHeight(), out[0], wire.inputsJson());
-        } catch (Throwable t) {
-            // Never a blank menu: fall back to the Saiyan Royal bytes.
-            return wire;
         }
     }
 
@@ -812,29 +665,26 @@ public final class LmGuiNetwork {
         if (player == null) {
             return;
         }
-        UltraClientFeatures.clear(player);
         LmNativeNetwork.clear(player);
-        FEATURE_GAP_WARNED.remove(player.m_20148_());
         MODEL_SYNCED.remove(player.m_20148_());
         MODEL_SYNC_PENDING.remove(player.m_20148_());
     }
 
     /**
-     * True when the client advertised {@code bodyPartsSync} (message 3). KaiPath ≤1.3.29
-     * never advertises it and has no message-3 handler — sending would abort their
-     * connection, so this gate must guard every {@link GuiModelSyncPacket} send.
+     * True when the player's LM client listed {@code bodyPartsSync} in its hello (native message 5).
+     * 4.8.2: was the KaiPath bridge's message 3 advertisement. A client that did not list it has no
+     * handler for message 5 (an unregistered id drops the connection), so this gate must guard every
+     * {@link GuiModelSyncPacket} send.
      */
     public static boolean supportsModelSync(ServerPlayer player) {
-        return player != null
-                && UltraClientFeatures.get(player).has(UltraClientFeatures.FEATURE_BODY_PARTS_SYNC);
+        return player != null && LmNativeNetwork.takesModelSync(player);
     }
 
     /**
      * Authoritative world sync of the player's equipped body parts
-     * ({@link GuiModelSyncPacket}, message 3). Server decides everything — the client
-     * replaces (never merges) its cached state with this snapshot. No-op unless the client
-     * advertised {@code bodyPartsSync}. Send on login (initial) and after every
-     * equip/unequip change.
+     * ({@link GuiModelSyncPacket}, native message 5 since 4.8.2). Server decides everything — the
+     * client replaces (never merges) its cached state with this snapshot. No-op unless the LM client
+     * listed {@code bodyPartsSync}. Send on login (initial) and after every equip/unequip change.
      *
      * <p><b>Broadcast</b> to the player and everyone tracking them: snapshots carry
      * {@code subject uuid:<owner>} so each observer binds them to the owner's entity.
@@ -858,7 +708,10 @@ public final class LmGuiNetwork {
             // out of range only caches the snapshot; track start resends when they meet.
             int sent = 0;
             for (ServerPlayer viewer : modelSyncRecipients(player)) {
-                CHANNEL.send(PacketDistributor.PLAYER.with(() -> viewer), packet);
+                if (!supportsModelSync(viewer)) {
+                    continue;
+                }
+                LmNativeNetwork.sendModelSync(viewer, packet);
                 sent++;
             }
             return sent > 0;
@@ -911,7 +764,7 @@ public final class LmGuiNetwork {
                     safeName(subject),
                     safeName(viewer),
                     reason);
-            CHANNEL.send(PacketDistributor.PLAYER.with(() -> viewer), packet);
+            LmNativeNetwork.sendModelSync(viewer, packet);
         } catch (Throwable t) {
             AdaptiveDifficultyMod.LOGGER.warn(
                     "[{}] GuiModelSyncPacket targeted send failed subject={} viewer={} reason={}: {}",
@@ -943,12 +796,12 @@ public final class LmGuiNetwork {
     }
 
     /**
-     * Login trigger: when the client's first feature advertisement includes
-     * {@code bodyPartsSync}, send the initial world sync once per session. Deferred a few
+     * Login trigger: when the LM client's hello lists {@code bodyPartsSync} (4.8.2; was the KaiPath
+     * feature advertisement), send the initial world sync once per session. Deferred a few
      * ticks so DMZ character data (race tail / forms) has loaded before the snapshot. The
      * same task backfills every other online player's parts to the new viewer: their
-     * track-start events fired before this advertisement reached the server, so those
-     * targeted sends were gated off.
+     * track-start events fired before the hello reached the server, so those targeted sends
+     * were gated off.
      */
     public static void onClientAdvertisement(ServerPlayer player) {
         if (player == null || !supportsModelSync(player)) {
@@ -956,7 +809,7 @@ public final class LmGuiNetwork {
         }
         java.util.UUID id = player.m_20148_();
         // Done once per session, but only marked done after it was sent: a skipped attempt
-        // (player not resolvable yet) is retried on the client's next advertisement (4.7.10).
+        // (player not resolvable yet) is retried on the client's next hello (4.7.10).
         if (MODEL_SYNCED.contains(id) || !MODEL_SYNC_PENDING.add(id)) {
             return;
         }
@@ -1088,155 +941,6 @@ public final class LmGuiNetwork {
                     packet.screenId(),
                     w,
                     h);
-        }
-    }
-
-    /**
-     * True when the player's connection lists KaiPath at {@link #KAIPATH_MIN_VERSION} or newer.
-     * Forge's client handshake may omit version strings ({@code Pair("", "")}); presence alone
-     * is accepted in that case. When a version is present it must be {@code >= 1.2.5}.
-     */
-    public static boolean clientHasKaiPath(ServerPlayer player) {
-        if (player == null) {
-            return false;
-        }
-        String version = probeKaiPathVersion(player);
-        if (version == null) {
-            // null = mod absent; blank = present without version string
-            return false;
-        }
-        if (version.isBlank()) {
-            return true;
-        }
-        return isVersionAtLeast(version, KAIPATH_MIN_VERSION);
-    }
-
-    /**
-     * KaiPath version from the Forge client mod list, or {@code ""} when present without a
-     * version string, or {@code null} when KaiPath is not listed.
-     */
-    public static String probeKaiPathVersion(ServerPlayer player) {
-        if (player == null) {
-            return null;
-        }
-        try {
-            Connection connection = connectionOf(player);
-            if (connection == null) {
-                return null;
-            }
-            Class<?> hooks = Class.forName("net.minecraftforge.network.NetworkHooks");
-            Object data = hooks.getMethod("getConnectionData", Connection.class).invoke(null, connection);
-            if (data == null) {
-                return null;
-            }
-            Object modData = data.getClass().getMethod("getModData").invoke(data);
-            if (modData instanceof Map<?, ?> map) {
-                for (Map.Entry<?, ?> entry : map.entrySet()) {
-                    if (entry.getKey() == null
-                            || !KAIPATH_MOD_ID.equalsIgnoreCase(String.valueOf(entry.getKey()))) {
-                        continue;
-                    }
-                    String version = pairVersion(entry.getValue());
-                    return version == null ? "" : version;
-                }
-            }
-            Object modList = data.getClass().getMethod("getModList").invoke(data);
-            if (modList instanceof Iterable<?> mods) {
-                for (Object mod : mods) {
-                    if (mod != null && KAIPATH_MOD_ID.equalsIgnoreCase(String.valueOf(mod))) {
-                        return "";
-                    }
-                }
-            }
-            return null;
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    /**
-     * Compare dotted numeric versions ({@code 1.2.5}, {@code 1.2.6}, {@code 1.3.0}).
-     * Non-numeric suffixes on a segment are ignored after the leading integer.
-     * Missing trailing segments are treated as {@code 0}.
-     */
-    public static boolean isVersionAtLeast(String actual, String minimum) {
-        if (actual == null || actual.isBlank() || minimum == null || minimum.isBlank()) {
-            return false;
-        }
-        int[] a = parseVersionParts(actual);
-        int[] m = parseVersionParts(minimum);
-        int len = Math.max(a.length, m.length);
-        for (int i = 0; i < len; i++) {
-            int av = i < a.length ? a[i] : 0;
-            int mv = i < m.length ? m[i] : 0;
-            if (av > mv) {
-                return true;
-            }
-            if (av < mv) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static int[] parseVersionParts(String version) {
-        String cleaned = version.trim();
-        int plus = cleaned.indexOf('+');
-        if (plus >= 0) {
-            cleaned = cleaned.substring(0, plus);
-        }
-        int dash = cleaned.indexOf('-');
-        if (dash >= 0) {
-            cleaned = cleaned.substring(0, dash);
-        }
-        String[] bits = cleaned.split("\\.");
-        int[] parts = new int[bits.length];
-        for (int i = 0; i < bits.length; i++) {
-            parts[i] = leadingInt(bits[i]);
-        }
-        return parts;
-    }
-
-    private static int leadingInt(String segment) {
-        if (segment == null || segment.isEmpty()) {
-            return 0;
-        }
-        int n = 0;
-        boolean any = false;
-        for (int i = 0; i < segment.length(); i++) {
-            char c = segment.charAt(i);
-            if (c < '0' || c > '9') {
-                break;
-            }
-            any = true;
-            n = n * 10 + (c - '0');
-        }
-        return any ? n : 0;
-    }
-
-    /** {@code Pair<String,String>} is (modName, modVersion); prefer right, then left. */
-    private static String pairVersion(Object pair) {
-        if (pair == null) {
-            return null;
-        }
-        try {
-            Method getRight = pair.getClass().getMethod("getRight");
-            Object right = getRight.invoke(pair);
-            if (right != null && !String.valueOf(right).isBlank()) {
-                return String.valueOf(right);
-            }
-            Method getLeft = pair.getClass().getMethod("getLeft");
-            Object left = getLeft.invoke(pair);
-            if (left != null && !String.valueOf(left).isBlank()) {
-                // Only treat left as version when it looks like one (starts with a digit).
-                String s = String.valueOf(left);
-                if (!s.isEmpty() && s.charAt(0) >= '0' && s.charAt(0) <= '9') {
-                    return s;
-                }
-            }
-            return right != null ? String.valueOf(right) : null;
-        } catch (Throwable ignored) {
-            return String.valueOf(pair);
         }
     }
 

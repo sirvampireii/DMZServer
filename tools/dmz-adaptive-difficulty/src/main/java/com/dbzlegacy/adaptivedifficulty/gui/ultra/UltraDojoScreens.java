@@ -899,15 +899,26 @@ public final class UltraDojoScreens {
                 .line(UltraStyle.labelValue("Name", d.name))
                 .line(UltraStyle.labelValue("Banner", DojoFounding.bannerText(d)))
                 .line(UltraStyle.labelValue("Dojo Points", String.valueOf(d.points)))
-                .line(UltraStyle.LABEL + (cd > 0L ? "The name, style and banner can change again in "
-                        + DojoService.cooldownText(cd) + "."
-                        : "A rename or a new banner locks the name, style and banner for 12 hours."))
+                .line(UltraStyle.LABEL + settingsLockLine(d, cd))
                 .buttonsAfterLines();
         DojoFounding.identityButtons(spec, player, d, true);
         spec.setRow(spec.row() + 8);
         spec.button("page:dojo_close", UltraStyle.danger("Close dojo"), UltraStyle.STYLE_DANGER).rowGap();
         spec.back();
         spec.send(player);
+    }
+
+    /** 4.8.2: the Dojo settings lock line, with the free rename (any time, locks nothing) while it is unused. */
+    static String settingsLockLine(Dojo d, long cd) {
+        boolean free = DojoService.freeRenameLeft(d);
+        if (cd > 0L) {
+            return free ? "The style and banner can change again in " + DojoService.cooldownText(cd)
+                    + ". Your free rename works now."
+                    : "The name, style and banner can change again in " + DojoService.cooldownText(cd) + ".";
+        }
+        return free ? "Your first rename is free and locks nothing. A paid rename or a new banner locks the name, style"
+                + " and banner for 12 hours."
+                : "A rename or a new banner locks the name, style and banner for 12 hours.";
     }
 
     static void openCloseConfirm(ServerPlayer player) {
@@ -1632,18 +1643,26 @@ public final class UltraDojoScreens {
         if (all.isEmpty()) {
             spec.line(UltraStyle.LABEL + "No other dojos are open right now, so there's nobody to fight yet.");
         }
-        spec.buttonsAfterLines();
-        int per = 8;
+        // 4.8.2: each dojo's banner (its picked design, or its style's default): a line with the text, and the icon on
+        // its button. 6 a page so the lines and buttons fit 300 px.
+        int per = 6;
         int pages = Math.max(1, (all.size() + per - 1) / per);
         int pg = Math.max(0, Math.min(page, pages - 1));
+        for (int i = pg * per; i < Math.min(all.size(), (pg + 1) * per); i++) {
+            Dojo d = all.get(i);
+            String row = (i + 1) + ". " + d.name;
+            spec.line(UltraStyle.VALUE + row + UltraStyle.LABEL + bannerTail(row, d));
+        }
+        spec.buttonsAfterLines();
         int placed = 0;
         for (int i = pg * per; i < Math.min(all.size(), (pg + 1) * per); i++) {
             Dojo d = all.get(i);
             String action = "page:dojo_war_fmt:" + d.masterUuid;
+            String label = UltraStyle.clipPlain((i + 1) + ". " + d.name, UltraStyle.labelMaxWidth(UltraStyle.BTN_W) - 12);
             if (placed % 2 == 0) {
-                spec.buttonLeft(action, UltraStyle.buttonText(d.name), UltraStyle.STYLE_NORMAL);
+                spec.buttonLeft(action, label, UltraStyle.STYLE_NORMAL).icon(DojoFounding.bannerIcon(d));
             } else {
-                spec.buttonRight(action, UltraStyle.buttonText(d.name), UltraStyle.STYLE_NORMAL).rowGap();
+                spec.buttonRight(action, label, UltraStyle.STYLE_NORMAL).icon(DojoFounding.bannerIcon(d)).rowGap();
             }
             placed++;
         }
@@ -1658,8 +1677,15 @@ public final class UltraDojoScreens {
     static void openWarFormat(ServerPlayer player, String target, String notice) {
         Dojo them = DojoService.byMaster(target);
         UltraScreenSpec spec = dojoSub("dojo_war_fmt:" + target, notice);
-        spec.line(UltraStyle.header("War on " + (them == null ? "a dojo" : them.name)))
-                .line(UltraStyle.labelValue("Bracket", "single elimination; winners advance to the final"))
+        if (them == null) {
+            spec.line(UltraStyle.header("War on a dojo"));
+        } else {
+            // 4.8.2: their banner (picked design or style default) as a picture beside the heading, and in words.
+            spec.pictures(List.of(UltraStyle.header("War on " + them.name),
+                    UltraStyle.labelValue("Their banner", DojoFounding.bannerText(them, 30))), 3, BANNER_SIDE,
+                    DojoBannerEditor.preview(DojoFounding.bannerIcon(them)));
+        }
+        spec.line(UltraStyle.labelValue("Bracket", "single elimination; winners advance to the final"))
                 .line(UltraStyle.labelValue("Gauntlet", "the winner stays on and faces the next fighter"))
                 .line(UltraStyle.LABEL + "Once they accept, members of both dojos have " + (DojoWar.SIGNUP_MS / 1000L)
                         + " seconds to sign up on the Wars tab. With one fighter each, the war is a single bout.")
@@ -1681,11 +1707,74 @@ public final class UltraDojoScreens {
             for (String l : DojoWar.bracketLines(w)) {
                 spec.line(l);
             }
+            // 4.8.2: each side's banner in words; the buttons below carry the banners and open each dojo.
+            spec.line(warBannerLine(w.fromName, DojoService.byMaster(w.fromDojo)));
+            spec.line(warBannerLine(w.toName, DojoService.byMaster(w.toDojo)));
         }
         spec.buttonsAfterLines();
-        spec.button("page:dojo_war_view:" + warId, "Refresh", UltraStyle.STYLE_NORMAL).rowGap();
+        if (w == null) {
+            spec.button("page:dojo_war_view:" + warId, "Refresh", UltraStyle.STYLE_NORMAL).rowGap();
+        } else {
+            warSide(spec, 0, w.fromDojo, w.fromName);
+            warSide(spec, 1, w.toDojo, w.toName);
+            col3(spec, 2, "page:dojo_war_view:" + warId, "Refresh", UltraStyle.STYLE_NORMAL);
+            spec.rowGap();
+        }
         spec.back();
         spec.send(player);
+    }
+
+    /** "Dragon Fist: Red with Cross (white)" for a side of a war (its picked banner or style default). */
+    static String warBannerLine(String name, Dojo d) {
+        String n = name == null ? "?" : name;
+        int room = Math.max(12, LIST_LINE_CHARS - n.length() - 2);
+        return UltraStyle.VALUE + n + ": " + UltraStyle.LABEL + (d == null ? "no banner" : DojoFounding.bannerText(d,
+                room));
+    }
+
+    /** A war side's button: its name with its banner icon, opening that dojo's profile. */
+    static void warSide(UltraScreenSpec spec, int col, String master, String name) {
+        Dojo d = DojoService.byMaster(master);
+        String label = UltraStyle.clipPlain(name == null ? "?" : name, COL3_LABEL_PX - 12);
+        col3(spec, col, "page:" + PAGE_VIEW + master, label, UltraStyle.STYLE_NORMAL);
+        spec.icon(DojoFounding.bannerIcon(d));
+    }
+
+    /** 4.8.2: dojos a list page shows (the pager row reaches the rest; the page fits 300 px). */
+    static final int LIST_SHOWN = 4;
+
+    /**
+     * " - master - score - members" after a list row's name, dropping the members and then the master when the row
+     * would wrap (one line a dojo keeps the page inside 300 px; the dojo's profile shows everything).
+     */
+    static String listRest(String row, String master, String score, String members) {
+        String all = " - " + master + " - " + score + " - " + members;
+        if (row.length() + all.length() <= LIST_LINE_CHARS) {
+            return all;
+        }
+        String noMembers = " - " + master + " - " + score;
+        if (row.length() + noMembers.length() <= LIST_LINE_CHARS) {
+            return noMembers;
+        }
+        return " - " + score;
+    }
+
+    /** Characters a body line holds before it wraps (the menu body at 7 px a glyph). */
+    static final int LIST_LINE_CHARS = 56;
+    /** Share of the width a banner picture takes beside its card (thousandths). */
+    static final int BANNER_SIDE = 200;
+
+    /**
+     * 4.8.2: " - Red with Cross (white)" (or "Red, 3 layers") to end a list row that starts with {@code row}, when it
+     * still fits one line; "" when it does not (the row's button carries the banner icon either way).
+     */
+    static String bannerTail(String row, Dojo d) {
+        int room = LIST_LINE_CHARS - row.length() - 3;
+        if (room < 10) {
+            return "";
+        }
+        String text = DojoFounding.bannerText(d, room);
+        return text.length() <= room ? " - " + text : "";
     }
 
     // ------------------------------------------------------------------ the dojo list and a dojo's profile
@@ -1703,7 +1792,8 @@ public final class UltraDojoScreens {
         String base = wars ? "dojo_list_wars" : "dojo_list";
         UltraScreenSpec spec = dojoSub(UltraPickHelper.pageArg(base, page), notice);
         List<Dojo> all = wars ? DojoService.byWarWins() : DojoService.byClout();
-        int per = 6;
+        // 4.8.2: 4 a page (with the pager row the page fits 300 px), each row one line.
+        int per = LIST_SHOWN;
         int pages = Math.max(1, (all.size() + per - 1) / per);
         int pg = Math.max(0, Math.min(page, pages - 1));
         spec.line(UltraStyle.header((wars ? "Dojos by war wins" : "Dojos by clout this season")
@@ -1717,9 +1807,11 @@ public final class UltraDojoScreens {
             Dojo d = all.get(i);
             String score = wars ? d.warWins + (d.warWins == 1 ? " war win" : " war wins") : d.clout + " clout";
             int members = 1 + DojoService.disciples(d).size();
-            spec.line(UltraStyle.VALUE + (i + 1) + ". " + d.name + UltraStyle.LABEL + " - " + d.masterName
-                    + (masterOnline(player, d) ? " (online)" : "") + " - " + score + " - " + members
-                    + (members == 1 ? " member" : " members"));
+            String rest = listRest((i + 1) + ". " + d.name, d.masterName + (masterOnline(player, d) ? " (online)" : ""),
+                    score, members + (members == 1 ? " member" : " members"));
+            // 4.8.2: the row ends with the dojo's banner when it fits; its button below always carries the icon.
+            spec.line(UltraStyle.VALUE + (i + 1) + ". " + d.name + UltraStyle.LABEL + rest
+                    + bannerTail((i + 1) + ". " + d.name + rest, d));
         }
         spec.buttonsAfterLines();
         if (all.isEmpty()) {
@@ -1743,11 +1835,11 @@ public final class UltraDojoScreens {
         for (int i = pg * per; i < Math.min(all.size(), (pg + 1) * per); i++) {
             Dojo d = all.get(i);
             String action = "page:" + PAGE_VIEW + d.masterUuid;
-            String label = UltraStyle.buttonText((i + 1) + ". " + d.name);
+            String label = UltraStyle.clipPlain((i + 1) + ". " + d.name, UltraStyle.labelMaxWidth(UltraStyle.BTN_W) - 12);
             if (placed % 2 == 0) {
-                spec.buttonLeft(action, label, UltraStyle.STYLE_NORMAL);
+                spec.buttonLeft(action, label, UltraStyle.STYLE_NORMAL).icon(DojoFounding.bannerIcon(d));
             } else {
-                spec.buttonRight(action, label, UltraStyle.STYLE_NORMAL).rowGap();
+                spec.buttonRight(action, label, UltraStyle.STYLE_NORMAL).icon(DojoFounding.bannerIcon(d)).rowGap();
             }
             placed++;
         }
@@ -1793,14 +1885,18 @@ public final class UltraDojoScreens {
         DojoCatalog.Style style = DojoCatalog.Style.of(d.style);
         DojoCatalog.Bonus bonus = DojoCatalog.bonus(d.bonus);
         int members = 1 + DojoService.disciples(d).size();
-        spec.line(UltraStyle.header(d.name))
-                .line(UltraStyle.labelValue("Master", d.masterName + (online ? " - online" : " - offline")))
-                .line(UltraStyle.labelValue("Style", (style == null ? "not picked yet" : style.label)
-                        + (bonus == null ? "" : " - bonus " + bonus.name())))
-                .line(UltraStyle.labelValue("Members", members + " of " + (1 + DojoCatalog.disciplesAllowed(
-                        DojoService.tier(d, DojoCatalog.CAPACITY)))))
-                .line(UltraStyle.labelValue("Clout", d.clout + " this season"))
-                .line(UltraStyle.labelValue("Wars", d.warWins + " won, " + d.warLosses + " lost"));
+        // 4.8.2: the Banner line after Wars (as on your own Dojo Home), with the banner drawn beside the card.
+        List<String> card = new ArrayList<>();
+        card.add(UltraStyle.header(d.name));
+        card.add(UltraStyle.labelValue("Master", d.masterName + (online ? " - online" : " - offline")));
+        card.add(UltraStyle.labelValue("Style", (style == null ? "not picked yet" : style.label)
+                + (bonus == null ? "" : " - bonus " + bonus.name())));
+        card.add(UltraStyle.labelValue("Members", members + " of " + (1 + DojoCatalog.disciplesAllowed(
+                DojoService.tier(d, DojoCatalog.CAPACITY)))));
+        card.add(UltraStyle.labelValue("Clout", d.clout + " this season"));
+        card.add(UltraStyle.labelValue("Wars", d.warWins + " won, " + d.warLosses + " lost"));
+        card.add(UltraStyle.labelValue("Banner", DojoFounding.bannerText(d, 40)));
+        spec.pictures(card, card.size(), BANNER_SIDE, DojoBannerEditor.preview(DojoFounding.bannerIcon(d)));
         String why = DojoService.joinProblem(player, d, online);
         Dojo mine = viewed(player);
         // 4.7.88: a dojo the player already belongs to (either of their two) shows no Ask to join.

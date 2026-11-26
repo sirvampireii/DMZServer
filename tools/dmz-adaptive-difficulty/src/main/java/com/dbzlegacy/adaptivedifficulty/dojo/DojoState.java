@@ -14,6 +14,15 @@ public final class DojoState {
     public String style = "none";
     public int arenas = 1;
     public int training, meditation, trophy, quarters, spectator, garden;
+    /**
+     * 4.8.2: the banner the hall's banner spots fly: {@link #NO_BANNER} for the style's own banners (no pick), else
+     * a short fingerprint of the picked design (base colour and every layer in order), so a new pick marks the hall
+     * stale and rebuilds it.
+     */
+    public String banner = NO_BANNER;
+
+    /** 4.8.2: the banner part of a dojo with no pick (and of every build made before 4.8.2). */
+    public static final String NO_BANNER = "-";
 
     /** The plot as {@code d}'s upgrades and style say it should be. */
     public static DojoState of(Dojo d) {
@@ -28,7 +37,30 @@ public final class DojoState {
         s.quarters = level(d, DojoCatalog.QUARTERS);
         s.spectator = level(d, DojoCatalog.SPECTATOR);
         s.garden = level(d, DojoCatalog.GARDEN);
+        s.banner = bannerKey(d);
         return s;
+    }
+
+    /**
+     * 4.8.2: the banner part for {@code d}: {@link #NO_BANNER} when no banner is picked (or the pick's colour is not a
+     * dye), else 16 hex characters of a SHA-256 over the design as it is placed ({@link DojoPlacer#design(Dojo)}).
+     */
+    public static String bannerKey(Dojo d) {
+        DojoPlacer.BannerDesign b = DojoPlacer.design(d);
+        if (b == null) {
+            return NO_BANNER;
+        }
+        try {
+            byte[] h = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(b.text().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 8; i++) {
+                sb.append(String.format(Locale.ROOT, "%02x", h[i] & 0xFF));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            return Integer.toHexString(b.text().hashCode());
+        }
     }
 
     private static int level(Dojo d, String up) {
@@ -42,10 +74,14 @@ public final class DojoState {
 
     public String signature() {
         return "v2|t=" + tier + "|s=" + style + "|a=" + arenas + "|" + training + "|" + meditation + "|" + trophy + "|"
-                + quarters + "|" + spectator + "|" + garden;
+                + quarters + "|" + spectator + "|" + garden + "|b=" + banner;
     }
 
-    /** A signature back to a state; null for anything else (an old build or none). */
+    /**
+     * A signature back to a state; null for anything else (an old build or none). 4.8.2: a v2 signature without the
+     * banner part (built before 4.8.2) reads as {@link #NO_BANNER}, because those builds placed the style's own
+     * banners: a dojo with no pick is already right, a dojo with a pick rebuilds once so its banner goes up.
+     */
     public static DojoState parse(String sig) {
         if (sig == null || !sig.startsWith("v2|")) {
             return null;
@@ -62,10 +98,18 @@ public final class DojoState {
             s.quarters = Integer.parseInt(p[7]);
             s.spectator = Integer.parseInt(p[8]);
             s.garden = Integer.parseInt(p[9]);
+            s.banner = p.length > 10 && p[10].startsWith("b=") && p[10].length() > 2 ? p[10].substring(2) : NO_BANNER;
             return s;
         } catch (RuntimeException e) {
             return null;
         }
+    }
+
+    /** 4.8.2: {@code sig} in today's form (a pre-4.8.2 signature gains its banner part), or {@code sig} unchanged
+     *  when it does not parse. */
+    public static String normalize(String sig) {
+        DojoState s = parse(sig);
+        return s == null ? sig : s.signature();
     }
 
     /** The level an upgrade id has in this state (arena: rings). */

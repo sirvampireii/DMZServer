@@ -2,9 +2,10 @@
 # One command for a release's proof (test only; never touches the live server):
 #   1. build the LM jar (every build.sh audit),
 #   2. optional mock set on the real client (--mock nav|dojo|hud),
-#   3. the full matrix (LM client + KaiPath + reject stages, scripted checks, report.py),
+#   3. the full matrix (full and reject stages, scripted checks, report.py; 4.8.2: no KaiPath bridge stage, the
+#      reject stage proves a KaiPath-only client is turned away),
 #   4. SUMMARY.md in $RIG_OUT: version, jar sha256, scripted PASS/FAIL totals with every failing line, the matrix
-#      rows, the navigation audit, the HUD checks and the KaiPath stage's HUD lines.
+#      rows, the navigation audit and the HUD checks.
 # Exit 0 only when the build passes, no scripted check fails and no matrix row fails.
 #
 #   bash tools/lm-ui-probe/release-check.sh                 # build + matrix
@@ -74,20 +75,20 @@ fi
 if [ $MATRIX = 1 ]; then
   log "== matrix $(date +%T)"
   if [ $SCRIPTED = 1 ]; then
-    RIG_OUT="$OUT/matrix" ONLY_SCRIPTED=1 SKIP="kai reject" bash "$HERE/matrix.sh" "$SNAP" > "$OUT/matrix.log" 2>&1
+    RIG_OUT="$OUT/matrix" ONLY_SCRIPTED=1 SKIP="reject" bash "$HERE/matrix.sh" "$SNAP" > "$OUT/matrix.log" 2>&1
   else
     RIG_OUT="$OUT/matrix" bash "$HERE/matrix.sh" "$SNAP" > "$OUT/matrix.log" 2>&1
   fi
   log "matrix done $(date +%T)"
-  # The kit corpus JLDK copies from comes from the KaiPath stage, so it never falls behind LM's real wire.
-  if [ -d "$OUT/matrix/kai" ]; then
-    python tools/ultra-gui-kit/test/gen_lm_corpus.py "$OUT/matrix/kai" tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl       >> "$OUT/release.log" 2>&1 && log "kit corpus refreshed: $(git diff --stat -- tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl | tail -1)"
+  # The kit corpus JLDK copies from comes from LM's real wire. 4.8.2: the KaiPath stage is gone, so it comes from the
+  # full stage's crawl (a full run only; a scripted-only run does not crawl every menu).
+  if [ $SCRIPTED = 0 ] && [ -d "$OUT/matrix/full" ]; then
+    python tools/ultra-gui-kit/test/gen_lm_corpus.py "$OUT/matrix/full" tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl       >> "$OUT/release.log" 2>&1 && log "kit corpus refreshed: $(git diff --stat -- tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl | tail -1)"
   fi
 fi
 
 # ---- summary
 S="$OUT/matrix/full/uiprobe-script.txt"
-K="$OUT/matrix/kai/uiprobe-script.txt"
 P=0; F=0
 [ -f "$S" ] && P=$(grep -a -c PASS "$S") && F=$(grep -a -c FAIL "$S")
 ROWFAIL=$(grep -c -E '^FAIL ' "$OUT/matrix.log" 2>/dev/null || true)
@@ -113,10 +114,6 @@ ROWFAIL=$(grep -c -E '^FAIL ' "$OUT/matrix.log" 2>/dev/null || true)
     echo "## Navigation audit and HUD"
     echo
     grep -a -E 'NAV AUDIT|^HUD' "$S" 2>/dev/null | cut -c1-300 | sed 's/^/- /' || true
-    echo
-    echo "## KaiPath stage (HUD must stay bars and chat)"
-    echo
-    grep -a -E '^HUD' "$K" 2>/dev/null | cut -c1-300 | sed 's/^/- /' || echo "- (no KaiPath stage)"
   fi
 } > "$SUM"
 cat "$SUM"

@@ -5,8 +5,9 @@ import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 
 /**
  * Which player UI {@code /lm} and subcommands use.
- * Ultra (KaiPath) is the only GUI backend — {@code cnpc} / {@code chat} config values
- * migrate to {@link #ULTRA} on load.
+ * {@link #ULTRA} is the only GUI backend: the Legacy Mechanics client's own menus. LM 4.8.2: it no longer
+ * means KaiPath (the KaiPath bridge is gone; the LM client is mandatory). The name stays so existing
+ * configs keep loading; {@code cnpc} / {@code chat} config values migrate to {@link #ULTRA} on load.
  */
 public enum GuiBackend {
     /** @deprecated Retained for config migration only; {@link #fromConfig()} always yields ULTRA. */

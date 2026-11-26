@@ -32,7 +32,7 @@ public final class AdaptiveDifficultyMod {
     /** Forge modId — lowercase; not used for NBT / GUI class lookup. */
     public static final String MOD_ID = "legacymechanics";
     /** Product line version (was DMZ Adaptive Difficulty 3.3.x). */
-    public static final String VERSION = "4.8.1";
+    public static final String VERSION = "4.8.2";
 
     private static boolean dedicatedServer() {
         try {
@@ -54,7 +54,7 @@ public final class AdaptiveDifficultyMod {
             }
             Class.forName(CLIENT_BOOT_CLASS).getMethod("init").invoke(null);
         } catch (Throwable t) {
-            LOGGER.error("[{}] LM client renderer did not start; menus fall back to KaiPath", MOD_ID, t);
+            LOGGER.error("[{}] LM client renderer did not start; LM menus will not open on this client (there is no KaiPath fallback)", MOD_ID, t);
         }
     }
 

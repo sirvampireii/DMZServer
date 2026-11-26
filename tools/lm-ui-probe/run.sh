@@ -16,7 +16,8 @@
 #   RIG_EXTRA_MODS   space-separated extra jars for both sides (DMZ Ultra build, DMZ Revamp, ...).
 #   RIG_SERVER_ONLY  space-separated extra jars for the server only (optional).
 #   RIG_OUT          results root (default tools/lm-ui-probe/out, gitignored).
-# Options: MAXSHOTS=n (cap screenshot pages), REQUIRE=1 (requireLmClient true), SRVJVM="extra server JVM
+# Options: MAXSHOTS=n (cap screenshot pages), REQUIRE=1 / REQUIRE=0 (requireLmClient true / false; unset or empty:
+#   the shipped default, true since 4.8.2, so a client without the LM jar is turned away), SRVJVM="extra server JVM
 #   flags" (e.g. -Xlog:class+load=info:file=classload.log), REJECT=1 (expect the login to be turned away),
 #   SRVKAI=0 (no KaiPath on the server).
 set -u
@@ -65,11 +66,15 @@ cd "$T" || exit 1
 rm -rf mods/*.jar world logs crash-reports config defaultconfigs legacymechanics* uiprobe-packets.jsonl uiprobe-script.txt classload.log
 sed -i "s/^level-type=.*/level-type=minecraft\:flat/" server.properties
 mkdir -p config mods && cp -r "$RIG_LIVECFG/dragonminez" config/
-PYTHONUTF8=1 python3 - "$RIG_LIVECFG/legacymechanics.json" config/legacymechanics.json "${REQUIRE:-0}" <<'PY'
+PYTHONUTF8=1 python3 - "$RIG_LIVECFG/legacymechanics.json" config/legacymechanics.json "${REQUIRE:-}" <<'PY'
 import json, sys
 c = json.load(open(sys.argv[1], encoding="utf-8"))
 c["debugLogging"] = True
-c["requireLmClient"] = sys.argv[3] == "1"
+# 4.8.2: REQUIRE=1/0 forces requireLmClient; unset leaves it out so LM's shipped default (true) applies.
+if sys.argv[3] in ("0", "1"):
+    c["requireLmClient"] = sys.argv[3] == "1"
+else:
+    c.pop("requireLmClient", None)
 json.dump(c, open(sys.argv[2], "w", encoding="utf-8"), indent=2)
 PY
 cp "${COMMON[@]}" "$LMJAR" mods/; [ ${#SONLY[@]} -gt 0 ] && cp "${SONLY[@]}" mods/; [ "${SRVKAI:-1}" = 1 ] && cp "$KAI" mods/

@@ -44,8 +44,8 @@ In-game test rig for LegacyMechanics menus. Never shipped, never put on the live
     Apply with both hex spellings saves and reopens wearing them; the look goes out as the palette token; "red",
     "#12" and "#gggggg" show the human error, apply nothing and keep every field; empty fields keep their colors;
     unreadable text is adjusted (3:1 dark, 4.5:1 light) with the note; From and Reset fill fields without saving;
-    relog, slot switch, a preset and back keep the colors; Backgrounds off keeps Custom. Without the 4.7.66 LM client
-    (the kai stage) the editor is the plain note. The final phase taps the top of the Panel wheel on the real client
+    relog, slot switch, a preset and back keep the colors; Backgrounds off keeps Custom. (Before 4.8.2 the kai
+    stage checked the plain note a client without the editor got; that stage is gone.) The final phase taps the top of the Panel wheel on the real client
     (`uiclick wheel:0`, red) and clicks Apply (`custom1`..`custom4` REC lines); `FINAL CUSTOM` checks it saved.
   - Part colors, any color (4.7.67): the own channel's swatch page keeps its presets (six-digit swatch actions) and
     adds Pick any color (one hex field, Apply this color, a wheel on the LM client; the plain note without text
@@ -83,7 +83,8 @@ Version steps that go with it: `bash tools/dmz-adaptive-difficulty/bump-version.
 refuses reused or retired numbers). The prestige-shop reference check accepts `AdaptiveDifficultyMod.class` when it
 differs only by the version string (`OK-VER`), so a bump no longer needs a second build;
 `rebaseline-version-class.sh` re-extracts it when you want the reference current (refuses if any other class drifted).
-`report.py` adds per-section scripted totals, a native HUD row and a KaiPath "no HUD over the bridge" row.
+`report.py` adds per-section scripted totals and a native HUD row. (The KaiPath "no HUD over the bridge" row went
+with the bridge in 4.8.2.)
 
 ## One command
 
@@ -92,9 +93,14 @@ export RIG_SERVER=... RIG_CLIENT=... RIG_KAIPATH_JAR=... RIG_LIVECFG=... RIG_EXT
 bash tools/lm-ui-probe/matrix.sh mods/LegacyMechanics-<version>.jar [<older run>/full]
 ```
 
-`matrix.sh` builds the probe and runs three stages. **full** uses the LM client and KaiPath with class-load logging.
-**kai** is KaiPath only. **reject** turns `requireLmClient` on with no LM client. Then `report.py` writes two files to
-`$RIG_OUT`. A baseline (an older run's `full/` folder) adds the bridge wire comparison.
+**LM 4.8.2: the KaiPath bridge is gone and the LM client is mandatory** (`requireLmClient` defaults to true). Every
+LM menu goes to the LM client or nowhere, so there is no KaiPath-only menu path left to test.
+
+`matrix.sh` builds the probe and runs two stages. **full** uses the LM client and KaiPath with class-load logging.
+**reject** joins a KaiPath-only client (no LM client) with `requireLmClient` left at its shipped default: the login must
+be turned away with the install message. (Until 4.8.2 a third stage, **kai**, crawled KaiPath-only menus over the
+bridge; it is folded into reject.) Then `report.py` writes two files to `$RIG_OUT`. A baseline (an older run's
+`full/` folder) adds the wire comparison against it.
 
 - `REPORT.md`: one PASS / FAIL / SKIP line per check, with the evidence:
   - server boot and strict self-tests
@@ -103,14 +109,11 @@ bash tools/lm-ui-probe/matrix.sh mods/LegacyMechanics-<version>.jar [<older run>
   - scripted checks
   - spin stop front-facing
   - skin and accent per menu
-  - bridge wire vs baseline
+  - menu wire vs baseline
   - layout rules
   - scale-to-fit
   - look (contrast, cut labels, panel edge)
-  - KaiPath-only path
-  - one spec for both paths (4.7.67: a page whose native packet has a color wheel and whose KaiPath packet has
-    none differs on purpose and is counted separately; any other difference fails)
-  - the requireLmClient rejection
+  - a KaiPath-only client turned away by default (4.8.2; replaces the KaiPath-only path and one-spec-for-both-paths rows)
   - every menu native with the LM client (Preview forms too)
 - `review.html`: a contact sheet for the owner. It shows GUI scale 3 and 4 shots of every Difficulty page, the main page
   of every other menu, and the spin-stop shots.
@@ -123,13 +126,15 @@ sets the player's Menu skins choice right before it), and the client waits a ful
 - 60+ FPS at GUI 3/4 in every skin, Full and Lite, and Saiyan Royal no slower than before (`RIG_FPS_BASE` = an older
   run's `full/`; a scripted-only run on the old jar is enough);
 - `review.html` gets one card per look.
-`RIG_EXPECTED_DIFF="hub|main"` lists pages a release changes on purpose, so the bridge comparison names them instead of
+`RIG_EXPECTED_DIFF="hub|main"` lists pages a release changes on purpose, so the baseline comparison names them instead of
 failing. The probe keeps the client's hello across its fake logout (the Momentum and trial checks post one), so later
 menus route as they would in play.
 
 Settings:
 - `ONLY_SCRIPTED=1` screenshots only the scripted pages, a quick rerun after a client-only change.
-- `SKIP="kai reject"` drops stages.
+- `SKIP="reject"` drops the reject stage.
+- `REQUIRE=1` / `REQUIRE=0` (run.sh) forces `requireLmClient`; unset uses the shipped default (true since 4.8.2). The
+  full stage's client has the LM jar, so the default lets it in.
 
 Runs are exclusive: a run lock and a matrix lock in the shared `$RIG_SERVER` folder (not `$RIG_OUT`, so two output folders cannot overlap). Stop a matrix with `bash tools/lm-ui-probe/stop.sh`: stopping only its outer shell leaves `matrix.sh` running into its next stage. Every process a run starts carries `-Dlmrig.run=<id>`. Stale servers,
 clients and command feeds from an interrupted run are stopped before the next starts, and a run stops its own on
@@ -156,13 +161,14 @@ Prestige page with its breadcrumb. `-Duiprobe.mockset=dojo` draws the 4.7.68 doj
 
 ## Native HUD (4.7.72)
 
-- Scripted (`hudScript`, both stages): on the LM client every element goes to the HUD with the bar or chat text and
+- Scripted (`hudScript`, full stage): on the LM client every element goes to the HUD with the bar or chat text and
   no boss bar (TP notice, penalty and its end, Underdog lines joined read as the bar, an Instinct card that opens that
-  rival, the Momentum meter and its hide); on the KaiPath stage nothing goes to the HUD and the bars stay. Instinct
+  rival, the Momentum meter and its hide); a client that does not take the HUD (before 4.8.2: the KaiPath stage) keeps
+  the bars, the same code as HUD OFF. Instinct
   off sends no cards, HUD OFF brings the TP bar back, and the More tab switch reads and saves.
 - Real client (FINAL `hud show`): every element up, then `uirecordhud all`: the client closes any menu, records
   `HudOverlay.debugLayout()` (`HUDREC` in `uiprobe-client.txt`, shot `ui-rec-hud-all.png`) and answers
-  `uihudrec all <elements>`; the server scores it (`HUD CLIENT ... PASS`: all five on the LM client, none on KaiPath).
+  `uihudrec all <elements>`; the server scores it (`HUD CLIENT ... PASS`: all five on the LM client).
 - Mock (`-Duiprobe.mock=true -Duiprobe.mockset=hud`): the More tab with the switch, then the HUD at GUI 2/3/4
   (`ui-hud-hud-on-*.png`) and the same moment as boss bars and chat lines (`ui-hud-hud-off-*.png`).
 
@@ -202,10 +208,10 @@ appearance, head bones and skin owner on a made-up subject.
 ## Kit corpus
 
 After a release that changes menus, refresh the Ultra GUI kit's real-menu corpus from a full run:
-`python tools/ultra-gui-kit/test/gen_lm_corpus.py <run>/kai tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl`
-(the KaiPath stage: since 4.7.71 LM clients get their own Back, breadcrumb and search row, so `full/` is not what
-KaiPath receives).
-The kit's `LmCorpusTest` then checks every real LM menu against what KaiPath relies on.
+`python tools/ultra-gui-kit/test/gen_lm_corpus.py <run>/full tools/ultra-gui-kit/test/fixtures/lm-specs.jsonl`
+(4.8.2: the full stage, since every LM menu now goes to the LM client; before 4.8.2 this read the kai stage).
+`release-check.sh` refreshes it from a full (not scripted-only) matrix run.
+The kit's `LmCorpusTest` then checks every real LM menu against the wire contract the kit documents.
 
 ## Use (single stages)
 
@@ -214,10 +220,8 @@ LM_JAR=mods/LegacyMechanics-4.7.60.jar bash tools/lm-ui-probe/build.sh
 export RIG_SERVER=... RIG_CLIENT=... RIG_KAIPATH_JAR=... RIG_LIVECFG=... RIG_EXTRA_MODS="..."
 # LM client + KaiPath (LM wins), staff, with server class-load logging:
 SRVJVM="-Xlog:class+load=info:file=classload.log" bash tools/lm-ui-probe/run.sh full mods/LegacyMechanics-4.7.60.jar 1 mods/LegacyMechanics-4.7.60.jar 1
-# KaiPath only (bridge regression), first 45 menus:
-MAXSHOTS=45 bash tools/lm-ui-probe/run.sh kai mods/LegacyMechanics-4.7.60.jar 1 - 1
-# requireLmClient on, no LM client: the login must be turned away with the install message:
-MAXSHOTS=0 REQUIRE=1 REJECT=1 bash tools/lm-ui-probe/run.sh reject mods/LegacyMechanics-4.7.60.jar 1 - 1
+# KaiPath only, no LM client, requireLmClient at its default (on since 4.8.2): turned away with the install message:
+MAXSHOTS=0 REJECT=1 bash tools/lm-ui-probe/run.sh reject mods/LegacyMechanics-4.8.2.jar 1 - 1
 python tools/lm-ui-probe/analyze_layout.py tools/lm-ui-probe/out/full
 python tools/lm-ui-probe/analyze_skin.py tools/lm-ui-probe/out/full tools/lm-ui-probe/out/<older run>
 ```

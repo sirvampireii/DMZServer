@@ -37,7 +37,6 @@
     "FusionBonusReadGateMixin",
     "StrikeTechniqueReadGateMixin",
     "FusionUnfuseBonusClearMixin",
-    "KaiPathLmConsumerBootstrapMixin",
     "FormModeHandlerGodKiGateMixin",
     "StackFormModeHandlerGodKiGateMixin",
     "BioAndroidDrainTpMixin"

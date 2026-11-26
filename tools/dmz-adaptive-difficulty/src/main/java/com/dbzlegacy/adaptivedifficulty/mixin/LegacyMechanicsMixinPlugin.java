@@ -7,10 +7,11 @@ import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
 /**
- * LegacyMechanics is server-primary. Client copies apply no mixins except the optional
- * KaiPath LM-consumer bootstrap fix ({@code KaiPathLmConsumerBootstrapMixin}) and, from 4.7.61, the two
- * native model-preview mixins in {@code legacymechanics.client.mixins.json}. {@code dmzRevampClassPresent}
- * is a plain class-file lookup and is reused for those targets.
+ * LegacyMechanics is server-primary. Client copies apply no mixins except, from 4.7.61, the two
+ * native model mixins in {@code legacymechanics.client.mixins.json} (4.8.2: they also draw the world
+ * body-parts sync). The KaiPath LM-consumer bootstrap fix ({@code KaiPathLmConsumerBootstrapMixin}) is
+ * gone with the KaiPath bridge in 4.8.2. {@code dmzRevampClassPresent} is a plain class-file lookup and
+ * is reused for those targets.
  */
 public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
 
@@ -24,11 +25,6 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        // Physical client only (plugin-gated): keep KaiPath's LM GUI consumer alive when the
-        // LM jar is also installed. Listed under mixins[] so jar audits see the registration.
-        if (mixinClassName != null && mixinClassName.endsWith("KaiPathLmConsumerBootstrapMixin")) {
-            return !dedicatedServer() && kaipathLmConsumerPresent();
-        }
         // 4.7.61, legacymechanics.client.mixins.json: the LM client's native model preview. Physical client
         // only, and only with the mod that owns the target (DMZUltra 0.5.7 FormParts, DragonMineZ bones).
         if (mixinClassName != null && mixinClassName.endsWith(".client.mixin.FormPartsPreviewMixin")) {
@@ -179,19 +175,6 @@ public final class LegacyMechanicsMixinPlugin implements IMixinConfigPlugin {
                     && loader.getResource("com/dmzultra/slots/SlotStore.class") != null
                     && loader.getResource("com/dmzultra/slots/SlotIndex.class") != null
                     && loader.getResource("com/dmzultra/slots/StandAside.class") != null;
-        } catch (Throwable ignored) {
-            return false;
-        }
-    }
-
-    /** KaiPath optional LM GUI consumer — absent when KaiPath is not installed. */
-    private static boolean kaipathLmConsumerPresent() {
-        try {
-            ClassLoader loader = LegacyMechanicsMixinPlugin.class.getClassLoader();
-            return loader != null
-                    && loader.getResource(
-                                    "com/dmzlegacy/kaipath/ultra/consumers/legacymechanics/LmUltraConsumer.class")
-                            != null;
         } catch (Throwable ignored) {
             return false;
         }

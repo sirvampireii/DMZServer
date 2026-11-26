@@ -152,7 +152,7 @@ javac --release 17 -encoding UTF-8 -proc:none -cp "$CP" -d "$OUT" "@$SOURCES_LIS
 # Every mixin target, overload, callback type, handler signature, and @At must match the
 # DragonMineZ jar on CP (javac never reads mixin target strings). The two optional-mod mixins
 # are plugin-gated on their mod being present, so their target class may be absent here.
-python3 "$ROOT/scripts/audit_mixin_targets.py" --src "$SRC" --cp "$CP" --gate-plugin "$SRC/com/dbzlegacy/adaptivedifficulty/mixin/LegacyMechanicsMixinPlugin.java"   --optional-mixins VipersCallUnendingVenomMixin,KaiPathLmConsumerBootstrapMixin   "$RES/legacymechanics.mixins.json"
+python3 "$ROOT/scripts/audit_mixin_targets.py" --src "$SRC" --cp "$CP" --gate-plugin "$SRC/com/dbzlegacy/adaptivedifficulty/mixin/LegacyMechanicsMixinPlugin.java"   --optional-mixins VipersCallUnendingVenomMixin   "$RES/legacymechanics.mixins.json"
 
 # Break ldc #0xC2 / operand-C2 + goto(A7) false positives in ultra callers so a
 # raw C2 A7 (§) scan only hits UltraStyle (which owns the mark in its CP).
@@ -237,7 +237,7 @@ merge_onto_base_jar() {
   # CNPC GUI package retired — strip any stale classes from the base jar.
   local rel
   rm -rf "$merge/com/dbzlegacy/adaptivedifficulty/gui/cnpc"
-  # Ultra / KaiPath bridge — server packet builders + legacymechanics:gui channel.
+  # Ultra menu builders (4.8.2: drawn by the LM client on legacymechanics:native_ui; the KaiPath bridge is gone).
   if [[ -d "$OUT/com/dbzlegacy/adaptivedifficulty/gui/ultra" ]]; then
     rm -rf "$merge/com/dbzlegacy/adaptivedifficulty/gui/ultra"
     mkdir -p "$merge/com/dbzlegacy/adaptivedifficulty/gui/ultra"
@@ -619,9 +619,8 @@ merge_onto_base_jar() {
   # not keep a stale base-jar inner the new bytecode no longer emits.
   sync_overlaid_inners "$OUT" "$merge"
   cp "$RES/META-INF/mods.toml" "$merge/META-INF/mods.toml"
-  if [[ -f "$RES/META-INF/kaipath-ultra.txt" ]]; then
-    cp "$RES/META-INF/kaipath-ultra.txt" "$merge/META-INF/kaipath-ultra.txt"
-  fi
+  # 4.8.2: no KaiPath partner marker (the KaiPath bridge is gone); strip a stale one from the base jar.
+  rm -f "$merge/META-INF/kaipath-ultra.txt"
   if [[ -d "$RES/data" ]]; then
     mkdir -p "$merge/data"
     cp -a "$RES/data/." "$merge/data/"
@@ -669,7 +668,6 @@ else
     # that $(find com -name '*.class') hits (~463 args). Adds dir entries like the base merge path.
     jar cvmf "$RES/META-INF/MANIFEST.MF" "$JAR" com \
       -C "$RES" META-INF/mods.toml \
-      -C "$RES" META-INF/kaipath-ultra.txt \
       -C "$RES" pack.mcmeta \
       -C "$RES" legacymechanics.mixins.json \
       -C "$RES" legacymechanics.client.mixins.json \
@@ -738,8 +736,8 @@ if ! jar tf "$JAR" | grep -q 'config/editor/ConfigFieldHelp.class'; then
   echo "ERROR: config/editor/ConfigFieldHelp.class missing from $JAR (staff config editor crashes)" >&2
   exit 1
 fi
-if ! jar tf "$JAR" | grep -q 'META-INF/kaipath-ultra.txt'; then
-  echo "ERROR: META-INF/kaipath-ultra.txt missing from $JAR (KaiPath partner discovery)" >&2
+if jar tf "$JAR" | grep -q 'META-INF/kaipath-ultra.txt'; then
+  echo "ERROR: META-INF/kaipath-ultra.txt in $JAR: 4.8.2 removed the KaiPath bridge, KaiPath must not adopt LM" >&2
   exit 1
 fi
 # ── Weapon hotpath classes (kube/hotpath): source-compiled, byte-verify baseline ─
@@ -852,7 +850,6 @@ required = (
     client_pkg + "NativeMenuScreen.class",
     client_pkg + "NativeModelPreview.class",
     client_pkg + "NativeText.class",
-    "META-INF/kaipath-ultra.txt",
 )
 with zipfile.ZipFile(jar) as zf:
     names = set(zf.namelist())

@@ -1699,7 +1699,7 @@ def main() -> int:
           and 'new Expect("0.4.0", 109, 220, 220' in bp_test)
 
     print("\n--- § gui bridge 4.7.8 ---")
-    gb_feat = read(SRC / "net/gui/UltraClientFeatures.java")
+    gb_feat = ""  # 4.8.2: UltraClientFeatures is deleted (no KaiPath bridge); see the Part E replacements below.
     gb_net = read(SRC / "net/gui/LmGuiNetwork.java")
     gb_kit = ROOT / "tools" / "ultra-gui-kit"
     gb_reg = read(gb_kit / "kaipath-client/com/dmzlegacy/kaipath/ultra/consumers/UltraGuiConsumerRegistry.java")
@@ -1709,18 +1709,23 @@ def main() -> int:
     gb_gaps = read(ROOT / "docs" / "KAIPATH_BRIDGE_GAPS.md")
     gb_login = _after(gb_net, "public static void logClientGuiCapability(").split("\n    }\n", 1)[0]
     check("manifest gui-bridge-478 row", "gui-bridge-478" in manifest)
-    check("login gap check waits for the advertisement (no warning at the login event)",
-          "UltraClientFeatures.scheduleLoginCheck(player);" in gb_login
-          and "warnMissingOptionalFeatures" not in gb_login
-          and 'warnMissingOptionalFeatures(player, "login+10s");' in gb_feat
-          and "return online && !advertised;" in gb_feat
-          and "UltraClientFeatures.pulseLoginChecks(server)" in pc_ev)
-    check("bodyPartsSync shipped (KaiPath 1.5.1 recommended); message-3 gate kept",
-          "FEATURE_BODY_PARTS_SYNC);" in gb_feat and "PENDING_NEXT = Set.of();" in gb_feat
-          and 'KAIPATH_RECOMMENDED_VERSION = "1.5.1"' in gb_net
-          and "UltraClientFeatures.get(player).has(UltraClientFeatures.FEATURE_BODY_PARTS_SYNC)" in gb_net)
-    check("self-test covers the login check and a full 1.5.1 advertisement",
-          "UltraClientFeatures.selfTest(broken);" in pc_test)
+    # 4.8.2 (Part E): the KaiPath feature advertisement (UltraClientFeatures, its login check and its 1.5.1
+    # self-test) is deleted with the bridge. Retired here; the replacements assert the native state.
+    check("login gap check waits for the advertisement (no warning at the login event)", False, retired=True)
+    check("bodyPartsSync shipped (KaiPath 1.5.1 recommended); message-3 gate kept", False, retired=True)
+    check("self-test covers the login check and a full 1.5.1 advertisement", False, retired=True)
+    check("4.8.2: no KaiPath advertisement login check; the login probe logs the LM client only",
+          not (SRC / "net/gui/UltraClientFeatures.java").is_file()
+          and "UltraClientFeatures" not in pc_ev and "pulseLoginChecks" not in pc_ev
+          and "LmNativeNetwork.hasNativeClient(player)" in gb_login and "kaipath" not in gb_login.lower())
+    check("4.8.2: bodyPartsSync is an LM client hello feature; the per-recipient message-5 gate is kept",
+          "return player != null && LmNativeNetwork.takesModelSync(player);" in gb_net
+          and "KAIPATH_RECOMMENDED_VERSION" not in gb_net
+          and "f.contains(LmNativeProtocol.FEATURE_BODY_PARTS_SYNC)" in read(SRC / "net/gui/LmNativeNetwork.java"))
+    check("4.8.2: the native self-test pins the hello-only bodyPartsSync and the message-5 round trip",
+          "LmNativeProtocol.MSG_MODEL_SYNC == 5" in read(SRC / "net/gui/LmNativeSelfTest.java")
+          and "bodyPartsSync must be hello-only" in read(SRC / "net/gui/LmNativeSelfTest.java")
+          and "UltraClientFeatures" not in pc_test.replace("UltraClientFeatures (KaiPath feature advertisement) is gone", ""))
     check("kit advertises after login and on each open, on every channel",
           "MinecraftForge.EVENT_BUS.addListener(UltraGuiConsumerRegistry::onLoggingIn);" in gb_reg
           and "public static void advertiseAll()" in gb_reg
@@ -2007,20 +2012,24 @@ def main() -> int:
           and "GuiActionPacket::encode" in p58_net and "GuiOpenPacket::encode" in p58_net
           and "NetworkRegistry.acceptMissingOr(LmNativeProtocol.PROTOCOL_VERSION)" in p58_net)
     route_at = p58_bridge.find("switch (LmNativeNetwork.route(player, wire))")
-    check("each menu goes on exactly one channel: native first, else the unchanged bridge send",
-          route_at > 0 and p58_bridge.find("CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), wire);") > route_at
-          and "LmNativeNetwork.sendOpen(player, wire);" in p58_bridge and "public static Route decide(" in p58_net)
+    # 4.8.2 (Part E): no bridge send any more; a menu goes native or nowhere (install / update message).
+    check("each menu goes native or nowhere (4.8.2: the bridge send is gone)",
+          route_at > 0 and "CHANNEL.send(" not in p58_bridge and "bridgeSkin" not in p58_bridge
+          and "case NATIVE -> LmNativeNetwork.sendOpen(player, wire);" in p58_bridge
+          and "LmNativeNetwork.requiredClientMessage()" in p58_bridge
+          and "public static Route decide(" in p58_net)
     # A KaiPath-only client can list LM channel names in minecraft:register; only the handshake counts.
     check("LM client detected from the Forge login handshake only (mod list + channel)",
           "data.getChannels().containsKey(CHANNEL_ID)" in p58_net
           and "data.getModList().contains(AdaptiveDifficultyMod.MOD_ID)" in p58_net
           and "isRemotePresent" not in p58_net)
-    check("a menu the LM client cannot fully draw falls back to KaiPath",
-          "if (kaipath) {" in p58_net and "Route.REFUSE" in p58_net
+    check("a menu the LM client cannot fully draw is refused, never sent to KaiPath (4.8.2)",
+          "if (kaipath) {" not in p58_net and "BRIDGE," not in p58_net and "Route.REFUSE" in p58_net
+          and "return Route.NO_CLIENT;" in p58_net
           and '"combined.forms.v1"' in p58_proto and "FEATURE_FORMS" in p58_proto
           and '"combined.forms.v1",' not in p58_proto.split("CLIENT_FEATURES = List.of(")[1].split(");")[0])
-    check("requireLmClient ships off and turns away a no-client login with a plain message",
-          "public boolean requireLmClient = false;" in p58_cfg
+    check("requireLmClient ships ON (4.8.2: the LM client is mandatory) and turns away a no-client login with a plain message",
+          "public boolean requireLmClient = true;" in p58_cfg
           and "rejectWithoutClient(" in p58_events
           and p58_events.find("rejectWithoutClient(") < p58_events.find("logClientGuiCapability(player)")
           and "This server needs the Legacy Mechanics client mod." in p58_net)
@@ -2037,8 +2046,121 @@ def main() -> int:
           and "PREVIEW_FRONT_YAW = 180f;" in p58_proto and "return rotate ? spin : 0f;" in p58_proto
           and "NativeMenuFit.place(" in p58_screen
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
-    check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
+    # 4.8.2: the kaipath dependency (one of the three BOTH entries) is gone with the bridge.
+    check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 2
+          and 'modId = "kaipath"' not in p58_toml
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.8.2 ---")
+    q_ds = read(SRC / "dojo/DojoService.java")
+    q_store = read(SRC / "dojo/DojoStore.java")
+    q_state = read(SRC / "dojo/DojoState.java")
+    q_placer = read(SRC / "dojo/DojoPlacer.java")
+    q_world = read(SRC / "dojo/DojoWorld.java")
+    q_found = read(SRC / "gui/ultra/DojoFounding.java")
+    q_edit = read(SRC / "gui/ultra/DojoBannerEditor.java")
+    q_bd = read(SRC / "gui/ultra/BannerDesign.java")
+    q_scr = read(SRC / "gui/ultra/UltraDojoScreens.java")
+    q_rank = read(SRC / "sparring/DojoRankings.java")
+    q_nms = read(SRC / "client/NativeMenuScreen.java")
+    q_cfg = read(SRC / "config/DifficultyConfig.java")
+    q_nn = read(SRC / "net/gui/LmNativeNetwork.java")
+    q_gn = read(SRC / "net/gui/LmGuiNetwork.java")
+    q_np = read(SRC / "net/gui/LmNativeProtocol.java")
+    q_ug = read(SRC / "gui/ultra/UltraGui.java")
+    q_hud = read(SRC / "gui/ultra/LmHud.java")
+    q_skins = read(SRC / "gui/ultra/MenuSkins.java")
+    q_selft = read(SRC / "net/gui/LmNativeSelfTest.java")
+    q_res = MOD / "src/main/resources"
+    q_probe = ROOT / "tools/lm-ui-probe"
+    check("manifest row for lm 4.8.2", "lm-482-banners-mandatory" in manifest)
+    # A: the editor builds a vanilla banner (registry patterns, up to 6 layers) and saves through setBanner.
+    check("A: banner editor page saves base + ordered layers through DojoService.setBanner",
+          'PAGE_EDIT = "dojo_banner_edit"' in q_edit
+          and "DojoService.setBanner(p, e.base(), new ArrayList<>(e.layers()))" in q_edit
+          and "DojoBannerEditor.owns(lower)" in q_found and '"Design a banner here' in q_found)
+    check("A: pattern choices come from the vanilla banner pattern registry (no plain base), 6 layers max",
+          "BuiltInRegistries.f_256878_" in q_bd and '"b".equals(hash)' in q_bd and "MAX_LAYERS = 6" in q_bd)
+    check("A: the preview is the saved design drawn with its layers (lmbanner icon, banner cloth on the client)",
+          "spec.icon(icon)" in q_edit and "BannerIcons.drawCloth(g, banner" in q_nms
+          and "BannerIcons.isBanner(b.icon())" in q_nms
+          and "BannerDesign.isIcon(trimmed)" in read(SRC / "gui/ultra/UltraStyle.java"))
+    check("A: banner cost rule unchanged (first free, then 20 points + the 12h cooldown)",
+          '"Save this banner (free)"' in q_edit and '"Save - needs "' in q_edit
+          and "DojoService.identityChangeProblem(d, DojoCatalog.BANNER_CHANGE_COST)" in q_edit)
+    # B: the built hall flies the picked banner.
+    check("B: the build signature has a banner part; a banner change rebuilds the hall",
+          '"|b=" + banner;' in q_state and 's.banner = p.length > 10 && p[10].startsWith("b=")' in q_state
+          and "if (was != null && !was.banner.equals(now.banner)) {" in q_placer
+          and "job.banner = DojoPlacer.design(d);" in q_world
+          and "DojoWorld.ensureBuilt(p.m_20194_(), d);" in q_ds)
+    check("B: every structure banner spot gets the picked base and pattern layers in order",
+          "t.banner[i] = t.palette[i].m_60734_() instanceof AbstractBannerBlock;" in q_placer
+          and "putBanner(j.level, pos.m_7949_(), t.palette[si], j.banner);" in q_placer
+          and 'p.m_128405_("Color", l.colour().m_41060_());' in q_placer and "banner.m_142466_(tag);" in q_placer
+          and "public static List<BannerSpot> bannersOn(ServerLevel level, int plot)" in q_world)
+    check("B: an older hall without a pick is not rebuilt on upgrade (signature normalized)",
+          "sig.equals(DojoState.normalize(d.builtSignature))" in q_world)
+    # C: other players see the picked banner; the legacy colour is not read for display.
+    check("C: dojo view, list, war pick/format/view show the dojo's banner",
+          'UltraStyle.labelValue("Banner", DojoFounding.bannerText(d, 40))' in q_scr
+          and ".icon(DojoFounding.bannerIcon(d))" in q_scr and '"Their banner' in q_scr
+          and "warSide(spec, 0, w.fromDojo" in q_scr)
+    check("C: dojos.json design wins; legacy bannerMaterial kept but not read for display",
+          "DojoFounding.bannerIcon(" in q_rank
+          and "profile.bannerMaterial" not in q_rank.split("dojoBannerMaterial", 1)[1].split("\n    }", 1)[0]
+          and "public String bannerMaterial" in read(SRC / "sparring/SparStore.java"))
+    # D: one free rename, any time, no cooldown; the command path follows the same rule; one name everywhere.
+    check("D: free rename flag (no migration), skips cost and cooldown, then the 20-point rule",
+          "public boolean freeRenameUsed;" in q_store and "public static boolean freeRenameLeft(Dojo d)" in q_ds
+          and "d.freeRenameUsed = true;" in q_ds
+          and q_ds.index("if (freeRenameLeft(d)) {") < q_ds.index(
+              "String bad = identityChangeProblem(d, DojoCatalog.NAME_CHANGE_COST);"))
+    check("D: rename copy shows Free and the free-rename lock line",
+          'UltraStyle.labelValue("This rename", "Free")' in q_found and '"Rename (free)"' in q_found
+          and ". Your free rename works now." in q_scr and "Your first rename is free and locks nothing." in q_scr)
+    check("D: /lm dojo name goes through DojoService.rename; the ladder shows the dojo's name",
+          "DojoService.rename(master, rawName)" in q_rank and "DojoService.byMaster(dojoKey)" in q_rank
+          and "DojoRankings.syncDisplayName(d.masterUuid, n);" in q_ds)
+    # E: the LM client is mandatory; the KaiPath bridge is gone.
+    check("E: requireLmClient defaults to true", "public boolean requireLmClient = true;" in q_cfg)
+    check("E: no bridge route; no client is turned away with the install message",
+          "return Route.NO_CLIENT;" in q_nn and "BRIDGE," not in q_nn and "clientHasKaiPath" not in q_nn
+          and "case NATIVE -> LmNativeNetwork.sendOpen(player, wire);" in q_gn
+          and "LmNativeNetwork.requiredClientMessage()" in q_gn
+          and "bridgeSkin" not in q_gn and "static final String KAIPATH_" not in q_gn and "NetworkRegistry.newSimpleChannel" not in q_gn)
+    check("E: bridge-only files deleted (features model, features packet, KaiPath mixin, kaipath-ultra.txt)",
+          not (SRC / "net/gui/UltraClientFeatures.java").exists()
+          and not (SRC / "net/gui/GuiFeaturesPacket.java").exists()
+          and not (SRC / "mixin/KaiPathLmConsumerBootstrapMixin.java").exists()
+          and not (q_res / "META-INF/kaipath-ultra.txt").exists()
+          and "KaiPath" not in (q_res / "legacymechanics.mixins.json").read_text(encoding="utf-8")
+          and 'modId = "kaipath"' not in (q_res / "META-INF/mods.toml").read_text(encoding="utf-8"))
+    check("E: menus open only with the LM client (captured probe sends excepted); no KaiPath install text",
+          "!UltraScreenSpec.capturing() && !preferUltra(player)" in q_ug
+          and "return player != null && LmNativeNetwork.hasNativeClient(player);" in q_ug
+          and "Install KaiPath" not in q_ug)
+    check("E: body-parts model sync is native (message 5, hello-only feature)",
+          "MSG_MODEL_SYNC = 5;" in q_np and 'FEATURE_BODY_PARTS_SYNC = "bodyPartsSync";' in q_np
+          and "return player != null && LmNativeNetwork.takesModelSync(player);" in q_gn)
+    check("E: HUD keeps bars and chat only for HUD off and the hello wait",
+          "Who still gets boss bars and chat (LM 4.8.2)" in q_hud
+          and "return player != null && LmNativeNetwork.takesHud(player) && enabled(player);" in q_hud)
+    check("E: bridge skin rewrite gone", "nearestBridgeLetter" not in q_skins and "BRIDGE_PANEL" not in q_skins
+          and "bridgePrimary" not in q_skins)
+    check("E: self-tests pin rejection, the true default and message 5",
+          "no LM client must be rejected with the install message (there is no bridge)" in q_selft
+          and "requireLmClient must default to true (the LM client is mandatory)" in q_selft
+          and "LmNativeProtocol.MSG_MODEL_SYNC == 5" in q_selft)
+    check("E: rig turns a KaiPath-only client away by default",
+          "REQUIRE= REJECT=1" in (q_probe / "matrix.sh").read_text(encoding="utf-8")
+          and "run.sh kai" not in (q_probe / "matrix.sh").read_text(encoding="utf-8")
+          and "a KaiPath-only client (no LM client) is turned away by default"
+          in (q_probe / "report.py").read_text(encoding="utf-8"))
+    check("probes: V482BannerWorld and V482BannerUi run in the scripted checks",
+          "V482BannerWorld.run(player, this::note);" in (q_probe / "src/com/dbzlegacy/uiprobe/UiProbe.java")
+          .read_text(encoding="utf-8")
+          and "V482BannerUi.all(player, this::note);" in (q_probe / "src/com/dbzlegacy/uiprobe/UiProbe.java")
+          .read_text(encoding="utf-8"))
     print("\n--- § lm 4.8.1 ---")
     # The 4.7.88 string check reads Java only. CNPC scripts split a message into color pieces
     # (COLOR + "f/progression boost"), so a literal may start with the color code letter before the slash.
@@ -2865,7 +2987,7 @@ def main() -> int:
           and "That swatch is not available" not in p67_svc
           and '"Nothing changed - type a color like #e23b3b, or tap a swatch."' in p67_svc)
     check("no text input: the config editor's plain note; storage, cost and channels unchanged",
-          '"Typed fields need KaiPath 1.3.9 or newer. Until then pick a swatch."' in p67_scr
+          '"Typed fields need the Legacy Mechanics client. Until then pick a swatch."' in p67_scr
           and "LmGuiNetwork.sendModelSync(" in p67_svc and "GuiModelSyncPacket.REASON_COLOR" in p67_svc)
 
     print("\n--- § lm 4.7.66 ---")
@@ -2909,10 +3031,13 @@ def main() -> int:
     check("derived tones: background and motif colors blend from the custom panel / primary / trim",
           "bgTop = blend(x.panel(), x.primary(), 0.10);" in p66_reg and "bgBottom = blend(x.panel(), BLACK, 0.75);" in p66_reg
           and "motifA = blend(x.primary(), BLACK, 0.40);" in p66_reg)
+    # 4.8.2 (Part E): the bridge letters and the send-time rewrite are deleted with the KaiPath bridge.
     check("bridge: nearest readable color letters; starting tones keep the Saiyan Royal bytes; no panel tint",
-          "public static char nearestBridgeLetter(int rgb, boolean primary)" in p66_reg
-          and "contrast(v, BRIDGE_PANEL) >= 4.5" in p66_reg
-          and "if (skin.bridgePrimary() == SAIYAN_ROYAL.bridgePrimary() && skin.bridgeText() == SAIYAN_ROYAL.bridgeText()) {" in p66_reg)
+          False, retired=True)
+    check("4.8.2: no bridge letters on a skin (custom included), no nearestBridgeLetter / BRIDGE_PANEL",
+          "nearestBridgeLetter" not in p66_reg and "BRIDGE_PANEL" not in p66_reg
+          and "bridgePrimary" not in p66_reg and "bridgeText" not in p66_reg
+          and "bgTop, bgBottom, motifA, x.trim(), x.motif());" in p66_reg)
     check("storage: lm_menu_prefs gains a custom object, kept when switching to a preset and back",
           'static final String CUSTOM_KEY = "custom";' in p66_prefs and "t.m_128365_(CUSTOM_KEY, ct);" in p66_prefs
           and "now.custom()" in p66_prefs.split("public static Prefs setSkin(", 1)[1].split("}", 1)[0]
@@ -2922,8 +3047,8 @@ def main() -> int:
           and "GuiOpenPacket.trim(skin == null ? \"\" : skin, 64)" in p66_pkt
           and 'PROTOCOL_VERSION = "1";' in p66_proto and "MSG_PREFS = 3;" in p66_proto
           and "tok.length() > 64" in p66_reg and "if (!next.equals(skin)) {" in p66_look)
-    check("clients that cannot edit (KaiPath, an older LM client) get a plain note and can still wear Custom",
-          "return com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player)\n                && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesCustomSkin(player);" in p66_hub
+    check("clients that cannot edit (an older LM client; 4.8.2: no KaiPath) get a plain note and can still wear Custom",
+          "return com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesTextInput(player)\n                && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesCustomSkin(player);" in p66_hub
           and '"Editing your colors needs the Legacy Mechanics client, 4.7.66 or newer."' in p66_hub
           and 'FEATURE_CUSTOM_SKIN = "customSkin";' in p66_proto and "a.add(FEATURE_CUSTOM_SKIN);" in p66_proto)
     check("color wheel: additive input type, never routes a page, sent only to clients that draw it",
@@ -3098,10 +3223,11 @@ def main() -> int:
           and "a.add(FEATURE_MENU_SKINS);" in p62_proto and 'PROTOCOL_VERSION = "1";' in p62_proto
           and "!takesPrefs(player)" in p62_netw and "context.enqueueWork(() -> sendPrefs(sender));" in p62_netw
           and "LmNativeNetwork.onPrefs(MenuLook::apply);" in p62_client)
-    check("bridge: Saiyan Royal bytes unchanged, other skins rewrite letters only, never blank",
-          "if (skin == null || skin == SAIYAN_ROYAL) {" in p62_reg and "wire = bridgeSkin(player, wire);" in p62_gui
-          and "// Never a blank menu: fall back to the Saiyan Royal bytes." in p62_gui
-          and "'9', '3');" in p62_reg)
+    # 4.8.2 (Part E): the bridge skin rewrite (bridgeSkin / bridgeRewrite) is deleted with the KaiPath bridge.
+    check("bridge: Saiyan Royal bytes unchanged, other skins rewrite letters only, never blank", False, retired=True)
+    check("4.8.2: no bridge skin rewrite; skins are drawn only by the LM client",
+          "bridgeRewrite(" not in p62_reg.replace("({@code bridgeRewrite})", "")
+          and "bridgeSkin(" not in p62_gui and "Motif.CLOUDS);" in p62_reg)
     check("Menu skins picker: hub entry, five rows, instant apply, backgrounds and Full/Lite toggles",
           'new HubTile("menu_skins", "Menu skins"' in p62_hub and 'case "menu_skins" -> "page:" + PAGE_SKINS;' in p62_hub
           and 'spec.lockedButtonRight("You are using this");' in p62_hub
@@ -3198,11 +3324,12 @@ def main() -> int:
           and "BRIDGE_LABEL = '7';" in p60_skin and "BRIDGE_VALUE = 'f';" in p60_skin)
     # Menu builders read the skin: one table for chrome letters and system accents, bytes pinned literally.
     check("menu builders take chrome and accents from SaiyanRoyal; self-test pins the 4.7.57 bytes",
-          "return SaiyanRoyal.bridgeAccent(screenId);" in p60_style
+          # 4.8.2: bridgeAccent renamed wireAccent (the letters are the wire format; the bridge is gone).
+          "return SaiyanRoyal.wireAccent(screenId);" in p60_style
           and "HEADER = MARK + SaiyanRoyal.BRIDGE_HEADER + BOLD;" in p60_style
           and "LABEL = MARK + SaiyanRoyal.BRIDGE_LABEL;" in p60_style
           and "VALUE = MARK + SaiyanRoyal.BRIDGE_VALUE;" in p60_style
-          and 'ACCENT_RIVAL = MARK + SaiyanRoyal.bridgeAccent("rival");' in p60_style
+          and 'ACCENT_RIVAL = MARK + SaiyanRoyal.wireAccent("rival");' in p60_style
           and '!UltraStyle.HEADER.equals(m + "6" + m + "l")' in p60_skin)
     check("native renderer: rounded panel with shadow and gold border, rounded buttons; clicks keep the rectangle",
           "PANEL_BG" not in p60_screen
@@ -3734,7 +3861,7 @@ def main() -> int:
     check("find: server-side match, cap 40, 5 recents, empty-state echo, textinput fallback, shop entry only",
           "FIND_CAP = 40" in p46_svc and "RECENT_MAX = 5" in p46_svc
           and "No parts matching '\" + query + \"'" in p46_char
-          and "UltraClientFeatures.hasTextInput(player)" in p46_char
+          and "LmNativeNetwork.takesTextInput(player)" in p46_char
           # 4.7.49: Find left the main hub; the Body parts shop keeps its Find button.
           and "PAGE_FIND" not in p46_hub and '"page:" + PAGE_FIND' in p46_char)
     check("confirm pages preview the candidate on the model",

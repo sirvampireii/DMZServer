@@ -1,16 +1,23 @@
 # LM client (native menus, LM 4.7.58+)
 
+> **LM 4.8.2: the LM client is mandatory and the KaiPath bridge is gone.** `requireLmClient` defaults to true, every
+> LM menu goes to the LM client or nowhere, and the body-parts world sync is native message 5. The "Who sees what"
+> table and the requireLmClient section below are current; KaiPath-bridge notes further down are historical.
+
 Since 4.7.58 `LegacyMechanics-<version>.jar` is one jar for both sides. On the server it is the
 whole mod, unchanged. On a game client it only draws LM menus natively; every server feature stays
 off there, and it is optional while it is tested.
 
 ## Who sees what
 
-| Player's client | LM menus |
+| Player's client (4.8.2) | LM menus |
 |---|---|
 | LM client (with or without KaiPath) | Drawn by LM on `legacymechanics:native_ui` |
-| KaiPath only | KaiPath bridge `legacymechanics:gui`, byte-identical to 4.7.57 |
-| Neither | "Install KaiPath" message, as before (turned away when `requireLmClient` is on) |
+| KaiPath only, or neither | Turned away at login with the install message (`requireLmClient`, on by default). With it off: they join, and every menu answers with the same install message in chat |
+
+Until 4.8.2 a KaiPath-only client got the menus over the KaiPath bridge (`legacymechanics:gui`); the rest of this
+section describes that era. 4.8.2: a menu the LM client cannot fully draw is refused with "This menu needs a newer
+Legacy Mechanics client. Update the mod, then join again."; a missing preview hint still opens natively.
 
 A menu is sent on one channel only, never both (`LmGuiNetwork.sendOpen` → `LmNativeNetwork.route`).
 With both mods installed the LM client wins, except when a menu needs something it does not draw;
@@ -32,9 +39,12 @@ draw at all, and no KaiPath, is refused with "This menu needs a newer Legacy Mec
 - Message 3 (S→C, 4.7.62): the player's menu look (`NativePrefsPacket`), only when the hello listed `menuSkins`.
 - Message 4 (S→C, 4.7.72): one native HUD element (`NativeHudPacket`), only when the hello listed `hud`. See
   "Native HUD" below.
+- Message 5 (S→C, 4.8.2): the equipped body-parts world sync (`GuiModelSyncPacket`, the bridge's old message 3),
+  only when the hello listed `bodyPartsSync` (the client lists it when DMZUltra is installed). The LM client draws
+  those pieces on players in the world (`FormPartsPreviewMixin`, `RaceTailSuppressMixin`).
 - The server knows at login: the client's channel list from the Forge handshake.
-- The KaiPath bridge is untouched (protocol `"1"`, no new fields). The LM client never registers
-  `legacymechanics:gui`; KaiPath owns that name on a client.
+- 4.8.2: the server no longer registers the KaiPath bridge (`legacymechanics:gui`). The LM client never
+  registered it.
 
 ## Renderer
 
@@ -119,10 +129,11 @@ Approved proposal: `docs/LM_NATIVE_HUD_PROPOSAL.md`. The server owns every eleme
 
 ## Server config
 
-`requireLmClient` (in `legacymechanics.json`, default **false**): when true, a player who joins
+`requireLmClient` (in `legacymechanics.json`, default **true** since 4.8.2): a player who joins
 without the LM client is disconnected with "This server needs the Legacy Mechanics client mod. Add
-LegacyMechanics-<version>.jar to your mods folder, then join again." Leave it off until the LM client
-is in the modpack and tested.
+LegacyMechanics-<version>.jar to your mods folder, then join again." The owner can turn it off; such
+players then join, but no LM menu opens for them (each answers with the same message in chat), and
+HUD notices reach them as boss bars and chat lines.
 
 ## Build and isolation
 

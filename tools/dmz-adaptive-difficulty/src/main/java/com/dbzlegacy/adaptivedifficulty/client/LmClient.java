@@ -14,8 +14,9 @@ import net.minecraftforge.eventbus.api.Event;
  * LM 4.7.58 client entry, started by {@code AdaptiveDifficultyMod} on a physical client only.
  *
  * <p>Registers the {@code legacymechanics:native_ui} channel with the menu opener, says hello to a
- * server that has the channel, and keeps name tags off the menu's player model. The KaiPath channel
- * ({@code legacymechanics:gui}) is never touched here: KaiPath owns it on a client.
+ * server that has the channel, and keeps name tags off the menu's player model. 4.8.2: the LM client is
+ * mandatory on an LM server and the only way menus draw (the KaiPath bridge is gone); it also takes the
+ * body-parts world sync (message 5) and draws those pieces on players in the world.
  */
 public final class LmClient {
     private LmClient() {}
@@ -28,11 +29,14 @@ public final class LmClient {
         LmNativeNetwork.onPrefs(MenuLook::apply);
         // 4.7.72: the native HUD (message 4).
         HudOverlay.init();
+        // 4.8.2: equipped body parts on players in the world (message 5; was the KaiPath bridge's message 3).
+        LmNativeNetwork.onModelSync(p -> BodyPartPreview.applySync(LmNativeNetwork.CHANNEL_ID.toString(),
+                p.partsJson(), p.reason()));
         MinecraftForge.EVENT_BUS.addListener(LmClient::onLoggingIn);
         MinecraftForge.EVENT_BUS.addListener(LmClient::onLoggingOut);
         MinecraftForge.EVENT_BUS.addListener(LmClient::onNameTag);
         AdaptiveDifficultyMod.LOGGER.info(
-                "[{}] LM client {} ready: menus draw natively on {} protocol {} (KaiPath stays the fallback)",
+                "[{}] LM client {} ready: menus draw natively on {} protocol {} (required by LM servers; no KaiPath fallback)",
                 AdaptiveDifficultyMod.MOD_ID, AdaptiveDifficultyMod.VERSION, LmNativeNetwork.CHANNEL_ID,
                 LmNativeProtocol.PROTOCOL_VERSION);
     }
@@ -58,6 +62,7 @@ public final class LmClient {
         NativeModelPreview.clear();
         MenuLook.reset();
         HudOverlay.clear();
+        BodyPartPreview.clearSync();
         if (LmNativeNetwork.serverHasChannel(event.getConnection())) {
             sayHello();
         }
@@ -70,6 +75,7 @@ public final class LmClient {
         MenuBackground.clear();
         ColorWheelTex.clear();
         HudOverlay.clear();
+        BodyPartPreview.clearSync();
         NativeMenuScreen.clearCaches();
     }
 

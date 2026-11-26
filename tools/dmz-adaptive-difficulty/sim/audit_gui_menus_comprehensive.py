@@ -68,7 +68,10 @@ def main() -> int:
     ok("hub has no · off status text", "· off" not in hub)
 
     gui = (MOD / "src/main/java/com/dbzlegacy/adaptivedifficulty/gui/ultra/UltraGui.java").read_text(encoding="utf-8")
-    ok("UltraGui requires KaiPath", "Install KaiPath" in gui and "CnpcLmGui" not in gui)
+    # 4.8.2 (Part E): the LM client is required; KaiPath is no longer accepted or named.
+    ok("UltraGui requires the Legacy Mechanics client",
+       "LmNativeNetwork.requiredClientMessage()" in gui and "Install KaiPath" not in gui
+       and "clientHasKaiPath" not in gui and "CnpcLmGui" not in gui)
 
     md = OUT / "full-gui-menu-audit.md"
     lines = ["# Full GUI menu audit (Ultra-only)", "", "| System | Ultra |", "| --- | --- |"]

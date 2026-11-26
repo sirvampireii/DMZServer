@@ -3,6 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.dojo;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -12,6 +13,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.AbstractBannerBlock;
+import net.minecraft.world.level.block.WallBannerBlock;
+import net.minecraft.world.level.block.entity.BannerBlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -340,7 +347,14 @@ public final class DojoWorld {
         DojoState now = DojoState.of(d);
         String sig = now.signature();
         String pending = PENDING.get(d.masterUuid);
-        if (sig.equals(pending) || (pending == null && sig.equals(d.builtSignature))) {
+        if (sig.equals(pending)) {
+            return;
+        }
+        if (pending == null && sig.equals(DojoState.normalize(d.builtSignature))) {
+            if (!sig.equals(d.builtSignature)) {
+                d.builtSignature = sig;                 // 4.8.2: a pre-4.8.2 build with no banner pick is already right
+                DojoStore.get().markDirty();
+            }
             return;
         }
         DojoState was = DojoState.parse(pending != null ? pending : d.builtSignature);
@@ -348,7 +362,7 @@ public final class DojoWorld {
         PENDING.put(d.masterUuid, sig);
         String master = d.masterUuid;
         int plot = d.plot;
-        DojoPlacer.submit(new DojoPlacer.Job(master, d.name + " " + sig, level, plotCorner(plot), steps, () -> {
+        DojoPlacer.Job job = new DojoPlacer.Job(master, d.name + " " + sig, level, plotCorner(plot), steps, () -> {
             Dojo cur = DojoService.byMaster(master);
             if (sig.equals(PENDING.get(master))) {
                 PENDING.remove(master);
@@ -358,12 +372,14 @@ public final class DojoWorld {
                 }
             }
             afterBuild(level, plot, master);
-        }));
+        });
+        job.banner = DojoPlacer.design(d);              // 4.8.2: the hall's banner spots fly the picked banner
+        DojoPlacer.submit(job);
     }
 
     /** True when {@code d}'s plot is built as its state says (nothing queued or running). */
     public static boolean ready(Dojo d) {
-        return d != null && !DojoPlacer.busy(d.masterUuid) && signature(d).equals(d.builtSignature);
+        return d != null && !DojoPlacer.busy(d.masterUuid) && signature(d).equals(DojoState.normalize(d.builtSignature));
     }
 
     /** After a build: the checks DMZ's grounds make (the floor is there, the landing points are clear); anyone inside
@@ -391,6 +407,19 @@ public final class DojoWorld {
                 bad.add("landing point not safe at " + feet.m_123344_());
             }
         }
+        // 4.8.2: every banner spot of the hall flies the picked banner (base and every layer, in order); a banner the
+        // master hung somewhere else in their hall is theirs and not checked
+        DojoPlacer.BannerDesign pick = d == null || !signature(d).equals(DojoState.normalize(d.builtSignature))
+                ? null : DojoPlacer.design(d);
+        if (pick != null) {
+            for (BlockPos at : bannerSpots(d).keySet()) {
+                BannerSpot b = bannerAt(level, at);
+                if (b == null || !b.matches(pick)) {
+                    bad.add("banner at " + at.m_123344_() + " is not the dojo's banner");
+                    break;
+                }
+            }
+        }
         String result = bad.isEmpty() ? "OK" : String.join("; ", bad);
         LAST_CHECK.put(master, result);
         AdaptiveDifficultyMod.LOGGER.info("[{}] dojo plot {} checks: {}", AdaptiveDifficultyMod.MOD_ID, plot, result);
@@ -411,6 +440,98 @@ public final class DojoWorld {
                 }
             }
         }
+    }
+
+    // ------------------------------------------------------------------ banners in the hall (4.8.2)
+    /**
+     * One banner block in a built hall: its world position, wall or standing, its base colour (the block's dye name)
+     * and its layers in order as "pattern hashname:dye id" (the form DojoFounding saves a pick in).
+     */
+    public record BannerSpot(BlockPos pos, boolean wall, String base, List<String> patterns) {
+        /** True when this banner is exactly {@code pick}: the same base and the same layers in the same order. */
+        public boolean matches(DojoPlacer.BannerDesign pick) {
+            return pick != null && pick.base().m_41065_().equals(base) && pick.patternTexts().equals(patterns);
+        }
+    }
+
+    /**
+     * 4.8.2 inspection (test rig and admins): every banner block standing in plot {@code plot} of the dojo world, read
+     * back from the placed block and its block entity (not from the dojo's saved fields), sorted by position. Loads
+     * the plot's chunks if they are not loaded.
+     */
+    public static List<BannerSpot> bannersOn(ServerLevel level, int plot) {
+        List<BannerSpot> out = new ArrayList<>();
+        DojoLayout l = DojoLayout.get();
+        if (level == null || l == null || plot < 0) {
+            return out;
+        }
+        BlockPos c = plotCorner(plot);
+        int x0 = c.m_123341_(), z0 = c.m_123343_(), x1 = x0 + l.sx - 1, z1 = z0 + l.sz - 1;
+        for (int cx = x0 >> 4; cx <= x1 >> 4; cx++) {
+            for (int cz = z0 >> 4; cz <= z1 >> 4; cz++) {
+                LevelChunk chunk = level.m_6325_(cx, cz);
+                for (BlockEntity be : new ArrayList<>(chunk.m_62954_().values())) {
+                    BlockPos pos = be.m_58899_();
+                    if (!(be instanceof BannerBlockEntity) || pos.m_123341_() < x0 || pos.m_123341_() > x1
+                            || pos.m_123343_() < z0 || pos.m_123343_() > z1) {
+                        continue;
+                    }
+                    BannerSpot b = bannerAt(level, pos);
+                    if (b != null) {
+                        out.add(b);
+                    }
+                }
+            }
+        }
+        out.sort(java.util.Comparator.comparingLong(b -> b.pos().m_121878_()));
+        return out;
+    }
+
+    /** 4.8.2 inspection: the banner standing at {@code pos} as placed (block and block entity), or null for none. */
+    public static BannerSpot bannerAt(ServerLevel level, BlockPos pos) {
+        BlockState st = level.m_8055_(pos);
+        if (!(st.m_60734_() instanceof AbstractBannerBlock ab) || !(level.m_7702_(pos) instanceof BannerBlockEntity be)) {
+            return null;
+        }
+        List<String> layers = new ArrayList<>();
+        net.minecraft.nbt.ListTag list = be.m_187482_().m_128437_("Patterns", 10);
+        for (int i = 0; i < list.size(); i++) {
+            net.minecraft.nbt.CompoundTag t = list.m_128728_(i);
+            layers.add(t.m_128461_("Pattern") + ":" + t.m_128451_("Color"));
+        }
+        return new BannerSpot(pos.m_7949_(), st.m_60734_() instanceof WallBannerBlock, ab.m_48674_().m_41065_(),
+                List.copyOf(layers));
+    }
+
+    /**
+     * 4.8.2 inspection: where {@code d}'s hall has banner spots as its structures place them today (the whole plot
+     * for its tier, style, rings and rooms; a later piece wins a spot), world position to the structure's own base
+     * colour (the style's banner). Pure: reads the structure files, not the world.
+     */
+    public static Map<BlockPos, String> bannerSpots(Dojo d) {
+        Map<BlockPos, String> out = new LinkedHashMap<>();
+        if (d == null || d.plot < 0 || DojoLayout.get() == null) {
+            return out;
+        }
+        BlockPos c = plotCorner(d.plot);
+        for (DojoPlacer.Step step : DojoPlacer.plan(null, DojoState.of(d))) {
+            DojoPlacer.Template t = DojoPlacer.template(step.path());
+            if (t == null) {
+                continue;
+            }
+            for (int i = 0; i < t.cells.length; i++) {
+                int cell = t.cells[i];
+                BlockPos pos = c.m_7918_(step.at()[0] + (cell & 0xFF), step.at()[1] + ((cell >> 8) & 0xFF),
+                        step.at()[2] + ((cell >> 16) & 0xFF));
+                int si = t.state[i];
+                if (t.banner[si]) {
+                    out.put(pos, ((AbstractBannerBlock) t.palette[si].m_60734_()).m_48674_().m_41065_());
+                } else {
+                    out.remove(pos);
+                }
+            }
+        }
+        return out;
     }
 
     // ------------------------------------------------------------------ the hall as text (no pictures)
