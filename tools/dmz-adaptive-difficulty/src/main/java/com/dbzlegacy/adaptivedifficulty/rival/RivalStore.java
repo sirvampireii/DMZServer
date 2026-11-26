@@ -32,6 +32,8 @@ public final class RivalStore {
     public final Map<String, DeclareRequest> declareRequests = new ConcurrentHashMap<>();
     /** Pending duel challenge requests (persisted); key = request id. */
     public final Map<String, StoredChallengeRequest> challengeRequests = new ConcurrentHashMap<>();
+    /** 4.8.3: final standings of each rival season staff ended ({@link #advanceSeason}), oldest first. */
+    public final List<SeasonArchive> seasonArchive = new java.util.concurrent.CopyOnWriteArrayList<>();
     private final AtomicBoolean dirty = new AtomicBoolean(false);
     private long lastSaveAt;
 
@@ -60,6 +62,7 @@ public final class RivalStore {
                 players.clear();
                 declareRequests.clear();
                 challengeRequests.clear();
+                seasonArchive.clear();
                 dirty.set(false);
                 RivalChallengeManager.get().replaceRequestsFromStore(challengeRequests);
                 return;
@@ -69,7 +72,18 @@ public final class RivalStore {
                 players.clear();
                 declareRequests.clear();
                 challengeRequests.clear();
+                seasonArchive.clear();
                 if (blob != null) {
+                    if (blob.seasonArchive != null) {
+                        for (SeasonArchive a : blob.seasonArchive) {
+                            if (a != null) {
+                                if (a.standings == null) {
+                                    a.standings = new ArrayList<>();
+                                }
+                                seasonArchive.add(a);
+                            }
+                        }
+                    }
                     if (blob.players != null) {
                         for (Map.Entry<String, RivalPlayerRecord> e : blob.players.entrySet()) {
                             if (e.getKey() != null && e.getValue() != null) {
@@ -112,6 +126,7 @@ public final class RivalStore {
             blob.players = new ConcurrentHashMap<>(players);
             blob.declareRequests = new ConcurrentHashMap<>(declareRequests);
             blob.challengeRequests = new ConcurrentHashMap<>(challengeRequests);
+            blob.seasonArchive = new ArrayList<>(seasonArchive);
             try (Writer writer = Files.newBufferedWriter(file)) {
                 GSON.toJson(blob, writer);
             }
@@ -233,6 +248,99 @@ public final class RivalStore {
         owner.recalcTotalRp();
         markDirty();
         return amount;
+    }
+
+    /**
+     * 4.8.3: staff change of a player's total RP by {@code delta}, through {@link #addRp} on their rivalries (RP lives
+     * on each rivalry). A gain goes to the rivalry with the most RP (a mutual one first); a loss comes off the
+     * rivalries with the most RP first, and the total never drops below 0. Returns the change made (0 when the player
+     * has no rivalry to hold RP).
+     */
+    public int adjustTotalRp(RivalPlayerRecord owner, int delta, String reason) {
+        if (owner == null || delta == 0 || owner.rivals.isEmpty()) {
+            return 0;
+        }
+        List<Map.Entry<String, RivalLink>> links = new ArrayList<>();
+        for (Map.Entry<String, RivalLink> e : owner.rivals.entrySet()) {
+            if (e.getKey() != null && e.getValue() != null) {
+                links.add(e);
+            }
+        }
+        if (links.isEmpty()) {
+            return 0;
+        }
+        links.sort((x, y) -> {
+            if (delta > 0 && x.getValue().mutual != y.getValue().mutual) {
+                return x.getValue().mutual ? -1 : 1;
+            }
+            return Double.compare(y.getValue().points, x.getValue().points);
+        });
+        if (delta > 0) {
+            return addRp(owner, links.get(0).getKey(), delta, reason);
+        }
+        owner.recalcTotalRp();
+        double before = owner.totalRp;
+        int left = -delta;
+        for (Map.Entry<String, RivalLink> e : links) {
+            if (left <= 0) {
+                break;
+            }
+            double has = Math.max(0.0, e.getValue().points);
+            if (has <= 0.0) {
+                continue;
+            }
+            // addRp stops each rivalry at 0, so taking the rounded-up amount empties a fractional rivalry fully.
+            int take = Math.min((int) Math.ceil(has), left);
+            addRp(owner, e.getKey(), -take, reason);
+            left -= take;
+        }
+        return (int) Math.round(owner.totalRp - before);
+    }
+
+    /** 4.8.3: the RP standings right now (players with RP above 0, highest first), as an archive would keep them. */
+    public List<SeasonStanding> currentStandings() {
+        List<RivalPlayerRecord> list = new ArrayList<>(players.values());
+        list.removeIf(r -> r == null || r.totalRp <= 0.0);
+        list.sort((a, b) -> Double.compare(b.totalRp, a.totalRp));
+        List<SeasonStanding> out = new ArrayList<>();
+        int rank = 1;
+        for (RivalPlayerRecord r : list) {
+            SeasonStanding st = new SeasonStanding();
+            st.rank = rank++;
+            st.uuid = r.uuid == null ? "" : r.uuid;
+            st.name = r.name == null || r.name.isBlank() ? "Unknown player" : r.name;
+            st.rp = Math.round(r.totalRp);
+            out.add(st);
+        }
+        return out;
+    }
+
+    /**
+     * 4.8.3: end rival season {@code endedSeason} now: keep its final RP standings in {@link #seasonArchive} (season
+     * number, date, rank, player, RP), then set every rivalry's RP, and so every player's total RP, to 0. Saves at
+     * once. Returns the archive entry.
+     */
+    public synchronized SeasonArchive advanceSeason(int endedSeason) {
+        SeasonArchive a = new SeasonArchive();
+        a.season = endedSeason;
+        a.endedAt = System.currentTimeMillis();
+        a.endedDate = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString();
+        a.standings = currentStandings();
+        seasonArchive.add(a);
+        for (RivalPlayerRecord rec : players.values()) {
+            if (rec == null) {
+                continue;
+            }
+            for (RivalLink link : rec.rivals.values()) {
+                if (link != null) {
+                    link.points = 0.0;
+                }
+            }
+            rec.recalcTotalRp();
+        }
+        markDirty();
+        save();
+        return a;
     }
 
     public int mutualCount(RivalPlayerRecord record) {
@@ -428,9 +536,27 @@ public final class RivalStore {
         }
     }
 
+    /** 4.8.3: one ended rival season's final standings (Gson-friendly; missing in data saved before 4.8.3). */
+    public static final class SeasonArchive {
+        public int season;
+        public long endedAt;
+        /** ISO date (UTC) the season ended, e.g. 2026-11-26. */
+        public String endedDate = "";
+        public List<SeasonStanding> standings = new ArrayList<>();
+    }
+
+    /** 4.8.3: one row of an archived season: rank, player and RP at the end. */
+    public static final class SeasonStanding {
+        public int rank;
+        public String uuid = "";
+        public String name = "";
+        public long rp;
+    }
+
     private static final class Persist {
         Map<String, RivalPlayerRecord> players;
         Map<String, DeclareRequest> declareRequests;
         Map<String, StoredChallengeRequest> challengeRequests;
+        List<SeasonArchive> seasonArchive;
     }
 }
