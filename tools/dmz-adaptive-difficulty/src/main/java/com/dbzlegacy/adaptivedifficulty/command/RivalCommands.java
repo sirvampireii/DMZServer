@@ -22,7 +22,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
-/** {@code /rival} — Rival System 4.7.10 command surface. */
+/** {@code /lm rival} — Rival System 4.7.10 command surface. */
 public final class RivalCommands {
     private RivalCommands() {}
 
@@ -33,7 +33,6 @@ public final class RivalCommands {
     @SubscribeEvent
     public void onRegister(RegisterCommandsEvent event) {
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.m_82127_("rival")
-                .requires(CommandAccess::isPlayerSlashUser)
                 .executes(ctx -> gui(ctx.getSource(), "main"))
                 .then(Commands.m_82127_("gui").executes(ctx -> gui(ctx.getSource(), "main")))
                 .then(Commands.m_82127_("help").executes(ctx -> playerHelp(ctx.getSource())))
@@ -125,19 +124,21 @@ public final class RivalCommands {
                                 .then(LmCommandSuggestions.playerWord("player")
                                         .executes(ctx -> challengeCancel(
                                                 ctx.getSource(), StringArgumentType.getString(ctx, "player"))))))
-                .then(CommandAccess.staffLiteral("admin")
-                        .executes(ctx -> adminHelp(ctx.getSource()))
-                        .then(Commands.m_82127_("help").executes(ctx -> adminHelp(ctx.getSource())))
-                        .then(Commands.m_82127_("save").executes(ctx -> save(ctx.getSource())))
-                        .then(Commands.m_82127_("refresh").executes(ctx -> refresh(ctx.getSource())))
-                        .then(Commands.m_82127_("status").executes(ctx -> adminStatus(ctx.getSource()))))
                 .then(LmCommandSuggestions.playerWord("player")
                         .executes(ctx -> silent(
                                 ctx.getSource(),
                                 StringArgumentType.getString(ctx, "player"))));
 
-        event.getDispatcher().register(root);
-        AdaptiveDifficultyMod.LOGGER.info("[{}] registered /rival", AdaptiveDifficultyMod.MOD_ID);
+        // 4.7.88: the old rival root is /lm rival; its admin branch is /lm admin rival.
+        LiteralArgumentBuilder<CommandSourceStack> admin = Commands.m_82127_("rival")
+                .executes(ctx -> adminHelp(ctx.getSource()))
+                .then(Commands.m_82127_("help").executes(ctx -> adminHelp(ctx.getSource())))
+                .then(Commands.m_82127_("save").executes(ctx -> save(ctx.getSource())))
+                .then(Commands.m_82127_("refresh").executes(ctx -> refresh(ctx.getSource())))
+                .then(Commands.m_82127_("status").executes(ctx -> adminStatus(ctx.getSource())));
+        event.getDispatcher().register(CommandAccess.underLm(root));
+        event.getDispatcher().register(CommandAccess.underLmAdmin(admin));
+        AdaptiveDifficultyMod.LOGGER.info("[{}] registered /lm rival and /lm admin rival", AdaptiveDifficultyMod.MOD_ID);
     }
 
     private static int gui(CommandSourceStack source, String page) {
@@ -149,7 +150,7 @@ public final class RivalCommands {
         return 1;
     }
 
-    /** Parse {@code /rival do <action> [arg…] [returnPage]} for CMI/GUI clicks. */
+    /** Parse {@code /lm rival do <action> [arg…] [returnPage]} for CMI/GUI clicks. */
     private static int guiDoRest(CommandSourceStack source, String action, String rest) {
         String a = action == null ? "" : action.trim();
         String r = rest == null ? "" : rest.trim();

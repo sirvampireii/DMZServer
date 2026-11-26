@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Forge command trees: one canonical path per feature; shortcuts only /diff and /padmin."""
+"""Forge command trees: one canonical path per feature, all under /lm (4.7.88: no shortcuts, no other roots)."""
 from __future__ import annotations
 
 import sys
@@ -13,7 +13,6 @@ BRIDGE = ROOT / "src/main/java/com/dbzlegacy/adaptivedifficulty/command/MohistCo
 REQUIRED_LM_ADMIN = [
     "help",
     "reload",
-    "migrate-cnpc",
     "clear",
     "character",
     "cooldown",
@@ -36,12 +35,7 @@ FORBIDDEN_LITERALS = [
     'List.of("sparring")',
 ]
 
-REQUIRED_FORGE_ROOTS = [
-    ("padmin", PROG),
-    ("progression", PROG),
-    ("difficulty", ROOT / "src/main/java/com/dbzlegacy/adaptivedifficulty/command/DifficultyCommands.java"),
-    ("lm", MECH),
-]
+ACCESS = ROOT / "src/main/java/com/dbzlegacy/adaptivedifficulty/command/CommandAccess.java"
 
 
 def read(path: Path) -> str:
@@ -66,8 +60,12 @@ def main() -> int:
     if "LmAdminArgCoalesce" not in bridge:
         errors.append("MohistCommandBridge must use LmAdminArgCoalesce")
 
-    if 'm_82127_("padmin")' not in prog:
-        errors.append("ProgressionCommands must register /padmin")
+    if "migrate-cnpc" in mech:
+        errors.append("/lm admin migrate-cnpc was retired in 4.7.88")
+    if 'm_82127_("padmin")' in prog:
+        errors.append("4.7.88: the padmin root is gone; prestige admin lives at /lm admin prestige")
+    if 'PrestigeAdminCommandTree.attach(Commands.m_82127_("prestige"))' not in prog:
+        errors.append("ProgressionCommands must attach PrestigeAdminCommandTree as /lm admin prestige")
     if "PrestigeAdminCommandTree" not in prog:
         errors.append("ProgressionCommands must use PrestigeAdminCommandTree")
     if 'm_82127_("admin")' in prog and "PrestigeAdminCommandTree.attach(Commands.m_82127_(\"admin\"))" in prog:
@@ -78,8 +76,10 @@ def main() -> int:
         if forbidden in hay:
             errors.append(f"Removed shortcut/duplicate still present: {forbidden}")
 
-    if 'register(build("lm"))' not in mech and 'm_82127_("lm")' not in mech:
-        errors.append("MechanicsCommands must register /lm")
+    if 'm_82127_("lm")' not in read(ACCESS) or "CommandAccess.lmRoot()" not in mech:
+        errors.append("MechanicsCommands must register /lm through CommandAccess.lmRoot()")
+    if bridge.count("registerOne(server, commandMap") != 1:
+        errors.append("4.7.88: the Mohist bridge forwards /lm only")
 
     out = ROOT / "sim/out/lm-admin-command-audit.md"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -91,7 +91,7 @@ def main() -> int:
         out.write_text("\n".join(lines) + "\n", encoding="utf-8")
         print("\n".join(errors), file=sys.stderr)
         return 1
-    lines.append("PASS — canonical command trees (/diff and /padmin are the only shortcuts)")
+    lines.append("PASS — canonical command trees, all under /lm (no shortcuts)")
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("PASS — lm admin command audit")
     return 0

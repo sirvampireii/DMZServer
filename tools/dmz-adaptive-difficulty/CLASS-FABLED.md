@@ -23,7 +23,7 @@ Add a class to any race `stats.json`:
 }
 ```
 
-On next boot / `/difficulty reload`:
+On next boot / `/lm difficulty reload`:
 
 - `class-fabled.json` gains a row (`shadow_knight` → Fabled skill **Shadow Knight**)
 - YAML stubs are created if missing

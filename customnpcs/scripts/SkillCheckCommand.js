@@ -4,7 +4,7 @@
  Trigger ID: 21
 
  Forwards to SkillCheckService.trigger21. Any player may open it from the NPC.
- Prefer: LM-SkillCheck-NPC.js on the NPC, or /skillcheck (donator perm).
+ Prefer: LM-SkillCheck-NPC.js on the NPC, or /lm skillcheck (donator perm).
 ============================================================
 */
 
@@ -30,4 +30,4 @@ function trigger(e) {
     }
 }
 
-function command(e) { /* owned by LegacyMechanics — use /skillcheck */ }
+function command(e) { /* owned by LegacyMechanics — use /lm skillcheck */ }

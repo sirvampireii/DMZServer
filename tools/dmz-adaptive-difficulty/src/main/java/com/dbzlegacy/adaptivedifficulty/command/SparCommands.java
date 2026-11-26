@@ -22,7 +22,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
-/** {@code /spar} — Sparring Tp System 3.2.11 command surface. */
+/** {@code /lm spar} — Sparring Tp System 3.2.11 command surface. */
 public final class SparCommands {
     private SparCommands() {}
 
@@ -33,7 +33,6 @@ public final class SparCommands {
     @SubscribeEvent
     public void onRegister(RegisterCommandsEvent event) {
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.m_82127_("spar")
-                .requires(CommandAccess::isPlayerSlashUser)
                 .executes(ctx -> gui(ctx.getSource(), "main"))
                 .then(Commands.m_82127_("gui").executes(ctx -> gui(ctx.getSource(), "main")))
                 .then(Commands.m_82127_("help").executes(ctx -> playerHelp(ctx.getSource())))
@@ -49,9 +48,16 @@ public final class SparCommands {
                         .then(LmCommandSuggestions.word("category", LmCommandSuggestions.SPAR_TOP_CATEGORIES)
                                 .executes(ctx -> top(
                                         ctx.getSource(),
-                                        StringArgumentType.getString(ctx, "category")))))
-                .then(Commands.m_82127_("dojo")
-                        .executes(ctx -> dojoInfo(ctx.getSource()))
+                                        StringArgumentType.getString(ctx, "category")))));
+        // 4.7.88: the old spar dojo branch is /lm dojo. Bare /lm dojo opens the Dojo menu (the picker first for a player in
+        // two dojos); the old text summary is /lm dojo summary.
+        LiteralArgumentBuilder<CommandSourceStack> dojo = Commands.m_82127_("dojo")
+                        .executes(ctx -> dojoMenu(ctx.getSource()))
+                        .then(Commands.m_82127_("summary").executes(ctx -> dojoInfo(ctx.getSource())))
+                        .then(Commands.m_82127_("help").executes(ctx -> {
+                            LmCommandFeedback.tellLines(ctx.getSource(), LmCommandHelp.dojoPlayer());
+                            return 1;
+                        }))
                         .then(Commands.m_82127_("top")
                                 .executes(ctx -> dojoTop(ctx.getSource(), "rp"))
                                 .then(LmCommandSuggestions.word("category", LmCommandSuggestions.SPAR_TOP_CATEGORIES)
@@ -83,7 +89,8 @@ public final class SparCommands {
                                 .then(LmCommandSuggestions.playerWord("player")
                                         .executes(ctx -> dojoChallenge(
                                                 ctx.getSource(),
-                                                StringArgumentType.getString(ctx, "player"))))))
+                                                StringArgumentType.getString(ctx, "player")))));
+        root = root
                 .then(Commands.m_82127_("do")
                         // Full GUI surface via SparGuiApi.handleDo — greedy rest for uuid: args.
                         .then(Commands.m_82129_("action", StringArgumentType.word())
@@ -133,8 +140,9 @@ public final class SparCommands {
                                                 .executes(ctx -> weightBuy(
                                                         ctx.getSource(),
                                                         StringArgumentType.getString(ctx, "type"),
-                                                        IntegerArgumentType.getInteger(ctx, "value")))))))
-                .then(CommandAccess.staffLiteral("admin")
+                                                        IntegerArgumentType.getInteger(ctx, "value")))))));
+        // 4.7.88: the old spar admin branch is /lm admin spar.
+        LiteralArgumentBuilder<CommandSourceStack> admin = Commands.m_82127_("spar")
                         .executes(ctx -> sparAdminHelp(ctx.getSource()))
                         .then(Commands.m_82127_("help").executes(ctx -> sparAdminHelp(ctx.getSource())))
                         .then(Commands.m_82127_("save").executes(ctx -> save(ctx.getSource())))
@@ -145,10 +153,13 @@ public final class SparCommands {
                                         .then(LmCommandSuggestions.playerWord("player")
                                                 .executes(ctx -> resetCd(
                                                         ctx.getSource(),
-                                                        StringArgumentType.getString(ctx, "player")))))));
+                                                        StringArgumentType.getString(ctx, "player"))))));
 
-        event.getDispatcher().register(root);
-        AdaptiveDifficultyMod.LOGGER.info("[{}] registered /spar", AdaptiveDifficultyMod.MOD_ID);
+        event.getDispatcher().register(CommandAccess.underLm(root));
+        event.getDispatcher().register(CommandAccess.underLm(dojo));
+        event.getDispatcher().register(CommandAccess.underLmAdmin(admin));
+        AdaptiveDifficultyMod.LOGGER.info("[{}] registered /lm spar, /lm dojo and /lm admin spar",
+                AdaptiveDifficultyMod.MOD_ID);
     }
 
     private static int weightUsage(CommandSourceStack source) {
@@ -157,8 +168,8 @@ public final class SparCommands {
             return 0;
         }
         DmzRewards.msg(player, "§7Training weights — §f1 ancient copper §7per weight value.");
-        DmzRewards.msg(player, "§7Price check: §f/spar weight quote <type> <value>");
-        DmzRewards.msg(player, "§7Buy: §f/spar weight buy <type> <value>");
+        DmzRewards.msg(player, "§7Price check: §f/lm spar weight quote <type> <value>");
+        DmzRewards.msg(player, "§7Buy: §f/lm spar weight buy <type> <value>");
         DmzRewards.msg(player, "§8Types: turtle_shell, workout_weights, piccolo_cape");
         return 0;
     }
@@ -197,7 +208,7 @@ public final class SparCommands {
         return 1;
     }
 
-    /** Parse {@code /spar do <action> [arg…] [returnPage]} for CMI/GUI clicks. */
+    /** Parse {@code /lm spar do <action> [arg…] [returnPage]} for CMI/GUI clicks. */
     private static int guiDoRest(CommandSourceStack source, String action, String rest) {
         String a = action == null ? "" : action.trim();
         String r = rest == null ? "" : rest.trim();
@@ -252,6 +263,15 @@ public final class SparCommands {
             DmzRewards.msg(player, line);
         }
         return 1;
+    }
+
+    /** {@code /lm dojo}: the Dojo menu, the same destination as the hub's Dojo tile and {@code /lm open dojo}. */
+    private static int dojoMenu(CommandSourceStack source) {
+        ServerPlayer player = playerOrNull(source);
+        if (player == null || !enabled(player)) {
+            return 0;
+        }
+        return MechanicsCommands.openSystemMenu(player, "dojo") ? 1 : 0;
     }
 
     private static int dojoInfo(CommandSourceStack source) {

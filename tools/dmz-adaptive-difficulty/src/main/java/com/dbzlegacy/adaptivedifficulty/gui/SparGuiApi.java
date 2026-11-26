@@ -19,7 +19,7 @@ import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 
 /**
  * Public static API for Bukkit companion reflection ({@code LegacyMechanicsGUI}).
- * Status maps, lore lines, and {@code /spar do} action dispatch without reopening menus —
+ * Status maps, lore lines, and {@code /lm spar do} action dispatch without reopening menus —
  * the companion plugin owns inventory reopen.
  */
 public final class SparGuiApi {
@@ -464,9 +464,9 @@ public final class SparGuiApi {
             case "mentor", "actions", "dojo", "roster", "apprentices" -> mentorLines(player);
             case "pending", "invites", "pendinginvites" -> pendingMentorLines(player);
             case "help" -> List.of(
-                    UltraStyle.HEADER + "/spar " + UltraStyle.DIM + "- Sparring TP",
+                    UltraStyle.HEADER + "/lm spar " + UltraStyle.DIM + "- Sparring TP",
                     UltraStyle.LABEL + "Mentor bonds live under Training bonds",
-                    UltraStyle.YELLOW + "/spar stats|end|top [category]",
+                    UltraStyle.YELLOW + "/lm spar stats|end|top [category]",
                     UltraStyle.DIM + "Commands still work for staff / scripts"
             );
             default -> {
@@ -503,7 +503,7 @@ public final class SparGuiApi {
     }
 
     /**
-     * Dispatch {@code /spar do} actions. Does not reopen GUI — caller reopens.
+     * Dispatch {@code /lm spar do} actions. Does not reopen GUI — caller reopens.
      *
      * @param action e.g. {@code page}, {@code end}, {@code mentor}
      * @param arg    e.g. page name, {@code accept}/{@code decline}/{@code remove}
@@ -690,7 +690,7 @@ public final class SparGuiApi {
         }
         if ("dojo_name".equals(act) || "dojo_rename".equals(act)) {
             if (a.isBlank()) {
-                return UltraStyle.DANGER + "Usage: /spar dojo name <name>";
+                return UltraStyle.DANGER + "Usage: /lm dojo name <name>";
             }
             return SparringSystem.dojoSetName(player, a);
         }
@@ -703,7 +703,7 @@ public final class SparGuiApi {
         return UltraStyle.DANGER + "Something went wrong. Try again, or ask staff if it keeps happening.";
     }
 
-    /** Staff: save / status / mentor resetcd — used by GUI + {@code /spar admin …}. */
+    /** Staff: save / status / mentor resetcd — used by GUI + {@code /lm admin spar …}. */
     public static String handleAdmin(ServerPlayer player, String arg) {
         if (!StaffAccess.isStaff(player)) {
             return UltraStyle.DANGER + "Staff only.";
@@ -741,11 +741,11 @@ public final class SparGuiApi {
             }
             return SparringSystem.resetMentorCd(player, target);
         }
-        return UltraStyle.HEADER + "/spar admin\n"
-                + UltraStyle.YELLOW + "/spar admin save " + UltraStyle.LABEL + "- save sparring data to disk\n"
-                + UltraStyle.YELLOW + "/spar admin status " + UltraStyle.LABEL + "- enabled + path\n"
+        return UltraStyle.HEADER + "/lm admin spar\n"
+                + UltraStyle.YELLOW + "/lm admin spar save " + UltraStyle.LABEL + "- save sparring data to disk\n"
+                + UltraStyle.YELLOW + "/lm admin spar status " + UltraStyle.LABEL + "- enabled + path\n"
                 + UltraStyle.LABEL + "Clear mentor cooldown\n"
-                + UltraStyle.DIM + "/spar admin mentor resetcd [player]\n"
+                + UltraStyle.DIM + "/lm admin spar mentor resetcd [player]\n"
                 + UltraStyle.DIM + "GUI buttons call these directly (no Forge perm-level gate).";
     }
 

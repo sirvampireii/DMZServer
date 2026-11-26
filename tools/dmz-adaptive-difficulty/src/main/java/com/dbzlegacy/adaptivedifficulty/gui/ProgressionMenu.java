@@ -8,7 +8,7 @@ import com.dbzlegacy.adaptivedifficulty.util.DmzRewards;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import net.minecraft.server.level.ServerPlayer;
 
-/** {@code /progression} — staff tools + player android remove. */
+/** {@code /lm progression} — staff tools + player android remove. */
 public final class ProgressionMenu {
     private ProgressionMenu() {}
 

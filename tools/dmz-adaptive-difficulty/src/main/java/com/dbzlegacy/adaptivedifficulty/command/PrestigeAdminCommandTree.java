@@ -9,7 +9,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 
-/** Brigadier tree for {@code /padmin} (staff prestige adjustments). */
+/** Brigadier tree for {@code /lm admin prestige} (staff prestige adjustments). */
 public final class PrestigeAdminCommandTree {
     private PrestigeAdminCommandTree() {}
 

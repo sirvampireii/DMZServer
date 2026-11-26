@@ -202,7 +202,7 @@ public final class GodKiEnhancementShop {
     }
 
     /**
-     * The old Effects purchase ({@code do:godki}, {@code /prestige buy godki}). God Ki is bought in the
+     * The old Effects purchase ({@code do:godki}, {@code /lm prestige buy godki}). God Ki is bought in the
      * Mastery wallet now, so this only says where to go and changes nothing.
      */
     public static String buy(ServerPlayer player) {
@@ -267,7 +267,7 @@ public final class GodKiEnhancementShop {
     /**
      * One-time refund of levels bought on the old Effects page (4.7.21): n levels add n favor, the
      * level goes to 0 and the granted God Ki (skill, mastery, form records) is wiped, the same as a
-     * staff {@code /padmin godki} set to 0. Runs on login ({@link #refundOnLogin}), before any level
+     * staff {@code /lm admin prestige godki} set to 0. Runs on login ({@link #refundOnLogin}), before any level
      * write (wallet, staff) and from {@link #reapply}; it waits until the character is attached so the
      * wipe can reach it, and writes nothing until then. The marker is written first, in the same record
      * as the level and the favor, and the record is saved straight away; a second call is a no-op.
@@ -305,7 +305,7 @@ public final class GodKiEnhancementShop {
     }
 
     /**
-     * Staff {@code /padmin godki} — store an investment count directly (no favor
+     * Staff {@code /lm admin prestige godki} — store an investment count directly (no favor
      * charged) and align the enhancement to it: a raise tops mastery up through
      * {@link #reapply}, a reduce drops the mastery records first so the top-up
      * lands at the new count, and zero fully strips skill, forms, and history

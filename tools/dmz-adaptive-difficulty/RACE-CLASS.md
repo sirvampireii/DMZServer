@@ -15,7 +15,7 @@ Race lock no longer blocks a race or resets a character. Prestige skills are sti
 
 ## Toggle
 
-Same flag as class sync: `enableRaceClassSync` in `config/legacymechanics.json` (or `/prog` Fabled page).
+Same flag as class sync: `enableRaceClassSync` in `config/legacymechanics.json` (or `/lm progression` Fabled page).
 
 ## Telemetry
 

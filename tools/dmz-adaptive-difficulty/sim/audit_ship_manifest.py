@@ -1297,9 +1297,10 @@ def main() -> int:
         check(_name + " boost: undecodable value gets undecodedReply with the value and both forms",
               "if (decoded == null) {\n            return undecodedReply(encoded);" in _start
               and '" was not understood. Use one of these:' in _reply and "+ encoded +" in _reply
-              and ('"progression ' + _cmd + ' start <encoded>"') in _reply and '"2000030"' in _reply
-              and ('"progression ' + _cmd + ' start <multiplier> <minutes>"') in _reply
-              and ('"progression ' + _cmd + ' start 2 30"') in _reply
+              # 4.7.88: the boost tree lives at /lm admin progression.
+              and ('"/lm admin progression ' + _cmd + ' start <encoded>"') in _reply and '"2000030"' in _reply
+              and ('"/lm admin progression ' + _cmd + ' start <multiplier> <minutes>"') in _reply
+              and ('"/lm admin progression ' + _cmd + ' start 2 30"') in _reply
               and "§" not in _reply and "Invalid" not in _src)
         check(_name + " boost: decode and activate checks unchanged",
               "if (multiplier <= 1.0 || durationMinutes <= 0) {" in _src
@@ -1336,7 +1337,7 @@ def main() -> int:
           and "return boostEncoded(source, (int) value, null);" in _mo
           and "GlobalTpBoost.undecodedReply(String.valueOf(value))" in _mo)
     check("dispatch self-test parses the real tree: 2 30 Steve, 2.5 30, 2000030, 2000030 123, 2",
-          "dispatcher.register(build(\"progression\"));" in sd_cmd
+          "dispatcher.register(CommandAccess.underLmAdmin(adminBuild(\"progression\")));" in sd_cmd
           and '"start 2 30 Steve"' in sd_cmd and '"start 2.5 30"' in sd_cmd and '"start 2000030"' in sd_cmd
           and '"start 2000030 123"' in sd_cmd and 'expect(broken, dispatcher, src, tree, "start 2", ' in sd_cmd
           and "ProgressionCommands.selfTestBoostDispatch()" in sd_test)
@@ -1853,7 +1854,7 @@ def main() -> int:
           "TURN_IN_AMOUNTS = {1, 2, 3, 6, 9, 12, 15, 18};" in xp_pts
           and "DEFAULT_AMOUNTS = List.of(1, 2, 3, 6, 9, 12, 15, 18);" in xp_cfg
           and '"1", "2", "3", "6", "9", "12", "15", "18"' in xp_sug
-          and "/prestige turnin <1|2|3|6|9|12|15|18>" in xp_help)
+          and "/lm prestige turnin <runs>" in xp_help and "(1, 2, 3, 6, 9, 12, 15 or 18)" in xp_help)
     check("bonus table 3->4, 6->8, 9->13, 12->18, 15->23, 18->28",
           "1, 0, 2, 0, 3, 1, 6, 2, 9, 4, 12, 6, 15, 8, 18, 10);" in xp_cfg)
     check("old saved default list gains the new packs once; a staff list is kept",
@@ -2038,6 +2039,86 @@ def main() -> int:
           and "MIN_SCALE = 0.5f;" in read(SRC / "net/gui/NativeMenuFit.java"))
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 3
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.7.88 ---")
+    p88_acc = read(SRC / "command/CommandAccess.java")
+    p88_staff = read(SRC / "util/StaffAccess.java")
+    p88_gate = read(SRC / "command/AdminGate.java")
+    p88_mech = read(SRC / "command/MechanicsCommands.java")
+    p88_bridge = read(SRC / "command/MohistCommandBridge.java")
+    p88_sug = read(SRC / "command/LmCommandSuggestions.java")
+    p88_help = read(SRC / "command/LmCommandHelp.java")
+    p88_diff = read(SRC / "command/DifficultyCommands.java")
+    p88_prog = read(SRC / "command/ProgressionCommands.java")
+    p88_rules = read(SRC / "dojo/DojoWorldRules.java")
+    p88_svc = read(SRC / "dojo/DojoService.java")
+    p88_dscr = read(SRC / "gui/ultra/UltraDojoScreens.java")
+    p88_insp = read(SRC / "gui/ForgeInspectGui.java")
+    p88_mod = read(SRC / "AdaptiveDifficultyMod.java")
+    p88_probe = (ROOT / "tools/lm-ui-probe/src/com/dbzlegacy/uiprobe/UiProbe.java").read_text(encoding="utf-8")
+    check("manifest row for lm 4.7.88", "lm-4788-commands-dojo" in manifest)
+    check("A: every system registers under /lm (player branch) or /lm admin (staff branch)",
+          all('CommandAccess.underLm' in read(SRC / ("command/" + f)) for f in (
+              "DifficultyCommands.java", "RivalCommands.java", "SparCommands.java", "CharacterCommands.java",
+              "ProgressionCommands.java", "TerminalCommands.java"))
+          and "public static LiteralArgumentBuilder<CommandSourceStack> underLmAdmin(" in p88_acc)
+    _roots = re.findall(r'register\(\s*(?:Commands\.m_82127_|CommandAccess\.playerRoot|CommandAccess\.staffRoot)\("([a-z]+)"',
+                        "".join(read(f) for f in (SRC / "command").glob("*.java")))
+    check("A: no old top-level roots are registered; the bridge forwards /lm only",
+          _roots == [] and p88_bridge.count("registerOne(server, commandMap") == 1
+          and '"lm", List.of(), null' in p88_bridge and "isStaffOnlyBukkitCommand" not in p88_acc
+          and "isSkillCheckBukkitCommand" not in p88_acc)
+    check("A: /progression admin is /lm admin progression flags (no admin admin)",
+          'Commands.m_82127_("flags")' in p88_prog and 'Commands.m_82127_("admin")' not in p88_prog)
+    check("B: dead leaves deleted (migrate-cnpc, LM vanilla difficulty setters, gamedifficulty)",
+          "migrate-cnpc" not in p88_mech and "vanillaDifficultyLiteral" not in p88_diff
+          and '"gamedifficulty"' not in p88_diff and "VANILLA_DIFFICULTY" not in p88_sug
+          and "forceMigrateWorld" not in read(SRC / "data/CnpcDataMigrator.java"))
+    check("C: /lm open dojo (picker entry) and goals, /lm hud on|off, dojo inspect; no dojo clear scope",
+          "UltraDojoScreens.openDojoEntry(player);" in p88_mech and "UltraHubScreens.PAGE_GOALS" in p88_mech
+          and '"dojo", "goals"' in p88_sug and 'm_82127_("hud")' in p88_mech
+          and "LmHud.set(player, want);" in p88_mech and 'case "dojo" -> {' in p88_insp
+          and '"all", "rival", "spar", "difficulty", "progression"\n    );' in p88_sug)
+    check("D: admin nodes need staff in creative (console unchanged); tab-complete refreshes on a gamemode change",
+          "public static boolean isAdminSource(CommandSourceStack src)" in p88_staff
+          and "return ASSUME_CREATIVE.get() || player.m_7500_();" in p88_staff
+          and 'return Commands.m_82127_(name).requires(StaffAccess::isAdminSource);' in p88_acc
+          and '"Staff admin commands need creative mode."' in p88_gate
+          and '" Switch to creative and try again."' in p88_gate
+          and "PlayerChangeGameModeEvent" in p88_gate and "m_82095_(player)" in p88_gate
+          and "AdminGate.register();" in p88_mod)
+    check("D: revive, skillcheck and terminal keep their own rules",
+          "StaffAccess.isAdminSource" not in read(SRC / "command/LmRevive.java")
+          and "requires(StaffAccess::hasSkillCheckSource)" in p88_prog
+          and "requires(TerminalCommands::mayOpen)" in read(SRC / "command/TerminalCommands.java"))
+    check("E: /lm help is a plain guide grouped by what you want to do, no admin commands",
+          '"Open a menu"' in p88_help and '"Your stuff"' in p88_help and '"Get help"' in p88_help
+          and "public static String dojoPlayer()" in p88_help
+          and "admin" not in p88_help.split("public static String lmPlayer()", 1)[1].split("// ------------------------------------------------------------------ /lm admin help", 1)[0])
+    _old = re.compile(r'(?:\u00a7.|\\u00a7.|^|[^\w/.:\-])/(difficulty|diff|rival|spar|progression|prog|prestige|padmin|'
+                      r'character|skillcheck|skills|enddragon|androidify|terminal)(?![\w\-])')
+    _hits = []
+    for _f in sorted(SRC.rglob("*.java")):
+        for _n, _line in enumerate(_f.read_text(encoding="utf-8").splitlines(), 1):
+            _t = _line.strip()
+            if _t.startswith("//") or _t.startswith("*") or _t.startswith("/*"):
+                continue
+            for _lit in re.findall(r'"((?:[^"\\]|\\.)*)"', _line):
+                if _old.search(_lit) and "/difficulty <level>" not in _lit:
+                    _hits.append(_f.name + ":" + str(_n))
+    check("E: no string in the mod prints a deleted command (vanilla /difficulty <level> named on purpose)",
+          not _hits, ", ".join(_hits[:8]))
+    check("F: dojo world rules are Forge events (no new mixin): only the plot's master builds; ki only in a bout",
+          'ONLY_MASTER = "Only the master of this dojo can build here."' in p88_rules
+          and "public static boolean kiBlocked(" in p88_rules and "SparCombat.classifyKiType" in p88_rules
+          and "@Mixin" not in p88_rules and "DojoWorldRules.INSTANCE" in p88_mod)
+    check("G: Your dojos picker for 2+ dojos; management checks the viewed dojo",
+          "public static List<Affiliation> affiliations(UUID player)" in p88_svc
+          and "public static void openDojoEntry(ServerPlayer player)" in p88_dscr
+          and "viewedDojo(" in p88_dscr and '"dojo_mine"' in p88_dscr)
+    check("probe: command tree, gate, help and hud; dojo rules; dojo picker with a real dual player",
+          "private void v88Commands()" in p88_probe and "private void v88DojoRules()" in p88_probe
+          and "private void v88DojoPicker()" in p88_probe)
+
     print("\n--- § lm 4.7.87 ---")
     p87_hud = read(SRC / "gui/ultra/LmHud.java")
     p87_over = read(SRC / "client/HudOverlay.java")
@@ -2669,9 +2750,12 @@ def main() -> int:
     check("a spar waits for the host's hall to be built; fighters land on the hall's ring centres",
           'return host.name + "\'s hall is being built. Try again in a few seconds.";' in p68_board
           and "double[] c = DojoWorld.ringCenter(host, arena);" in p68_board)
-    check("the dojo world is protected: only staff break or place blocks; blasts break nothing",
-          "public void onDojoBreak(BlockEvent.BreakEvent event)" in p68_ev
-          and "public void onDojoPlace(BlockEvent.EntityPlaceEvent event)" in p68_ev
+    # 4.7.88: the staff-only block rule became DojoWorldRules (only the plot's master builds; no staff bypass).
+    p68_rules = read(SRC / "dojo/DojoWorldRules.java")
+    check("the dojo world is protected: only the plot's master breaks or places blocks; blasts break nothing",
+          "public void onBreak(BlockEvent.BreakEvent event)" in p68_rules
+          and "public void onPlace(BlockEvent.EntityPlaceEvent event)" in p68_rules
+          and "onDojoBreak" not in p68_ev
           and "event.getAffectedBlocks().clear();" in p68_ev)
     check("main menu: Sparring and Dojo tiles, one tap each (4.7.78)",
           'new HubTile("spar", "Sparring"' in p68_hub and 'new HubTile("dojo", "Dojo"' in p68_hub
@@ -3931,7 +4015,7 @@ def main() -> int:
           and 'LM_TEST_PROBES:-0' in p36_build
           and (ROOT / "docs/LM_TEST_PROBES.md").exists())
     check("staff God Ki strings read <0-10>",
-          '"/padmin godki <player> set <0-10>"' in p36_help
+          '"/lm admin prestige godki <player> set <0-10>"' in p36_help
           and "godki <player> <set|add|remove> <0-10>" in p36_admin
           and "<0-5>" not in p36_help and "<0-5>" not in p36_admin)
     check("self-test checks the 10-level God Ki wallet",
@@ -5106,11 +5190,11 @@ def main() -> int:
     check("player android remove performs the remove",
           "androidRemoveGuiHint" in prog_cmds
           and "return androidRemoveSelf(source);" in prog_cmds
-          and "/progression android remove" in cmd_help)
+          and "/lm progression android remove" in cmd_help)
     check("prestige effects view command",
           'm_82127_("effects")' in prog_cmds
           and "prestigeEffects" in prog_cmds
-          and "/prestige effects" in cmd_help)
+          and "/lm prestige effects" in cmd_help)
 
     print("\n--- § fabled removed ---")
     bridge_dir = SRC / "progression/bridge"
@@ -5170,8 +5254,8 @@ def main() -> int:
     term_block = terminal_yml.split("\n  terminal:", 1)[1].split("\n  lmdo:", 1)[0]
     check("/terminal opens Lightman network terminal",
           "TerminalMenuProvider.OpenMenu" in terminal and "SimpleValidator.NULL" in terminal)
-    check("/terminal is a player command",
-          'playerRoot("terminal")' in terminal_cmd
+    check("/lm terminal is a player command",
+          'm_82127_("terminal")' in terminal_cmd and "requires(TerminalCommands::mayOpen)" in terminal_cmd
           and "cmi.customalias.terminal" in terminal_cmd
           and "hasTerminalPermission" in terminal_cmd and "hasDonatorPermission" not in terminal_cmd)
     check("bukkit /terminal is registered",
@@ -5183,7 +5267,8 @@ def main() -> int:
           "terminalNode()" in terminal_staff.split("public static boolean hasTerminalPermission(", 1)[1].split("}", 1)[0]
           and "TerminalCommands" in terminal_bridge
           and '"allowed".equals' in terminal_bridge
-          and '"terminal", List.of(), null' in terminal_mohist)
+          # 4.7.88: the bridge forwards /lm only; /lm terminal goes through it.
+          and '"lm", List.of(), null' in terminal_mohist and '"terminal", List.of()' not in terminal_mohist)
     check("CMI terminal alias is not reintroduced",
           "forcecast" not in alias_note and "CustomAlias:" not in alias_note
           and "legacymechanics.skillcheck" in alias_note)

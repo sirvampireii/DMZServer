@@ -4,7 +4,7 @@
 ============================================================
  LegacyMechanics (Forge) owns this system:
    Java: com.dbzlegacy.adaptivedifficulty.command.RivalCommands
-   Use: /rival
+   Use: /lm rival
 
  Full script backup: uploads/scripts/Rival Command Handler.js
    and/or uploads/script-backups-full/ / live-scripts-2026-08-27/

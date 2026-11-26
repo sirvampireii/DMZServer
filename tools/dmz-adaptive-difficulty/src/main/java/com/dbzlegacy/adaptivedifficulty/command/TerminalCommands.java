@@ -11,7 +11,7 @@ import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 /**
- * {@code /terminal} — Lightman's Currency network terminal.
+ * {@code /lm terminal} (4.7.88; was a top-level root) — Lightman's Currency network terminal.
  * Terminal node holders ({@code legacymechanics.donator.terminal}) or players with the retired CMI node
  * ({@code cmi.customalias.terminal}).
  */
@@ -36,11 +36,12 @@ public final class TerminalCommands {
 
     @SubscribeEvent
     public void onRegister(RegisterCommandsEvent event) {
-        event.getDispatcher().register(
-                CommandAccess.playerRoot("terminal")
+        // 4.7.88: now /lm terminal, same rule (terminal node or the retired CMI alias node).
+        event.getDispatcher().register(CommandAccess.underLm(
+                net.minecraft.commands.Commands.m_82127_("terminal")
                         .requires(TerminalCommands::mayOpen)
-                        .executes(ctx -> open(ctx.getSource())));
-        AdaptiveDifficultyMod.LOGGER.info("[{}] registered /terminal", AdaptiveDifficultyMod.MOD_ID);
+                        .executes(ctx -> open(ctx.getSource()))));
+        AdaptiveDifficultyMod.LOGGER.info("[{}] registered /lm terminal", AdaptiveDifficultyMod.MOD_ID);
     }
 
     /** Terminal node holders or players with {@link #ALIAS_PERMISSION}. Console cannot open the menu. */

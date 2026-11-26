@@ -518,9 +518,6 @@ public final class UltraGuiActions {
                     "reload",
                     "reloadconfig",
                     "syslog",
-                    "migrate-cnpc",
-                    "migratecnpc",
-                    "cnpcmigrate",
                     "guitest_ack",
                     // Staff convert only - android_remove stays player-facing.
                     "android",

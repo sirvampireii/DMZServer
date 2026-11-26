@@ -4,7 +4,7 @@
 ============================================================
  LegacyMechanics (Forge) owns this system:
    Java: com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem
-   Use: /prestige · /lm → Prestige
+   Use: /lm prestige · /lm → Prestige
 
  Full script backup: uploads/scripts/Prestige NPC.js
    and/or uploads/script-backups-full/ / live-scripts-2026-08-27/

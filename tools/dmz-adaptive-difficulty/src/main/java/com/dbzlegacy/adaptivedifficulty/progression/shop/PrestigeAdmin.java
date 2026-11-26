@@ -63,7 +63,7 @@ public final class PrestigeAdmin {
                 sb.append("§8  · §7").append(line).append('\n');
             }
         }
-        sb.append("\n§8Adjust: /padmin skill ").append(target.m_6302_())
+        sb.append("\n§8Adjust: /lm admin prestige skill ").append(target.m_6302_())
                 .append(" <id> set|add|remove <levels>");
         return sb.toString().trim();
     }
@@ -156,7 +156,7 @@ public final class PrestigeAdmin {
     }
 
     /**
-     * Staff {@code /padmin godki} — set/add/remove the God Ki Enhancement
+     * Staff {@code /lm admin prestige godki} — set/add/remove the God Ki Enhancement
      * investment count (0–5) for another player. Menu-inline feedback mirrors
      * {@link #adjustHeld}: value, mastery after the change, then the name.
      */

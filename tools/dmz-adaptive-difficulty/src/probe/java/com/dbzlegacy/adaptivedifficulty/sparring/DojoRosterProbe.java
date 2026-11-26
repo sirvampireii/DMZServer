@@ -20,8 +20,8 @@ import net.minecraftforge.common.util.FakePlayerFactory;
  *   <li>Members (M's view and A's view) list the live roster with board numbers; X is not there.</li>
  *   <li>Previous members list X with his RP / TP / W-L; roster players are not there.</li>
  *   <li>M releases B the real way: B leaves the members page and shows on Previous members, same session.</li>
- *   <li>The /spar lines equal the GUI page lines (apart from the heading); the commands parse.</li>
- *   <li>/spar dojo season advance from the console previews only; a non-staff player cannot run it; the confirm
+ *   <li>The /lm spar lines equal the GUI page lines (apart from the heading); the commands parse.</li>
+ *   <li>/lm dojo season advance from the console previews only; a non-staff player cannot run it; the confirm
  *       form ends the season once (season id + 1, one Hall of Chosen record with M's dojo on top, board and
  *       Previous members empty).</li>
  *   <li>The 75-day expiry goes through the same rollover (id + 1, one more Hall of Chosen record).</li>
@@ -109,29 +109,29 @@ public final class DojoRosterProbe {
                     has(prevOwn, "#1", "ProbeXray") && has(prevOwn, "#2", "ProbeBravo", "222 RP", "3W", "2L"));
             check("the board itself is not pruned", e.members.size() == 4);
 
-            check("/spar dojo members lines = the GUI page (M and A)",
+            check("/lm dojo members lines = the GUI page (M and A)",
                     body(SparringSystem.dojoMemberLines(m)).equals(body(own))
                             && body(SparringSystem.dojoMemberLines(a)).equals(body(SparGuiApi.joinedDojoMemberLines(a))));
-            check("/spar dojo previous-members lines = the GUI page (M and A)",
+            check("/lm dojo previous-members lines = the GUI page (M and A)",
                     body(SparringSystem.dojoPreviousMemberLines(m)).equals(body(prevOwn))
                             && body(SparringSystem.dojoPreviousMemberLines(a))
                                     .equals(body(SparGuiApi.joinedDojoPreviousMemberLines(a))));
-            check("/spar dojo members and previous-members run for a player",
-                    cmd(server, m, "spar dojo members") == 1 && cmd(server, m, "spar dojo previous-members") == 1);
+            check("/lm dojo members and previous-members run for a player",
+                    cmd(server, m, "lm dojo members") == 1 && cmd(server, m, "lm dojo previous-members") == 1);
 
             int hof = store.dojoHallOfFame.size();
-            check("non-staff player cannot run /spar dojo season advance confirm",
-                    cmd(server, a, "spar dojo season advance confirm") <= 0 && store.dojoSeason.seasonId == 41);
+            check("non-staff player cannot run /lm dojo season advance confirm",
+                    cmd(server, a, "lm dojo season advance confirm") <= 0 && store.dojoSeason.seasonId == 41);
             List<String> preview = DojoRankings.seasonAdvancePreviewLines();
             log("season advance preview", preview);
             check("preview names season #41, 10 of 75 days, the leading dojo and the confirm form",
                     has(preview, "#41", "10 of 75 days") && has(preview, "Leading", "900 RP")
-                            && has(preview, "/spar dojo season advance confirm"));
-            check("console /spar dojo season advance only previews",
-                    console(server, "spar dojo season advance") == 1 && store.dojoSeason == season
+                            && has(preview, "/lm dojo season advance confirm"));
+            check("console /lm dojo season advance only previews",
+                    console(server, "lm dojo season advance") == 1 && store.dojoSeason == season
                             && store.dojoHallOfFame.size() == hof);
-            check("console /spar dojo season advance confirm ends the season once",
-                    console(server, "spar dojo season advance confirm") == 1 && store.dojoSeason.seasonId == 42
+            check("console /lm dojo season advance confirm ends the season once",
+                    console(server, "lm dojo season advance confirm") == 1 && store.dojoSeason.seasonId == 42
                             && store.dojoHallOfFame.size() == hof + 1
                             && store.dojoHallOfFame.get(0).seasonId == 41
                             && store.dojoHallOfFame.get(0).championUuid.equals(mk)

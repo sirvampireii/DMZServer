@@ -183,6 +183,8 @@ public final class PageRegistry {
         item("dojo", "main", "Dojo", "hub|main");
         item("dojo", "dojo", "Dojo", "hub|main");
         item("dojo", "dojo_home", "Dojo", "hub|main");
+        // 4.7.88: a player in two dojos (their own and their master's) picks one here first.
+        p("dojo", "dojo_mine", "Your dojos", "hub|main", "my dojos switch master disciple pick");
         p("dojo", "dojo_upgrades", "Upgrades", "dojo|home", "build hall");
         item("dojo", "upgrades", "Upgrades", "dojo|home");
         // 4.7.84 (X7): one word, "ring" (the page id stays dojo_up:arena).

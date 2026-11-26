@@ -4,7 +4,7 @@ import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGui;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import net.minecraft.server.level.ServerPlayer;
 
-/** Player UI entrypoint for {@code /difficulty}. */
+/** Player UI entrypoint for {@code /lm difficulty}. */
 public final class DifficultyMenu {
     private DifficultyMenu() {}
 

@@ -4,7 +4,7 @@
  Trigger ID: 41
 
  The old MeditationProgression trainer and
- /progression meditation next are gone. Meditation levels
+ /lm progression meditation next are gone. Meditation levels
  while the player is already meditating near a Living World
  circle. This trigger does nothing.
 ============================================================

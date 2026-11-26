@@ -1,18 +1,17 @@
 package com.dbzlegacy.adaptivedifficulty.command;
 
-import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Player-facing slash commands: {@code /lm}, {@code /diff}, {@code /difficulty},
- * {@code /rival}, {@code /spar}, {@code /progression}, {@code /prestige} (shop),
- * {@code /character} (services), {@code /skillcheck} (donators), {@code /terminal}
- * (donators), and {@code /progression android remove} (self only). Everything else is staff.
+ * 4.7.88: every Legacy Mechanics command lives under {@code /lm}. Player branches ({@code /lm difficulty},
+ * {@code /lm rival}, {@code /lm spar}, {@code /lm dojo}, {@code /lm prestige}, {@code /lm character},
+ * {@code /lm progression}, {@code /lm skillcheck}, {@code /lm terminal}, ...) keep their own rules. Staff tools sit
+ * under {@code /lm admin <system>} and every staff-only leaf needs {@link StaffAccess#isAdminSource}: staff, and in
+ * creative mode when a player runs it (console unchanged).
  */
 public final class CommandAccess {
     private CommandAccess() {}
@@ -44,45 +43,32 @@ public final class CommandAccess {
         return 0;
     }
 
-    public static LiteralArgumentBuilder<CommandSourceStack> playerRoot(String name) {
-        return Commands.m_82127_(name).requires(CommandAccess::isPlayerSlashUser);
+    /** The one root every LM command hangs from. Each system registers its branch through it (Brigadier merges). */
+    public static LiteralArgumentBuilder<CommandSourceStack> lmRoot() {
+        return Commands.m_82127_("lm").requires(CommandAccess::isPlayerSlashUser);
     }
 
-    public static LiteralArgumentBuilder<CommandSourceStack> staffRoot(String name) {
-        return Commands.m_82127_(name).requires(StaffAccess::isStaffSource);
+    /** {@code /lm admin}: staff, in creative when a player runs it. */
+    public static LiteralArgumentBuilder<CommandSourceStack> adminRoot() {
+        return staffLiteral("admin");
     }
 
-    /** Staff-only literal (hides subtree from tab complete and parsing for non-staff). */
-    public static LiteralArgumentBuilder<CommandSourceStack> staffLiteral(String name) {
-        return Commands.m_82127_(name).requires(StaffAccess::isStaffSource);
+    /** {@code /lm <branch> ...} attached to the shared root, ready for {@code dispatcher.register}. */
+    public static LiteralArgumentBuilder<CommandSourceStack> underLm(LiteralArgumentBuilder<CommandSourceStack> branch) {
+        return lmRoot().then(branch);
     }
 
-    /** Bukkit {@code PluginCommand} permission for Mohist bridge (defaults {@code difficulty.admin}). */
-    public static String staffBukkitPermission() {
-        String node = DifficultyConfig.get().adminPermission;
-        return node == null || node.isBlank() ? "difficulty.admin" : node;
-    }
-
-    public static String skillCheckBukkitPermission() {
-        return StaffAccess.donatorNode();
+    /** {@code /lm admin <branch> ...} attached to the shared root, ready for {@code dispatcher.register}. */
+    public static LiteralArgumentBuilder<CommandSourceStack> underLmAdmin(
+            LiteralArgumentBuilder<CommandSourceStack> branch) {
+        return lmRoot().then(adminRoot().then(branch));
     }
 
     /**
-     * Bukkit labels that stay staff-only at the bridge because their Forge trees are
-     * staff-rooted. {@code prestige} and {@code character} are player-facing now (their
-     * Forge trees gate per-branch), so players reach them through the bridge.
+     * Staff-only literal (hides the subtree from tab complete and parsing for everyone else). 4.7.88: staff
+     * players also need creative mode.
      */
-    public static boolean isStaffOnlyBukkitCommand(String label) {
-        if (label == null || label.isBlank()) {
-            return false;
-        }
-        return switch (label.toLowerCase()) {
-            case "skills", "enddragon", "androidify", "padmin" -> true;
-            default -> false;
-        };
-    }
-
-    public static boolean isSkillCheckBukkitCommand(String label) {
-        return label != null && "skillcheck".equalsIgnoreCase(label);
+    public static LiteralArgumentBuilder<CommandSourceStack> staffLiteral(String name) {
+        return Commands.m_82127_(name).requires(StaffAccess::isAdminSource);
     }
 }

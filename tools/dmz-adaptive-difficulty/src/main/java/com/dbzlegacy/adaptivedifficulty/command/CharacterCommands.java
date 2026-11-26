@@ -20,11 +20,11 @@ import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 /**
- * {@code /character} — paid race / class / reskin services with cosmetic unlocks.
+ * {@code /lm character} — paid race / class / reskin services with cosmetic unlocks.
  * Player-facing with parity for the Character Services screen; the {@code do} backend
- * mirrors {@code /difficulty do} for chat buttons and typed actions. Race, class, and
+ * mirrors {@code /lm difficulty do} for chat buttons and typed actions. Race, class, and
  * reskin purchases are menu-only for players — their command forms are staff-gated —
- * and staff fix other players through {@code /character admin ...}.
+ * and staff fix other players through {@code /lm admin character ...}.
  */
 public final class CharacterCommands {
     private CharacterCommands() {}
@@ -42,13 +42,16 @@ public final class CharacterCommands {
 
     @SubscribeEvent
     public void onRegister(RegisterCommandsEvent event) {
-        event.getDispatcher().register(root("character"));
-        AdaptiveDifficultyMod.LOGGER.info("[{}] registered /character", AdaptiveDifficultyMod.MOD_ID);
+        // 4.7.88: the old character root moved to /lm character, its admin branch to /lm admin character (merged with the
+        // existing /lm admin character cooldown).
+        event.getDispatcher().register(CommandAccess.underLm(root("character")));
+        event.getDispatcher().register(CommandAccess.underLmAdmin(admin("character")));
+        AdaptiveDifficultyMod.LOGGER.info("[{}] registered /lm character and /lm admin character",
+                AdaptiveDifficultyMod.MOD_ID);
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> root(String name) {
         return Commands.m_82127_(name)
-                .requires(CommandAccess::isPlayerSlashUser)
                 .executes(ctx -> open(ctx.getSource(), "main"))
                 .then(Commands.m_82127_("help").executes(ctx -> characterHelp(ctx.getSource())))
                 .then(Commands.m_82127_("do")
@@ -61,8 +64,11 @@ public final class CharacterCommands {
                                         .executes(ctx -> characterDoRest(
                                                 ctx.getSource(),
                                                 StringArgumentType.getString(ctx, "action"),
-                                                StringArgumentType.getString(ctx, "arg"))))))
-                .then(CommandAccess.staffLiteral("admin")
+                                                StringArgumentType.getString(ctx, "arg"))))));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> admin(String name) {
+        return Commands.m_82127_(name)
                         .executes(ctx -> characterAdminHelp(ctx.getSource()))
                         .then(Commands.m_82127_("help")
                                 .executes(ctx -> characterAdminHelp(ctx.getSource())))
@@ -93,7 +99,7 @@ public final class CharacterCommands {
                                 .then(LmCommandSuggestions.playerWord("player")
                                         .executes(ctx -> adminReskin(
                                                 ctx.getSource(),
-                                                StringArgumentType.getString(ctx, "player"))))));
+                                                StringArgumentType.getString(ctx, "player")))));
     }
 
     private static int characterHelp(CommandSourceStack source) {
@@ -118,7 +124,7 @@ public final class CharacterCommands {
         return 1;
     }
 
-    /** {@code /character admin set-race <player> <race> [keep%]} — free staff fix. */
+    /** {@code /lm admin character set-race <player> <race> [keep%]} — free staff fix. */
     private static int adminSetRace(
             CommandSourceStack source, String playerName, String race, int keepPct
     ) {
@@ -133,7 +139,7 @@ public final class CharacterCommands {
         return replyForTarget(source, target, msg);
     }
 
-    /** {@code /character admin set-class <player> <class>} — free staff fix. */
+    /** {@code /lm admin character set-class <player> <class>} — free staff fix. */
     private static int adminSetClass(CommandSourceStack source, String playerName, String classId) {
         if (StaffAccess.denyUnlessStaff(source) == 0) {
             return 0;
@@ -146,7 +152,7 @@ public final class CharacterCommands {
         return replyForTarget(source, target, msg);
     }
 
-    /** {@code /character admin reskin <player>} — open their appearance editor, free. */
+    /** {@code /lm admin character reskin <player>} — open their appearance editor, free. */
     private static int adminReskin(CommandSourceStack source, String playerName) {
         if (StaffAccess.denyUnlessStaff(source) == 0) {
             return 0;
@@ -176,7 +182,7 @@ public final class CharacterCommands {
         return target;
     }
 
-    /** {@code /character do <action> [arg…]} — chat-button parity backend (no screen reopen). */
+    /** {@code /lm character do <action> [arg…]} — chat-button parity backend (no screen reopen). */
     private static int characterDoRest(CommandSourceStack source, String action, String rest) {
         return characterDo(source, action, rest == null ? "" : rest.trim());
     }
@@ -189,7 +195,7 @@ public final class CharacterCommands {
         }
         if (action != null && STAFF_ONLY_ACTIONS.contains(action) && !StaffAccess.isStaff(player)) {
             LmCommandFeedback.tell(source,
-                    "§cRace, class, and reskin changes are made in Character Services (§f/character§c)."
+                    "§cRace, class, and reskin changes are made in Character Services (§f/lm character§c)."
                             + " §7The command form is staff-only.");
             return 0;
         }

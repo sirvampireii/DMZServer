@@ -173,13 +173,13 @@ public final class GlobalMasteryBoost {
     public static String undecodedReply(String encoded) {
         return UltraStyle.DANGER + "Boost value " + UltraStyle.WHITE + encoded + UltraStyle.DANGER
                 + " was not understood. Use one of these:\n"
-                + UltraStyle.YELLOW + "progression masteryboost start <encoded>" + UltraStyle.GRAY
+                + UltraStyle.YELLOW + "/lm admin progression masteryboost start <encoded>" + UltraStyle.GRAY
                 + " - for example " + UltraStyle.WHITE + "2000030" + UltraStyle.GRAY + " for 2x, 30 minutes\n"
-                + UltraStyle.YELLOW + "progression masteryboost start <multiplier> <minutes>" + UltraStyle.GRAY
-                + " - for example " + UltraStyle.WHITE + "progression masteryboost start 2 30";
+                + UltraStyle.YELLOW + "/lm admin progression masteryboost start <multiplier> <minutes>" + UltraStyle.GRAY
+                + " - for example " + UltraStyle.WHITE + "/lm admin progression masteryboost start 2 30";
     }
 
-    /** {@code /progression masteryboost start <encoded>}. */
+    /** {@code /lm admin progression masteryboost start <encoded>}. */
     public static String startBoost(ServerPlayer actor, int encoded, String purchaser) {
         if (!ProgressionConfig.globalMasteryBoost()) {
             return disabledMessage();
@@ -219,7 +219,7 @@ public final class GlobalMasteryBoost {
         return result;
     }
 
-    /** {@code /progression masteryboost end}. */
+    /** {@code /lm admin progression masteryboost end}. */
     public static String endBoost(boolean announce) {
         long now = System.currentTimeMillis();
         if (now < END_LOCK.get()) {

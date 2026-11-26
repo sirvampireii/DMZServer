@@ -12,7 +12,6 @@ import com.dbzlegacy.adaptivedifficulty.tick.NearbyMobScaler;
 import com.dbzlegacy.adaptivedifficulty.tick.ScaledMobTracker;
 import com.dbzlegacy.adaptivedifficulty.tier.UnlockSystem;
 import com.dbzlegacy.adaptivedifficulty.util.LmLog;
-import com.dbzlegacy.adaptivedifficulty.world.VanillaDifficultyGuard;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -21,17 +20,16 @@ import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.Difficulty;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 /**
- * Players: {@code /difficulty} opens the GUI.
- * GUI buttons use {@code /difficulty do ...} (not for normal player use).
- * Staff: {@code /difficulty admin …} (op or {@code difficulty.admin}).
- * Ops can still set vanilla world difficulty via {@code /difficulty hard|normal|easy|peaceful}
- * (this mod replaces the vanilla {@code /difficulty} command name).
+ * Players: {@code /lm difficulty} opens the GUI (the menu is also {@code /lm open difficulty}).
+ * Chat buttons use {@code /lm difficulty do ...} (not for normal player use).
+ * Staff: {@code /lm admin difficulty ...} (staff in creative mode, or console).
+ * 4.7.88: LM no longer owns a top-level difficulty root, so vanilla {@code /difficulty} (ops, world difficulty)
+ * is back; the old LM peaceful/easy/normal/hard and gamedifficulty setters are gone.
  */
 public final class DifficultyCommands {
     private DifficultyCommands() {}
@@ -42,17 +40,16 @@ public final class DifficultyCommands {
 
     @SubscribeEvent
     public void onRegister(RegisterCommandsEvent event) {
-        event.getDispatcher().register(buildDifficulty("difficulty"));
-        event.getDispatcher().register(buildDifficulty("diff"));
+        event.getDispatcher().register(CommandAccess.underLm(playerBranch("difficulty")));
+        event.getDispatcher().register(CommandAccess.underLmAdmin(adminBranch("difficulty")));
         AdaptiveDifficultyMod.LOGGER.info(
-                "[{}] registered /difficulty /diff (GUI + admin for staff)",
+                "[{}] registered /lm difficulty and /lm admin difficulty",
                 AdaptiveDifficultyMod.MOD_ID
         );
     }
 
-    private static LiteralArgumentBuilder<CommandSourceStack> buildDifficulty(String name) {
+    private static LiteralArgumentBuilder<CommandSourceStack> playerBranch(String name) {
         return Commands.m_82127_(name)
-                .requires(CommandAccess::isPlayerSlashUser)
                 .executes(ctx -> openGui(ctx.getSource()))
                 .then(Commands.m_82127_("help").executes(ctx -> playerHelp(ctx.getSource())))
                 // Hidden GUI action handler used by clickable chat buttons
@@ -77,13 +74,12 @@ public final class DifficultyCommands {
                                                         StringArgumentType.getString(ctx, "page")))))))
                 // Player: reset active difficulty to 0 (free; purchased max kept)
                 .then(Commands.m_82127_("reset")
-                        .executes(ctx -> guiDo(ctx.getSource(), DifficultyActions.ACT_RESET, "0", "main")))
-                // Vanilla world difficulty (replaces overwritten /difficulty <level>)
-                .then(vanillaDifficultyLiteral("peaceful"))
-                .then(vanillaDifficultyLiteral("easy"))
-                .then(vanillaDifficultyLiteral("normal"))
-                .then(vanillaDifficultyLiteral("hard"))
-                .then(CommandAccess.staffLiteral("admin")
+                        .executes(ctx -> guiDo(ctx.getSource(), DifficultyActions.ACT_RESET, "0", "main")));
+    }
+
+    /** {@code /lm admin difficulty ...} (the old difficulty root's admin branch). */
+    private static LiteralArgumentBuilder<CommandSourceStack> adminBranch(String name) {
+        return Commands.m_82127_(name)
                         .executes(ctx -> adminHelpOrDeny(ctx.getSource()))
                         .then(Commands.m_82127_("help")
                                 .executes(ctx -> adminHelpOrDeny(ctx.getSource())))
@@ -104,11 +100,6 @@ public final class DifficultyCommands {
                         .then(telemetryRoot("telemetry"))
                         .then(staffFreeRoot("stafffree"))
                         .then(syslogRoot("syslog"))
-                        .then(Commands.m_82127_("gamedifficulty")
-                                .then(LmCommandSuggestions.word("level", LmCommandSuggestions.VANILLA_DIFFICULTY)
-                                        .executes(ctx -> setVanillaDifficultyOrDeny(
-                                                ctx.getSource(),
-                                                StringArgumentType.getString(ctx, "level")))))
                         .then(Commands.m_82127_("area")
                                 .executes(ctx -> showAreaDifficulty(ctx.getSource())))
                         .then(Commands.m_82127_("resetpurchased")
@@ -141,13 +132,7 @@ public final class DifficultyCommands {
                                                 .executes(ctx -> adminSetOrDeny(
                                                         ctx.getSource(),
                                                         StringArgumentType.getString(ctx, "key"),
-                                                        StringArgumentType.getString(ctx, "value")))))));
-    }
-
-    private static LiteralArgumentBuilder<CommandSourceStack> vanillaDifficultyLiteral(String level) {
-        return Commands.m_82127_(level)
-                .requires(DifficultyCommands::isStaff)
-                .executes(ctx -> setVanillaDifficultyOrDeny(ctx.getSource(), level));
+                                                        StringArgumentType.getString(ctx, "value"))))));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> whitelistRoot(String name) {
@@ -298,7 +283,7 @@ public final class DifficultyCommands {
             source.m_288197_(() -> Component.m_237113_(
                     LmCommandMessages.turnedOff("Adaptive difficulty")
                             + "\n§7No scaling, Ancient Coin drops or tier buys until you turn it back on."
-                            + "\n§7Turn it on again: §f/difficulty admin on"
+                            + "\n§7Turn it on again: §f/lm admin difficulty on"
             ), true);
         }
         ServerPlayer actor = source.m_230896_();
@@ -333,7 +318,7 @@ public final class DifficultyCommands {
                         + (wl ? "§eTesting whitelist on §7(" + n + " players)" : "§7Testing whitelist off")
                         + " §8· "
                         + (staffFree ? "§aStaff skip coin costs" : "§7Staff pay coin costs")
-                        + "\n§8Tip: §f/difficulty admin help"
+                        + "\n§8Tip: §f/lm admin difficulty help"
         ), false);
         return 1;
     }
@@ -354,7 +339,7 @@ public final class DifficultyCommands {
                     LmCommandMessages.turnedOn("Testing whitelist")
                             + " §7(" + n + " players)\n"
                             + "§7Only listed players see scaled mobs while you test.\n"
-                            + "§7Add someone: §f/difficulty admin whitelist add <player>"
+                            + "§7Add someone: §f/lm admin difficulty whitelist add <player>"
             ), true);
         } else {
             source.m_288197_(() -> Component.m_237113_(
@@ -377,7 +362,7 @@ public final class DifficultyCommands {
         source.m_288197_(() -> Component.m_237113_(
                 (wl ? "§eWhitelist ON" : "§7Whitelist OFF")
                         + " §8· §f" + n + " §7entries\n"
-                        + "§8/difficulty admin whitelist add|remove|list|on|off|toggle|clear"
+                        + "§8/lm admin difficulty whitelist add|remove|list|on|off|toggle|clear"
         ), false);
         return 1;
     }
@@ -392,7 +377,7 @@ public final class DifficultyCommands {
         var entries = DifficultyConfig.whitelistEntries();
         if (entries.isEmpty()) {
             source.m_288197_(() -> Component.m_237113_(
-                    "§7Whitelist is empty. §8Add with §f/difficulty admin whitelist add <player>"
+                    "§7Whitelist is empty. §8Add with §f/lm admin difficulty whitelist add <player>"
             ), false);
             return 1;
         }
@@ -411,7 +396,7 @@ public final class DifficultyCommands {
             return 0;
         }
         if (raw == null || raw.isBlank()) {
-            source.m_81352_(Component.m_237113_(LmCommandMessages.tryCommand("/difficulty admin whitelist add <player>")));
+            source.m_81352_(Component.m_237113_(LmCommandMessages.tryCommand("/lm admin difficulty whitelist add <player>")));
             return 0;
         }
         ServerPlayer online = resolveOnlinePlayer(source, raw.trim());
@@ -433,7 +418,7 @@ public final class DifficultyCommands {
                 "§aAdded §f" + label + " §ato whitelist"
                         + (DifficultyConfig.isWhitelistEnabled()
                         ? "."
-                        : ".\n§eWhitelist is OFF — §f/difficulty admin whitelist on")
+                        : ".\n§eWhitelist is OFF — §f/lm admin difficulty whitelist on")
         ), true);
         return 1;
     }
@@ -447,7 +432,7 @@ public final class DifficultyCommands {
         }
         if (raw == null || raw.isBlank()) {
             source.m_81352_(Component.m_237113_(LmCommandMessages.tryCommand(
-                "/difficulty admin whitelist remove <player>")));
+                "/lm admin difficulty whitelist remove <player>")));
             return 0;
         }
         ServerPlayer online = resolveOnlinePlayer(source, raw.trim());
@@ -487,7 +472,7 @@ public final class DifficultyCommands {
                 "§6Combat hit log\n§7"
                         + com.dbzlegacy.adaptivedifficulty.telemetry.BalanceTelemetry.statusLine()
                         + "\n§8Samples all AD players when ON (not whitelist-gated)."
-                        + "\n§8/difficulty admin telemetry on|off|flush|test"
+                        + "\n§8/lm admin difficulty telemetry on|off|flush|test"
         ), false);
         return 1;
     }
@@ -517,7 +502,7 @@ public final class DifficultyCommands {
                         + (on
                         ? "\n§7Staff/OP pay §fno coins§7 (bypass permission nodes still work when OFF)."
                         : "\n§7Staff/OP pay like everyone unless they have a bypass permission.")
-                        + "\n§8/difficulty admin stafffree on|off|toggle|status"
+                        + "\n§8/lm admin difficulty stafffree on|off|toggle|status"
         ), true);
         return 1;
     }
@@ -530,7 +515,7 @@ public final class DifficultyCommands {
         source.m_288197_(() -> Component.m_237113_(
                 "§6Staff free Ancient Coin costs: " + (on ? "§aON" : "§eOFF")
                         + "\n§7When ON, ops/staff skip coin charges on LM paid features."
-                        + "\n§8/difficulty admin stafffree on|off|toggle"
+                        + "\n§8/lm admin difficulty stafffree on|off|toggle"
         ), false);
         return 1;
     }
@@ -629,37 +614,8 @@ public final class DifficultyCommands {
         return denyAdmin(source) == 0 ? 0 : openAdminSettings(source);
     }
 
-    private static int setVanillaDifficultyOrDeny(CommandSourceStack source, String level) {
-        return denyAdmin(source) == 0 ? 0 : setVanillaDifficulty(source, level);
-    }
-
     private static int adminSetOrDeny(CommandSourceStack source, String key, String value) {
         return denyAdmin(source) == 0 ? 0 : adminSet(source, key, value);
-    }
-
-    private static int setVanillaDifficulty(CommandSourceStack source, String level) {
-        Difficulty difficulty = VanillaDifficultyGuard.parse(level);
-        if (difficulty == null) {
-            source.m_81352_(Component.m_237113_("Unknown vanilla difficulty: " + level
-                    + " (use peaceful|easy|normal|hard)"));
-            return 0;
-        }
-        if (!VanillaDifficultyGuard.set(source.m_81377_(), difficulty)) {
-            source.m_81352_(Component.m_237113_("The vanilla difficulty could not be changed. Check the server log."));
-            return 0;
-        }
-        if (difficulty == Difficulty.PEACEFUL) {
-            source.m_288197_(() -> Component.m_237113_(
-                    "§cVanilla difficulty set to PEACEFUL.\n"
-                            + "§7Hostile mobs will not spawn — adaptive scaling will not run.\n"
-                            + "§eUse §f/difficulty hard §eto restore."
-            ), true);
-        } else {
-            source.m_288197_(() -> Component.m_237113_(
-                    "§aVanilla difficulty set to §f" + difficulty.m_19036_()
-            ), true);
-        }
-        return 1;
     }
 
     private static int openAdminSettings(CommandSourceStack source) {
@@ -789,7 +745,7 @@ public final class DifficultyCommands {
         ServerPlayer player = source.m_230896_();
         if (player == null) {
             source.m_81352_(Component.m_237113_(LmCommandMessages.PLAYERS_ONLY
-                + " §8Or: §f/difficulty do character_reset"));
+                + " §8Or: §f/lm difficulty do character_reset"));
             return 0;
         }
         DifficultyActions.Result result =
@@ -802,7 +758,7 @@ public final class DifficultyCommands {
 
     /**
      * Clear stuck session DMZ level sample and refresh Buy GUI reading.
-     * Public for Bukkit {@code ForgeBridge.resyncLevel} (Mohist owns {@code /difficulty}).
+     * Public for Bukkit {@code ForgeBridge.resyncLevel} (Mohist owns {@code /lm difficulty}).
      */
     public static String resyncLevel(ServerPlayer target) {
         if (target == null) {
@@ -835,7 +791,7 @@ public final class DifficultyCommands {
         if (playerName == null || playerName.isBlank()) {
             target = source.m_230896_();
             if (target == null) {
-                source.m_81352_(Component.m_237113_(LmCommandMessages.tryCommand("/difficulty admin resynclevel <player>")));
+                source.m_81352_(Component.m_237113_(LmCommandMessages.tryCommand("/lm admin difficulty resynclevel <player>")));
                 return 0;
             }
         } else {
@@ -872,7 +828,7 @@ public final class DifficultyCommands {
                         AreaDifficulty.clearCache();
                     } else {
                         source.m_81352_(Component.m_237113_(
-                                "Use true/false for whitelistEnabled, or: /difficulty admin whitelist add <player>"
+                                "Use true/false for whitelistEnabled, or: /lm admin difficulty whitelist add <player>"
                         ));
                         return 0;
                     }
@@ -884,7 +840,7 @@ public final class DifficultyCommands {
                         com.dbzlegacy.adaptivedifficulty.telemetry.BalanceTelemetry.setEnabled(on);
                     } else {
                         source.m_81352_(Component.m_237113_(
-                                "Use true/false, or: /difficulty admin telemetry on|off"
+                                "Use true/false, or: /lm admin difficulty telemetry on|off"
                         ));
                         return 0;
                     }
@@ -896,7 +852,7 @@ public final class DifficultyCommands {
                                 "true".equalsIgnoreCase(value) || "on".equalsIgnoreCase(value);
                     } else {
                         source.m_81352_(Component.m_237113_(
-                                "Use true/false, or: /difficulty admin stafffree on|off"
+                                "Use true/false, or: /lm admin difficulty stafffree on|off"
                         ));
                         return 0;
                     }
@@ -1162,7 +1118,7 @@ public final class DifficultyCommands {
 
                 default -> {
                     source.m_81352_(Component.m_237113_("Unknown setting: " + key + ". Press Tab after"
-                            + " /difficulty admin set to list the settings, or use the Config editor in Staff Admin."));
+                            + " /lm admin difficulty set to list the settings, or use the Config editor in Staff Admin."));
                     return 0;
                 }
             }

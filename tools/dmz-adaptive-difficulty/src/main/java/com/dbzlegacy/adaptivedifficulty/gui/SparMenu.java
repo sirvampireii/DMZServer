@@ -3,7 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.gui;
 import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraGui;
 import net.minecraft.server.level.ServerPlayer;
 
-/** Player UI entrypoint for {@code /spar}. */
+/** Player UI entrypoint for {@code /lm spar}. */
 public final class SparMenu {
     private SparMenu() {}
 

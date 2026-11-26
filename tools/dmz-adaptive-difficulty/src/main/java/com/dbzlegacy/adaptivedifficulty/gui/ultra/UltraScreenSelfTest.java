@@ -412,7 +412,6 @@ public final class UltraScreenSelfTest {
                         "do:reload",
                         "do:syslog:status",
                         "do:guitest_ack",
-                        "do:migrate-cnpc",
                         "admin",
                         "config",
                         "progression",
@@ -1976,7 +1975,7 @@ public final class UltraScreenSelfTest {
                 || !com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.minutesWouldStart(2.0, 30)) {
             broken.add("boost start: 2000030 and 2 x 30 minutes must still start both boosts");
         }
-        // Dispatch order through the real /progression tree (a decode test cannot catch it).
+        // Dispatch order through the real /lm progression tree (a decode test cannot catch it).
         for (String miss : com.dbzlegacy.adaptivedifficulty.command.ProgressionCommands.selfTestBoostDispatch()) {
             broken.add("boost start dispatch: " + miss);
         }

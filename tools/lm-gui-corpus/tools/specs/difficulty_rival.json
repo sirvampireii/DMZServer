@@ -3214,7 +3214,7 @@
       {
        "id": "line0",
        "type": "text",
-       "text": "§7Server tools - typed admin: /difficulty admin",
+       "text": "§7Server tools - typed admin: /lm admin difficulty",
        "x": 10,
        "y": 50,
        "w": 406
@@ -4819,7 +4819,7 @@
       {
        "id": "line10",
        "type": "text",
-       "text": "§7TP chat §fON §8(/rival tpmsg)",
+       "text": "§7TP chat §fON §8(/lm rival tpmsg)",
        "x": 10,
        "y": 180,
        "w": 406

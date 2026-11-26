@@ -77,8 +77,8 @@ in `mods/` has no probe classes, so the flag does nothing there except log one w
   - Dojo members (M's view and A's view) lists the live roster with board RP / TP / W-L; X is not there.
   - Previous members lists only X; after M releases B the real way, B leaves Dojo members and shows on
     Previous members in the same session; the board is not pruned.
-  - `/spar dojo members` and `/spar dojo previous-members` give the GUI page lines and run for a player.
-  - `/spar dojo season advance` from the console only previews; a non-staff player cannot run it; the
+  - `/lm dojo members` and `/lm dojo previous-members` give the GUI page lines and run for a player.
+  - `/lm dojo season advance` from the console only previews; a non-staff player cannot run it; the
     `confirm` form ends the season once (id + 1, one Hall of Chosen record, empty board and Previous
     members); the 75-day expiry uses the same rollover.
   - The store's season, Hall of Chosen and the probe's bonds are restored afterwards.

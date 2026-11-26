@@ -323,7 +323,7 @@ public final class LmChat {
     }
 
     private static boolean looksLikeHelpHeader(String line) {
-        // §6§l/lm admin  or  §e/rival …
+        // §6§l/lm admin  or  §e/lm rival …
         int i = 0;
         while (i + 1 < line.length() && line.charAt(i) == '§') {
             i += 2;

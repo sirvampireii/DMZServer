@@ -23,7 +23,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Public static API for Bukkit companion reflection ({@code LegacyMechanicsGUI}).
- * Status maps, lore lines, and {@code /rival do} action dispatch without reopening menus —
+ * Status maps, lore lines, and {@code /lm rival do} action dispatch without reopening menus —
  * the companion plugin owns inventory reopen.
  */
 public final class RivalGuiApi {
@@ -771,7 +771,7 @@ public final class RivalGuiApi {
         return com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraText.humanizePickerArg(arg);
     }
 
-    /** Action token for {@code /rival do} from a {@link RivalSystem#currentRivalCards} row. */
+    /** Action token for {@code /lm rival do} from a {@link RivalSystem#currentRivalCards} row. */
     public static String pickerArgFromRivalCard(String card) {
         if (card == null || card.isBlank()) {
             return "";
@@ -968,15 +968,15 @@ public final class RivalGuiApi {
             case "journal" -> journalLines(player);
             case "title", "titles" -> titleLines(player);
             case "help" -> List.of(
-                    UltraStyle.HEADER + "/rival " + UltraStyle.DIM + "- Rival System",
+                    UltraStyle.HEADER + "/lm rival " + UltraStyle.DIM + "- Rival System",
                     UltraStyle.LABEL + "Prefer " + UltraStyle.YELLOW + "/lm " + UltraStyle.LABEL + "and the Rival button",
                     UltraStyle.LABEL + "Menu tabs: List, Challenge, Top, Progress",
-                    UltraStyle.YELLOW + "/rival <player> " + UltraStyle.LABEL + "silent rival",
-                    UltraStyle.YELLOW + "/rival declare|accept|decline|remove <player>",
-                    UltraStyle.YELLOW + "/rival challenge send <player> [minutes]",
+                    UltraStyle.YELLOW + "/lm rival <player> " + UltraStyle.LABEL + "silent rival",
+                    UltraStyle.YELLOW + "/lm rival declare|accept|decline|remove <player>",
+                    UltraStyle.YELLOW + "/lm rival challenge send <player> [minutes]",
                     UltraStyle.LABEL + "In the menu: pick a rival, then choose 1-10 minutes",
-                    UltraStyle.YELLOW + "/rival spectate [player]|stop",
-                    UltraStyle.YELLOW + "/rival admin save|refresh|status (staff)"
+                    UltraStyle.YELLOW + "/lm rival spectate [player]|stop",
+                    UltraStyle.YELLOW + "/lm admin rival save|refresh|status (staff)"
             );
             default -> {
                 Map<String, String> ph = placeholders(player);
@@ -1001,7 +1001,7 @@ public final class RivalGuiApi {
     }
 
     /**
-     * Dispatch {@code /rival do} actions. Does not reopen GUI — caller reopens.
+     * Dispatch {@code /lm rival do} actions. Does not reopen GUI — caller reopens.
      *
      * @param action e.g. {@code page}, {@code tpmsg}, {@code instinct}, {@code challenge}
      * @param arg    e.g. page name, {@code toggle}, {@code accept}/{@code decline}/{@code cancel}
@@ -1053,7 +1053,7 @@ public final class RivalGuiApi {
                 case "accept" -> RivalChallengeManager.get().acceptChallenge(player, who);
                 case "decline", "deny" -> RivalChallengeManager.get().declineChallenge(player, who);
                 case "cancel" -> RivalChallengeManager.get().cancelChallenge(player, who);
-                default -> UltraStyle.DANGER + "Type accept, decline, or cancel after /rival do challenge, then the player's name.";
+                default -> UltraStyle.DANGER + "Type accept, decline, or cancel after /lm rival do challenge, then the player's name.";
             };
         }
         if ("challenge_accept".equals(act) || "challengeaccept".equals(act)) {
@@ -1149,7 +1149,7 @@ public final class RivalGuiApi {
         return UltraStyle.DANGER + "Something went wrong. Try again, or ask staff if it keeps happening.";
     }
 
-    /** Staff: save / refresh / status / help — used by GUI + {@code /rival admin …}. */
+    /** Staff: save / refresh / status / help — used by GUI + {@code /lm admin rival …}. */
     public static String handleAdmin(ServerPlayer player, String arg) {
         if (!StaffAccess.isStaff(player)) {
             return UltraStyle.DANGER + "Staff only.";
@@ -1174,11 +1174,11 @@ public final class RivalGuiApi {
                     + UltraStyle.LABEL + "enabled " + UltraStyle.VALUE + (on ? "ON" : "OFF") + "\n"
                     + UltraStyle.LABEL + "players " + UltraStyle.VALUE + players;
         }
-        return UltraStyle.HEADER + "/rival admin\n"
-                + UltraStyle.YELLOW + "/rival admin save " + UltraStyle.LABEL + "- save rivalry and progress data to disk\n"
-                + UltraStyle.YELLOW + "/rival admin refresh|reload " + UltraStyle.LABEL + "- reload stores from disk\n"
-                + UltraStyle.YELLOW + "/rival admin status " + UltraStyle.LABEL + "- enabled + path summary\n"
-                + UltraStyle.YELLOW + "/rival admin open [page] " + UltraStyle.LABEL + "- open rival GUI\n"
+        return UltraStyle.HEADER + "/lm admin rival\n"
+                + UltraStyle.YELLOW + "/lm admin rival save " + UltraStyle.LABEL + "- save rivalry and progress data to disk\n"
+                + UltraStyle.YELLOW + "/lm admin rival refresh|reload " + UltraStyle.LABEL + "- reload stores from disk\n"
+                + UltraStyle.YELLOW + "/lm admin rival status " + UltraStyle.LABEL + "- enabled + path summary\n"
+                + UltraStyle.YELLOW + "/lm admin rival open [page] " + UltraStyle.LABEL + "- open rival GUI\n"
                 + UltraStyle.DIM + "GUI buttons run these directly.";
     }
 

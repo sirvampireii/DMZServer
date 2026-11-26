@@ -35,6 +35,36 @@ public final class StaffAccess {
         return player != null && isStaff(player);
     }
 
+    /** Set only while {@code AdminGate} re-parses a refused line to tell "needs creative" from "unknown". */
+    private static final ThreadLocal<Boolean> ASSUME_CREATIVE = ThreadLocal.withInitial(() -> Boolean.FALSE);
+
+    /**
+     * 4.7.88: staff admin commands ({@code /lm admin ...}, every staff-only leaf) need creative mode.
+     * Staff AND (no player behind the source, e.g. console, OR that player is in creative). Console keeps
+     * exactly the access it had. Used in {@code .requires()}, so tab-complete hides admin nodes from staff
+     * who are not in creative.
+     */
+    public static boolean isAdminSource(CommandSourceStack src) {
+        if (!isStaffSource(src)) {
+            return false;
+        }
+        ServerPlayer player = src.m_230896_();
+        if (player == null) {
+            return true;
+        }
+        return ASSUME_CREATIVE.get() || player.m_7500_();
+    }
+
+    /** Runs {@code body} as if every staff player were in creative (parse only, never to execute). */
+    public static <T> T withAssumedCreative(java.util.function.Supplier<T> body) {
+        ASSUME_CREATIVE.set(Boolean.TRUE);
+        try {
+            return body.get();
+        } finally {
+            ASSUME_CREATIVE.set(Boolean.FALSE);
+        }
+    }
+
     /**
      * {@code /dmzstats reset} stays available to staff. A player who is not
      * staff is turned away. Prestige does not use this command.
@@ -163,7 +193,7 @@ public final class StaffAccess {
         return 0;
     }
 
-    /** Donator Skill Check ({@code /skillcheck}) — staff are not auto-granted; console may use staff op. */
+    /** Donator Skill Check ({@code /lm skillcheck}) — staff are not auto-granted; console may use staff op. */
     public static boolean hasSkillCheckSource(CommandSourceStack src) {
         if (src == null) {
             return false;
@@ -191,7 +221,7 @@ public final class StaffAccess {
         if (!cfg.enableSkillCheck || !cfg.enableSkillUnlockService) {
             return false;
         }
-        // Staff are not auto-granted: without the donator node they use /skills (admin).
+        // Staff are not auto-granted: without the donator node they use /lm admin skills (admin).
         return hasBukkitPermission(player, donatorNode());
     }
 

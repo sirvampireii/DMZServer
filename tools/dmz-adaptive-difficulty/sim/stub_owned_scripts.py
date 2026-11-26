@@ -20,37 +20,37 @@ BACKUP.mkdir(parents=True, exist_ok=True)
 OWNED = {
     "Rival System.js": (
         "rival.RivalSystem",
-        "/rival · /lm → Rival",
+        "/lm rival · /lm → Rival",
         ["init", "login", "tick", "damaged", "damagedEntity", "kill", "died", "logout", "trigger"],
     ),
     "Rival Command Handler.js": (
         "command.RivalCommands",
-        "/rival",
+        "/lm rival",
         ["init", "trigger", "command"],
     ),
     "Sparring Tp System.js": (
         "sparring.SparringSystem",
-        "/spar · /lm → Spar",
+        "/lm spar · /lm → Spar",
         ["init", "login", "tick", "damaged", "damagedEntity", "kill", "died", "logout", "trigger"],
     ),
     "Sparring Command Handler.js": (
         "command.SparCommands",
-        "/spar",
+        "/lm spar",
         ["init", "trigger", "command"],
     ),
     "Prestige NPC.js": (
         "progression.shop.PrestigeSystem",
-        "/prestige · /lm → Prestige",
+        "/lm prestige · /lm → Prestige",
         ["interact", "init"],
     ),
     "SkillCheckCommand.js": (
         "progression.shop.SkillCheckService",
-        "/skillcheck · LM-SkillCheck-NPC.js",
+        "/lm skillcheck · LM-SkillCheck-NPC.js",
         ["trigger", "init", "command"],
     ),
     "SkillUnlockNPC.js": (
         "progression.shop.SkillUnlockService",
-        "/skills (staff) · /skillcheck",
+        "/lm admin skills (staff) · /lm skillcheck",
         ["interact", "init", "trigger"],
     ),
     "Farming TP Skill.js": (

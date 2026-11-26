@@ -24,32 +24,32 @@ public final class DifficultyConfig {
 
     /**
      * Master switch. When {@code false}, scaling / rewards / AI / purchases are inert.
-     * Toggle in-game: {@code /difficulty admin off|on|toggle}.
+     * Toggle in-game: {@code /lm admin difficulty off|on|toggle}.
      */
     public boolean enabled = true;
 
     /**
      * Testing whitelist. When {@code true}, only players in {@link #whitelist} may use AD.
-     * Toggle: {@code /difficulty admin whitelist on|off}.
+     * Toggle: {@code /lm admin difficulty whitelist on|off}.
      */
     public boolean whitelistEnabled = false;
     /**
      * Entries are player names (case-insensitive) and/or UUID strings.
-     * Managed via {@code /difficulty admin whitelist add|remove}.
+     * Managed via {@code /lm admin difficulty whitelist add|remove}.
      */
     public List<String> whitelist = new ArrayList<>();
     /**
      * When {@code true}, AD mob hits on players using the difficulty system are appended to
      * {@code config/legacymechanics/telemetry/hits-YYYY-MM-DD.jsonl} for balance tuning
      * (all AD players, rate-limited — not whitelist-gated).
-     * Toggle: {@code /difficulty admin telemetry on|off}.
+     * Toggle: {@code /lm admin difficulty telemetry on|off}.
      */
     public boolean balanceTelemetryEnabled = false;
     /**
      * When {@code true}, staff ({@link com.dbzlegacy.adaptivedifficulty.util.StaffAccess})
      * pay no Ancient Coins for LM paid features (tier purchases, Character Services, End dragon summon, …).
      * Default {@code false} — ops/admins pay like everyone unless this is on or they hold a bypass permission.
-     * Toggle: {@code /difficulty admin stafffree on|off}.
+     * Toggle: {@code /lm admin difficulty stafffree on|off}.
      */
     public boolean staffFreeAncientCoinCosts = false;
     /** Max telemetry hit lines per player per second (spam guard). */
@@ -57,7 +57,7 @@ public final class DifficultyConfig {
     /**
      * Unified system event log (difficulty/rival/sparring) under
      * {@code config/legacymechanics/telemetry/systems-YYYY-MM-DD.jsonl}.
-     * Toggle: {@code /difficulty admin syslog on|off}.
+     * Toggle: {@code /lm admin difficulty syslog on|off}.
      */
     public boolean enableSystemTelemetry = true;
     /** Max system telemetry lines per player per second. */
@@ -329,7 +329,7 @@ public final class DifficultyConfig {
      */
     public boolean enableOverhaulPrestigeIntegration = true;
     /**
-     * Donator Skill Check UI ({@code /skillcheck}, CNPC interact / trigger 21).
+     * Donator Skill Check UI ({@code /lm skillcheck}, CNPC interact / trigger 21).
      * Needs {@link #donatorPermission}; staff are not auto-granted.
      */
     public boolean enableSkillCheck = true;
@@ -337,7 +337,7 @@ public final class DifficultyConfig {
     public String donatorPermission = "legacymechanics.donator";
     /** LuckPerms node for {@code /lm revive} on yourself (higher donator ranks; staff always may). */
     public String selfRevivePermission = "legacymechanics.donator.selfrevive";
-    /** LuckPerms node for {@code /terminal} (higher donator ranks). */
+    /** LuckPerms node for {@code /lm terminal} (higher donator ranks). */
     public String terminalPermission = "legacymechanics.donator.terminal";
     /** LuckPerms node that lets a non-staff player use {@code /lm revive <player>}. */
     public String reviveOthersPermission = "legacymechanics.revive.others";
@@ -890,7 +890,7 @@ public final class DifficultyConfig {
         return Math.max(0.01, Math.min(10.0, value));
     }
 
-    /** Tier thresholds — editable via {@code /difficulty admin set tierX <n>}. */
+    /** Tier thresholds — editable via {@code /lm admin difficulty set tierX <n>}. */
     public long tierThreshold(com.dbzlegacy.adaptivedifficulty.tier.DifficultyTier tier) {
         if (tier == null) {
             return 0L;

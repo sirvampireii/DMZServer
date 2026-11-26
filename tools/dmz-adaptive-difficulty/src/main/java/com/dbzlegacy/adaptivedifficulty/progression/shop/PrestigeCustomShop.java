@@ -178,7 +178,7 @@ public final class PrestigeCustomShop {
         String string3 = PrestigeShopConfig.cleanId(string);
         PrestigeShopConfig.CustomEntry customEntry = PrestigeShopConfig.get().entry(string3);
         if (customEntry == null) {
-            return UltraStyle.dangerLine((String)("No custom entry called " + string3 + ". List: /padmin shop list"));
+            return UltraStyle.dangerLine((String)("No custom entry called " + string3 + ". List: /lm admin prestige shop list"));
         }
         if (!ProgressionData.storedWritable((ServerPlayer)serverPlayer)) {
             return UltraStyle.dangerLine((String)("Could not save prestige data for " + serverPlayer.m_6302_() + "."));
@@ -201,7 +201,7 @@ public final class PrestigeCustomShop {
                 break;
             }
             default: {
-                return UltraStyle.dangerLine((String)"Usage: /padmin custom <player> <entry> <give|take|set> <n>");
+                return UltraStyle.dangerLine((String)"Usage: /lm admin prestige custom <player> <entry> <give|take|set> <n>");
             }
         }
         int n4 = customEntry.maxPurchases > 0 ? customEntry.maxPurchases : Integer.MAX_VALUE;

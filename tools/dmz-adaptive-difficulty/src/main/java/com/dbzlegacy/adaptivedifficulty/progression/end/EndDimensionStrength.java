@@ -73,7 +73,7 @@ import net.minecraftforge.registries.ForgeRegistries;
  * nearby AD mobs × boss mult — not the legacy End Strength HP/DEF curve), and
  * damage-locked to that player. Multiple players may each have their own dragon
  * near them (not forced to the main island). Staff may {@code /cleardragons} /
- * {@code /enddragon clear|repair} only — no staff spawn.
+ * {@code /lm admin enddragon clear|repair} only — no staff spawn.
  */
 public final class EndDimensionStrength {
     private static final String TAG_BUFFED = "end_strength_v15";

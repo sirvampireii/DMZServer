@@ -4,7 +4,7 @@
  Trigger ID: 31
 
  Forwards to LegacyMechanics GlobalTpBoost.endBoost.
- Prefer: /progression boost end
+ Prefer: /lm admin progression boost end
 ============================================================
 */
 

@@ -61,6 +61,9 @@ public final class LmCommandSuggestions {
      */
     public static List<String> filterPlayerSlot(String label, String[] args, CommandSourceStack source,
             String partial) {
+        String[] v = legacyView(label, args);
+        label = v[0];
+        args = java.util.Arrays.copyOfRange(v, 1, v.length);
         List<String> names = new ArrayList<>();
         if ("lm".equalsIgnoreCase(label) && args != null && args.length == 2 && "revive".equals(lower(args[0]))) {
             names.add("all");
@@ -75,6 +78,9 @@ public final class LmCommandSuggestions {
     }
 
     public static boolean isOfflineClearSlot(String label, String[] args) {
+        String[] v = legacyView(label, args);
+        label = v[0];
+        args = java.util.Arrays.copyOfRange(v, 1, v.length);
         if (args == null || label == null || !"lm".equalsIgnoreCase(label)) {
             return false;
         }
@@ -171,11 +177,114 @@ public final class LmCommandSuggestions {
     /**
      * Mohist Bukkit tab passes {@code args}; last entry is the partial token being completed.
      */
+    /**
+     * 4.7.88: tab suggestions this source may actually use. Brigadier's server-side
+     * {@code getCompletionSuggestions} lists every child, even one whose {@code requires()} refuses the source (the
+     * vanilla client never sees those because its command list is filtered when sent). The Mohist bridge completes
+     * on the server, so a suggestion is kept only when the line up to and including it still parses for this
+     * source: an admin node is dropped for a staff player who is not in creative, and for every player.
+     */
+    public static List<String> usableSuggestions(
+            com.mojang.brigadier.CommandDispatcher<CommandSourceStack> dispatcher, CommandSourceStack source,
+            String line) throws Exception {
+        List<String> out = new ArrayList<>();
+        var parse = dispatcher.parse(line, source);
+        for (com.mojang.brigadier.suggestion.Suggestion s : dispatcher.getCompletionSuggestions(parse, line.length())
+                .get(3, java.util.concurrent.TimeUnit.SECONDS).getList()) {
+            String text = s.getText();
+            if (text == null || text.isEmpty()) {
+                continue;
+            }
+            String candidate = line.substring(0, Math.min(line.length(), s.getRange().getStart())) + text;
+            if (!dispatcher.parse(candidate, source).getReader().canRead()) {
+                out.add(text);
+            }
+        }
+        return out;
+    }
+
     public static boolean expectsPlayerName(String label, String[] args) {
         return expectsPlayerName(label, args, null);
     }
 
     public static boolean expectsPlayerName(String label, String[] args, CommandSourceStack source) {
+        String[] v = legacyView(label, args);
+        return expectsPlayerNameLegacy(v[0], java.util.Arrays.copyOfRange(v, 1, v.length), source);
+    }
+
+    /**
+     * 4.7.88: every LM command lives under {@code /lm}. The player-slot rules below were written per old root
+     * ({@code /lm rival}, {@code /lm admin prestige}, ...), so a new path is first read back into that shape:
+     * {@code lm rival stats} -> {@code rival stats}, {@code lm dojo ...} -> {@code spar dojo ...},
+     * {@code lm admin spar mentor resetcd} -> {@code spar admin mentor resetcd},
+     * {@code lm admin prestige info} -> {@code padmin info}. LM's own paths ({@code lm admin clear},
+     * {@code lm admin character cooldown}, {@code lm revive}, ...) stay as they are. Returns label then args.
+     */
+    public static String[] legacyView(String label, String[] args) {
+        int n = args == null ? 0 : args.length;
+        String[] out;
+        if (label == null || !"lm".equalsIgnoreCase(label) || n == 0) {
+            out = new String[n + 1];
+            out[0] = label;
+            for (int i = 0; i < n; i++) {
+                out[i + 1] = args[i];
+            }
+            return out;
+        }
+        String a0 = lower(args[0]);
+        String a1 = n > 1 ? lower(args[1]) : "";
+        String a2 = n > 2 ? lower(args[2]) : "";
+        switch (a0) {
+            case "difficulty", "rival", "spar", "progression", "prestige", "character", "skillcheck", "terminal":
+                return shift(a0, null, args, 1);
+            case "dojo":
+                return shift("spar", "dojo", args, 1);
+            case "admin":
+                switch (a1) {
+                    case "difficulty", "rival", "spar":
+                        return shift(a1, "admin", args, 2);
+                    case "progression":
+                        return "flags".equals(a2) ? shift("progression", "admin", args, 3)
+                                : shift("progression", null, args, 2);
+                    case "character":
+                        if (!isCooldownSub(a2)) {
+                            return shift("character", "admin", args, 2);
+                        }
+                        break;
+                    case "prestige":
+                        return shift("padmin", null, args, 2);
+                    case "skills", "enddragon", "androidify":
+                        return shift(a1, null, args, 2);
+                    default:
+                        break;
+                }
+                break;
+            default:
+                break;
+        }
+        return prepend(label, args);
+    }
+
+    private static String[] shift(String label, String insert, String[] args, int from) {
+        List<String> out = new ArrayList<>();
+        out.add(label);
+        if (insert != null) {
+            out.add(insert);
+        }
+        for (int i = from; i < args.length; i++) {
+            out.add(args[i]);
+        }
+        return out.toArray(new String[0]);
+    }
+
+    private static String[] prepend(String label, String[] args) {
+        String[] out = new String[args.length + 1];
+        out[0] = label;
+        System.arraycopy(args, 0, out, 1, args.length);
+        return out;
+    }
+
+    private static boolean expectsPlayerNameLegacy(String label, String[] args, CommandSourceStack source) {
         if (args == null || args.length == 0) {
             return false;
         }
@@ -246,7 +355,12 @@ public final class LmCommandSuggestions {
     }
 
     public static String playerNamePartial(String label, String[] args, CommandSourceStack source) {
-        if (args == null || args.length == 0 || !expectsPlayerName(label, args, source)) {
+        String[] v = legacyView(label, args);
+        return playerNamePartialLegacy(v[0], java.util.Arrays.copyOfRange(v, 1, v.length), source);
+    }
+
+    private static String playerNamePartialLegacy(String label, String[] args, CommandSourceStack source) {
+        if (args == null || args.length == 0 || !expectsPlayerNameLegacy(label, args, source)) {
             if (args == null || args.length == 0) {
                 return "";
             }
@@ -322,7 +436,7 @@ public final class LmCommandSuggestions {
     }
 
     /**
-     * Player-name slot for {@code /padmin <sub> …}. Do not hijack tab when completing subcommands
+     * Player-name slot for {@code /lm admin prestige <sub> …}. Do not hijack tab when completing subcommands
      * or adjust modes (set/add/remove) after a resolved player name.
      */
     private static boolean padminPlayerNameSlot(
@@ -385,12 +499,12 @@ public final class LmCommandSuggestions {
     }
 
     public static final SuggestionProvider<CommandSourceStack> LM_OPEN_SYSTEMS = literals(
-            "hub", "main", "difficulty", "rival", "spar", "prestige", "character", "progression",
+            "hub", "main", "difficulty", "rival", "spar", "dojo", "goals", "prestige", "character", "progression",
             "skills", "skillcheck", "saga", "android_remove", "config"
     );
 
     public static final SuggestionProvider<CommandSourceStack> LM_INSPECT_SYSTEMS = literals(
-            "hub", "clear", "difficulty", "rival", "spar", "skillcheck", "character",
+            "hub", "clear", "difficulty", "rival", "spar", "dojo", "skillcheck", "character",
             "prestige", "progression", "skills"
     );
 
@@ -404,10 +518,6 @@ public final class LmCommandSuggestions {
 
     public static final SuggestionProvider<CommandSourceStack> SYSLOG_MODES = literals(
             "on", "off", "status", "flush", "toggle"
-    );
-
-    public static final SuggestionProvider<CommandSourceStack> VANILLA_DIFFICULTY = literals(
-            "peaceful", "easy", "normal", "hard"
     );
 
     public static final SuggestionProvider<CommandSourceStack> RIVAL_TOP_CATEGORIES = literals(
@@ -468,7 +578,7 @@ public final class LmCommandSuggestions {
     );
 
     /**
-     * Suggested {@code /character do} actions. Race/class/reskin confirm rows are
+     * Suggested {@code /lm character do} actions. Race/class/reskin confirm rows are
      * staff-gated in {@link CharacterCommands#STAFF_ONLY_ACTIONS} — hidden here so
      * tab-complete never offers a player an action they cannot run.
      */

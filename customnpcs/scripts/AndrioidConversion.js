@@ -4,7 +4,7 @@
  Trigger ID: 45
 
  Forwards to LegacyMechanics AndroidConversion.
- Prefer: /progression android [player]
+ Prefer: /lm admin progression android [player]
 ============================================================
 */
 

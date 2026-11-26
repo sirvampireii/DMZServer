@@ -4,7 +4,7 @@ license = "MIT"
 
 [[mods]]
 modId = "legacymechanics"
-version = "4.7.87"
+version = "4.7.88"
 displayName = "LegacyMechanics"
 authors = "DBZ Legacy Reborn"
 displayTest = "IGNORE_SERVER_VERSION"
@@ -14,8 +14,8 @@ Server mod; since 4.7.58 also an optional client mod that draws LM menus nativel
 (players without it keep the KaiPath menus).
 Unlock tiers bought with Lightman's Ancient Coins, nearby mobs scale to
 player fight stats × tier %, titles, gated elites/mutations/AI/boss.
-Includes Rival System 4.7.10 + Sparring TP 3.2.11 ports (/rival, /spar).
-Console/Saga: /androidify <player> (Dr. Gero android conversion).
+Includes Rival System 4.7.10 + Sparring TP 3.2.11 ports (/lm rival, /lm spar).
+Console/Saga: /lm admin androidify <player> (Dr. Gero android conversion).
 '''
 
 [[dependencies.legacymechanics]]

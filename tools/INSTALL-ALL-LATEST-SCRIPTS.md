@@ -64,10 +64,10 @@ Versions: Rival **v4.7.7** / Sparring **v3.2.8** / End Strength **v2.12.0**
 - `Rival Command Handler.js` **v4.7.6** → player script-slot (with SkillCheck / Sparring Handler)
 - `Aliases-Rival.yml` → CMI CustomAlias (`asFakeOp!`) → `/cmi reload`
 
-Path: silent `/rival` → Unknown; both silent → Declared; `/rival declare` → Pending;  
+Path: silent `/lm rival` → Unknown; both silent → Declared; `/lm rival declare` → Pending;  
 both declare/accept → Mutual; Mutual + 3 death/KO → Nemesis.  
 Nearby TP capped at 2 + recent mob kill. TP scale 60%.  
-Sparring deaths do not advance Nemesis. `/rival tpmsg` toggles kill TP chat.  
+Sparring deaths do not advance Nemesis. `/lm rival tpmsg` toggles kill TP chat.  
 Battle report shows once (no DM+broadcast double).  
 **Challenge cooldown:** 2 minutes between official challenges (both fighters, after battle ends).
 
@@ -76,17 +76,17 @@ Battle report shows once (no DM+broadcast double).
   - Global spar TP **+50%**
   - **Mentor Bond**: one mentor + one apprentice, mutual accept, 7-day change cooldown;
     mentor gets 15% of apprentice spar TP; apprentice gets +18% while sparring with mentor
-  - **Admin:** `/spar mentor resetcd [player]` clears mentor+apprentice CDs (op / lvl 2 / `spar.mentor.admin`)
-  - `/spar` help shows **Your Mentor Bond** at the top (Mentor / Apprentice / rates)
-  - CMI bare `/spar` (`$1-`) shows help (not Unknown command)
+  - **Admin:** `/lm spar mentor resetcd [player]` clears mentor+apprentice CDs (op / lvl 2 / `spar.mentor.admin`)
+  - `/lm spar` help shows **Your Mentor Bond** at the top (Mentor / Apprentice / rates)
+  - CMI bare `/lm spar` (`$1-`) shows help (not Unknown command)
   - Bond reconcile repairs one-sided links instead of wiping them
   - Hit activity: **melee 4.5s** / **ki 10s** before idle end (ki charge still held)
   - **Friendly Fist**: spar heal only on **knockdown / lethal ~1 HP** (not every FF hit)
   - **Ki charge hold**: charging a ki attack keeps the spar timer alive (no mid-charge end)
   - Audit fixes: third-party hits / fall damage no longer break or fake-score spars
   - Ki HP-queue scoring; disabled during Rival challenges
-- `Sparring Command Handler.js` **v3.1.4** → script-slot (optional; full mentor cmds + bond on `/spar`)
-- `Aliases-Sparring.yml` → CMI (`/spar` + mentor shortcuts + `/sparmentorcd`)
+- `Sparring Command Handler.js` **v3.1.4** → script-slot (optional; full mentor cmds + bond on `/lm spar`)
+- `Aliases-Sparring.yml` → CMI (`/lm spar` + mentor shortcuts + `/sparmentorcd`)
 
 ## End
 - `End Dimension Strength.js` **v2.11.0** → Global Player (own tab)

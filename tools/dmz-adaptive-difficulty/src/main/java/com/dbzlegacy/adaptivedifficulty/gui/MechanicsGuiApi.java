@@ -131,16 +131,6 @@ public final class MechanicsGuiApi {
                     ? "§eLegacy Mechanics config reloaded."
                     : UltraStyle.dangerLine("Config reload failed - check the server log. Previous live values kept.");
         }
-        if ("migrate-cnpc".equals(act) || "migratecnpc".equals(act) || "cnpcmigrate".equals(act)) {
-            if (!StaffAccess.isStaff(player)) {
-                return "§cStaff only.";
-            }
-            boolean force = "force".equalsIgnoreCase(a)
-                    || "overwrite".equalsIgnoreCase(a)
-                    || "true".equalsIgnoreCase(a);
-            return com.dbzlegacy.adaptivedifficulty.data.CnpcDataMigrator.forceMigrateWorld(
-                    player.m_20194_(), force);
-        }
         return "§cSomething went wrong. Try again, or ask staff if it keeps happening.";
     }
 

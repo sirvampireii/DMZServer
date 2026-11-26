@@ -1,44 +1,96 @@
 package com.dbzlegacy.adaptivedifficulty.command;
 
-/** Central help text for all Legacy Mechanics command trees (same layout as {@code /lm admin help}). */
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
+
+/**
+ * Central help text for the one Legacy Mechanics command tree. 4.7.88: everything lives under {@code /lm}.
+ * Player help ({@link #lmPlayer()} and the per-system player pages) is written as a short, friendly guide:
+ * grouped by what you want to do, one command per line, no admin commands and no jargon. Staff help keeps the
+ * detailed one-command-per-line layout of {@link LmStaffHelp}.
+ */
 public final class LmCommandHelp {
     private LmCommandHelp() {}
 
-    public static String lmPlayer() {
-        return LmStaffHelp.build(
-                "Legacy Mechanics",
-                "/lm",
-                "§7Your hub for every Legacy Mechanics menu. Type §f/lm help §7anytime.",
-                new LmStaffHelp.Section("Menus",
-                        LmStaffHelp.cmd("/lm", "open the main hub"),
-                        LmStaffHelp.cmd("/lm open difficulty", "adaptive difficulty"),
-                        LmStaffHelp.cmd("/lm open rival", "rival system"),
-                        LmStaffHelp.cmd("/lm open spar", "sparring and dojo"),
-                        LmStaffHelp.cmd("/lm open prestige", "prestige shop"),
-                        LmStaffHelp.cmd("/lm open character", "race, class, reskin, and saga reset"),
-                        LmStaffHelp.cmd("/lm saga", "open saga resets"),
-                        LmStaffHelp.cmd("/lm open skillcheck", "donator skill check (if permitted)")),
-                new LmStaffHelp.Section("Donator",
-                        LmStaffHelp.cmd("/lm revive", "revive yourself (higher donator ranks, 5-minute cooldown)")),
-                new LmStaffHelp.Section("Quick actions",
-                        LmStaffHelp.cmd("/prestige balance", "favor, held shards, completed runs"),
-                        LmStaffHelp.cmd("/prestige buy majin|mutant|godki", "buy a shop effect")),
-                new LmStaffHelp.Section("Staff",
-                        LmStaffHelp.cmd("/lm admin help", "staff tools and player resets"),
-                        LmStaffHelp.note("Shortcut: none — use /lm")));
+    // ------------------------------------------------------------------ player guide layout
+
+    private record Topic(String name, String... lines) {}
+
+    private static String guide(String title, String intro, Topic... topics) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(UltraStyle.GOLD).append(title);
+        if (intro != null && !intro.isBlank()) {
+            sb.append('\n').append(UltraStyle.GRAY).append(intro.trim());
+        }
+        for (Topic t : topics) {
+            sb.append('\n').append('\n').append(UltraStyle.YELLOW).append(t.name);
+            for (String line : t.lines) {
+                sb.append('\n').append(line);
+            }
+        }
+        return sb.toString();
     }
+
+    /** One line: the command to type, then what it does. */
+    private static String say(String command, String whatItDoes) {
+        return UltraStyle.WHITE + command + UltraStyle.GRAY + "  " + whatItDoes;
+    }
+
+    private static String tip(String text) {
+        return UltraStyle.DARK_GRAY + text;
+    }
+
+    // ------------------------------------------------------------------ /lm help
+
+    public static String lmPlayer() {
+        return guide(
+                "Legacy Mechanics: how to use /lm",
+                "Every Legacy Mechanics command starts with /lm. Most things are easier in the menus.",
+                new Topic("Open a menu",
+                        say("/lm", "the main menu, with everything in one place"),
+                        say("/lm difficulty", "pick how hard monsters are (and what they drop)"),
+                        say("/lm rival", "rivals, duels and your rival season"),
+                        say("/lm spar", "sparring, mentors and training weights"),
+                        say("/lm dojo", "your dojo, or found and join one"),
+                        say("/lm prestige", "the prestige shop"),
+                        say("/lm character", "change race, class or looks"),
+                        say("/lm open goals", "this week's goals")),
+                new Topic("Your stuff",
+                        say("/lm prestige balance", "how much favor and how many runs you have"),
+                        say("/lm rival stats", "your rival record"),
+                        say("/lm spar stats", "your sparring record"),
+                        say("/lm hud on", "show fight, spar and war notices on screen"),
+                        say("/lm hud off", "show them in chat instead"),
+                        say("/lm revive", "bring yourself back (higher donor ranks, every 5 minutes)")),
+                new Topic("Get help",
+                        say("/lm help", "this list"),
+                        say("/lm difficulty help", "more about one system; works for rival, spar, dojo, prestige "
+                                + "and character too"),
+                        tip("Stuck? Ask a staff member.")));
+    }
+
+    // ------------------------------------------------------------------ /lm admin help
 
     public static String lmAdmin() {
         return LmStaffHelp.build(
                 "Legacy Mechanics staff",
                 "/lm admin",
-                "§7Staff tools and player fixes. Type §f/lm admin help §7anytime.",
+                UltraStyle.GRAY + "Staff tools and player fixes. In game, staff admin commands need creative mode "
+                        + "(console is unaffected). Type " + UltraStyle.WHITE + "/lm admin help" + UltraStyle.GRAY
+                        + " anytime.",
                 new LmStaffHelp.Section("Config and data",
                         LmStaffHelp.cmd("/lm admin reload", "reload Legacy Mechanics config"),
                         LmStaffHelp.cmd("/lm admin config", "edit config files in a menu"),
-                        LmStaffHelp.cmd("/lm admin migrate-cnpc", "import CNPC rival and spar data"),
-                        LmStaffHelp.cmd("/lm admin migrate-cnpc force", "wipe LM stores, then re-import"),
-                        LmStaffHelp.note("Backup: config/legacymechanics/cnpc-import-backup/")),
+                        LmStaffHelp.cmd("/lm admin syslog status|on|off|flush", "unified event log")),
+                new LmStaffHelp.Section("Each system's staff tree",
+                        LmStaffHelp.cmd("/lm admin difficulty help", "switch, whitelist, telemetry, inspect, set"),
+                        LmStaffHelp.cmd("/lm admin rival help", "save, refresh, status"),
+                        LmStaffHelp.cmd("/lm admin spar help", "save, status, mentor cooldown reset"),
+                        LmStaffHelp.cmd("/lm admin progression help", "TP boost, mastery boost, android, flags"),
+                        LmStaffHelp.cmd("/lm admin prestige help", "wallets, tiers, skills, shop, staff menu"),
+                        LmStaffHelp.cmd("/lm admin character help", "set-race, set-class, reskin, cooldowns"),
+                        LmStaffHelp.cmd("/lm admin skills", "skill unlock browser"),
+                        LmStaffHelp.cmd("/lm admin enddragon help", "clear stray dragons, repair the podium"),
+                        LmStaffHelp.cmd("/lm admin androidify <player>", "convert a player to android")),
                 new LmStaffHelp.Section("Quest rewards",
                         LmStaffHelp.cmd("/lm mastery grant-first-superform <amount>",
                                 "mastery on the first superform past the level 0 form"),
@@ -60,377 +112,345 @@ public final class LmCommandHelp {
                                 "same god form grant, name then amount")),
                 new LmStaffHelp.Section("Player resets",
                         LmStaffHelp.cmd("/lm admin clear <player>", "clear all LM data, online or offline"),
-                        LmStaffHelp.cmd("/lm admin clear <player> rival", "clear rival data only"),
-                        LmStaffHelp.cmd("/lm admin clear <player> spar", "clear spar data only"),
-                        LmStaffHelp.cmd("/lm admin clear <player> difficulty", "clear difficulty data only"),
-                        LmStaffHelp.cmd("/lm admin clear <player> progression", "clear progression data only"),
-                        LmStaffHelp.cmd("/lm admin character cooldown clear <player>", "clear all character service cooldowns"),
-                        LmStaffHelp.cmd("/lm admin character cooldown clear <player> race", "clear race change cooldown"),
-                        LmStaffHelp.cmd("/lm admin character cooldown clear <player> class", "clear class change cooldown"),
-                        LmStaffHelp.cmd("/lm admin character cooldown clear <player> reskin", "clear reskin cooldown"),
+                        LmStaffHelp.cmd("/lm admin clear <player> rival|spar|difficulty|progression", "clear one system"),
+                        LmStaffHelp.cmd("/lm admin character cooldown clear <player> [race|class|reskin]",
+                                "clear character service cooldowns"),
                         LmStaffHelp.cmd("/lm fusionreset <player>", "clear a stuck fusion cooldown"),
                         LmStaffHelp.cmd("/lm revive <player>", "revive an online player (staff or revive access)"),
                         LmStaffHelp.cmd("/lm revive all", "revive every dead online player (staff or revive access)"),
-                        LmStaffHelp.note("Revive has a 5-minute cooldown for anyone who is not an op")),
-                new LmStaffHelp.Section("Character fixes",
-                        LmStaffHelp.cmd("/character admin set-race <player> <race>",
-                                "change their race, keeping all stats"),
-                        LmStaffHelp.cmd("/character admin set-race <player> <race> <keep%>",
-                                "change their race, keeping a % of stats"),
-                        LmStaffHelp.cmd("/character admin set-class <player> <class>",
-                                "change their fighting class"),
-                        LmStaffHelp.cmd("/character admin reskin <player>",
-                                "open their appearance editor"),
-                        LmStaffHelp.note("Free fixes — no coin charge, permission, lock, or cooldown")),
-                new LmStaffHelp.Section("Staff tools",
-                        LmStaffHelp.cmd("/lm admin syslog status", "event log on or off"),
-                        LmStaffHelp.cmd("/lm admin syslog on", "turn unified event log on"),
-                        LmStaffHelp.cmd("/lm admin syslog off", "turn unified event log off"),
-                        LmStaffHelp.cmd("/lm admin syslog flush", "flush logs to disk"),
-                        LmStaffHelp.cmd("/lm admin inspect <player>", "view menus as that player"),
-                        LmStaffHelp.cmd("/lm admin inspect clear", "stop inspect mode")),
-                new LmStaffHelp.Section("Related staff trees",
-                        LmStaffHelp.cmd("/difficulty admin help", "adaptive difficulty staff commands"),
-                        LmStaffHelp.cmd("/padmin help", "prestige shop staff commands"),
-                        LmStaffHelp.note("Difficulty shortcut: /diff")));
+                        LmStaffHelp.note("Revive keeps its own rules (no creative needed); 5-minute cooldown for non-ops")),
+                new LmStaffHelp.Section("Look at a player",
+                        LmStaffHelp.cmd("/lm admin inspect <player> [system]", "view menus as that player"),
+                        LmStaffHelp.cmd("/lm admin inspect clear", "stop inspect mode"),
+                        LmStaffHelp.note("Systems: hub, difficulty, rival, spar, dojo, skillcheck, character, "
+                                + "prestige, progression, skills")),
+                new LmStaffHelp.Section("Dojo (staff)",
+                        LmStaffHelp.cmd("/lm dojo season advance", "end the dojo season now (asks to confirm)")),
+                new LmStaffHelp.Section("World difficulty",
+                        LmStaffHelp.note("LM no longer owns /difficulty. Vanilla /difficulty <level> (ops) sets the "
+                                + "world difficulty.")));
     }
 
+    // ------------------------------------------------------------------ difficulty
+
     public static String difficultyPlayer() {
-        return LmStaffHelp.build(
-                "Adaptive difficulty",
-                "/difficulty",
-                "§7Open your difficulty menu here or from §f/lm§7. Staff: §f/difficulty admin help§7 · shortcut §f/diff",
-                new LmStaffHelp.Section("Menus",
-                        LmStaffHelp.cmd("/difficulty", "open your difficulty menu"),
-                        LmStaffHelp.cmd("/difficulty reset", "clear active tier (free)")),
-                new LmStaffHelp.Section("World difficulty (ops)",
-                        LmStaffHelp.cmd("/difficulty peaceful", "set vanilla world difficulty"),
-                        LmStaffHelp.cmd("/difficulty easy", "set vanilla world difficulty"),
-                        LmStaffHelp.cmd("/difficulty normal", "set vanilla world difficulty"),
-                        LmStaffHelp.cmd("/difficulty hard", "set vanilla world difficulty")));
+        return guide(
+                "Difficulty",
+                "Harder monsters give better drops. You pick the tier.",
+                new Topic("Commands",
+                        say("/lm difficulty", "open the difficulty menu to pick a tier"),
+                        say("/lm difficulty reset", "go back to the normal tier (free; tiers you bought stay yours)")),
+                new Topic("Get help",
+                        say("/lm help", "every /lm command")));
     }
 
     public static String difficultyAdmin() {
         return LmStaffHelp.build(
                 "Adaptive difficulty staff",
-                "/difficulty admin",
-                "§7Player hub: §f/lm §7· Shortcut: §f/diff",
-                new LmStaffHelp.Section("Players",
-                        LmStaffHelp.cmd("/difficulty", "open your difficulty menu"),
-                        LmStaffHelp.cmd("/difficulty reset", "clear active tier (free)"),
-                        LmStaffHelp.cmd("/difficulty peaceful", "set vanilla world difficulty (ops)"),
-                        LmStaffHelp.cmd("/difficulty easy", "set vanilla world difficulty (ops)"),
-                        LmStaffHelp.cmd("/difficulty normal", "set vanilla world difficulty (ops)"),
-                        LmStaffHelp.cmd("/difficulty hard", "set vanilla world difficulty (ops)")),
+                "/lm admin difficulty",
+                UltraStyle.GRAY + "Player menu: " + UltraStyle.WHITE + "/lm difficulty",
                 new LmStaffHelp.Section("System switch",
-                        LmStaffHelp.cmd("/difficulty admin status", "show master switch state"),
-                        LmStaffHelp.cmd("/difficulty admin on", "enable adaptive difficulty"),
-                        LmStaffHelp.cmd("/difficulty admin off", "disable adaptive difficulty"),
-                        LmStaffHelp.cmd("/difficulty admin toggle", "flip master switch")),
+                        LmStaffHelp.cmd("/lm admin difficulty status", "show master switch state"),
+                        LmStaffHelp.cmd("/lm admin difficulty on", "enable adaptive difficulty"),
+                        LmStaffHelp.cmd("/lm admin difficulty off", "disable adaptive difficulty"),
+                        LmStaffHelp.cmd("/lm admin difficulty toggle", "flip master switch")),
                 new LmStaffHelp.Section("Testing whitelist",
-                        LmStaffHelp.cmd("/difficulty admin whitelist list", "who can see scaled mobs while testing"),
-                        LmStaffHelp.cmd("/difficulty admin whitelist add <player>", "add player to whitelist"),
-                        LmStaffHelp.cmd("/difficulty admin whitelist remove <player>", "remove from whitelist"),
-                        LmStaffHelp.cmd("/difficulty admin whitelist on", "restrict scaling to whitelist"),
-                        LmStaffHelp.cmd("/difficulty admin whitelist off", "scaling for everyone again"),
-                        LmStaffHelp.cmd("/difficulty admin whitelist clear", "empty whitelist")),
+                        LmStaffHelp.cmd("/lm admin difficulty whitelist list", "who can see scaled mobs while testing"),
+                        LmStaffHelp.cmd("/lm admin difficulty whitelist add <player>", "add player to whitelist"),
+                        LmStaffHelp.cmd("/lm admin difficulty whitelist remove <player>", "remove from whitelist"),
+                        LmStaffHelp.cmd("/lm admin difficulty whitelist on", "restrict scaling to whitelist"),
+                        LmStaffHelp.cmd("/lm admin difficulty whitelist off", "scaling for everyone again"),
+                        LmStaffHelp.cmd("/lm admin difficulty whitelist clear", "empty whitelist")),
                 new LmStaffHelp.Section("Staff perks and logs",
-                        LmStaffHelp.cmd("/difficulty admin stafffree status", "staff skip Ancient Coin costs"),
-                        LmStaffHelp.cmd("/difficulty admin stafffree on", "enable staff free coins"),
-                        LmStaffHelp.cmd("/difficulty admin stafffree off", "disable staff free coins"),
-                        LmStaffHelp.cmd("/difficulty admin telemetry status", "combat balance telemetry"),
-                        LmStaffHelp.cmd("/difficulty admin telemetry on", "enable combat telemetry"),
-                        LmStaffHelp.cmd("/difficulty admin telemetry off", "disable combat telemetry"),
-                        LmStaffHelp.cmd("/difficulty admin syslog status", "unified system event log"),
-                        LmStaffHelp.cmd("/difficulty admin syslog on", "enable system event log"),
-                        LmStaffHelp.cmd("/difficulty admin syslog off", "disable system event log")),
+                        LmStaffHelp.cmd("/lm admin difficulty stafffree status|on|off", "staff skip Ancient Coin costs"),
+                        LmStaffHelp.cmd("/lm admin difficulty telemetry status|on|off", "combat balance telemetry"),
+                        LmStaffHelp.cmd("/lm admin difficulty syslog status|on|off", "unified system event log")),
                 new LmStaffHelp.Section("Inspect and fix players",
-                        LmStaffHelp.cmd("/difficulty admin inspect <player>", "open their difficulty menu"),
-                        LmStaffHelp.cmd("/difficulty admin inspect clear", "stop inspect mode"),
-                        LmStaffHelp.cmd("/difficulty admin resynclevel <player>", "fix stuck level sample on GUI"),
-                        LmStaffHelp.cmd("/difficulty admin resetpurchased", "reset purchased tiers (staff)"),
-                        LmStaffHelp.cmd("/difficulty admin characterreset", "character wipe hook")),
+                        LmStaffHelp.cmd("/lm admin difficulty inspect <player>", "open their difficulty menu"),
+                        LmStaffHelp.cmd("/lm admin difficulty inspect clear", "stop inspect mode"),
+                        LmStaffHelp.cmd("/lm admin difficulty resynclevel <player>", "fix stuck level sample on GUI"),
+                        LmStaffHelp.cmd("/lm admin difficulty resetpurchased", "reset purchased tiers (staff)"),
+                        LmStaffHelp.cmd("/lm admin difficulty characterreset", "character wipe hook")),
                 new LmStaffHelp.Section("Config",
-                        LmStaffHelp.cmd("/difficulty admin reload", "reload adaptivedifficulty.json"),
-                        LmStaffHelp.cmd("/difficulty admin settings", "open admin settings menu"),
-                        LmStaffHelp.cmd("/difficulty admin area", "show area difficulty at you"),
-                        LmStaffHelp.cmd("/difficulty admin gamedifficulty <level>", "set vanilla difficulty"),
-                        LmStaffHelp.cmd("/difficulty admin set <key> <value>", "change a live config key"),
-                        LmStaffHelp.note("Tier keys live in config/adaptivedifficulty.json")));
+                        LmStaffHelp.cmd("/lm admin difficulty reload", "reload adaptivedifficulty.json"),
+                        LmStaffHelp.cmd("/lm admin difficulty settings", "open admin settings menu"),
+                        LmStaffHelp.cmd("/lm admin difficulty area", "show area difficulty at you"),
+                        LmStaffHelp.cmd("/lm admin difficulty set <key> <value>", "change a live config key"),
+                        LmStaffHelp.note("World difficulty: vanilla /difficulty <level> (ops)")));
     }
 
+    // ------------------------------------------------------------------ rival
+
     public static String rivalPlayer() {
-        return LmStaffHelp.build(
-                "Rival system",
-                "/rival",
-                "§7Most rival actions live in the rival menu. Type §f/rival help §7when you need the full list.",
-                new LmStaffHelp.Section("Menus",
-                        LmStaffHelp.cmd("/rival", "open rival menu"),
-                        LmStaffHelp.cmd("/rival season", "season progress menu"),
-                        LmStaffHelp.cmd("/rival quests", "quests menu"),
-                        LmStaffHelp.cmd("/rival achievements", "achievements menu"),
-                        LmStaffHelp.cmd("/rival hof", "hall of fame"),
-                        LmStaffHelp.cmd("/rival journal", "rival journal"),
-                        LmStaffHelp.cmd("/rival title", "title picker")),
-                new LmStaffHelp.Section("Info",
-                        LmStaffHelp.cmd("/rival list", "list your rivals"),
-                        LmStaffHelp.cmd("/rival stats", "your rival stats"),
-                        LmStaffHelp.cmd("/rival stats <player>", "another player's stats"),
-                        LmStaffHelp.cmd("/rival top", "leaderboard (RP)"),
-                        LmStaffHelp.cmd("/rival top <category>", "leaderboard by category")),
-                new LmStaffHelp.Section("Teleport messages",
-                        LmStaffHelp.cmd("/rival tpmsg", "show TP message toggle state"),
-                        LmStaffHelp.cmd("/rival tpmsg on", "enable rival TP messages"),
-                        LmStaffHelp.cmd("/rival tpmsg off", "disable rival TP messages")),
-                new LmStaffHelp.Section("Staff",
-                        LmStaffHelp.cmd("/rival admin help", "save, refresh, status")));
+        return guide(
+                "Rivals",
+                "Pick a rival, beat them in fights and climb the season. Most of it is in the rival menu.",
+                new Topic("Open",
+                        say("/lm rival", "the rival menu"),
+                        say("/lm rival season", "your season progress"),
+                        say("/lm rival quests", "rival quests"),
+                        say("/lm rival achievements", "your achievements"),
+                        say("/lm rival hof", "the hall of fame"),
+                        say("/lm rival journal", "your rival journal"),
+                        say("/lm rival title", "pick a title to show")),
+                new Topic("Look up",
+                        say("/lm rival list", "your rivals"),
+                        say("/lm rival stats", "your record"),
+                        say("/lm rival stats <name>", "someone else's record"),
+                        say("/lm rival top", "the leaderboard")),
+                new Topic("Settings",
+                        say("/lm rival tpmsg on", "tell me when I earn TP from a rival fight"),
+                        say("/lm rival tpmsg off", "stop those messages")));
     }
 
     public static String rivalAdmin() {
         return LmStaffHelp.build(
                 "Rival staff",
-                "/rival admin",
-                "§7Use §f/rival admin help §7anytime.",
+                "/lm admin rival",
+                UltraStyle.GRAY + "Use " + UltraStyle.WHITE + "/lm admin rival help" + UltraStyle.GRAY + " anytime.",
                 new LmStaffHelp.Section("Data",
-                        LmStaffHelp.cmd("/rival admin save", "write rivalry data to disk"),
-                        LmStaffHelp.cmd("/rival admin refresh", "reload stores from disk"),
-                        LmStaffHelp.cmd("/rival admin status", "enabled flag and file paths")),
-                new LmStaffHelp.Section("Rivalry actions (your account)",
-                        LmStaffHelp.cmd("/rival declare <player>", "declare a rival"),
-                        LmStaffHelp.cmd("/rival accept <player>", "accept a rival request"),
-                        LmStaffHelp.cmd("/rival decline <player>", "decline a rival request"),
-                        LmStaffHelp.cmd("/rival remove <player>", "remove a rival"),
+                        LmStaffHelp.cmd("/lm admin rival save", "write rivalry data to disk"),
+                        LmStaffHelp.cmd("/lm admin rival refresh", "reload stores from disk"),
+                        LmStaffHelp.cmd("/lm admin rival status", "enabled flag and file paths")),
+                new LmStaffHelp.Section("Rivalry actions (your account, staff only)",
+                        LmStaffHelp.cmd("/lm rival declare <player>", "declare a rival"),
+                        LmStaffHelp.cmd("/lm rival accept <player>", "accept a rival request"),
+                        LmStaffHelp.cmd("/lm rival decline <player>", "decline a rival request"),
+                        LmStaffHelp.cmd("/lm rival remove <player>", "remove a rival"),
                         LmStaffHelp.note("Players use the rival menu for these")),
-                new LmStaffHelp.Section("Duel challenge (your account)",
-                        LmStaffHelp.cmd("/rival challenge send <player>", "send a duel request"),
-                        LmStaffHelp.cmd("/rival challenge send <player> <minutes>", "send with custom window"),
-                        LmStaffHelp.cmd("/rival challenge accept", "accept pending duel"),
-                        LmStaffHelp.cmd("/rival challenge decline", "decline pending duel"),
-                        LmStaffHelp.cmd("/rival challenge cancel", "cancel your outgoing duel")),
-                new LmStaffHelp.Section("Spectate (your account)",
-                        LmStaffHelp.cmd("/rival spectate", "spectate an active duel"),
-                        LmStaffHelp.cmd("/rival spectate <player>", "spectate a player's duel"),
-                        LmStaffHelp.cmd("/rival spectate stop", "stop spectating")));
+                new LmStaffHelp.Section("Duel challenge (your account, staff only)",
+                        LmStaffHelp.cmd("/lm rival challenge send <player> [minutes]", "send a duel request"),
+                        LmStaffHelp.cmd("/lm rival challenge accept|decline|cancel", "answer or cancel a duel")),
+                new LmStaffHelp.Section("Spectate (staff only)",
+                        LmStaffHelp.cmd("/lm rival spectate [player]", "spectate a duel"),
+                        LmStaffHelp.cmd("/lm rival spectate stop", "stop spectating")));
     }
 
+    // ------------------------------------------------------------------ spar and dojo
+
     public static String sparPlayer() {
-        return LmStaffHelp.build(
+        return guide(
                 "Sparring",
-                "/spar",
-                "§7Training, mentors, and dojo wars — most live in the sparring menu. Type §f/spar help §7for commands.",
-                new LmStaffHelp.Section("Menus",
-                        LmStaffHelp.cmd("/spar", "open sparring menu")),
-                new LmStaffHelp.Section("Session",
-                        LmStaffHelp.cmd("/spar stats", "your spar stats"),
-                        LmStaffHelp.cmd("/spar stats <player>", "another player's stats"),
-                        LmStaffHelp.cmd("/spar end", "end your active spar session"),
-                        LmStaffHelp.cmd("/spar top", "leaderboard (training points)"),
-                        LmStaffHelp.cmd("/spar top <category>", "leaderboard by category")),
-                new LmStaffHelp.Section("Mentor",
-                        LmStaffHelp.cmd("/spar mentor", "mentor bond status"),
-                        LmStaffHelp.cmd("/spar mentor <player>", "invite a mentor")),
-                new LmStaffHelp.Section("Apprentice",
-                        LmStaffHelp.cmd("/spar apprentice", "apprentice status"),
-                        LmStaffHelp.cmd("/spar apprentice <player>", "invite an apprentice"),
-                        LmStaffHelp.cmd("/spar apprentice remove", "release your apprentice"),
-                        LmStaffHelp.cmd("/spar apprentice remove <player>", "release one apprentice")),
-                new LmStaffHelp.Section("Dojo",
-                        LmStaffHelp.cmd("/spar dojo", "your dojo summary"),
-                        LmStaffHelp.cmd("/spar dojo members", "your dojo's current members"),
-                        LmStaffHelp.cmd("/spar dojo previous-members", "who left your dojo this season"),
-                        LmStaffHelp.cmd("/spar dojo season advance", "staff: end the dojo season now (asks to confirm)"),
-                        LmStaffHelp.cmd("/spar dojo hof", "dojo hall of fame"),
-                        LmStaffHelp.cmd("/spar dojo top", "dojo leaderboard")),
-                new LmStaffHelp.Section("Staff",
-                        LmStaffHelp.cmd("/spar admin help", "save, status, mentor cooldown reset")));
+                "Spar with other players to earn TP. Mentors and the Spar Board are in the sparring menu.",
+                new Topic("Open",
+                        say("/lm spar", "the sparring menu"),
+                        say("/lm dojo", "your dojo")),
+                new Topic("While sparring",
+                        say("/lm spar end", "stop your current spar"),
+                        say("/lm spar stats", "your sparring record"),
+                        say("/lm spar top", "the leaderboard")),
+                new Topic("Mentors",
+                        say("/lm spar mentor", "your mentor bond"),
+                        say("/lm spar mentor <name>", "ask someone to be your mentor"),
+                        say("/lm spar apprentice <name>", "ask someone to be your apprentice"),
+                        say("/lm spar apprentice remove", "let your apprentice go")),
+                new Topic("Training weights",
+                        say("/lm spar weight quote <type> <value>", "check a price (1 ancient copper per value)")));
+    }
+
+    public static String dojoPlayer() {
+        return guide(
+                "Dojo",
+                "A dojo is a team with its own hall. Found one, join one, train together and fight dojo wars.",
+                new Topic("Open",
+                        say("/lm dojo", "your dojo (if you are in two, pick which one first)"),
+                        say("/lm open dojo", "the same menu")),
+                new Topic("Look up",
+                        say("/lm dojo summary", "your dojo's stats in chat"),
+                        say("/lm dojo members", "who is in your dojo"),
+                        say("/lm dojo previous-members", "who left this season"),
+                        say("/lm dojo top", "the dojo leaderboard"),
+                        say("/lm dojo hof", "the dojo hall of fame")),
+                new Topic("Good to know",
+                        tip("Only a dojo's master can build in its hall."),
+                        tip("Ki attacks only hurt in the dojo world during a bout.")));
     }
 
     public static String sparAdmin() {
         return LmStaffHelp.build(
                 "Sparring staff",
-                "/spar admin",
-                "§7Use §f/spar admin help §7anytime.",
+                "/lm admin spar",
+                UltraStyle.GRAY + "Use " + UltraStyle.WHITE + "/lm admin spar help" + UltraStyle.GRAY + " anytime.",
                 new LmStaffHelp.Section("Data",
-                        LmStaffHelp.cmd("/spar admin save", "write spar data to disk"),
-                        LmStaffHelp.cmd("/spar admin status", "enabled flag and file path")),
+                        LmStaffHelp.cmd("/lm admin spar save", "write spar data to disk"),
+                        LmStaffHelp.cmd("/lm admin spar status", "enabled flag and file path")),
                 new LmStaffHelp.Section("Mentor cooldown",
-                        LmStaffHelp.cmd("/spar admin mentor resetcd", "clear your mentor invite cooldown"),
-                        LmStaffHelp.cmd("/spar admin mentor resetcd <player>", "clear cooldown for a player")),
-                new LmStaffHelp.Section("Mentor decisions (your account)",
-                        LmStaffHelp.cmd("/spar mentor accept", "accept mentor invite"),
-                        LmStaffHelp.cmd("/spar mentor decline", "decline mentor invite"),
-                        LmStaffHelp.cmd("/spar mentor leave", "leave mentor bond"),
+                        LmStaffHelp.cmd("/lm admin spar mentor resetcd", "clear your mentor invite cooldown"),
+                        LmStaffHelp.cmd("/lm admin spar mentor resetcd <player>", "clear cooldown for a player")),
+                new LmStaffHelp.Section("Mentor decisions (your account, staff only)",
+                        LmStaffHelp.cmd("/lm spar mentor accept|decline|leave", "answer or leave a mentor bond"),
                         LmStaffHelp.note("Players use the sparring menu for these")),
-                new LmStaffHelp.Section("Dojo wars (your account)",
-                        LmStaffHelp.cmd("/spar dojo accept", "accept dojo war invite"),
-                        LmStaffHelp.cmd("/spar dojo decline", "decline dojo war invite"),
-                        LmStaffHelp.cmd("/spar dojo challenge <player>", "challenge another dojo")),
-                new LmStaffHelp.Section("Weights shop",
-                        LmStaffHelp.cmd("/spar weight quote <type> <value>", "check a training weight price"),
-                        LmStaffHelp.cmd("/spar weight buy <type> <value>", "buy training weights"),
+                new LmStaffHelp.Section("Dojo (staff only)",
+                        LmStaffHelp.cmd("/lm dojo accept|decline", "answer a dojo war request"),
+                        LmStaffHelp.cmd("/lm dojo challenge <player>", "declare a menu war on that player's dojo"),
+                        LmStaffHelp.cmd("/lm dojo season advance", "end the dojo season now (asks to confirm)")),
+                new LmStaffHelp.Section("Weights shop (staff only)",
+                        LmStaffHelp.cmd("/lm spar weight quote <type> <value>", "check a training weight price"),
+                        LmStaffHelp.cmd("/lm spar weight buy <type> <value>", "buy training weights"),
                         LmStaffHelp.note("Types: turtle_shell, workout_weights, piccolo_cape")));
     }
 
+    // ------------------------------------------------------------------ progression
+
     public static String progressionPlayer() {
-        return LmStaffHelp.build(
+        return guide(
                 "Progression",
-                "/lm",
-                "§7Spar to raise Potential Unlock. Prestige and the shop live under §f/lm§7.",
-                new LmStaffHelp.Section("Android",
-                        LmStaffHelp.cmd("/progression android remove", "remove your Android upgrade"),
-                        LmStaffHelp.note("Run it again within 10 seconds to confirm")),
-                new LmStaffHelp.Section("Hub",
-                        LmStaffHelp.cmd("/lm", "open the hub"),
-                        LmStaffHelp.note("Staff tools: /progression help")));
+                "Spar to raise Potential Unlock. Prestige and the shop are in the main menu (/lm).",
+                new Topic("Android",
+                        say("/lm progression android remove", "remove your Android upgrade"),
+                        tip("Type it again within 10 seconds to confirm. This cannot be undone.")));
     }
 
     public static String progressionStaff() {
         return LmStaffHelp.build(
                 "Progression staff",
-                "/progression",
-                "§7Staff progression tools—boosts, flags, and android conversion.",
+                "/lm admin progression",
+                UltraStyle.GRAY + "Staff progression tools: boosts, flags and android conversion.",
                 new LmStaffHelp.Section("Menus",
-                        LmStaffHelp.cmd("/progression", "open progression staff menu")),
-                new LmStaffHelp.Section("Natural boost",
-                        LmStaffHelp.cmd("/progression boost status", "show active boost"),
-                        LmStaffHelp.cmd("/progression boost end", "end active boost"),
-                        LmStaffHelp.cmd("/progression boost start <encoded>", "start boost from encoded id"),
-                        LmStaffHelp.cmd("/progression boost start <multiplier> <minutes>", "start timed boost")),
-                new LmStaffHelp.Section("Android (staff)",
-                        LmStaffHelp.cmd("/progression android <player>", "convert player to android"),
-                        LmStaffHelp.cmd("/progression android remove <player>", "remove android from player")),
+                        LmStaffHelp.cmd("/lm admin progression gui [page]", "open the progression staff menu"),
+                        LmStaffHelp.cmd("/lm admin progression status", "flag and boost summary"),
+                        LmStaffHelp.cmd("/lm admin progression flags", "open the flags page")),
+                new LmStaffHelp.Section("TP boost",
+                        LmStaffHelp.cmd("/lm admin progression boost status", "show the active TP boost"),
+                        LmStaffHelp.cmd("/lm admin progression boost end", "end the active TP boost"),
+                        LmStaffHelp.cmd("/lm admin progression boost start <encoded> [name]", "start from a store code"),
+                        LmStaffHelp.cmd("/lm admin progression boost start <multiplier> <minutes> [name]",
+                                "start a timed TP boost")),
+                new LmStaffHelp.Section("Mastery boost",
+                        LmStaffHelp.cmd("/lm admin progression masteryboost status", "show the active mastery boost"),
+                        LmStaffHelp.cmd("/lm admin progression masteryboost end", "end the active mastery boost"),
+                        LmStaffHelp.cmd("/lm admin progression masteryboost start <code> [name]",
+                                "start from a store code (same format as the TP boost)"),
+                        LmStaffHelp.cmd("/lm admin progression masteryboost start <multiplier> <minutes> [name]",
+                                "start a timed mastery boost")),
+                new LmStaffHelp.Section("Android",
+                        LmStaffHelp.cmd("/lm admin progression android <player>", "convert a player to android"),
+                        LmStaffHelp.cmd("/lm admin progression android remove <player>", "remove android from a player"),
+                        LmStaffHelp.note("Players remove their own with /lm progression android remove")),
                 new LmStaffHelp.Section("Flags",
-                        LmStaffHelp.cmd("/progression admin <flag> <on>", "toggle progression flag"),
-                        LmStaffHelp.cmd("/progression admin <flag> <off>", "toggle progression flag off")));
+                        LmStaffHelp.cmd("/lm admin progression flags <flag> on|off", "toggle a progression flag")));
     }
 
     public static String endDragonStaff() {
         return LmStaffHelp.build(
                 "End dragon staff",
-                "/enddragon",
-                "§7Players summon dragons from the Difficulty menu only.",
+                "/lm admin enddragon",
+                UltraStyle.GRAY + "Players summon dragons from the Difficulty menu only.",
                 new LmStaffHelp.Section("Maintenance",
-                        LmStaffHelp.cmd("/enddragon clear", "remove stray end dragons"),
-                        LmStaffHelp.cmd("/enddragon repair", "repair End podium"),
-                        LmStaffHelp.note("Players summon from the Difficulty menu")));
+                        LmStaffHelp.cmd("/lm admin enddragon clear", "remove stray end dragons"),
+                        LmStaffHelp.cmd("/lm admin enddragon repair", "repair End podium")));
     }
+
+    // ------------------------------------------------------------------ skill check
 
     public static String skillCheck() {
-        return LmStaffHelp.build(
-                "Skill check",
-                "/skillcheck",
-                "§7Donator or staff permission required.",
-                new LmStaffHelp.Section("Menus",
-                        LmStaffHelp.cmd("/skillcheck", "open skill check menu"),
-                        LmStaffHelp.cmd("/skillcheck <page>", "open a specific page")),
-                new LmStaffHelp.Section("Hub",
-                        LmStaffHelp.cmd("/lm open skillcheck", "open from Legacy Mechanics hub")));
+        return guide(
+                "Skill Check",
+                "See every skill you have and how far each one has gone. Donor ranks only.",
+                new Topic("Open",
+                        say("/lm skillcheck", "the Skill Check menu"),
+                        say("/lm skillcheck <page>", "jump to one page")));
     }
 
+    // ------------------------------------------------------------------ character
+
     public static String characterPlayer() {
-        return LmStaffHelp.build(
-                "Character services",
-                "/character",
-                "§7Race, class, and reskin services — same purchases as the character menu. Use §f/character help §7anytime.",
-                new LmStaffHelp.Section("Menus",
-                        LmStaffHelp.cmd("/character", "open character services menu"),
-                        LmStaffHelp.cmd("/lm open character", "same menu from the hub"),
-                        LmStaffHelp.note("Browse races and classes in the menu — costs and cooldowns shown there")));
+        return guide(
+                "Character",
+                "Change your race, class or looks. The menu shows every price and wait time before you buy.",
+                new Topic("Open",
+                        say("/lm character", "the Character menu"),
+                        say("/lm saga", "saga resets")));
     }
 
     public static String characterStaff() {
         return LmStaffHelp.build(
                 "Character services staff",
-                "/character admin",
-                "§7Fix another player's race, class, or appearance. Type §f/character admin help §7anytime.",
+                "/lm admin character",
+                UltraStyle.GRAY + "Fix another player's race, class, or appearance.",
                 new LmStaffHelp.Section("Fixes",
-                        LmStaffHelp.cmd("/character admin set-race <player> <race>",
-                                "change their race, keeping all stats"),
-                        LmStaffHelp.cmd("/character admin set-race <player> <race> <keep%>",
-                                "change their race, keeping a % of stats"),
-                        LmStaffHelp.cmd("/character admin set-class <player> <class>",
+                        LmStaffHelp.cmd("/lm admin character set-race <player> <race> [keep%]",
+                                "change their race, keeping all (or a % of) stats"),
+                        LmStaffHelp.cmd("/lm admin character set-class <player> <class>",
                                 "change their fighting class"),
-                        LmStaffHelp.cmd("/character admin reskin <player>",
+                        LmStaffHelp.cmd("/lm admin character reskin <player>",
                                 "open their appearance editor"),
                         LmStaffHelp.note("Free fixes — no coin charge, permission, lock, or cooldown")),
-                new LmStaffHelp.Section("Related",
-                        LmStaffHelp.cmd("/lm admin character cooldown clear <player>",
+                new LmStaffHelp.Section("Cooldowns",
+                        LmStaffHelp.cmd("/lm admin character cooldown clear <player> [race|class|reskin]",
                                 "clear their service cooldowns"),
-                        LmStaffHelp.note("Players use the Character Services menu for their own changes")));
+                        LmStaffHelp.note("Players use the Character menu for their own changes")));
     }
 
     public static String androidifyStaff() {
         return LmStaffHelp.build(
                 "Androidify",
-                "/androidify",
-                "§7Staff-only race conversion tool.",
+                "/lm admin androidify",
+                UltraStyle.GRAY + "Staff-only race conversion tool.",
                 new LmStaffHelp.Section("Usage",
-                        LmStaffHelp.cmd("/androidify", "convert yourself (in-game)"),
-                        LmStaffHelp.cmd("/androidify <player>", "convert another online player")));
+                        LmStaffHelp.cmd("/lm admin androidify", "convert yourself (in-game)"),
+                        LmStaffHelp.cmd("/lm admin androidify <player>", "convert another online player")));
     }
 
     public static String skillsStaff() {
         return LmStaffHelp.build(
                 "Skills admin",
-                "/skills",
-                "§7Staff skill-unlock browser (not the donator skill check).",
+                "/lm admin skills",
+                UltraStyle.GRAY + "Staff skill-unlock browser (not the donator Skill Check).",
                 new LmStaffHelp.Section("Menus",
-                        LmStaffHelp.cmd("/skills", "open skills admin menu"),
-                        LmStaffHelp.cmd("/skills do page <page>", "scripted page open")));
+                        LmStaffHelp.cmd("/lm admin skills", "open skills admin menu"),
+                        LmStaffHelp.cmd("/lm admin skills do page <page>", "open one page")));
     }
 
+    // ------------------------------------------------------------------ prestige
+
     public static String prestigePlayer() {
-        return LmStaffHelp.build(
+        return guide(
                 "Prestige shop",
-                "/prestige",
-                "§7Everything the Prestige → Shop screens sell — exchange, skills, tiers, and effects. Use §f/prestige help §7anytime.",
-                new LmStaffHelp.Section("Exchange",
-                        LmStaffHelp.cmd("/prestige balance", "favor, held shards, completed runs"),
-                        LmStaffHelp.cmd("/prestige turnin <1|2|3|6|9|12|15|18>", "bank a prestige run")),
-                new LmStaffHelp.Section("Skills and tiers",
-                        LmStaffHelp.cmd("/prestige buy skill <skill>", "buy a passive skill level"),
-                        LmStaffHelp.cmd("/prestige buy tier <1-7>", "buy a difficulty tier unlock")),
-                new LmStaffHelp.Section("Effects",
-                        LmStaffHelp.cmd("/prestige effects", "view your current shop effects"),
-                        LmStaffHelp.cmd("/prestige buy majin", "buy Majin absorption"),
-                        LmStaffHelp.cmd("/prestige buy mutant", "buy mutant upgrade"),
-                        LmStaffHelp.cmd("/prestige buy godki", "buy God Ki enhancement"),
-                        LmStaffHelp.cmd("/prestige remove majin", "remove Majin absorption"),
-                        LmStaffHelp.cmd("/prestige remove mutant", "remove mutant upgrade")),
-                new LmStaffHelp.Section("Staff",
-                        LmStaffHelp.note("Staff menu: /prestige menu · wallet edits: /padmin help")));
+                "Trade prestige runs for favor, then spend favor on skills, tiers and effects. "
+                        + "The shop menu (/lm prestige) shows every price.",
+                new Topic("Your favor",
+                        say("/lm prestige", "open the prestige menu"),
+                        say("/lm prestige balance", "your favor, held runs and finished runs"),
+                        say("/lm prestige turnin <runs>", "trade held runs for favor (1, 2, 3, 6, 9, 12, 15 or 18)")),
+                new Topic("Buy",
+                        say("/lm prestige buy skill <skill>", "one more level of a passive skill"),
+                        say("/lm prestige buy tier <1-7>", "unlock a difficulty tier for good"),
+                        say("/lm prestige buy majin|mutant|godki", "a shop effect")),
+                new Topic("Effects",
+                        say("/lm prestige effects", "the effects you have now"),
+                        say("/lm prestige remove majin|mutant", "remove an effect (no refund)")));
     }
 
     public static String prestigeAdmin() {
         return LmStaffHelp.build(
                 "Prestige admin",
-                "/padmin",
-                "§7Staff-only prestige shop adjustments. Use §f/padmin help §7anytime.",
+                "/lm admin prestige",
+                UltraStyle.GRAY + "Staff-only prestige shop adjustments. Use " + UltraStyle.WHITE
+                        + "/lm admin prestige help" + UltraStyle.GRAY + " anytime.",
+                new LmStaffHelp.Section("Staff menu",
+                        LmStaffHelp.cmd("/lm admin prestige menu", "open the prestige staff menu"),
+                        LmStaffHelp.cmd("/lm admin prestige do page <page>", "open one page"),
+                        LmStaffHelp.cmd("/lm admin prestige do confirm [page]", "confirm a staff menu prestige")),
                 new LmStaffHelp.Section("Look up",
-                        LmStaffHelp.cmd("/padmin info", "your prestige summary"),
-                        LmStaffHelp.cmd("/padmin info <player>", "another player's summary")),
+                        LmStaffHelp.cmd("/lm admin prestige info [player]", "prestige summary")),
                 new LmStaffHelp.Section("Wallet counts",
-                        LmStaffHelp.cmd("/padmin points <player> set <amount>", "set wallet points"),
-                        LmStaffHelp.cmd("/padmin points <player> add <amount>", "add wallet points"),
-                        LmStaffHelp.cmd("/padmin points <player> remove <amount>", "remove wallet points"),
-                        LmStaffHelp.cmd("/padmin held <player> set <amount>", "set held prestige count"),
-                        LmStaffHelp.cmd("/padmin held <player> add <amount>", "add held prestige count"),
-                        LmStaffHelp.cmd("/padmin held <player> remove <amount>", "remove held prestige count"),
-                        LmStaffHelp.cmd("/padmin completed <player> set <amount>", "set completed count"),
-                        LmStaffHelp.cmd("/padmin completed <player> add <amount>", "add completed count"),
-                        LmStaffHelp.cmd("/padmin completed <player> remove <amount>", "remove completed count"),
-                        LmStaffHelp.cmd("/padmin godki <player> set <0-10>", "set God Ki investments"),
-                        LmStaffHelp.cmd("/padmin godki <player> add <n>", "add God Ki investments"),
-                        LmStaffHelp.cmd("/padmin godki <player> remove <n>", "remove God Ki investments")),
+                        LmStaffHelp.cmd("/lm admin prestige points <player> set|add|remove <amount>", "wallet points"),
+                        LmStaffHelp.cmd("/lm admin prestige held <player> set|add|remove <amount>", "held prestige count"),
+                        LmStaffHelp.cmd("/lm admin prestige completed <player> set|add|remove <amount>", "completed count"),
+                        LmStaffHelp.cmd("/lm admin prestige godki <player> set <0-10>", "set God Ki investments"),
+                        LmStaffHelp.cmd("/lm admin prestige godki <player> add|remove <n>", "change God Ki investments")),
                 new LmStaffHelp.Section("Shop unlocks",
-                        LmStaffHelp.cmd("/padmin tier <player> set <0-7>", "set highest purchased tier"),
-                        LmStaffHelp.cmd("/padmin tier <player> give <1-7>", "grant a tier unlock"),
-                        LmStaffHelp.cmd("/padmin tier <player> clear <1-7>", "clear one tier unlock"),
-                        LmStaffHelp.cmd("/padmin tier <player> clear all", "clear all tier unlocks"),
-                        LmStaffHelp.cmd("/padmin skills <player>", "list invested skill floors"),
-                        LmStaffHelp.cmd("/padmin skill <player> <skillId> set <levels>", "set skill floor level"),
-                        LmStaffHelp.cmd("/padmin skill <player> <skillId> add <levels>", "add skill floor levels"),
-                        LmStaffHelp.cmd("/padmin skill <player> <skillId> remove <levels>", "remove skill floor levels"),
-                        LmStaffHelp.note("Skill IDs match the prestige shop (e.g. potentialunlock)")));
+                        LmStaffHelp.cmd("/lm admin prestige tier <player> set <0-7>", "set highest purchased tier"),
+                        LmStaffHelp.cmd("/lm admin prestige tier <player> give <1-7>", "grant a tier unlock"),
+                        LmStaffHelp.cmd("/lm admin prestige tier <player> clear <1-7|all>", "clear tier unlocks"),
+                        LmStaffHelp.cmd("/lm admin prestige skills <player>", "list invested skill floors"),
+                        LmStaffHelp.cmd("/lm admin prestige skill <player> <skillId> set|add|remove <levels>",
+                                "adjust a skill floor"),
+                        LmStaffHelp.note("Skill IDs match the prestige shop (e.g. potentialunlock)")),
+                new LmStaffHelp.Section("Custom shop",
+                        LmStaffHelp.cmd("/lm admin prestige shop list|check|reload", "custom shop entries"),
+                        LmStaffHelp.cmd("/lm admin prestige custom <player> [entry give|take|set n]",
+                                "custom perks a player owns")));
     }
 }

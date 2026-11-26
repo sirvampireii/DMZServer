@@ -3,7 +3,7 @@
  * Skill Check — player NPC
  * ============================================================
  * Right-click opens Skill Check for every player. No donator
- * permission. Slash /skillcheck still needs
+ * permission. Slash /lm skillcheck still needs
  * legacymechanics.skillcheck.
  *
  * Setup (CustomNPCs editor):

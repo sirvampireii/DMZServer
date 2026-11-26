@@ -34,7 +34,7 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
-/** {@code /progression} — staff progression tools. Meditation is not a slash command. */
+/** {@code /lm progression} — staff progression tools. Meditation is not a slash command. */
 public final class ProgressionCommands {
     private ProgressionCommands() {}
 
@@ -44,13 +44,14 @@ public final class ProgressionCommands {
 
     @SubscribeEvent
     public void onRegister(RegisterCommandsEvent event) {
-        event.getDispatcher().register(build("progression"));
+        // 4.7.88: every tree below lives under /lm. Progression -> /lm progression (players: android remove)
+        // and /lm admin progression (boost, masteryboost, android <player>, flags, the staff menu).
+        event.getDispatcher().register(CommandAccess.underLm(build("progression")));
+        event.getDispatcher().register(CommandAccess.underLmAdmin(adminBuild("progression")));
 
         // Prestige — player shop with parity for Prestige → Shop → Exchange/skills/tiers
-        // Effects (majin/mutant/godki) in the Ultra GUI, plus the staff menu backend.
-        // Admin wallet edits stay on /padmin.
-        event.getDispatcher().register(Commands.m_82127_("prestige")
-                .requires(CommandAccess::isPlayerSlashUser)
+        // Effects (majin/mutant/godki) in the Ultra GUI. Now /lm prestige.
+        event.getDispatcher().register(CommandAccess.underLm(Commands.m_82127_("prestige")
                 .executes(ctx -> prestigeRoot(ctx.getSource()))
                 .then(Commands.m_82127_("help").executes(ctx -> prestigeHelp(ctx.getSource())))
                 .then(Commands.m_82127_("balance")
@@ -81,10 +82,14 @@ public final class ProgressionCommands {
                         .then(Commands.m_82127_("godki").executes(ctx -> prestigeDo(ctx.getSource(), "godki", ""))))
                 .then(Commands.m_82127_("remove")
                         .then(Commands.m_82127_("majin").executes(ctx -> prestigeDo(ctx.getSource(), "unmajin", "")))
-                        .then(Commands.m_82127_("mutant").executes(ctx -> prestigeDo(ctx.getSource(), "unmutant", ""))))
-                .then(CommandAccess.staffLiteral("menu")
+                        .then(Commands.m_82127_("mutant").executes(ctx -> prestigeDo(ctx.getSource(), "unmutant", ""))))));
+
+        // Staff prestige: the old prestige menu, prestige do and padmin trees, merged into /lm admin prestige.
+        event.getDispatcher().register(CommandAccess.underLmAdmin(
+                PrestigeAdminCommandTree.attach(Commands.m_82127_("prestige"))
+                .then(Commands.m_82127_("menu")
                         .executes(ctx -> prestigeGui(ctx.getSource(), "main")))
-                .then(CommandAccess.staffLiteral("do")
+                .then(Commands.m_82127_("do")
                         .then(Commands.m_82127_("confirm")
                                 .executes(ctx -> prestigeConfirm(ctx.getSource(), "main"))
                                 .then(Commands.m_82129_("page", StringArgumentType.word())
@@ -95,15 +100,10 @@ public final class ProgressionCommands {
                                 .then(Commands.m_82129_("page", StringArgumentType.word())
                                         .executes(ctx -> prestigeGui(
                                                 ctx.getSource(),
-                                                StringArgumentType.getString(ctx, "page")))))));
+                                                StringArgumentType.getString(ctx, "page"))))))));
 
-        event.getDispatcher().register(
-                PrestigeAdminCommandTree.attach(
-                        Commands.m_82127_("padmin").requires(StaffAccess::isStaffSource)));
-
-        // SkillUnlock admin browser — staff only
-        event.getDispatcher().register(Commands.m_82127_("skills")
-                .requires(StaffAccess::isStaffSource)
+        // SkillUnlock admin browser — staff only. Now /lm admin skills.
+        event.getDispatcher().register(CommandAccess.underLmAdmin(Commands.m_82127_("skills")
                 .executes(ctx -> skillsPage(ctx.getSource(), "core"))
                 .then(Commands.m_82127_("help").executes(ctx -> skillsHelp(ctx.getSource())))
                 .then(Commands.m_82127_("do")
@@ -111,10 +111,10 @@ public final class ProgressionCommands {
                                 .then(Commands.m_82129_("page", StringArgumentType.word())
                                         .executes(ctx -> skillsPage(
                                                 ctx.getSource(),
-                                                StringArgumentType.getString(ctx, "page")))))));
+                                                StringArgumentType.getString(ctx, "page"))))))));
 
-        // Donator Skill Check
-        event.getDispatcher().register(Commands.m_82127_("skillcheck")
+        // Donator Skill Check. Now /lm skillcheck (same donator rule).
+        event.getDispatcher().register(CommandAccess.underLm(Commands.m_82127_("skillcheck")
                 .requires(StaffAccess::hasSkillCheckSource)
                 .executes(ctx -> skillCheckPage(ctx.getSource(), "core"))
                 .then(Commands.m_82127_("help").executes(ctx -> skillCheckHelp(ctx.getSource())))
@@ -127,19 +127,19 @@ public final class ProgressionCommands {
                 .then(Commands.m_82129_("page", StringArgumentType.word())
                         .executes(ctx -> skillCheckPage(
                                 ctx.getSource(),
-                                StringArgumentType.getString(ctx, "page")))));
+                                StringArgumentType.getString(ctx, "page"))))));
 
-        // End Dimension Strength — staff clear/repair only (players summon via Difficulty GUI)
-        event.getDispatcher().register(Commands.m_82127_("enddragon")
-                .requires(StaffAccess::isStaffSource)
+        // End Dimension Strength — staff clear/repair only (players summon via Difficulty GUI).
+        // Now /lm admin enddragon.
+        event.getDispatcher().register(CommandAccess.underLmAdmin(Commands.m_82127_("enddragon")
                 .executes(ctx -> endDragonHelp(ctx.getSource()))
                 .then(Commands.m_82127_("help").executes(ctx -> endDragonHelp(ctx.getSource())))
                 .then(Commands.m_82127_("repair").executes(ctx -> endRepair(ctx.getSource())))
-                .then(Commands.m_82127_("clear").executes(ctx -> endClear(ctx.getSource()))));
+                .then(Commands.m_82127_("clear").executes(ctx -> endClear(ctx.getSource())))));
 
-        event.getDispatcher().register(
+        // Now /lm admin androidify.
+        event.getDispatcher().register(CommandAccess.underLmAdmin(
                 Commands.m_82127_("androidify")
-                        .requires(StaffAccess::isStaffSource)
                         .then(Commands.m_82127_("help").executes(ctx -> androidifyHelp(ctx.getSource())))
                         .then(LmCommandSuggestions.playerWord("player")
                                 .executes(ctx -> androidPlayer(
@@ -149,16 +149,17 @@ public final class ProgressionCommands {
                             if (playerOrNull(ctx.getSource()) == null) {
                                 ctx.getSource().m_288197_(
                                         () -> Component.m_237113_(
-                                                LmCommandMessages.tryCommand("/androidify <player>")),
+                                                LmCommandMessages.tryCommand("/lm admin androidify <player>")),
                                         false);
                                 return 0;
                             }
                             return androidSelf(ctx.getSource());
                         })
-        );
+        ));
 
         AdaptiveDifficultyMod.LOGGER.info(
-                "[{}] registered /progression /prestige /padmin /skills /skillcheck /enddragon /androidify",
+                "[{}] registered /lm progression, prestige, skillcheck and /lm admin progression, prestige, skills, "
+                        + "enddragon, androidify",
                 AdaptiveDifficultyMod.MOD_ID
         );
     }
@@ -421,7 +422,7 @@ public final class ProgressionCommands {
         }
         String msg = com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigeSystem.confirmOrPrompt(p);
         // GUI/lmdo path surfaces this via GuiFeedback; chat-menu backend already printed detail.
-        // Direct /prestige do on inventory backends still needs a visible reply.
+        // Direct /lm admin prestige do on inventory backends still needs a visible reply.
         if (msg != null && !msg.isBlank()) {
             String backend = DifficultyConfig.get().guiBackend;
             if (backend != null && !"chat".equalsIgnoreCase(backend.trim())) {
@@ -461,9 +462,22 @@ public final class ProgressionCommands {
         return 1;
     }
 
+    /** {@code /lm progression}: players may run android remove (self). There is no meditation slash command. */
     private static LiteralArgumentBuilder<CommandSourceStack> build(String name) {
-        // Players may run android remove. Every other leaf is staff-only.
-        // There is no meditation slash command.
+        return Commands.m_82127_(name)
+                .executes(ctx -> helpOrGui(ctx.getSource()))
+                .then(Commands.m_82127_("help").executes(ctx -> helpOrGui(ctx.getSource())))
+                .then(Commands.m_82127_("android")
+                        .then(Commands.m_82127_("remove")
+                                .executes(ctx -> androidRemoveGuiHint(ctx.getSource()))));
+    }
+
+    /**
+     * {@code /lm admin progression}: the staff menu, flags, TP boost, mastery boost and android tools. The flag
+     * toggle that was {@code progression admin <flag> <value>} is {@code flags <flag> <value>} here, so there is
+     * no "admin admin".
+     */
+    static LiteralArgumentBuilder<CommandSourceStack> adminBuild(String name) {
         return Commands.m_82127_(name)
                 .executes(ctx -> helpOrGui(ctx.getSource()))
                 .then(Commands.m_82127_("gui")
@@ -590,7 +604,7 @@ public final class ProgressionCommands {
                                 .executes(ctx -> androidPlayer(
                                         ctx.getSource(),
                                         StringArgumentType.getString(ctx, "player")))))
-                .then(Commands.m_82127_("admin")
+                .then(Commands.m_82127_("flags")
                         .executes(ctx -> progressionAdmin(ctx.getSource(), "admin"))
                         .then(Commands.m_82129_("flag", StringArgumentType.word())
                                 .then(Commands.m_82129_("value", StringArgumentType.word())
@@ -600,8 +614,9 @@ public final class ProgressionCommands {
                                                 StringArgumentType.getString(ctx, "value"))))));
     }
 
+    /** 4.7.88: staff, and in creative when a player runs it (console unchanged). */
     private static boolean staff(CommandSourceStack src) {
-        return StaffAccess.isStaffSource(src);
+        return StaffAccess.isAdminSource(src);
     }
 
     private static int progressionAdmin(CommandSourceStack source, String page) {
@@ -702,13 +717,13 @@ public final class ProgressionCommands {
     static final double MAX_START_MULTIPLIER = 100.0;
 
     /**
-     * Parses the boost start forms through a dispatcher holding the real {@code /progression}
+     * Parses the boost start forms through a dispatcher holding the real {@code /lm progression}
      * tree (parse only, nothing runs) and checks which handler each binds. Empty when all pass.
      */
     public static List<String> selfTestBoostDispatch() {
         List<String> broken = new ArrayList<>();
         CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
-        dispatcher.register(build("progression"));
+        dispatcher.register(CommandAccess.underLmAdmin(adminBuild("progression")));
         CommandSourceStack src = new CommandSourceStack(CommandSource.f_80164_, new Vec3(0, 0, 0), new Vec2(0f, 0f),
                 null, 4, "lm-selftest", Component.m_237113_("lm-selftest"), null, null);
         for (String tree : new String[] {"boost", "masteryboost"}) {
@@ -730,7 +745,7 @@ public final class ProgressionCommands {
 
     private static void expect(List<String> broken, CommandDispatcher<CommandSourceStack> dispatcher,
             CommandSourceStack src, String tree, String input, Map<String, Object> want) {
-        String line = "progression " + tree + " " + input;
+        String line = "lm admin progression " + tree + " " + input;
         ParseResults<CommandSourceStack> parse = dispatcher.parse(line, src);
         Map<String, Object> got = new LinkedHashMap<>();
         parse.getContext().getArguments().forEach((k, v) -> got.put(k, v.getResult()));
@@ -781,11 +796,11 @@ public final class ProgressionCommands {
     private static int masteryBoostStatus(CommandSourceStack source) {
         ServerPlayer actor = playerOrNull(source);
         String msg = com.dbzlegacy.adaptivedifficulty.progression.tp.GlobalMasteryBoost.statusLine()
-                + "\n" + UltraStyle.YELLOW + "/progression masteryboost " + UltraStyle.GRAY + "- status"
-                + "\n" + UltraStyle.YELLOW + "/progression masteryboost end " + UltraStyle.GRAY + "- stop the active boost"
-                + "\n" + UltraStyle.YELLOW + "/progression masteryboost start <multiplier> <minutes> [name] "
+                + "\n" + UltraStyle.YELLOW + "/lm admin progression masteryboost " + UltraStyle.GRAY + "- status"
+                + "\n" + UltraStyle.YELLOW + "/lm admin progression masteryboost end " + UltraStyle.GRAY + "- stop the active boost"
+                + "\n" + UltraStyle.YELLOW + "/lm admin progression masteryboost start <multiplier> <minutes> [name] "
                 + UltraStyle.GRAY + "- for example " + UltraStyle.WHITE + "2 30 PlayerName"
-                + "\n" + UltraStyle.YELLOW + "/progression masteryboost start <code> [name] "
+                + "\n" + UltraStyle.YELLOW + "/lm admin progression masteryboost start <code> [name] "
                 + UltraStyle.GRAY + "- store code, same format as the TP boost";
         for (String line : msg.split("\n")) {
             reply(source, actor, line);
@@ -876,7 +891,7 @@ public final class ProgressionCommands {
             return 0;
         }
         if (!ProgressionSystem.setFlag(flag, on)) {
-            source.m_288197_(() -> Component.m_237113_("§cUnknown flag §f" + flag + "§c—see §f/progression help§c."), false);
+            source.m_288197_(() -> Component.m_237113_("§cUnknown flag §f" + flag + "§c—see §f/lm progression help§c."), false);
             return 0;
         }
         String msg = (on ? LmCommandMessages.turnedOn("Progression flag " + flag)

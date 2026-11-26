@@ -81,7 +81,7 @@ public final class GodKiWipeHelper {
 
     /**
      * Drop only the {@code godkienhancement:*} mastery records — the staff
-     * {@code /padmin godki} reduce path, which keeps the skill and active form
+     * {@code /lm admin prestige godki} reduce path, which keeps the skill and active form
      * intact ({@link #wipe} removes skill, forms, and history too).
      */
     public static void dropEnhancementMastery(Player player) {

@@ -34,7 +34,7 @@ public final class DifficultyChatMenu {
     private DifficultyChatMenu() {}
 
     public static void open(ServerPlayer player, String page) {
-        // Retired in 4.7.56: /difficulty admin settings and the old GUI-plugin bridge land on the
+        // Retired in 4.7.56: /lm admin difficulty settings and the old GUI-plugin bridge land on the
         // Ultra menus (staff settings: the config editor), the same path DifficultyMenu uses.
         DifficultyMenu.open(player, page);
     }
@@ -95,7 +95,7 @@ public final class DifficultyChatMenu {
             send(player, Component.m_237113_(UltraStyle.DANGER + UltraStyle.BOLD + "System disabled"));
             if (isStaff(player)) {
                 send(player, Component.m_237113_(
-                        UltraStyle.DIM + "Re-enable: " + UltraStyle.VALUE + "/difficulty admin on"));
+                        UltraStyle.DIM + "Re-enable: " + UltraStyle.VALUE + "/lm admin difficulty on"));
             } else {
                 send(player, Component.m_237113_(UltraStyle.LABEL + "Please try again later."));
             }
@@ -106,7 +106,7 @@ public final class DifficultyChatMenu {
             if (isStaff(player)) {
                 send(player, Component.m_237113_(
                         UltraStyle.DIM + "Whitelist: " + UltraStyle.VALUE
-                                + "/difficulty admin whitelist add <you>"));
+                                + "/lm admin difficulty whitelist add <you>"));
             } else {
                 send(player, Component.m_237113_(UltraStyle.LABEL + "Ask an admin if you need access."));
             }
@@ -147,12 +147,12 @@ public final class DifficultyChatMenu {
         MutableComponent hub = Component.m_237113_(UltraStyle.LABEL)
                 .m_7220_(btn(
                         UltraStyle.YELLOW + "[Tiers]",
-                        "/difficulty do page tiers",
+                        "/lm difficulty do page tiers",
                         "Buy higher · lower unlocked · clear active tier"))
                 .m_7220_(Component.m_237113_("  "))
                 .m_7220_(btn(
                         UltraStyle.LIGHT_PURPLE + "[Titles]",
-                        "/difficulty do page titles",
+                        "/lm difficulty do page titles",
                         "Equip difficulty titles"));
         send(player, hub);
         MutableComponent toggles = Component.m_237113_(UltraStyle.LABEL)
@@ -160,7 +160,7 @@ public final class DifficultyChatMenu {
                         personalOn
                                 ? UltraStyle.YELLOW + "[Difficulty ON]"
                                 : UltraStyle.dim("[Difficulty OFF]"),
-                        "/difficulty do toggle_personal 0 main",
+                        "/lm difficulty do toggle_personal 0 main",
                         personalOn
                                 ? "Turn OFF — no scaling, kill coins, AI pressure, or tier buys · your summoned dragon despawns"
                                 : "Turn ON — restore scaling. Scaled mobs can attack other players as well"))
@@ -169,7 +169,7 @@ public final class DifficultyChatMenu {
                         coinChatOn
                                 ? UltraStyle.confirm("[Coin messages ON]")
                                 : UltraStyle.dim("[Coin messages OFF]"),
-                        "/difficulty do toggle_coin_chat 0 main",
+                        "/lm difficulty do toggle_coin_chat 0 main",
                         coinChatOn
                                 ? "Mute Ancient Coin drop chat messages"
                                 : "Show Ancient Coin drop chat messages"));
@@ -177,7 +177,7 @@ public final class DifficultyChatMenu {
         if (isStaff(player)) {
             send(player, btn(
                     UltraStyle.danger("[Staff details]"),
-                    "/difficulty do page stats",
+                    "/lm difficulty do page stats",
                     "Staff breakdown"));
         }
         send(player, btn(UltraStyle.LABEL + "\u00AB Hub", "/lm", "Main hub"));
@@ -196,7 +196,7 @@ public final class DifficultyChatMenu {
             send(player, Component.m_237113_(
                     UltraStyle.YELLOW
                             + "Personal difficulty is OFF — turn it ON on the main menu to change tiers."));
-            send(player, btn(UltraStyle.BACK, "/difficulty do page main", "Return"));
+            send(player, btn(UltraStyle.BACK, "/lm difficulty do page main", "Return"));
             return;
         }
         int prestige = DmzProgression.prestige(player);
@@ -218,7 +218,7 @@ public final class DifficultyChatMenu {
         send(player, Component.m_237113_(""));
         send(player, btn(
                 UltraStyle.danger("[Clear active tier]"),
-                "/difficulty do lower_tier 0 tiers",
+                "/lm difficulty do lower_tier 0 tiers",
                 "Clear active tier"));
         for (UnlockTier tier : UnlockTier.values()) {
             boolean freeCost = PaidFeatureAccess.bypassAncientCoinCost(player);
@@ -234,7 +234,7 @@ public final class DifficultyChatMenu {
                 line = line.m_7220_(Component.m_237113_(" " + UltraStyle.confirm("Free") + " "))
                         .m_7220_(btn(
                                 UltraStyle.VALUE + "[Downgrade]",
-                                "/difficulty do activate " + tier.id + " tiers",
+                                "/lm difficulty do activate " + tier.id + " tiers",
                                 "Downgrade to Tier " + tier.id + " — Free"));
             } else if (unlocked) {
                 long directed = AncientCoinEconomy.activationCost(tier, player, active);
@@ -244,7 +244,7 @@ public final class DifficultyChatMenu {
                 line = line.m_7220_(Component.m_237113_(" " + costLabel + " "))
                         .m_7220_(btn(
                                 UltraStyle.confirm("[Switch]"),
-                                "/difficulty do activate " + tier.id + " tiers",
+                                "/lm difficulty do activate " + tier.id + " tiers",
                                 freeCost || directed <= 0L
                                         ? "Activate Tier " + tier.id + " — Free"
                                         : "Pay Ancient Coins for Tier " + tier.id + " (pay-up OK, change returned)"));
@@ -256,7 +256,7 @@ public final class DifficultyChatMenu {
             send(player, line);
         }
         send(player, Component.m_237113_(""));
-        send(player, btn(UltraStyle.BACK, "/difficulty do page main", "Return"));
+        send(player, btn(UltraStyle.BACK, "/lm difficulty do page main", "Return"));
     }
 
     private static void titles(ServerPlayer player) {
@@ -274,7 +274,7 @@ public final class DifficultyChatMenu {
                 UltraStyle.LABEL + "Equipped " + UltraStyle.YELLOW + TitleSystem.activeDisplay(player)));
         send(player, btn(
                 UltraStyle.danger("[Clear Title]"),
-                "/difficulty do clear_title 0 titles",
+                "/lm difficulty do clear_title 0 titles",
                 "Unequip title"));
         send(player, Component.m_237113_(""));
         for (DifficultyTitle title : DifficultyTitle.values()) {
@@ -293,14 +293,14 @@ public final class DifficultyChatMenu {
                     line = line.m_7220_(Component.m_237113_(" "))
                             .m_7220_(btn(
                                     UltraStyle.confirm("[Equip]"),
-                                    "/difficulty do equip_title " + title.id + " titles",
+                                    "/lm difficulty do equip_title " + title.id + " titles",
                                     "Equip " + title.display));
                 }
             }
             send(player, line);
         }
         send(player, Component.m_237113_(""));
-        send(player, btn(UltraStyle.BACK, "/difficulty do page main", "Return"));
+        send(player, btn(UltraStyle.BACK, "/lm difficulty do page main", "Return"));
     }
 
     private static void stats(ServerPlayer player) {
@@ -341,7 +341,7 @@ public final class DifficultyChatMenu {
         send(player, Component.m_237113_(
                 UltraStyle.GOLD + "Ancient Coins " + UltraStyle.VALUE
                         + AncientCoinEconomy.inventoryBreakdown(player)));
-        send(player, btn(UltraStyle.BACK, "/difficulty do page main", "Return"));
+        send(player, btn(UltraStyle.BACK, "/lm difficulty do page main", "Return"));
     }
 
     private static void settings(ServerPlayer player) {
@@ -360,7 +360,7 @@ public final class DifficultyChatMenu {
                                         + DifficultyConfig.whitelistEntries().size() + ")"
                                 : UltraStyle.LABEL + "Whitelist OFF")));
         send(player, Component.m_237113_(
-                UltraStyle.DIM + "/difficulty admin off|on · whitelist on|off|add|remove|list"));
+                UltraStyle.DIM + "/lm admin difficulty off|on · whitelist on|off|add|remove|list"));
         send(player, Component.m_237113_(
                 UltraStyle.LABEL + "Staff Ancient Coin pricing: " + UltraStyle.VALUE + "/lm "
                         + UltraStyle.LABEL + "→ Staff Admin → Progression panel → Ancient Coins"));
@@ -369,7 +369,7 @@ public final class DifficultyChatMenu {
                         + " " + UltraStyle.DIM + UltraStyle.SEP + " T7 target " + UltraStyle.VALUE
                         + cfg.tierCostT7TargetCopper + " copper"));
         send(player, Component.m_237113_(
-                UltraStyle.DIM + "/difficulty admin set tierCostLevelAnchor|tierCostT7TargetCopper <n>"));
+                UltraStyle.DIM + "/lm admin difficulty set tierCostLevelAnchor|tierCostT7TargetCopper <n>"));
         send(player, Component.m_237113_(
                 UltraStyle.LABEL + "Coin drops " + UltraStyle.VALUE + cfg.enableAncientCoinDrops
                         + "  " + UltraStyle.LABEL + "Death reset " + UltraStyle.VALUE
@@ -381,8 +381,8 @@ public final class DifficultyChatMenu {
                         + " " + UltraStyle.DIM + "(stock 0.05 / 0.005)"));
         send(player, Component.m_237113_(
                 UltraStyle.DIM
-                        + "/difficulty admin set ancientCoinDropChance|ancientCoinUpgradeChance <0-1>"));
-        send(player, btn(UltraStyle.BACK, "/difficulty do page main", "Return"));
+                        + "/lm admin difficulty set ancientCoinDropChance|ancientCoinUpgradeChance <0-1>"));
+        send(player, btn(UltraStyle.BACK, "/lm difficulty do page main", "Return"));
     }
 
     private static MutableComponent btn(String label, String command, String hover) {

@@ -582,14 +582,16 @@ def main() -> int:
     check("fromScriptControllerCompound", "fromScriptControllerCompound" in migrator)
     check("pickRichestBlob", "pickRichestBlob" in migrator)
     check("enrichRivalRawFromBackupKeys", "enrichRivalRawFromBackupKeys" in migrator)
-    check("force aborts without usable data", "Force aborted" in migrator)
+    # 4.7.88: the staff re-import command (and its force path) was retired; the startup import stays.
+    check("staff re-import retired, startup import kept",
+          "forceMigrateWorld" not in migrator and "migrate-cnpc" not in migrator)
     check("NBTJsonUtil LoadFile", "NBTJsonUtil" in migrator and "LoadFile" in migrator)
     check("cnpcLevelScriptsDir LevelResource", "LevelResource" in migrator and "cnpcLevelScriptsDir" in migrator)
     check("fromBackupDir present", "fromBackupDir" in migrator)
     check("fromWorldDataFile present", "fromWorldDataFile" in migrator)
     check("clear only after import", "imported && blob.liveStored" in migrator)
     check("no fake empty marker", "empty-no-cnpc-data" not in migrator)
-    check("force uses runWorldMigrate", "runWorldMigrate(server, forceOverwrite)" in migrator)
+    check("startup uses runWorldMigrate", "runWorldMigrate(server, false)" in migrator)
     check("honest zero-import message", "No rows imported" in migrator)
     check("richer-CNPC replace", "cnpcRich > lmRich" in migrator)
 
@@ -901,11 +903,12 @@ def main() -> int:
     prestige_reg = (prog_cmds.split('m_82127_("prestige")')[1].split('m_82127_("skills")')[0]
                     if 'm_82127_("prestige")' in prog_cmds and 'm_82127_("skills")' in prog_cmds else "")
     check("Forge /prestige player shop, staff backend gated",
-          ".requires(CommandAccess::isPlayerSlashUser)" in prestige_reg
-          and 'CommandAccess.staffLiteral("do")' in prestige_reg
-          and 'CommandAccess.staffLiteral("menu")' in prestige_reg)
-    check("Prestige chat uses Forge /prestige do confirm",
-          "/prestige do confirm" in prestige_sys and "/lmdo prestige confirm" not in prestige_sys)
+          'CommandAccess.underLm(Commands.m_82127_("prestige")' in prog_cmds
+          and "CommandAccess.underLmAdmin(" in prog_cmds
+          and 'PrestigeAdminCommandTree.attach(Commands.m_82127_("prestige"))' in prog_cmds
+          and 'm_82127_("menu")' in prog_cmds)
+    check("Prestige chat uses Forge /lm admin prestige do confirm",
+          "/lm admin prestige do confirm" in prestige_sys and "/lmdo prestige confirm" not in prestige_sys)
     check("Hub Prestige for everyone",
           'SlotAction.open("prestige")' in hub
           and hub.count('SlotAction.open("prestige")') >= 1)
@@ -1238,7 +1241,7 @@ def main() -> int:
           and "flashBar" in death_tp_ui and "ANNOUNCE.put(" in death_tp_ui
           and "ScreenNotify" not in death_tp_ui)
     check("GuiChat mirrors aliases", "TAG_ALIASES" in guichat and "normalizeOpenTip" in guichat)
-    check("Mentor invite uses LmChat.tip", 'LmChat.tip("/spar"' in spar_sys)
+    check("Mentor invite uses LmChat.tip", 'LmChat.tip("/lm spar"' in spar_sys)
     check("Perfect Training tagged", 'LmChat.tagged("Spar"' in spar_sys and "Perfect Training" in spar_sys)
 
     print("\n=== Mentor dojo multi-apprentice (2.3.144) ===")
@@ -1422,7 +1425,8 @@ def main() -> int:
           "customnpcs:npcscripter" in read(SRC / "com/dbzlegacy/adaptivedifficulty/gui/CnpcGuiOpener.java"))
     check("android_remove inventory force", "isAndroidRemovePage" in plugin)
     check("enddragon uses StaffAccess",
-          "StaffAccess::isStaffSource" in prog_cmds and "enddragon" in prog_cmds)
+          'CommandAccess.underLmAdmin(Commands.m_82127_("enddragon")' in prog_cmds
+          and "StaffAccess.isAdminSource" in prog_cmds)
     check("skillcheck donator gate",
           "StaffAccess::hasSkillCheckSource" in prog_cmds and 'm_82127_("skillcheck")' in prog_cmds)
     check("progression helpOrGui", "helpOrGui" in prog_cmds)
@@ -1486,7 +1490,7 @@ def main() -> int:
     check("conv: spar 3 cards locked", "individual** report cards" in conv)
     check("conv: CNPC-free locked", "CNPC-free" in conv)
     check("conv: player prestige+android locked", "Player Prestige + Remove Android" in conv)
-    check("conv: enddragon StaffAccess locked", "StaffAccess" in conv and "/enddragon" in conv)
+    check("conv: enddragon StaffAccess locked", "StaffAccess" in conv and "/lm admin enddragon" in conv)
     # Code still matches conversation — robust needles (avoid javadoc / call-site splits).
     check("conv code: no soft hay.contains(rival)",
           'hay.contains("rival")' not in cnpc and 'contains("rival")' not in cnpc.replace(

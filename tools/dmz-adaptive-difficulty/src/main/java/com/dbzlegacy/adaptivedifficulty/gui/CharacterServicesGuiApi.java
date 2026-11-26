@@ -19,7 +19,7 @@ import java.util.Locale;
 import java.util.Map;
 import net.minecraft.server.level.ServerPlayer;
 
-/** Bukkit GUI bridge for Character Services ({@code /character} / hub). */
+/** Bukkit GUI bridge for Character Services ({@code /lm character} / hub). */
 public final class CharacterServicesGuiApi {
     private CharacterServicesGuiApi() {}
 

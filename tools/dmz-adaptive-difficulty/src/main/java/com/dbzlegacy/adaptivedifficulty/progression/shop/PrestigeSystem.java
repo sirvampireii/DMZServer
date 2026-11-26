@@ -21,7 +21,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
- * Port of {@code Prestige NPC.js} purchase logic as {@code /prestige} chat GUI.
+ * Port of {@code Prestige NPC.js} purchase logic as {@code /lm prestige} chat GUI.
  * <p>
  * The requirement ({@link #requiredLevel(ServerPlayer)}) follows held prestige (4.7.15): 50k at 0
  * held, +15k per held, 150k from 7 held ({@code LmOverhaulCapMath.prestigeRequirement}). The level
@@ -37,7 +37,7 @@ public final class PrestigeSystem {
     static final String KEY_TOTAL = "prestige_total_completed";
     /**
      * When set, {@link #getCompleted} returns stored {@link #KEY_TOTAL} only — staff
-     * {@code /padmin completed set 0} is not bumped by DMZ skill or shop inference.
+     * {@code /lm admin prestige completed set 0} is not bumped by DMZ skill or shop inference.
      */
     static final String KEY_TOTAL_STAFF_OVERRIDE = "prestige_total_staff_override";
     static final String KEY_HELD = "lm_prestige_held";
@@ -217,9 +217,9 @@ public final class PrestigeSystem {
         send(player, UltraStyle.LABEL + "Reach level " + UltraStyle.YELLOW + DmzRewards.formatWhole(required)
                 + UltraStyle.LABEL + " to earn your next prestige. Each prestige you hold raises it.");
         MutableComponent row = Component.m_237113_("§7")
-                .m_7220_(btn("§a[Prestige]", "/prestige do confirm", "Confirm prestige purchase"))
+                .m_7220_(btn("§a[Prestige]", "/lm admin prestige do confirm", "Confirm prestige purchase"))
                 .m_7220_(Component.m_237113_("  "))
-                .m_7220_(btn("§7[Refresh]", "/prestige", "Refresh status"));
+                .m_7220_(btn("§7[Refresh]", "/lm prestige", "Refresh status"));
         send(player, row);
     }
 
@@ -258,9 +258,9 @@ public final class PrestigeSystem {
             }
             send(player, "§7Click again within 10 seconds.");
             MutableComponent row = Component.m_237113_(UltraStyle.LABEL)
-                    .m_7220_(btn(UltraStyle.CONFIRM + "[Confirm Prestige]", "/prestige do confirm", "Complete prestige"))
+                    .m_7220_(btn(UltraStyle.CONFIRM + "[Confirm Prestige]", "/lm admin prestige do confirm", "Complete prestige"))
                     .m_7220_(Component.m_237113_("  "))
-                    .m_7220_(btn(UltraStyle.DANGER + "[Cancel]", "/prestige", "Cancel"));
+                    .m_7220_(btn(UltraStyle.DANGER + "[Cancel]", "/lm prestige", "Cancel"));
             send(player, row);
             send(player, LmChat.DIVIDER);
         }
@@ -499,7 +499,7 @@ public final class PrestigeSystem {
         setCompletedPublic(player, value);
     }
 
-    /** Staff {@code /padmin completed …} — value sticks even when DMZ skill / shop would infer higher. */
+    /** Staff {@code /lm admin prestige completed …} — value sticks even when DMZ skill / shop would infer higher. */
     public static void setCompletedStaff(ServerPlayer player, int value) {
         if (player == null) {
             return;

@@ -66,6 +66,40 @@ public final class DojoWorld {
         return new BlockPos((p % PLOTS_PER_ROW) * PLOT_SPACING, FLOOR_Y, (p / PLOTS_PER_ROW) * PLOT_SPACING);
     }
 
+    /**
+     * 4.7.88: the plot whose hall footprint (the plot structure, x and z, any height) holds {@code pos}, or -1 outside
+     * every plot (between plots, the war ring row, or no layout).
+     */
+    public static int plotIndexAt(BlockPos pos) {
+        DojoLayout l = DojoLayout.get();
+        if (pos == null || l == null) {
+            return -1;
+        }
+        int px = Math.floorDiv(pos.m_123341_() + PLOT_SPACING / 2, PLOT_SPACING);
+        int pz = Math.floorDiv(pos.m_123343_() + PLOT_SPACING / 2, PLOT_SPACING);
+        if (px < 0 || px >= PLOTS_PER_ROW || pz < 0) {
+            return -1;
+        }
+        int plot = pz * PLOTS_PER_ROW + px;
+        BlockPos c = plotCorner(plot);
+        int dx = pos.m_123341_() - c.m_123341_();
+        int dz = pos.m_123343_() - c.m_123343_();
+        return dx >= 0 && dx < l.sx && dz >= 0 && dz < l.sz ? plot : -1;
+    }
+
+    /** 4.7.88: the dojo that owns plot {@code plot}, or null (no dojo was given that plot). */
+    public static Dojo dojoOnPlot(int plot) {
+        if (plot < 0) {
+            return null;
+        }
+        for (Dojo d : DojoStore.get().dojos.values()) {
+            if (d.plot == plot) {
+                return d;
+            }
+        }
+        return null;
+    }
+
     public static BlockPos ringOrigin(int ring) {
         return new BlockPos(Math.max(0, ring) * RING_SPACING, FLOOR_Y, RING_ROW_Z);
     }

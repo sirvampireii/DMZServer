@@ -60,6 +60,10 @@ public final class UltraDojoScreens {
     static final String PAGE_JOIN_ASK = "dojo_join_ask:";
     static final String PAGE_STYLE_PICK = "dojo_style_pick";
     static final String ACT_JOIN = "dojo_join";
+    /** 4.7.88: "Your dojos", the picker for a player in more than one dojo. */
+    static final String PAGE_MINE = "dojo_mine";
+    /** 4.7.88: View on "Your dojos": that dojo's Home (and every Dojo page after it) shows and acts on that dojo. */
+    static final String ACT_VIEW = "dojo_switch";
     /** 4.7.84 (DJ-2): members a Members page shows. */
     static final int MEMBERS_SHOWN = 6;
 
@@ -90,9 +94,12 @@ public final class UltraDojoScreens {
      * router, whose dojo pages (previous members, training bonds) also draw on the Dojo screen.
      */
     public static void openSystem(ServerPlayer player, String page) {
-        String raw = page == null || page.isBlank() ? TAB_DOJO_HOME : page.trim();
+        String raw = page == null || page.isBlank() ? "main" : page.trim();
         String lower = raw.toLowerCase(Locale.ROOT);
-        if (lower.equals("main") || lower.equals(TAB_DOJO_HOME) || lower.equals("dojo") || lower.equals("dojo_home")) {
+        if (lower.equals("main")) {
+            // 4.7.88: opening the Dojo system (hub tile, open:dojo) asks which dojo first when there are two.
+            openDojoEntry(player);
+        } else if (lower.equals(TAB_DOJO_HOME) || lower.equals("dojo") || lower.equals("dojo_home")) {
             openDojo(player, null);
         } else if (lower.equals("upgrades")) {
             openUpgrades(player, null);
@@ -139,6 +146,8 @@ public final class UltraDojoScreens {
             openWatch(player, notice);
         } else if (lower.equals("dojo") || lower.equals("dojo_home")) {
             openDojo(player, notice);
+        } else if (lower.equals(PAGE_MINE)) {
+            openYourDojos(player, notice);
         } else if (DojoFounding.owns(lower)) {
             DojoFounding.open(player, raw, notice);
         } else if (lower.equals(PAGE_SETTINGS)) {
@@ -683,12 +692,91 @@ public final class UltraDojoScreens {
         spec.send(player);
     }
 
+    // ------------------------------------------------------------------ 4.7.88: Your dojos
+
+    /**
+     * 4.7.88: the one way into the Dojo system (the hub's Dojo tile, {@code open:dojo}, {@code /lm open dojo},
+     * {@code /lm dojo}). In two dojos (your own as master, your master's as disciple): "Your dojos" first, to pick one.
+     * In one: straight to its Home. In none: the no-dojo Home (found one or browse).
+     */
+    public static void openDojoEntry(ServerPlayer player) {
+        if (player == null) {
+            return;
+        }
+        if (DojoService.affiliations(player.m_20148_()).size() > 1) {
+            openYourDojos(player, null);
+            return;
+        }
+        DojoService.clearView(player.m_20148_());
+        openDojo(player, null);
+    }
+
+    /** 4.7.88: a dojo's style for a picker line ("Ki style", "no style yet"). */
+    static String styleText(Dojo d) {
+        DojoCatalog.Style s = DojoCatalog.Style.of(d.style);
+        return s == null ? "no style yet" : s.label + " style";
+    }
+
+    /** 4.7.88: the first label that fits a half-width button, else the last one. */
+    static String fitHalf(String... options) {
+        int room = UltraStyle.labelMaxWidth(UltraStyle.BTN_W);
+        for (String o : options) {
+            if (UltraStyle.textWidthPx(o) <= room) {
+                return o;
+            }
+        }
+        return options[options.length - 1];
+    }
+
+    /**
+     * 4.7.88: "Your dojos": one line per dojo the player belongs to (name, Master or Disciple, style) and, in the same
+     * order, a row with Visit (teleport there) and View (open its Home). A player in one dojo or none gets that Home.
+     */
+    static void openYourDojos(ServerPlayer player, String notice) {
+        UUID me = player.m_20148_();
+        List<DojoService.Affiliation> mine = DojoService.affiliations(me);
+        if (mine.size() < 2) {
+            DojoService.clearView(me);
+            openDojo(player, notice);
+            return;
+        }
+        Dojo viewed = DojoService.viewedDojo(me);
+        UltraScreenSpec spec = dojoSub(PAGE_MINE, notice);
+        spec.line(UltraStyle.header("Your dojos"))
+                .line(UltraStyle.LABEL + "You belong to " + mine.size() + " dojos. View opens a dojo's Home; what you"
+                        + " can change there depends on your place in it.");
+        int n = 0;
+        for (DojoService.Affiliation a : mine) {
+            n++;
+            Dojo d = a.dojo();
+            spec.line(UltraStyle.VALUE + n + ". " + d.name + UltraStyle.LABEL + " - " + a.role().label + ", "
+                    + styleText(d) + (d == viewed ? " (open now)" : ""));
+        }
+        spec.buttonsAfterLines();
+        n = 0;
+        for (DojoService.Affiliation a : mine) {
+            n++;
+            Dojo d = a.dojo();
+            spec.buttonLeft("do:dojo_visit:" + d.masterUuid, fitHalf("Visit " + d.name, "Visit dojo " + n),
+                    UltraStyle.STYLE_NORMAL);
+            spec.buttonRight("do:" + ACT_VIEW + ":" + d.masterUuid,
+                    UltraStyle.confirm(fitHalf("View " + d.name, "View dojo " + n)), UltraStyle.STYLE_CONFIRM).rowGap();
+        }
+        spec.back();
+        spec.send(player);
+    }
+
+    /** 4.7.88: the dojo the Dojo pages show and act on ({@link DojoService#viewedDojo(ServerPlayer)}). */
+    static Dojo viewed(ServerPlayer player) {
+        return DojoService.viewedDojo(player);
+    }
+
     // ------------------------------------------------------------------ Dojo Home
 
     static void openDojo(ServerPlayer player, String notice) {
         UltraScreenSpec spec = dojoBase(TAB_DOJO_HOME, TAB_DOJO_HOME, notice);
         UUID me = player.m_20148_();
-        Dojo d = DojoService.dojoOf(player);
+        Dojo d = viewed(player);
         Dojo own = DojoStore.get().dojos.get(me.toString());
         if (d == null) {
             spec.line(UltraStyle.header("No dojo yet"));
@@ -728,7 +816,7 @@ public final class UltraDojoScreens {
                     + " left to join."));
         }
         // 4.7.84 (owner pick b): a disciple's dojo title, shown with their name (display only).
-        String title = DojoService.discipleTitle(me);
+        String title = DojoService.discipleTitle(me, d);
         if (title != null) {
             spec.line(UltraStyle.VALUE + player.m_7755_().getString() + UltraStyle.LABEL + " - " + title);
         }
@@ -768,6 +856,8 @@ public final class UltraDojoScreens {
         } else {
             col3(spec, 0, "do:dojo_visit:" + d.masterUuid, "Visit dojo", UltraStyle.STYLE_NORMAL);
         }
+        // 4.7.88: a player in two dojos gets "Your dojos" in the first free cell of this row.
+        boolean several = DojoService.affiliations(me).size() > 1;
         if (master) {
             col3(spec, 1, "page:" + PAGE_SETTINGS, "Dojo settings", UltraStyle.STYLE_NORMAL);
             // 4.7.84 (DJ-1, DJ-13, owner pick d): the free first picks stay on Home until they're made.
@@ -777,7 +867,11 @@ public final class UltraDojoScreens {
             } else if (noBanner) {
                 col3(spec, 2, "page:" + DojoFounding.PAGE_PICK_BANNER, UltraStyle.confirm("Pick a banner (free)"),
                         UltraStyle.STYLE_CONFIRM);
+            } else if (several) {
+                col3(spec, 2, "page:" + PAGE_MINE, "Your dojos", UltraStyle.STYLE_NORMAL);
             }
+        } else if (several) {
+            col3(spec, 1, "page:" + PAGE_MINE, "Your dojos", UltraStyle.STYLE_NORMAL);
         }
         spec.rowGap();
         spec.back();
@@ -791,7 +885,7 @@ public final class UltraDojoScreens {
 
     /** 4.7.84 (DJ-1): Dojo settings (master): rename, the banner, and, below a gap, Close dojo. */
     static void openSettings(ServerPlayer player, String notice) {
-        Dojo d = DojoService.dojoOf(player);
+        Dojo d = viewed(player);
         UltraScreenSpec spec = dojoSub(PAGE_SETTINGS, notice);
         if (d == null || !DojoService.isMaster(player.m_20148_(), d)) {
             spec.line(UltraStyle.LABEL + "Only the master can rename the dojo, change its banner or close it.")
@@ -817,7 +911,7 @@ public final class UltraDojoScreens {
     }
 
     static void openCloseConfirm(ServerPlayer player) {
-        Dojo d = DojoService.dojoOf(player);
+        Dojo d = viewed(player);
         UltraScreenSpec spec = dojoSub("dojo_close", null);
         if (d == null || !DojoService.isMaster(player.m_20148_(), d)) {
             spec.line(UltraStyle.LABEL + "Only the master can close the dojo.").buttonsAfterLines();
@@ -848,7 +942,7 @@ public final class UltraDojoScreens {
     // ------------------------------------------------------------------ upgrades
 
     static void openUpgrades(ServerPlayer player, String notice) {
-        Dojo d = DojoService.dojoOf(player);
+        Dojo d = viewed(player);
         UltraScreenSpec spec = dojoBase(TAB_UPGRADES, TAB_UPGRADES, notice);
         if (d == null) {
             noDojo(spec, player, "You're not in a dojo yet. Join one or found your own on the Dojo Home tab.");
@@ -966,7 +1060,7 @@ public final class UltraDojoScreens {
      * 4.7.84 (DJ-4): LM picture clients get the pictures without the duplicate text map.
      */
     static void openUpgrade(ServerPlayer player, String up, String notice) {
-        Dojo d = DojoService.dojoOf(player);
+        Dojo d = viewed(player);
         UltraScreenSpec spec = dojoSub("dojo_up:" + up, notice);
         if (d == null || !DojoCatalog.UPGRADES.contains(up)) {
             spec.line(UltraStyle.LABEL + "Pick an upgrade from the list.").buttonsAfterLines();
@@ -1066,7 +1160,7 @@ public final class UltraDojoScreens {
      * "Change style" button that opens the style picker. The bonus lock says the real time left (7 days, not 8).
      */
     static void openStyle(ServerPlayer player, String notice) {
-        Dojo d = DojoService.dojoOf(player);
+        Dojo d = viewed(player);
         UltraScreenSpec spec = dojoSub("dojo_style", notice);
         if (d == null) {
             noDojo(spec, player, "You're not in a dojo yet. Join one or found your own on the Dojo Home tab.");
@@ -1129,7 +1223,7 @@ public final class UltraDojoScreens {
 
     /** 4.7.84 (DJ-5): the other styles; the first pick is free, a change goes through its ask page. */
     static void openStylePick(ServerPlayer player, String notice) {
-        Dojo d = DojoService.dojoOf(player);
+        Dojo d = viewed(player);
         UltraScreenSpec spec = dojoSub(PAGE_STYLE_PICK, notice);
         if (d == null || !DojoService.isMaster(player.m_20148_(), d)) {
             spec.line(UltraStyle.LABEL + "Only your dojo's master can pick its style.").buttonsAfterLines();
@@ -1193,7 +1287,7 @@ public final class UltraDojoScreens {
 
     /** 4.7.73: changing style ends the paid bonus; 4.7.84 (DJ-5) says the total to switch and get a bonus back. */
     static void openStyleAsk(ServerPlayer player, String styleId) {
-        Dojo d = DojoService.dojoOf(player);
+        Dojo d = viewed(player);
         DojoCatalog.Style to = DojoCatalog.Style.of(styleId);
         UltraScreenSpec spec = dojoSub("dojo_style_ask:" + styleId, null);
         if (d == null || to == null || !DojoService.isMaster(player.m_20148_(), d)) {
@@ -1243,7 +1337,7 @@ public final class UltraDojoScreens {
 
     /** 4.7.73: a bonus spends Dojo Points and locks the choice for a week; say both before the click. */
     static void openBonusAsk(ServerPlayer player, String bonusId) {
-        Dojo d = DojoService.dojoOf(player);
+        Dojo d = viewed(player);
         DojoCatalog.Bonus b = DojoCatalog.bonus(bonusId);
         UltraScreenSpec spec = dojoSub("dojo_bonus_ask:" + bonusId, null);
         if (d == null || b == null || !DojoService.isMaster(player.m_20148_(), d)) {
@@ -1281,7 +1375,7 @@ public final class UltraDojoScreens {
      * else sees the names dim. Elites are marked; every disciple carries the title "Disciple of X" (owner pick b).
      */
     static void openMembers(ServerPlayer player, int page, String notice) {
-        Dojo d = DojoService.dojoOf(player);
+        Dojo d = viewed(player);
         if (d == null) {
             noDojo(dojoSub(PAGE_MEMBERS, notice), player, "You're not in a dojo yet. Join one or found your own on the"
                     + " Dojo Home tab.");
@@ -1343,7 +1437,7 @@ public final class UltraDojoScreens {
 
     /** 4.7.84 (DJ-2): one disciple (master only): elite or not, war rights for an elite, time in the dojo. */
     static void openMember(ServerPlayer player, String uuid, String notice) {
-        Dojo d = DojoService.dojoOf(player);
+        Dojo d = viewed(player);
         String u = uuid == null ? "" : uuid.trim();
         UltraScreenSpec spec = dojoSub(PAGE_MEMBER + u, notice);
         if (d == null || !DojoService.isMaster(player.m_20148_(), d) || !DojoService.disciples(d).contains(u)) {
@@ -1387,7 +1481,7 @@ public final class UltraDojoScreens {
 
     static void openWars(ServerPlayer player, String notice) {
         DojoWar.prune();
-        Dojo d = DojoService.dojoOf(player);
+        Dojo d = viewed(player);
         UltraScreenSpec spec = dojoBase(TAB_WARS, TAB_WARS, notice);
         if (d == null) {
             noDojo(spec, player, "Wars are fought between dojos. Join or found one first.");
@@ -1530,7 +1624,7 @@ public final class UltraDojoScreens {
     }
 
     static void openWarPick(ServerPlayer player, int page, String notice) {
-        Dojo mine = DojoService.dojoOf(player);
+        Dojo mine = viewed(player);
         UltraScreenSpec spec = dojoSub(UltraPickHelper.pageArg("dojo_war_pick", page), notice);
         spec.line(UltraStyle.LABEL + "Pick the dojo to declare war on.");
         List<Dojo> all = DojoService.byClout();
@@ -1708,7 +1802,9 @@ public final class UltraDojoScreens {
                 .line(UltraStyle.labelValue("Clout", d.clout + " this season"))
                 .line(UltraStyle.labelValue("Wars", d.warWins + " won, " + d.warLosses + " lost"));
         String why = DojoService.joinProblem(player, d, online);
-        Dojo mine = DojoService.dojoOf(player);
+        Dojo mine = viewed(player);
+        // 4.7.88: a dojo the player already belongs to (either of their two) shows no Ask to join.
+        boolean member = DojoService.affiliation(player.m_20148_(), d) != null;
         if (why == null) {
             spec.line(UltraStyle.LABEL + "Ask to join sends " + d.masterName + " a bond invite. If they accept, you"
                     + " become their apprentice and this dojo is yours.");
@@ -1719,12 +1815,12 @@ public final class UltraDojoScreens {
         if (why == null) {
             spec.buttonWide("page:" + PAGE_JOIN_ASK + d.masterUuid, UltraStyle.confirm("Ask to join"),
                     UltraStyle.STYLE_CONFIRM, null).rowGap();
-        } else if (mine != d) {
+        } else if (!member) {
             spec.buttonWide(UltraGuiActions.NO_ACTION, UltraStyle.dim("Ask to join - " + why), UltraStyle.STYLE_DIM,
                     null).rowGap();
         }
         spec.buttonLeft("do:dojo_visit:" + d.masterUuid, "Visit dojo", UltraStyle.STYLE_NORMAL);
-        if (mine != null && mine != d) {
+        if (mine != null && mine != d && !member) {
             if (DojoService.canManage(player.m_20148_(), mine)) {
                 spec.buttonRight("page:dojo_war_fmt:" + d.masterUuid, "Declare war", UltraStyle.STYLE_NORMAL);
             } else {
@@ -1902,8 +1998,20 @@ public final class UltraDojoScreens {
                 page = PAGE_VIEW + a;
             }
             case "dojo_visit" -> {
+                // 4.7.88: visiting one of your own dojos also makes it the one the Dojo pages show.
+                DojoService.view(p.m_20148_(), a);
                 msg = DojoWorld.visit(p, DojoService.byMaster(a));
                 page = "dojo";
+            }
+            case ACT_VIEW -> {
+                // 4.7.88: only a dojo the player belongs to; anything else stays on Your dojos with the reason.
+                if (DojoService.view(p.m_20148_(), a)) {
+                    msg = null;
+                    page = "dojo";
+                } else {
+                    msg = "You're not in that dojo any more. Pick one from the list.";
+                    page = PAGE_MINE;
+                }
             }
             case "dojo_spectate" -> {
                 msg = DojoWorld.spectate(p, DojoService.byMaster(a));

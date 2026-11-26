@@ -173,7 +173,7 @@ public final class DojoRankings {
         com.dbzlegacy.adaptivedifficulty.dojo.DojoService.onSeasonAdvanced(ended, store.dojoSeason.seasonId);
     }
 
-    /** {@code /spar dojo season advance}: what a confirmed advance would do. Changes nothing. */
+    /** {@code /lm dojo season advance}: what a confirmed advance would do. Changes nothing. */
     public static List<String> seasonAdvancePreviewLines() {
         ensureSeason();
         SparStore.DojoSeason season = SparStore.get().dojoSeason;
@@ -193,11 +193,11 @@ public final class DojoRankings {
         lines.add(UltraStyle.YELLOW + "Confirming ends season #" + season.seasonId + " now for everyone: the top 3 "
                 + "dojos go to the Hall of Chosen, all season points and member boards reset, and season #"
                 + (season.seasonId + 1) + " starts. This cannot be undone.");
-        lines.add(UltraStyle.LABEL + "To do it, run " + UltraStyle.VALUE + "/spar dojo season advance confirm");
+        lines.add(UltraStyle.LABEL + "To do it, run " + UltraStyle.VALUE + "/lm dojo season advance confirm");
         return lines;
     }
 
-    /** {@code /spar dojo season advance confirm}: ends the season now (staff). */
+    /** {@code /lm dojo season advance confirm}: ends the season now (staff). */
     public static List<String> advanceSeasonByStaff() {
         SparStore store = SparStore.get();
         SparStore.DojoSeason before = store.dojoSeason;
@@ -771,7 +771,7 @@ public final class DojoRankings {
     }
 
     /**
-     * {@code /spar dojo members}: the current roster of the player's home dojo (the mentor's dojo they joined,
+     * {@code /lm dojo members}: the current roster of the player's home dojo (the mentor's dojo they joined,
      * else the dojo they own), as the GUI's Dojo members page shows it.
      */
     public static List<String> memberLines(ServerPlayer player) {
@@ -799,7 +799,7 @@ public final class DojoRankings {
     }
 
     /**
-     * {@code /spar dojo previous-members}: players on the home dojo's season board who are no longer in its roster.
+     * {@code /lm dojo previous-members}: players on the home dojo's season board who are no longer in its roster.
      */
     public static List<String> previousMemberLines(ServerPlayer player) {
         String key = homeDojoKey(player);
@@ -1062,7 +1062,7 @@ public final class DojoRankings {
             lines.add(UltraStyle.LABEL + "Ladder rank " + UltraStyle.VALUE + "#" + rank);
         }
         if (isDojoMaster(player)) {
-            lines.add(UltraStyle.DIM + "Rename: " + UltraStyle.LABEL + "/spar dojo name <your name>");
+            lines.add(UltraStyle.DIM + "Rename: " + UltraStyle.LABEL + "/lm dojo name <your name>");
             lines.add(UltraStyle.DIM + "Wars: " + UltraStyle.LABEL + "Sparring - Wars tab");
         }
         SparStore.DojoChallenge pending = SparStore.get().dojoChallenges.get(
@@ -1241,7 +1241,7 @@ public final class DojoRankings {
         return out;
     }
 
-    // 4.7.85: the old /spar dojo challenge write path (declare by player or by master key, accept, decline)
+    // 4.7.85: the old /lm dojo challenge write path (declare by player or by master key, accept, decline)
     // is gone. Since 4.7.84 the commands declare menu wars (DojoWar.legacyChallenge / legacyAnswer),
     // so nothing creates SparStore.DojoChallenge records any more; revokeOutgoingChallenge below stays for the GUI.
 
