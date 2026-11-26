@@ -83,7 +83,7 @@ for i in $(seq 1 900); do
   grep -q "Crash report saved\|Failed to start the minecraft server" "$LOG" && break
   sleep 1
 done
-grep -E "Done \(|LegacyMechanics.*4\.7\.|Crash report|self-test" "$LOG" | head -6
+grep -E "Done \(|LegacyMechanics.*[0-9]+\.[0-9]+\.|Crash report|self-test" "$LOG" | head -6
 if [ "$STAFF" = 1 ]; then echo "op LTProbe" >> "$CMD"; else echo "deop LTProbe" >> "$CMD"; fi
 for c in "time set midnight" "gamerule doDaylightCycle false" "gamerule doMobSpawning false" "difficulty normal"; do echo "$c" >> "$CMD"; done
 rm -rf "$G/mods" "$G/config" "$G/defaultconfigs" "$G/screenshots" "$G/uiprobe-client.txt"; mkdir -p "$G/mods"
