@@ -50,11 +50,15 @@ clear.
   them after the bridge change.
 - **Vanilla `/difficulty` is back.** LM no longer owns that name, so vanilla `/difficulty <level>` (ops, world
   difficulty) works again. It was not re-registered.
-- Every string that named an old command was rewritten, in Java (help, usage lines, chat buttons such as the
-  Difficulty chat menu's `/lm difficulty do page tiers`, `LmChat.tip` links), the CNPC scripts in
-  `customnpcs/scripts/` (comments and messages only; none runs an old command), the living docs in
-  `tools/dmz-adaptive-difficulty/*.md`, `docs/LM_TEST_PROBES.md`, the GuiKit specs and the kit fixtures. A
-  manifest check scans every Java string literal for an old root. Historical records keep their old wording:
+- Strings that named an old command were rewritten in Java (help, usage lines, chat buttons such as the
+  Difficulty chat menu's `/lm difficulty do page tiers`, `LmChat.tip` links), the CNPC script comments in
+  `customnpcs/scripts/`, the living docs in `tools/dmz-adaptive-difficulty/*.md`, `docs/LM_TEST_PROBES.md`, the
+  GuiKit specs and the kit fixtures. The manifest check scans Java string literals only (LM's `src/main/java`).
+- **Correction (4.8.1):** this was not every string. Four player-facing messages in three CNPC scripts (Global TP
+  Boost, TP boost end, Android conversion) still printed `/progression boost`, `/progression boost end` and
+  `/progression android`. Those scripts build a message from color pieces (`COLOR + "f/progression boost"`), so the
+  rewrite and the Java-only check both missed them. 4.8.1 fixes them and adds a check over the CNPC scripts; see
+  `docs/LM_481_BUILD_NOTES.md`. Historical records keep their old wording:
   `docs/CHANGELOG.md`, earlier manifest rows and build notes, `AUDIT.md`, and `archive/`/`uploads/` snapshots.
 - The retired Bukkit plugin `tools/dmz-adaptive-difficulty-gui` (LegacyMechanicsGUI, never installed) still
   declares the old roots in its `plugin.yml`. It is not in the LM jar and must stay out of `plugins/`.
