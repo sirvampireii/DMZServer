@@ -174,6 +174,149 @@ public final class SagaResetService {
         return "Reset " + sagaTitle(displayName(saga)) + "." + paid;
     }
 
+    /** 4.8.3: result of a staff saga action: whether it changed anything, and the line to show staff. */
+    public record AdminResult(boolean ok, String line, String sagaTitle) {}
+
+    /** 4.8.3: the command key for a saga, its name in lower case with hyphens ("saiyan-saga"). */
+    public static String commandKey(Saga saga) {
+        String title = sagaTitle(displayName(saga)).toLowerCase(Locale.ROOT);
+        StringBuilder out = new StringBuilder();
+        for (char c : title.toCharArray()) {
+            if (Character.isLetterOrDigit(c)) {
+                out.append(c);
+            } else if (out.length() > 0 && out.charAt(out.length() - 1) != '-') {
+                out.append('-');
+            }
+        }
+        while (out.length() > 0 && out.charAt(out.length() - 1) == '-') {
+            out.setLength(out.length() - 1);
+        }
+        return out.toString();
+    }
+
+    /** 4.8.3: command keys of every loaded saga, sorted by name. */
+    public static List<String> commandKeys() {
+        List<String> keys = new ArrayList<>();
+        for (Saga saga : loadedSagas()) {
+            keys.add(commandKey(saga));
+        }
+        return keys;
+    }
+
+    /** 4.8.3: readable titles of every loaded saga ("Saiyan Saga"), sorted. */
+    public static List<String> sagaTitles() {
+        List<String> titles = new ArrayList<>();
+        for (Saga saga : loadedSagas()) {
+            titles.add(sagaTitle(displayName(saga)));
+        }
+        return titles;
+    }
+
+    /**
+     * 4.8.3: a loaded saga by what staff typed: its command key, name, or id, ignoring case, spaces, hyphens and
+     * underscores, with or without the word "saga". Null when nothing matches.
+     */
+    public static Saga findLoose(String raw) {
+        String want = squash(raw);
+        if (want.isEmpty()) {
+            return null;
+        }
+        String wantBare = want.endsWith("saga") && want.length() > 4 ? want.substring(0, want.length() - 4) : want;
+        for (Saga saga : loadedSagas()) {
+            String id = saga.getId();
+            String tail = id;
+            int cut = Math.max(id.lastIndexOf('.'), id.lastIndexOf(':'));
+            if (cut >= 0 && cut < id.length() - 1) {
+                tail = id.substring(cut + 1);
+            }
+            for (String c : new String[] {id, tail, displayName(saga), sagaTitle(displayName(saga))}) {
+                String sq = squash(c);
+                String bare = sq.endsWith("saga") && sq.length() > 4 ? sq.substring(0, sq.length() - 4) : sq;
+                if (sq.equals(want) || bare.equals(wantBare)) {
+                    return saga;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 4.8.3: staff reset of a player's saga progress. Free for everyone, works while player resets are turned off,
+     * and skips nothing else: a locked saga, an unstarted saga and a quest party still refuse.
+     */
+    public static AdminResult adminReset(ServerPlayer player, Saga saga) {
+        if (player == null || saga == null || saga.getId() == null) {
+            return new AdminResult(false, NOT_LOADED, "Saga");
+        }
+        String title = sagaTitle(displayName(saga));
+        StatsData stats = DmzProgression.stats(player);
+        if (stats == null || stats.getPlayerQuestData() == null) {
+            return new AdminResult(false, "Their quest data is not loaded yet. Try again in a moment.", title);
+        }
+        PlayerQuestData data = stats.getPlayerQuestData();
+        String id = saga.getId();
+        if (data.isSagaLocked(id)) {
+            return new AdminResult(false, title + " is locked for them. Unlock it first with /lm admin saga unlock.",
+                    title);
+        }
+        if (status(data, saga) == Status.NOT_STARTED) {
+            return new AdminResult(false, "They have not started " + title + ", so there is nothing to reset.", title);
+        }
+        if (data.isInParty()) {
+            return new AdminResult(false, "They are in a quest party. Ask them to leave it, then reset again.", title);
+        }
+        data.resetSaga(id);
+        clearTrackedIfSaga(data, id);
+        discardOwnedSagaEntities(player, id);
+        try {
+            QuestService.syncQuestState(player);
+        } catch (Throwable ignored) {
+        }
+        return new AdminResult(true, "Reset " + title + " progress. No coins were charged.", title);
+    }
+
+    /**
+     * 4.8.3: staff unlock of a saga that is locked for the player ({@link PlayerQuestData#isSagaLocked}). DMZ stores
+     * the lock flag under {@code setSagaUnlocked}; writing false clears it, so the check reads it back.
+     */
+    public static AdminResult adminUnlock(ServerPlayer player, Saga saga) {
+        if (player == null || saga == null || saga.getId() == null) {
+            return new AdminResult(false, NOT_LOADED, "Saga");
+        }
+        String title = sagaTitle(displayName(saga));
+        StatsData stats = DmzProgression.stats(player);
+        if (stats == null || stats.getPlayerQuestData() == null) {
+            return new AdminResult(false, "Their quest data is not loaded yet. Try again in a moment.", title);
+        }
+        PlayerQuestData data = stats.getPlayerQuestData();
+        String id = saga.getId();
+        if (!data.isSagaLocked(id)) {
+            return new AdminResult(false, title + " is already unlocked for them. Nothing changed.", title);
+        }
+        data.setSagaUnlocked(id, false);
+        if (data.isSagaLocked(id)) {
+            return new AdminResult(false, "Could not unlock " + title + ". Check the server log.", title);
+        }
+        try {
+            QuestService.syncQuestState(player);
+        } catch (Throwable ignored) {
+        }
+        return new AdminResult(true, "Unlocked " + title + ".", title);
+    }
+
+    private static String squash(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        for (char c : raw.toLowerCase(Locale.ROOT).toCharArray()) {
+            if (Character.isLetterOrDigit(c)) {
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
     public static String costText(long coins) {
         if (coins <= 0L) {
             return "free";

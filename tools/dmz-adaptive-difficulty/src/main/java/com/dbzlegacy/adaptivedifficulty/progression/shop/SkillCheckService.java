@@ -68,6 +68,16 @@ public final class SkillCheckService {
         }
     }
 
+    /** 4.8.3: staff clear of a stuck Skill Check session; true when an active session was cleared. */
+    public static boolean clearSessionIfAny(UUID playerId) {
+        if (playerId == null) {
+            return false;
+        }
+        boolean had = inSession(playerId);
+        SESSIONS.remove(playerId);
+        return had;
+    }
+
     /**
      * Open Skill Check UI for {@code page} (core / saga; advanced aliases to saga).
      * Requires {@link #canUse}.
