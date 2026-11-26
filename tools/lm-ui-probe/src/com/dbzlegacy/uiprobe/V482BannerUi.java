@@ -91,7 +91,16 @@ public final class V482BannerUi {
         if (p == null) {
             return "";
         }
-        return (p.buttonsJson() + p.linesJson() + p.layoutJson()).replaceAll("§.", "").replace("\\u0027", "'");
+        StringBuilder lines = new StringBuilder();
+        try {
+            for (JsonElement el : JsonParser.parseString(p.linesJson()).getAsJsonArray()) {
+                lines.append(' ').append(el.isJsonPrimitive() ? el.getAsString() : "");
+            }
+        } catch (RuntimeException e) {
+            lines.append(p.linesJson());
+        }
+        // Body lines wrap at the panel width: joined with spaces, a wrapped phrase still matches.
+        return (p.buttonsJson() + lines + " " + p.layoutJson()).replaceAll("\u00a7.", "").replace("\\u0027", "'");
     }
 
     private static boolean has(GuiOpenPacket p, String t) {
@@ -105,8 +114,8 @@ public final class V482BannerUi {
         }
         for (JsonElement el : JsonParser.parseString(p.buttonsJson()).getAsJsonArray()) {
             JsonObject b = el.getAsJsonObject();
-            String id = b.has("id") ? b.get("id").getAsString() : "";
-            String label = b.has("label") ? b.get("label").getAsString().replaceAll("§.", "") : "";
+            String id = bare(b.has("id") ? b.get("id").getAsString() : "");
+            String label = b.has("label") ? b.get("label").getAsString().replaceAll("\u00a7.", "") : "";
             if (id.contains(idPart) || (idPart.startsWith("label=") && label.contains(idPart.substring(6)))) {
                 return new String[] {id, label, b.has("style") ? b.get("style").getAsString() : "",
                         b.has("icon") ? b.get("icon").getAsString() : ""};
@@ -123,12 +132,21 @@ public final class V482BannerUi {
         }
         for (JsonElement el : JsonParser.parseString(p.buttonsJson()).getAsJsonArray()) {
             JsonObject b = el.getAsJsonObject();
-            String id = b.has("id") ? b.get("id").getAsString() : "";
+            String id = bare(b.has("id") ? b.get("id").getAsString() : "");
             if (id.startsWith(prefix)) {
                 out.add(new String[] {id, b.has("icon") ? b.get("icon").getAsString() : ""});
             }
         }
         return out;
+    }
+
+    /** A button id without the screen qualifier the spec adds ({@code @dojo:do:x} reads {@code do:x}). */
+    private static String bare(String id) {
+        if (id.startsWith("@")) {
+            int c = id.indexOf(':');
+            return c < 0 ? id : id.substring(c + 1);
+        }
+        return id;
     }
 
     /** The banner pictures item ({@code b}) of a page's layout, or "". */
@@ -235,8 +253,9 @@ public final class V482BannerUi {
             act(m, "dojo_bedit_add", "ts:5");
             line(note, "EDITOR", "a 7th layer is refused", DojoBannerEditor.draftIcon(m).split(",").length == 6,
                     DojoBannerEditor.draftIcon(m));
-            for (int i = 0; i < 3; i++) {
-                act(m, "dojo_bedit_remove", "6");
+            // The 6-layer check added ts:0..2 after the 3 layers: remove layers 6, 5 and 4 to get back to the 3.
+            for (int at = 6; at >= 4; at--) {
+                act(m, "dojo_bedit_remove", String.valueOf(at));
             }
 
             GuiOpenPacket ready = last(open(m, "dojo_banner_edit"));
@@ -463,7 +482,7 @@ public final class V482BannerUi {
                     && d.points == 80 && d.identityChangedAt > 0L, d.name + " points=" + d.points);
             String cmd = DojoRankings.setDojoName(r, "V482 Cmd Try");
             line(note, "RENAME", "/lm dojo name follows the cooldown (not unlimited)", "V482 Third".equals(d.name),
-                    cmd.replaceAll("§.", ""));
+                    cmd.replaceAll("\u00a7.", ""));
 
             GuiOpenPacket setE = last(open(c, "dojo_settings"));
             line(note, "RENAME", "settings lock line with the free rename, no cooldown", has(setE,

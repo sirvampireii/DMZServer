@@ -2968,7 +2968,9 @@ public final class UiProbe {
         List<GuiOpenPacket> st4 = UltraScreenSpec.captureSends(() ->
                 com.dbzlegacy.adaptivedifficulty.gui.ultra.DojoFounding.handle(f, "dojo_found_banner", source, new JsonObject()));
         note("V78 founding lists the carried banner and confirms name, style and banner: " + pf(!source.isEmpty() && !st4.isEmpty()
-                && "found_confirm".equals(st4.get(0).pageId()) && has(st4.get(0), "Probe Hall") && has(st4.get(0), "Red, 1 pattern")));
+                && "found_confirm".equals(st4.get(0).pageId()) && has(st4.get(0), "Probe Hall")
+                // 4.8.2 (Part C): the banner text names its patterns (was "Red, 1 pattern").
+                && has(st4.get(0), "Red with Diagonal cross (yellow)")));
         UltraScreenSpec.captureSends(() ->
                 com.dbzlegacy.adaptivedifficulty.gui.ultra.DojoFounding.handle(f, "dojo_found_confirm", "", new JsonObject()));
         var made = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.dojoOf(f);
@@ -2980,14 +2982,19 @@ public final class UiProbe {
             List<GuiOpenPacket> home = UltraScreenSpec.captureSends(() ->
                     com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraDojoScreens.openSystem(f, "home"));
             note("V78 Dojo Home shows name, style and banner: " + pf(!home.isEmpty() && has(home.get(0), "Probe Hall")
-                    && has(home.get(0), "Ki") && has(home.get(0), "Red, 1 pattern")));
-            // Amendment: changes cost Dojo Points and share one 12-hour cooldown.
+                    && has(home.get(0), "Ki") && has(home.get(0), "Red with Diagonal cross (yellow)")));
+            // Amendment: changes cost Dojo Points and share one 12-hour cooldown. 4.8.2 (Part D): the dojo's first
+            // rename is free (any time, no cost, no cooldown), so the paid rule applies from the second rename.
             made.points = 5;
-            String poor = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.rename(f, "Probe Keep");
-            note("V78 rename refuses without 20 Dojo Points: " + pf(poor.contains("costs 20") && "Probe Hall".equals(made.name)));
+            String free = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.rename(f, "Probe Keep");
+            note("V78 the first rename is free (4.8.2), even with 5 points, and starts no cooldown: " + pf(
+                    "Probe Keep".equals(made.name) && made.points == 5 && made.identityChangedAt == 0L
+                    && made.freeRenameUsed) + " | " + free);
+            String poor = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.rename(f, "Probe Keep Two");
+            note("V78 rename refuses without 20 Dojo Points: " + pf(poor.contains("costs 20") && "Probe Keep".equals(made.name)));
             made.points = 100;
-            String ok = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.rename(f, "Probe Keep");
-            note("V78 rename costs 20 and starts the cooldown: " + pf("Probe Keep".equals(made.name) && made.points == 80
+            String ok = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.rename(f, "Probe Keep Two");
+            note("V78 rename costs 20 and starts the cooldown: " + pf("Probe Keep Two".equals(made.name) && made.points == 80
                     && made.identityChangedAt > 0L) + " | " + ok);
             String again = com.dbzlegacy.adaptivedifficulty.dojo.DojoService.setStyle(f, "MELEE");
             note("V78 style change refused during the 12-hour cooldown: " + pf(again.contains("can change again")

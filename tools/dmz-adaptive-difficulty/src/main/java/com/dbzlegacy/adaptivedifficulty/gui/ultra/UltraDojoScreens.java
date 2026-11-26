@@ -1740,6 +1740,25 @@ public final class UltraDojoScreens {
         spec.icon(DojoFounding.bannerIcon(d));
     }
 
+    /** 4.8.2: dojos a list page shows (the pager row reaches the rest; the page fits 300 px). */
+    static final int LIST_SHOWN = 4;
+
+    /**
+     * " - master - score - members" after a list row's name, dropping the members and then the master when the row
+     * would wrap (one line a dojo keeps the page inside 300 px; the dojo's profile shows everything).
+     */
+    static String listRest(String row, String master, String score, String members) {
+        String all = " - " + master + " - " + score + " - " + members;
+        if (row.length() + all.length() <= LIST_LINE_CHARS) {
+            return all;
+        }
+        String noMembers = " - " + master + " - " + score;
+        if (row.length() + noMembers.length() <= LIST_LINE_CHARS) {
+            return noMembers;
+        }
+        return " - " + score;
+    }
+
     /** Characters a body line holds before it wraps (the menu body at 7 px a glyph). */
     static final int LIST_LINE_CHARS = 56;
     /** Share of the width a banner picture takes beside its card (thousandths). */
@@ -1773,7 +1792,8 @@ public final class UltraDojoScreens {
         String base = wars ? "dojo_list_wars" : "dojo_list";
         UltraScreenSpec spec = dojoSub(UltraPickHelper.pageArg(base, page), notice);
         List<Dojo> all = wars ? DojoService.byWarWins() : DojoService.byClout();
-        int per = 6;
+        // 4.8.2: 4 a page (with the pager row the page fits 300 px), each row one line.
+        int per = LIST_SHOWN;
         int pages = Math.max(1, (all.size() + per - 1) / per);
         int pg = Math.max(0, Math.min(page, pages - 1));
         spec.line(UltraStyle.header((wars ? "Dojos by war wins" : "Dojos by clout this season")
@@ -1787,8 +1807,8 @@ public final class UltraDojoScreens {
             Dojo d = all.get(i);
             String score = wars ? d.warWins + (d.warWins == 1 ? " war win" : " war wins") : d.clout + " clout";
             int members = 1 + DojoService.disciples(d).size();
-            String rest = " - " + d.masterName + (masterOnline(player, d) ? " (online)" : "") + " - " + score + " - "
-                    + members + (members == 1 ? " member" : " members");
+            String rest = listRest((i + 1) + ". " + d.name, d.masterName + (masterOnline(player, d) ? " (online)" : ""),
+                    score, members + (members == 1 ? " member" : " members"));
             // 4.8.2: the row ends with the dojo's banner when it fits; its button below always carries the icon.
             spec.line(UltraStyle.VALUE + (i + 1) + ". " + d.name + UltraStyle.LABEL + rest
                     + bannerTail((i + 1) + ". " + d.name + rest, d));

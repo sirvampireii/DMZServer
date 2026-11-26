@@ -149,9 +149,10 @@ public final class DojoBannerEditor {
         int n = e.layers().size();
         String icon = BannerDesign.icon(e.base(), e.layers());
         List<String> card = new ArrayList<>();
+        // 4.8.2: four short lines beside the preview, so the page (with a notice and a two-line reason) fits 300 px.
         card.add(UltraStyle.header("Banner editor"));
-        card.add(UltraStyle.labelValue("Base", BannerDesign.colourLabel(e.base())));
-        card.add(UltraStyle.labelValue("Layers", n + " of " + BannerDesign.MAX_LAYERS));
+        card.add(UltraStyle.labelValue("Base", BannerDesign.colourLabel(e.base())) + UltraStyle.LABEL + " - "
+                + UltraStyle.labelValue("Layers", n + " of " + BannerDesign.MAX_LAYERS));
         if (first) {
             card.add(UltraStyle.labelValue("Saving", "free, your first banner"));
             card.add(UltraStyle.LABEL + "It starts no wait.");
@@ -161,11 +162,10 @@ public final class DojoBannerEditor {
         }
         spec.pictures(card, card.size(), PICTURE_SIDE, preview(icon));
         String bad = first ? null : DojoService.identityChangeProblem(d, DojoCatalog.BANNER_CHANGE_COST);
-        if (!first) {
-            spec.line(UltraStyle.LABEL + "Saving locks the name, style and banner for 12 hours.");
-        }
         if (bad != null) {
             spec.line(UltraStyle.dangerLine(bad));
+        } else if (!first) {
+            spec.line(UltraStyle.LABEL + "Saving locks the name, style and banner for 12 hours.");
         }
         spec.buttonsAfterLines();
         UltraDojoScreens.col3(spec, 0, "page:" + PAGE_BASE, "Base colour", UltraStyle.STYLE_NORMAL);
@@ -244,8 +244,7 @@ public final class DojoBannerEditor {
         }
         Edit e = edit(p, d);
         if (e.layers().size() >= BannerDesign.MAX_LAYERS) {
-            openEdit(p, "Your banner has " + BannerDesign.MAX_LAYERS + " layers, the most a banner holds. Remove one"
-                    + " first.");
+            openEdit(p, "6 layers is the most. Remove one first.");
             return;
         }
         List<String> all = BannerDesign.patterns();
@@ -416,7 +415,7 @@ public final class DojoBannerEditor {
                     return true;
                 }
                 if (layers.size() >= BannerDesign.MAX_LAYERS) {
-                    openEdit(p, "Your banner already has " + BannerDesign.MAX_LAYERS + " layers. Remove one first.");
+                    openEdit(p, "6 layers is the most. Remove one first.");
                     return true;
                 }
                 layers.add(BannerDesign.layer(code, c));
@@ -457,11 +456,16 @@ public final class DojoBannerEditor {
             }
             case ACT_RESET -> {
                 EDITS.put(p.m_20148_(), fromDojo(d));
-                openEdit(p, "Back to your dojo's current banner.");
+                openEdit(p, "Back to your saved banner.");
             }
             case ACT_SAVE -> {
                 if (unchanged(d, e)) {
                     openEdit(p, "That is already your dojo's banner.");
+                    return true;
+                }
+                if (!DojoService.defaultBanner(d)
+                        && DojoService.identityChangeProblem(d, DojoCatalog.BANNER_CHANGE_COST) != null) {
+                    openEdit(p, null);                  // the page's red line already says why (no repeat notice)
                     return true;
                 }
                 String msg = DojoService.setBanner(p, e.base(), new ArrayList<>(e.layers()));
