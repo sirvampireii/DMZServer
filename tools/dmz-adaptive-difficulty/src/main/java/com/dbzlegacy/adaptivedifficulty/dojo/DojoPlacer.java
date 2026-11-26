@@ -21,8 +21,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.resources.ResourceLocation;
+import com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo;
+import net.minecraft.world.item.DyeColor;
+import net.minecraft.world.level.block.AbstractBannerBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.WallBannerBlock;
+import net.minecraft.world.level.block.entity.BannerBlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraftforge.registries.ForgeRegistries;
@@ -53,6 +59,8 @@ public final class DojoPlacer {
         int[] cells;
         short[] state;
         BlockState[] palette;
+        /** 4.8.2: palette entries that are banners (wall or standing): the hall's banner spots. */
+        boolean[] banner;
     }
 
     /** The last few structures read (a base hall is ~670k cells: keep only what builds are using). */
@@ -90,8 +98,10 @@ public final class DojoPlacer {
             t.sz = size.m_128763_(2);
             ListTag pal = nbt.m_128437_("palette", 10);
             t.palette = new BlockState[pal.size()];
+            t.banner = new boolean[pal.size()];
             for (int i = 0; i < t.palette.length; i++) {
                 t.palette[i] = state(pal.m_128728_(i));
+                t.banner[i] = t.palette[i].m_60734_() instanceof AbstractBannerBlock;
             }
             ListTag blocks = nbt.m_128437_("blocks", 10);
             int n = blocks.size();
@@ -158,6 +168,8 @@ public final class DojoPlacer {
         final BlockPos origin;                          // the plot structure's (0, 0, 0) in the world
         final Deque<Step> steps = new ArrayDeque<>();
         final Runnable done;
+        /** 4.8.2: the dojo's picked banner, put up in every banner spot this job places; null: the style's own. */
+        BannerDesign banner;
         Template cur;
         Step step;
         int index;
@@ -276,7 +288,12 @@ public final class DojoPlacer {
                         continue;
                     }
                     pos.m_122178_(j.origin.m_123341_() + px, j.origin.m_123342_() + py, j.origin.m_123343_() + pz);
-                    j.level.m_7731_(pos, t.palette[t.state[i]], FLAGS);
+                    int si = t.state[i];
+                    if (t.banner[si]) {
+                        putBanner(j.level, pos.m_7949_(), t.palette[si], j.banner);
+                    } else {
+                        j.level.m_7731_(pos, t.palette[si], FLAGS);
+                    }
                     j.placed++;
                 }
                 j.index = stop;
@@ -372,6 +389,9 @@ public final class DojoPlacer {
         List<Step> steps = new ArrayList<>();
         int[] zero = {0, 0, 0};
         Map<String, Integer> want = parts(now);
+        if (was != null && !was.banner.equals(now.banner)) {
+            was = null;                                 // 4.8.2: a new banner places the whole plot, like a new style
+        }
         if (was == null || !was.key().equals(key)) {
             steps.add(new Step(key + "/base", zero, null));
             for (Map.Entry<String, Integer> e : want.entrySet()) {
@@ -419,6 +439,134 @@ public final class DojoPlacer {
         }
     }
 
+    // ------------------------------------------------------------------ the dojo's banner (4.8.2)
+    /** One banner layer as placed: the vanilla pattern hashname ("bs", "cr") and its dye. */
+    public record Layer(String pattern, DyeColor colour) {
+        /** "bs:15", the form DojoFounding saves a pick in (dye id). */
+        public String text() {
+            return pattern + ":" + colour.m_41060_();
+        }
+    }
+
+    /** 4.8.2: a dojo's picked banner as the hall flies it: the base colour and every layer, in order. */
+    public record BannerDesign(DyeColor base, List<Layer> layers) {
+        /** "red|bs:15|cr:0": the base and layers, the text the build signature fingerprints. */
+        public String text() {
+            StringBuilder sb = new StringBuilder(base.m_41065_());
+            for (Layer l : layers) {
+                sb.append('|').append(l.text());
+            }
+            return sb.toString();
+        }
+
+        /** The layers as "code:dye id" in order, the form {@link DojoWorld#bannersOn} reports placed banners in. */
+        public List<String> patternTexts() {
+            List<String> out = new ArrayList<>();
+            for (Layer l : layers) {
+                out.add(l.text());
+            }
+            return out;
+        }
+    }
+
+    /**
+     * 4.8.2: the banner {@code d}'s hall flies, from {@code bannerBase} and {@code bannerPatterns} ("code:colour",
+     * colour the dye id DojoFounding saves, or a dye name); null when no banner is picked (or the base is not a dye):
+     * the hall then keeps its style's own banners. A layer whose colour is not a dye is left out (logged).
+     */
+    public static BannerDesign design(Dojo d) {
+        if (d == null || d.bannerBase == null || d.bannerBase.isBlank()) {
+            return null;
+        }
+        DyeColor base = dye(d.bannerBase);
+        if (base == null) {
+            return null;
+        }
+        List<Layer> layers = new ArrayList<>();
+        if (d.bannerPatterns != null) {
+            for (String p : d.bannerPatterns) {
+                int cut = p == null ? -1 : p.lastIndexOf(':');
+                DyeColor c = cut <= 0 ? null : dye(p.substring(cut + 1));
+                if (c == null) {
+                    AdaptiveDifficultyMod.LOGGER.warn("[{}] dojo banner layer {} unreadable, left out",
+                            AdaptiveDifficultyMod.MOD_ID, p);
+                    continue;
+                }
+                layers.add(new Layer(p.substring(0, cut), c));
+            }
+        }
+        return new BannerDesign(base, List.copyOf(layers));
+    }
+
+    /** A dye from its id ("14") or its name ("red"), or null. */
+    static DyeColor dye(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        String t = s.trim();
+        if (t.chars().allMatch(Character::isDigit)) {
+            try {
+                int id = Integer.parseInt(t);
+                return id >= 0 && id < DyeColor.values().length ? DyeColor.m_41053_(id) : null;
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return DyeColor.m_41057_(t.toLowerCase(java.util.Locale.ROOT), null);
+    }
+
+    /**
+     * 4.8.2: place the structure's banner {@code baked} at {@code pos}. With a pick it becomes the same shape (wall or
+     * standing, same facing or rotation) in the picked base colour, and its block entity gets the picked layers in
+     * order; with no pick it stays exactly the structure's banner (a plain banner: the structures carry no layers).
+     * The block entity is saved and sent to clients.
+     */
+    static void putBanner(ServerLevel level, BlockPos pos, BlockState baked, BannerDesign design) {
+        BlockState st = design == null ? baked : recolour(baked, design.base());
+        level.m_7731_(pos, st, FLAGS);
+        BlockEntity be = level.m_7702_(pos);
+        if (!(be instanceof BannerBlockEntity banner)) {
+            return;
+        }
+        ListTag layers = new ListTag();
+        if (design != null) {
+            for (Layer l : design.layers()) {
+                CompoundTag p = new CompoundTag();
+                p.m_128359_("Pattern", l.pattern());
+                p.m_128405_("Color", l.colour().m_41060_());
+                layers.add(p);
+            }
+        } else if (banner.m_187482_().m_128437_("Patterns", 10).isEmpty()) {
+            return;                                     // the style's plain banner, as placed
+        }
+        CompoundTag tag = new CompoundTag();
+        tag.m_128365_("Patterns", layers);
+        banner.m_142466_(tag);
+        banner.m_6596_();
+        level.m_7260_(pos, st, st, 3);
+    }
+
+    /** {@code baked} as the same banner shape in {@code colour}, every property (facing, rotation) kept. */
+    static BlockState recolour(BlockState baked, DyeColor colour) {
+        boolean wall = baked.m_60734_() instanceof WallBannerBlock;
+        Block b = ForgeRegistries.BLOCKS.getValue(new ResourceLocation("minecraft",
+                colour.m_41065_() + (wall ? "_wall_banner" : "_banner")));
+        if (b == null || b == Blocks.f_50016_) {
+            return baked;
+        }
+        BlockState out = b.m_49966_();
+        for (Property<?> prop : baked.m_61147_()) {
+            if (out.m_61138_(prop)) {
+                out = copy(out, baked, prop);
+            }
+        }
+        return out;
+    }
+
+    private static <T extends Comparable<T>> BlockState copy(BlockState to, BlockState from, Property<T> prop) {
+        return to.m_61124_(prop, from.m_61143_(prop));
+    }
+
     /** Self-test (mod load): a full plan and a one-room change plan the right steps. */
     public static String selfTest() {
         DojoState start = DojoState.parse("v2|t=1|s=none|a=1|0|0|0|0|0|0");
@@ -432,7 +580,13 @@ public final class DojoPlacer {
         if (one.size() != 2 || one.get(0).within() == null || !one.get(1).path().equals("t1_none/training_hall_1")) {
             return "FAIL one room " + one;
         }
-        return "OK (" + full.size() + " + " + one.size() + " steps)";
+        // 4.8.2: a pre-4.8.2 signature reads as no banner (nothing to place); a new banner places the whole plot
+        DojoState picked = DojoState.parse("v2|t=1|s=none|a=1|0|0|0|0|0|0|b=0123456789abcdef");
+        if (!DojoState.NO_BANNER.equals(start.banner) || !plan(start, DojoState.parse(start.signature())).isEmpty()
+                || picked == null || plan(start, picked).size() != full.size()) {
+            return "FAIL banner plan";
+        }
+        return "OK (" + full.size() + " + " + one.size() + " steps, banner)";
     }
 
 }
