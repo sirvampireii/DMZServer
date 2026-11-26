@@ -137,10 +137,33 @@ public final class UiProbe {
     private void crawl() {
         addFakes();
         try {
-            crawlInner();
+            String only = System.getProperty("uiprobe.only");
+            if (only != null && !only.isBlank()) {
+                onlyChecks(only.trim());
+            } else {
+                crawlInner();
+            }
         } finally {
             backing().removeAll(fakes);
         }
+    }
+
+    /**
+     * 4.8.3: -Duiprobe.only=&lt;set&gt; runs just one set of checks: no menu crawl, no other scripts, no screenshots
+     * (pair it with -Duiprobe.norender). Owner rule: check only what the change touched, not every menu.
+     */
+    private void onlyChecks(String set) {
+        note("staff=" + com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(player));
+        if ("v483".equals(set)) {
+            // 4.8.3: the /lm admin subtrees (dojo; spar and rival; saga, skillcheck, goals, difficulty tier).
+            V483AdminDojo.run(player, this::note);
+            V483AdminSparRival.run(player, this::note);
+            V483AdminSystems.run(player, this::note);
+        } else {
+            note("ONLY unknown check set " + set + ": FAIL");
+        }
+        write("uiprobe-script.txt", scriptLog.toString(), false);
+        write("uiprobe-packets.jsonl", "", false);
     }
 
     private void crawlInner() {
@@ -579,6 +602,10 @@ public final class UiProbe {
         V482BannerWorld.run(player, this::note);
         V482BannerUi.all(player, this::note);
         v88Commands();
+        // 4.8.3: the /lm admin subtrees (also alone with -Duiprobe.only=v483).
+        V483AdminDojo.run(player, this::note);
+        V483AdminSparRival.run(player, this::note);
+        V483AdminSystems.run(player, this::note);
     }
 
     // ---- 4.7.71 navigation audit and scripted checks (test only) ----
