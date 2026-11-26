@@ -97,6 +97,11 @@ public final class DojoStore {
         public List<String> bannerPatterns = new ArrayList<>();
         /** 4.7.78: when the name, style or banner last changed after founding (one shared 12-hour cooldown). */
         public long identityChangedAt;
+        /**
+         * 4.8.2: the one free rename is spent. Missing in older dojos.json, so Gson leaves it false and every existing
+         * dojo starts with its free rename available. The free rename skips the cost and the cooldown and starts none.
+         */
+        public boolean freeRenameUsed;
     }
 
     /** One player's dojo-side record. */

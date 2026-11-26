@@ -573,6 +573,15 @@ public final class DojoService {
         if (n.equals(d.name)) {
             return "Your dojo is already called " + n + ".";
         }
+        // 4.8.2: the first rename is free, works during the cooldown and starts none.
+        if (freeRenameLeft(d)) {
+            d.freeRenameUsed = true;
+            d.name = n;
+            store().markDirty();
+            com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings.syncDisplayName(d.masterUuid, n);
+            return "Your dojo is now called " + n + ". That was your free rename; the next one costs "
+                    + DojoCatalog.NAME_CHANGE_COST + " Dojo Points.";
+        }
         // 4.7.78: a rename costs Dojo Points and starts the shared 12-hour identity cooldown.
         String bad = identityChangeProblem(d, DojoCatalog.NAME_CHANGE_COST);
         if (bad != null) {
@@ -581,7 +590,13 @@ public final class DojoService {
         chargeIdentityChange(d, DojoCatalog.NAME_CHANGE_COST);
         d.name = n;
         store().markDirty();
+        com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings.syncDisplayName(d.masterUuid, n);
         return "Your dojo is now called " + n + " (" + DojoCatalog.NAME_CHANGE_COST + " Dojo Points).";
+    }
+
+    /** 4.8.2: the dojo's one free rename is still unused (usable any time, no cost, no cooldown). */
+    public static boolean freeRenameLeft(Dojo d) {
+        return d != null && !d.freeRenameUsed;
     }
 
     // ------------------------------------------------------------------ Dojo Points and clout

@@ -899,15 +899,26 @@ public final class UltraDojoScreens {
                 .line(UltraStyle.labelValue("Name", d.name))
                 .line(UltraStyle.labelValue("Banner", DojoFounding.bannerText(d)))
                 .line(UltraStyle.labelValue("Dojo Points", String.valueOf(d.points)))
-                .line(UltraStyle.LABEL + (cd > 0L ? "The name, style and banner can change again in "
-                        + DojoService.cooldownText(cd) + "."
-                        : "A rename or a new banner locks the name, style and banner for 12 hours."))
+                .line(UltraStyle.LABEL + settingsLockLine(d, cd))
                 .buttonsAfterLines();
         DojoFounding.identityButtons(spec, player, d, true);
         spec.setRow(spec.row() + 8);
         spec.button("page:dojo_close", UltraStyle.danger("Close dojo"), UltraStyle.STYLE_DANGER).rowGap();
         spec.back();
         spec.send(player);
+    }
+
+    /** 4.8.2: the Dojo settings lock line, with the free rename (any time, locks nothing) while it is unused. */
+    static String settingsLockLine(Dojo d, long cd) {
+        boolean free = DojoService.freeRenameLeft(d);
+        if (cd > 0L) {
+            return free ? "The style and banner can change again in " + DojoService.cooldownText(cd)
+                    + ". Your free rename works now."
+                    : "The name, style and banner can change again in " + DojoService.cooldownText(cd) + ".";
+        }
+        return free ? "Your first rename is free and locks nothing. A paid rename or a new banner locks the name, style"
+                + " and banner for 12 hours."
+                : "A rename or a new banner locks the name, style and banner for 12 hours.";
     }
 
     static void openCloseConfirm(ServerPlayer player) {

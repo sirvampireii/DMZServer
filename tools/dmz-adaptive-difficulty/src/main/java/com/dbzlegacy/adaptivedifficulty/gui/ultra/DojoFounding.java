@@ -307,12 +307,22 @@ public final class DojoFounding {
             spec.send(p);
             return;
         }
-        spec.line(UltraStyle.header("Rename " + d.name))
-                .line(UltraStyle.labelValue("A rename costs", DojoCatalog.NAME_CHANGE_COST + " Dojo Points (you have "
-                        + d.points + ")"))
-                .line(UltraStyle.LABEL + "3 to 24 letters, numbers or spaces.")
-                .line(UltraStyle.LABEL + "After it, the name, style and banner can't change for 12 hours.");
-        String bad = DojoService.identityChangeProblem(d, DojoCatalog.NAME_CHANGE_COST);
+        // 4.8.2: the first rename is free, any time, and locks nothing.
+        boolean free = DojoService.freeRenameLeft(d);
+        spec.line(UltraStyle.header("Rename " + d.name));
+        if (free) {
+            spec.line(UltraStyle.labelValue("This rename", "Free"))
+                    .line(UltraStyle.LABEL + "Your first rename is free and starts no wait. After it, a rename costs "
+                            + DojoCatalog.NAME_CHANGE_COST + " Dojo Points.");
+        } else {
+            spec.line(UltraStyle.labelValue("A rename costs", DojoCatalog.NAME_CHANGE_COST + " Dojo Points (you have "
+                    + d.points + ")"));
+        }
+        spec.line(UltraStyle.LABEL + "3 to 24 letters, numbers or spaces.");
+        if (!free) {
+            spec.line(UltraStyle.LABEL + "After it, the name, style and banner can't change for 12 hours.");
+        }
+        String bad = free ? null : DojoService.identityChangeProblem(d, DojoCatalog.NAME_CHANGE_COST);
         if (bad != null) {
             spec.line(UltraStyle.dangerLine(bad)).buttonsAfterLines();
             if (DojoService.identityCooldownLeft(d) <= 0L) {
@@ -383,7 +393,10 @@ public final class DojoFounding {
         long cd = DojoService.identityCooldownLeft(d);
         String renameLabel = "Rename - " + DojoCatalog.NAME_CHANGE_COST + " points";
         String bannerLabel = "Banner - " + DojoCatalog.BANNER_CHANGE_COST + " points";
-        if (cd > 0L) {
+        if (DojoService.freeRenameLeft(d)) {
+            // 4.8.2: the free rename is open even during the cooldown and with no points.
+            spec.buttonLeft("page:" + PAGE_RENAME, UltraStyle.confirm("Rename (free)"), UltraStyle.STYLE_CONFIRM);
+        } else if (cd > 0L) {
             spec.lockedButton("Rename in " + DojoService.cooldownText(cd));
         } else if (d.points < DojoCatalog.NAME_CHANGE_COST) {
             spec.lockedButton("Rename - needs " + DojoCatalog.NAME_CHANGE_COST);
