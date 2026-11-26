@@ -61,9 +61,11 @@ prints a deleted command. What is left:
 
 ## Deploy
 
-These three scripts are live data files in `customnpcs/scripts/`, not jar contents. After this lands, sync
-`Global TP Boost.js`, `TP boost end.js` and `AndrioidConversion.js` to live `customnpcs/scripts/` and reload CNPC
-scripts (or restart) so the in-game text changes. The 4.8.1 jar carries no change beyond its version.
+These three scripts are live data files in `customnpcs/scripts/`, not jar contents. **Not synced to live: the
+owner does not use the CNPC scripts** (2026-11-26), so the repo copies are fixed and the live copies are left as they
+are. TP boost, boost end and Android conversion run from LM itself (`/lm admin progression boost start|end`,
+`/lm admin progression android`); the scripts were only stubs forwarding CNPC triggers 30, 31 and 45 to LM. The 4.8.1
+jar carries no change beyond its version.
 
 ## Release check
 
