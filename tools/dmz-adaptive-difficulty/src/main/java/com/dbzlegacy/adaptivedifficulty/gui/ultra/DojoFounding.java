@@ -68,7 +68,8 @@ public final class DojoFounding {
 
     static boolean owns(String lower) {
         return lower.equals(PAGE_NAME) || lower.equals(PAGE_STYLE) || lower.equals(PAGE_BANNER)
-                || lower.equals(PAGE_CONFIRM) || lower.equals(PAGE_PICK_BANNER) || lower.equals(PAGE_RENAME);
+                || lower.equals(PAGE_CONFIRM) || lower.equals(PAGE_PICK_BANNER) || lower.equals(PAGE_RENAME)
+                || DojoBannerEditor.owns(lower);
     }
 
     static Draft draft(ServerPlayer p) {
@@ -79,6 +80,7 @@ public final class DojoFounding {
     public static void forget(UUID id) {
         if (id != null) {
             DRAFTS.remove(id);
+            DojoBannerEditor.forget(id);
         }
     }
 
@@ -92,7 +94,13 @@ public final class DojoFounding {
             case PAGE_CONFIRM -> openConfirm(p, notice);
             case PAGE_PICK_BANNER -> openPickBanner(p, notice);
             case PAGE_RENAME -> openRename(p, notice);
-            default -> openName(p, notice);
+            default -> {
+                if (DojoBannerEditor.owns(lower)) {
+                    DojoBannerEditor.open(p, raw, notice);       // 4.8.2: the banner editor
+                } else {
+                    openName(p, notice);
+                }
+            }
         }
     }
 
@@ -284,6 +292,9 @@ public final class DojoFounding {
                 if (DojoService.identityCooldownLeft(d) <= 0L) {
                     spec.offerGetMore(UltraStyle.Shortfall.DOJO_POINTS, null);   // 4.7.85 (N6)
                 }
+                // 4.8.2: the editor still opens (designing is free); its Save is dim with the reason.
+                spec.buttonWide("page:" + DojoBannerEditor.PAGE_EDIT, "Design a banner here (save later)",
+                        UltraStyle.STYLE_NORMAL, null).rowGap();
                 spec.back();
                 spec.send(p);
                 return;
@@ -342,21 +353,36 @@ public final class DojoFounding {
      */
     private static void bannerPicker(UltraScreenSpec spec, ServerPlayer p, String actionPrefix, String verb) {
         List<Banner> found = banners(p);
+        // 4.8.2: the banner editor builds one from vanilla patterns here; copying a carried banner is the other way.
         if (found.isEmpty()) {
-            spec.line(UltraStyle.dangerLine("You have no banner with you."))
+            spec.line(UltraStyle.VALUE + "Design your banner here, or copy one you carry.")
                     .line(UltraStyle.LABEL + "Craft any banner (6 wool and a stick; add patterns at a loom if you like),"
                             + " hold it or carry it, then check again.")
                     .buttonsAfterLines();
+            editorButton(spec);
             spec.button("page:" + PAGE_PICK_BANNER, "Check again", UltraStyle.STYLE_NORMAL).rowGap();
             return;
         }
-        spec.line(UltraStyle.VALUE + "Pick a banner you carry. The dojo copies its design; the banner stays yours.")
+        spec.line(UltraStyle.VALUE + "Design your banner here, or copy one you carry (it stays yours).")
                 .buttonsAfterLines();
+        editorButton(spec);
         // Full-width rows: "Use for 20: Light gray, 6 patterns (off hand)" is cut on a half-width button.
+        int shown = 0;
         for (Banner b : found) {
+            if (shown++ >= PICKER_SHOWN) {
+                break;                                      // 4.8.2: the editor row takes one; the page fits 300 px
+            }
             spec.buttonWide(actionPrefix + b.source(), verb + ": " + describe(b.base(), b.patterns()) + where(b.source()),
                     UltraStyle.STYLE_NORMAL, null).rowGap();
         }
+    }
+
+    /** Carried banners the master's banner page lists under the editor button. */
+    static final int PICKER_SHOWN = 4;
+
+    private static void editorButton(UltraScreenSpec spec) {
+        spec.buttonWide("page:" + DojoBannerEditor.PAGE_EDIT, UltraStyle.confirm("Design a banner here"),
+                UltraStyle.STYLE_CONFIRM, null).rowGap();
     }
 
     private static String where(String source) {
@@ -374,10 +400,37 @@ public final class DojoFounding {
         spec.line(UltraStyle.labelValue("Banner", bannerText(d)));
     }
 
-    /** "Red, 1 pattern", or (4.7.84) "default (Red)" while the master has not picked one. */
+    /**
+     * "Red with Cross (white), Border (black)", "Red, 4 layers" when that is too long, or (4.7.84) "default (Red)"
+     * while the master has not picked one (the style's colour, the same rule the hall uses).
+     */
     static String bannerText(Dojo d) {
+        return bannerText(d, BANNER_TEXT_CHARS);
+    }
+
+    /** Characters a banner text may take on a stat line. */
+    static final int BANNER_TEXT_CHARS = 34;
+
+    /** {@link #bannerText(Dojo)} within {@code maxChars}. */
+    public static String bannerText(Dojo d, int maxChars) {
+        if (d == null) {
+            return "";
+        }
         return DojoService.defaultBanner(d) ? "default (" + describeColour(DojoService.bannerColour(d)) + ")"
-                : describe(d.bannerBase, d.bannerPatterns);
+                : BannerDesign.describe(d.bannerBase, d.bannerPatterns, maxChars);
+    }
+
+    /**
+     * 4.8.2: the dojo's banner icon (lmbanner:...): the picked design from dojos.json, or the style's default colour
+     * with no layers while none is picked. The old ladder banner colour (SparStore DojoProfile.bannerMaterial) is never
+     * read for display.
+     */
+    public static String bannerIcon(Dojo d) {
+        if (d == null) {
+            return BannerDesign.icon("white", List.of());
+        }
+        return DojoService.defaultBanner(d) ? BannerDesign.icon(DojoService.bannerColour(d), List.of())
+                : BannerDesign.icon(d.bannerBase, d.bannerPatterns);
     }
 
     /**
@@ -426,6 +479,9 @@ public final class DojoFounding {
         String typed = args != null && args.has("value") && !args.get("value").isJsonNull()
                 ? args.get("value").getAsString().trim() : "";
         UUID id = p.m_20148_();
+        if (DojoBannerEditor.handle(p, action, a)) {
+            return true;
+        }
         switch (action) {
             case ACT_NAME -> {
                 String bad = DojoService.nameProblem(typed);
@@ -568,11 +624,8 @@ public final class DojoFounding {
         return key.m_135815_().substring(0, key.m_135815_().length() - "_banner".length());
     }
 
-    /** "Red, 3 patterns" / "Light blue, plain". */
+    /** 4.8.2: "Red with Cross (white)" / "Red, 3 layers" when long / "Light blue, plain". */
     static String describe(String base, List<String> patterns) {
-        String b = base == null || base.isBlank() ? "Banner" : base.replace('_', ' ');
-        b = Character.toUpperCase(b.charAt(0)) + b.substring(1);
-        int n = patterns == null ? 0 : patterns.size();
-        return b + ", " + (n == 0 ? "plain" : n == 1 ? "1 pattern" : n + " patterns");
+        return BannerDesign.describe(base, patterns, 40);
     }
 }

@@ -828,6 +828,11 @@ public final class NativeMenuScreen extends Screen {
                 w = (int) Math.round(boxH * aspect);
             }
             int x = boxX + (cell - w) / 2, y = top + (boxH - h) / 2;
+            // 4.8.2: item b is a banner icon (lmbanner:...): the banner cloth with every layer (the editor's preview).
+            String banner = str(it, "b", "");
+            if (!banner.isBlank()) {
+                BannerIcons.drawCloth(g, banner, x, y, w, h);
+            }
             if (it.has("l") && it.get("l").isJsonArray()) {
                 for (JsonElement el : it.getAsJsonArray("l")) {
                     drawPictureLayer(g, el, x, y, w, h);
@@ -1489,6 +1494,11 @@ public final class NativeMenuScreen extends Screen {
     private boolean drawIcon(GuiGraphics g, Btn b) {
         if (b.icon() == null || b.icon().isBlank()) {
             return false;
+        }
+        if (BannerIcons.isBanner(b.icon())) {
+            // 4.8.2: a patterned banner (lmbanner:...), drawn with every layer.
+            int size = Math.min(10, b.h() - 4);
+            return BannerIcons.drawItem(g, b.icon(), b.x() + b.pad(), b.y() + (b.h() - size) / 2, size);
         }
         ResourceLocation rl = ResourceLocation.m_135820_(b.icon().toLowerCase(Locale.ROOT));
         if (rl == null) {

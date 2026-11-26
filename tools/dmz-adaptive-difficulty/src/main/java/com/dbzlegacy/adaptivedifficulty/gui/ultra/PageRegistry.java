@@ -255,6 +255,14 @@ public final class PageRegistry {
         item("dojo", "found_confirm", "Confirm", "dojo|found");
         item("dojo", "dojo_banner", "Dojo banner", "dojo|home");
         item("dojo", "dojo_banner_ask:**", "Dojo banner", "dojo|dojo_banner");
+        // 4.8.2: the banner editor (base colour, pattern layers, live preview); Save goes through setBanner.
+        item("dojo", "dojo_banner_edit", "Banner editor", "dojo|dojo_banner");
+        item("dojo", "dojo_banner_base", "Base colour", "dojo|dojo_banner_edit");
+        item("dojo", "dojo_banner_pat", "Pick a pattern", "dojo|dojo_banner_edit");
+        item("dojo", "dojo_banner_pat:*", "Pick a pattern", "dojo|dojo_banner_edit");
+        item("dojo", "dojo_banner_col:*", "Layer colour", "dojo|dojo_banner_pat");
+        item("dojo", "dojo_banner_layer:*", "Banner layer", "dojo|dojo_banner_edit");
+        item("dojo", "dojo_banner_recol:*", "Layer colour", "dojo|dojo_banner_layer:$1");
         item("dojo", "dojo_rename", "Rename the dojo", "dojo|home");
 
         // ---- Prestige (Home / Prestige / Shop)

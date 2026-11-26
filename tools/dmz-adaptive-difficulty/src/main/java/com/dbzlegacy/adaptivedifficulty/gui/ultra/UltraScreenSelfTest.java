@@ -647,6 +647,12 @@ public final class UltraScreenSelfTest {
                 || !"".equals(UltraStyle.normalizeIcon("mine/craft:iron_sword"))) {
             broken.add("normalizeIcon must drop ids that are not namespace:path");
         }
+        // 4.8.2: banner icons keep their layers in order; a malformed one is dropped.
+        if (!"lmbanner:red/sc:0,bo:15".equals(UltraStyle.normalizeIcon("lmbanner:Red/sc:0,bo:black"))
+                || !"".equals(UltraStyle.normalizeIcon("lmbanner:nocolour/sc:0"))
+                || !"".equals(UltraStyle.normalizeIcon("lmbanner:red/sc:99"))) {
+            broken.add("normalizeIcon must keep a valid banner icon and drop a malformed one");
+        }
         String tabJson = UltraScreenSpec.tabEntryJson("home", "Home", "minecraft:emerald");
         if (tabJson == null
                 || !tabJson.contains("\"icon\":\"minecraft:emerald\"")

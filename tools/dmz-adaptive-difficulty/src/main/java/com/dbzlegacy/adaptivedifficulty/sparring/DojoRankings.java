@@ -124,12 +124,18 @@ public final class DojoRankings {
         return resolveMentorName(dojoKey, null);
     }
 
+    /**
+     * The dojo's banner as a plain banner item name ({@code RED_BANNER}). 4.8.2: read from the picked design in
+     * dojos.json (its base colour, or the style's default while none is picked), the same source as every menu; the
+     * old ladder field {@code DojoProfile.bannerMaterial} is kept but no longer read for display.
+     */
     public static String dojoBannerMaterial(String dojoKey) {
-        SparStore.DojoProfile profile = profile(dojoKey);
-        if (profile != null && profile.bannerMaterial != null && !profile.bannerMaterial.isBlank()) {
-            return profile.bannerMaterial.toUpperCase(Locale.ROOT);
+        com.dbzlegacy.adaptivedifficulty.dojo.DojoStore.Dojo d =
+                com.dbzlegacy.adaptivedifficulty.dojo.DojoService.byMaster(dojoKey);
+        if (d == null) {
+            return "WHITE_BANNER";
         }
-        return "WHITE_BANNER";
+        return com.dbzlegacy.adaptivedifficulty.dojo.DojoService.bannerColour(d).toUpperCase(Locale.ROOT) + "_BANNER";
     }
 
     private static SparStore.DojoProfile profile(String dojoKey) {
@@ -724,7 +730,8 @@ public final class DojoRankings {
     }
 
     /**
-     * GUI leaderboard cards: {@code rank\tdojoKey\tdisplayName\tbannerMaterial\tvalue\trosterSize}.
+     * GUI leaderboard cards: {@code rank\tdojoKey\tdisplayName\tbannerIcon\tvalue\trosterSize}. 4.8.2: the banner is
+     * the dojo's banner icon ({@code lmbanner:...}, the picked design from dojos.json or the style default).
      */
     public static List<String> topCards(String category, int limit) {
         ensureSeason();
@@ -743,7 +750,9 @@ public final class DojoRankings {
             }
             String name = dojoDisplayName(e.getKey()).replace('\t', ' ').replace('\n', ' ');
             String value = formatValue(d, cat);
-            out.add(i + "\t" + e.getKey() + "\t" + name + "\t" + dojoBannerMaterial(e.getKey())
+            out.add(i + "\t" + e.getKey() + "\t" + name + "\t"
+                    + com.dbzlegacy.adaptivedifficulty.gui.ultra.DojoFounding.bannerIcon(
+                            com.dbzlegacy.adaptivedifficulty.dojo.DojoService.byMaster(e.getKey()))
                     + "\t" + value + "\t" + d.rosterSize);
             i++;
         }

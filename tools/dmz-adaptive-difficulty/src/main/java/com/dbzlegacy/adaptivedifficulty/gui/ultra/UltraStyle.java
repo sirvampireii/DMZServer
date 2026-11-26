@@ -801,6 +801,10 @@ public final class UltraStyle {
             return "";
         }
         String trimmed = raw.trim();
+        // 4.8.2: a patterned banner (lmbanner:<base>/<code>:<dye id>,...), drawn by the LM client with its layers.
+        if (BannerDesign.isIcon(trimmed)) {
+            return BannerDesign.normalizeIcon(trimmed);
+        }
         int colon = trimmed.indexOf(':');
         if (colon <= 0 || colon >= trimmed.length() - 1 || colon != trimmed.lastIndexOf(':')) {
             return "";
