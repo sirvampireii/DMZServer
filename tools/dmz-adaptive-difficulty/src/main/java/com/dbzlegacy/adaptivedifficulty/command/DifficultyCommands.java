@@ -11,6 +11,8 @@ import com.dbzlegacy.adaptivedifficulty.scaling.AreaDifficulty;
 import com.dbzlegacy.adaptivedifficulty.tick.NearbyMobScaler;
 import com.dbzlegacy.adaptivedifficulty.tick.ScaledMobTracker;
 import com.dbzlegacy.adaptivedifficulty.tier.UnlockSystem;
+import com.dbzlegacy.adaptivedifficulty.tier.UnlockTier;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
 import com.dbzlegacy.adaptivedifficulty.util.LmLog;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -36,6 +38,8 @@ public final class DifficultyCommands {
 
     public static void register() {
         MinecraftForge.EVENT_BUS.register(new DifficultyCommands());
+        // 4.8.3: saga, skillcheck and goals staff branches (AdaptiveDifficultyMod is byte-audited, so they hook in here).
+        AdminSystemsCommands.register();
     }
 
     @SubscribeEvent
@@ -126,6 +130,7 @@ public final class DifficultyCommands {
                                                         ctx.getSource(),
                                                         StringArgumentType.getString(ctx, "player"),
                                                         StringArgumentType.getString(ctx, "page"))))))
+                        .then(tierRoot("tier"))
                         .then(Commands.m_82127_("set")
                                 .then(LmCommandSuggestions.word("key", LmCommandSuggestions.DIFFICULTY_ADMIN_SET_KEYS)
                                         .then(Commands.m_82129_("value", StringArgumentType.greedyString())
@@ -133,6 +138,132 @@ public final class DifficultyCommands {
                                                         ctx.getSource(),
                                                         StringArgumentType.getString(ctx, "key"),
                                                         StringArgumentType.getString(ctx, "value"))))));
+    }
+
+    private static final com.mojang.brigadier.suggestion.SuggestionProvider<CommandSourceStack> TIER_NAMES =
+            (ctx, builder) -> {
+                java.util.List<String> names = new java.util.ArrayList<>();
+                for (UnlockTier t : UnlockTier.values()) {
+                    names.add(t.display.toLowerCase(java.util.Locale.ROOT));
+                }
+                return net.minecraft.commands.SharedSuggestionProvider.m_82970_(names, builder);
+            };
+
+    /** 4.8.3: {@code /lm admin difficulty tier grant|revoke <player> <tier>}: staff tier grants. */
+    private static LiteralArgumentBuilder<CommandSourceStack> tierRoot(String name) {
+        return Commands.m_82127_(name)
+                .executes(ctx -> tierHelp(ctx.getSource()))
+                .then(Commands.m_82127_("help").executes(ctx -> tierHelp(ctx.getSource())))
+                .then(Commands.m_82127_("grant")
+                        .executes(ctx -> tierHelp(ctx.getSource()))
+                        .then(LmCommandSuggestions.playerWord("player")
+                                .executes(ctx -> tierHelp(ctx.getSource()))
+                                .then(LmCommandSuggestions.word("tier", TIER_NAMES)
+                                        .executes(ctx -> tierGrant(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "player"),
+                                                StringArgumentType.getString(ctx, "tier"), true)))))
+                .then(Commands.m_82127_("revoke")
+                        .executes(ctx -> tierHelp(ctx.getSource()))
+                        .then(LmCommandSuggestions.playerWord("player")
+                                .executes(ctx -> tierHelp(ctx.getSource()))
+                                .then(LmCommandSuggestions.word("tier", TIER_NAMES)
+                                        .executes(ctx -> tierGrant(ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "player"),
+                                                StringArgumentType.getString(ctx, "tier"), false)))));
+    }
+
+    /** 4.8.3: the lines {@code /lm admin difficulty tier help} prints. */
+    public static java.util.List<String> tierHelpLines() {
+        return java.util.List.of(
+                UltraStyle.GOLD + "Difficulty tier staff commands",
+                UltraStyle.WHITE + "/lm admin difficulty tier grant <player> <tier>" + UltraStyle.GRAY
+                        + " - unlock a tier for an online player no matter their level; it stays until revoked",
+                UltraStyle.WHITE + "/lm admin difficulty tier revoke <player> <tier>" + UltraStyle.GRAY
+                        + " - take back a staff grant (they keep the tier if they still qualify)",
+                UltraStyle.GRAY + "Tiers: " + UltraStyle.WHITE + tierNames() + UltraStyle.GRAY + " (or 1 to 7)");
+    }
+
+    private static String tierNames() {
+        StringBuilder out = new StringBuilder();
+        for (UnlockTier t : UnlockTier.values()) {
+            if (out.length() > 0) {
+                out.append(", ");
+            }
+            out.append(t.display.toLowerCase(java.util.Locale.ROOT));
+        }
+        return out.toString();
+    }
+
+    private static int tierHelp(CommandSourceStack source) {
+        for (String line : tierHelpLines()) {
+            source.m_288197_(() -> Component.m_237113_(line), false);
+        }
+        return 1;
+    }
+
+    /** 4.8.3: "elite", "Elite", "3", "t3", "tier3" to a tier; null when nothing matches. */
+    public static UnlockTier parseTier(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String s = raw.trim().toLowerCase(java.util.Locale.ROOT).replace(" ", "");
+        if (s.startsWith("tier")) {
+            s = s.substring(4);
+        } else if (s.startsWith("t") && s.length() > 1 && Character.isDigit(s.charAt(1))) {
+            s = s.substring(1);
+        }
+        for (UnlockTier t : UnlockTier.values()) {
+            if (t.display.equalsIgnoreCase(s) || String.valueOf(t.id).equals(s)) {
+                return t;
+            }
+        }
+        return null;
+    }
+
+    private static int tierGrant(CommandSourceStack source, String playerName, String tierRaw, boolean grant) {
+        var server = source.m_81377_();
+        ServerPlayer target = server == null || playerName == null ? null : server.m_6846_().m_11255_(playerName.trim());
+        if (target == null) {
+            source.m_81352_(Component.m_237113_(LmCommandMessages.playerOffline(playerName)));
+            return 0;
+        }
+        UnlockTier tier = parseTier(tierRaw);
+        if (tier == null) {
+            source.m_81352_(Component.m_237113_(UltraStyle.RED + "No tier called " + tierRaw + ". Try one of: "
+                    + tierNames() + " (or 1 to 7)."));
+            return 0;
+        }
+        String name = target.m_36316_().getName();
+        String label = "Tier " + tier.id + " (" + tier.display + ")";
+        ServerPlayer self = source.m_230896_();
+        boolean tellTarget = self == null || !self.m_20148_().equals(target.m_20148_());
+        if (grant) {
+            if (!UnlockSystem.grantStaffTier(target, tier.id)) {
+                source.m_288197_(() -> Component.m_237113_(UltraStyle.GRAY + name + " already has a staff grant for "
+                        + label + ". Nothing changed."), false);
+                return 1;
+            }
+            source.m_288197_(() -> Component.m_237113_(UltraStyle.GREEN + "Granted " + label + " to " + name
+                    + ". It stays unlocked until you revoke it."), true);
+            if (tellTarget) {
+                target.m_213846_(Component.m_237113_(UltraStyle.GRAY + "Staff unlocked difficulty " + label
+                        + " for you. Open /lm difficulty to use it."));
+            }
+            return 1;
+        }
+        if (!UnlockSystem.revokeStaffTier(target, tier.id)) {
+            source.m_81352_(Component.m_237113_(UltraStyle.RED + name + " has no staff grant for " + label
+                    + ". Only staff grants can be revoked here."));
+            return 0;
+        }
+        boolean kept = DifficultyCache.data(target).hasUnlockedTier(tier.id);
+        source.m_288197_(() -> Component.m_237113_(UltraStyle.GREEN + "Revoked the staff grant of " + label + " from "
+                + name + "." + (kept ? UltraStyle.GRAY + " They still qualify, so the tier stays unlocked." : "")), true);
+        if (tellTarget) {
+            target.m_213846_(Component.m_237113_(UltraStyle.GRAY + "Staff took back the difficulty " + label
+                    + " they had unlocked for you." + (kept ? " You still qualify for it, so you keep it." : "")));
+        }
+        return 1;
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> whitelistRoot(String name) {

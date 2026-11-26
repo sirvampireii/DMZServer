@@ -26,6 +26,8 @@ public final class PlayerDifficultyData {
     // ── Permanent ──────────────────────────────────────────────────────────
     private long highestDmzLevel;
     private final Set<Integer> unlockedTiers = new LinkedHashSet<>();
+    /** 4.8.3: tiers staff granted with {@code /lm admin difficulty tier grant}; survive unlock resync. */
+    private final Set<Integer> staffGrantedTiers = new LinkedHashSet<>();
     private long ancientCopper;
     private final Set<String> titles = new LinkedHashSet<>();
     private String activeTitle = "";
@@ -112,6 +114,29 @@ public final class PlayerDifficultyData {
     /** @return true if the tier was present and removed */
     public boolean revokeTier(int tierId) {
         return tierId > 0 && unlockedTiers.remove(tierId);
+    }
+
+    /** 4.8.3: tiers staff granted by hand (unlocked no matter the DMZ level or prestige). */
+    public Set<Integer> getStaffGrantedTiers() {
+        return new LinkedHashSet<>(staffGrantedTiers);
+    }
+
+    /** 4.8.3: true when staff granted this tier by hand. */
+    public boolean hasStaffGrantedTier(int tierId) {
+        return tierId > 0 && staffGrantedTiers.contains(tierId);
+    }
+
+    /** 4.8.3: record a staff tier grant; true when it was new. */
+    public boolean grantStaffTier(int tierId) {
+        if (UnlockTier.byId(tierId) == null) {
+            return false;
+        }
+        return staffGrantedTiers.add(tierId);
+    }
+
+    /** 4.8.3: drop a staff tier grant (the unlock bit itself is reconciled by UnlockSystem); true when present. */
+    public boolean revokeStaffTier(int tierId) {
+        return tierId > 0 && staffGrantedTiers.remove(tierId);
     }
 
     public int getActiveTier() {
@@ -285,6 +310,14 @@ public final class PlayerDifficultyData {
             tiers.add(t);
         }
         tag.m_128365_("unlockedTiers", tiers);
+        if (!staffGrantedTiers.isEmpty()) {
+            int[] granted = new int[staffGrantedTiers.size()];
+            int i = 0;
+            for (Integer id : staffGrantedTiers) {
+                granted[i++] = id;
+            }
+            tag.m_128385_("staffGrantedTiers", granted); // putIntArray
+        }
         ListTag list = new ListTag();
         for (String t : titles) {
             list.add(StringTag.m_129297_(t));
@@ -344,6 +377,15 @@ public final class PlayerDifficultyData {
                 int id = t.m_128451_("id");
                 if (UnlockTier.byId(id) != null) {
                     unlockedTiers.add(id);
+                }
+            }
+        }
+        staffGrantedTiers.clear();
+        // 4.8.3: missing in older records -> no staff grants.
+        if (tag.m_128441_("staffGrantedTiers")) { // an int array; getIntArray is empty for any other type
+            for (int id : tag.m_128465_("staffGrantedTiers")) { // getIntArray
+                if (UnlockTier.byId(id) != null) {
+                    staffGrantedTiers.add(id);
                 }
             }
         }
