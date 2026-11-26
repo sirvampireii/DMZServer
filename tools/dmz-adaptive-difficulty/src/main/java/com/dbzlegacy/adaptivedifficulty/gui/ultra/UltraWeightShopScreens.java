@@ -3,7 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.currency.AncientCoinEconomy;
 import com.dbzlegacy.adaptivedifficulty.kube.hotpath.ItemIds;
-import com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures;
+import com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork;
 import com.dbzlegacy.adaptivedifficulty.util.PaidFeatureAccess;
 import com.google.gson.JsonObject;
 import java.lang.reflect.Method;
@@ -114,11 +114,11 @@ public final class UltraWeightShopScreens {
                         .labelValue("Price", "1 Ancient Copper per weight value")
                         .labelValue("Max value", String.format(Locale.ROOT, "%,d", MAX_WEIGHT_VALUE));
 
-        if (!UltraClientFeatures.hasTextInput(player)) {
-            spec.line(UltraStyle.danger("Typed weight entry needs a newer KaiPath client."))
+        if (!LmNativeNetwork.takesTextInput(player)) {
+            spec.line(UltraStyle.danger("Typed weight entry needs the Legacy Mechanics client."))
                     .line(
                             UltraStyle.LABEL
-                                    + "Update KaiPath to type weight values. "
+                                    + "Install or update the Legacy Mechanics client to type weight values. "
                                     + "Until then this shop cannot take a typed value.");
             spec.buttonsAfterLines();
             spec.back();

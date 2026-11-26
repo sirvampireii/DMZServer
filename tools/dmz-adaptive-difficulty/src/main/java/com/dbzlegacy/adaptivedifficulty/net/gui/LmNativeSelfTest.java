@@ -18,7 +18,8 @@ import net.minecraft.network.FriendlyByteBuf;
  * self-tests; a failure logs an ERROR, or stops boot under {@code -Dlm.selftest.strict=true}).
  *
  * <p>Pins: the channel name and protocol, the open / hello codecs, what each widget needs
- * ({@link LmNativeProtocol#analyze}), every routing branch ({@link LmNativeNetwork#decide}), the
+ * ({@link LmNativeProtocol#analyze}), every routing branch ({@link LmNativeNetwork#decide}; 4.8.2: no
+ * KaiPath bridge, a player without the LM client is turned away), the
  * scale-to-fit math ({@link NativeMenuFit}) at 1080p GUI scale 3 and 4, and that every packet the
  * menu builders produce is drawable by the protocol-1 client. If a menu constant this test pins
  * moves, update the pin here in the same change.
@@ -52,13 +53,14 @@ public final class LmNativeSelfTest {
         String id = LmNativeNetwork.CHANNEL_ID.toString();
         check(broken, "legacymechanics:native_ui".equals(id), "native channel is " + id);
         check(broken, !id.equals(UltraGuiProtocol.channelId(AdaptiveDifficultyMod.MOD_ID)),
-                "native channel collides with the KaiPath bridge channel");
+                "native channel reuses the retired KaiPath bridge channel name");
         check(broken, !id.endsWith(":gui") && !id.startsWith("kaipath:"),
                 "native channel uses a KaiPath-owned name");
         check(broken, "1".equals(LmNativeProtocol.PROTOCOL_VERSION) && "1".equals(UltraGuiProtocol.PROTOCOL_VERSION),
                 "protocol strings moved off \"1\"");
         check(broken, LmNativeProtocol.MSG_OPEN == 0 && LmNativeProtocol.MSG_ACTION == 1
-                && LmNativeProtocol.MSG_HELLO == 2, "native message ids moved");
+                && LmNativeProtocol.MSG_HELLO == 2 && LmNativeProtocol.MSG_PREFS == 3 && LmNativeProtocol.MSG_HUD == 4
+                && LmNativeProtocol.MSG_MODEL_SYNC == 5, "native message ids moved");
     }
 
     private static void codecs(List<String> broken) {
@@ -89,6 +91,19 @@ public final class LmNativeSelfTest {
         NativePrefsPacket prefs = NativePrefsPacket.decode(pb);
         check(broken, "zeno_omni".equals(prefs.skin()) && !prefs.backgrounds() && prefs.lite()
                 && LmNativeProtocol.MSG_PREFS == 3, "menu look round trip lost a field");
+        // 4.8.2: message 5, the body-parts world sync (the bridge's message 3 payload), hello-gated.
+        FriendlyByteBuf mb = new FriendlyByteBuf(Unpooled.buffer());
+        String parts = "{\"schema\":1,\"subject\":\"uuid:00000000-0000-0000-0000-0000000000ff\",\"bodyParts\":[]}";
+        GuiModelSyncPacket.encode(new GuiModelSyncPacket(parts, GuiModelSyncPacket.REASON_LOGIN), mb);
+        GuiModelSyncPacket sync = GuiModelSyncPacket.decode(mb);
+        check(broken, parts.equals(sync.partsJson()) && GuiModelSyncPacket.REASON_LOGIN.equals(sync.reason()),
+                "body-parts world sync round trip lost a field");
+        check(broken, !LmNativeProtocol.CLIENT_FEATURES.contains(LmNativeProtocol.FEATURE_BODY_PARTS_SYNC)
+                && LmNativeProtocol.parseFeatures(LmNativeProtocol.clientFeaturesJson(true, true))
+                        .contains(LmNativeProtocol.FEATURE_BODY_PARTS_SYNC)
+                && !LmNativeProtocol.parseFeatures(LmNativeProtocol.clientFeaturesJson(true, false))
+                        .contains(LmNativeProtocol.FEATURE_BODY_PARTS_SYNC),
+                "bodyPartsSync must be hello-only, listed by a client with DMZUltra");
         FriendlyByteBuf ab = new FriendlyByteBuf(Unpooled.buffer());
         GuiActionPacket.encode(new GuiActionPacket("difficulty", "@difficulty:page:tier_ask:3", "{\"value\":\"x\"}"), ab);
         GuiActionPacket action = GuiActionPacket.decode(ab);
@@ -154,18 +169,29 @@ public final class LmNativeSelfTest {
         LmNativeProtocol.Needs softGap = new LmNativeProtocol.Needs(Set.of("playerModel"),
                 Set.of(LmNativeProtocol.FEATURE_FORMS));
         LmNativeProtocol.Needs hardGap = new LmNativeProtocol.Needs(Set.of("input:slider"), Set.of());
-        check(broken, LmNativeNetwork.decide(false, none, client, true) == LmNativeNetwork.Route.BRIDGE
-                && LmNativeNetwork.decide(false, none, client, false) == LmNativeNetwork.Route.BRIDGE,
-                "no LM client must stay on the bridge");
-        check(broken, LmNativeNetwork.decide(true, none, client, true) == LmNativeNetwork.Route.NATIVE,
-                "LM client + KaiPath: the LM client must win");
-        check(broken, LmNativeNetwork.decide(true, softGap, client, true) == LmNativeNetwork.Route.BRIDGE
-                && LmNativeNetwork.decide(true, hardGap, client, true) == LmNativeNetwork.Route.BRIDGE,
-                "a menu the LM client cannot fully draw must go to KaiPath");
-        check(broken, LmNativeNetwork.decide(true, softGap, client, false) == LmNativeNetwork.Route.NATIVE,
-                "without KaiPath a missing preview hint still draws natively");
-        check(broken, LmNativeNetwork.decide(true, hardGap, client, false) == LmNativeNetwork.Route.REFUSE,
-                "without KaiPath a missing widget must be refused, never half drawn");
+        // 4.8.2: no KaiPath bridge. No LM client is turned away (install message), whatever the menu needs.
+        check(broken, LmNativeNetwork.decide(false, none, client) == LmNativeNetwork.Route.NO_CLIENT
+                && LmNativeNetwork.decide(false, softGap, client) == LmNativeNetwork.Route.NO_CLIENT
+                && LmNativeNetwork.decide(false, hardGap, client) == LmNativeNetwork.Route.NO_CLIENT,
+                "no LM client must be rejected with the install message (there is no bridge)");
+        check(broken, LmNativeNetwork.decide(true, none, client) == LmNativeNetwork.Route.NATIVE,
+                "an LM client gets every menu it draws natively");
+        check(broken, LmNativeNetwork.decide(true, softGap, client) == LmNativeNetwork.Route.NATIVE,
+                "a missing preview hint still draws natively");
+        check(broken, LmNativeNetwork.decide(true, hardGap, client) == LmNativeNetwork.Route.REFUSE,
+                "a missing widget must be refused, never half drawn");
+        boolean bridgeGone = true;
+        for (LmNativeNetwork.Route r : LmNativeNetwork.Route.values()) {
+            bridgeGone &= !"BRIDGE".equals(r.name());
+        }
+        check(broken, bridgeGone, "the KaiPath bridge route must stay gone");
+        // 4.8.2: the client is mandatory by default, and the turn-away message names the LM client jar.
+        check(broken, com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig.freshDefaults().requireLmClient,
+                "requireLmClient must default to true (the LM client is mandatory)");
+        String install = LmNativeNetwork.requiredClientMessage();
+        check(broken, install.contains("Legacy Mechanics client") && install.contains("LegacyMechanics-"
+                + AdaptiveDifficultyMod.VERSION + ".jar") && !install.contains("KaiPath"),
+                "the install message names the LM client jar, never KaiPath");
     }
 
     private static void fit(List<String> broken) {

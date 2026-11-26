@@ -53,30 +53,32 @@ def main() -> int:
     net = (ROOT / "src/main/java/com/dbzlegacy/adaptivedifficulty/net/gui/LmGuiNetwork.java").read_text(
         encoding="utf-8"
     )
-    if "isVersionAtLeast" not in net or "1.2.5" not in net:
-        errors.append("LmGuiNetwork: must compare KaiPath version >= 1.2.5")
-    if 'equals("1.2.5")' in net or "equals(\"1.2.5\")" in net:
-        errors.append("LmGuiNetwork: must not use exact equals(\"1.2.5\") for KaiPath")
+    # 4.8.2 (Part E): the KaiPath bridge is gone; LM no longer probes or version-checks KaiPath.
+    if "isVersionAtLeast" in net or "probeKaiPathVersion" in net or "clientHasKaiPath" in net:
+        errors.append("LmGuiNetwork: the KaiPath version probe must stay deleted (4.8.2: no bridge)")
     if "CNPC/chat fallbacks" in net:
         errors.append("LmGuiNetwork: must not advertise CNPC fallbacks")
 
     mods_toml = (ROOT / "src/main/resources/META-INF/mods.toml").read_text(encoding="utf-8")
-    if 'modId = "kaipath"' not in mods_toml:
-        errors.append("mods.toml: missing soft dependency on kaipath")
-    elif "[1.2.5,)" not in mods_toml:
-        errors.append("mods.toml: kaipath versionRange must be [1.2.5,)")
+    if 'modId = "kaipath"' in mods_toml:
+        errors.append("mods.toml: no kaipath dependency (4.8.2: LM menus no longer use the KaiPath bridge)")
 
     ultra = GUI / "ultra" / "UltraGui.java"
     if not ultra.is_file():
         errors.append("Missing gui/ultra/UltraGui.java")
     else:
         utext = ultra.read_text(encoding="utf-8")
-        if "preferUltra" not in utext or "clientHasKaiPath" not in utext:
-            errors.append("UltraGui.java: must check KaiPath presence")
+        # 4.8.2: the gate is the LM client (KaiPath is no longer accepted), and a capture still builds.
+        if "preferUltra" not in utext or "LmNativeNetwork.hasNativeClient(player)" not in utext:
+            errors.append("UltraGui.java: must check for the Legacy Mechanics client")
+        if "clientHasKaiPath" in utext or "KaiPath (DMZ Legacy client mod)" in utext:
+            errors.append("UltraGui.java: must not accept KaiPath or name it in the install message (4.8.2)")
+        if "UltraScreenSpec.capturing()" not in utext:
+            errors.append("UltraGui.java: a running capture must build menus without the client gate (UI probe)")
         if "CnpcLmGui" in utext or "gui.cnpc" in utext:
             errors.append("UltraGui.java: must not fall back to CNPC")
-        if "Install KaiPath" not in utext:
-            errors.append("UltraGui.java: must tell players to install KaiPath when missing")
+        if "LmNativeNetwork.requiredClientMessage()" not in utext:
+            errors.append("UltraGui.java: must tell players to install the Legacy Mechanics client when missing")
 
     inspect = GUI / "ForgeInspectGui.java"
     if inspect.is_file():

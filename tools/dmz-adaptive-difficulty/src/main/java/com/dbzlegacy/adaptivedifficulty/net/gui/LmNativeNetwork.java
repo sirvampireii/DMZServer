@@ -24,17 +24,18 @@ import net.minecraftforge.network.simple.SimpleChannel;
  * LM 4.7.58: the LM client's own menu channel, {@code legacymechanics:native_ui} protocol "1".
  *
  * <p>Both sides register it (the server from {@link LmGuiNetwork#register}, the client from its
- * boot class). Neither side requires it: a client without the LM client joins as before, and the
- * LM client joins servers without LM. The server reads the client's channel list from the Forge
- * login handshake, so it knows at login whether the LM client is there.
+ * boot class). The Forge handshake accepts a missing channel on both sides (the LM client joins
+ * servers without LM); the server reads the client's channel list from the login handshake, so it
+ * knows at login whether the LM client is there.
  *
- * <p>Routing ({@link #route}): a player with the LM client gets each menu here, unless the menu
- * needs something the client does not draw; then it goes over the KaiPath bridge (when the player
- * has KaiPath). A menu is never sent on both channels.
+ * <p>LM 4.8.2: the LM client is mandatory and this is the only menu channel. The KaiPath bridge
+ * ({@code legacymechanics:gui}) is gone: {@code requireLmClient} (on by default) turns a player
+ * without the LM client away at login ({@link #rejectWithoutClient}), and if the owner turns it off,
+ * such a player gets the install message instead of a menu ({@link #route} returns
+ * {@link Route#NO_CLIENT}). A menu goes here or nowhere.
  *
  * <p>Isolation: this class is loaded on the client too. It never names a client class, and it
- * reaches {@link LmGuiNetwork} only inside server-side handler bodies, because loading
- * {@link LmGuiNetwork} registers {@code legacymechanics:gui}, which KaiPath owns on a client.
+ * reaches {@link LmGuiNetwork} only inside server-side handler bodies.
  */
 public final class LmNativeNetwork {
     private LmNativeNetwork() {}
@@ -46,16 +47,20 @@ public final class LmNativeNetwork {
     public enum Route {
         /** The LM client draws it. */
         NATIVE,
-        /** KaiPath draws it (no LM client, or the LM client lacks a feature this menu needs). */
-        BRIDGE,
-        /** LM client without a needed feature and no KaiPath: tell the player instead. */
-        REFUSE
+        /** LM client without a widget this menu needs: tell the player to update instead. */
+        REFUSE,
+        /**
+         * 4.8.2: no LM client (only possible with {@code requireLmClient} off): the install message, no menu.
+         * The KaiPath bridge route ({@code BRIDGE}) is gone.
+         */
+        NO_CLIENT
     }
 
     private static SimpleChannel channel;
     private static volatile Consumer<GuiOpenPacket> clientOpener;
     private static volatile Consumer<NativePrefsPacket> clientPrefs;
     private static volatile Consumer<NativeHudPacket> clientHud;
+    private static volatile Consumer<GuiModelSyncPacket> clientModelSync;
     private static final Map<UUID, Set<String>> FEATURES = new ConcurrentHashMap<>();
     private static final Map<UUID, String> CLIENT_VERSION = new ConcurrentHashMap<>();
 
@@ -107,10 +112,17 @@ public final class LmNativeNetwork {
                 .decoder(NativeHudPacket::decode)
                 .consumerMainThread(LmNativeNetwork::onClientHud)
                 .add();
+        // 4.8.2: the equipped body-parts world sync (was bridge message 3), only to clients whose hello listed
+        // bodyPartsSync. Same payload as the bridge's GuiModelSyncPacket.
+        ch.messageBuilder(GuiModelSyncPacket.class, LmNativeProtocol.MSG_MODEL_SYNC, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(GuiModelSyncPacket::encode)
+                .decoder(GuiModelSyncPacket::decode)
+                .consumerMainThread(LmNativeNetwork::onClientModelSync)
+                .add();
         channel = ch;
         AdaptiveDifficultyMod.LOGGER.info(
                 "[{}] native menu channel {} protocol={} (msg0 open S>C, msg1 action C>S, msg2 hello C>S, msg3 look S>C,"
-                        + " msg4 hud S>C)",
+                        + " msg4 hud S>C, msg5 body parts S>C)",
                 AdaptiveDifficultyMod.MOD_ID, CHANNEL_ID, LmNativeProtocol.PROTOCOL_VERSION);
     }
 
@@ -165,6 +177,19 @@ public final class LmNativeNetwork {
         ctx.get().setPacketHandled(true);
     }
 
+    /** Client: where body-parts world syncs go (the LM client's BodyPartPreview). */
+    public static void onModelSync(Consumer<GuiModelSyncPacket> consumer) {
+        clientModelSync = consumer;
+    }
+
+    private static void onClientModelSync(GuiModelSyncPacket msg, Supplier<NetworkEvent.Context> ctx) {
+        Consumer<GuiModelSyncPacket> c = clientModelSync;
+        if (c != null && msg != null) {
+            c.accept(msg);
+        }
+        ctx.get().setPacketHandled(true);
+    }
+
     private static void onClientPrefs(NativePrefsPacket msg, Supplier<NetworkEvent.Context> ctx) {
         Consumer<NativePrefsPacket> c = clientPrefs;
         if (c != null && msg != null) {
@@ -174,7 +199,7 @@ public final class LmNativeNetwork {
     }
 
     private static void onServerAction(GuiActionPacket msg, Supplier<NetworkEvent.Context> ctx) {
-        // Same path as a KaiPath click: log, then dispatch on the main thread.
+        // Log, then dispatch on the main thread.
         LmGuiNetwork.handleGuiAction(msg, ctx);
     }
 
@@ -192,6 +217,8 @@ public final class LmNativeNetwork {
             context.enqueueWork(() -> sendPrefs(sender));
             // 4.7.87: login notices that waited to learn whether this client takes the HUD.
             context.enqueueWork(() -> com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.helloArrived(sender));
+            // 4.8.2: the first body-parts world sync, once the client said it takes message 5.
+            context.enqueueWork(() -> LmGuiNetwork.onClientAdvertisement(sender));
         }
         context.setPacketHandled(true);
     }
@@ -242,43 +269,39 @@ public final class LmNativeNetwork {
         return v == null ? "" : v;
     }
 
-    /** Where this menu goes for this player. Never both. */
+    /** Where this menu goes for this player: the native channel, or a chat message instead. */
     public static Route route(ServerPlayer player, GuiOpenPacket packet) {
-        if (!hasNativeClient(player)) {
-            return Route.BRIDGE;
-        }
+        boolean nativeClient = hasNativeClient(player);
         Set<String> supported = features(player);
-        LmNativeProtocol.Needs needs = LmNativeProtocol.analyze(packet, id -> isOnline(player, id));
-        if (needs.metBy(supported)) {
-            return Route.NATIVE;
+        LmNativeProtocol.Needs needs = nativeClient
+                ? LmNativeProtocol.analyze(packet, id -> isOnline(player, id))
+                : new LmNativeProtocol.Needs(Set.of(), Set.of());
+        Route r = decide(nativeClient, needs, supported);
+        if (nativeClient && !needs.metBy(supported)) {
+            LmLog.event("[{}] native menu gap player={} screen={} page={} missing={} route={}",
+                    AdaptiveDifficultyMod.MOD_ID, player.m_7755_().getString(), packet.screenId(), packet.pageId(),
+                    needs.missing(supported), r);
         }
-        boolean kaipath = LmGuiNetwork.clientHasKaiPath(player);
-        LmLog.event("[{}] native menu fallback player={} screen={} page={} missing={} kaipath={}",
-                AdaptiveDifficultyMod.MOD_ID, player.m_7755_().getString(), packet.screenId(), packet.pageId(),
-                needs.missing(supported), kaipath);
-        return decide(true, needs, supported, kaipath);
+        return r;
     }
 
     /**
-     * The routing rule, without a live player (the boot self-test checks every branch):
+     * The routing rule, without a live player (the boot self-test checks every branch). 4.8.2: there is no
+     * KaiPath bridge any more.
      * <ul>
-     *   <li>no LM client: the KaiPath bridge, exactly as 4.7.57;
+     *   <li>no LM client: {@link Route#NO_CLIENT} (the install message; {@code requireLmClient} normally turned
+     *       the player away at login already);
      *   <li>LM client that draws everything the menu uses: native;
-     *   <li>LM client missing something, KaiPath present: the bridge (never half a menu);
-     *   <li>LM client missing only a preview hint, no KaiPath: native (the base figure still draws);
-     *   <li>LM client missing a widget, no KaiPath: refused with a plain message.
+     *   <li>LM client missing only a preview hint: native (the base figure still draws);
+     *   <li>LM client missing a widget: refused with a plain "update the mod" message, never half a menu.
      * </ul>
      */
-    public static Route decide(boolean nativeClient, LmNativeProtocol.Needs needs, Set<String> supported,
-            boolean kaipath) {
+    public static Route decide(boolean nativeClient, LmNativeProtocol.Needs needs, Set<String> supported) {
         if (!nativeClient) {
-            return Route.BRIDGE;
+            return Route.NO_CLIENT;
         }
         if (needs.metBy(supported)) {
             return Route.NATIVE;
-        }
-        if (kaipath) {
-            return Route.BRIDGE;
         }
         return needs.hardMetBy(supported) ? Route.NATIVE : Route.REFUSE;
     }
@@ -329,6 +352,28 @@ public final class LmNativeNetwork {
         }
     }
 
+    /**
+     * 4.8.2: this player's LM client draws text fields (protocol-1 feature {@code textInput}; every LM client has
+     * it). Replaces the KaiPath-era {@code UltraClientFeatures.hasTextInput}. False for a player without the LM
+     * client (a UI-probe stand-in), so such pages build their no-typing variant as before.
+     */
+    public static boolean takesTextInput(ServerPlayer player) {
+        return hasNativeClient(player) && features(player).contains("textInput");
+    }
+
+    /** 4.8.2: this player's LM client draws equipped body parts in the world (message 5). Hello-only. */
+    public static boolean takesModelSync(ServerPlayer player) {
+        Set<String> f = player == null ? null : FEATURES.get(player.m_20148_());
+        return f != null && f.contains(LmNativeProtocol.FEATURE_BODY_PARTS_SYNC);
+    }
+
+    /** Server: send one body-parts world sync (callers check {@link #takesModelSync} on the recipient). */
+    public static void sendModelSync(ServerPlayer player, GuiModelSyncPacket packet) {
+        if (channel != null && player != null && packet != null && takesModelSync(player)) {
+            channel.send(PacketDistributor.PLAYER.with(() -> player), packet);
+        }
+    }
+
     /** 4.7.68: this player's LM client draws pictures in a page's body (the dojo upgrade previews). */
     public static boolean takesPictures(ServerPlayer player) {
         Set<String> f = player == null ? null : FEATURES.get(player.m_20148_());
@@ -366,7 +411,10 @@ public final class LmNativeNetwork {
         }
     }
 
-    /** Plain-language reason shown when {@code requireLmClient} turns a player away. */
+    /**
+     * Plain-language reason shown when {@code requireLmClient} turns a player away, and (4.8.2) in chat when a
+     * player without the LM client tries to open a menu with {@code requireLmClient} off.
+     */
     public static String requiredClientMessage() {
         return "This server needs the Legacy Mechanics client mod. Add LegacyMechanics-"
                 + AdaptiveDifficultyMod.VERSION + ".jar to your mods folder, then join again.";
@@ -374,7 +422,8 @@ public final class LmNativeNetwork {
 
     /**
      * {@code requireLmClient}: disconnect a player who joined without the LM client, with an install
-     * message. Returns true when the player was turned away. Off (the default) lets everyone in.
+     * message. Returns true when the player was turned away. 4.8.2: on by default (the client is mandatory;
+     * there is no KaiPath bridge). Off lets everyone in, but menus then open only for LM clients.
      */
     public static boolean rejectWithoutClient(ServerPlayer player, boolean required) {
         if (!required || player == null || hasNativeClient(player)) {

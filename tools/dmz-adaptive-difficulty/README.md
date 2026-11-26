@@ -1,5 +1,10 @@
 # LegacyMechanics (2.4.x)
 
+> **LM 4.8.2:** the Legacy Mechanics client is now required on players' machines (`requireLmClient` defaults to
+> true; players without `LegacyMechanics-<version>.jar` are turned away with an install message). Every LM menu
+> is drawn by the LM client on `legacymechanics:native_ui`; the KaiPath bridge (`legacymechanics:gui`) is gone.
+> Statements below that the mod is server-only or that KaiPath draws the menus are historical.
+
 **Server-side only** Forge mod for Mohist/Forge 1.20.1.  
 Clients do **not** need this jar to join.
 

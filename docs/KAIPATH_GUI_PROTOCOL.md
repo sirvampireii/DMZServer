@@ -1,5 +1,12 @@
 # Ultra GUI protocol (KaiPath)
 
+> **LM 4.8.2: the KaiPath bridge is gone.** Legacy Mechanics no longer registers `legacymechanics:gui`, sends no
+> menu, model sync or anything else to KaiPath, and no longer reads KaiPath's feature advertisement. The
+> Legacy Mechanics client is mandatory (`requireLmClient` defaults to true) and draws every LM menu on its own
+> channel, `legacymechanics:native_ui` (the body-parts world sync is native message 5). What follows describes
+> the KaiPath-era protocol: still the reference for other mods and for the Ultra GUI kit, but not what LM's
+> server does today.
+
 **Audience:** any Forge mod that wants KaiPath to render server-driven menus — not only
 LegacyMechanics (LM).
 

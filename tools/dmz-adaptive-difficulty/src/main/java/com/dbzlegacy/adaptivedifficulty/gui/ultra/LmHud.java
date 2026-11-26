@@ -21,6 +21,21 @@ import net.minecraft.server.level.ServerPlayer;
  * the client as message 4 instead, with the same text and numbers; the Momentum meter is new. Everyone else keeps
  * the boss bars and chat lines exactly as before.
  *
+ * <p><b>Who still gets boss bars and chat (LM 4.8.2).</b> The LM client is mandatory and the KaiPath bridge is gone,
+ * so there is no longer a "no client" population to fall back for. The vanilla path stays for exactly two cases:
+ * <ul>
+ *   <li><b>HUD switched off</b> ({@code /lm hud off}, the More tab toggle, {@link #set}): the player's own choice. A
+ *       native player with the HUD off gets the boss bars and chat lines, as before 4.8.2. This is not a fallback and
+ *       is kept on purpose.</li>
+ *   <li><b>Hello not arrived yet</b>: right after login the LM client's hello (its feature list) is still on its
+ *       way, so {@link #active} reads false. Login notices wait for it ({@link #whenClientKnown}, at most
+ *       {@link #HELLO_WAIT_MS}), so they land on the HUD; anything else sent in that first moment goes to chat once.
+ *       This is a hello-wait grace, not a permanent fallback.</li>
+ * </ul>
+ * An LM client too old to list {@code hud}, or a player without the LM client when the owner has turned
+ * {@code requireLmClient} off, also lands on the vanilla path, the same code as HUD off; neither is a supported
+ * setup (the first must update the mod, the second cannot open menus at all).
+ *
  * <p>The HUD switch is per account, in the player's LM record under {@value #KEY} (one file per account, like the
  * menu look). Default on. Sends happen only on change: each element's last packet is remembered per player and an
  * identical one is skipped (toasts, which are events, always go).
@@ -105,7 +120,7 @@ public final class LmHud {
     /**
      * 4.7.80 no-doubling check: one chat line, boss bar, subtitle or action bar sent to a player. The chat, boss bar
      * and subtitle senders report here (only while a capture runs), so the probe can prove that a HUD player gets
-     * each element once, on the HUD, and a HUD-off or bridge player gets the vanilla version as before.
+     * each element once, on the HUD, and a HUD-off player (or a stand-in without a client) gets the vanilla version.
      */
     public record Vanilla(UUID player, String channel, String text) {}
 
@@ -381,7 +396,7 @@ public final class LmHud {
         return sb.toString();
     }
 
-    /** 4.7.87: login notices wait at most this long for the LM client's hello (then they go to chat). */
+    /** 4.7.87: login notices wait at most this long for the LM client's hello (then they go to chat). 4.8.2: the grace. */
     public static final long HELLO_WAIT_MS = 5_000L;
 
     private record Waiting(long since, List<Runnable> notices) {}
@@ -391,8 +406,8 @@ public final class LmHud {
     /**
      * 4.7.87: run a login notice once it is known whether this player takes the HUD. At login an LM client's hello
      * has not arrived yet, so {@link #active} still reads false; the notice waits for the hello (at most
-     * {@link #HELLO_WAIT_MS}, then it runs and goes to chat). A bridge or vanilla client runs it now, so chat is
-     * exactly as before.
+     * {@link #HELLO_WAIT_MS}, then it runs and goes to chat). 4.8.2: a player without the LM client (only possible
+     * with {@code requireLmClient} off; there is no KaiPath bridge) runs it now, in chat.
      */
     public static void whenClientKnown(ServerPlayer player, Runnable notice) {
         if (player == null || notice == null) {

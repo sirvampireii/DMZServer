@@ -418,17 +418,19 @@ public final class DifficultyConfig {
     public String adminPermission = "difficulty.admin";
     /**
      * Player UI backend for {@code /lm} and system menus.
-     * {@code ultra} (default) = KaiPath Ultra UI via {@code legacymechanics:gui};
-     * {@code cnpc} = CustomNPCs dialogs (explicit fallback);
-     * {@code chat} = text-only. Retired {@code cmi}/{@code chest} values migrate to ultra on load.
+     * {@code ultra} (default, the only active value) = the Legacy Mechanics client's own menus on
+     * {@code legacymechanics:native_ui}. 4.8.2: it no longer means KaiPath; the KaiPath bridge
+     * ({@code legacymechanics:gui}) is gone. The name stays so existing configs keep loading.
+     * Retired {@code cnpc}/{@code chat}/{@code cmi}/{@code chest} values migrate to ultra on load.
      */
     public String guiBackend = "ultra";
     /**
      * LM 4.7.58: when true, a player who joins without the LegacyMechanics client mod is turned away
-     * with an install message. False (the default while the client is tested) lets everyone in; players
-     * without the LM client keep the KaiPath bridge.
+     * with an install message. LM 4.8.2: true by default (the LM client is mandatory; the KaiPath bridge
+     * is gone). The owner can still turn it off: players without the LM client then join, but every
+     * menu answers with the same install message in chat instead of opening.
      */
-    public boolean requireLmClient = false;
+    public boolean requireLmClient = true;
     /**
      * LM 4.7.59 Momentum: a player who beats a difficulty-scaled hostile banks Mastery Boost time on a
      * per-character, session-only timer. While time is banked, form mastery from hitting difficulty mobs is
@@ -1411,7 +1413,7 @@ public final class DifficultyConfig {
             // Canonicalize aliases so Forge + Bukkit agree.
             cfg.guiBackend = switch (before.toLowerCase()) {
                 case "ultra", "kaipath", "dmzultra", "native" -> "ultra";
-                // CNPC retired — coerce to ultra (KaiPath required).
+                // CNPC retired — coerce to ultra (the LM client's menus).
                 case "cnpc", "customnpcs", "customnpc", "noppes" -> "ultra";
                 case "cmi", "cmilib", "cmigui", "deluxemenus", "deluxe", "dm" -> "cmi";
                 case "chest", "bukkit", "inventory", "gui" -> "chest";
@@ -1419,7 +1421,7 @@ public final class DifficultyConfig {
                 case "auto" -> "auto";
                 default -> "ultra";
             };
-            // Retired CMI / chest backends → Ultra (KaiPath). Persist via load()'s save().
+            // Retired CMI / chest backends → Ultra (the LM client's menus). Persist via load()'s save().
             if ("cmi".equals(cfg.guiBackend) || "chest".equals(cfg.guiBackend)) {
                 AdaptiveDifficultyMod.LOGGER.info(
                         "[{}] migrated guiBackend \"{}\" → ultra",

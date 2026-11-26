@@ -1421,10 +1421,10 @@ public final class UltraCharacterScreens {
     private static void openBodyPartFind(ServerPlayer player, int page) {
         UltraScreenSpec spec = sub(player, page > 0 ? PAGE_FIND + ":" + page : PAGE_FIND, false)
                 .line(UltraStyle.header("Find a body part"));
-        boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player);
+        boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesTextInput(player);
         String query = CosmeticBodyPartService.lastQuery(player);
         if (!typing) {
-            spec.line(UltraStyle.LABEL + "Typing a search needs a newer KaiPath client. Pick a group instead:");
+            spec.line(UltraStyle.LABEL + "Typing a search needs the Legacy Mechanics client. Pick a group instead:");
             spec.buttonsAfterLines();
             placeFilterRow(spec, "");
             spec.back();
@@ -1550,7 +1550,7 @@ public final class UltraCharacterScreens {
         int pages = CosmeticBodyPartService.colorPageCount();
         int pg = Math.min(pages - 1, Math.max(0, page));
         // 4.7.67: any color, typed (KaiPath and the LM client) or from the wheel (LM client).
-        boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures.hasTextInput(player);
+        boolean typing = com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesTextInput(player);
         boolean wheel = typing && com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesColorWheel(player);
         UltraScreenSpec spec = sub(player, "bodycolors:" + channel + ":" + pg, true);
         String now = CosmeticBodyPartService.partColorValue(player, channel);
@@ -1560,7 +1560,7 @@ public final class UltraCharacterScreens {
         } else {
             spec.labelValue(channelLabel(channel), now);
             spec.line(UltraStyle.LABEL + "Pick a swatch. It saves immediately.");
-            spec.line(UltraStyle.LABEL + "Typed fields need KaiPath 1.3.9 or newer. Until then pick a swatch.");
+            spec.line(UltraStyle.LABEL + "Typed fields need the Legacy Mechanics client. Until then pick a swatch.");
         }
         spec.buttonsAfterLines();
         ModelPreview.rotateButton(spec, player, "bodycolors:" + channel + ":" + pg);

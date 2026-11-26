@@ -3,7 +3,7 @@ package com.dbzlegacy.adaptivedifficulty.gui.ultra;
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.config.editor.ConfigEditor;
 import com.dbzlegacy.adaptivedifficulty.net.gui.GuiOpenPacket;
-import com.dbzlegacy.adaptivedifficulty.net.gui.UltraClientFeatures;
+import com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork;
 import com.dbzlegacy.adaptivedifficulty.util.StaffAccess;
 import com.google.gson.JsonElement;
 import java.util.ArrayList;
@@ -1594,17 +1594,17 @@ public final class UltraConfigScreens {
 
     /** Rows reserved when the client cannot type into a field. */
     private static int missingInputRows(ServerPlayer player) {
-        return UltraClientFeatures.hasTextInput(player) ? 0 : 2;
+        return LmNativeNetwork.takesTextInput(player) ? 0 : 2;
     }
 
-    /** Older KaiPath without field 11 - surface that before a dead Apply button. */
+    /** A client that cannot type (no Legacy Mechanics client) - surface that before a dead Apply button. */
     private static int noteIfTextInputMissing(UltraScreenSpec spec, ServerPlayer player, int y) {
         if (spec == null || missingInputRows(player) == 0) {
             return y;
         }
         spec.button(
                 "do:refresh",
-                UltraStyle.danger("Typed fields need KaiPath 1.3.9 or newer."),
+                UltraStyle.danger("Typed fields need the Legacy Mechanics client."),
                 UltraStyle.STYLE_DANGER,
                 MAIN_X,
                 y,

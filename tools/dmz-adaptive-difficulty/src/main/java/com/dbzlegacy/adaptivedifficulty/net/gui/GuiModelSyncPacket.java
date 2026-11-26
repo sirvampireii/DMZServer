@@ -11,13 +11,15 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraftforge.network.NetworkEvent;
 
 /**
- * Server → client: authoritative equipped body-parts state for the receiving player
- * ({@code <modid>:gui} message {@link UltraGuiProtocol#MSG_MODEL_SYNC}).
+ * Server → client: authoritative equipped body-parts state for the receiving player.
+ * LM 4.8.2: sent on the LM client's channel as native message
+ * {@link LmNativeProtocol#MSG_MODEL_SYNC} (it was {@code <modid>:gui} message
+ * {@link UltraGuiProtocol#MSG_MODEL_SYNC} over the KaiPath bridge, which is gone).
  *
- * <p><b>Feature-gated — do not send to clients that did not advertise
- * {@code bodyPartsSync}</b> via {@link GuiFeaturesPacket}. KaiPath 1.3.29 and older
- * registered only messages 0–2 on this channel; an unregistered message id aborts the
- * connection. {@link LmGuiNetwork#sendModelSync} enforces the gate.
+ * <p><b>Feature-gated — do not send to clients whose hello did not list
+ * {@code bodyPartsSync}</b> ({@link LmNativeProtocol#FEATURE_BODY_PARTS_SYNC}). An LM client
+ * before 4.8.2 registered only messages 0–4 on the native channel; an unregistered message id
+ * aborts the connection. {@link LmGuiNetwork#sendModelSync} enforces the gate.
  *
  * <p>Wire format (protocol {@link UltraGuiProtocol#PROTOCOL_VERSION}, append-compatible):
  *
@@ -33,7 +35,7 @@ import net.minecraftforge.network.NetworkEvent;
  *       {@code clear}/{@code track}); diagnostics only, client rendering must not depend on it
  * </ol>
  *
- * <p>Client contract (JLDK): replace — never merge — the cached parts for the player named by
+ * <p>Client contract (the LM client's BodyPartPreview): replace — never merge — the cached parts for the player named by
  * {@code subject} with the object received ({@code uuid:<id>} keys the cache; {@code local}
  * means the receiving player). Prefer {@code colors} over a reflective {@code FormParts$Look}
  * read — a remote player's reflective read comes back gray. The server already deduplicates
@@ -42,9 +44,8 @@ import net.minecraftforge.network.NetworkEvent;
  */
 public final class GuiModelSyncPacket {
     /**
-     * Max {@code partsJson} chars on the wire. KaiPath 1.5.1 rejects a longer snapshot with a
-     * {@code DecoderException} (which drops the connection), so this cannot be raised without a
-     * KaiPath release. Oversized payloads degrade, never truncate. Every piece equipped (109 shop
+     * Max {@code partsJson} chars on the wire (the KaiPath 1.5.1 decoder limit, kept for the LM
+     * client: 4.8.2 changed only the channel). Oversized payloads degrade, never truncate. Every piece equipped (109 shop
      * pieces) plus the largest form is about 7,000 chars, so pieces fit.
      */
     public static final int PARTS_JSON_MAX = 8192;
@@ -91,7 +92,7 @@ public final class GuiModelSyncPacket {
         return new GuiModelSyncPacket(parts, reason);
     }
 
-    /** Server never renders — KaiPath owns the client handler. */
+    /** Server never renders; the LM client's handler is registered on the native channel (4.8.2). */
     public static void handle(GuiModelSyncPacket msg, Supplier<NetworkEvent.Context> ctx) {
         NetworkEvent.Context context = ctx.get();
         // No player/world access on the network thread — mark handled only.

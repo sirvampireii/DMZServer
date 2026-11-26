@@ -12,8 +12,10 @@ import software.bernie.geckolib.renderer.layer.GeoRenderLayer;
 
 /**
  * LM 4.7.61 (client only): in an LM native preview whose parts carry a chosen tail
- * ({@code suppressNaturalTail}), hide DragonMineZ's race tail bones so the figure shows one tail. Acts only
- * while an LM preview draws; the world render is untouched. Optional injection.
+ * ({@code suppressNaturalTail}), hide DragonMineZ's race tail bones so the figure shows one tail. LM 4.8.2:
+ * also in the world, from the server's body-parts world sync (native message 5), so a player wearing a
+ * shop tail shows one tail; no sync (or the piece unequipped) leaves the race tail as DragonMineZ drew it.
+ * Optional injection.
  */
 @Mixin(targets = "com.dragonminez.client.util.BoneVisibilityHandler", remap = false)
 public abstract class RaceTailSuppressMixin {
@@ -27,7 +29,8 @@ public abstract class RaceTailSuppressMixin {
     private static void lm$previewTail(
             BakedGeoModel model, AbstractClientPlayer player, GeoRenderLayer<?> layer, CallbackInfo ci) {
         try {
-            if (model != null && player != null && BodyPartPreview.previewActive()
+            if (model != null && player != null
+                    && (BodyPartPreview.previewActive() || BodyPartPreview.hasWorldSync(player))
                     && BodyPartPreview.suppressesRaceTail(player)) {
                 BoneVisibilityHandler.setBonesHidden(model, true, "tail1", "tail1m");
             }

@@ -691,3 +691,11 @@ purchase logic changed. The other 24 are unchanged.
 names the new paths (`/lm admin prestige ...` for the old padmin tree, `/lm admin progression ...`,
 `/lm skillcheck`, `/lm terminal`, `/lm difficulty`). Text only in the five shop/help classes: no price, wallet, favor
 or purchase logic changed. The other 19 are unchanged.
+
+## Re-baseline (2026-11-26, 4.8.2 Part E: LM client mandatory)
+
+`AdaptiveDifficultyMod` (the client-start error line no longer says menus fall back to KaiPath) and `ConfigFieldHelp`
+(`guiBackend` and `requireLmClient` help: the LM client's menus, on by default) re-baselined from the Part E build
+(still versioned 4.8.1; the 4.8.2 bump re-drifts `AdaptiveDifficultyMod` by design, use
+`rebaseline-version-class.sh`). Text only: no price, wallet, favor or purchase logic changed. The other 23 are
+unchanged.
