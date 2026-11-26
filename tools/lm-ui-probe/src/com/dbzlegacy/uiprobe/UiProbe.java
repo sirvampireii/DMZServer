@@ -4227,7 +4227,8 @@ public final class UiProbe {
                     LmHud.set(player, true);
                     hudShowAll(20_000);
                     hudExpect = LmHud.active(player)
-                            ? "underdog,tp,penalty,instinct,momentum,fight,spar,potential,coins,elite,boost" : "";
+                            // 4.8.0: + war (the 4.7.87 War pill; it draws whenever the window has room)
+                            ? "underdog,tp,penalty,instinct,momentum,fight,war,spar,potential,coins,elite,boost" : "";
                     note("FINAL hud show expect=" + (hudExpect.isEmpty() ? "nothing (bridge)" : hudExpect));
                 }
                 case "hide" -> {
