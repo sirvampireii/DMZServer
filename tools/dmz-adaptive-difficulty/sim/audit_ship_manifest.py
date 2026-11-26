@@ -2044,10 +2044,10 @@ def main() -> int:
     # (COLOR + "f/progression boost"), so a literal may start with the color code letter before the slash.
     _cnpc = ROOT / "customnpcs/scripts"
     check("manifest row for lm 4.8.1", "lm-481-cnpc-strings" in manifest)
-    check("CNPC TP boost / android messages name /lm admin progression",
-          (_cnpc / "Global TP Boost.js").read_text(encoding="utf-8").count('"f/lm admin progression boost"') == 2
-          and '"f/lm admin progression android"' in (_cnpc / "AndrioidConversion.js").read_text(encoding="utf-8")
-          and '"f/lm admin progression boost end"' in (_cnpc / "TP boost end.js").read_text(encoding="utf-8"))
+    # 2026-11-26: the owner does not use the CNPC scripts; the three stubs fixed in 4.8.1 were deleted (LM runs
+    # TP boost, boost end and Android conversion itself).
+    check("CNPC TP boost / boost end / android stubs deleted (LM runs them)",
+          not any((_cnpc / f).exists() for f in ("Global TP Boost.js", "TP boost end.js", "AndrioidConversion.js")))
     _js_old = re.compile(r'(?:^[0-9a-fk-or]?|§.|\\u00a7.|[^\w/.:\-])/(difficulty|diff|rival|spar|progression|prog|'
                          r'prestige|padmin|character|skillcheck|skills|enddragon|androidify|terminal)(?![\w\-])')
     _js_hits = []

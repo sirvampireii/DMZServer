@@ -70,7 +70,7 @@ CNPC trigger commands (from your handlers):
 noppes script trigger <id> <playerName> [args...]
 ```
 
-Examples in your pack: SkillCheck `21`, Meditation cycler `41`, Rival `200–230`, Global TP Boost `30`.
+Examples in your pack: SkillCheck `21`, Meditation cycler `41`, Rival `200–230`.
 
 ---
 
@@ -88,7 +88,7 @@ Examples in your pack: SkillCheck `21`, Meditation cycler `41`, Rival `200–230
 | DMZ RACE LOCK / Races / Yardrat* / BioAndroid | tick | Race / form gates |
 | Potential | damaged | Potential unlock combat logic |
 | KiWeapons / Piercing / Spirtualist Ki Control | tick/damaged | Ki weapon / pierce / spiritualist |
-| Global TP Boost / TP boost end / TP IS SP Fabled / Farming TP Skill | tick/broken | TP economy |
+| TP IS SP Fabled / Farming TP Skill | tick/broken | TP economy |
 | Sparring Tp System | tick, logout, died | Sparring TP |
 | Rival System | init/login/tick/damaged/kill/died/logout | Rivalry core |
 | ShadowDummyLimiter / End Dimension Strength | tick, kill | Dummy / End strength |
@@ -102,8 +102,9 @@ Examples in your pack: SkillCheck `21`, Meditation cycler `41`, Rival `200–230
 | SkillUnlockNPC / PlayerStatChecker | `interact` |
 | SkillCheckCommand / Rival Command Handler / Sparring Command Handler | `noppes script trigger` command handlers |
 | ChangeBiomeMED | trigger `41` meditation biome cycle |
-| AndrioidConversion | Android conversion helper |
 | Apothicfireandcolddamage / damageovertime | damage helpers |
+
+Global TP Boost, TP boost end and AndrioidConversion (triggers 30, 31, 45) were stubs forwarding to LM and were deleted from the repo on 2026-11-26; LM runs them (`/lm admin progression boost start|end`, `/lm admin progression android`).
 
 Install player scripts via CustomNPCs **Global Player Scripts** UI (or equivalent). Keep command handlers in the same scripts folder but wire them through triggers / CMI aliases — see comments inside those files.
 

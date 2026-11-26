@@ -67,6 +67,13 @@ are. TP boost, boost end and Android conversion run from LM itself (`/lm admin p
 `/lm admin progression android`); the scripts were only stubs forwarding CNPC triggers 30, 31 and 45 to LM. The 4.8.1
 jar carries no change beyond its version.
 
+## Follow-up: stubs deleted (2026-11-26)
+
+The owner does not use the CNPC scripts, so `Global TP Boost.js`, `TP boost end.js` and `AndrioidConversion.js`
+were deleted from `customnpcs/scripts/` after 4.8.1 merged (no jar change, no version bump). The `§ lm 4.8.1` check
+now asserts they are gone; the string scan over the remaining `customnpcs/scripts/*.js` stays. The script inventory
+(`docs/SCRIPT_INVENTORY.md`) and the install list (`tools/INSTALL-ALL-LATEST-SCRIPTS.md`) no longer list them.
+
 ## Release check
 
 `DMZRig/results/release-4.8.1`: build OK (every `build.sh` audit, `§ lm 4.8.1` all OK), **379 PASS, 0 FAIL**,

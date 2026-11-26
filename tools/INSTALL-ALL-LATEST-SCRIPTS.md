@@ -126,7 +126,7 @@ Proof from your logs: stack hits `noppes.npcs.ForgeEventHandler` while Create bu
 ## Other systems in this pack
 - `SprintJump.js`, `flight suppression.js`
 - `DMZ RACE LOCK.js`, `Prestige NPC.js`, `DMZ Class Permission.js`
-- `AndrioidConversion.js`, `bioevolution.json`, `character.json`
+- `bioevolution.json`, `character.json` (Android conversion is in LM: `/lm admin progression android`)
 - `ShadowDummyLimiter.js` (Player tab; protect is KubeJS now)
 - `Fabled Sync.js` (combined Prestige Sync + Faction Sync + Value Cleaner — do **not** also load `Prestige Sync Fabled.js`)
 - Fabled bonus persist fixes, Disable End Portals
