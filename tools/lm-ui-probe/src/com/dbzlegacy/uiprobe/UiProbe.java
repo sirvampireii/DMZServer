@@ -576,6 +576,9 @@ public final class UiProbe {
         v80Script();
         v84Script();
         v88DojoRules();
+        // 4.8.2: banners in the built hall (Part B); banner editor, banner on every dojo surface, free rename (A, C, D).
+        V482BannerWorld.run(player, this::note);
+        V482BannerUi.all(player, this::note);
         v88Commands();
     }
 
