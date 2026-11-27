@@ -2112,6 +2112,10 @@ def main() -> int:
           all(t in q83_help for t in ('"/lm admin dojo help"', '"/lm admin saga help"', '"/lm admin skillcheck help"',
                                       '"/lm admin goals help"', '"/lm admin difficulty tier grant <player> <tier>"',
                                       "rival|spar|difficulty|progression|dojo")))
+    check("H: Mohist name tab completion knows the new player slots",
+          "private static boolean adminPlayerSlot483(String cmd, String[] args)" in
+          read(c83 / "LmCommandSuggestions.java")
+          and read(c83 / "LmCommandSuggestions.java").count("adminPlayerSlot483(cmd, args)") == 2)
     check("probe: V483 admin checks wired (full run and -Duiprobe.only=v483)",
           q83_probe.count("v483Admin();") == 2 and "V483AdminDojo.run(player, this::note);" in q83_probe
           and "V483AdminSparRival.run(player, this::note);" in q83_probe

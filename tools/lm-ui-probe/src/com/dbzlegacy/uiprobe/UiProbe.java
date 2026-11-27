@@ -169,6 +169,28 @@ public final class UiProbe {
             note("V483 HELP /lm admin help lists dojo, saga, skillcheck, goals, tier grant, clear dojo; runs (console, "
                     + "player): " + (lists && rc == 1 && rp == 1 ? "PASS" : "FAIL") + " | lists=" + lists + " console="
                     + rc + " player=" + rp);
+            // Mohist tab completion: each new player slot is known, its partial name is the last token.
+            var sug = com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions.class;
+            String[][] slots = {{"admin", "saga", "reset", "Pa"}, {"admin", "saga", "unlock", "Pa"},
+                    {"admin", "skillcheck", "clear", "Pa"}, {"admin", "goals", "inspect", "Pa"},
+                    {"admin", "goals", "grant", "Pa"}, {"admin", "dojo", "found", "Pa"}, {"admin", "spar", "end", "Pa"},
+                    {"admin", "spar", "reset", "Pa"}, {"admin", "spar", "board", "remove", "Pa"},
+                    {"admin", "spar", "bout", "cancel", "Pa"}, {"admin", "rival", "rp", "set", "Pa"},
+                    {"admin", "rival", "challenge", "cancel", "Pa"}, {"admin", "difficulty", "tier", "grant", "Pa"}};
+            boolean tabs = true;
+            String miss = "";
+            for (String[] sl : slots) {
+                if (!com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions.expectsPlayerName("lm", sl)
+                        || !"Pa".equals(com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions
+                                .playerNamePartial("lm", sl))) {
+                    tabs = false;
+                    miss += " " + String.join(" ", sl);
+                }
+            }
+            boolean notAmount = !com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions.expectsPlayerName("lm",
+                    new String[] {"admin", "rival", "rp", "set", "Pa", "5"});
+            note("V483 TAB Mohist name completion on every new player slot, not on the amount after it: "
+                    + (tabs && notAmount && sug != null ? "PASS" : "FAIL") + (miss.isEmpty() ? "" : " | missing" + miss));
         } finally {
             player.m_143403_(was);
         }

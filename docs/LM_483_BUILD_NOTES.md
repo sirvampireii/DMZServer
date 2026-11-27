@@ -92,9 +92,9 @@ Per the owner's rule, only the change was checked, not every menu: build.sh (eve
 is read back; the dojo spot check is a points grant that shows on the dojo record and in `status`.
 
 - build.sh: OK, every audit (`§ lm 4.8.3` all OK). Jar sha256
-  `69b4dfca2084e7994549cb4dfbb6f585ef16b84d75980b1c0ec5c000121e85e9`.
-- `DMZRig/results/v483-admin/v483/uiprobe-script.txt`: **108 PASS, 0 FAIL** (46 console runs, the rest as the staff
-  player in creative), including `/lm admin help` listing the subtrees and the points-grant spot check
+  `cae94d498923b46c2bc5af225d11d0f5fc085ec941ccd133f1977bb8a4155573`.
+- `DMZRig/results/v483-admin/v483/uiprobe-script.txt`: **109 PASS, 0 FAIL** (46 console runs, the rest as the staff
+  player in creative), including `/lm admin help` listing the subtrees, the Mohist name tab slots and the points-grant spot check
   ("Gave Probe Admin Hall 50 Dojo Points (now 65)", and the record shows it).
 - The first runs failed every player-side check: the probe ran them in survival, and `/lm admin` refuses staff in
   survival as designed. The probe now switches to creative for these checks. One offline check also failed for a rig
@@ -107,7 +107,8 @@ is read back; the dojo spot check is a points grant that shows on the dojo recor
 
 Commands only, no data migration. Dojo `save` and `reload` are safe to use live. Full restart after the jar change.
 
-## Not done
+## Mohist tab completion
 
-- The Mohist bridge's legacy player-name tab helper (`LmCommandSuggestions.legacyView`) has no rules for the new
-  paths; Brigadier's own suggestions work.
+- The Mohist bridge's player-name tab helper (`LmCommandSuggestions`) knows every new player slot (saga, skillcheck,
+  goals, dojo found, spar end/reset/board remove/bout cancel, rival rp/challenge cancel, difficulty tier), and not the
+  amount after it. Probe line `V483 TAB`.
