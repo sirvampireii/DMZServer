@@ -148,6 +148,32 @@ public final class UiProbe {
         }
     }
 
+    /** 4.8.3: the /lm admin checks, as staff in creative (the admin gate refuses staff in survival). */
+    private void v483Admin() {
+        net.minecraft.world.level.GameType was = player.f_8941_.m_9290_();
+        try {
+            player.m_143403_(net.minecraft.world.level.GameType.CREATIVE);
+            V483AdminDojo.run(player, this::note);
+            V483AdminSparRival.run(player, this::note);
+            V483AdminSystems.run(player, this::note);
+            // /lm admin help lists the new subtrees and runs for console and the in-game staff player.
+            String h = com.dbzlegacy.adaptivedifficulty.command.LmCommandHelp.lmAdmin();
+            boolean lists = h.contains("/lm admin dojo help") && h.contains("/lm admin saga help")
+                    && h.contains("/lm admin skillcheck help") && h.contains("/lm admin goals help")
+                    && com.dbzlegacy.adaptivedifficulty.command.LmCommandHelp.difficultyAdmin()
+                            .contains("/lm admin difficulty tier grant <player> <tier>")
+                    && h.contains("rival|spar|difficulty|progression|dojo") && h.contains("/lm admin dojo season advance");
+            var srv = player.m_20194_();
+            int rc = srv.m_129892_().m_230957_(srv.m_129893_(), "lm admin help");
+            int rp = srv.m_129892_().m_230957_(player.m_20203_(), "lm admin help");
+            note("V483 HELP /lm admin help lists dojo, saga, skillcheck, goals, tier grant, clear dojo; runs (console, "
+                    + "player): " + (lists && rc == 1 && rp == 1 ? "PASS" : "FAIL") + " | lists=" + lists + " console="
+                    + rc + " player=" + rp);
+        } finally {
+            player.m_143403_(was);
+        }
+    }
+
     /**
      * 4.8.3: -Duiprobe.only=&lt;set&gt; runs just one set of checks: no menu crawl, no other scripts, no screenshots
      * (pair it with -Duiprobe.norender). Owner rule: check only what the change touched, not every menu.
@@ -156,9 +182,7 @@ public final class UiProbe {
         note("staff=" + com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(player));
         if ("v483".equals(set)) {
             // 4.8.3: the /lm admin subtrees (dojo; spar and rival; saga, skillcheck, goals, difficulty tier).
-            V483AdminDojo.run(player, this::note);
-            V483AdminSparRival.run(player, this::note);
-            V483AdminSystems.run(player, this::note);
+            v483Admin();
         } else {
             note("ONLY unknown check set " + set + ": FAIL");
         }
@@ -603,9 +627,7 @@ public final class UiProbe {
         V482BannerUi.all(player, this::note);
         v88Commands();
         // 4.8.3: the /lm admin subtrees (also alone with -Duiprobe.only=v483).
-        V483AdminDojo.run(player, this::note);
-        V483AdminSparRival.run(player, this::note);
-        V483AdminSystems.run(player, this::note);
+        v483Admin();
     }
 
     // ---- 4.7.71 navigation audit and scripted checks (test only) ----

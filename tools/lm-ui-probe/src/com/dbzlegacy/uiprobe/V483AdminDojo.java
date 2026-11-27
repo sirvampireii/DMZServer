@@ -382,9 +382,18 @@ public final class V483AdminDojo {
                     && cPupil.has("left " + HALL)) + " | " + cut(cPupil.text()));
             bond(m1, pupil);
             offline(server, pupil);
-            int cpo = asPlayer(player, "lm admin clear ProbeAdminPupil dojo");
-            note.accept("V483 DOJO clear dojo works for an offline disciple (player): " + pf(cpo == 1 && !bonded(m1, pupil)
-                    && !DojoService.disciples(a).contains(pu)));
+            // A stand-in has a made-up UUID; the rig's player cache also answers its name with an offline-mode UUID,
+            // so by name it can be two players. Name: console (shows the answer); UUID: as the player.
+            Out cpn = console(server, "lm admin clear ProbeAdminPupil dojo");
+            boolean byName = cpn.result() == 1 && !bonded(m1, pupil);
+            if (!byName) {
+                bond(m1, pupil);
+            }
+            int cpo = asPlayer(player, "lm admin clear " + pu + " dojo");
+            note.accept("V483 DOJO clear dojo works for an offline disciple (by UUID, player): " + pf(cpo == 1
+                    && !bonded(m1, pupil) && !DojoService.disciples(a).contains(pu)));
+            note.accept("V483 DOJO INFO offline disciple by name (console): " + (byName ? "cleared" : "not cleared") + " | "
+                    + cut(cpn.text()));
             backing(server).add(pupil);
             byUuid(server).put(pupil.m_20148_(), pupil);
 

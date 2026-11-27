@@ -2050,6 +2050,74 @@ def main() -> int:
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 2
           and 'modId = "kaipath"' not in p58_toml
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.8.3 ---")
+    c83 = SRC / "command"
+    q83_da = read(c83 / "DojoAdminCommands.java")
+    q83_sys = read(c83 / "AdminSystemsCommands.java")
+    q83_spar = read(c83 / "SparCommands.java")
+    q83_riv = read(c83 / "RivalCommands.java")
+    q83_dif = read(c83 / "DifficultyCommands.java")
+    q83_help = read(c83 / "LmCommandHelp.java")
+    q83_ds = read(SRC / "dojo/DojoService.java")
+    q83_war = read(SRC / "dojo/DojoWar.java")
+    q83_world = read(SRC / "dojo/DojoWorld.java")
+    q83_board = read(SRC / "dojo/BoardSpar.java")
+    q83_ss = read(SRC / "sparring/SparringSystem.java")
+    q83_rs = read(SRC / "rival/RivalStore.java")
+    q83_clear = read(SRC / "data/PlayerDataClear.java")
+    q83_us = read(SRC / "tier/UnlockSystem.java")
+    q83_wg = read(SRC / "goals/WeeklyGoals.java")
+    q83_saga = read(SRC / "quest/SagaResetService.java")
+    q83_sc = read(SRC / "progression/shop/SkillCheckService.java")
+    q83_probe = (ROOT / "tools/lm-ui-probe/src/com/dbzlegacy/uiprobe/UiProbe.java").read_text(encoding="utf-8")
+    check("manifest row for lm 4.8.3", "lm-483-admin-commands" in manifest)
+    # A: /lm admin dojo
+    check("A: /lm admin dojo registered under /lm admin with every leaf",
+          "CommandAccess.underLmAdmin(" in q83_da and "DojoAdminCommands.register()" in q83_spar
+          and all(('m_82127_("' + leaf + '")' in q83_da or 'memberLeaf("' + leaf + '")' in q83_da) for leaf in (
+              "help", "status", "save", "reload", "points", "clout", "close", "reopen", "disband", "rename",
+              "style", "banner", "rebuild", "war", "cancel", "promote", "demote", "warrights", "found", "season",
+              "advance", "confirm")))
+    check("A: staff overrides and new dojo methods (disband clears the plot, forced rebuild, war cancel)",
+          all(m in q83_ds for m in ("grantPoints(", "grantClout(", "closeByStaff(", "reopenByStaff(",
+                                     "renameByStaff(", "styleByStaff(", "bannerByStaff(", "promoteByStaff(",
+                                     "demoteByStaff(", "warRightsByStaff(", "foundByStaff(", "disband(",
+                                     "reloadByStaff("))
+          and "public static" in q83_war.split("staffCancel(", 1)[0][-200:]
+          and "clearPlot(" in q83_world and "rebuild(" in q83_world)
+    check("A: /lm admin clear <player> dojo (also in all)", '"dojo"' in q83_clear)
+    check("A: old /lm dojo season advance still registered", 'staffLiteral("season")' in q83_spar)
+    # B: /lm admin spar
+    check("B: spar end / board remove / bout cancel / reset leaves and methods",
+          all(t in q83_spar for t in ('m_82127_("end")', 'm_82127_("board")', 'm_82127_("bout")',
+                                      'm_82127_("reset")'))
+          and "staffEndSession(" in q83_ss and "resetSparRecord(" in q83_ss
+          and "staffRemovePost(" in q83_board and "staffCancelBout(" in q83_board)
+    # C: /lm admin rival
+    check("C: rival rp set|add, challenge cancel, season advance (archive, RP to 0)",
+          all(t in q83_riv for t in ('m_82127_("rp")', 'm_82127_("challenge")', 'm_82127_("season")'))
+          and "advanceSeason(" in q83_rs and "seasonArchive" in q83_rs and "adjustTotalRp(" in q83_rs)
+    # D-F: saga, skillcheck, goals
+    check("D-F: /lm admin saga, skillcheck, goals",
+          all('m_82127_("' + t + '")' in q83_sys for t in ("saga", "skillcheck", "goals", "unlock", "inspect",
+                                                           "grant"))
+          and "adminReset(" in q83_saga and "adminUnlock(" in q83_saga and "clearSessionIfAny(" in q83_sc
+          and "adminGrant(" in q83_wg and "adminReset(" in q83_wg)
+    # G: tier override
+    check("G: difficulty tier grant/revoke persists through unlock resync",
+          'tierRoot("tier")' in q83_dif and "grantStaffTier(" in q83_us and "revokeStaffTier(" in q83_us
+          and "hasStaffGrantedTier(" in q83_us)
+    # H: help lists the subtrees
+    check("H: /lm admin help lists dojo, saga, skillcheck, goals and the tier and clear-dojo lines",
+          all(t in q83_help for t in ('"/lm admin dojo help"', '"/lm admin saga help"', '"/lm admin skillcheck help"',
+                                      '"/lm admin goals help"', '"/lm admin difficulty tier grant <player> <tier>"',
+                                      "rival|spar|difficulty|progression|dojo")))
+    check("probe: V483 admin checks wired (full run and -Duiprobe.only=v483)",
+          q83_probe.count("v483Admin();") == 2 and "V483AdminDojo.run(player, this::note);" in q83_probe
+          and "V483AdminSparRival.run(player, this::note);" in q83_probe
+          and "V483AdminSystems.run(player, this::note);" in q83_probe
+          and "GameType.CREATIVE);\n            V483AdminDojo" in q83_probe.replace("\r\n", "\n")
+          and '"v483".equals(set)' in q83_probe)
     print("\n--- § lm 4.8.2 ---")
     q_ds = read(SRC / "dojo/DojoService.java")
     q_store = read(SRC / "dojo/DojoStore.java")
@@ -2217,7 +2285,7 @@ def main() -> int:
           "migrate-cnpc" not in p88_mech and "vanillaDifficultyLiteral" not in p88_diff
           and '"gamedifficulty"' not in p88_diff and "VANILLA_DIFFICULTY" not in p88_sug
           and "forceMigrateWorld" not in read(SRC / "data/CnpcDataMigrator.java"))
-    check("C: /lm open dojo (picker entry) and goals, /lm hud on|off, dojo inspect; no dojo clear scope",
+    check("C: /lm open dojo (picker entry) and goals, /lm hud on|off, dojo inspect; clear scopes end with progression (4.8.3 adds dojo before them)",
           "UltraDojoScreens.openDojoEntry(player);" in p88_mech and "UltraHubScreens.PAGE_GOALS" in p88_mech
           and '"dojo", "goals"' in p88_sug and 'm_82127_("hud")' in p88_mech
           and "LmHud.set(player, want);" in p88_mech and 'case "dojo" -> {' in p88_insp
