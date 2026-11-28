@@ -161,6 +161,14 @@ public final class DojoPlacer {
     /** One structure at plot position {at}, only inside {@code within} (plot boxes) when that is not null. */
     record Step(String path, int[] at, List<int[]> within) {}
 
+    /**
+     * 4.8.4: blocks a job places from code after its structure steps (the barrier shell, the war colosseum), under the
+     * same time budget: each call places what fits before {@code end} (System.nanoTime) and returns true once done.
+     */
+    interface CodeWork {
+        boolean work(Job j, long end, BlockPos.MutableBlockPos pos);
+    }
+
     static final class Job {
         final String dojo;
         final String label;
@@ -173,6 +181,10 @@ public final class DojoPlacer {
         /** 4.8.3: a clear job (a staff disband): every block of this box (x, y, z sizes from the origin) goes to air. */
         int[] clearSize;
         long clearIndex;
+        /** 4.8.4: code-placed blocks after the steps, in order (see {@link CodeWork}). */
+        final List<CodeWork> code = new ArrayList<>();
+        /** 4.8.4: the chunks to hold as world {x0, z0, x1, z1}; null: the plot box from the origin. */
+        int[] area;
         Template cur;
         Step step;
         int index;
@@ -198,6 +210,12 @@ public final class DojoPlacer {
     static synchronized void submit(Job job) {
         QUEUE.removeIf(j -> j.dojo.equals(job.dojo));
         QUEUE.addLast(job);
+    }
+
+    /** 4.8.4: queue {@code job} ahead of every waiting job (a war ring must stand before its sign-up closes). */
+    static synchronized void submitNext(Job job) {
+        QUEUE.removeIf(j -> j.dojo.equals(job.dojo));
+        QUEUE.addFirst(job);
     }
 
     /** True while a build of {@code dojo} is queued or running. */
@@ -276,6 +294,12 @@ public final class DojoPlacer {
                 if (j.cur == null) {
                     j.step = j.steps.pollFirst();
                     if (j.step == null) {
+                        while (!j.code.isEmpty()) {             // 4.8.4: code-placed blocks after the structures
+                            if (!j.code.get(0).work(j, end, pos)) {
+                                return;
+                            }
+                            j.code.remove(0);
+                        }
                         finish(j);
                         return;
                     }
@@ -365,8 +389,10 @@ public final class DojoPlacer {
 
     private static void hold(Job j) {
         DojoLayout l = DojoLayout.get();
-        int x0 = j.origin.m_123341_() >> 4, z0 = j.origin.m_123343_() >> 4;
-        int x1 = (j.origin.m_123341_() + l.sx - 1) >> 4, z1 = (j.origin.m_123343_() + l.sz - 1) >> 4;
+        int[] a = j.area != null ? j.area : new int[] {j.origin.m_123341_(), j.origin.m_123343_(),
+                j.origin.m_123341_() + l.sx - 1, j.origin.m_123343_() + l.sz - 1};
+        int x0 = a[0] >> 4, z0 = a[1] >> 4;
+        int x1 = a[2] >> 4, z1 = a[3] >> 4;
         ServerChunkCache cache = j.level.m_7726_();
         for (int cx = x0; cx <= x1; cx++) {
             for (int cz = z0; cz <= z1; cz++) {

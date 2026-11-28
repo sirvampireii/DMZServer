@@ -2643,7 +2643,11 @@ public final class UltraScreenSelfTest {
         if (!pics.startsWith("OK")) {
             plan = plan + "; pictures " + pics;
         }
-        if (layout.startsWith("OK") && plan.startsWith("OK") && pics.startsWith("OK")) {
+        String shell = com.dbzlegacy.adaptivedifficulty.dojo.DojoShell.selfTest();      // 4.8.4 (D): the barrier shell
+        if (!shell.startsWith("OK")) {
+            plan = plan + "; shell " + shell;
+        }
+        if (layout.startsWith("OK") && plan.startsWith("OK") && pics.startsWith("OK") && shell.startsWith("OK")) {
             LmLog.event("[{}] Dojo placement self-test OK (layout {}, plans {})", AdaptiveDifficultyMod.MOD_ID, layout,
                     plan);
             return;

@@ -271,7 +271,7 @@ public final class DojoWar {
         w.status = "RUNNING";
         w.startedAt = System.currentTimeMillis();
         store().markDirty();
-        DojoBuilder.warRing(level, o);
+        DojoBuilder.warRing(level, o, DojoService.byMaster(w.fromDojo), DojoService.byMaster(w.toDojo)); // 4.8.4 colosseum
         RUNS.put(w.id, r);
         // 4.7.84 (DJ-6): the chat line says where to join; the Wars tab shows the sign-up card with the countdown.
         String msg = "War! " + w.fromName + " vs " + w.toName + " (" + w.format.toLowerCase() + "). Sign-up is open for "
@@ -370,6 +370,9 @@ public final class DojoWar {
                 if (now < r.signupUntil) {
                     signupHud(server, r);
                     return;
+                }
+                if (!DojoBuilder.ringReady(DojoWorld.ringOrigin(r.ring))) {
+                    return;                             // 4.8.4: the colosseum is still going up (seconds at most)
                 }
                 signupHudHide(server, r);
                 r.signed.removeIf(u -> server.m_6846_().m_11259_(u) == null);
@@ -689,9 +692,10 @@ public final class DojoWar {
         FIGHTER.values().removeIf(id -> id.equals(r.rec.id));
     }
 
+    /** 4.8.4: waiting fighters sit in the colosseum's south seats, past the ring-out, behind the glass front. */
     static void toStands(ServerPlayer p, Run r, ServerLevel level) {
-        double x = r.cx - 15 + RNG.nextInt(30);
-        DojoWorld.teleport(p, level, x, DojoWorld.FLOOR_Y + 5, r.cz + 26, 180.0f);
+        int dx = (RNG.nextBoolean() ? 1 : -1) * (4 + RNG.nextInt(12));
+        DojoWorld.teleport(p, level, r.cx + dx, DojoBuilder.STAND_Y, r.cz + DojoBuilder.standDz(dx), 180.0f);
     }
 
     /**

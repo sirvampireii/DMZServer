@@ -409,6 +409,7 @@ public final class DojoWorld {
                 d.builtSignature = sig;                 // 4.8.2: a pre-4.8.2 build with no banner pick is already right
                 DojoStore.get().markDirty();
             }
+            DojoShell.heal(server, d);                  // 4.8.4 (D): a hall built before the shell gets it once
             return;
         }
         DojoState was = DojoState.parse(pending != null ? pending : d.builtSignature);
@@ -428,6 +429,7 @@ public final class DojoWorld {
             afterBuild(level, plot, master);
         });
         job.banner = DojoPlacer.design(d);              // 4.8.2: the hall's banner spots fly the picked banner
+        job.code.add(DojoShell.work());                 // 4.8.4 (D): the barrier shell, after every build and rebuild
         DojoPlacer.submit(job);
     }
 
