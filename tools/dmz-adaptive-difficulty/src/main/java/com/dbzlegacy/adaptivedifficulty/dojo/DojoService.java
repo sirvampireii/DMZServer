@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -906,6 +907,472 @@ public final class DojoService {
             d.joinedAt.remove(discipleUuid);
             store().markDirty();
         }
+    }
+
+    // ------------------------------------------------------------------ 4.8.3: staff tools (/lm admin dojo)
+
+    /** 4.8.3: what a staff dojo action did: {@code ok} false when nothing changed, {@code text} says what or why. */
+    public record StaffResult(boolean ok, String text) {
+        static StaffResult done(String text) {
+            return new StaffResult(true, text);
+        }
+
+        static StaffResult no(String text) {
+            return new StaffResult(false, text);
+        }
+    }
+
+    /**
+     * 4.8.3: every dojo (open or closed) a staff argument names: the dojo's name in any case, else its master's name,
+     * else the master's UUID. Several when two dojos share a name; empty when none matches. Sorted by name.
+     */
+    public static List<Dojo> lookup(String text) {
+        List<Dojo> out = new ArrayList<>();
+        String t = text == null ? "" : text.trim();
+        if (t.isEmpty()) {
+            return out;
+        }
+        for (Dojo d : store().dojos.values()) {
+            if (d.name != null && d.name.trim().equalsIgnoreCase(t)) {
+                out.add(d);
+            }
+        }
+        if (out.isEmpty()) {
+            for (Dojo d : store().dojos.values()) {
+                if ((d.masterName != null && d.masterName.equalsIgnoreCase(t)) || nameOf(d.masterUuid).equalsIgnoreCase(t)) {
+                    out.add(d);
+                }
+            }
+        }
+        if (out.isEmpty()) {
+            Dojo d = store().dojos.get(t.toLowerCase(Locale.ROOT));
+            if (d != null) {
+                out.add(d);
+            }
+        }
+        out.sort(Comparator.comparing((Dojo d) -> d.name == null ? "" : d.name.toLowerCase(Locale.ROOT)));
+        return out;
+    }
+
+    /** 4.8.3: every dojo's name (open and closed), sorted, for staff tab completion. */
+    public static List<String> dojoNames() {
+        List<String> out = new ArrayList<>();
+        for (Dojo d : store().dojos.values()) {
+            if (d.name != null && !d.name.isBlank() && !out.contains(d.name)) {
+                out.add(d.name);
+            }
+        }
+        out.sort(String.CASE_INSENSITIVE_ORDER);
+        return out;
+    }
+
+    /** 4.8.3: every disciple's name in {@code d} (staff tab completion). */
+    public static List<String> discipleNames(Dojo d) {
+        List<String> out = new ArrayList<>();
+        for (String u : disciples(d)) {
+            out.add(nameOf(u));
+        }
+        return out;
+    }
+
+    /** 4.8.3: the UUID of {@code d}'s disciple named {@code name} (any case) or with that UUID, or null. */
+    public static String discipleNamed(Dojo d, String name) {
+        String t = name == null ? "" : name.trim();
+        for (String u : disciples(d)) {
+            if (u.equalsIgnoreCase(t) || nameOf(u).equalsIgnoreCase(t)) {
+                return u;
+            }
+        }
+        return null;
+    }
+
+    /** 4.8.3: the staff status card for {@code d}: master, members, points, clout, season, style, banner, wars, plot. */
+    public static List<String> statusLines(Dojo d) {
+        String l = com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.LABEL;
+        String v = com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.VALUE;
+        String h = com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle.GOLD;
+        List<String> out = new ArrayList<>();
+        rollClout(d);
+        out.add(h + d.name + l + (d.open ? " (open)" : " (closed)") + " - master " + v + nameOf(d.masterUuid));
+        List<String> members = new ArrayList<>();
+        for (String u : disciples(d)) {
+            String tag = d.elites.contains(u) ? (d.warRights.contains(u) ? " (elite, war rights)" : " (elite)") : "";
+            members.add(nameOf(u) + tag);
+        }
+        out.add(l + "Disciples " + v + members.size() + l + " of " + v + disciplesAllowed(d.masterUuid)
+                + (members.isEmpty() ? "" : l + ": " + v + String.join(", ", members)));
+        out.add(l + "Dojo Points " + v + d.points + l + " (" + d.pointsEarnedTotal + " earned in all) - clout " + v
+                + d.clout + l + " in season " + v + "#" + currentSeason());
+        DojoCatalog.Style s = DojoCatalog.Style.of(d.style);
+        DojoCatalog.Bonus b = d.bonus == null || d.bonus.isBlank() ? null : DojoCatalog.bonus(d.bonus);
+        out.add(l + "Style " + v + (s == null ? "not picked" : s.label) + l + " - bonus " + v
+                + (b == null ? "none" : b.name()) + l + " - " + v + arenas(d) + l + " rings");
+        out.add(l + "Banner " + v + (defaultBanner(d) ? "the style's default (" + bannerColour(d).replace('_', ' ') + ")"
+                : d.bannerBase.replace('_', ' ') + " with " + d.bannerPatterns.size()
+                + (d.bannerPatterns.size() == 1 ? " layer" : " layers"))
+                + l + " - free rename " + v + (freeRenameLeft(d) ? "unused" : "used"));
+        DojoStore.WarRecord running = DojoWar.runningFor(d.masterUuid);
+        int pending = 0;
+        for (DojoStore.WarRecord w : DojoWar.warsOf(d.masterUuid)) {
+            if (("PENDING_SIGNOFF".equals(w.status) || "CHALLENGED".equals(w.status)) && w != running) {
+                pending++;
+            }
+        }
+        String war = running != null ? "at war with " + (running.fromDojo.equals(d.masterUuid) ? running.toName
+                : running.fromName) : "no war running";
+        out.add(l + "Wars " + v + d.warWins + l + " won, " + v + d.warLosses + l + " lost - " + v + war
+                + (pending > 0 ? l + ", " + v + pending + l + " challenge" + (pending == 1 ? "" : "s") + " waiting" : ""));
+        String hall = d.plot < 0 ? "no plot yet" : "plot " + d.plot + (DojoPlacer.busy(d.masterUuid) ? ", building now"
+                : DojoWorld.ready(d) ? ", hall up to date" : ", hall not built as it should be (rebuild fixes it)");
+        out.add(l + "Hall " + v + hall + l + " - spars on now " + v + BoardSpar.boutsIn(d.masterUuid));
+        return out;
+    }
+
+    /** 4.8.3 (staff): add {@code amount} Dojo Points with no daily cap; below zero takes points (never under 0). */
+    public static int grantPoints(Dojo d, int amount) {
+        if (d == null || amount == 0) {
+            return 0;
+        }
+        int before = d.points;
+        d.points = (int) Math.max(0L, Math.min(Integer.MAX_VALUE, (long) d.points + amount));
+        if (d.points > before) {
+            d.pointsEarnedTotal += d.points - before;
+        }
+        store().markDirty();
+        return d.points - before;
+    }
+
+    /** 4.8.3 (staff): add {@code amount} clout this season with no daily cap ({@link #clout}); below zero takes it. */
+    public static int grantClout(Dojo d, int amount) {
+        if (d == null || amount == 0) {
+            return 0;
+        }
+        if (amount > 0) {
+            return clout(d, "staff", amount, 0);
+        }
+        rollClout(d);
+        int before = d.clout;
+        d.clout = Math.max(0, d.clout + amount);
+        store().markDirty();
+        return d.clout - before;
+    }
+
+    /** 4.8.3 (staff): close {@code d} for its master: the same close, refused while fights run in it. */
+    public static StaffResult closeByStaff(Dojo d) {
+        if (!d.open) {
+            return StaffResult.no(d.name + " is already closed.");
+        }
+        if (BoardSpar.boutsIn(d.masterUuid) > 0 || DojoWar.runningFor(d.masterUuid) != null) {
+            return StaffResult.no(d.name + " has fights running. Wait for its spars to end, or call off its war with "
+                    + "/lm admin dojo war cancel first.");
+        }
+        d.open = false;
+        d.closedAt = System.currentTimeMillis();
+        store().markDirty();
+        return StaffResult.done("Closed " + d.name + ". Members, style and upgrades are kept for a reopen.");
+    }
+
+    /** 4.8.3 (staff): reopen {@code d} for its master: the same reopen (every upgrade drops one tier). */
+    public static StaffResult reopenByStaff(Dojo d) {
+        if (d.open) {
+            return StaffResult.no(d.name + " is already open.");
+        }
+        for (String up : DojoCatalog.UPGRADES) {
+            d.upgrades.put(up, DojoCatalog.afterReopen(up, tier(d, up)));
+        }
+        d.open = true;
+        d.timesReopened++;
+        d.builtSignature = "";
+        store().markDirty();
+        return StaffResult.done("Reopened " + d.name + ". Every upgrade is one tier lower than before.");
+    }
+
+    /** 4.8.3 (staff): rename {@code d} with the name rule, but no cost, no cooldown, and the free rename unspent. */
+    public static StaffResult renameByStaff(Dojo d, String name) {
+        String n = name == null ? "" : name.trim();
+        String bad = nameProblem(n);
+        if (bad != null) {
+            return StaffResult.no(bad);
+        }
+        if (n.equals(d.name)) {
+            return StaffResult.no(d.name + " is already called that.");
+        }
+        String old = d.name;
+        d.name = n;
+        store().markDirty();
+        com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings.syncDisplayName(d.masterUuid, n);
+        return StaffResult.done("Renamed " + old + " to " + n + ". No points were taken and the free rename is kept.");
+    }
+
+    /** 4.8.3 (staff): set {@code d}'s style (one of the four), no cost or cooldown; the bonus ends; the hall rebuilds. */
+    public static StaffResult styleByStaff(MinecraftServer server, Dojo d, String styleId) {
+        DojoCatalog.Style s = DojoCatalog.Style.of(styleId);
+        if (s == null) {
+            return StaffResult.no("Pick one of the four styles: ki, melee, strike or evasion.");
+        }
+        if (s.name().equalsIgnoreCase(d.style)) {
+            return StaffResult.no(d.name + " already trains " + s.label + ".");
+        }
+        boolean had = d.bonus != null && !d.bonus.isBlank();
+        d.style = s.name();
+        d.bonus = "";
+        store().markDirty();
+        DojoWorld.ensureBuilt(server, d);
+        return StaffResult.done(d.name + " now trains " + s.label + "." + (had ? " Its old bonus ended; the master picks"
+                + " a new one." : "") + " The hall is rebuilding in the new style.");
+    }
+
+    /** 4.8.3: a staff banner text read into the stored form: base colour name and layers as "pattern:dye id". */
+    public record BannerText(String base, List<String> patterns, String problem) {}
+
+    /**
+     * 4.8.3: read a staff banner text: {@code default} (back to the style's banner), or a base dye name ({@code red},
+     * {@code light_blue}) followed by up to 16 layers, each {@code <pattern>:<dye>} with the vanilla pattern code
+     * ({@code bs}, {@code cr}, {@code mc}, ...) and a dye name or dye number ({@code bs:white}, {@code cr:15}).
+     * Layers are stored as "code:dye number", the form the Found a Dojo menu saves.
+     */
+    public static BannerText parseBanner(String text) {
+        String t = text == null ? "" : text.trim();
+        if (t.isEmpty()) {
+            return new BannerText(null, null, "Give a base colour like red, or default for the style's banner.");
+        }
+        String[] parts = t.split("\\s+");
+        if (parts.length == 1 && "default".equalsIgnoreCase(parts[0])) {
+            return new BannerText("", List.of(), null);
+        }
+        net.minecraft.world.item.DyeColor base = parts[0].chars().allMatch(Character::isDigit) ? null
+                : DojoPlacer.dye(parts[0]);
+        if (base == null) {
+            return new BannerText(null, null, parts[0] + " is not a dye colour. Use a name like red, white or light_blue.");
+        }
+        if (parts.length - 1 > 16) {
+            return new BannerText(null, null, "A banner takes at most 16 layers.");
+        }
+        List<String> layers = new ArrayList<>();
+        for (int i = 1; i < parts.length; i++) {
+            String p = parts[i];
+            int cut = p.lastIndexOf(':');
+            net.minecraft.world.item.DyeColor c = cut <= 0 ? null : DojoPlacer.dye(p.substring(cut + 1));
+            if (c == null) {
+                return new BannerText(null, null, "Layer " + p + " needs a pattern and a colour, like bs:white.");
+            }
+            String code = p.substring(0, cut).toLowerCase(Locale.ROOT);
+            if (net.minecraft.world.level.block.entity.BannerPattern.m_222700_(code) == null) {
+                return new BannerText(null, null, code + " is not a banner pattern code. Use codes like bs, cr or mc.");
+            }
+            layers.add(code + ":" + c.m_41060_());
+        }
+        return new BannerText(base.m_41065_(), List.copyOf(layers), null);
+    }
+
+    /** 4.8.3 (staff): set {@code d}'s banner from a {@link #parseBanner} text, no cost or cooldown; the hall rebuilds. */
+    public static StaffResult bannerByStaff(MinecraftServer server, Dojo d, String text) {
+        BannerText b = parseBanner(text);
+        if (b.problem() != null) {
+            return StaffResult.no(b.problem());
+        }
+        d.bannerBase = b.base();
+        d.bannerPatterns = new ArrayList<>(b.patterns());
+        store().markDirty();
+        DojoWorld.ensureBuilt(server, d);                       // the hall's banner spots fly the new banner
+        return StaffResult.done(b.base().isEmpty() ? d.name + " flies its style's default banner again."
+                : d.name + " flies a " + b.base().replace('_', ' ') + " banner with " + b.patterns().size()
+                + (b.patterns().size() == 1 ? " layer" : " layers") + ". The hall is rebuilding with it.");
+    }
+
+    /** 4.8.3 (staff): make a disciple an elite: no join-time minimum, but at most {@link DojoCatalog#MAX_ELITES}. */
+    public static StaffResult promoteByStaff(Dojo d, String uuid) {
+        if (uuid == null || !disciples(d).contains(uuid)) {
+            return StaffResult.no("Only a disciple of " + d.name + " can be an elite.");
+        }
+        if (d.elites.contains(uuid)) {
+            return StaffResult.no(nameOf(uuid) + " is already an elite of " + d.name + ".");
+        }
+        if (d.elites.size() >= DojoCatalog.MAX_ELITES) {
+            return StaffResult.no(d.name + " already has " + DojoCatalog.MAX_ELITES + " elites. Demote one first.");
+        }
+        d.elites.add(uuid);
+        store().markDirty();
+        return StaffResult.done(nameOf(uuid) + " is now an elite of " + d.name + ": they can buy upgrades and declare wars.");
+    }
+
+    /** 4.8.3 (staff): an elite steps down (war rights go with it). */
+    public static StaffResult demoteByStaff(Dojo d, String uuid) {
+        if (uuid == null || !d.elites.remove(uuid)) {
+            return StaffResult.no((uuid == null ? "That player" : nameOf(uuid)) + " isn't an elite of " + d.name + ".");
+        }
+        d.warRights.remove(uuid);
+        store().markDirty();
+        return StaffResult.done(nameOf(uuid) + " is no longer an elite of " + d.name + ".");
+    }
+
+    /** 4.8.3 (staff): turn an elite's standing war rights on or off. */
+    public static StaffResult warRightsByStaff(Dojo d, String uuid) {
+        if (uuid == null || !d.elites.contains(uuid)) {
+            return StaffResult.no("War rights go only to an elite. Promote them first with /lm admin dojo promote.");
+        }
+        if (d.warRights.remove(uuid)) {
+            store().markDirty();
+            return StaffResult.done(nameOf(uuid) + "'s wars need the master's sign-off again.");
+        }
+        d.warRights.add(uuid);
+        store().markDirty();
+        return StaffResult.done(nameOf(uuid) + " can now declare wars for " + d.name + " without the master's sign-off.");
+    }
+
+    /** 4.8.3: the name a staff founding uses when none is given: "Name's Dojo", cut to the name rule. */
+    public static String defaultDojoName(String playerName) {
+        String n = (playerName == null ? "" : playerName).replace('_', ' ').replaceAll("[^A-Za-z0-9 '&.-]", "").trim();
+        String full = (n.isEmpty() ? "New" : n) + "'s Dojo";
+        return full.length() > 24 ? full.substring(0, 24).trim() : full;
+    }
+
+    /**
+     * 4.8.3 (staff {@code /lm admin dojo found}): found a dojo for {@code p} with the same checks and founding grant as
+     * the Found a Dojo menu, but no style yet (the master's first pick stays free) and the default banner. {@code name}
+     * blank: {@link #defaultDojoName}.
+     */
+    public static StaffResult foundByStaff(ServerPlayer p, String name) {
+        UUID id = p.m_20148_();
+        String who = p.m_7755_().getString();
+        Dojo in = dojoOf(id);
+        if (in != null) {
+            return StaffResult.no(who + " is already in " + in.name + ".");
+        }
+        Dojo mine = store().dojos.get(id.toString());
+        if (mine != null && !mine.open) {
+            return StaffResult.no(who + " has a closed dojo, " + mine.name + ". Reopen it with /lm admin dojo reopen "
+                    + mine.name + ".");
+        }
+        SparStore.MentorBond bond = SparStore.get().bondsByPlayer.get(id.toString());
+        if (bond != null && bond.mentorUuid != null && !bond.mentorUuid.isBlank()) {
+            return StaffResult.no(who + " is still bonded to a master whose dojo is closed. Clear it first with "
+                    + "/lm admin clear " + who + " dojo.");
+        }
+        String n = name == null || name.isBlank() ? defaultDojoName(who) : name.trim();
+        String bad = nameProblem(n);
+        if (bad != null) {
+            return StaffResult.no(bad);
+        }
+        boolean hadDojo = mine != null;
+        Dojo d = fresh(id.toString(), who, System.currentTimeMillis());
+        d.name = n;
+        DojoStore.PlayerRecord rec = store().player(d.masterUuid, who);
+        int grant = foundingGrant(rec, hadDojo);
+        if (grant > 0) {
+            rec.foundingGrantPaid = true;
+            d.points += grant;
+            d.pointsEarnedTotal += grant;
+        }
+        store().dojos.put(d.masterUuid, d);
+        store().markDirty();
+        DojoWorld.ensureBuilt(p.m_20194_(), d);
+        return StaffResult.done("Founded " + n + " for " + who + "." + (grant > 0 ? " It starts with " + grant
+                + " Dojo Points." : "") + " The master picks a style and a banner in Dojo settings (the first picks"
+                + " are free).");
+    }
+
+    /** 4.8.3: end {@code discipleUuid}'s bond to {@code masterUuid} with no cooldown (a staff action, not a choice). */
+    static void releaseDisciple(String masterUuid, String discipleUuid) {
+        SparStore.MentorBond a = SparStore.get().bondsByPlayer.get(discipleUuid);
+        if (a != null && masterUuid.equalsIgnoreCase(a.mentorUuid)) {
+            a.mentorUuid = "";
+            a.mentorName = "";
+        }
+        SparStore.MentorBond m = SparStore.get().bondsByPlayer.get(masterUuid);
+        if (m != null) {
+            m.normalizeApprentices();
+            m.removeApprenticeUuid(discipleUuid);
+        }
+        onDiscipleLeft(masterUuid, discipleUuid);
+        SparStore.get().markDirty();
+    }
+
+    /**
+     * 4.8.3 (staff {@code /lm admin dojo disband}): delete {@code d} for good. Refused while a board spar runs in it.
+     * Its wars are called off with no result, every disciple is released (no cooldown), online members are told, the
+     * dojo leaves dojos.json and the dojo ladder (this season's board, its profile, old challenges; the Hall of Chosen
+     * keeps past seasons), and its plot is cleared to empty void (no dojo is placed there again: plots are never
+     * reused).
+     */
+    public static StaffResult disband(MinecraftServer server, Dojo d) {
+        if (BoardSpar.boutsIn(d.masterUuid) > 0) {
+            return StaffResult.no(d.name + " has spars running on its rings. Wait for them to end, then disband it.");
+        }
+        List<String> members = new ArrayList<>(disciples(d));
+        int wars = DojoWar.staffCancelAll(server, d.masterUuid);
+        for (String u : members) {
+            releaseDisciple(d.masterUuid, u);
+        }
+        store().dojos.remove(d.masterUuid);
+        VIEWED.values().removeIf(m -> m.equals(d.masterUuid));
+        int ladder = com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings.forgetDojo(d.masterUuid);
+        store().markDirty();
+        boolean cleared = d.plot >= 0 && DojoWorld.clearPlot(server, d.masterUuid, d.plot);
+        List<String> notify = new ArrayList<>(members);
+        notify.add(d.masterUuid);
+        for (String u : notify) {
+            ServerPlayer p = DojoWar.online(server, u);
+            if (p != null) {
+                com.dbzlegacy.adaptivedifficulty.util.DmzRewards.msg(p, com.dbzlegacy.adaptivedifficulty.util.LmChat
+                        .info("Dojo", "Staff disbanded " + d.name + ". You are no longer in that dojo."));
+            }
+        }
+        return StaffResult.done("Disbanded " + d.name + ": " + members.size() + (members.size() == 1 ? " disciple"
+                : " disciples") + " released, " + wars + (wars == 1 ? " war" : " wars") + " called off, "
+                + ladder + (ladder == 1 ? " ladder record" : " ladder records") + " removed. " + (d.plot < 0
+                ? "It had no plot." : cleared ? "Its hall on plot " + d.plot + " is being cleared to empty void."
+                : "The dojo world isn't loaded, so its hall on plot " + d.plot + " was left standing (no dojo owns it)."));
+    }
+
+    /**
+     * 4.8.3 (staff {@code /lm admin clear <player> dojo}): take {@code uuid} out of the dojo they are a disciple of
+     * (bond to its master ended with no cooldown, elite and war rights gone) and out of every other dojo's elite and
+     * war-rights lists. A dojo they lead is kept. Returns the names of the dojos they left (may be empty).
+     */
+    public static List<String> removeFromDojos(String uuid) {
+        List<String> left = new ArrayList<>();
+        if (uuid == null || uuid.isBlank()) {
+            return left;
+        }
+        SparStore.MentorBond bond = SparStore.get().bondsByPlayer.get(uuid);
+        if (bond != null && bond.mentorUuid != null && !bond.mentorUuid.isBlank()) {
+            Dojo m = byMaster(bond.mentorUuid);
+            if (m != null) {
+                left.add(m.name);
+                releaseDisciple(m.masterUuid, uuid);
+            }
+        }
+        for (Dojo d : store().dojos.values()) {
+            if (d.masterUuid.equals(uuid)) {
+                continue;
+            }
+            boolean was = d.elites.remove(uuid) | d.warRights.remove(uuid) | d.joinedAt.remove(uuid) != null;
+            if (was && !left.contains(d.name)) {
+                left.add(d.name);
+            }
+        }
+        try {
+            VIEWED.remove(UUID.fromString(uuid));
+        } catch (IllegalArgumentException ignored) {
+        }
+        store().markDirty();
+        return left;
+    }
+
+    /**
+     * 4.8.3 (staff {@code /lm admin dojo reload}): read dojos.json again (changes since the last save are dropped),
+     * then the boot steps: old mentors get their dojo, expired challenges stop blocking. Refused while a war or a
+     * board spar runs, because those hold the live records.
+     */
+    public static StaffResult reloadByStaff() {
+        if (!DojoWar.RUNS.isEmpty() || !BoardSpar.bouts().isEmpty()) {
+            return StaffResult.no("A dojo war or board spar is running. Reload once the fights end.");
+        }
+        store().load();
+        migrate();
+        DojoWar.prune();
+        return StaffResult.done("Reloaded dojo data from disk: " + store().dojos.size() + " dojos.");
     }
 
     public static List<String> selfTest() {

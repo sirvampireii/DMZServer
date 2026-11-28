@@ -535,6 +535,47 @@ public final class RivalChallengeManager {
         }
     }
 
+    /** 4.8.3: what a staff cancel ended: the two players and whether it was a live (or counting-down) duel. */
+    public record StaffCancel(UUID a, String nameA, UUID b, String nameB, boolean live) {}
+
+    /**
+     * 4.8.3: staff force-end of every challenge {@code uuid} is in: a live or counting-down duel ends with no result
+     * (no TP, no RP, no win or loss, no report), and pending requests to or from them are dropped. Returns what was
+     * ended (empty when there was nothing).
+     */
+    public List<StaffCancel> staffCancel(MinecraftServer server, UUID uuid) {
+        List<StaffCancel> out = new ArrayList<>();
+        if (uuid == null) {
+            return out;
+        }
+        RivalChallenge ch = getChallenge(uuid);
+        if (ch != null && ch.status != RivalChallenge.Phase.ENDED) {
+            ch.status = RivalChallenge.Phase.ENDED;
+            ch.endReason = "staff";
+            ch.winner = null;
+            ch.loser = null;
+            for (UUID u : new UUID[] {ch.a, ch.b}) {
+                ServerPlayer p = server == null || u == null ? null : server.m_6846_().m_11259_(u);
+                com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.hide(p, com.dbzlegacy.adaptivedifficulty.gui.ultra.LmHud.FIGHT);
+                if (u != null) {
+                    pendingHp.remove(u);
+                }
+            }
+            activeByPlayer.remove(ch.a);
+            activeByPlayer.remove(ch.b);
+            out.add(new StaffCancel(ch.a, nameOf(ch, ch.a), ch.b, nameOf(ch, ch.b), true));
+        } else if (ch != null) {
+            activeByPlayer.remove(uuid);
+        }
+        for (ChallengeRequest req : new ArrayList<>(requests.values())) {
+            if (req != null && (uuid.equals(req.from) || uuid.equals(req.to))) {
+                dropRequest(req.id);
+                out.add(new StaffCancel(req.from, req.fromName, req.to, req.toName, false));
+            }
+        }
+        return out;
+    }
+
     public void cleanupPlayer(UUID uuid) {
         if (uuid == null) {
             return;

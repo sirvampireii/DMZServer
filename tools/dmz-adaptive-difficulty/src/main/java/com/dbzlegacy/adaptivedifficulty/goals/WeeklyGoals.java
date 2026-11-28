@@ -128,6 +128,83 @@ public final class WeeklyGoals {
         return have + " of " + g.target();
     }
 
+    /** 4.8.3: a readable command key for a goal ("spar-wins"). */
+    public static String key(Goal g) {
+        return g == null ? "" : g.id().replace('_', '-');
+    }
+
+    /** 4.8.3: this week's goal for a typed key, id or title (case and separators ignored); null when none. */
+    public static Goal thisWeekGoal(String raw) {
+        String want = squash(raw);
+        if (want.isEmpty()) {
+            return null;
+        }
+        for (Goal g : thisWeek()) {
+            if (squash(g.id()).equals(want) || squash(g.title()).equals(want)) {
+                return g;
+            }
+        }
+        return null;
+    }
+
+    /** 4.8.3: true when {@code raw} names a pool goal that is not one of this week's three. */
+    public static boolean isOffWeekGoal(String raw) {
+        String want = squash(raw);
+        for (Goal g : POOL) {
+            if (squash(g.id()).equals(want) && thisWeekGoal(raw) == null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 4.8.3: the week number the player's stored counters belong to (this week once anything was read). */
+    public static long storedWeek(UUID id) {
+        return id == null ? week(System.currentTimeMillis()) : counters(id, week(System.currentTimeMillis())).m_128454_("week");
+    }
+
+    /**
+     * 4.8.3: staff grant through the normal counting path ({@link #note}, capped at the target; nothing is paid out
+     * yet). {@code amount <= 0} completes the goal. Returns the progress after the grant.
+     */
+    public static long adminGrant(UUID id, Goal g, long amount) {
+        if (id == null || g == null) {
+            return 0L;
+        }
+        long have = progress(id, g.id());
+        long add = amount <= 0L ? g.target() - have : amount;
+        note(id, g.id(), add);
+        LmPlayerStore.flush(id);
+        return progress(id, g.id());
+    }
+
+    /**
+     * 4.8.3: staff reset of the player's week: every counter back to zero, the same three goals (they are the same
+     * for everyone and change only when the week does), exactly how a new week starts.
+     */
+    public static void adminReset(UUID id) {
+        if (id == null) {
+            return;
+        }
+        CompoundTag t = new CompoundTag();
+        t.m_128356_("week", week(System.currentTimeMillis()));
+        LmPlayerStore.root(id).m_128365_(KEY, t);
+        LmPlayerStore.flush(id);
+    }
+
+    private static String squash(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        for (char c : raw.toLowerCase(java.util.Locale.ROOT).toCharArray()) {
+            if (Character.isLetterOrDigit(c)) {
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
     /** Self-test: every week gives three goals from three systems, every go link is a page link. */
     public static List<String> selfTest() {
         List<String> bad = new ArrayList<>();

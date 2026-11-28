@@ -23,6 +23,14 @@ public final class UnlockSystem {
         if (player == null || tier == null) {
             return false;
         }
+        // 4.8.3: a staff tier grant counts as eligible until staff revoke it.
+        try {
+            PlayerDifficultyData own = DifficultyCache.data(player);
+            if (own != null && own.hasStaffGrantedTier(tier.id)) {
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
         // Prestige-point permanent unlocks bypass the DMZ level gate.
         try {
             if (com.dbzlegacy.adaptivedifficulty.progression.shop.PrestigePointsSystem
@@ -126,7 +134,7 @@ public final class UnlockSystem {
         }
 
         for (UnlockTier tier : UnlockTier.values()) {
-            if (isEligible(player, tier) && data.unlockTier(tier.id)) {
+            if ((data.hasStaffGrantedTier(tier.id) || isEligible(player, tier)) && data.unlockTier(tier.id)) {
                 newly.add(tier.id);
             }
         }
@@ -134,7 +142,7 @@ public final class UnlockSystem {
         if (reliable) {
             for (Integer id : new ArrayList<>(data.getUnlockedTiers())) {
                 UnlockTier tier = UnlockTier.byId(id);
-                if (tier == null || !isEligible(player, tier)) {
+                if (tier == null || (!data.hasStaffGrantedTier(id) && !isEligible(player, tier))) {
                     data.revokeTier(id);
                 }
             }
@@ -157,6 +165,42 @@ public final class UnlockSystem {
         } catch (Throwable ignored) {
         }
         return newly;
+    }
+
+    /** 4.8.3: staff grant of a tier (kept through every resync); true when the grant is new. */
+    public static boolean grantStaffTier(ServerPlayer player, int tierId) {
+        PlayerDifficultyData data = player == null ? null : DifficultyCache.data(player);
+        if (data == null || UnlockTier.byId(tierId) == null) {
+            return false;
+        }
+        boolean added = data.grantStaffTier(tierId);
+        data.unlockTier(tierId);
+        syncUnlocks(player, data);
+        DifficultyCache.save(player);
+        DifficultyCache.refresh(player);
+        return added;
+    }
+
+    /**
+     * 4.8.3: undo a staff tier grant. Only the grant goes; the tier stays unlocked when the player still qualifies
+     * (level, prestige or a Prestige Shop purchase). True when there was a grant.
+     */
+    public static boolean revokeStaffTier(ServerPlayer player, int tierId) {
+        PlayerDifficultyData data = player == null ? null : DifficultyCache.data(player);
+        if (data == null || !data.revokeStaffTier(tierId)) {
+            return false;
+        }
+        UnlockTier tier = UnlockTier.byId(tierId);
+        if (tier != null && !isEligible(player, tier)) {
+            data.revokeTier(tierId);
+            if (data.getActiveTier() == tierId) {
+                data.resetTemporary();
+            }
+        }
+        syncUnlocks(player, data);
+        DifficultyCache.save(player);
+        DifficultyCache.refresh(player);
+        return true;
     }
 
     public static int highestUnlocked(PlayerDifficultyData data) {

@@ -2,6 +2,9 @@ package com.dbzlegacy.adaptivedifficulty.command;
 
 import com.dbzlegacy.adaptivedifficulty.AdaptiveDifficultyMod;
 import com.dbzlegacy.adaptivedifficulty.config.DifficultyConfig;
+import com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar;
+import com.dbzlegacy.adaptivedifficulty.gui.ultra.UltraStyle;
+import com.dbzlegacy.adaptivedifficulty.util.LmChat;
 import com.dbzlegacy.adaptivedifficulty.rival.RivalSystem;
 import com.dbzlegacy.adaptivedifficulty.sparring.DojoRankings;
 import com.dbzlegacy.adaptivedifficulty.sparring.SparStore;
@@ -28,6 +31,7 @@ public final class SparCommands {
 
     public static void register() {
         MinecraftForge.EVENT_BUS.register(new SparCommands());
+        DojoAdminCommands.register();                   // 4.8.3: /lm admin dojo (AdaptiveDifficultyMod is audited)
     }
 
     @SubscribeEvent
@@ -153,7 +157,44 @@ public final class SparCommands {
                                         .then(LmCommandSuggestions.playerWord("player")
                                                 .executes(ctx -> resetCd(
                                                         ctx.getSource(),
-                                                        StringArgumentType.getString(ctx, "player"))))));
+                                                        StringArgumentType.getString(ctx, "player"))))))
+                        // 4.8.3: staff fixes for one player's spar session, board post, bout and record.
+                        .then(Commands.m_82127_("end")
+                                .executes(ctx -> sparAdminUsage(ctx.getSource(), "/lm admin spar end <player>"))
+                                .then(LmCommandSuggestions.playerWord("player")
+                                        .executes(ctx -> adminEnd(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "player")))))
+                        .then(Commands.m_82127_("board")
+                                .executes(ctx -> sparAdminUsage(ctx.getSource(), "/lm admin spar board remove <player>"))
+                                .then(Commands.m_82127_("remove")
+                                        .executes(ctx -> sparAdminUsage(ctx.getSource(),
+                                                "/lm admin spar board remove <player>"))
+                                        .then(LmCommandSuggestions.playerWord("player")
+                                                .executes(ctx -> adminBoardRemove(
+                                                        ctx.getSource(),
+                                                        StringArgumentType.getString(ctx, "player"))))))
+                        .then(Commands.m_82127_("bout")
+                                .executes(ctx -> sparAdminUsage(ctx.getSource(), "/lm admin spar bout cancel <player>"))
+                                .then(Commands.m_82127_("cancel")
+                                        .executes(ctx -> sparAdminUsage(ctx.getSource(),
+                                                "/lm admin spar bout cancel <player>"))
+                                        .then(LmCommandSuggestions.playerWord("player")
+                                                .executes(ctx -> adminBoutCancel(
+                                                        ctx.getSource(),
+                                                        StringArgumentType.getString(ctx, "player"))))))
+                        .then(Commands.m_82127_("reset")
+                                .executes(ctx -> sparAdminUsage(ctx.getSource(), "/lm admin spar reset <player>"))
+                                .then(LmCommandSuggestions.playerWord("player")
+                                        .executes(ctx -> adminReset(
+                                                ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "player"),
+                                                false))
+                                        .then(Commands.m_82127_("confirm")
+                                                .executes(ctx -> adminReset(
+                                                        ctx.getSource(),
+                                                        StringArgumentType.getString(ctx, "player"),
+                                                        true)))));
 
         event.getDispatcher().register(CommandAccess.underLm(root));
         event.getDispatcher().register(CommandAccess.underLm(dojo));
@@ -516,7 +557,194 @@ public final class SparCommands {
             return 0;
         }
         LmCommandFeedback.tellLines(source, LmCommandHelp.sparAdmin());
+        LmCommandFeedback.tellLines(source, sparAdminFixesHelp());
         return 1;
+    }
+
+    // ------------------------------------------------------------------ 4.8.3 staff fixes
+
+    /** 4.8.3: the new staff leaves, listed under the branch help. */
+    private static String sparAdminFixesHelp() {
+        return UltraStyle.GOLD + "— Player fixes (staff only) —"
+                + "\n" + LmStaffHelp.cmd("/lm admin spar end <player>",
+                        "end that player's spar now: no result, nothing counts")
+                + "\n" + LmStaffHelp.cmd("/lm admin spar board remove <player>", "take down their Spar Board post")
+                + "\n" + LmStaffHelp.cmd("/lm admin spar bout cancel <player>",
+                        "cancel a stuck board spar: no winner, wagers refunded, both sent back")
+                + "\n" + LmStaffHelp.cmd("/lm admin spar reset <player>",
+                        "reset their streak, spar TP and season ranking points (asks to confirm)");
+    }
+
+    private static int sparAdminUsage(CommandSourceStack source, String usage) {
+        if (StaffAccess.denyUnlessStaff(source) == 0) {
+            return 0;
+        }
+        source.m_81352_(Component.m_237113_(LmCommandMessages.tryCommand(usage)));
+        return 0;
+    }
+
+    private static void reply(CommandSourceStack source, String line) {
+        source.m_288197_(() -> Component.m_237113_(line), true);
+    }
+
+    private static int adminEnd(CommandSourceStack source, String name) {
+        if (StaffAccess.denyUnlessStaff(source) == 0) {
+            return 0;
+        }
+        ServerPlayer target = RivalSystem.findOnline(source.m_81377_(), name);
+        if (target == null) {
+            source.m_81352_(Component.m_237113_(LmCommandMessages.playerOffline(name)));
+            return 0;
+        }
+        String who = target.m_7755_().getString();
+        java.util.UUID partnerId = SparringSystem.runtime(target.m_20148_()).partner;
+        String partner = SparringSystem.staffEndSession(target);
+        if (partner == null) {
+            source.m_81352_(Component.m_237113_(UltraStyle.DANGER + who + " isn't in a spar right now, so there was "
+                    + "nothing to end."));
+            return 0;
+        }
+        reply(source, UltraStyle.GREEN + "Ended " + UltraStyle.WHITE + who + UltraStyle.GREEN + "'s spar with "
+                + UltraStyle.WHITE + partner + UltraStyle.GREEN + ". No result: nothing counted for streaks, the "
+                + "leaderboard or ranking, and any wager went back.");
+        DmzRewards.msg(target, LmChat.info("Spar", "Staff ended your spar with " + partner
+                + ". It doesn't count for anything, and any wager went back."));
+        ServerPlayer other = partnerId == null ? null : source.m_81377_().m_6846_().m_11259_(partnerId);
+        if (other != null && other != target) {
+            DmzRewards.msg(other, LmChat.info("Spar", "Staff ended your spar with " + who
+                    + ". It doesn't count for anything, and any wager went back."));
+        }
+        return 1;
+    }
+
+    private static int adminBoardRemove(CommandSourceStack source, String name) {
+        if (StaffAccess.denyUnlessStaff(source) == 0) {
+            return 0;
+        }
+        Target t = target(source, name);
+        if (t == null) {
+            return 0;
+        }
+        if (!BoardSpar.staffRemovePost(t.uuid())) {
+            source.m_81352_(Component.m_237113_(UltraStyle.DANGER + t.name() + " has no post on the Spar Board."));
+            return 0;
+        }
+        reply(source, UltraStyle.GREEN + "Took down " + UltraStyle.WHITE + t.name() + UltraStyle.GREEN
+                + "'s Spar Board post.");
+        if (t.online() != null) {
+            DmzRewards.msg(t.online(), LmChat.info("Spar", "Staff took down your Spar Board post. You can post again "
+                    + "from the Spar Board."));
+        }
+        return 1;
+    }
+
+    private static int adminBoutCancel(CommandSourceStack source, String name) {
+        if (StaffAccess.denyUnlessStaff(source) == 0) {
+            return 0;
+        }
+        Target t = target(source, name);
+        if (t == null) {
+            return 0;
+        }
+        BoardSpar.Bout bout = BoardSpar.boutOf(t.uuid());
+        if (bout == null) {
+            source.m_81352_(Component.m_237113_(UltraStyle.DANGER + t.name() + " isn't in a board spar."));
+            return 0;
+        }
+        String nameA = bout.nameA;
+        String nameB = bout.nameB;
+        java.util.UUID idA = bout.a;
+        java.util.UUID idB = bout.b;
+        String wager = BoardSpar.staffCancelBout(t.uuid());
+        reply(source, UltraStyle.GREEN + "Cancelled the board spar " + UltraStyle.WHITE + nameA + UltraStyle.GREEN
+                + " vs " + UltraStyle.WHITE + nameB + UltraStyle.GREEN + ". No winner, nothing counted, both sent "
+                + "back. Wager: " + UltraStyle.WHITE + wager + UltraStyle.GREEN + ".");
+        for (java.util.UUID id : new java.util.UUID[] {idA, idB}) {
+            ServerPlayer p = id == null ? null : source.m_81377_().m_6846_().m_11259_(id);
+            if (p != null) {
+                DmzRewards.msg(p, LmChat.info("Spar", "Staff cancelled your board spar. Nobody won, it doesn't count, "
+                        + "and any wager went back."));
+            }
+        }
+        return 1;
+    }
+
+    private static int adminReset(CommandSourceStack source, String name, boolean confirm) {
+        if (StaffAccess.denyUnlessStaff(source) == 0) {
+            return 0;
+        }
+        Target t = target(source, name);
+        if (t == null) {
+            return 0;
+        }
+        if (!confirm) {
+            reply(source, UltraStyle.YELLOW + "This resets " + UltraStyle.WHITE + t.name() + UltraStyle.YELLOW
+                    + "'s spar record to 0: daily spar streak (and best), TP from spars (and best spar), leaderboard "
+                    + "streaks, and the ranking points they gave their dojo this season. Spar counts, times, combos, "
+                    + "history, mentor bonds and the dojo's own total stay. It can't be undone.");
+            reply(source, UltraStyle.GRAY + "To do it, type " + UltraStyle.WHITE + "/lm admin spar reset " + t.name()
+                    + " confirm");
+            return 1;
+        }
+        List<String> done = SparringSystem.resetSparRecord(t.uuid().toString());
+        SparStore.get().save();
+        if (done.isEmpty()) {
+            reply(source, UltraStyle.GRAY + t.name() + "'s spar record was already at 0. Nothing changed.");
+            return 1;
+        }
+        reply(source, UltraStyle.GREEN + "Reset " + UltraStyle.WHITE + t.name() + UltraStyle.GREEN
+                + "'s spar record:");
+        for (String line : done) {
+            reply(source, UltraStyle.GRAY + "- " + line);
+        }
+        ServerPlayer who = source.m_230896_();
+        AdaptiveDifficultyMod.LOGGER.info("[{}] spar record of {} reset by {}", AdaptiveDifficultyMod.MOD_ID, t.name(),
+                who == null ? "console" : who.m_7755_().getString());
+        if (t.online() != null) {
+            DmzRewards.msg(t.online(), LmChat.info("Spar", "Staff reset your spar record: streak, TP from spars and "
+                    + "season ranking points are back to 0."));
+        }
+        return 1;
+    }
+
+    private record Target(java.util.UUID uuid, String name, ServerPlayer online) {}
+
+    /**
+     * A player by name: online first, then offline names the spar leaderboard or the server's player cache knows.
+     * Tells the source and returns null when nobody matches.
+     */
+    private static Target target(CommandSourceStack source, String name) {
+        ServerPlayer online = RivalSystem.findOnline(source.m_81377_(), name);
+        if (online != null) {
+            return new Target(online.m_20148_(), online.m_7755_().getString(), online);
+        }
+        String want = name == null ? "" : name.trim();
+        if (!want.isEmpty()) {
+            for (java.util.Map.Entry<String, SparStore.LeaderboardEntry> e : SparStore.get().leaderboard.entrySet()) {
+                java.util.UUID id = uuidOrNull(e.getKey());
+                if (id != null && e.getValue() != null && want.equalsIgnoreCase(e.getValue().name)) {
+                    return new Target(id, e.getValue().name, null);
+                }
+            }
+            try {
+                var cache = source.m_81377_() == null ? null : source.m_81377_().m_129927_();
+                var profile = cache == null ? null : cache.m_10996_(want).orElse(null);
+                if (profile != null && profile.getId() != null) {
+                    return new Target(profile.getId(), profile.getName(), null);
+                }
+            } catch (Throwable ignored) {
+            }
+        }
+        source.m_81352_(Component.m_237113_(LmCommandMessages.playerNotFound(name)));
+        return null;
+    }
+
+    private static java.util.UUID uuidOrNull(String raw) {
+        try {
+            return raw == null ? null : java.util.UUID.fromString(raw);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private static int sparAdminStatus(CommandSourceStack source) {

@@ -289,6 +289,9 @@ public final class LmCommandSuggestions {
             return false;
         }
         String cmd = label == null ? "" : label.toLowerCase(Locale.ROOT);
+        if (adminPlayerSlot483(cmd, args)) {
+            return true;
+        }
         int n = args.length;
         String a0 = n > 0 ? lower(args[0]) : "";
         String a1 = n > 1 ? lower(args[1]) : "";
@@ -349,6 +352,35 @@ public final class LmCommandSuggestions {
         return false;
     }
 
+    /**
+     * 4.8.3: player-name slots of the new /lm admin leaves, in the legacy view (the name is always the last token):
+     * {@code lm admin saga reset|unlock}, {@code skillcheck clear}, {@code goals inspect|reset|grant},
+     * {@code dojo found}; {@code spar admin end|reset}, {@code board remove}, {@code bout cancel};
+     * {@code rival admin rp set|add}, {@code challenge cancel}; {@code difficulty admin tier grant|revoke}.
+     */
+    private static boolean adminPlayerSlot483(String cmd, String[] args) {
+        int n = args == null ? 0 : args.length;
+        String a0 = n > 0 ? lower(args[0]) : "";
+        String a1 = n > 1 ? lower(args[1]) : "";
+        String a2 = n > 2 ? lower(args[2]) : "";
+        if (!"admin".equals(a0)) {
+            return false;
+        }
+        return switch (cmd) {
+            case "lm" -> n == 4 && (("saga".equals(a1) && ("reset".equals(a2) || "unlock".equals(a2)))
+                    || ("skillcheck".equals(a1) && "clear".equals(a2))
+                    || ("goals".equals(a1) && ("inspect".equals(a2) || "reset".equals(a2) || "grant".equals(a2)))
+                    || ("dojo".equals(a1) && "found".equals(a2)));
+            case "spar" -> (n == 3 && ("end".equals(a1) || "reset".equals(a1)))
+                    || (n == 4 && (("board".equals(a1) && "remove".equals(a2))
+                    || ("bout".equals(a1) && "cancel".equals(a2))));
+            case "rival" -> n == 4 && (("rp".equals(a1) && ("set".equals(a2) || "add".equals(a2)))
+                    || ("challenge".equals(a1) && "cancel".equals(a2)));
+            case "difficulty", "diff" -> n == 4 && "tier".equals(a1) && ("grant".equals(a2) || "revoke".equals(a2));
+            default -> false;
+        };
+    }
+
     /** Partial token for the player-name slot (Bukkit often omits an empty trailing arg). */
     public static String playerNamePartial(String label, String[] args) {
         return playerNamePartial(label, args, null);
@@ -368,6 +400,10 @@ public final class LmCommandSuggestions {
             return last == null ? "" : last;
         }
         String cmd = label == null ? "" : label.toLowerCase(Locale.ROOT);
+        if (adminPlayerSlot483(cmd, args)) {
+            String p = args[args.length - 1];
+            return p == null ? "" : p;
+        }
         int n = args.length;
         if ("padmin".equals(cmd)) {
             if (n <= 1) {
@@ -508,7 +544,9 @@ public final class LmCommandSuggestions {
             "prestige", "progression", "skills"
     );
 
+    /** 4.8.3: {@code dojo} joins the clear scopes (leaves the player's dojo; a dojo they lead is kept). */
     public static final SuggestionProvider<CommandSourceStack> LM_CLEAR_SCOPES = literals(
+            "dojo",
             "all", "rival", "spar", "difficulty", "progression"
     );
 

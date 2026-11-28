@@ -643,7 +643,9 @@ public final class SparringSystem {
         SparPlayerRuntime bRt = partner == null ? null : runtime(partner.m_20148_());
         long now = System.currentTimeMillis();
         long duration = Math.max(0L, now - aRt.startAt);
-        if (partner != null) {
+        // 4.8.3: a staff end (/lm admin spar end, bout cancel) is no result: no weekly goal time, no history card.
+        boolean staffEnd = "staff".equals(reason);
+        if (partner != null && !staffEnd) {
             // 4.7.80 weekly goal: time spent sparring (both fighters).
             com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.note(player.m_20148_(), com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.SPAR_MINUTES, duration);
             com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.note(partner.m_20148_(), com.dbzlegacy.adaptivedifficulty.goals.WeeklyGoals.SPAR_MINUTES, duration);
@@ -661,7 +663,9 @@ public final class SparringSystem {
                 updateStreak(partner, bRt, duration);
                 DojoRankings.onInterDojoSession(player, aRt, partner, bRt, duration);
             }
-            recordRecentSession(partner, bRt, player, duration, reason);
+            if (!staffEnd) {
+                recordRecentSession(partner, bRt, player, duration, reason);
+            }
             bRt.resetSession();
             bRt.restartCooldownUntil = now + PAIR_RESTART_COOLDOWN_MS;
         }
@@ -669,7 +673,9 @@ public final class SparringSystem {
             updateLeaderboard(player, aRt, duration);
             updateStreak(player, aRt, duration);
         }
-        recordRecentSession(player, aRt, partner, duration, reason);
+        if (!staffEnd) {
+            recordRecentSession(player, aRt, partner, duration, reason);
+        }
         SystemTelemetry.log("sparring", "spar_end", player, partner,
                 SystemTelemetry.fields("reason", reason == null ? "" : reason,
                         "tp", (int) aRt.sessionTp, "ms", duration));
@@ -1703,6 +1709,87 @@ public final class SparringSystem {
                 : player.m_20194_().m_6846_().m_11259_(rt.partner);
         endSession(player, partner, "command");
         return UltraStyle.YELLOW + "Spar session ended.";
+    }
+
+    /**
+     * 4.8.3: staff force-end of {@code player}'s spar session with no result: no ranked credit, no streak, no history
+     * card, no weekly goal time; a board bout is cancelled ({@code BoardSpar.staffCancelBout}, wager refunded). TP
+     * already earned during the fight stays (it is paid as the fight runs). Returns the partner's name, or null when
+     * the player is not sparring.
+     */
+    public static String staffEndSession(ServerPlayer player) {
+        if (player == null) {
+            return null;
+        }
+        SparPlayerRuntime rt = runtime(player.m_20148_());
+        if (!rt.active) {
+            return null;
+        }
+        ServerPlayer partner = player.m_20194_() == null || rt.partner == null
+                ? null
+                : player.m_20194_().m_6846_().m_11259_(rt.partner);
+        String partnerName = partner == null ? "their partner" : partner.m_7755_().getString();
+        if (com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.inBout(player.m_20148_())) {
+            com.dbzlegacy.adaptivedifficulty.dojo.BoardSpar.staffCancelBout(player.m_20148_());
+            if (!rt.active) {
+                return partnerName;
+            }
+        }
+        rt.boardCredit = false;
+        if (partner != null) {
+            runtime(partner.m_20148_()).boardCredit = false;
+        }
+        endSession(player, partner, "staff");
+        return partnerName;
+    }
+
+    /**
+     * 4.8.3: staff reset of one player's spar record: the daily spar streak (current, best, last day), the lifetime
+     * TP from spars and best spar payout, the leaderboard streak counters, and the ranking points they gave their dojo
+     * this season. Session counts, times, combos, history, bonds and the dojo's own total stay. Returns one plain line
+     * per field that changed (empty when there was nothing to reset).
+     */
+    public static List<String> resetSparRecord(String uuid) {
+        List<String> done = new ArrayList<>();
+        if (uuid == null || uuid.isBlank()) {
+            return done;
+        }
+        SparStore store = SparStore.get();
+        SparStore.MentorBond bond = store.bondsByPlayer.get(uuid);
+        if (bond != null) {
+            if (bond.streakCurrent != 0 || bond.streakBest != 0) {
+                done.add("Daily spar streak " + bond.streakCurrent + " (best " + bond.streakBest + ") set to 0");
+            }
+            bond.streakCurrent = 0;
+            bond.streakBest = 0;
+            bond.streakLastDay = -999999L;
+        }
+        SparStore.LeaderboardEntry lb = store.leaderboard.get(uuid);
+        if (lb != null) {
+            if (lb.totalTp != 0 || lb.bestPayout != 0) {
+                done.add("TP from spars " + DmzRewards.formatWhole(lb.totalTp) + " (best spar "
+                        + DmzRewards.formatWhole(lb.bestPayout) + ") set to 0");
+            }
+            if (lb.currentStreak != 0 || lb.bestStreak != 0) {
+                done.add("Leaderboard streak " + lb.currentStreak + " (best " + lb.bestStreak + ") set to 0");
+            }
+            lb.totalTp = 0;
+            lb.bestPayout = 0;
+            lb.currentStreak = 0;
+            lb.bestStreak = 0;
+        }
+        if (store.dojoSeason != null && store.dojoSeason.leaderboard != null) {
+            for (SparStore.DojoEntry entry : store.dojoSeason.leaderboard.values()) {
+                SparStore.DojoMemberStats m = entry == null || entry.members == null ? null : entry.members.get(uuid);
+                if (m != null && m.rpContributed != 0) {
+                    done.add("Season ranking points given to " + (entry.mentorName == null || entry.mentorName.isBlank()
+                            ? "their dojo" : entry.mentorName + "'s dojo") + " " + (int) m.rpContributed + " set to 0");
+                    m.rpContributed = 0;
+                }
+            }
+        }
+        store.markDirty();
+        return done;
     }
 
     public static String setTpMsg(ServerPlayer player, Boolean on) {

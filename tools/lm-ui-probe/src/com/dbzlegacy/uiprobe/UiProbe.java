@@ -137,10 +137,79 @@ public final class UiProbe {
     private void crawl() {
         addFakes();
         try {
-            crawlInner();
+            String only = System.getProperty("uiprobe.only");
+            if (only != null && !only.isBlank()) {
+                onlyChecks(only.trim());
+            } else {
+                crawlInner();
+            }
         } finally {
             backing().removeAll(fakes);
         }
+    }
+
+    /** 4.8.3: the /lm admin checks, as staff in creative (the admin gate refuses staff in survival). */
+    private void v483Admin() {
+        net.minecraft.world.level.GameType was = player.f_8941_.m_9290_();
+        try {
+            player.m_143403_(net.minecraft.world.level.GameType.CREATIVE);
+            V483AdminDojo.run(player, this::note);
+            V483AdminSparRival.run(player, this::note);
+            V483AdminSystems.run(player, this::note);
+            // /lm admin help lists the new subtrees and runs for console and the in-game staff player.
+            String h = com.dbzlegacy.adaptivedifficulty.command.LmCommandHelp.lmAdmin();
+            boolean lists = h.contains("/lm admin dojo help") && h.contains("/lm admin saga help")
+                    && h.contains("/lm admin skillcheck help") && h.contains("/lm admin goals help")
+                    && com.dbzlegacy.adaptivedifficulty.command.LmCommandHelp.difficultyAdmin()
+                            .contains("/lm admin difficulty tier grant <player> <tier>")
+                    && h.contains("rival|spar|difficulty|progression|dojo") && h.contains("/lm admin dojo season advance");
+            var srv = player.m_20194_();
+            int rc = srv.m_129892_().m_230957_(srv.m_129893_(), "lm admin help");
+            int rp = srv.m_129892_().m_230957_(player.m_20203_(), "lm admin help");
+            note("V483 HELP /lm admin help lists dojo, saga, skillcheck, goals, tier grant, clear dojo; runs (console, "
+                    + "player): " + (lists && rc == 1 && rp == 1 ? "PASS" : "FAIL") + " | lists=" + lists + " console="
+                    + rc + " player=" + rp);
+            // Mohist tab completion: each new player slot is known, its partial name is the last token.
+            var sug = com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions.class;
+            String[][] slots = {{"admin", "saga", "reset", "Pa"}, {"admin", "saga", "unlock", "Pa"},
+                    {"admin", "skillcheck", "clear", "Pa"}, {"admin", "goals", "inspect", "Pa"},
+                    {"admin", "goals", "grant", "Pa"}, {"admin", "dojo", "found", "Pa"}, {"admin", "spar", "end", "Pa"},
+                    {"admin", "spar", "reset", "Pa"}, {"admin", "spar", "board", "remove", "Pa"},
+                    {"admin", "spar", "bout", "cancel", "Pa"}, {"admin", "rival", "rp", "set", "Pa"},
+                    {"admin", "rival", "challenge", "cancel", "Pa"}, {"admin", "difficulty", "tier", "grant", "Pa"}};
+            boolean tabs = true;
+            String miss = "";
+            for (String[] sl : slots) {
+                if (!com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions.expectsPlayerName("lm", sl)
+                        || !"Pa".equals(com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions
+                                .playerNamePartial("lm", sl))) {
+                    tabs = false;
+                    miss += " " + String.join(" ", sl);
+                }
+            }
+            boolean notAmount = !com.dbzlegacy.adaptivedifficulty.command.LmCommandSuggestions.expectsPlayerName("lm",
+                    new String[] {"admin", "rival", "rp", "set", "Pa", "5"});
+            note("V483 TAB Mohist name completion on every new player slot, not on the amount after it: "
+                    + (tabs && notAmount && sug != null ? "PASS" : "FAIL") + (miss.isEmpty() ? "" : " | missing" + miss));
+        } finally {
+            player.m_143403_(was);
+        }
+    }
+
+    /**
+     * 4.8.3: -Duiprobe.only=&lt;set&gt; runs just one set of checks: no menu crawl, no other scripts, no screenshots
+     * (pair it with -Duiprobe.norender). Owner rule: check only what the change touched, not every menu.
+     */
+    private void onlyChecks(String set) {
+        note("staff=" + com.dbzlegacy.adaptivedifficulty.util.StaffAccess.isStaff(player));
+        if ("v483".equals(set)) {
+            // 4.8.3: the /lm admin subtrees (dojo; spar and rival; saga, skillcheck, goals, difficulty tier).
+            v483Admin();
+        } else {
+            note("ONLY unknown check set " + set + ": FAIL");
+        }
+        write("uiprobe-script.txt", scriptLog.toString(), false);
+        write("uiprobe-packets.jsonl", "", false);
     }
 
     private void crawlInner() {
@@ -579,6 +648,8 @@ public final class UiProbe {
         V482BannerWorld.run(player, this::note);
         V482BannerUi.all(player, this::note);
         v88Commands();
+        // 4.8.3: the /lm admin subtrees (also alone with -Duiprobe.only=v483).
+        v483Admin();
     }
 
     // ---- 4.7.71 navigation audit and scripted checks (test only) ----
