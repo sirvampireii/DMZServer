@@ -23,6 +23,10 @@ import net.minecraft.server.level.ServerPlayer;
  * {@link DojoService#setBanner}: the dojo's first banner is free and starts no cooldown, a later change costs
  * {@link DojoCatalog#BANNER_CHANGE_COST} Dojo Points and starts the shared 12-hour identity cooldown. Copying a carried
  * banner (the older flow on the same page) still works.
+ *
+ * <p>4.8.4 (J): the editor is the way to pick a banner, and no banner item is ever needed. It also opens from founding
+ * step 3 (no dojo yet): there Save puts the design into the founding draft ({@link DojoFounding#useDesign}) and goes on
+ * to the founding confirm, free. Save never reads the inventory; nothing is ever taken.
  */
 public final class DojoBannerEditor {
     private DojoBannerEditor() {}
@@ -48,6 +52,8 @@ public final class DojoBannerEditor {
     record Edit(String dojo, String base, List<String> layers) {}
 
     private static final Map<UUID, Edit> EDITS = new ConcurrentHashMap<>();
+    /** 4.8.4 (J): the {@link Edit#dojo} of a design made while founding (there is no dojo yet). */
+    static final String FOUNDING = "found";
 
     static boolean owns(String lower) {
         return lower.equals(PAGE_EDIT) || lower.equals(PAGE_BASE) || lower.equals(PAGE_PATTERN)
@@ -66,9 +72,23 @@ public final class DojoBannerEditor {
     static Edit fromDojo(Dojo d) {
         boolean none = DojoService.defaultBanner(d);
         String base = BannerDesign.colourOf(none ? DojoService.bannerColour(d) : d.bannerBase);
+        return new Edit(d.masterUuid, base == null ? "white" : base, layersOf(none ? null : d.bannerPatterns));
+    }
+
+    /** 4.8.4 (J): a founding design as the editor starts it: the draft's banner, or the style's default colour. */
+    static Edit fromDraft(ServerPlayer p) {
+        DojoFounding.Draft dr = DojoFounding.draft(p);
+        boolean none = !DojoFounding.draftHasBanner(dr);
+        DojoCatalog.Style st = DojoCatalog.Style.of(dr.style());
+        String base = BannerDesign.colourOf(none ? (st == null ? "white" : st.bannerColour) : dr.base());
+        return new Edit(FOUNDING, base == null ? "white" : base, layersOf(none ? null : dr.patterns()));
+    }
+
+    /** Stored layers ({@code code:<dye>}) from a saved pattern list; unknown entries are skipped. */
+    private static List<String> layersOf(List<String> patterns) {
         List<String> layers = new ArrayList<>();
-        if (!none && d.bannerPatterns != null) {
-            for (String l : d.bannerPatterns) {
+        if (patterns != null) {
+            for (String l : patterns) {
                 String code = BannerDesign.layerCode(l);
                 String col = BannerDesign.layerColour(l);
                 if (!code.isEmpty() && col != null) {
@@ -76,7 +96,25 @@ public final class DojoBannerEditor {
                 }
             }
         }
-        return new Edit(d.masterUuid, base == null ? "white" : base, layers);
+        return layers;
+    }
+
+    /**
+     * 4.8.4 (J): true while {@code p} is founding a dojo (no dojo of their own, the draft has a name and a style): the
+     * editor then designs the founding banner.
+     */
+    static boolean founding(ServerPlayer p) {
+        return DojoService.foundProblem(p) == null && DojoFounding.draftReady(p);
+    }
+
+    /** The founding design in progress (started from the draft). */
+    static Edit foundingEdit(ServerPlayer p) {
+        Edit e = EDITS.get(p.m_20148_());
+        if (e == null || !FOUNDING.equals(e.dojo())) {
+            e = fromDraft(p);
+            EDITS.put(p.m_20148_(), e);
+        }
+        return e;
     }
 
     static Edit edit(ServerPlayer p, Dojo d) {
@@ -92,7 +130,7 @@ public final class DojoBannerEditor {
     public static String draftIcon(ServerPlayer p) {
         Dojo d = DojoService.viewedDojo(p);
         if (d == null) {
-            return "";
+            return founding(p) ? BannerDesign.icon(foundingEdit(p).base(), foundingEdit(p).layers()) : "";
         }
         Edit e = edit(p, d);
         return BannerDesign.icon(e.base(), e.layers());
@@ -117,16 +155,28 @@ public final class DojoBannerEditor {
         }
     }
 
-    /** The master's dojo, or null after drawing "only the master" on {@code spec}. */
-    private static Dojo masterDojo(ServerPlayer p, UltraScreenSpec spec) {
+    /** The master's dojo, or null (no dojo, or not its master). */
+    private static Dojo masterDojo(ServerPlayer p) {
         Dojo d = DojoService.viewedDojo(p);
-        if (d == null || !DojoService.isMaster(p.m_20148_(), d)) {
-            spec.line(UltraStyle.LABEL + "Only your dojo's master can design its banner.").buttonsAfterLines();
-            spec.back();
-            spec.send(p);
-            return null;
+        return d != null && DojoService.isMaster(p.m_20148_(), d) ? d : null;
+    }
+
+    /**
+     * The design this page edits: the master's dojo's, or (4.8.4 (J)) the founding one; or null after drawing "only
+     * the master" on {@code spec}.
+     */
+    private static Edit editFor(ServerPlayer p, UltraScreenSpec spec) {
+        Dojo d = masterDojo(p);
+        if (d != null) {
+            return edit(p, d);
         }
-        return d;
+        if (founding(p)) {
+            return foundingEdit(p);
+        }
+        spec.line(UltraStyle.LABEL + "Only your dojo's master can design its banner.").buttonsAfterLines();
+        spec.back();
+        spec.send(p);
+        return null;
     }
 
     /** True when the design is the dojo's saved banner (saving it again would cost points for nothing). */
@@ -140,12 +190,13 @@ public final class DojoBannerEditor {
 
     static void openEdit(ServerPlayer p, String notice) {
         UltraScreenSpec spec = UltraDojoScreens.dojoSub(PAGE_EDIT, notice);
-        Dojo d = masterDojo(p, spec);
-        if (d == null) {
+        Edit e = editFor(p, spec);
+        if (e == null) {
             return;
         }
-        Edit e = edit(p, d);
-        boolean first = DojoService.defaultBanner(d);
+        Dojo d = masterDojo(p);
+        boolean founding = d == null;
+        boolean first = founding || DojoService.defaultBanner(d);
         int n = e.layers().size();
         String icon = BannerDesign.icon(e.base(), e.layers());
         List<String> card = new ArrayList<>();
@@ -153,7 +204,11 @@ public final class DojoBannerEditor {
         card.add(UltraStyle.header("Banner editor"));
         card.add(UltraStyle.labelValue("Base", BannerDesign.colourLabel(e.base())) + UltraStyle.LABEL + " - "
                 + UltraStyle.labelValue("Layers", n + " of " + BannerDesign.MAX_LAYERS));
-        if (first) {
+        if (founding) {
+            // 4.8.4 (J): founding step 3; Save keeps the design for the founding, which is free.
+            card.add(UltraStyle.labelValue("Saving", "free, for your new dojo"));
+            card.add(UltraStyle.LABEL + "No banner item needed.");
+        } else if (first) {
             card.add(UltraStyle.labelValue("Saving", "free, your first banner"));
             card.add(UltraStyle.LABEL + "It starts no wait.");
         } else {
@@ -187,7 +242,10 @@ public final class DojoBannerEditor {
             }
         }
         String save;
-        if (first) {
+        if (founding) {
+            spec.buttonWide("do:" + ACT_SAVE, UltraStyle.confirm("Use this banner (free)"), UltraStyle.STYLE_CONFIRM,
+                    null);
+        } else if (first) {
             spec.buttonWide("do:" + ACT_SAVE, UltraStyle.confirm("Save this banner (free)"), UltraStyle.STYLE_CONFIRM,
                     null);
         } else if (unchanged(d, e)) {
@@ -223,11 +281,10 @@ public final class DojoBannerEditor {
 
     static void openBase(ServerPlayer p, String notice) {
         UltraScreenSpec spec = UltraDojoScreens.dojoSub(PAGE_BASE, notice);
-        Dojo d = masterDojo(p, spec);
-        if (d == null) {
+        Edit e = editFor(p, spec);
+        if (e == null) {
             return;
         }
-        Edit e = edit(p, d);
         spec.line(UltraStyle.header("Base colour"))
                 .line(UltraStyle.LABEL + "Pick the banner's background. Your layers stay as they are.")
                 .buttonsAfterLines();
@@ -238,11 +295,10 @@ public final class DojoBannerEditor {
 
     static void openPatterns(ServerPlayer p, int page, String notice) {
         UltraScreenSpec spec = UltraDojoScreens.dojoSub(UltraPickHelper.pageArg(PAGE_PATTERN, page), notice);
-        Dojo d = masterDojo(p, spec);
-        if (d == null) {
+        Edit e = editFor(p, spec);
+        if (e == null) {
             return;
         }
-        Edit e = edit(p, d);
         if (e.layers().size() >= BannerDesign.MAX_LAYERS) {
             openEdit(p, "6 layers is the most. Remove one first.");
             return;
@@ -282,11 +338,10 @@ public final class DojoBannerEditor {
     static void openColour(ServerPlayer p, String code, int at, String notice) {
         boolean recolour = at > 0;
         UltraScreenSpec spec = UltraDojoScreens.dojoSub(recolour ? PAGE_RECOLOUR + at : PAGE_COLOUR + code, notice);
-        Dojo d = masterDojo(p, spec);
-        if (d == null) {
+        Edit e = editFor(p, spec);
+        if (e == null) {
             return;
         }
-        Edit e = edit(p, d);
         if (recolour && at > e.layers().size()) {
             openEdit(p, "That layer is gone. Pick one from the list.");
             return;
@@ -338,11 +393,10 @@ public final class DojoBannerEditor {
 
     static void openLayer(ServerPlayer p, int at, String notice) {
         UltraScreenSpec spec = UltraDojoScreens.dojoSub(PAGE_LAYER + at, notice);
-        Dojo d = masterDojo(p, spec);
-        if (d == null) {
+        Edit e = editFor(p, spec);
+        if (e == null) {
             return;
         }
-        Edit e = edit(p, d);
         int n = e.layers().size();
         if (at < 1 || at > n) {
             openEdit(p, "That layer is gone. Pick one from the list.");
@@ -388,12 +442,13 @@ public final class DojoBannerEditor {
         if (action == null || !action.startsWith("dojo_bedit_")) {
             return false;
         }
-        Dojo d = DojoService.viewedDojo(p);
-        if (d == null || !DojoService.isMaster(p.m_20148_(), d)) {
+        Dojo d = masterDojo(p);
+        boolean founding = d == null && founding(p);
+        if (d == null && !founding) {
             UltraDojoScreens.openDojoNotice(p, "Only your dojo's master can design its banner.");
             return true;
         }
-        Edit e = edit(p, d);
+        Edit e = founding ? foundingEdit(p) : edit(p, d);
         List<String> layers = new ArrayList<>(e.layers());
         String a = arg == null ? "" : arg.trim();
         switch (action) {
@@ -455,10 +510,18 @@ public final class DojoBannerEditor {
                 openEdit(p, null);
             }
             case ACT_RESET -> {
-                EDITS.put(p.m_20148_(), fromDojo(d));
-                openEdit(p, "Back to your saved banner.");
+                EDITS.put(p.m_20148_(), founding ? fromDraft(p) : fromDojo(d));
+                openEdit(p, founding ? "Back to where you started." : "Back to your saved banner.");
             }
             case ACT_SAVE -> {
+                if (founding) {
+                    // 4.8.4 (J): the founding banner goes into the draft (no item read, nothing taken); founding is
+                    // free and the confirm page shows it.
+                    DojoFounding.useDesign(p, e.base(), e.layers());
+                    EDITS.remove(p.m_20148_());
+                    DojoFounding.openConfirm(p, "Your banner is ready. Found your dojo to fly it.");
+                    return true;
+                }
                 if (unchanged(d, e)) {
                     openEdit(p, "That is already your dojo's banner.");
                     return true;

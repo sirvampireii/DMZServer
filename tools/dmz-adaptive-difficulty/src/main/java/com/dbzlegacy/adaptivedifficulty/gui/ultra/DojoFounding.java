@@ -24,10 +24,10 @@ import net.minecraftforge.registries.ForgeRegistries;
  * <ol>
  *   <li>Name: the player types it (3 to 24 letters, numbers or spaces; no generated name).</li>
  *   <li>Style: one of the four {@link DojoCatalog.Style}s, the same the master can change later on the style page.</li>
- *   <li>Banner (4.7.84: optional, owner pick d): any crafted banner the player holds or carries. The dojo copies its
- *       design (base colour and patterns); the item stays in the inventory. "Use a default banner for now" founds
+ *   <li>Banner (4.7.84: optional, owner pick d; 4.8.4 (J): no banner item needed): "Design a banner here" opens the
+ *       banner editor, whose Save puts the design into the founding draft. "Use a default banner for now" founds
  *       with the style's default banner; "Choose your dojo's banner (free)" then stays on Dojo Home until one is
- *       picked.</li>
+ *       picked. A banner the player happens to carry can still be copied (the item stays in the inventory).</li>
  * </ol>
  *
  * The founding picks are free and start no cooldown; a player's first founding also pays
@@ -62,6 +62,23 @@ public final class DojoFounding {
     }
 
     private static final Map<UUID, Draft> DRAFTS = new ConcurrentHashMap<>();
+
+    /** True once the founding draft has a name and a style (the banner step and its editor are open). */
+    static boolean draftReady(ServerPlayer p) {
+        Draft d = draft(p);
+        return !d.name().isBlank() && !d.style().isBlank();
+    }
+
+    /** 4.8.4 (J): the founding banner the editor designed (base colour and layers); nothing is taken or checked. */
+    static void useDesign(ServerPlayer p, String base, List<String> layers) {
+        Draft d = draft(p);
+        DRAFTS.put(p.m_20148_(), new Draft(d.name(), d.style(), base, List.copyOf(layers)));
+    }
+
+    /** True when the draft carries a picked banner (designed or copied), not the default or none. */
+    static boolean draftHasBanner(Draft d) {
+        return !d.base().isBlank() && !DEFAULT_BANNER.equals(d.base());
+    }
 
     /** A banner the player can pick: where it is ({@code hand}, {@code off}, {@code slot:N}) and its design. */
     record Banner(String source, String base, List<String> patterns) {}
@@ -202,25 +219,32 @@ public final class DojoFounding {
                 .line(UltraStyle.labelValue("Name", d.name()) + UltraStyle.LABEL + " - " + UltraStyle.labelValue("Style",
                         s == null ? d.style() : s.label));
         // 4.7.84 (owner pick d): founding works without a banner; the dojo flies its style's default banner until the
-        // master picks one on Dojo Home (the first pick stays free).
+        // master picks one on Dojo Home (the first pick stays free). 4.8.4 (J): no banner item is needed: the editor
+        // is the way to design one; a banner the player happens to carry can still be copied (it stays theirs).
         List<Banner> found = banners(p);
         String colour = s == null ? "white" : s.bannerColour;
-        if (found.isEmpty()) {
-            spec.line(UltraStyle.LABEL + "You carry no banner. That's fine: use the default and choose your own later on"
-                    + " Dojo Home (free).");
-        } else {
-            spec.line(UltraStyle.LABEL + "Pick a banner you carry (the dojo copies its design; the banner stays yours),"
-                    + " or use the default for now.");
+        if (draftHasBanner(d)) {
+            spec.line(UltraStyle.labelValue("Your banner", describe(d.base(), d.patterns())));
+        }
+        spec.line(UltraStyle.VALUE + "Design your banner here: any base colour and up to " + BannerDesign.MAX_LAYERS
+                        + " pattern layers. No banner item needed.")
+                .line(UltraStyle.LABEL + "Or fly your style's default for now and choose your own later on Dojo Home"
+                        + " (free).");
+        if (!found.isEmpty()) {
+            spec.line(UltraStyle.LABEL + "You can also copy a banner you carry. It stays yours.");
         }
         spec.buttonsAfterLines();
-        spec.buttonWide("do:" + ACT_BANNER + ":" + DEFAULT_BANNER, UltraStyle.confirm("Use a default banner for now ("
-                + describeColour(colour) + ")"), UltraStyle.STYLE_CONFIRM, null).rowGap();
+        spec.buttonWide("page:" + DojoBannerEditor.PAGE_EDIT, UltraStyle.confirm(draftHasBanner(d)
+                ? "Change your banner in the editor" : "Design a banner here"), UltraStyle.STYLE_CONFIRM, null).rowGap();
+        spec.buttonWide("do:" + ACT_BANNER + ":" + DEFAULT_BANNER, "Use a default banner for now ("
+                + describeColour(colour) + ")", UltraStyle.STYLE_NORMAL, null).rowGap();
+        int shown = 0;
         for (Banner b : found) {
-            spec.buttonWide("do:" + ACT_BANNER + ":" + b.source(), "Use: " + describe(b.base(), b.patterns())
+            if (shown++ >= PICKER_SHOWN) {
+                break;                                      // 4.8.4: two choice rows above; the page fits 300 px
+            }
+            spec.buttonWide("do:" + ACT_BANNER + ":" + b.source(), "Copy: " + describe(b.base(), b.patterns())
                     + where(b.source()), UltraStyle.STYLE_NORMAL, null).rowGap();
-        }
-        if (found.isEmpty()) {
-            spec.button("page:" + PAGE_BANNER, "Check again", UltraStyle.STYLE_NORMAL).rowGap();
         }
         spec.back();
         spec.send(p);
@@ -259,7 +283,7 @@ public final class DojoFounding {
                 .line(UltraStyle.labelValue("Style", s == null ? d.style() : s.label + " (" + s.covers + ")"))
                 .line(UltraStyle.labelValue("Banner", useDefault ? "default (" + describeColour(s == null ? "white"
                         : s.bannerColour) + "), choose your own later for free" : describe(d.base(), d.patterns())))
-                .line(UltraStyle.LABEL + (useDefault ? "Founding is free." : "Founding is free. Your banner item stays in"
+                .line(UltraStyle.LABEL + (useDefault ? "Founding is free." : "Founding is free. Nothing is taken from"
                         + " your inventory."))
                 .line(UltraStyle.LABEL + "You become the master. Your hall starts with one ring.");
         grantLine(spec, p);
@@ -348,23 +372,17 @@ public final class DojoFounding {
     }
 
     /**
-     * The banners the player holds or carries, as buttons; or, with none, how to get one and a "Check again" button
-     * (4.7.84: any crafted banner works, plain is fine).
+     * 4.8.4 (J): the editor button (the way to pick a banner: no banner item needed), then any banners the player
+     * happens to hold or carry as an optional copy (the item stays theirs). Nothing here needs or checks an item.
      */
     private static void bannerPicker(UltraScreenSpec spec, ServerPlayer p, String actionPrefix, String verb) {
         List<Banner> found = banners(p);
-        // 4.8.2: the banner editor builds one from vanilla patterns here; copying a carried banner is the other way.
-        if (found.isEmpty()) {
-            spec.line(UltraStyle.VALUE + "Design your banner here, or copy one you carry.")
-                    .line(UltraStyle.LABEL + "Craft any banner (6 wool and a stick; add patterns at a loom if you like),"
-                            + " hold it or carry it, then check again.")
-                    .buttonsAfterLines();
-            editorButton(spec);
-            spec.button("page:" + PAGE_PICK_BANNER, "Check again", UltraStyle.STYLE_NORMAL).rowGap();
-            return;
+        spec.line(UltraStyle.VALUE + "Design your banner here: any base colour and up to " + BannerDesign.MAX_LAYERS
+                + " pattern layers. No banner item needed.");
+        if (!found.isEmpty()) {
+            spec.line(UltraStyle.LABEL + "You can also copy a banner you carry. It stays yours.");
         }
-        spec.line(UltraStyle.VALUE + "Design your banner here, or copy one you carry (it stays yours).")
-                .buttonsAfterLines();
+        spec.buttonsAfterLines();
         editorButton(spec);
         // Full-width rows: "Use for 20: Light gray, 6 patterns (off hand)" is cut on a half-width button.
         int shown = 0;
@@ -514,7 +532,7 @@ public final class DojoFounding {
                 }
                 Banner b = bannerAt(p, a);
                 if (b == null) {
-                    openBanner(p, "That banner is gone. Pick one you still carry.");
+                    openBanner(p, "That banner isn't in your inventory any more. Design one here instead.");
                     return true;
                 }
                 Draft d = draft(p);
@@ -537,7 +555,7 @@ public final class DojoFounding {
             }
             case ACT_SET_BANNER -> {
                 Banner b = bannerAt(p, a);
-                String msg = b == null ? "That banner is gone. Pick one you still carry."
+                String msg = b == null ? "That banner isn't in your inventory any more. Design one in the editor instead."
                         : DojoService.setBanner(p, b.base(), b.patterns());
                 UltraDojoScreens.openDojoNotice(p, msg);
                 return true;

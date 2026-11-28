@@ -205,11 +205,24 @@ public final class UiProbe {
         if ("v483".equals(set)) {
             // 4.8.3: the /lm admin subtrees (dojo; spar and rival; saga, skillcheck, goals, difficulty tier).
             v483Admin();
+        } else if ("v484".equals(set) || "v484menus".equals(set)) {
+            // 4.8.4 (H, I, J): maxed upgrade page, tap-a-name promote, banner with no item.
+            V484Menus.run(player, this::note, this::keepAll);
         } else {
             note("ONLY unknown check set " + set + ": FAIL");
         }
         write("uiprobe-script.txt", scriptLog.toString(), false);
-        write("uiprobe-packets.jsonl", "", false);
+        // 4.8.4: the pages a set kept (screenshots, the Ultra GUI kit corpus); empty when it kept none.
+        write("uiprobe-packets.jsonl", packetsJsonl(), false);
+    }
+
+    /** 4.8.4: pages a part's probe captured itself, kept like {@link #keep} (screenshots and the packet file). */
+    private void keepAll(String tag, List<GuiOpenPacket> got) {
+        for (GuiOpenPacket p : got) {
+            packets.add(p);
+            origin.add("script " + tag);
+            note("PACKET " + tag + " -> " + p.screenId() + "|" + p.pageId() + " buttons=" + labels(p));
+        }
     }
 
     private void crawlInner() {
@@ -280,6 +293,12 @@ public final class UiProbe {
         // 4.7.84 (X5): after the crawl every player page has been seen once; none may be over the height budget.
         v84Budget("after the navigation crawl");
         skinPass();
+        write("uiprobe-packets.jsonl", packetsJsonl(), false);
+        LOG.info("uiprobe crawled {} packets with {} dispatches", packets.size(), dispatched);
+    }
+
+    /** Every kept packet, one JSON object a line (uiprobe-packets.jsonl). */
+    private String packetsJsonl() {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < packets.size(); i++) {
             GuiOpenPacket p = packets.get(i);
@@ -299,8 +318,7 @@ public final class UiProbe {
             o.add("inputs", JsonParser.parseString(p.inputsJson() == null || p.inputsJson().isBlank() ? "[]" : p.inputsJson()));
             sb.append(o).append('\n');
         }
-        write("uiprobe-packets.jsonl", sb.toString(), false);
-        LOG.info("uiprobe crawled {} packets with {} dispatches", packets.size(), dispatched);
+        return sb.toString();
     }
 
 
@@ -650,6 +668,8 @@ public final class UiProbe {
         v88Commands();
         // 4.8.3: the /lm admin subtrees (also alone with -Duiprobe.only=v483).
         v483Admin();
+        // 4.8.4 (H, I, J): maxed upgrade page, tap-a-name promote, banner with no item (also -Duiprobe.only=v484menus).
+        V484Menus.run(player, this::note, this::keepAll);
     }
 
     // ---- 4.7.71 navigation audit and scripted checks (test only) ----
@@ -3008,8 +3028,10 @@ public final class UiProbe {
         List<GuiOpenPacket> st2 = UltraScreenSpec.captureSends(() ->
                 com.dbzlegacy.adaptivedifficulty.gui.ultra.DojoFounding.handle(f, "dojo_found_style", "KI", new JsonObject()));
         // 4.7.84 (pick d): no banner is fine; the step offers a default banner to found with now.
-        boolean noBanner = !st2.isEmpty() && "found_banner".equals(st2.get(0).pageId()) && has(st2.get(0), "You carry no banner")
-                && labels(st2.get(0)).contains("Use a default banner for now") && !labels(st2.get(0)).contains("Use:");
+        // 4.8.4 (J): no banner item needed: the editor and the default, no "You carry no banner" line.
+        boolean noBanner = !st2.isEmpty() && "found_banner".equals(st2.get(0).pageId()) && has(st2.get(0), "No banner item needed")
+                && !has(st2.get(0), "You carry no banner") && labels(st2.get(0)).contains("Design a banner here")
+                && labels(st2.get(0)).contains("Use a default banner for now") && !labels(st2.get(0)).contains("Copy:");
         note("V78 founding without a banner offers the default banner: " + pf(noBanner));
         var bannerItem = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(
                 new net.minecraft.resources.ResourceLocation("minecraft", "red_banner"));

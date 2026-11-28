@@ -508,7 +508,7 @@ public final class DojoService {
             return "Only the master can pick the dojo's banner.";
         }
         if (bannerBase == null || bannerBase.isBlank()) {
-            return "Hold or carry any banner you crafted, then pick it.";
+            return "Design your banner in the editor first. No banner item is needed.";
         }
         boolean first = d.bannerBase == null || d.bannerBase.isBlank();
         if (!first) {
@@ -839,6 +839,21 @@ public final class DojoService {
     // ------------------------------------------------------------------ elites
 
     public static String promote(ServerPlayer master, String targetUuid) {
+        String bad = promoteProblem(master, targetUuid);
+        if (bad != null) {
+            return bad;
+        }
+        Dojo d = viewedDojo(master);
+        d.elites.add(targetUuid);
+        store().markDirty();
+        return nameOf(targetUuid) + " is now an elite: they can buy upgrades and declare wars.";
+    }
+
+    /**
+     * 4.8.4 (I): why {@code master} can't make {@code targetUuid} an elite right now, or null when they can. These are
+     * {@link #promote}'s rules (the Members name-tap page shows the reason before the click).
+     */
+    public static String promoteProblem(ServerPlayer master, String targetUuid) {
         Dojo d = viewedDojo(master);
         if (d == null || !isMaster(master.m_20148_(), d)) {
             return "Only the master names elites.";
@@ -857,9 +872,7 @@ public final class DojoService {
         if (left > 0L) {
             return nameOf(targetUuid) + " can be an elite in " + daysText(left) + ".";
         }
-        d.elites.add(targetUuid);
-        store().markDirty();
-        return nameOf(targetUuid) + " is now an elite: they can buy upgrades and declare wars.";
+        return null;
     }
 
     public static String demote(ServerPlayer master, String targetUuid) {

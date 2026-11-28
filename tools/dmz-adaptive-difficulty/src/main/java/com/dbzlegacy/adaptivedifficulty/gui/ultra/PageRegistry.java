@@ -228,6 +228,8 @@ public final class PageRegistry {
         p("dojo", "dojo_members", "Members", "dojo|home", "members roster elites disciples title");
         item("dojo", "dojo_members:**", "Members", "dojo|home");
         item("dojo", "dojo_member:**", "Member", "dojo|dojo_members");
+        // 4.8.4 (I): tapping a disciple's name on Members asks to make them an elite.
+        item("dojo", "dojo_promote_ask:**", "Make elite", "dojo|dojo_members");
         item("dojo", "dojo_elites", "Members", "dojo|home");
         item("dojo", "dojo_close", "Close dojo", "dojo|home");
         item("dojo", "dojo_roster", "Members", "dojo|home");

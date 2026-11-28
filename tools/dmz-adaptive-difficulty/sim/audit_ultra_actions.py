@@ -127,6 +127,8 @@ KNOWN_DO: dict[str, set[str]] = {
         "dojo_style",
         "dojo_bonus",
         "dojo_promote",
+        # 4.8.4 (I): the confirm on the Members name-tap page.
+        "dojo_promote_list",
         "dojo_demote",
         "dojo_warrights",
         "dojo_visit",

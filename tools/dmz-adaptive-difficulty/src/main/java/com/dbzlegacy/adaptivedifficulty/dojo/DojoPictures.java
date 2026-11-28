@@ -156,6 +156,26 @@ public final class DojoPictures {
         return items;
     }
 
+    /**
+     * LM 4.8.4 (H): a fully built track's page shows that part alone at the level it has, instead of the whole hall:
+     * a room at its top level ({@code cu_<part>_3_<style>}), the rings in the look the hall has now. One item, or an
+     * empty array for disciple capacity (no building) or a missing texture.
+     */
+    public static JsonArray maxed(DojoState s, String upgrade) {
+        JsonArray items = new JsonArray();
+        if (s == null || DojoCatalog.CAPACITY.equals(upgrade)) {
+            return items;
+        }
+        boolean ring = DojoCatalog.ARENA.equals(upgrade);
+        String part = ring ? "arena" : DojoState.part(upgrade, s.arenas);
+        int level = ring ? s.tier : s.level(upgrade);
+        JsonObject it = whole(closeUp(part, level, s.style, s.tier), "Fully built");
+        if (it != null) {
+            items.add(it);
+        }
+        return items;
+    }
+
     /** The plan of the dojo as it is, for the Dojo tab and the upgrade list. */
     public static JsonArray plan(DojoState s) {
         JsonArray items = new JsonArray();

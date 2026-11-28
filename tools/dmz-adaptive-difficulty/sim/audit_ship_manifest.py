@@ -2050,6 +2050,59 @@ def main() -> int:
     check("mods.toml loads LM on both sides", p58_toml.count('side = "BOTH"') >= 2
           and 'modId = "kaipath"' not in p58_toml
           and "LmNativeSelfTest.run();" in p58_bridge)
+    print("\n--- § lm 4.8.4 H I J ---")
+    q84m_ui = read(SRC / "gui/ultra/UltraDojoScreens.java")
+    q84m_pic = read(SRC / "dojo/DojoPictures.java")
+    q84m_svc = read(SRC / "dojo/DojoService.java")
+    q84m_reg = read(SRC / "gui/ultra/PageRegistry.java")
+    q84m_found = read(SRC / "gui/ultra/DojoFounding.java")
+    q84m_ed = read(SRC / "gui/ultra/DojoBannerEditor.java")
+    q84m_probe = (ROOT / "tools/lm-ui-probe/src/com/dbzlegacy/uiprobe/UiProbe.java").read_text(encoding="utf-8")
+    q84m_v = ROOT / "tools/lm-ui-probe/src/com/dbzlegacy/uiprobe/V484Menus.java"
+    q84m_vt = q84m_v.read_text(encoding="utf-8") if q84m_v.exists() else ""
+    q84m_up = q84m_ui.split("static void openUpgrade(", 1)[1].split("static void openStyle(", 1)[0]
+    # H: a maxed track's page shows its part alone (picture clients); tiers left keep the map; capacity unchanged.
+    check("H: maxed upgrade page shows the single max-tier close-up, not the hall map (picture clients)",
+          "public static JsonArray maxed(DojoState s, String upgrade)" in q84m_pic
+          and 'whole(closeUp(part, level, s.style, s.tier), "Fully built")' in q84m_pic
+          and "DojoCatalog.CAPACITY.equals(upgrade)" in q84m_pic.split("public static JsonArray maxed(", 1)[1][:400]
+          and "maxed ? com.dbzlegacy.adaptivedifficulty.dojo.DojoPictures.maxed(" in q84m_up
+          and "pics = maxed ||" not in q84m_up
+          and "DojoWorld.mapLines(d, up, !maxed)" in q84m_up and "LmNativeNetwork.takesPictures(player)" in q84m_up)
+    # I: the name asks to promote (confirm page, rules inline); View opens the member page; no side promote button.
+    q84m_mem = q84m_ui.split("static void openMembers(", 1)[1].split("static void openPromoteAsk(", 1)[0]
+    check("I: Members row: name -> promote ask, View -> member page, no Make elite side button, Step down kept",
+          '"page:" + PAGE_PROMOTE_ASK + u' in q84m_mem and '"page:" + PAGE_MEMBER + u, "View"' in q84m_mem
+          and "do:dojo_promote:" not in q84m_mem and "Make elite" not in q84m_mem
+          and '"do:dojo_demote:" + u, UltraStyle.danger("Step down")' in q84m_mem
+          and 'PAGE_PROMOTE_ASK = "dojo_promote_ask:"' in q84m_ui
+          and 'item("dojo", "dojo_promote_ask:**", "Make elite", "dojo|dojo_members");' in q84m_reg)
+    check("I: promote confirm shows the rule inline before the click; promote's rules unchanged (promoteProblem)",
+          "static void openPromoteAsk(" in q84m_ui and "DojoService.promoteProblem(player, u)" in q84m_ui
+          and "UltraStyle.dangerLine(why)" in q84m_ui and '"Yes, make elite"' in q84m_ui
+          and "case ACT_PROMOTE_LIST ->" in q84m_ui
+          and "public static String promoteProblem(ServerPlayer master, String targetUuid)" in q84m_svc
+          and has(q84m_svc.split("public static String promoteProblem(", 1)[1].split("public static String demote(", 1)[0],
+                  '"Only the master names elites."', '"Your dojo already has two elites. Step one down first."',
+                  "DojoCatalog.ELITE_MIN_MS", "d.elites.size() >= DojoCatalog.MAX_ELITES")
+          and 'spec.buttonLeft("do:dojo_promote:" + u, "Make elite"' in q84m_ui)
+    # J: the editor is the way to pick a banner; no inventory gate; save never re-reads the inventory.
+    check("J: banner pick page and founding step 3: editor first, no carry gate or Check again copy",
+          "Check again" not in q84m_found and "Craft any banner" not in q84m_found
+          and "You carry no banner" not in q84m_found and q84m_found.count("No banner item needed.") >= 2
+          and 'spec.buttonWide("page:" + DojoBannerEditor.PAGE_EDIT' in q84m_found.split("static void openBanner(", 1)[1]
+          and "You can also copy a banner you carry. It stays yours." in q84m_found
+          and "static void useDesign(ServerPlayer p, String base, List<String> layers)" in q84m_found)
+    q84m_save = q84m_ed.split("case ACT_SAVE ->", 1)[1].split("default ->", 1)[0]
+    check("J: editor works while founding and its Save never reads the inventory or takes an item",
+          "static boolean founding(ServerPlayer p)" in q84m_ed and "DojoFounding.useDesign(p, e.base(), e.layers())" in q84m_save
+          and "DojoService.setBanner(p, e.base(), new ArrayList<>(e.layers()))" in q84m_save
+          and "bannerAt" not in q84m_ed and "banners(" not in q84m_ed and "m_41774_" not in q84m_ed
+          and "shrink" not in q84m_ed and '"Use this banner (free)"' in q84m_ed)
+    check("H I J: probe V484Menus wired (only=v484menus and the full crawl)",
+          q84m_probe.count("V484Menus.run(player, this::note, this::keepAll);") == 2
+          and '"v484menus".equals(set)' in q84m_probe
+          and all(t in q84m_vt for t in ('line(note, "MAXED"', 'line(note, "PROMOTE"', 'line(note, "BANNER"')))
     print("\n--- § lm 4.8.3 ---")
     c83 = SRC / "command"
     q83_da = read(c83 / "DojoAdminCommands.java")
@@ -2650,7 +2703,8 @@ def main() -> int:
           and 'p("dojo", "home", "Dojo", "hub|main", "my dojo");' in p78_reg and 'p("spar", "dojo"' not in p78_reg)
     check("D: founding asks name, style and banner; banner copied, never consumed; shown on Dojo Home",
           has(p78_found, "PAGE_NAME = \"found\"", "ACT_STYLE", "ACT_BANNER", "ACT_CONFIRM",
-              "Craft any banner (6 wool and a stick; add patterns at a loom if you like),")
+              # 4.8.4 (J): no banner item needed (the editor); the old "Craft any banner" copy is gone.
+              "No banner item needed.")
           and "shrink" not in p78_found and "m_41774_" not in p78_found
           and "public static String found(ServerPlayer p, String name, String styleId, String bannerBase, List<String> patterns)" in p78_svc
           # 4.7.84 (DJ-1): Dojo Home folds the banner into its stats card ("Banner" + DojoFounding.bannerText).

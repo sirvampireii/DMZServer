@@ -56,6 +56,10 @@ public final class UltraDojoScreens {
     static final String PAGE_SETTINGS = "dojo_settings";
     static final String PAGE_MEMBERS = "dojo_members";
     static final String PAGE_MEMBER = "dojo_member:";
+    /** 4.8.4 (I): tapping a disciple's name on Members asks to make them an elite. */
+    static final String PAGE_PROMOTE_ASK = "dojo_promote_ask:";
+    /** 4.8.4 (I): the confirm on that page; success goes back to Members, a refusal stays on the page. */
+    static final String ACT_PROMOTE_LIST = "dojo_promote_list";
     static final String PAGE_VIEW = "dojo_view:";
     static final String PAGE_JOIN_ASK = "dojo_join_ask:";
     static final String PAGE_STYLE_PICK = "dojo_style_pick";
@@ -167,6 +171,8 @@ public final class UltraDojoScreens {
         } else if (base.equals(PAGE_MEMBERS) || lower.equals("dojo_elites") || lower.equals("dojo_roster")) {
             // 4.7.84 (DJ-2): one Members page; the old elites and roster page ids open it too.
             openMembers(player, UltraPickHelper.pageIndex(lower), notice);
+        } else if (lower.startsWith(PAGE_PROMOTE_ASK)) {
+            openPromoteAsk(player, p.substring(PAGE_PROMOTE_ASK.length()), notice);
         } else if (lower.startsWith(PAGE_MEMBER)) {
             openMember(player, p.substring(PAGE_MEMBER.length()), notice);
         } else if (lower.equals("dojo_wars") || lower.equals("wars") || lower.equals("dojo_war")) {
@@ -1117,11 +1123,16 @@ public final class UltraDojoScreens {
             card.add(UltraStyle.labelValue("Cost", cost + " points"));
             card.add(UltraStyle.labelValue("You have", String.valueOf(d.points)));
         }
-        com.google.gson.JsonArray pics = maxed || !com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesPictures(player)
+        // 4.8.4 (H): a fully built track shows its part alone at the level it has (one close-up), not the whole hall
+        // map; a track with tiers left keeps Now/After/Where. Text clients keep the map; capacity has no picture.
+        com.google.gson.JsonArray pics = !com.dbzlegacy.adaptivedifficulty.net.gui.LmNativeNetwork.takesPictures(player)
                 ? new com.google.gson.JsonArray()
+                : maxed ? com.dbzlegacy.adaptivedifficulty.dojo.DojoPictures.maxed(
+                        com.dbzlegacy.adaptivedifficulty.dojo.DojoState.of(d), up)
                 : com.dbzlegacy.adaptivedifficulty.dojo.DojoPictures.upgrade(com.dbzlegacy.adaptivedifficulty.dojo.DojoState.of(d), up);
         if (pics.size() > 0) {
-            // LM clients: what this builds before and after, and where it goes in the hall (green), beside the card.
+            // LM clients: what this builds before and after, and where it goes in the hall (green), beside the card;
+            // a maxed track: the built part alone.
             spec.pictures(card, PICTURE_ROWS, PICTURE_SIDE, pics);
         } else {
             for (String l : card) {
@@ -1405,6 +1416,9 @@ public final class UltraDojoScreens {
                         + " wars. Disciples carry the title Disciple of " + d.name + ".");
         if (disciples.isEmpty()) {
             spec.line(UltraStyle.LABEL + "No disciples yet. Invite players from Training bonds > Recruit.");
+        } else if (master) {
+            spec.line(UltraStyle.LABEL + "Tap a disciple's name to make them an elite (you confirm first). View opens"
+                    + " their page.");
         }
         spec.buttonsAfterLines();
         List<String> shown = UltraPickHelper.pageSlice(disciples, MEMBERS_SHOWN, pg);
@@ -1412,15 +1426,17 @@ public final class UltraDojoScreens {
             for (String u : shown) {
                 String name = DojoService.nameOf(u);
                 boolean elite = d.elites.contains(u);
-                spec.buttonLeft("page:" + PAGE_MEMBER + u, UltraStyle.buttonText(name + (elite ? " (elite)" : "")),
-                        UltraStyle.STYLE_NORMAL);
                 if (elite) {
-                    // 4.7.73: a demote is drawn as danger.
+                    // 4.8.4 (I): an elite has nothing to promote, so their name opens their page (war rights live
+                    // there). 4.7.73: a demote is drawn as danger.
+                    spec.buttonLeft("page:" + PAGE_MEMBER + u, UltraStyle.buttonText(name + " (elite)"),
+                            UltraStyle.STYLE_NORMAL);
                     spec.buttonRight("do:dojo_demote:" + u, UltraStyle.danger("Step down"), UltraStyle.STYLE_DANGER);
-                } else if (d.elites.size() >= DojoCatalog.MAX_ELITES) {
-                    spec.lockedButtonRight("Make elite - 2 already");
                 } else {
-                    spec.buttonRight("do:dojo_promote:" + u, "Make elite", UltraStyle.STYLE_NORMAL);
+                    // 4.8.4 (I): tapping the name asks to make them an elite (a confirm page with the rules); View
+                    // opens their page. No other promote control on the row.
+                    spec.buttonLeft("page:" + PAGE_PROMOTE_ASK + u, UltraStyle.buttonText(name), UltraStyle.STYLE_NORMAL);
+                    spec.buttonRight("page:" + PAGE_MEMBER + u, "View", UltraStyle.STYLE_NORMAL);
                 }
                 spec.rowGap();
             }
@@ -1442,6 +1458,44 @@ public final class UltraDojoScreens {
         pager(spec, PAGE_MEMBERS, pg, pages);
         spec.buttonLeft("page:dojo_previous_members", "Previous members", UltraStyle.STYLE_NORMAL);
         spec.buttonRight("page:mentor", "Training bonds", UltraStyle.STYLE_NORMAL).rowGap();
+        spec.back();
+        spec.send(player);
+    }
+
+    /**
+     * 4.8.4 (I): "Make X an elite?" - opened by tapping a disciple's name on Members. Says what an elite can do, and
+     * when a rule blocks it (two elites already, the 3-day wait, not your disciple) says why on the page with the
+     * confirm dim. The rules are {@link DojoService#promoteProblem}, the same {@link DojoService#promote} applies.
+     */
+    static void openPromoteAsk(ServerPlayer player, String uuid, String notice) {
+        Dojo d = viewed(player);
+        String u = uuid == null ? "" : uuid.trim();
+        String why = DojoService.promoteProblem(player, u);
+        UltraScreenSpec spec = dojoSub(PAGE_PROMOTE_ASK + u, why != null && why.equals(notice) ? null : notice);
+        if (d == null || !DojoService.isMaster(player.m_20148_(), d) || !DojoService.disciples(d).contains(u)) {
+            spec.line(UltraStyle.LABEL + "Only the master manages members, and only their own disciples.")
+                    .buttonsAfterLines();
+            spec.back();
+            spec.send(player);
+            return;
+        }
+        String name = DojoService.nameOf(u);
+        spec.line(UltraStyle.header("Make " + name + " an elite?"))
+                .line(UltraStyle.labelValue("Elites now", d.elites.size() + " of " + DojoCatalog.MAX_ELITES))
+                .line(UltraStyle.LABEL + "An elite can spend the dojo's points on upgrades and declare wars. You can"
+                        + " step them down later on this list.");
+        if (why != null) {
+            spec.line(UltraStyle.dangerLine(why));
+        }
+        spec.buttonsAfterLines();
+        if (why == null) {
+            spec.buttonLeft("do:" + ACT_PROMOTE_LIST + ":" + u, UltraStyle.confirm("Yes, make elite"),
+                    UltraStyle.STYLE_CONFIRM);
+        } else {
+            spec.lockedButton(d.elites.size() >= DojoCatalog.MAX_ELITES ? "Make elite - 2 already"
+                    : "Make elite - not yet");
+        }
+        spec.buttonRight("page:" + PAGE_MEMBER + u, "View their page", UltraStyle.STYLE_NORMAL).rowGap();
         spec.back();
         spec.send(player);
     }
@@ -2075,6 +2129,12 @@ public final class UltraDojoScreens {
             case "dojo_promote" -> {
                 msg = DojoService.promote(p, a);
                 page = PAGE_MEMBER + a;
+            }
+            case ACT_PROMOTE_LIST -> {
+                // 4.8.4 (I): the name-tap confirm: back to Members when it worked, else the ask page says why.
+                msg = DojoService.promote(p, a);
+                Dojo d = DojoService.viewedDojo(p);
+                page = d != null && d.elites.contains(a) ? PAGE_MEMBERS : PAGE_PROMOTE_ASK + a;
             }
             case "dojo_demote" -> {
                 msg = DojoService.demote(p, a);
